@@ -284,7 +284,7 @@ module_file <- function(module, suffix = NULL) {
 package_file <- function(path, package) {
 
   if (not_null(package)) {
-    path <- system.file(path, package = package)
+    path <- package_system_file(path, package = package)
   }
 
   if (nzchar(path) && file.exists(path)) path else ""

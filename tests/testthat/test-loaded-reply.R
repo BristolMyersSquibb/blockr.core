@@ -207,7 +207,14 @@ test_that("R gives the version of each plugin class that a package versions", {
   local_versions(blockr.one = "1.2.0")
 
   expect_identical(plugin_versions(), list(`blockr.one-dag_plugin` = 3L))
-  expect_identical(loaded_reply()$packages$blockr.one, "1.2.0")
+  expect_identical(
+    loaded_reply(c("blockr.core", "blockr.one"))$packages$blockr.one,
+    "1.2.0"
+  )
+
+  # A package that the app does not offer gives no version
+  expect_identical(json(plugin_versions("blockr.core")), "{}")
+  expect_null(loaded_reply()$packages$blockr.one)
 
   # A method that an app script defines, from no namespace, gives no version
   method <- function(x, ...) 2L
@@ -233,6 +240,16 @@ test_that("R gives the version of each board option that a package versions", {
 
   expect_identical(json(declared_fields()$option_versions), "{\"grid_gap\":2}")
   expect_identical(json(option_versions()), "{}")
+
+  # Of a package that the app offers, even where nothing else of the reply
+  # comes from it, while a package that the app does not offer gives none
+  local_board_option_version("gap", 3L, "blockr.opt")
+
+  expect_identical(
+    json(loaded_reply(c("blockr.core", "blockr.opt"))$option_versions),
+    "{\"gap\":3}"
+  )
+  expect_identical(json(loaded_reply()$option_versions), "{}")
 
   # A method that gives no version fails as R builds the reply
   local_board_option_version("bad_gap", 0L)
@@ -339,7 +356,9 @@ test_that("R keeps the startup modules in the order packages declare them", {
     register_startup_module(js_module("js/startup.js", package = pkg))
   }
 
-  reply <- loaded_reply()
+  # In the order in which the packages declared them, whatever the order in
+  # which the app names them
+  reply <- loaded_reply(c("blockr.dag", "blockr.dock", "blockr.ui"))
 
   expect_identical(
     chr_xtr(reply$startup_modules, "package"),
@@ -351,6 +370,72 @@ test_that("R keeps the startup modules in the order packages declare them", {
       "{\"blockr.dag\":\"1.0.0\",",
       "\"blockr.dock\":\"1.0.0\",\"blockr.ui\":\"1.0.0\"}"
     )
+  )
+})
+
+test_that("R tells the client of what the packages it offers declare alone", {
+
+  dir <- withr::local_tempdir()
+  write_declared_files(dir)
+
+  local_empty_declarations()
+  local_declared_package(dir)
+
+  offered <- loaded_reply(c("blockr.core", "blockr.test"))
+
+  expect_identical(chr_xtr(offered$startup_modules, "package"), "blockr.test")
+  expect_named(offered$modules, c("blockr.test-grid", "blockr.test-picker"))
+  expect_identical(
+    json(offered$plugin_versions),
+    "{\"blockr.test-grid_plugin\":2}"
+  )
+  expect_identical(json(offered$option_versions), "{\"grid_gap\":2}")
+
+  # What a package that the app does not offer declares and registers stays
+  # out, such as that of a package that a block's code loads
+  alone <- loaded_reply()
+
+  expect_length(alone$startup_modules, 0L)
+  expect_identical(json(alone$modules), "{}")
+  expect_identical(json(alone$plugin_versions), "{}")
+  expect_identical(json(alone$option_versions), "{}")
+  expect_false("blockr.test" %in% names(alone$packages))
+})
+
+test_that("R takes the output coercions of the packages that it offers", {
+
+  ns <- asNamespace("blockr.core")
+  table <- get(".__S3MethodsTable__.", envir = ns)
+
+  # The environment of each method, whose package is the method's
+  methods <- list(
+    other_output = list2env(list(.packageName = "blockr.other")),
+    script_output = globalenv()
+  )
+
+  for (class in names(methods)) {
+
+    method <- function(x, ...) function(out) out
+    environment(method) <- methods[[class]]
+
+    registerS3method("output_coercion", class, method, envir = ns)
+  }
+
+  withr::defer(
+    rm(list = paste0("output_coercion.", names(methods)), envir = table)
+  )
+
+  expect_contains(names(output_coercions()), names(methods))
+
+  # Core's own and an app script's count, while another package's stays out
+  # where the app does not offer it
+  offered <- names(output_coercions("blockr.core"))
+
+  expect_contains(offered, c("table_output", "script_output"))
+  expect_false("other_output" %in% offered)
+  expect_contains(
+    names(output_coercions(c("blockr.core", "blockr.other"))),
+    "other_output"
   )
 })
 

@@ -359,14 +359,11 @@ output_coercion.block_output <- function(x, ...) {
 # `output_coercion()`, by class, among the methods that R finds from core's
 # namespace: those that packages register, and those that an app script
 # defines.
-output_coercions <- function() {
+# Where `packages` is given, those of other packages stay out (see
+# `offered_method_classes()`).
+output_coercions <- function(packages = NULL) {
 
-  methods <- utils::.S3methods(
-    "output_coercion",
-    envir = asNamespace("blockr.core")
-  )
-
-  classes <- sub("^output_coercion[.]", "", as.character(methods))
+  classes <- offered_method_classes("output_coercion", packages)
   classes <- set_names(nm = setdiff(classes, "block_output"))
 
   res <- lapply(classes, function(cls) {
@@ -425,7 +422,11 @@ read_json_schema <- function(path, package = pkg_name(parent.frame())) {
     )
   }
 
-  file <- if (is.null(package)) path else system.file(path, package = package)
+  file <- if (is.null(package)) {
+    path
+  } else {
+    package_system_file(path, package = package)
+  }
 
   if (!nzchar(file) || !file.exists(file)) {
     blockr_abort(

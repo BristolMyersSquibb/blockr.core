@@ -8,6 +8,17 @@
 #' The app's server function hands what the client sends to the evaluator of
 #' the session, which evaluates the blocks.
 #'
+#' Which block classes and modules an app offers is the app's choice, never a
+#' board's, and loading a package registers no block class.
+#' Each method takes in `packages` the packages that the app offers, core
+#' always among them, as in `serve(new_board(), packages = "blockr.dplyr")`.
+#' As `serve()` is called, R loads each, and fills the block registry with the
+#' block classes that it lists (see [register_block()]).
+#' A package that is not installed stops the app, naming the package.
+#' R tells the client of the block registry, and of the startup modules, the
+#' modules, the plugin classes and the board options of these packages alone,
+#' whatever a block's code loads later.
+#'
 #' For a board, R writes the board's JSON once, as `serve()` is called, and
 #' sends it to the client as each session starts.
 #' So a board that R cannot write as JSON fails as the script runs (see
@@ -63,6 +74,8 @@
 #' @param x A board, the path of a JSON board, or a block
 #' @param ... For a block, its data where `data` is empty.
 #'   R ignores it otherwise, with a warning.
+#' @param packages The names of the packages whose block classes and modules
+#'   the app offers, beside core's
 #'
 #' @examples
 #' if (interactive()) {
@@ -95,23 +108,25 @@ serve <- function(x, ...) {
 
 #' @rdname serve
 #' @export
-serve.board <- function(x, ...) {
+serve.board <- function(x, ..., packages = character()) {
   check_board_args(substitute(list(...)), "a board")
+  packages <- fill_block_registry(packages)
   register_board_classes(x)
-  serve_app(encode_message(blockr_ser(x)))
+  serve_app(encode_message(blockr_ser(x)), packages = packages)
 }
 
 #' @rdname serve
 #' @export
-serve.character <- function(x, ...) {
+serve.character <- function(x, ..., packages = character()) {
   check_board_args(substitute(list(...)), "the path of a JSON board")
-  serve_app(read_board_json(x))
+  packages <- fill_block_registry(packages)
+  serve_app(read_board_json(x), packages = packages)
 }
 
 #' @param data The block's data, a list by input
 #' @rdname serve
 #' @export
-serve.block <- function(x, ..., data = list()) {
+serve.block <- function(x, ..., data = list(), packages = character()) {
 
   dots <- dots_names(substitute(list(...)))
 
@@ -128,10 +143,17 @@ serve.block <- function(x, ..., data = list()) {
 
   check_block_data(x, data)
 
+  packages <- fill_block_registry(packages)
+
   board <- new_board(x)
   register_board_classes(board)
 
-  serve_app(encode_message(blockr_ser(board)), data, alone = TRUE)
+  serve_app(
+    encode_message(blockr_ser(board)),
+    data,
+    alone = TRUE,
+    packages = packages
+  )
 }
 
 # Registers the class of each block on a board that the block registry lacks,
@@ -195,6 +217,8 @@ check_outside_classes <- function(classes) {
 # The app that `serve()` returns, for the opening board given as JSON, and
 # for a block that `serve()` serves alone, with the data that R binds to the
 # block's inputs.
+# Each session's evaluator tells the client of what the packages that the app
+# offers declare.
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -205,7 +229,8 @@ check_outside_classes <- function(classes) {
 # set the blockr options, whatever core logged before.
 # It works out the logger afresh, so that a logger that cannot work stops the
 # app here (see `write_log()`).
-serve_app <- function(board, data = list(), alone = FALSE) {
+serve_app <- function(board, data = list(), alone = FALSE,
+                      packages = "blockr.core") {
 
   reset_logging()
   get_logger()
@@ -218,7 +243,7 @@ serve_app <- function(board, data = list(), alone = FALSE) {
     ui = function(req) serve_page(alone),
     server = function(input, output, session) {
 
-      ev <- new_evaluator(board, data, lock)
+      ev <- new_evaluator(board, data, lock, packages)
 
       shiny::exportTestValues(result = latest_results(ev, alone))
 
@@ -320,8 +345,8 @@ page_script <- function(runtime, alone = FALSE, test = NULL) {
   )
 }
 
-# Refuses every argument but `x` of the method of `serve()` for a board or for
-# the path of a JSON board.
+# Refuses every argument but `x` and `packages` of the method of `serve()` for
+# a board or for the path of a JSON board.
 # The arguments come as the call `list(...)`, unevaluated, so that one that
 # names something gone, such as `local_loader()`, fails here too.
 # The error says where each argument of today's `serve()` went.
@@ -350,7 +375,8 @@ check_board_args <- function(args, what) {
   nms <- arg_labels(nms)
 
   blockr_abort(
-    "For {what}, `serve()` takes no argument but `x`, and it was given ",
+    "For {what}, `serve()` takes no argument but `x` and `packages`, and it ",
+    "was given ",
     "{nms}.",
     if (length(moved)) paste0(" ", paste(moved, collapse = " ")) else "",
     class = "serve_args_invalid"

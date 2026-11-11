@@ -2,7 +2,8 @@
 #'
 #' A custom roxygen2 roclet that turns block registration metadata, declared as
 #' tags on block constructors, into a YAML registry (`inst/registry/blocks.yml`)
-#' that [register_package_blocks()] reads at load time. It runs alongside the
+#' that R reads for each package that an app offers, as [serve()] starts the
+#' app (see [register_block()]). It runs alongside the
 #' standard roclets during [roxygen2::roxygenise()] (or `devtools::document()`)
 #' for any package that lists `blockr.core::block_registration_roclet` in the
 #' `Roxygen` field of its `DESCRIPTION`.

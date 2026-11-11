@@ -1314,9 +1314,9 @@ register_script_blocks <- function(dir) {
   invisible()
 }
 
-# What R tells the client about the packages it has loaded, in its reply to
-# `hello`, for an app whose script loaded blockr.test beside its own block
-# classes, with nothing of core's.
+# What R tells the client about the packages that the app offers, in its
+# reply to `hello`, for an app that offers blockr.test beside core, and whose
+# script registers its own block classes, with nothing of core's.
 declared_fields <- function() {
 
   dir <- withr::local_tempdir()
@@ -1341,5 +1341,5 @@ declared_fields <- function() {
     )
   )
 
-  loaded_reply()
+  loaded_reply(c("blockr.core", "blockr.test"))
 }

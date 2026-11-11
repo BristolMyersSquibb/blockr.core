@@ -1,30 +1,42 @@
-# What R tells the client about the packages it has loaded, in its reply to
-# `hello`, for neither side to edit: the block registry's entries, each with
-# the renderer of its class's outputs, where R serves the startup modules and
-# the modules that packages offer each other, the versions of the plugin
-# classes and of the board options that packages give them, the renderers that
-# the app names for board options, and the versions of the packages that all
-# of these come from.
-# R loads no package for it: the app's script has loaded them, and loading
-# them filled the block registry, declared their modules and registered their
-# methods.
+# What R tells the client about the packages that the app offers, in its
+# reply to `hello`, for neither side to edit: the block registry's entries,
+# each with the renderer of its class's outputs, where R serves the startup
+# modules and the modules that packages offer each other, the versions of the
+# plugin classes and of the board options that packages give them, the
+# renderers that the app names for board options, and the versions of the
+# packages that all of these come from.
+# R loads no package for it.
+# As the app started, `serve()` loaded the packages that the app offers, core
+# always among them, and filled the block registry from them, beside the block
+# classes of the app script and of its board.
+# Loading the packages declared their modules and registered their methods.
+# What another package declares or registers, such as one that a block's code
+# loads, stays out, and so do the output coercions that it gives, while an app
+# script's methods count.
 # These are the properties `packages`, `block_registry`, `startup_modules`,
 # `modules`, `plugin_versions`, `option_versions` and `renderers` of
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
 # reply's JSON.
 # Building them builds no block.
-loaded_reply <- function() {
+loaded_reply <- function(packages = "blockr.core") {
+
+  offered <- function(x) isTRUE(x[["package"]] %in% packages)
 
   entries <- available_blocks()
-  startup <- startup_modules()
-  modules <- lapply(set_names(nm = list_modules()), get_module)
-  plugins <- plugin_versions()
+  startup <- Filter(offered, startup_modules())
+  modules <- Filter(
+    offered,
+    lapply(set_names(nm = list_modules()), get_module)
+  )
+  plugins <- plugin_versions(packages)
+  options <- option_versions(packages)
   renderers <- option_renderers()
 
-  coercions <- output_coercions()
+  coercions <- output_coercions(packages)
   drawn <- lapply(entries, entry_renderer, coercions)
 
-  packages <- c(
+  # The packages that the reply's parts come from, whose versions it names
+  sources <- c(
     unlst(
       lapply(
         list(entries, startup, modules, renderers, drawn),
@@ -37,12 +49,12 @@ loaded_reply <- function() {
   )
 
   list(
-    packages = package_versions(packages),
+    packages = package_versions(sources),
     block_registry = as_json_object(Map(registry_entry_reply, entries, drawn)),
     startup_modules = unname(lapply(startup, startup_module_reply)),
     modules = as_json_object(lapply(modules, declared_module_reply)),
     plugin_versions = plugins,
-    option_versions = option_versions(),
+    option_versions = options,
     renderers = as_json_object(lapply(renderers, option_renderer_reply))
   )
 }

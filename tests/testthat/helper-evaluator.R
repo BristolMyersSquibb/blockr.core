@@ -11,6 +11,7 @@
 # reads it.
 local_evaluator <- function(board = list(blocks = list()), data = list(),
                             lock = lock_board(board, data), hello = TRUE,
+                            packages = "blockr.core",
                             frame = parent.frame()) {
 
   session <- new.env()
@@ -33,7 +34,12 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
   reset_logging()
   withr::defer(reset_logging(), envir = frame)
 
-  session$evaluator <- new_evaluator(board = board, data = data, lock = lock)
+  session$evaluator <- new_evaluator(
+    board = board,
+    data = data,
+    lock = lock,
+    packages = packages
+  )
 
   session$send <- function(message) {
     session$sent[[length(session$sent) + 1L]] <- message

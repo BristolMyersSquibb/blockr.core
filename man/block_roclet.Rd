@@ -13,7 +13,8 @@ block_registration_roclet()
 \description{
 A custom roxygen2 roclet that turns block registration metadata, declared as
 tags on block constructors, into a YAML registry (\code{inst/registry/blocks.yml})
-that \code{\link[=register_package_blocks]{register_package_blocks()}} reads at load time. It runs alongside the
+that R reads for each package that an app offers, as \code{\link[=serve]{serve()}} starts the
+app (see \code{\link[=register_block]{register_block()}}). It runs alongside the
 standard roclets during \code{\link[roxygen2:roxygenise]{roxygen2::roxygenise()}} (or \code{devtools::document()})
 for any package that lists \code{blockr.core::block_registration_roclet} in the
 \code{Roxygen} field of its \code{DESCRIPTION}.

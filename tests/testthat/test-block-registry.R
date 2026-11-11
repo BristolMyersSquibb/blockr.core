@@ -289,7 +289,23 @@ test_that("registry entries print", {
   )
 })
 
-test_that("core registers its built-in blocks as it loads", {
+test_that("loading core registers none of its block classes", {
+
+  skip_on_covr()
+
+  local_empty_declarations()
+
+  # Outside covr, the load hook traces no block class, and declares core's
+  # modules again
+  .onLoad("", "blockr.core")
+
+  expect_identical(list_blocks(), character())
+})
+
+test_that("an app offers core's built-in blocks, as core_blocks narrows them", {
+
+  local_declared(block_registry)
+  unregister_blocks()
 
   ids <- paste0(
     "blockr.core-",
@@ -298,7 +314,8 @@ test_that("core registers its built-in blocks as it loads", {
       "subset_block", "upload_block")
   )
 
-  expect_contains(list_blocks(), ids)
+  expect_identical(fill_block_registry(), "blockr.core")
+  expect_setequal(list_blocks(), ids)
 
   entries <- available_blocks()[ids]
 
@@ -318,8 +335,8 @@ test_that("core registers its built-in blocks as it loads", {
     )
   )
 
-  # Core registers neither its static nor its fixed block, whose classes give
-  # their ids all the same
+  # Core lists neither its static nor its fixed block, whose classes give their
+  # ids all the same
   expect_false(any(c("blockr.core-static_block", "blockr.core-fixed_block") %in%
                      list_blocks()))
   expect_identical(registry_id_from_block(new_static_block()),
@@ -327,21 +344,69 @@ test_that("core registers its built-in blocks as it loads", {
   expect_identical(registry_id_from_block(new_fixed_block()),
                    "blockr.core-fixed_block")
 
-  entry <- register_package_blocks(package = "blockr.core",
-                                   which = "new_dataset_block")
+  # The blockr option core_blocks names the classes to offer
+  unregister_blocks()
+  withr::local_options(blockr.core_blocks = c("dataset_block", "head_block"))
 
-  expect_identical(entry[[1L]][["id"]], "blockr.core-dataset_block")
+  fill_block_registry()
+
+  expect_setequal(
+    list_blocks(),
+    c("blockr.core-dataset_block", "blockr.core-head_block")
+  )
+
+  withr::local_options(blockr.core_blocks = "no_block")
 
   expect_error(
-    register_package_blocks(package = "blockr.core", which = "new_no_block"),
+    fill_block_registry(),
+    "Package blockr.core declares no block constructor new_no_block.",
+    fixed = TRUE,
     class = "package_blocks_invalid"
   )
 
-  expect_error(
-    register_package_blocks(package = "blockr.core",
-                            which = c("new_head_block", "new_head_block")),
-    class = "package_blocks_invalid"
+  withr::local_options(blockr.core_blocks = c("head_block", "head_block"))
+
+  expect_error(fill_block_registry(), class = "package_blocks_invalid")
+})
+
+test_that("an app offers the packages it names, each one installed", {
+
+  local_declared(block_registry)
+
+  # Core always among them, first
+  expect_identical(
+    fill_block_registry(c("utils", "blockr.core")),
+    c("blockr.core", "utils")
   )
+
+  expect_error(
+    fill_block_registry(c("blockr.absent", "utils", "blockr.gone")),
+    paste0(
+      "Packages blockr.absent and blockr.gone, which the app offers in ",
+      "`packages`, are not installed."
+    ),
+    fixed = TRUE,
+    class = "serve_packages_missing"
+  )
+
+  for (packages in list(NULL, NA_character_, "", 1L)) {
+    expect_error(
+      fill_block_registry(packages),
+      class = "serve_packages_invalid"
+    )
+  }
+})
+
+test_that("an app offers the classes of a package that load_all() loads", {
+
+  local_declared(block_registry)
+  local_load_all_package()
+
+  expect_identical(
+    fill_block_registry("regprobe"),
+    c("blockr.core", "regprobe")
+  )
+  expect_identical(get_registry_entry("regprobe-probe_block")$name, "Probe")
 })
 
 test_that("YAML examples of an array type are lists", {

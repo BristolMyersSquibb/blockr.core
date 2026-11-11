@@ -274,36 +274,21 @@ plugin_of_class <- function(id) {
 # one, by the class's ID, as R sends them in its reply to `hello`. The class's
 # package is the one whose namespace holds the method, and a method that an app
 # script defines, from no namespace, gives no class's version.
-plugin_versions <- function() {
+# Where `packages` is given, a class from another package gives none either.
+plugin_versions <- function(packages = NULL) {
 
-  methods <- utils::.S3methods(
-    "plugin_version",
-    envir = asNamespace("blockr.core")
-  )
+  pkgs <- method_packages("plugin_version")
+  classes <- names(pkgs)
 
-  classes <- sub("^plugin_version[.]", "", as.character(methods))
-  classes <- grep("_plugin$", setdiff(classes, core_plugin_classes()),
-                  value = TRUE)
+  keep <- grepl("_plugin$", classes) &
+    !classes %in% core_plugin_classes() &
+    !is.na(pkgs)
 
-  ids <- unlst(
-    lapply(
-      classes,
-      function(class) {
+  if (not_null(packages)) {
+    keep <- keep & pkgs %in% packages
+  }
 
-        method <- utils::getS3method(
-          "plugin_version",
-          class,
-          optional = TRUE,
-          envir = asNamespace("blockr.core")
-        )
-
-        if (is.function(method)) {
-          package <- utils::packageName(environment(method))
-          if (not_null(package)) paste0(package, "-", class)
-        }
-      }
-    )
-  )
+  ids <- paste(pkgs[keep], classes[keep], sep = "-")
 
   as_json_object(set_names(lapply(ids, plugin_class_version), ids))
 }

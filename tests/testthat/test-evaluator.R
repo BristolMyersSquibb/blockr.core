@@ -21,7 +21,11 @@ test_that("R answers the handshake as the fixture hello-declared has it", {
     )
   )
 
-  session <- local_evaluator(proto_declared_board(), hello = FALSE)
+  session <- local_evaluator(
+    proto_declared_board(),
+    hello = FALSE,
+    packages = c("blockr.core", "blockr.test")
+  )
 
   expect_fixture_replies(session, "hello-declared")
 })

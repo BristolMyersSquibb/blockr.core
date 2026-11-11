@@ -264,11 +264,11 @@ test_that("YAML arguments become an arg_specs collection, examples included", {
   expect_null(arg_spec_type(desc_only[["x"]]))
 })
 
-test_that("register_package_blocks is a no-op when no registry ships", {
+test_that("a package that ships no YAML registry registers no block class", {
 
   before <- list_blocks()
 
-  expect_invisible(register_package_blocks(package = "utils"))
+  expect_invisible(register_yaml_blocks("utils"))
   expect_identical(list_blocks(), before)
 })
 

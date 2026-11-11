@@ -29,6 +29,9 @@
 # Without the load lock, R keeps by block id what it holds each block to,
 # which a later `hello` drops.
 #
+# The reply to `hello` tells the client of what the `packages` that the app
+# offers declare, core always among them (see `loaded_reply()`).
+#
 # The results live in an environment keyed by block id.
 # For each block that R evaluated, it holds the revision,
 # value, block expression and registry id of the latest evaluation.
@@ -59,7 +62,8 @@
 # running a queued request, stopping one that has started,
 # and dropping results.
 # The rest is the protocol, which every evaluator shares.
-new_evaluator <- function(board, data = list(), lock = NULL) {
+new_evaluator <- function(board, data = list(), lock = NULL,
+                          packages = "blockr.core") {
 
   if (missing(board) || is.null(board)) {
     blockr_abort(
@@ -98,6 +102,7 @@ new_evaluator <- function(board, data = list(), lock = NULL) {
   )
 
   ev$data <- data
+  ev$packages <- packages
   ev$started <- FALSE
   ev$shared <- character()
   ev$results <- new.env(parent = emptyenv())
@@ -299,7 +304,7 @@ start_session <- function(ev, req, send) {
           protocol = protocol_version(),
           capabilities = I(evaluator_capabilities(ev))
         ),
-        loaded_reply(),
+        loaded_reply(ev$packages),
         list(lock = ev$locks),
         ev$opening
       )

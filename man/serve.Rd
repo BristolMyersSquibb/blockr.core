@@ -9,17 +9,20 @@
 \usage{
 serve(x, ...)
 
-\method{serve}{board}(x, ...)
+\method{serve}{board}(x, ..., packages = character())
 
-\method{serve}{character}(x, ...)
+\method{serve}{character}(x, ..., packages = character())
 
-\method{serve}{block}(x, ..., data = list())
+\method{serve}{block}(x, ..., data = list(), packages = character())
 }
 \arguments{
 \item{x}{A board, the path of a JSON board, or a block}
 
 \item{...}{For a block, its data where \code{data} is empty.
 R ignores it otherwise, with a warning.}
+
+\item{packages}{The names of the packages whose block classes and modules
+the app offers, beside core's}
 
 \item{data}{The block's data, a list by input}
 }
@@ -36,6 +39,17 @@ The app's server function hands what the client sends to the evaluator of
 the session, which evaluates the blocks.
 }
 \details{
+Which block classes and modules an app offers is the app's choice, never a
+board's, and loading a package registers no block class.
+Each method takes in \code{packages} the packages that the app offers, core
+always among them, as in \code{serve(new_board(), packages = "blockr.dplyr")}.
+As \code{serve()} is called, R loads each, and fills the block registry with the
+block classes that it lists (see \code{\link[=register_block]{register_block()}}).
+A package that is not installed stops the app, naming the package.
+R tells the client of the block registry, and of the startup modules, the
+modules, the plugin classes and the board options of these packages alone,
+whatever a block's code loads later.
+
 For a board, R writes the board's JSON once, as \code{serve()} is called, and
 sends it to the client as each session starts.
 So a board that R cannot write as JSON fails as the script runs (see

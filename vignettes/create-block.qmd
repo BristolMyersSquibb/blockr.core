@@ -707,16 +707,15 @@ new_head_block <- block_constructor(head_block)
 ```
 
 With `blockr.core::block_registration_roclet` in the `Roxygen` field of its `DESCRIPTION`, `devtools::document()` writes the tags into `inst/registry/blocks.yml`.
-The package then registers every class it declares there as it loads:
+Loading the package registers none of them.
+An app offers every class that the file lists once it names the package in `serve()`'s `packages`, as in `serve(new_board(), packages = "blockr.dplyr")`.
+The package's `.onLoad()` calls `trace_block_classes()` alone, which lets covr count the lines of the functions that the classes hold (see "Testing" below):
 
 ```r
 .onLoad <- function(libname, pkgname) {
-  register_package_blocks(package = pkgname)
   trace_block_classes(pkgname)
 }
 ```
-
-The call to `trace_block_classes()` lets covr count the lines of the functions that the classes hold (see "Testing" below).
 See `?block_registration_roclet` for every tag.
 
 A package builds its classes while R installs it, as R sources its files.

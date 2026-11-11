@@ -513,3 +513,28 @@ test_that("each of core's block classes ships its UI module and its schema", {
     )
   }
 })
+
+test_that("R finds the installed files of a package that load_all() loads", {
+
+  inst <- file.path(local_load_all_package(), "inst")
+  ns <- asNamespace("regprobe")
+
+  found <- function(file) normalizePath(file, mustWork = TRUE)
+
+  expect_identical(
+    found(module_file(get("probe_block", envir = ns)[["ui"]])),
+    file.path(inst, "js", "probe-block.js")
+  )
+  expect_identical(
+    found(pkg_file("schemas", "probe.json", pkg = ns)),
+    file.path(inst, "schemas", "probe.json")
+  )
+  expect_identical(
+    read_json_schema("schemas/probe.json", package = "regprobe"),
+    list(type = "object")
+  )
+  expect_identical(
+    found(js_types_dirs("regprobe")[["regprobe"]]),
+    file.path(inst, "types")
+  )
+})

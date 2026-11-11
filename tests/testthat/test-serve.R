@@ -74,6 +74,52 @@ test_that("serve() registers the board's classes that the registry lacks", {
   expect_identical(get_registry_entry("blockr.core-head_block"), head)
 })
 
+test_that("serve() fills the block registry from the packages it offers", {
+
+  local_declared(block_registry)
+  unregister_blocks()
+
+  serve(served_board())
+
+  # Core's own, which core always offers, beside the classes of the board
+  expect_contains(
+    list_blocks(),
+    c("blockr.core-merge_block", "blockr.core-csv_block")
+  )
+
+  # Each method takes the packages that the app offers, and refuses one that
+  # is not installed as it is called
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines(unclass(encode_message(proto_served_file())), path)
+
+  for (x in list(served_board(), path, new_static_block("datasets::BOD"))) {
+    expect_error(
+      serve(x, packages = "blockr.absent"),
+      "Package blockr.absent, which the app offers in `packages`, is not ",
+      class = "serve_packages_missing"
+    )
+  }
+})
+
+test_that("the app's sessions tell of what the packages it offers declare", {
+
+  dir <- withr::local_tempdir()
+  write_declared_files(dir)
+
+  local_empty_declarations()
+  local_declared_package(dir)
+
+  # An app that offers core alone tells of nothing of blockr.test's, which its
+  # script loaded
+  reply <- served_replies(serve(served_board()), hello_message())[[1L]]
+
+  expect_length(reply$startup_modules, 0L)
+  expect_length(reply$modules, 0L)
+  expect_length(reply$plugin_versions, 0L)
+  expect_length(reply$option_versions, 0L)
+  expect_contains(names(reply$block_registry), "blockr.core-head_block")
+})
+
 test_that("serve() registers the class of a block that it serves alone", {
 
   local_declared(block_registry)
@@ -136,8 +182,9 @@ test_that("serve() takes nothing but the board, and says where the rest went", {
   expect_error(
     serve(board, id = "my_board"),
     paste0(
-      "For a board, `serve()` takes no argument but `x`, and it was given ",
-      "`id`. A board holds its ID, which `new_board()` takes as `id`."
+      "For a board, `serve()` takes no argument but `x` and `packages`, and ",
+      "it was given `id`. A board holds its ID, which `new_board()` takes as ",
+      "`id`."
     ),
     fixed = TRUE,
     class = "serve_args_invalid"
