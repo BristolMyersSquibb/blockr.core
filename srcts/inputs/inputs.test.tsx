@@ -304,6 +304,55 @@ describe("the inputs of a board option's UI", () => {
     expect(host.submitted).toEqual([50]);
   });
 
+  test("show the state again in place of a number above the most as the user leaves, so that none it never submitted stays once the most grows", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el, redraw } = draw(<Rows host={host} max={30} />);
+    const input = find(el, "input", HTMLInputElement);
+    const shown = () => [input.value, input.getAttribute("aria-invalid")];
+
+    act(() => {
+      type(input, "50");
+    });
+    await wait(PAUSE);
+    expect(shown()).toEqual(["50", "true"]);
+    act(() => {
+      input.blur();
+    });
+    expect(shown()).toEqual(["25", "false"]);
+
+    redraw(<Rows host={host} max={100} />);
+    expect(shown()).toEqual(["25", "false"]);
+    expect(host.submitted).toEqual([]);
+  });
+
+  test("submit a number that fits once the most grows, as the user presses Enter or leaves", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el, redraw } = draw(<Rows host={host} max={30} />);
+    const input = find(el, "input", HTMLInputElement);
+
+    act(() => {
+      type(input, "50");
+    });
+    await wait(PAUSE);
+    redraw(<Rows host={host} max={100} />);
+    expect(host.submitted).toEqual([]);
+    act(() => {
+      press(input, "Enter");
+    });
+    expect(host.submitted).toEqual([50]);
+
+    act(() => {
+      type(input, "150");
+    });
+    await wait(PAUSE);
+    redraw(<Rows host={host} max={200} />);
+    act(() => {
+      input.blur();
+    });
+    expect(host.submitted).toEqual([50, 150]);
+    expect(input.value).toBe("150");
+  });
+
   test("submit the checked severities in the order of the choices", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
     const { el } = draw(<Conditions host={host} />);

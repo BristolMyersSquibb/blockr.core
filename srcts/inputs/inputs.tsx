@@ -3,6 +3,7 @@
 // so that each meets the contract of a block's UI as its binding does
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 // An input keeps what the user types until its binding submits it,
+// or, for a number outside the input's range, until the user leaves it,
 // submits a pick at once,
 // and says below itself why the host refused what it submitted.
 // A label holds its input, so that it needs no id,
@@ -73,6 +74,12 @@ export function TextInput({
 
 // A number input for an integer, no smaller than `min` and no larger than
 // `max`, which submits only a number in that range and marks one outside it.
+// As the user presses Enter or leaves it, it checks the number it shows
+// against the range as it is then, since the range may have changed after
+// the user typed the number, as once a request answers for newer data,
+// and submits the number where it fits.
+// As the user leaves it, it shows the state again in place of a number
+// outside the range, which it never submitted.
 // While it is `outdated`, as while the request that gives `max` asks again,
 // its `max` may be for older data.
 // It then submits a number above it and marks none,
@@ -100,6 +107,12 @@ export function NumberInput({
     if (largest !== undefined && value > largest) return undefined;
     return value;
   };
+  // Submits the number the user typed at once,
+  // checked against the range as it is now.
+  const settle = (): void => {
+    if (text !== null) bound.type(read(text));
+    bound.flush();
+  };
   return (
     <>
       <Field label={label}>
@@ -117,10 +130,11 @@ export function NumberInput({
             bound.type(read(event.target.value));
           }}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.nativeEvent.isComposing) bound.flush();
+            if (event.key === "Enter" && !event.nativeEvent.isComposing) settle();
           }}
           onBlur={() => {
-            bound.flush();
+            settle();
+            if (text !== null && read(text) === undefined) typed(null);
           }}
         />
       </Field>
@@ -293,10 +307,12 @@ function Refusal({ error }: { error: string | null }): ReactElement | null {
 }
 
 // What the user typed into an input since it last showed the bound value,
-// and the setter of it. The binding shows nothing while the user types,
+// and the setter of it, which drops it given null,
+// so that the input shows the bound value again.
+// The binding shows nothing while the user types,
 // so a value it shows ends what the user typed, as the host took it or
 // announced another.
-function useTyped(bound: Bound): [string | null, (text: string) => void] {
+function useTyped(bound: Bound): [string | null, (text: string | null) => void] {
   const [text, setText] = useState<string | null>(null);
   const [seen, setSeen] = useState<Json | undefined>(bound.value);
   if (!Object.is(seen, bound.value)) {

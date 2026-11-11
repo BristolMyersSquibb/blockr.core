@@ -249,6 +249,10 @@ function NumberInput({
     if (largest !== void 0 && value > largest) return void 0;
     return value;
   };
+  const settle = () => {
+    if (text !== null) bound.type(read(text));
+    bound.flush();
+  };
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsx(
       "input",
@@ -266,10 +270,11 @@ function NumberInput({
           bound.type(read(event.target.value));
         },
         onKeyDown: (event) => {
-          if (event.key === "Enter" && !event.nativeEvent.isComposing) bound.flush();
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) settle();
         },
         onBlur: () => {
-          bound.flush();
+          settle();
+          if (text !== null && read(text) === void 0) typed(null);
         }
       }
     ) }),

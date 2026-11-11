@@ -9184,6 +9184,10 @@ function NumberInput({
     if (largest !== void 0 && value2 > largest) return void 0;
     return value2;
   };
+  const settle2 = () => {
+    if (text !== null) bound.type(read(text));
+    bound.flush();
+  };
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsx(
       "input",
@@ -9201,10 +9205,11 @@ function NumberInput({
           bound.type(read(event.target.value));
         },
         onKeyDown: (event) => {
-          if (event.key === "Enter" && !event.nativeEvent.isComposing) bound.flush();
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) settle2();
         },
         onBlur: () => {
-          bound.flush();
+          settle2();
+          if (text !== null && read(text) === void 0) typed(null);
         }
       }
     ) }),
