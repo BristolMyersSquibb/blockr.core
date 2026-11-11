@@ -26,7 +26,7 @@ block_registry <- new.env()
 #' Each method of [serve()] takes them in `block_classes`, which defaults to
 #' `available_blocks()`: a data frame with a row for each block class of each
 #' available package, with the class's package in `package` and its id in
-#' `id`, and its name, description and category beside them.
+#' `id`.
 #' A package is available where it is installed and depends on blockr.core, or
 #' where `pkgload::load_all()` loaded it, and it lists block classes in its
 #' `inst/registry/blocks.yml`, which the [block_registration_roclet()] writes.
@@ -140,7 +140,8 @@ block_registry <- new.env()
 #' effects and return `block_registry_entry` object(s) invisibly, while
 #' `unregister_blocks()` returns `NULL` (invisibly).
 #' Listing via `list_blocks()` returns a character vector, and
-#' `available_blocks()` a data frame with a row for each class. Block
+#' `available_blocks()` a data frame of `package` and `id` with a row for each
+#' class. Block
 #' construction via `create_block()` returns a newly instantiated `block`
 #' object, and the lookup `registry_id_from_block()` returns the registry id
 #' that a block's class gives, a string. A block's argument specification is
@@ -516,18 +517,9 @@ available_blocks <- function() {
 }
 
 # Block classes as `available_blocks()` gives them, one row each, with the
-# class's package in `package` and its id in `id`, and its name, description
-# and category.
-block_rows <- function(package = character(), id = character(),
-                       name = character(), description = character(),
-                       category = character()) {
-  data.frame(
-    package = package,
-    id = id,
-    name = name,
-    description = description,
-    category = category
-  )
+# class's package in `package` and its id in `id`.
+block_rows <- function(package = character(), id = character()) {
+  data.frame(package = package, id = id)
 }
 
 #' @param id Block ID as reported by `list_blocks()`
@@ -577,10 +569,7 @@ package_block_rows <- function(package) {
 
   block_rows(
     package = rep(package, length(entries)),
-    id = chr_xtr(entries, "id"),
-    name = chr_xtr(entries, "name"),
-    description = chr_xtr(entries, "description"),
-    category = chr_xtr(entries, "category")
+    id = chr_xtr(entries, "id")
   )
 }
 

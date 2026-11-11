@@ -92,7 +92,8 @@ discovery}
 effects and return \code{block_registry_entry} object(s) invisibly, while
 \code{unregister_blocks()} returns \code{NULL} (invisibly).
 Listing via \code{list_blocks()} returns a character vector, and
-\code{available_blocks()} a data frame with a row for each class. Block
+\code{available_blocks()} a data frame of \code{package} and \code{id} with a row for each
+class. Block
 construction via \code{create_block()} returns a newly instantiated \code{block}
 object, and the lookup \code{registry_id_from_block()} returns the registry id
 that a block's class gives, a string. A block's argument specification is
@@ -124,7 +125,7 @@ registers none.
 Each method of \code{\link[=serve]{serve()}} takes them in \code{block_classes}, which defaults to
 \code{available_blocks()}: a data frame with a row for each block class of each
 available package, with the class's package in \code{package} and its id in
-\code{id}, and its name, description and category beside them.
+\code{id}.
 A package is available where it is installed and depends on blockr.core, or
 where \code{pkgload::load_all()} loaded it, and it lists block classes in its
 \code{inst/registry/blocks.yml}, which the \code{\link[=block_registration_roclet]{block_registration_roclet()}} writes.

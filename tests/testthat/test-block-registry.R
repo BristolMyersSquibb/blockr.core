@@ -307,7 +307,7 @@ test_that("available_blocks() lists the classes of the available packages", {
   rows <- available_blocks()
 
   expect_s3_class(rows, "data.frame")
-  expect_named(rows, c("package", "id", "name", "description", "category"))
+  expect_named(rows, c("package", "id"))
 
   core <- rows[rows[["package"]] == "blockr.core", ]
 
@@ -317,11 +317,6 @@ test_that("available_blocks() lists the classes of the available packages", {
       "head_block", "merge_block", "rbind_block", "scatter_block",
       "subset_block", "upload_block")
   )
-
-  head <- core[core[["id"]] == "head_block", ]
-
-  expect_identical(head[["name"]], "head/tail block")
-  expect_identical(head[["category"]], "transform")
 
   # Every available package depends on core
   expect_true(all(lgl_ply(unique(rows[["package"]]), depends_on_core)))
@@ -480,7 +475,6 @@ test_that("an app offers the classes of a package that load_all() loads", {
   probe <- rows[rows[["package"]] == "regprobe", ]
 
   expect_identical(probe[["id"]], "probe_block")
-  expect_identical(probe[["name"]], "Probe")
 
   expect_identical(
     get_registry_entry("regprobe-probe_block", app_block_registry(probe))$name,
