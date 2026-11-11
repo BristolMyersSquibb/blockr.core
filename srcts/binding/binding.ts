@@ -23,6 +23,9 @@
 // A followed request is asked again whenever what it reads changes,
 // the revisions of a block's linked data inputs among them,
 // and hands on only the answer of the latest request asked.
+// It says each time that it asks,
+// so that a module can tell that the last answer it got is for older data
+// until that ask answers or fails.
 
 import type { OptionId } from "../types/board.ts";
 import type { BlockHost, HostRequestOpts, OptionHost, State } from "../types/hosts.ts";
@@ -68,6 +71,10 @@ export interface FollowOptions {
   // or the revisions of a block's linked data inputs.
   readonly args?: () => Readonly<Record<string, Json>>;
   readonly reads?: () => Json;
+  // What it does each time it asks, until that ask answers or fails,
+  // such as keep a module's inputs from marking the state
+  // against the last answer, which is for older data meanwhile.
+  readonly loading?: () => void;
   // What it does with an answer, and with why a request failed,
   // where it does more than keep the last answer it had.
   readonly answer: (answer: Json | Blob) => void;
@@ -181,7 +188,8 @@ export function bind(
 
 // Follows a request of the block's class or of the board option,
 // asked now and again whenever what it reads changes,
-// giving the last one asked up.
+// giving the last one asked up,
+// and calls `loading` each time it asks.
 export function follow(host: BlockHost | OptionHost, name: string, options: FollowOptions): Followed {
   const source = createSource(host);
 
@@ -193,6 +201,7 @@ export function follow(host: BlockHost | OptionHost, name: string, options: Foll
     latest?.abort();
     const controller = new AbortController();
     latest = controller;
+    options.loading?.();
     source.request(name, options.args?.() ?? {}, { signal: controller.signal }).then(
       (answer) => {
         if (latest === controller && !controller.signal.aborted) options.answer(answer);

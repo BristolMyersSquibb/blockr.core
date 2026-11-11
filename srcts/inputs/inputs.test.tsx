@@ -13,6 +13,7 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture, StubBlockHost } from "../stubs/index.ts";
 import { find, pick, press, texts, toggle, type } from "../testing/inputs.ts";
 import "../testing/react.ts";
+import { holdRequests } from "../testing/requests.ts";
 import type { BlockHost, OptionHost } from "../types/hosts.ts";
 import { Checkbox, Checklist, NumberInput, Select, Stack, TextInput } from "./index.ts";
 
@@ -216,17 +217,18 @@ describe("the inputs of a block's UI", () => {
 });
 
 // The UIs of core's board options, each bound to the board option's value.
-function Rows({ host }: { host: OptionHost<number> }): ReactElement {
-  return <NumberInput bound={useValue(host)} label="Preview rows" min={1} />;
+function Rows({ host, max, outdated }: { host: OptionHost<number>; max?: number; outdated?: boolean }): ReactElement {
+  return <NumberInput bound={useValue(host)} label="Preview rows" min={1} max={max} outdated={outdated} />;
 }
 
-function Conditions({ host }: { host: OptionHost<string[]> }): ReactElement {
+function Conditions({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
   return (
     <Checklist
       bound={useValue(host)}
       legend="Message types to display"
       choices={["message", "warning", "error"]}
       ordered
+      outdated={outdated}
     />
   );
 }
@@ -236,8 +238,24 @@ const modes: readonly Choice[] = [
   { value: "dark", label: "Dark" },
 ];
 
-function Mode({ host, choices }: { host: OptionHost<string>; choices?: readonly Choice[] }): ReactElement {
-  return <Select bound={useValue(host)} label="Light/dark mode" placeholder="Choose a mode" choices={choices} />;
+function Mode({
+  host,
+  choices,
+  outdated,
+}: {
+  host: OptionHost<string>;
+  choices?: readonly Choice[];
+  outdated?: boolean;
+}): ReactElement {
+  return (
+    <Select
+      bound={useValue(host)}
+      label="Light/dark mode"
+      placeholder="Choose a mode"
+      choices={choices}
+      outdated={outdated}
+    />
+  );
 }
 
 describe("the inputs of a board option's UI", () => {
@@ -261,6 +279,118 @@ describe("the inputs of a board option's UI", () => {
 
     expect(host.submitted).toEqual([50]);
     expect(input.value).toBe("10");
+  });
+
+  test("submit a number above an outdated most, and mark none until it is current, but hold to the least", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el, redraw } = draw(<Rows host={host} max={30} outdated />);
+    const input = find(el, "input", HTMLInputElement);
+    const shown = () => [input.value, input.max, input.getAttribute("aria-invalid")];
+
+    act(() => {
+      type(input, "0");
+    });
+    await wait(PAUSE);
+    expect(shown()).toEqual(["0", "", "true"]);
+    act(() => {
+      type(input, "50");
+    });
+    await wait(PAUSE);
+    expect(shown()).toEqual(["50", "", "false"]);
+    expect(host.submitted).toEqual([50]);
+
+    redraw(<Rows host={host} max={30} />);
+    expect(shown()).toEqual(["50", "30", "true"]);
+    expect(host.submitted).toEqual([50]);
+  });
+
+  test("say why a number does not fit while the user types it, and mark it", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el } = draw(<Rows host={host} max={30} />);
+    const input = find(el, "input", HTMLInputElement);
+    const said = () => [input.getAttribute("aria-invalid"), el.querySelector('[role="alert"]')?.textContent ?? null];
+
+    const shown: (string | null)[][] = [];
+    for (const text of ["50", "0", "2.5", "", "20"]) {
+      act(() => {
+        type(input, text);
+      });
+      shown.push(said());
+    }
+    expect(shown).toEqual([
+      ["true", "50 is above the maximum of 30."],
+      ["true", "0 is below the minimum of 1."],
+      ["true", "2.5 is not a whole number."],
+      ["true", null],
+      ["false", null],
+    ]);
+    await wait(PAUSE);
+    expect(host.submitted).toEqual([20]);
+  });
+
+  test("say why the state does not fit, as once the most shrank", () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el, redraw } = draw(<Rows host={host} max={30} />);
+    const said = () => el.querySelector('[role="alert"]')?.textContent ?? null;
+    expect(said()).toBeNull();
+
+    redraw(<Rows host={host} max={20} />);
+    expect(said()).toBe("25 is above the maximum of 20.");
+    expect(host.submitted).toEqual([]);
+  });
+
+  test("go back to the state in place of a number outside the range on Enter and as the user leaves, which clears what it said", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el } = draw(<Rows host={host} max={30} />);
+    const input = find(el, "input", HTMLInputElement);
+    const shown = () => [input.value, el.querySelector('[role="alert"]')?.textContent ?? null];
+
+    act(() => {
+      type(input, "50");
+    });
+    expect(shown()).toEqual(["50", "50 is above the maximum of 30."]);
+    act(() => {
+      press(input, "Enter");
+    });
+    expect(shown()).toEqual(["25", null]);
+
+    act(() => {
+      type(input, "60");
+    });
+    act(() => {
+      input.blur();
+    });
+    expect(shown()).toEqual(["25", null]);
+    await wait(PAUSE);
+    expect(host.submitted).toEqual([]);
+  });
+
+  test("submit a number that fits once the most grows, as the user presses Enter or leaves", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el, redraw } = draw(<Rows host={host} max={30} />);
+    const input = find(el, "input", HTMLInputElement);
+
+    act(() => {
+      type(input, "50");
+    });
+    await wait(PAUSE);
+    redraw(<Rows host={host} max={100} />);
+    expect(host.submitted).toEqual([]);
+    act(() => {
+      press(input, "Enter");
+    });
+    expect(host.submitted).toEqual([50]);
+
+    act(() => {
+      type(input, "150");
+    });
+    await wait(PAUSE);
+    redraw(<Rows host={host} max={200} />);
+    act(() => {
+      input.blur();
+    });
+    expect(host.submitted).toEqual([50, 150]);
+    expect(input.value).toBe("150");
   });
 
   test("submit the checked severities in the order of the choices", async () => {
@@ -294,6 +424,20 @@ describe("the inputs of a board option's UI", () => {
     expect(texts(el, "label")).toEqual(["message", "warning", "error"]);
   });
 
+  test("keep outdated choices on screen, and mark no string that they lack until they are current", () => {
+    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
+    const { el, redraw } = draw(<Conditions host={host} outdated />);
+    const debug = find(el, 'input[value="debug"]', HTMLInputElement);
+
+    expect(texts(el, "label")).toEqual(["message", "warning", "error", "debug"]);
+    expect([debug.checked, debug.getAttribute("aria-invalid")]).toEqual([true, "false"]);
+
+    redraw(<Conditions host={host} />);
+    expect(texts(el, "label")).toEqual(["message", "warning", "error", "debug (not available)"]);
+    expect(debug.getAttribute("aria-invalid")).toBe("true");
+    expect(host.submitted).toEqual([]);
+  });
+
   test("show a mode that the choices lack as it is until they are known, and as missing while they lack it", () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
     const { el, redraw } = draw(<Mode host={host} />);
@@ -306,6 +450,18 @@ describe("the inputs of a board option's UI", () => {
 
     redraw(<Mode host={host} choices={[...modes, { value: "auto", label: "Auto" }]} />);
     expect(shown()).toEqual(["auto", ["Light", "Dark", "Auto"], "false"]);
+    expect(host.submitted).toEqual([]);
+  });
+
+  test("keep outdated choices on screen, and show a mode that they lack as it is until they are current", () => {
+    const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
+    const { el, redraw } = draw(<Mode host={host} choices={modes} outdated />);
+    const select = find(el, "select", HTMLSelectElement);
+    const shown = () => [select.value, texts(select, "option"), select.getAttribute("aria-invalid")];
+    expect(shown()).toEqual(["auto", ["Light", "Dark", "auto"], "false"]);
+
+    redraw(<Mode host={host} choices={modes} />);
+    expect(shown()).toEqual(["auto", ["Light", "Dark", "auto (not available)"], "true"]);
     expect(host.submitted).toEqual([]);
   });
 
@@ -323,8 +479,12 @@ describe("the inputs of a board option's UI", () => {
 
 describe("useRequest()", () => {
   function Names({ host, pattern }: { host: OptionHost<string>; pattern: string }): ReactElement {
-    const { answer, error } = useRequest(host, "list", { args: { pattern } });
-    return <p title={error ?? ""}>{JSON.stringify(answer ?? null)}</p>;
+    const { answer, error, loading } = useRequest(host, "list", { args: { pattern } });
+    return (
+      <p title={error ?? ""} aria-busy={loading}>
+        {JSON.stringify(answer ?? null)}
+      </p>
+    );
   }
 
   test("asks again as its parameters change, and keeps the last answer where a request fails", async () => {
@@ -343,5 +503,38 @@ describe("useRequest()", () => {
     expect(host.requested.map((call) => call.args)).toEqual([{ pattern: "a" }, { pattern: "b" }]);
     expect(find(el, "p").textContent).toBe('["a.csv"]');
     expect(find(el, "p").title).toContain('No answer is given for the request "list"');
+  });
+
+  test("is loading from each ask until its answer or its failure, and keeps the last answer and error meanwhile", async () => {
+    const host = stubOptionHost<string>({
+      option: "data_dir",
+      value: "/data",
+      requests: [{ name: "list", args: { pattern: "a" }, answer: ["a.csv"] }],
+    });
+    const release = holdRequests(host);
+    const { el, redraw } = draw(<Names host={host} pattern="a" />);
+    const shown = () => {
+      const p = find(el, "p");
+      return [p.textContent, p.getAttribute("aria-busy"), p.title === "" ? null : "failed"];
+    };
+    expect(shown()).toEqual(["null", "true", null]);
+
+    release();
+    await wait(0);
+    expect(shown()).toEqual(['["a.csv"]', "false", null]);
+
+    redraw(<Names host={host} pattern="b" />);
+    expect(shown()).toEqual(['["a.csv"]', "true", null]);
+
+    release();
+    await wait(0);
+    expect(shown()).toEqual(['["a.csv"]', "false", "failed"]);
+
+    redraw(<Names host={host} pattern="a" />);
+    expect(shown()).toEqual(['["a.csv"]', "true", "failed"]);
+
+    release();
+    await wait(0);
+    expect(shown()).toEqual(['["a.csv"]', "false", null]);
   });
 });

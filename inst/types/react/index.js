@@ -1,5 +1,5 @@
 // srcts/react/hooks.ts
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 // srcts/util/util.ts
 function own(record, key) {
@@ -104,6 +104,7 @@ function follow(host, name, options) {
     latest?.abort();
     const controller = new AbortController();
     latest = controller;
+    options.loading?.();
     source.request(name, options.args?.() ?? {}, { signal: controller.signal }).then(
       (answer) => {
         if (latest === controller && !controller.signal.aborted) options.answer(answer);
@@ -231,18 +232,21 @@ function useValue(host, key) {
   );
 }
 function useRequest(host, name, options = {}) {
-  const [answered, setAnswered] = useState({ answer: void 0, error: null });
+  const [answered, setAnswered] = useState({ answer: void 0, error: null, loading: true });
   const reads = JSON.stringify([options.args ?? {}, options.reads ?? null]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const [args, extra] = JSON.parse(reads);
     const followed = follow(host, name, {
       args: () => args,
       reads: () => extra,
+      loading: () => {
+        setAnswered((last) => last.loading ? last : { ...last, loading: true });
+      },
       answer: (answer) => {
-        setAnswered({ answer, error: null });
+        setAnswered({ answer, error: null, loading: false });
       },
       failed: (failure) => {
-        setAnswered((last) => ({ answer: last.answer, error: errorMessage(failure) }));
+        setAnswered((last) => ({ answer: last.answer, error: errorMessage(failure), loading: false }));
       }
     });
     return () => {
@@ -381,17 +385,36 @@ function NumberInput({
   bound,
   label,
   min,
-  max
+  max,
+  outdated = false
 }) {
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const largest = outdated ? void 0 : max;
   const read = (input) => {
-    const value = input.trim() === "" ? Number.NaN : Number(input);
-    if (!Number.isInteger(value)) return void 0;
-    if (min !== void 0 && value < min) return void 0;
-    if (max !== void 0 && value > max) return void 0;
-    return value;
+    const trimmed = input.trim();
+    if (trimmed === "") return {};
+    const value = Number(trimmed);
+    if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
+    if (min !== void 0 && value < min) {
+      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
+    }
+    if (largest !== void 0 && value > largest) {
+      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
+    }
+    return { value };
   };
+  const settle = () => {
+    if (text === null) {
+      bound.flush();
+      return;
+    }
+    const { value } = read(text);
+    bound.type(value);
+    bound.flush();
+    if (value === void 0) typed(null);
+  };
+  const checked = read(shown);
   return /* @__PURE__ */ jsxs2(Fragment, { children: [
     /* @__PURE__ */ jsx2(Field, { label, children: /* @__PURE__ */ jsx2(
       "input",
@@ -399,36 +422,35 @@ function NumberInput({
         type: "number",
         step: 1,
         min,
-        max,
+        max: largest,
         required: true,
         className: styles.box,
         value: shown,
-        "aria-invalid": read(shown) === void 0,
+        "aria-invalid": checked.value === void 0,
         onChange: (event) => {
           typed(event.target.value);
-          bound.type(read(event.target.value));
+          bound.type(read(event.target.value).value);
         },
         onKeyDown: (event) => {
-          if (event.key === "Enter" && !event.nativeEvent.isComposing) bound.flush();
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) settle();
         },
-        onBlur: () => {
-          bound.flush();
-        }
+        onBlur: settle
       }
     ) }),
-    /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx2(Refusal, { error: checked.reason ?? bound.error })
   ] });
 }
 function Select({
   bound,
   label,
   placeholder,
-  choices
+  choices,
+  outdated = false
 }) {
   const current = typeof bound.value === "string" ? bound.value : void 0;
   const known = choices ?? [];
   const lacked = current !== void 0 && !known.some((choice) => choice.value === current);
-  const invalid = lacked && choices !== void 0;
+  const invalid = lacked && choices !== void 0 && !outdated;
   const shown = lacked ? [...known, { value: current, label: invalid ? missing(current) : current }] : known;
   return /* @__PURE__ */ jsxs2(Fragment, { children: [
     /* @__PURE__ */ jsx2(Field, { label, children: /* @__PURE__ */ jsxs2(
@@ -473,7 +495,8 @@ function Checklist({
   legend,
   choices,
   empty,
-  ordered = false
+  ordered = false,
+  outdated = false
 }) {
   const held2 = strings(bound.value);
   const known = choices ?? [];
@@ -489,7 +512,7 @@ function Checklist({
     /* @__PURE__ */ jsx2("legend", { className: styles.legend, children: legend }),
     /* @__PURE__ */ jsxs2("div", { className: styles.list, children: [
       shown.map((value) => {
-        const invalid = choices !== void 0 && !known.includes(value);
+        const invalid = choices !== void 0 && !outdated && !known.includes(value);
         return /* @__PURE__ */ jsxs2("label", { className: styles.check, children: [
           /* @__PURE__ */ jsx2(
             "input",

@@ -15,6 +15,7 @@ export interface BindOptions {
 export interface FollowOptions {
     readonly args?: () => Readonly<Record<string, Json>>;
     readonly reads?: () => Json;
+    readonly loading?: () => void;
     readonly answer: (answer: Json | Blob) => void;
     readonly failed?: (error: unknown) => void;
 }

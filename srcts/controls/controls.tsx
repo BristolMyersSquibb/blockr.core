@@ -28,14 +28,27 @@ import { errorMessage, own } from "../util/index.ts";
 export interface NumberInput {
   // Sets the largest number the input takes, or none.
   setMax(max: number | undefined): void;
+  // Says whether the largest number may be for older data,
+  // as from the option `loading` of follow() until the request answers.
+  // Meanwhile the input submits a number above it, and marks none.
+  setOutdated(outdated: boolean): void;
 }
 
 export interface Select {
   setChoices(choices: readonly Choice[]): void;
+  // Says whether the choices may be for older data,
+  // as from the option `loading` of follow() until the request answers.
+  // Meanwhile the select keeps them, and shows a value that they lack as it
+  // is.
+  setOutdated(outdated: boolean): void;
 }
 
 export interface Checklist {
   setChoices(choices: readonly string[]): void;
+  // Says whether the choices may be for older data,
+  // as from the option `loading` of follow() until the request answers.
+  // Meanwhile the checklist keeps them, and marks no string.
+  setOutdated(outdated: boolean): void;
 }
 
 // The controls of a module, by the keys of the values they bind:
@@ -57,14 +70,17 @@ export interface Controls<K extends string = string> {
   bind(key: K, show: (value: Json | undefined) => void): Binding;
   // A text input for a string, a text area where it spans lines.
   text(key: K, options: { label: string; placeholder?: string; lines?: number }): void;
-  // A number input for an integer, no smaller than `min`.
+  // A number input for an integer, no smaller than `min`,
+  // and no larger than the number that setMax() gives,
+  // but while setOutdated() says that it may be for older data.
   number(key: K, options: { label: string; min?: number }): NumberInput;
   // A select of one string, which shows `placeholder` while the value is
   // unset.
   // It takes no choices until they are given, here or through setChoices(),
   // and shows a value meanwhile as it is.
   // Once they are, it shows a value that they lack as missing,
-  // and marks itself invalid.
+  // and marks itself invalid,
+  // but not while setOutdated() says that they may be for older data.
   // So its choices must list every value it takes, not a part of them.
   select(key: K, options: { label: string; placeholder: string; choices?: readonly Choice[] }): Select;
   checkbox(key: K, options: { label: string }): void;
@@ -73,6 +89,8 @@ export interface Controls<K extends string = string> {
   // It takes no choices until they are given, here or through setChoices(),
   // and shows a string the value holds and they lack,
   // marked as missing once they are given, so that the user can clear it.
+  // It marks no string while setOutdated() says that the choices may be for
+  // older data.
   // So its choices must list every string it takes, not a part of them.
   // It submits the checked strings in the order the user checked them,
   // after those the value holds, or where `ordered`, in the order of the
@@ -222,10 +240,17 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
 
   function number(key: string, options: { label: string; min?: number }): NumberInput {
     let max: number | undefined;
-    input(key, (bound) => <inputs.NumberInput bound={bound} label={options.label} min={options.min} max={max} />);
+    let outdated = false;
+    input(key, (bound) => (
+      <inputs.NumberInput bound={bound} label={options.label} min={options.min} max={max} outdated={outdated} />
+    ));
     return {
       setMax(next) {
         max = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       },
     };
@@ -233,12 +258,23 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
 
   function select(key: string, options: { label: string; placeholder: string; choices?: readonly Choice[] }): Select {
     let choices = options.choices;
+    let outdated = false;
     input(key, (bound) => (
-      <inputs.Select bound={bound} label={options.label} placeholder={options.placeholder} choices={choices} />
+      <inputs.Select
+        bound={bound}
+        label={options.label}
+        placeholder={options.placeholder}
+        choices={choices}
+        outdated={outdated}
+      />
     ));
     return {
       setChoices(next) {
         choices = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       },
     };
@@ -253,6 +289,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     options: { legend: string; choices?: readonly string[]; empty?: string; ordered?: boolean },
   ): Checklist {
     let choices = options.choices;
+    let outdated = false;
     input(key, (bound) => (
       <inputs.Checklist
         bound={bound}
@@ -260,11 +297,16 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
         choices={choices}
         empty={options.empty}
         ordered={options.ordered}
+        outdated={outdated}
       />
     ));
     return {
       setChoices(next) {
         choices = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       },
     };

@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { find, pick, press, texts, toggle, type } from "../testing/inputs.ts";
-import { controls, PAUSE } from "./index.ts";
+import { holdRequests } from "../testing/requests.ts";
+import { asChoices, controls, PAUSE, strings } from "./index.ts";
 
 type Form = Readonly<{ label: string; direction: string; by?: readonly string[] }>;
 
@@ -97,6 +98,48 @@ describe("the controls of a block's UI", () => {
     expect(host.submitted).toEqual([]);
   });
 
+  test("keep the choices while the request that gives them asks again, and mark nothing until it answers", async () => {
+    const requests = [{ name: "ends", args: {}, options: {}, answer: ["head", "tail"] }];
+    const host = stubBlockHost<Form>({ ...fixture, requests }, { state: form({ direction: "middle", by: ["c"] }) });
+    const release = holdRequests(host);
+    const ui = controls(host, abort.signal);
+    const direction = ui.select("direction", { label: "Direction", placeholder: "Choose an end" });
+    const by = ui.checklist("by", { legend: "By columns" });
+    ui.follow("ends", {
+      loading() {
+        direction.setOutdated(true);
+        by.setOutdated(true);
+      },
+      answer(answer) {
+        direction.setChoices(asChoices(strings(answer)));
+        by.setChoices(strings(answer));
+        direction.setOutdated(false);
+        by.setOutdated(false);
+      },
+    });
+    const select = find(ui.el, "select", HTMLSelectElement);
+    const shown = () => [
+      texts(select, "option"),
+      select.getAttribute("aria-invalid"),
+      texts(ui.el, "fieldset label"),
+      find(ui.el, 'input[value="c"]').getAttribute("aria-invalid"),
+    ];
+    expect(shown()).toEqual([["middle"], "false", ["c"], "false"]);
+
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    const marked = [["head", "tail", "middle (not available)"], "true", ["head", "tail", "c (not available)"], "true"];
+    expect(shown()).toEqual(marked);
+
+    host.setContext({ inputs: [{ input: "data", revision: 2 }] });
+    expect(shown()).toEqual([["head", "tail", "middle"], "false", ["head", "tail", "c"], "false"]);
+
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(shown()).toEqual(marked);
+    expect(host.submitted).toEqual([]);
+  });
+
   test("submit typing once the user pauses or presses Enter, and keep it while the state changes", async () => {
     const { host, label, direction } = drawn();
 
@@ -178,6 +221,25 @@ describe("the controls of a board option's UI", () => {
     expect(() => {
       ui.checkbox("dark_mode", { label: "Dark mode" });
     }).toThrow('The host of the board option "n_rows" holds no value "dark_mode".');
+  });
+
+  test("submit a number above the most while setOutdated() says that it may be for older data, and mark none", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const ui = controls(host, abort.signal);
+    const rows = ui.number("n_rows", { label: "Preview rows", min: 1 });
+    rows.setMax(30);
+    rows.setOutdated(true);
+    document.body.append(ui.el);
+    const input = find(ui.el, "input", HTMLInputElement);
+    const shown = () => [input.value, input.max, input.getAttribute("aria-invalid")];
+
+    type(input, "50");
+    await vi.advanceTimersByTimeAsync(PAUSE);
+    expect(shown()).toEqual(["50", "", "false"]);
+    expect(host.submitted).toEqual([50]);
+
+    rows.setOutdated(false);
+    expect(shown()).toEqual(["50", "30", "true"]);
   });
 
   test("submit the checked strings in the order of the choices where ordered", () => {

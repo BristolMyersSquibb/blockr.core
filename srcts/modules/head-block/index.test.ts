@@ -8,6 +8,7 @@ import { READY, stubBlockHost } from "../../stubs/index.ts";
 import { find, pick, press, type } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle, unmount, wait } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
+import { holdRequests } from "../../testing/requests.ts";
 import * as head from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -96,25 +97,50 @@ test("submits a number at once on Enter, and as the user leaves the input", asyn
   expect(host.submitted).toHaveLength(2);
 });
 
-test("submits no number that the input does not take, and marks it", async () => {
-  const { host, n } = await mounted();
+test("submits no number that the input does not take, and marks it and says why", async () => {
+  const { host, view, n } = await mounted();
   await settle();
+  const said = () => [n.getAttribute("aria-invalid"), view.el.querySelector('[role="alert"]')?.textContent ?? null];
 
+  const shown: (string | null)[][] = [];
   for (const text of ["200", "-1", "2.5", ""]) {
     await step(() => {
       type(n, text);
     });
     await wait(PAUSE);
-    expect(n.getAttribute("aria-invalid")).toBe("true");
+    shown.push(said());
   }
+  expect(shown).toEqual([
+    ["true", "200 is above the maximum of 150."],
+    ["true", "-1 is below the minimum of 0."],
+    ["true", "2.5 is not a whole number."],
+    ["true", null],
+  ]);
   expect(host.submitted).toEqual([]);
 
   await step(() => {
     type(n, "10");
   });
-  expect(n.getAttribute("aria-invalid")).toBe("false");
+  expect(said()).toEqual(["false", null]);
   await wait(PAUSE);
   expect(host.submitted).toEqual([tenHead]);
+});
+
+test("goes back to the state as the user leaves a number above the rows, which clears what it said", async () => {
+  const { host, view, n } = await mounted();
+  await settle();
+  const shown = () => [n.value, view.el.querySelector('[role="alert"]')?.textContent ?? null];
+
+  await step(() => {
+    type(n, "200");
+  });
+  expect(shown()).toEqual(["200", "200 is above the maximum of 150."]);
+  await step(() => {
+    n.blur();
+  });
+  expect(shown()).toEqual(["6", null]);
+  await wait(PAUSE);
+  expect(host.submitted).toEqual([]);
 });
 
 test("submits the direction as the user picks it", async () => {
@@ -170,6 +196,29 @@ test("asks for the rows of its input again once the input's revision changes", a
   });
   await settle();
   expect(host.requested).toHaveLength(2);
+});
+
+test("takes no most while it asks for the rows of its input again, so that it marks no number meanwhile", async () => {
+  const host = stubBlockHost<State>(fixture, { state: { n: 200, direction: "head" } });
+  const release = holdRequests(host);
+  const view = await mountOnPage(head, host);
+  const n = find(view.el, 'input[type="number"]', HTMLInputElement);
+  const shown = () => [n.max, n.getAttribute("aria-invalid")];
+  expect(shown()).toEqual(["", "false"]);
+
+  release();
+  await settle();
+  expect(shown()).toEqual(["150", "true"]);
+
+  await step(() => {
+    host.setContext({ inputs: [{ input: "data", revision: 2 }] });
+  });
+  expect(shown()).toEqual(["", "false"]);
+
+  release();
+  await settle();
+  expect(shown()).toEqual(["150", "true"]);
+  expect(host.submitted).toEqual([]);
 });
 
 test("takes no most where its input has no rows to give", async () => {

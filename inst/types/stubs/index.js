@@ -9171,17 +9171,36 @@ function NumberInput({
   bound,
   label,
   min,
-  max
+  max,
+  outdated = false
 }) {
   const [text, typed] = useTyped(bound);
   const shown2 = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const largest = outdated ? void 0 : max;
   const read = (input2) => {
-    const value2 = input2.trim() === "" ? Number.NaN : Number(input2);
-    if (!Number.isInteger(value2)) return void 0;
-    if (min !== void 0 && value2 < min) return void 0;
-    if (max !== void 0 && value2 > max) return void 0;
-    return value2;
+    const trimmed = input2.trim();
+    if (trimmed === "") return {};
+    const value2 = Number(trimmed);
+    if (!Number.isInteger(value2)) return { reason: `${trimmed} is not a whole number.` };
+    if (min !== void 0 && value2 < min) {
+      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
+    }
+    if (largest !== void 0 && value2 > largest) {
+      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
+    }
+    return { value: value2 };
   };
+  const settle2 = () => {
+    if (text === null) {
+      bound.flush();
+      return;
+    }
+    const { value: value2 } = read(text);
+    bound.type(value2);
+    bound.flush();
+    if (value2 === void 0) typed(null);
+  };
+  const checked3 = read(shown2);
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsx(
       "input",
@@ -9189,36 +9208,35 @@ function NumberInput({
         type: "number",
         step: 1,
         min,
-        max,
+        max: largest,
         required: true,
         className: styles.box,
         value: shown2,
-        "aria-invalid": read(shown2) === void 0,
+        "aria-invalid": checked3.value === void 0,
         onChange: (event) => {
           typed(event.target.value);
-          bound.type(read(event.target.value));
+          bound.type(read(event.target.value).value);
         },
         onKeyDown: (event) => {
-          if (event.key === "Enter" && !event.nativeEvent.isComposing) bound.flush();
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) settle2();
         },
-        onBlur: () => {
-          bound.flush();
-        }
+        onBlur: settle2
       }
     ) }),
-    /* @__PURE__ */ jsx(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx(Refusal, { error: checked3.reason ?? bound.error })
   ] });
 }
 function Select({
   bound,
   label,
   placeholder,
-  choices
+  choices,
+  outdated = false
 }) {
   const current2 = typeof bound.value === "string" ? bound.value : void 0;
   const known = choices ?? [];
   const lacked = current2 !== void 0 && !known.some((choice) => choice.value === current2);
-  const invalid = lacked && choices !== void 0;
+  const invalid = lacked && choices !== void 0 && !outdated;
   const shown2 = lacked ? [...known, { value: current2, label: invalid ? missing(current2) : current2 }] : known;
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsxs(
@@ -9244,7 +9262,8 @@ function Checklist({
   legend,
   choices,
   empty: empty2,
-  ordered = false
+  ordered = false,
+  outdated = false
 }) {
   const held2 = strings(bound.value);
   const known = choices ?? [];
@@ -9260,7 +9279,7 @@ function Checklist({
     /* @__PURE__ */ jsx("legend", { className: styles.legend, children: legend }),
     /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
       shown2.map((value2) => {
-        const invalid = choices !== void 0 && !known.includes(value2);
+        const invalid = choices !== void 0 && !outdated && !known.includes(value2);
         return /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
           /* @__PURE__ */ jsx(
             "input",
@@ -9300,7 +9319,7 @@ function useTyped(bound) {
 }
 
 // srcts/react/hooks.ts
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState as useState2, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState as useState2, useSyncExternalStore } from "react";
 function useValue(host, key) {
   const name2 = key ?? ("option" in host ? host.option : "");
   const [value2, setValue] = useState2(() => held(host, name2));

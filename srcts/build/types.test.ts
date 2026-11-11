@@ -195,8 +195,12 @@ const merge: BlockModule<MergeState> = {
     const by = ui.checklist("by", { legend: "By columns", empty: "No column is shared." });
     ui.checkbox("all_x", { label: "Keep the rows of x that y does not match" });
     ui.follow("shared", {
+      loading() {
+        by.setOutdated(true);
+      },
       answer(answer) {
         by.setChoices(strings(answer));
+        by.setOutdated(false);
       },
     });
     el.replaceChildren(ui.el);

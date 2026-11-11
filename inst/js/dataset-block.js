@@ -5,14 +5,15 @@ import { jsx } from "react/jsx-runtime";
 var api = 1;
 function DatasetBlock({ host }) {
   const pkg = useValue(host, "package").value;
-  const datasets = useRequest(host, "datasets", { reads: pkg ?? null }).answer;
+  const datasets = useRequest(host, "datasets", { reads: pkg ?? null });
   return /* @__PURE__ */ jsx(Stack, { children: /* @__PURE__ */ jsx(
     Select,
     {
       bound: useValue(host, "dataset"),
       label: "Dataset",
       placeholder: "Choose a dataset",
-      choices: datasets === void 0 ? void 0 : asChoices(strings(datasets))
+      choices: datasets.answer === void 0 ? void 0 : asChoices(strings(datasets.answer)),
+      outdated: datasets.loading || datasets.error !== null
     }
   ) });
 }
