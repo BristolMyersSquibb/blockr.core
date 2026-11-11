@@ -18,6 +18,7 @@
 \alias{get_log_level}
 \alias{cnd_logger}
 \alias{cat_logger}
+\alias{otel_logger}
 \title{Logging}
 \usage{
 write_log(
@@ -26,7 +27,8 @@ write_log(
   envir = parent.frame(),
   asis = FALSE,
   use_glue = TRUE,
-  pkg = pkg_name(envir)
+  pkg = pkg_name(envir),
+  attributes = list()
 )
 
 log_fatal(..., envir = parent.frame())
@@ -57,9 +59,11 @@ trace_log_level
 
 get_log_level()
 
-cnd_logger(msg, level)
+cnd_logger(msg, level, pkg, asis, attributes)
 
-cat_logger(msg, level)
+cat_logger(msg, level, pkg, asis, attributes)
+
+otel_logger(msg, level, pkg, asis, attributes)
 }
 \arguments{
 \item{...}{Concatenated as \code{paste0(..., "\\n")}}
@@ -75,13 +79,17 @@ cat_logger(msg, level)
 
 \item{pkg}{Package name}
 
+\item{attributes}{Attributes of the line's record, as a named list, such as
+\code{blockr.block.id}, which only \code{otel_logger()} writes}
+
 \item{msg}{Message (string)}
 }
 \value{
 Logging function \code{write_log()}, wrappers \verb{log_*()} and loggers
-provided as \code{cnd_logger()}/cat_logger() all return \code{NULL} invisibly and are
-called for their side effect of emitting a message. Helpers \code{as_log_level()}
-and \code{get_log_level()} return a scalar-valued ordered factor.
+provided as \code{cnd_logger()}, \code{cat_logger()} and \code{otel_logger()} all return
+\code{NULL} invisibly and are called for their side effect of emitting a
+message. Helpers \code{as_log_level()} and \code{get_log_level()} return a
+scalar-valued ordered factor.
 }
 \description{
 Internally used infrastructure for emitting log messages is exported, hoping
@@ -91,4 +99,25 @@ All log messages are associated with an (ordered) level ("fatal", "error",
 "warn", "info", "debug" or "trace") which is compared against the currently
 set value (available as \code{get_log_level()}) and output is only generated if
 the message level is greater or equal to the currently set value.
+}
+\details{
+The blockr option \code{logger} picks the logger, the function that writes each
+line out, and is \code{cat_logger()} unless it names another.
+The function \code{write_log()} calls the logger with the message as written,
+its level, its package, \code{asis} and \code{attributes}.
+Both \code{cat_logger()} and \code{cnd_logger()} put the level, the time and the
+package in front of the message, as the blockr options \code{log_time} and
+\code{log_mem} set.
+They wrap the message to the console's width unless \code{asis} is \code{TRUE}.
+Then \code{cat_logger()} writes an error to standard error and any other line to
+standard output.
+The other, \code{cnd_logger()}, signals an error or a warning as a warning and
+any other line as a message.
+The logger \code{otel_logger()} writes each line through \code{\link[otel:log]{otel::log()}} instead,
+with its level as the record's severity.
+The record's attributes are the package, as \code{blockr.package.name}, and
+\code{attributes}.
+Where no OpenTelemetry SDK exports logs of that level, \code{otel_logger()}
+writes as \code{cat_logger()} does, so that no line is lost.
+Every logger stops with an error at the level "fatal".
 }

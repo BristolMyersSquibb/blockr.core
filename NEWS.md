@@ -366,6 +366,14 @@
   The pill of the errors is open from the start, so that a failed block shows its error at once.
   A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
   Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
+* The logger that the blockr option `logger` picks gets the message as written, its level, its package, `asis` and `attributes`.
+  Until now, it got one finished line.
+  So `cat_logger()` and `cnd_logger()` put the level, the time and the package in front of the message themselves, and wrap it, as `write_log()` did.
+  A logger written elsewhere has to take the new arguments as well.
+  The new `otel_logger()` writes each line through `otel::log()` as an OpenTelemetry record.
+  The record's severity is the line's level, and its attributes are the package, as `blockr.package.name`, and the `attributes` that `write_log()` takes.
+  Where no OpenTelemetry SDK exports logs, `otel_logger()` writes as `cat_logger()` does.
+  A deployment picks it by setting the blockr option `logger` to `otel_logger` (#550).
 
 # blockr.core 0.1.4
 
