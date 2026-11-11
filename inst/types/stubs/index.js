@@ -2,7 +2,7 @@
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
-function messageOf(error) {
+function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function asError(error) {
@@ -50,7 +50,7 @@ function listing(items) {
 function quoted(items) {
   return listing(items.map((item) => `"${item}"`));
 }
-function packageOf(id2) {
+function packageFromId(id2) {
   const at = id2.indexOf("-");
   if (at < 0) return null;
   const pkg = id2.slice(0, at);
@@ -1178,9 +1178,9 @@ var Validator = class {
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
-    validator = new Validator(schema, draftOf(schema), false);
+    validator = new Validator(schema, schemaDraft(schema), false);
   } catch (error) {
-    throw new Error(`The schema of ${what} cannot be read: ${messageOf(error)}`, {
+    throw new Error(`The schema of ${what} cannot be read: ${errorMessage(error)}`, {
       cause: error
     });
   }
@@ -1189,7 +1189,7 @@ function compile(what, schema, fails = "fails its schema") {
     return result.valid ? [] : describe(result.errors, fails);
   };
 }
-function draftOf(schema) {
+function schemaDraft(schema) {
   const declared = typeof schema.$schema === "string" ? schema.$schema : "";
   if (declared.includes("draft-04")) return "4";
   if (declared.includes("draft-07")) return "7";
@@ -1225,7 +1225,7 @@ var READY = Object.freeze({
   stderr: "",
   summary: null
 });
-function contextOf(given = {}) {
+function stubBlockContext(given = {}) {
   return Object.freeze({
     name: given.name ?? "Block",
     status: given.status ?? READY,
@@ -1258,7 +1258,7 @@ function announcer(events) {
 // srcts/stubs/block.ts
 function stubBlockHost(fixture, options = {}) {
   let state2 = options.state ?? fixture.states[0] ?? {};
-  let context = contextOf(options.context);
+  let context = stubBlockContext(options.context);
   const submitted = [];
   const requested = [];
   const evaluated = [];
@@ -1324,7 +1324,7 @@ function stubBlockHost(fixture, options = {}) {
       on.announce("state");
     },
     setContext(changes2) {
-      context = contextOf({ ...context, ...changes2 });
+      context = stubBlockContext({ ...context, ...changes2 });
       on.announce("context");
     }
   };
@@ -1838,7 +1838,7 @@ function E(t2) {
 }
 
 // srcts/graph/graph.ts
-function graphOf(board) {
+function createGraph(board) {
   const blocks = Object.keys(board.blocks);
   const into = /* @__PURE__ */ new Map();
   const sources = /* @__PURE__ */ new Map();
@@ -2192,7 +2192,7 @@ var PROTOCOL_VERSION = "1.0";
 
 // srcts/scheduler/status.ts
 var NO_CONDITIONS = Object.freeze([]);
-function outcomeOf(reply, revision) {
+function replyOutcome(reply, revision) {
   if (reply.status === "cancelled" || reply.status === "missing") return void 0;
   const evaluated = reply;
   return {
@@ -2279,7 +2279,7 @@ function sameStatus(a2, b2) {
     (condition, i2) => condition === b2.conditions[i2] || condition.phase === "status" && condition.message === b2.conditions[i2]?.message
   );
 }
-function statusesOf(input2) {
+function blockStatuses(input2) {
   const statuses = /* @__PURE__ */ new Map();
   const changed = [];
   for (const id2 of input2.graph.order) {
@@ -2321,7 +2321,7 @@ function waitingError(id2, status) {
 }
 
 // srcts/scheduler/evaluations.ts
-function oneTimeOf(blocks, params, priority, statuses) {
+function createOneTime(blocks, params, priority, statuses) {
   if (params === void 0) {
     const onBoard = new Set(blocks.filter((id2) => statuses.has(id2)));
     if (onBoard.size === 0) {
@@ -2430,7 +2430,7 @@ function neededBy(oneTimes, graph) {
   }
   return needs;
 }
-function pendingOf(oneTimes) {
+function pendingEvaluations(oneTimes) {
   const pending = [];
   for (const [id2, oneTime] of oneTimes) {
     if (!("params" in oneTime)) continue;
@@ -2461,7 +2461,7 @@ function without2(oneTimes, ids2) {
 }
 
 // srcts/scheduler/needs.ts
-function needsOf(graph, needs) {
+function neededBlocks(graph, needs) {
   const onBoard = new Set(graph.order);
   const found = /* @__PURE__ */ new Map();
   const raise = (id2, priority) => {
@@ -2482,7 +2482,7 @@ function needsOf(graph, needs) {
 
 // srcts/scheduler/plan.ts
 var GIVE_WAY = 5e3;
-function planOf(input2) {
+function evaluationPlan(input2) {
   const { graph, revisions, statuses, needs, now } = input2;
   const sent2 = [...input2.sent];
   const asked = [...input2.asked];
@@ -2492,7 +2492,7 @@ function planOf(input2) {
   const cancel = [];
   const cancelled2 = /* @__PURE__ */ new Set();
   const planned = /* @__PURE__ */ new Set();
-  const priorityOf = (evaluation) => evaluation.oneTime !== void 0 ? evaluation.oneTime.priority : needs.get(evaluation.block) ?? (evaluation.background ? -1 : void 0);
+  const evaluationPriority = (evaluation) => evaluation.oneTime !== void 0 ? evaluation.oneTime.priority : needs.get(evaluation.block) ?? (evaluation.background ? -1 : void 0);
   const inFlight = (id2, at) => planned.has(id2) || sent2.some(
     (evaluation) => evaluation.block === id2 && evaluation.revision === at && !evaluation.cancelled && !cancelled2.has(evaluation.id)
   );
@@ -2511,7 +2511,7 @@ function planOf(input2) {
     }
     for (const other of sent2) {
       if (other.id <= evaluation.id) continue;
-      if ((priorityOf(other) ?? -Infinity) > priority) {
+      if ((evaluationPriority(other) ?? -Infinity) > priority) {
         since = Math.min(since ?? other.at, other.at);
       }
     }
@@ -2534,7 +2534,7 @@ function planOf(input2) {
       drop(evaluation);
       continue;
     }
-    const priority = priorityOf(evaluation);
+    const priority = evaluationPriority(evaluation);
     if (priority === void 0) {
       if (evaluation.id !== oldest) drop(evaluation);
       continue;
@@ -2581,7 +2581,7 @@ function planOf(input2) {
       slots -= 1;
     }
   }
-  const busy = asked.length > 0 || sent2.some((evaluation) => (priorityOf(evaluation) ?? 0) >= 0) || queued.some((item) => item.priority >= 0);
+  const busy = asked.length > 0 || sent2.some((evaluation) => (evaluationPriority(evaluation) ?? 0) >= 0) || queued.some((item) => item.priority >= 0);
   let idleSince = input2.idleSince;
   if (busy || input2.holding || !Number.isFinite(input2.delay)) {
     idleSince = void 0;
@@ -2614,7 +2614,7 @@ function planOf(input2) {
 }
 
 // srcts/scheduler/recipes.ts
-function inputsOf(board, graph, registry, bound) {
+function inputsByBlock(board, graph, registry, bound) {
   const inputs = /* @__PURE__ */ new Map();
   for (const [id2, block] of Object.entries(board.blocks)) {
     const declared = own(registry, block.registry_id)?.inputs ?? [];
@@ -2714,13 +2714,13 @@ function createScheduler(options) {
   const demands = a(/* @__PURE__ */ new Map());
   const oneTimes = a(/* @__PURE__ */ new Map());
   const holding = a(true);
-  const graph = O(() => graphOf(board.value ?? NO_BOARD));
+  const graph = O(() => createGraph(board.value ?? NO_BOARD));
   const inputs = O(
-    () => inputsOf(board.value ?? NO_BOARD, graph.value, registry.value, bound.value)
+    () => inputsByBlock(board.value ?? NO_BOARD, graph.value, registry.value, bound.value)
   );
   let last = /* @__PURE__ */ new Map();
   const statuses = O(() => {
-    last = statusesOf({
+    last = blockStatuses({
       graph: graph.value,
       revisions: revisions.value,
       outcomes: outcomes.value,
@@ -2731,7 +2731,7 @@ function createScheduler(options) {
     return last;
   });
   const needs = O(
-    () => needsOf(graph.value, [
+    () => neededBlocks(graph.value, [
       ...[...demands.value.values()].map((demand) => ({
         blocks: demand.blocks.value,
         priority: demand.priority
@@ -2816,7 +2816,7 @@ function createScheduler(options) {
     rest.delete(id2);
     update({ oneTimes: rest, settled: [[id2, result]] });
   });
-  function recipeOf(id2) {
+  function blockRecipe(id2) {
     const block = board.value === void 0 ? void 0 : own(board.value.blocks, id2);
     const recipe = inputs.value.get(id2)?.recipe;
     if (block === void 0 || recipe === void 0) return void 0;
@@ -2829,7 +2829,7 @@ function createScheduler(options) {
     };
   }
   function send(item) {
-    const recipe = recipeOf(item.block);
+    const recipe = blockRecipe(item.block);
     const at = revisions.value.get(item.block);
     const block = board.value === void 0 ? void 0 : own(board.value.blocks, item.block);
     if (recipe === void 0 || at === void 0 || block === void 0) return;
@@ -2892,7 +2892,7 @@ function createScheduler(options) {
     const evaluation = done(id2);
     if (evaluation === void 0 || ended()) return;
     if (reply.status === "missing") lacking(reply.missing);
-    const outcome = outcomeOf(reply, evaluation.revision);
+    const outcome = replyOutcome(reply, evaluation.revision);
     if (outcome !== void 0 && evaluation.revision === revisions.value.get(evaluation.block) && statuses.value.get(evaluation.block)?.status !== "waiting") {
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
     }
@@ -2915,7 +2915,7 @@ function createScheduler(options) {
     if (evaluation.oneTime !== void 0) {
       end(evaluation.oneTime.id, { error });
     } else if (!(error instanceof SessionEndedError) && revisions.value.get(evaluation.block) === evaluation.revision) {
-      const outcome = unsent(evaluation.revision, messageOf(error));
+      const outcome = unsent(evaluation.revision, errorMessage(error));
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
     }
   });
@@ -2938,14 +2938,14 @@ function createScheduler(options) {
     passTimer = void 0;
     n(() => {
       if (stopped === void 0 && board.value !== void 0) {
-        const plan = planOf({
+        const plan = evaluationPlan({
           graph: graph.value,
           revisions: revisions.value,
           statuses: statuses.value,
           needs: needs.value,
           sent: sent2.value.values(),
           asked: asked.value.values(),
-          pending: pendingOf(oneTimes.value),
+          pending: pendingEvaluations(oneTimes.value),
           queue,
           interrupt: client.capabilities().has("interrupt"),
           holding: holding.value,
@@ -2980,7 +2980,7 @@ function createScheduler(options) {
           } catch (error) {
             report(
               new Error(
-                `The demand of ${owner} threw, so it demands nothing until it returns: ${messageOf(error)}`,
+                `The demand of ${owner} threw, so it demands nothing until it returns: ${errorMessage(error)}`,
                 { cause: error }
               )
             );
@@ -3075,7 +3075,7 @@ function createScheduler(options) {
           if ("error" in result) reject(asError(result.error));
           else resolve(result.statuses);
         });
-        const oneTime = oneTimeOf([...new Set(blocks)], params, at, statuses.value);
+        const oneTime = createOneTime([...new Set(blocks)], params, at, statuses.value);
         if (oneTime instanceof Error) {
           update({ oneTimes: oneTimes.value, settled: [[id2, { error: oneTime }]] });
         } else {
@@ -3186,7 +3186,7 @@ function createAnswers(scheduler, signal) {
     sweep();
   });
   function current2(request) {
-    return readsOf(request).every(
+    return requestReads(request).every(
       (read) => read.block === void 0 || scheduler.status(read.block)?.revision === read.revision
     );
   }
@@ -3261,7 +3261,7 @@ function createAnswers(scheduler, signal) {
   return {
     ask(ask, { signal: signal2, progress } = {}) {
       if (signal2?.aborted === true) return Promise.reject(asError(signal2.reason));
-      const key = ask.share === "once" ? void 0 : keyOf(ask.request);
+      const key = ask.share === "once" ? void 0 : requestKey(ask.request);
       const answer2 = key === void 0 ? void 0 : kept.get(key)?.answer;
       if (answer2 !== void 0) return Promise.resolve(answer2);
       const flight = (key === void 0 ? void 0 : flights.get(key)) ?? start2(ask, key);
@@ -3270,7 +3270,7 @@ function createAnswers(scheduler, signal) {
     size: () => kept.size
   };
 }
-function keyOf(request) {
+function requestKey(request) {
   if (request.type === "block_class") {
     return JSON.stringify(
       sorted([
@@ -3295,7 +3295,7 @@ function keyOf(request) {
     ])
   );
 }
-function readsOf(request) {
+function requestReads(request) {
   return request.type === "block_class" ? request.reads : [request.output];
 }
 function sorted(x2) {
@@ -3349,14 +3349,14 @@ function createLoader(options = {}) {
       }
     }
     const sheet = source.css === void 0 ? Promise.resolve() : once2(sheets, source.css, stylesheet).catch((error) => {
-      report(new ModuleError(source.module, pkg, `has a stylesheet that failed to load: ${messageOf(error)}`, { cause: error }));
+      report(new ModuleError(source.module, pkg, `has a stylesheet that failed to load: ${errorMessage(error)}`, { cause: error }));
     });
     const exports = once2(imported, source.module, importer);
     await sheet;
     try {
       return await exports;
     } catch (error) {
-      throw new ModuleError(source.module, pkg, `failed to load: ${messageOf(error)}`, { cause: error });
+      throw new ModuleError(source.module, pkg, `failed to load: ${errorMessage(error)}`, { cause: error });
     }
   }
   return {
@@ -3366,7 +3366,7 @@ function createLoader(options = {}) {
       if (source === void 0) {
         return Promise.reject(new Error(`No package offers a module "${id2}".`));
       }
-      return load(source, packageOf(id2));
+      return load(source, packageFromId(id2));
     }
   };
 }
@@ -3406,7 +3406,7 @@ function domMeasure() {
         width,
         height,
         pixel_ratio: window.devicePixelRatio > 0 ? window.devicePixelRatio : 1,
-        bg: backgroundOf(el) ?? FALLBACK.bg,
+        bg: visibleBackground(el) ?? FALLBACK.bg,
         fg: asHex(style.color) ?? FALLBACK.fg,
         accent: asHex(style.getPropertyValue(ACCENT).trim()) ?? FALLBACK.accent,
         font: style.fontFamily
@@ -3458,7 +3458,7 @@ function watchRatio(fn) {
   };
 }
 var WHITE = [255, 255, 255, 1];
-function backgroundOf(el) {
+function visibleBackground(el) {
   const layers = [];
   for (let at = el; at !== null; at = at.parentElement) {
     const value2 = getComputedStyle(at).backgroundColor;
@@ -3548,7 +3548,7 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name2}" of block "${block}"`;
   for (let attempt3 = 1; ; attempt3++) {
-    const reads = await readsOf2(deps, block, entry, name2, spec.inputs, opts.signal);
+    const reads = await evaluateReads(deps, block, entry, name2, spec.inputs, opts.signal);
     if (!deps.bound()) throw deps.unboundError();
     const board = deps.store.board();
     const state2 = own(board.blocks, block)?.state;
@@ -3603,7 +3603,7 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
     }
   }
 }
-async function readsOf2(deps, block, entry, name2, names, signal) {
+async function evaluateReads(deps, block, entry, name2, names, signal) {
   const what = `The request "${name2}" of block "${block}"`;
   if (names.length === 0) return [];
   const inputs = deps.scheduler.inputs(block);
@@ -3635,7 +3635,7 @@ async function readsOf2(deps, block, entry, name2, names, signal) {
 }
 
 // srcts/mount/shared.ts
-function moduleOf(exports, module, pkg) {
+function mountableModule(exports, module, pkg) {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
   }
@@ -3763,9 +3763,9 @@ function mountOption(deps, el, option) {
       if (renderer === void 0 || id2 === void 0) {
         mod = def.ui;
       } else {
-        const pkg = packageOf(id2);
+        const pkg = packageFromId(id2);
         const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = moduleOf(await loader.load(source, pkg), renderer.module, pkg);
+        mod = mountableModule(await loader.load(source, pkg), renderer.module, pkg);
       }
     } catch (error) {
       fail(error);
@@ -3792,15 +3792,15 @@ function mountOption(deps, el, option) {
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const why = `failed in render(): ${messageOf(error)}`;
+      const why = `failed in render(): ${errorMessage(error)}`;
       fail(
-        renderer === void 0 || id2 === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageOf(id2), why, { cause: error })
+        renderer === void 0 || id2 === void 0 ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error }) : new ModuleError(renderer.module, packageFromId(id2), why, { cause: error })
       );
     }
   })();
   function fail(error) {
     if (ended()) return;
-    showError(el, messageOf(error));
+    showError(el, errorMessage(error));
     report(error);
   }
   return end;
@@ -3893,9 +3893,9 @@ function mountOutput(deps, el, block) {
     let loading = preparing.get(given.id);
     if (loading === void 0) {
       loading = (async () => {
-        const pkg = packageOf(given.id);
+        const pkg = packageFromId(given.id);
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
-        const mod = moduleOf(await loader.load(source, pkg), given.module, pkg);
+        const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
         const named3 = mod.options ?? [];
         const failures = await deps.addOptions(named3, `the renderer "${given.id}"`);
         if (failures.length > 0) throw new Error(failures.join("\n"));
@@ -3955,7 +3955,7 @@ function mountOutput(deps, el, block) {
     if (fetching) return;
     fetching = true;
     const lacking = Object.keys(store.options.registered()).filter((id2) => !Object.hasOwn(store.board().options, id2));
-    void deps.defaultsOf(lacking, `the first output of block "${block}"`).then((found2) => {
+    void deps.resolveDefaults(lacking, `the first output of block "${block}"`).then((found2) => {
       fetching = false;
       if (ended() || renderer !== void 0) return;
       unwritten = found2;
@@ -3978,7 +3978,7 @@ function mountOutput(deps, el, block) {
         stopAsking();
         take(shelf.last);
       } else {
-        const key = keyOf2(want.asked);
+        const key = outputRequestKey(want.asked);
         if (asking?.key !== key) {
           stopAsking();
           asking = join(key, want.asked);
@@ -4086,7 +4086,7 @@ function mountOutput(deps, el, block) {
       return;
     }
     failed3(
-      { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message: messageOf(failure) },
+      { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message: errorMessage(failure) },
       []
     );
   }
@@ -4123,8 +4123,8 @@ function mountOutput(deps, el, block) {
         else current3.cleanup = rendered;
       } catch (failure) {
         if (signal.signal.aborted) return;
-        const pkg = packageOf(prepared.renderer.id);
-        const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${messageOf(failure)}`, {
+        const pkg = packageFromId(prepared.renderer.id);
+        const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${errorMessage(failure)}`, {
           cause: failure
         });
         showError(el, why.message);
@@ -4351,7 +4351,7 @@ function mountOutput(deps, el, block) {
   sync();
   return end;
 }
-function keyOf2(asked) {
+function outputRequestKey(asked) {
   return JSON.stringify([asked.revision, sorted2(asked.options), sorted2(asked.info), sorted2(asked.params)]);
 }
 function sorted2(x2) {
@@ -4389,7 +4389,7 @@ function createMounts(options) {
     }
     return [message];
   }
-  function defaultOf(id2, def) {
+  function resolveDefault(id2, def) {
     const pending = resolving.get(id2);
     if (pending !== void 0) return pending;
     const given = def.default;
@@ -4411,16 +4411,16 @@ function createMounts(options) {
         }
         let value2;
         try {
-          value2 = await defaultOf(id2, def);
+          value2 = await resolveDefault(id2, def);
         } catch (error) {
-          return failure(`The default of the board option "${id2}", which ${by} requires, failed: ${messageOf(error)}`);
+          return failure(`The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
         }
         if (replaced.aborted || Object.hasOwn(store.board().options, id2)) return [];
         try {
           await commands.run("blockr.core-set_option", { id: id2, value: value2 }, CORE);
         } catch (error) {
           return failure(
-            `The default of the board option "${id2}", which ${by} requires, did not go onto the board: ${messageOf(error)}`
+            `The default of the board option "${id2}", which ${by} requires, did not go onto the board: ${errorMessage(error)}`
           );
         }
         return [];
@@ -4449,16 +4449,16 @@ function createMounts(options) {
       }
     };
   }
-  async function defaultsOf(ids2, by) {
+  async function resolveDefaults(ids2, by) {
     const found = await Promise.all(
       ids2.map(async (id2) => {
         const def = own(store.options.registered(), id2);
         if (def === void 0 || Object.hasOwn(store.board().options, id2)) return [];
         let value2;
         try {
-          value2 = await defaultOf(id2, def);
+          value2 = await resolveDefault(id2, def);
         } catch (error) {
-          failure(`The default of the board option "${id2}", which ${by} requires, failed: ${messageOf(error)}`);
+          failure(`The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
           return [];
         }
         const unfit = compile(`the board option "${id2}"`, def.schema)(value2);
@@ -4481,7 +4481,7 @@ function createMounts(options) {
     if (entry === void 0) {
       throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
     }
-    const pkg = packageOf(entry.id);
+    const pkg = packageFromId(entry.id);
     const controller = new AbortController();
     const { signal } = controller;
     const ended = () => signal.aborted;
@@ -4519,7 +4519,7 @@ function createMounts(options) {
       if (ended()) return;
       let mod;
       try {
-        mod = moduleOf(exports, entry.module, pkg);
+        mod = mountableModule(exports, entry.module, pkg);
         checkOptions(mod, entry, pkg);
       } catch (error) {
         fail(error);
@@ -4546,12 +4546,12 @@ function createMounts(options) {
         if (ended()) attempt(rendered);
         else cleanup = rendered;
       } catch (error) {
-        fail(new ModuleError(entry.module, pkg, `failed in render(): ${messageOf(error)}`, { cause: error }));
+        fail(new ModuleError(entry.module, pkg, `failed in render(): ${errorMessage(error)}`, { cause: error }));
       }
     })();
     function fail(error) {
       if (ended()) return;
-      showError(el, messageOf(error));
+      showError(el, errorMessage(error));
       report(error);
     }
     return end;
@@ -4559,7 +4559,7 @@ function createMounts(options) {
   return {
     mountBlock,
     mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, defaultsOf, emit },
+      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit },
       el,
       block
     ),
@@ -4583,15 +4583,15 @@ function blockHost(deps) {
   const { store, commands, scheduler, block, entry } = deps;
   let seen = store.board();
   let named2 = [];
-  let state2 = blockOf(seen)?.state ?? {};
-  let context = contextOf2(blockOf(seen));
+  let state2 = mountedBlock(seen)?.state ?? {};
+  let context = blockContext(mountedBlock(seen));
   let following = true;
   let gone = false;
   const listeners = { state: /* @__PURE__ */ new Set(), context: /* @__PURE__ */ new Set() };
-  function blockOf(board) {
+  function mountedBlock(board) {
     return own(board.blocks, block);
   }
-  function contextOf2(now) {
+  function blockContext(now) {
     const recipe = scheduler.inputs(block)?.recipe ?? [];
     return Object.freeze({
       name: now?.name ?? "",
@@ -4624,14 +4624,14 @@ function blockHost(deps) {
     }
   }
   function refresh() {
-    const now = blockOf(seen);
+    const now = mountedBlock(seen);
     if (now === void 0) {
       unbind();
       return;
     }
     const stateChanged = now.state !== state2;
     if (stateChanged) state2 = now.state;
-    const next = contextOf2(now);
+    const next = blockContext(now);
     const contextChanged = !sameContext(context, next);
     if (contextChanged) context = next;
     if (stateChanged) announce2("state");
@@ -4703,7 +4703,7 @@ function blockHost(deps) {
     },
     name(options) {
       named2 = options;
-      context = contextOf2(blockOf(seen));
+      context = blockContext(mountedBlock(seen));
     },
     drop: stop
   };
@@ -4763,9 +4763,9 @@ function createBlockrOptions(client) {
     const asked = [...names.keys()];
     let values2;
     try {
-      values2 = await valuesOf(client, asked);
+      values2 = await requestBlockrOptions(client, asked);
     } catch (error) {
-      const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${messageOf(error)}`, { cause: error });
+      const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${errorMessage(error)}`, { cause: error });
       for (const [name2, settle2] of names) {
         found.delete(name2);
         settle2.reject(failure);
@@ -4785,7 +4785,7 @@ function createBlockrOptions(client) {
     }
   };
 }
-async function valuesOf(client, names) {
+async function requestBlockrOptions(client, names) {
   for (; ; ) {
     let reply;
     try {
@@ -5831,24 +5831,24 @@ function randomUuid() {
 
 // srcts/store/plugins.ts
 var ROLES = ["frontend", "storage"];
-function inRole(plugins, classOf2, role) {
-  return Object.entries(plugins).filter(([, plugin]) => classOf2(plugin.class)?.[role] !== void 0).map(([id2]) => id2);
+function inRole(plugins, registeredClass, role) {
+  return Object.entries(plugins).filter(([, plugin]) => registeredClass(plugin.class)?.[role] !== void 0).map(([id2]) => id2);
 }
 function defaultState(def) {
   return frozenCopy(def.state === void 0 ? {} : def.state.default);
 }
-function keptPlugins(board, opening2, classOf2) {
+function keptPlugins(board, opening2, registeredClass) {
   return Object.fromEntries(
     Object.entries(board).filter(
-      (entry) => isObject(entry[1]) && typeof entry[1].class === "string" && own(opening2, entry[0])?.class === entry[1].class && classOf2(entry[1].class) !== void 0
+      (entry) => isObject(entry[1]) && typeof entry[1].class === "string" && own(opening2, entry[0])?.class === entry[1].class && registeredClass(entry[1].class) !== void 0
     )
   );
 }
-function appPlugins(board, opening2, classOf2) {
-  const kept = keptPlugins(board, opening2, classOf2);
+function appPlugins(board, opening2, registeredClass) {
+  const kept = keptPlugins(board, opening2, registeredClass);
   const plugins = {};
   for (const [id2, plugin] of Object.entries(opening2)) {
-    const def = classOf2(plugin.class);
+    const def = registeredClass(plugin.class);
     if (def === void 0) continue;
     plugins[id2] = own(kept, id2) ?? { class: plugin.class, name: plugin.name, state: defaultState(def) };
   }
@@ -5951,7 +5951,7 @@ function checkLinks(board, registry, changed, failures) {
       `The input "${input2}" of block "${to}" takes the links ${quoted(links)}, where it takes one.`
     );
   }
-  const cycle = graphOf(board).cycle();
+  const cycle = createGraph(board).cycle();
   if (cycle !== void 0) {
     failures.push(`The links form a cycle through the blocks ${quoted(cycle)}.`);
   }
@@ -6018,9 +6018,9 @@ function checkPlugins(board, registrations, changed, failures) {
       failures.push(`The state of the plugin "${id2}" ${failure}`);
     }
   }
-  const classOf2 = (id2) => registrations.plugin(id2)?.def;
+  const registeredClass = (id2) => registrations.plugin(id2)?.def;
   for (const role of ROLES) {
-    const held2 = inRole(board.plugins, classOf2, role);
+    const held2 = inRole(board.plugins, registeredClass, role);
     if (held2.length > 1) {
       failures.push(`The board holds the ${ROLE_NAMES[role]} ${quoted(held2)}, where it holds one at most.`);
     }
@@ -6059,24 +6059,24 @@ function fits(x2, kind) {
 }
 
 // srcts/store/patch.ts
-function pointer(path) {
+function segmentsFromPath(path) {
   if (!path.startsWith("/")) return void 0;
-  const parts = path.slice(1).split("/");
-  if (parts.some((part) => /~(?![01])/.test(part))) return void 0;
-  return parts.map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"));
+  const segments = path.slice(1).split("/");
+  if (segments.some((segment) => /~(?![01])/.test(segment))) return void 0;
+  return segments.map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
 }
-function pluginOf(path) {
-  const [top, plugin] = pointer(path) ?? [];
-  return top === "plugins" ? plugin : void 0;
+function pluginIdFromPath(path) {
+  const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
+  return boardProperty === "plugins" ? plugin : void 0;
 }
-function pathOf(parts) {
-  return parts.map((part) => `/${part.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
+function pathFromSegments(segments) {
+  return segments.map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
 }
 function overlap(a2, b2, board) {
   let at = board;
-  for (const [i2, part] of a2.slice(0, b2.length).entries()) {
-    if (Array.isArray(at) || part !== b2[i2]) return false;
-    at = isObject(at) ? own(at, part) : void 0;
+  for (const [i2, segment] of a2.slice(0, b2.length).entries()) {
+    if (Array.isArray(at) || segment !== b2[i2]) return false;
+    at = isObject(at) ? own(at, segment) : void 0;
   }
   return true;
 }
@@ -6087,8 +6087,8 @@ function malformed(patch2) {
   if (op !== "add" && op !== "remove" && op !== "replace") {
     problems.push(`has the op ${JSON.stringify(op)}, where it takes "add", "remove" or "replace"`);
   }
-  if (typeof path !== "string" || pointer(path) === void 0) {
-    problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's top`);
+  if (typeof path !== "string" || segmentsFromPath(path) === void 0) {
+    problems.push(`has the path ${JSON.stringify(path)}, which is no JSON Pointer below the board's root`);
   }
   if ((op === "add" || op === "replace") && patch2.value === void 0) {
     problems.push("has no value");
@@ -6103,22 +6103,22 @@ function malformed(patch2) {
   }
   return problems;
 }
-function applyPatch(board, patch2, parts, place) {
-  const result = step(board, parts, patch2, [], place);
+function applyPatch(board, patch2, segments, place) {
+  const result = step(board, segments, patch2, [], place);
   if (typeof result === "string") return { failure: result };
   return { ...result, next: result.next };
 }
-function step(at, parts, patch2, done, place) {
-  const [part = "", ...rest] = parts;
+function step(at, segments, patch2, done, place) {
+  const [segment = "", ...rest] = segments;
   if (Array.isArray(at)) {
     const items = at;
     const last = rest.length === 0;
-    const index = last && part === "-" && patch2.op === "add" ? items.length : arrayIndex(part);
+    const index = last && segment === "-" && patch2.op === "add" ? items.length : arrayIndex(segment);
     const bound = last && patch2.op === "add" ? items.length : items.length - 1;
     if (index === void 0 || index > bound) {
-      return `finds no element "${part}" in the array at "${pathOf(done)}"`;
+      return `finds no element "${segment}" in the array at "${pathFromSegments(done)}"`;
     }
-    const here2 = pathOf([...done, String(index)]);
+    const here2 = pathFromSegments([...done, String(index)]);
     if (!last) {
       const inner = step(items[index], rest, patch2, [...done, String(index)], place);
       if (typeof inner === "string") return inner;
@@ -6146,37 +6146,37 @@ function step(at, parts, patch2, done, place) {
     }
   }
   if (!isObject(at)) {
-    return `finds neither an object nor an array at "${pathOf(done)}"`;
+    return `finds neither an object nor an array at "${pathFromSegments(done)}"`;
   }
-  const has = Object.hasOwn(at, part);
-  const old = has ? at[part] : void 0;
-  const here = pathOf([...done, part]);
+  const has = Object.hasOwn(at, segment);
+  const old = has ? at[segment] : void 0;
+  const here = pathFromSegments([...done, segment]);
   if (rest.length > 0) {
-    if (!has) return `finds no "${part}" in "${pathOf(done)}"`;
-    const inner = step(old, rest, patch2, [...done, part], place);
+    if (!has) return `finds no "${segment}" in "${pathFromSegments(done)}"`;
+    const inner = step(old, rest, patch2, [...done, segment], place);
     if (typeof inner === "string") return inner;
     if (inner.next === old) return { ...inner, next: at };
-    return { ...inner, next: { ...at, [part]: inner.next } };
+    return { ...inner, next: { ...at, [segment]: inner.next } };
   }
   switch (patch2.op) {
     case "add":
     case "replace":
-      if (!has && patch2.op === "replace") return `finds no "${part}" in "${pathOf(done)}" to replace`;
+      if (!has && patch2.op === "replace") return `finds no "${segment}" in "${pathFromSegments(done)}" to replace`;
       if (!has) {
-        return { next: inserted(at, part, patch2.value, place), inverse: { op: "remove", path: here } };
+        return { next: inserted(at, segment, patch2.value, place), inverse: { op: "remove", path: here } };
       }
       if (jsonEqual(old, patch2.value)) return { next: at, inverse: void 0 };
       return {
-        next: { ...at, [part]: patch2.value },
+        next: { ...at, [segment]: patch2.value },
         inverse: { op: "replace", path: here, value: old }
       };
     case "remove": {
-      if (!has) return `finds no "${part}" in "${pathOf(done)}" to remove`;
+      if (!has) return `finds no "${segment}" in "${pathFromSegments(done)}" to remove`;
       const members = Object.keys(at);
       return {
-        next: without(at, [part]),
+        next: without(at, [segment]),
         inverse: { op: "add", path: here, value: old },
-        place: members[members.indexOf(part) + 1] ?? null
+        place: members[members.indexOf(segment) + 1] ?? null
       };
     }
   }
@@ -6194,8 +6194,8 @@ function spliced(items, index, count, ...added) {
   copy.splice(index, count, ...added);
   return copy;
 }
-function arrayIndex(part) {
-  return /^(0|[1-9]\d*)$/.test(part) ? Number(part) : void 0;
+function arrayIndex(segment) {
+  return /^(0|[1-9]\d*)$/.test(segment) ? Number(segment) : void 0;
 }
 
 // srcts/store/commit.ts
@@ -6291,14 +6291,14 @@ function patch(board, patches2, placed, failures) {
       failures.push(`${name2} ${problems.join(", ")}.`);
       continue;
     }
-    const parts = pointer(given.path) ?? [];
-    const misplaced2 = outside(parts, given.op);
+    const segments = segmentsFromPath(given.path) ?? [];
+    const misplaced2 = outside(segments, given.op);
     if (misplaced2 !== void 0) {
       failures.push(`${name2}, ${given.op} at "${given.path}", ${misplaced2}.`);
       continue;
     }
     const place = given.op === "add" ? own(placed, given.path) : void 0;
-    const applied = applyPatch(next, given, parts, place);
+    const applied = applyPatch(next, given, segments, place);
     if ("failure" in applied) {
       failures.push(`${name2}, ${given.op} at "${given.path}", ${applied.failure}.`);
       continue;
@@ -6307,22 +6307,22 @@ function patch(board, patches2, placed, failures) {
     if (applied.inverse === void 0) continue;
     inverse.unshift(applied.inverse);
     if (applied.place !== void 0) places[applied.inverse.path] = applied.place;
-    plugins.add(parts[1] ?? "");
+    plugins.add(segments[1] ?? "");
   }
   return { board: next, inverse, places, plugins };
 }
-function outside(parts, op) {
-  const [top, plugin, part] = parts;
-  if (top !== "plugins") return `changes "${top ?? ""}", where a patch changes the board's plugins alone`;
+function outside(segments, op) {
+  const [boardProperty, plugin, pluginProperty] = segments;
+  if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the board's plugins alone`;
   if (plugin === void 0) return "changes the board's plugins as a whole, where a patch changes one plugin";
-  if (part === void 0) {
+  if (pluginProperty === void 0) {
     return `changes the plugin "${plugin}" as a whole, where a patch changes a plugin's name or its state, since the app's opening board sets the plugins that a board holds`;
   }
-  if (part !== "name" && part !== "state") {
-    return `changes "${part}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
+  if (pluginProperty !== "name" && pluginProperty !== "state") {
+    return `changes "${pluginProperty}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
   }
-  if (parts.length === 3 && op === "remove") {
-    return `removes the ${part} of the plugin "${plugin}", which a plugin always holds`;
+  if (segments.length === 3 && op === "remove") {
+    return `removes the ${pluginProperty} of the plugin "${plugin}", which a plugin always holds`;
   }
   return void 0;
 }
@@ -6504,7 +6504,7 @@ function expand(delta, board, registrations) {
       try {
         patches2 = def.update(expanded, board, id2);
       } catch (error) {
-        failures.push(`The plugin class "${def.id}" failed to update the delta for the plugin "${id2}": ${messageOf(error)}`);
+        failures.push(`The plugin class "${def.id}" failed to update the delta for the plugin "${id2}": ${errorMessage(error)}`);
         continue;
       }
       const wrong = misplaced(def.id, id2, patches2);
@@ -6562,8 +6562,8 @@ function misplaced(cls, id2, patches2) {
       continue;
     }
     const { path } = patch2;
-    const [top, plugin, part] = pointer(path) ?? [];
-    if (top !== "plugins" || plugin !== id2 || part !== "state") {
+    const [boardProperty, plugin, pluginProperty] = segmentsFromPath(path) ?? [];
+    if (boardProperty !== "plugins" || plugin !== id2 || pluginProperty !== "state") {
       failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
     }
   }
@@ -6571,12 +6571,12 @@ function misplaced(cls, id2, patches2) {
 }
 function merge(delta, given, patches2, board) {
   const held2 = delta.patches ?? [];
-  const fixed2 = (given.patches ?? []).map(({ path }) => pointer(path) ?? []);
+  const fixed2 = (given.patches ?? []).map(({ path }) => segmentsFromPath(path) ?? []);
   const added = [];
   for (const patch2 of patches2) {
-    const parts = pointer(patch2.path) ?? [];
+    const segments = segmentsFromPath(patch2.path) ?? [];
     if ([...held2, ...added].some((other) => same(other, patch2))) continue;
-    if (fixed2.some((path) => overlap(path, parts, board))) continue;
+    if (fixed2.some((other) => overlap(other, segments, board))) continue;
     added.push(patch2);
   }
   if (added.length === 0) return delta;
@@ -6628,8 +6628,8 @@ function lockFailures(before, inverse) {
   }
   if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
   const renamed = (inverse.patches ?? []).flatMap((patch2) => {
-    const [, plugin, part] = pointer(patch2.path) ?? [];
-    return plugin === void 0 || part === "state" ? [] : [plugin];
+    const [, plugin, pluginProperty] = segmentsFromPath(patch2.path) ?? [];
+    return plugin === void 0 || pluginProperty === "state" ? [] : [plugin];
   });
   refuse("rename", "plugin", "plugins", [...new Set(renamed)]);
   return failures;
@@ -6670,9 +6670,9 @@ function patches(given, board) {
   let at = board;
   const fitted = [];
   for (const patch2 of given) {
-    const parts = pointer(patch2.path) ?? [];
-    if (parts[0] !== "plugins") continue;
-    const applied = applyPatch(at, patch2, parts);
+    const segments = segmentsFromPath(patch2.path) ?? [];
+    if (segments[0] !== "plugins") continue;
+    const applied = applyPatch(at, patch2, segments);
     if ("failure" in applied) continue;
     at = applied.next;
     fitted.push(patch2);
@@ -6712,7 +6712,7 @@ function parse(text) {
   try {
     return JSON.parse(text);
   } catch (error) {
-    throw new StoreError(refused, [`The text holds no JSON: ${messageOf(error)}`]);
+    throw new StoreError(refused, [`The text holds no JSON: ${errorMessage(error)}`]);
   }
 }
 function checkJsonBoard(json) {
@@ -6780,7 +6780,7 @@ function migrate(board, json, reply, registrations) {
   const changed = /* @__PURE__ */ new Set();
   const plugins = Object.fromEntries(
     Object.entries(board.plugins).map(([id2, plugin]) => {
-      const cls = classOf(plugin);
+      const cls = pluginClassId(plugin);
       const def = cls === void 0 ? void 0 : registrations.plugin(cls)?.def;
       if (cls === void 0 || def === void 0) return [id2, plugin];
       const from = own(json.versions, cls);
@@ -6857,36 +6857,36 @@ function migratedValue(what, fn) {
   try {
     out = fn();
   } catch (error) {
-    throw new StoreError(refused, [`${what} failed: ${messageOf(error)}`]);
+    throw new StoreError(refused, [`${what} failed: ${errorMessage(error)}`]);
   }
   if (out === void 0) throw new StoreError(refused, [`${what} returned nothing.`]);
   return frozenCopy(out);
 }
 function openJsonBoard(json, reply, registrations) {
   const opening2 = openingPlugins(reply.board);
-  const pluginClass = (id2) => registrations.plugin(id2)?.def;
+  const registeredClass = (id2) => registrations.plugin(id2)?.def;
   const read = unversioned(json.board);
-  const held2 = keptPlugins(read.plugins, opening2, pluginClass);
+  const held2 = keptPlugins(read.plugins, opening2, registeredClass);
   const plugins = Object.entries(read.plugins).flatMap(([id2, plugin]) => {
-    const cls = classOf(plugin);
-    return cls === void 0 || Object.hasOwn(held2, id2) ? [] : [{ plugin: id2, class: cls, package: packageOf(cls) }];
+    const cls = pluginClassId(plugin);
+    return cls === void 0 || Object.hasOwn(held2, id2) ? [] : [{ plugin: id2, class: cls, package: packageFromId(cls) }];
   });
   const migrated2 = migrate({ ...read, plugins: held2 }, json.board, reply, registrations);
   const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
   const blocks = gone.map((id2) => {
     const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
-    return { block: id2, registry_id: registryId2, package: packageOf(registryId2) };
+    return { block: id2, registry_id: registryId2, package: packageFromId(registryId2) };
   });
   const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
   const options = unclaimed.map((id2) => ({ option: id2 }));
   const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
-  const board = { ...kept, plugins: appPlugins(kept.plugins, opening2, pluginClass) };
+  const board = { ...kept, plugins: appPlugins(kept.plugins, opening2, registeredClass) };
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
   const packages = Object.entries(json.packages).filter(([pkg]) => own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ package: pkg, version }));
   return { board, dropped: [...packages, ...blocks, ...plugins, ...options] };
 }
-function classOf(plugin) {
+function pluginClassId(plugin) {
   return isObject(plugin) && typeof plugin.class === "string" ? plugin.class : void 0;
 }
 function openingPlugins(opening2) {
@@ -7027,7 +7027,7 @@ function createRegistrations() {
   };
 }
 function isPluginClassId(id2) {
-  const pkg = packageOf(id2);
+  const pkg = packageFromId(id2);
   return pkg !== null && /^.+_plugin$/.test(id2.slice(pkg.length + 1));
 }
 
@@ -7136,7 +7136,7 @@ function createStore(options = {}) {
         compare(target({ block: id2 }), mod.edit);
       }
       for (const patch2 of delta.patches ?? []) {
-        const plugin = pluginOf(patch2.path);
+        const plugin = pluginIdFromPath(patch2.path);
         if (plugin !== void 0) compare(target({ plugin }), patch2.edit);
       }
     }
@@ -7202,7 +7202,7 @@ function createStore(options = {}) {
     }
   }
   const refusedOpen = "The store refused to open the board";
-  function jsonOf(given) {
+  function prepareOpen(given) {
     if (typeof given !== "string") {
       hello = given;
       registry.value = given.block_registry;
@@ -7241,7 +7241,7 @@ function createStore(options = {}) {
       }
       opening2 = true;
       try {
-        const { json, reply } = jsonOf(given);
+        const { json, reply } = prepareOpen(given);
         const opened = build(json, reply);
         guard2();
         busy = true;
@@ -7263,7 +7263,7 @@ function createStore(options = {}) {
   function checkText(text) {
     return settled(() => {
       stillOpen();
-      const { json, reply } = jsonOf(text);
+      const { json, reply } = prepareOpen(text);
       return build(json, reply).dropped;
     });
   }
@@ -7274,8 +7274,8 @@ function createStore(options = {}) {
     }
     const classes = [...new Set(Object.values(next.plugins).map((plugin) => plugin.class))];
     const owned = /* @__PURE__ */ new Set([
-      ...classes.flatMap((cls) => packageOf(cls) ?? []),
-      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageOf(registry_id) ?? [])
+      ...classes.flatMap((cls) => packageFromId(cls) ?? []),
+      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? [])
     ]);
     const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {
@@ -7375,7 +7375,7 @@ function coreStorage(doc = document) {
   return {
     save(board) {
       try {
-        download(board, fileName({ id: idOf(board) }), doc);
+        download(board, fileName({ id: boardIdFromText(board) }), doc);
         return Promise.resolve();
       } catch (error) {
         return Promise.reject(asError(error));
@@ -7431,7 +7431,7 @@ function pickFile(doc = document) {
     input2.click();
   });
 }
-function idOf(text) {
+function boardIdFromText(text) {
   let json;
   try {
     json = JSON.parse(text);
@@ -7452,7 +7452,7 @@ var NOTHING_FAILED = Promise.resolve([]);
 function runPlugins(deps) {
   const { store, loader, keepOptions } = deps;
   const replaced = deps.signal ?? new AbortController().signal;
-  const classOfId = (id2) => own(store.plugins.registered(), id2);
+  const registeredClass = (id2) => own(store.plugins.registered(), id2);
   const added = /* @__PURE__ */ new Map();
   let basic = NOTHING_FAILED;
   const stops = [];
@@ -7464,10 +7464,10 @@ function runPlugins(deps) {
   }
   function opened(plugins) {
     for (const [id2, plugin] of Object.entries(plugins)) {
-      const def = classOfId(plugin.class);
+      const def = registeredClass(plugin.class);
       if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${def.id}"`));
     }
-    if (deps.alone !== true && inRole(plugins, classOfId, "frontend").length === 0) {
+    if (deps.alone !== true && inRole(plugins, registeredClass, "frontend").length === 0) {
       basic = keep(BASIC_FRONTEND.options, "core's basic frontend");
     }
   }
@@ -7493,23 +7493,23 @@ function runPlugins(deps) {
     }
     return memo.running;
   }
-  function classOf2(plugin) {
+  function pluginClass(plugin) {
     const found = own(running2(), plugin);
-    const def = found === void 0 ? void 0 : classOfId(found.class);
+    const def = found === void 0 ? void 0 : registeredClass(found.class);
     if (def === void 0) throw new Error(`The open board runs no plugin "${plugin}".`);
     return def;
   }
   let ownStorage;
   function storage() {
-    const [id2] = inRole(running2(), classOfId, "storage");
-    const given = id2 === void 0 ? void 0 : classOf2(id2).storage;
+    const [id2] = inRole(running2(), registeredClass, "storage");
+    const given = id2 === void 0 ? void 0 : pluginClass(id2).storage;
     if (given !== void 0) return given;
     ownStorage ??= coreStorage();
     return ownStorage;
   }
   function frontend() {
-    const [id2] = inRole(running2(), classOfId, "frontend");
-    const module = id2 === void 0 ? void 0 : classOf2(id2).frontend;
+    const [id2] = inRole(running2(), registeredClass, "frontend");
+    const module = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
     if (id2 === void 0 || module === void 0) {
       return { module: BASIC_FRONTEND.frontend, plugin: void 0, added: basic };
     }
@@ -7520,7 +7520,7 @@ function runPlugins(deps) {
     if (started) return;
     started = true;
     const starting = Object.entries(running2()).flatMap(([id2, plugin]) => {
-      const def = classOfId(plugin.class);
+      const def = registeredClass(plugin.class);
       return def?.start === void 0 ? [] : [{ id: id2, def }];
     });
     const failures = await Promise.all(starting.map(({ id: id2 }) => added.get(id2) ?? NOTHING_FAILED));
@@ -7548,7 +7548,7 @@ function runPlugins(deps) {
     try {
       returned = def.start?.({ core: deps.core(), plugin: id2, signal: controller.signal });
     } catch (error) {
-      report(new Error(`The start of the plugin class "${def.id}" failed for the plugin "${id2}": ${messageOf(error)}`, { cause: error }));
+      report(new Error(`The start of the plugin class "${def.id}" failed for the plugin "${id2}": ${errorMessage(error)}`, { cause: error }));
       return;
     }
     if (typeof returned !== "function") return;
@@ -7558,12 +7558,12 @@ function runPlugins(deps) {
   }
   function mountPlugin(el, plugin) {
     if (replaced.aborted) throw new Error(REPLACED);
-    const def = classOf2(plugin);
+    const def = pluginClass(plugin);
     const { ui } = def;
     if (ui === void 0) {
       throw new Error(`The class "${def.id}" of the plugin "${plugin}" has no ui to mount.`);
     }
-    const pkg = packageOf(ui);
+    const pkg = packageFromId(ui);
     const controller = new AbortController();
     const { signal } = controller;
     const ended = () => signal.aborted;
@@ -7580,13 +7580,13 @@ function runPlugins(deps) {
     const offEnd = onAbort(replaced, end);
     function fail(error) {
       if (ended()) return;
-      showError(el, messageOf(error));
+      showError(el, errorMessage(error));
       report(error);
     }
     void (async () => {
       let mod;
       try {
-        mod = moduleOf(await loader.module(ui), ui, pkg);
+        mod = mountableModule(await loader.module(ui), ui, pkg);
       } catch (error) {
         fail(error);
         return;
@@ -7611,12 +7611,12 @@ function runPlugins(deps) {
         if (ended()) attempt(rendered);
         else cleanup = rendered;
       } catch (error) {
-        fail(new ModuleError(ui, pkg, `failed in render(): ${messageOf(error)}`, { cause: error }));
+        fail(new ModuleError(ui, pkg, `failed in render(): ${errorMessage(error)}`, { cause: error }));
       }
     })();
     return end;
   }
-  return { running: running2, classOf: classOf2, storage, mountPlugin, frontend, start: start2 };
+  return { running: running2, pluginClass, storage, mountPlugin, frontend, start: start2 };
 }
 
 // srcts/core/requests.ts
@@ -7641,7 +7641,7 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
   }
   const what = `The request "${name2}" of the plugin "${plugin}"`;
   for (let attempt3 = 1; ; attempt3++) {
-    const revisions = await readsOf3(deps, what, reads, opts.signal);
+    const revisions = await evaluateReads2(deps, what, reads, opts.signal);
     const { reply, body } = await deps.scheduler.request(
       { kind: "request", type: "plugin", plugin: held2.class, name: name2, args: { ...args }, reads: revisions },
       {
@@ -7667,7 +7667,7 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
     }
   }
 }
-async function readsOf3(deps, what, blocks, signal) {
+async function evaluateReads2(deps, what, blocks, signal) {
   if (blocks.length === 0) return [];
   const absent = blocks.filter((block) => deps.scheduler.status(block) === void 0);
   if (absent.length > 0) {
@@ -7761,7 +7761,7 @@ function createCore(parts) {
     plugins: {
       register: (def) => store.plugins.register(def),
       running: () => plugins.running(),
-      classOf: (plugin) => plugins.classOf(plugin),
+      pluginClass: (plugin) => plugins.pluginClass(plugin),
       storage: () => plugins.storage()
     },
     lock: parts.lock,
@@ -7895,12 +7895,12 @@ function pageFrontEnds(el) {
     async prepare(front, loader, signal) {
       let prepared;
       const { id: id2, source, plugin } = front;
-      const pkg = packageOf(id2);
+      const pkg = packageFromId(id2);
       if (source === void 0) {
         prepared = { id: id2, module: id2, plugin, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
       } else {
         try {
-          const mod = moduleOf(await loader.load(source, pkg), source.module, pkg);
+          const mod = mountableModule(await loader.load(source, pkg), source.module, pkg);
           prepared = { id: id2, module: source.module, plugin, render: mod.render.bind(mod) };
         } catch (error) {
           prepared = { id: id2, module: source.module, plugin, error };
@@ -7921,7 +7921,7 @@ function pageFrontEnds(el) {
         return;
       }
       if (prepared.render === void 0) {
-        showError(el, `The frontend ${prepared.id} cannot draw the board: ${messageOf(prepared.error)}`);
+        showError(el, `The frontend ${prepared.id} cannot draw the board: ${errorMessage(prepared.error)}`);
         report(prepared.error);
         return;
       }
@@ -7951,7 +7951,7 @@ function pageFrontEnds(el) {
         else current2.cleanup = rendered;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const why = new ModuleError(prepared.module, packageOf(prepared.id), `failed in render(): ${messageOf(error)}`, {
+        const why = new ModuleError(prepared.module, packageFromId(prepared.id), `failed in render(): ${errorMessage(error)}`, {
           cause: error
         });
         showError(el, why.message);
@@ -8064,7 +8064,7 @@ function coreCommands(store, options = {}) {
   function mint(taken) {
     return mintId(taken, options.randId);
   }
-  function classOf2(command2, registryId2) {
+  function registryEntry(command2, registryId2) {
     const entry = own(store.blockRegistry(), registryId2);
     if (entry === void 0) {
       throw refusal(command2, [`The block registry has no block class "${registryId2}".`]);
@@ -8072,7 +8072,7 @@ function coreCommands(store, options = {}) {
     return entry;
   }
   function added(command2, board2, args) {
-    const entry = classOf2(command2, args.registry_id);
+    const entry = registryEntry(command2, args.registry_id);
     const state2 = { ...entry.state, ...args.state };
     const failures = stateFailures(entry, state2);
     if (failures.length > 0) {
@@ -8081,7 +8081,7 @@ function coreCommands(store, options = {}) {
     const id2 = args.id ?? mint((id3) => Object.hasOwn(board2.blocks, id3));
     return [
       id2,
-      { registry_id: entry.id, state: state2, name: args.name ?? blockName(entry.id), locked: null },
+      { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null },
       entry
     ];
   }
@@ -8160,7 +8160,7 @@ function coreCommands(store, options = {}) {
       run(board2, { id: id2, state: state2, unset }) {
         const block = own(board2.blocks, id2);
         if (block === void 0) return [];
-        const entry = classOf2(this.id, block.registry_id);
+        const entry = registryEntry(this.id, block.registry_id);
         const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state2 });
         if (failures.length > 0) {
           throw refusal(this.id, failures.map((failure) => `The state of block "${id2}" ${failure}`));
@@ -8431,7 +8431,7 @@ function coreCommands(store, options = {}) {
       ),
       enabled: (board2, { plugin }) => options.locked !== true && Object.hasOwn(board2.plugins, plugin),
       run: (_board, { plugin, patches: patches2 }) => ({
-        patches: patches2.map((patch2) => ({ ...patch2, path: `${pathOf(["plugins", plugin, "state"])}${patch2.path}` }))
+        patches: patches2.map((patch2) => ({ ...patch2, path: `${pathFromSegments(["plugins", plugin, "state"])}${patch2.path}` }))
       })
     })
   ];
@@ -8448,8 +8448,8 @@ function freeInputs(board, registry, to, except) {
   );
   return inputs.filter((input2) => !fed.has(input2));
 }
-function blockName(registryId2) {
-  const pkg = packageOf(registryId2);
+function defaultBlockName(registryId2) {
+  const pkg = packageFromId(registryId2);
   const name2 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
   return sentenceCase(name2.replace(/_block$/, ""));
 }
@@ -8601,7 +8601,7 @@ function createCommands(store, options = {}) {
       },
       ...patches2 === void 0 ? {} : {
         patches: patches2.map((patch2) => {
-          const plugin = pluginOf(patch2.path);
+          const plugin = pluginIdFromPath(patch2.path);
           return plugin === void 0 ? patch2 : edit(patch2, store.editId({ plugin }));
         })
       }
@@ -8640,12 +8640,12 @@ function asRandId(randId) {
   throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 function isCommandId(id2) {
-  const pkg = packageOf(id2);
+  const pkg = packageFromId(id2);
   return pkg !== null && id2.length > pkg.length + 1;
 }
 function failed(command2, error) {
   if (error instanceof CommandError) return error;
-  return new CommandError(`The command "${command2.id}" failed`, [messageOf(error)], {
+  return new CommandError(`The command "${command2.id}" failed`, [errorMessage(error)], {
     cause: error
   });
 }
@@ -8877,7 +8877,7 @@ function start(options) {
         try {
           result = await mod.initialize({ core, signal });
         } catch (error) {
-          throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${messageOf(error)}`, { cause: error });
+          throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${errorMessage(error)}`, { cause: error });
         }
         if (typeof result === "string") {
           if (naming) {
@@ -8917,7 +8917,7 @@ function start(options) {
     try {
       JSON.parse(only.text);
     } catch (error) {
-      report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${messageOf(error)}`));
+      report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
       return void 0;
     }
     return only.text;
@@ -9043,7 +9043,7 @@ import { useState } from "react";
 // srcts/binding/binding.ts
 var PAUSE = 500;
 function bind2(host, key, show, options = {}) {
-  const source = sourceOf(host);
+  const source = createSource(host);
   source.check(key);
   let shown2;
   let typed;
@@ -9107,7 +9107,7 @@ function bind2(host, key, show, options = {}) {
     }
   };
 }
-function sourceOf(host) {
+function createSource(host) {
   if ("option" in host) {
     const check2 = (key) => {
       if (key !== host.option) {
@@ -9309,7 +9309,7 @@ function useValue(host, key) {
   useLayoutEffect(() => {
     const bound = bind2(host, name2, setValue, {
       settled: (refused2) => {
-        setError(refused2 === null ? null : messageOf(refused2));
+        setError(refused2 === null ? null : errorMessage(refused2));
       }
     });
     binding.current = bound;
@@ -10340,10 +10340,10 @@ function startupUrl(pkg) {
   return `${pkg}/startup.js`;
 }
 function moduleUrl(id2) {
-  return `${packageOf(id2) ?? "app"}/${id2}.js`;
+  return `${packageFromId(id2) ?? "app"}/${id2}.js`;
 }
 function isModuleId(key) {
-  return packageOf(key) !== null && !key.includes("/");
+  return packageFromId(key) !== null && !key.includes("/");
 }
 function fixtureR(hello, options) {
   const sent2 = [];
@@ -10422,7 +10422,7 @@ function fixtureR(hello, options) {
         try {
           answer2 = await options.answer?.(request, body);
         } catch (error) {
-          return [failed2(id2, "request", messageOf(error))];
+          return [failed2(id2, "request", errorMessage(error))];
         }
         if (answer2 === void 0) return [failed2(id2, "request", `The test gives no answer to the request ${JSON.stringify(request)}.`)];
         if (answer2 instanceof Blob) {

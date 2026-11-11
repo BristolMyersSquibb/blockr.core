@@ -29,14 +29,14 @@
 // No change adds a plugin to the open board or removes one, so what core runs
 // for the plugins ends only as the next board opens.
 
-import { attempt, ModuleError, moduleOf, onAbort, REPLACED, showError } from "../mount/index.ts";
+import { attempt, ModuleError, mountableModule, onAbort, REPLACED, showError } from "../mount/index.ts";
 import type { Loader, Mounts } from "../mount/index.ts";
 import { inRole } from "../store/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
 import { coreStorage } from "../storage/index.ts";
 import type { OptionId, Plugin, PluginClassId, PluginId } from "../types/board.ts";
 import type { CoreApi, PluginModule } from "../types/core-api.ts";
-import { messageOf, own, packageOf, report } from "../util/index.ts";
+import { errorMessage, own, packageFromId, report } from "../util/index.ts";
 
 // Core's basic frontend, which draws every board that holds no frontend. No
 // board holds it, and it keeps no state. It requires the severities of the
@@ -68,7 +68,7 @@ export interface Frontend {
 // that reach them, and what starts them, which core calls as the board opens.
 export interface RunningPlugins {
   running(): Readonly<Record<PluginId, Plugin>>;
-  classOf(plugin: PluginId): PluginClass;
+  pluginClass(plugin: PluginId): PluginClass;
   storage(): Storage;
   mountPlugin(el: HTMLElement, plugin: PluginId): () => void;
   // The frontend that draws the open board.
@@ -99,7 +99,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
   const { store, loader, keepOptions } = deps;
   const replaced = deps.signal ?? new AbortController().signal;
 
-  const classOfId = (id: PluginClassId): PluginClass | undefined => own(store.plugins.registered(), id);
+  const registeredClass = (id: PluginClassId): PluginClass | undefined => own(store.plugins.registered(), id);
 
   // Why board options that the class of each plugin names did not go onto the
   // board, by the plugin's id, and why those of core's basic frontend did not,
@@ -120,10 +120,10 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
 
   function opened(plugins: Readonly<Record<PluginId, Plugin>>): void {
     for (const [id, plugin] of Object.entries(plugins)) {
-      const def = classOfId(plugin.class);
+      const def = registeredClass(plugin.class);
       if (def?.options !== undefined) added.set(id, keep(def.options, `the plugin class "${def.id}"`));
     }
-    if (deps.alone !== true && inRole(plugins, classOfId, "frontend").length === 0) {
+    if (deps.alone !== true && inRole(plugins, registeredClass, "frontend").length === 0) {
       basic = keep(BASIC_FRONTEND.options, "core's basic frontend");
     }
   }
@@ -161,9 +161,9 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     return memo.running;
   }
 
-  function classOf(plugin: PluginId): PluginClass {
+  function pluginClass(plugin: PluginId): PluginClass {
     const found = own(running(), plugin);
-    const def = found === undefined ? undefined : classOfId(found.class);
+    const def = found === undefined ? undefined : registeredClass(found.class);
     if (def === undefined) throw new Error(`The open board runs no plugin "${plugin}".`);
     return def;
   }
@@ -172,16 +172,16 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
   // reaches for the page's document.
   let ownStorage: Storage | undefined;
   function storage(): Storage {
-    const [id] = inRole(running(), classOfId, "storage");
-    const given = id === undefined ? undefined : classOf(id).storage;
+    const [id] = inRole(running(), registeredClass, "storage");
+    const given = id === undefined ? undefined : pluginClass(id).storage;
     if (given !== undefined) return given;
     ownStorage ??= coreStorage();
     return ownStorage;
   }
 
   function frontend(): Frontend {
-    const [id] = inRole(running(), classOfId, "frontend");
-    const module = id === undefined ? undefined : classOf(id).frontend;
+    const [id] = inRole(running(), registeredClass, "frontend");
+    const module = id === undefined ? undefined : pluginClass(id).frontend;
     if (id === undefined || module === undefined) {
       return { module: BASIC_FRONTEND.frontend, plugin: undefined, added: basic };
     }
@@ -193,7 +193,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     if (started) return;
     started = true;
     const starting = Object.entries(running()).flatMap(([id, plugin]) => {
-      const def = classOfId(plugin.class);
+      const def = registeredClass(plugin.class);
       return def?.start === undefined ? [] : [{ id, def }];
     });
     const failures = await Promise.all(starting.map(({ id }) => added.get(id) ?? NOTHING_FAILED));
@@ -224,7 +224,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     try {
       returned = def.start?.({ core: deps.core(), plugin: id, signal: controller.signal });
     } catch (error) {
-      report(new Error(`The start of the plugin class "${def.id}" failed for the plugin "${id}": ${messageOf(error)}`, { cause: error }));
+      report(new Error(`The start of the plugin class "${def.id}" failed for the plugin "${id}": ${errorMessage(error)}`, { cause: error }));
       return;
     }
     if (typeof returned !== "function") return;
@@ -235,12 +235,12 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
 
   function mountPlugin(el: HTMLElement, plugin: PluginId): () => void {
     if (replaced.aborted) throw new Error(REPLACED);
-    const def = classOf(plugin);
+    const def = pluginClass(plugin);
     const { ui } = def;
     if (ui === undefined) {
       throw new Error(`The class "${def.id}" of the plugin "${plugin}" has no ui to mount.`);
     }
-    const pkg = packageOf(ui);
+    const pkg = packageFromId(ui);
 
     // The mount ends as its signal aborts, which may happen whenever the
     // loading below awaits.
@@ -266,14 +266,14 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
 
     function fail(error: unknown): void {
       if (ended()) return;
-      showError(el, messageOf(error));
+      showError(el, errorMessage(error));
       report(error);
     }
 
     void (async () => {
       let mod: PluginModule;
       try {
-        mod = moduleOf<PluginArgs>(await loader.module(ui), ui, pkg);
+        mod = mountableModule<PluginArgs>(await loader.module(ui), ui, pkg);
       } catch (error) {
         fail(error);
         return;
@@ -303,12 +303,12 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
         if (ended()) attempt(rendered);
         else cleanup = rendered;
       } catch (error) {
-        fail(new ModuleError(ui, pkg, `failed in render(): ${messageOf(error)}`, { cause: error }));
+        fail(new ModuleError(ui, pkg, `failed in render(): ${errorMessage(error)}`, { cause: error }));
       }
     })();
 
     return end;
   }
 
-  return { running, classOf, storage, mountPlugin, frontend, start };
+  return { running, pluginClass, storage, mountPlugin, frontend, start };
 }

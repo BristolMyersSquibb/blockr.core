@@ -13,7 +13,7 @@ import { signal } from "@preact/signals-core";
 import type { HelloReply } from "../protocol/index.ts";
 import type { BlockId, Board, JsonBoard, PluginId, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { asError, own, packageOf, report } from "../util/index.ts";
+import { asError, own, packageFromId, report } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
 import type { Changed, Inverse, Target } from "./commit.ts";
@@ -22,7 +22,7 @@ import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
 import { fixes, lockFailures } from "./lock.ts";
-import { pluginOf } from "./patch.ts";
+import { pluginIdFromPath } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
 import { checkJsonBoard, FORMAT, openJsonBoard, parse } from "./open.ts";
 import type { Dropped } from "./open.ts";
@@ -321,7 +321,7 @@ export function createStore(options: StoreOptions = {}): Store {
         compare(target({ block: id }), mod.edit);
       }
       for (const patch of delta.patches ?? []) {
-        const plugin = pluginOf(patch.path);
+        const plugin = pluginIdFromPath(patch.path);
         if (plugin !== undefined) compare(target({ plugin }), patch.edit);
       }
     }
@@ -409,7 +409,7 @@ export function createStore(options: StoreOptions = {}): Store {
   // with: a reply's opening board with that reply, which the store keeps as
   // its last, or a JSON board's text with the last reply, which the store
   // opens none of under the load lock.
-  function jsonOf(given: string | HelloReply): { json: JsonBoard; reply: HelloReply } {
+  function prepareOpen(given: string | HelloReply): { json: JsonBoard; reply: HelloReply } {
     if (typeof given !== "string") {
       hello = given;
       registry.value = given.block_registry;
@@ -453,7 +453,7 @@ export function createStore(options: StoreOptions = {}): Store {
       }
       opening = true;
       try {
-        const { json, reply } = jsonOf(given);
+        const { json, reply } = prepareOpen(given);
         const opened = build(json, reply);
 
         guard();
@@ -478,7 +478,7 @@ export function createStore(options: StoreOptions = {}): Store {
   function checkText(text: string): Promise<Dropped[]> {
     return settled(() => {
       stillOpen();
-      const { json, reply } = jsonOf(text);
+      const { json, reply } = prepareOpen(text);
       return build(json, reply).dropped;
     });
   }
@@ -490,8 +490,8 @@ export function createStore(options: StoreOptions = {}): Store {
     }
     const classes = [...new Set(Object.values(next.plugins).map((plugin) => plugin.class))];
     const owned = new Set([
-      ...classes.flatMap((cls) => packageOf(cls) ?? []),
-      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageOf(registry_id) ?? []),
+      ...classes.flatMap((cls) => packageFromId(cls) ?? []),
+      ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
     ]);
     const recorded = Object.fromEntries(
       [...owned].sort().flatMap((pkg) => {

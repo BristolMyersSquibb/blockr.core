@@ -1,6 +1,6 @@
 import type { Json } from "../types/json.ts";
 export declare function own<T>(record: Readonly<Record<string, T>>, key: string): T | undefined;
-export declare function messageOf(error: unknown): string;
+export declare function errorMessage(error: unknown): string;
 export declare function asError(error: unknown): Error;
 export declare function report(error: unknown): void;
 export declare function isObject(x: unknown): x is Readonly<Record<string, unknown>>;
@@ -12,7 +12,7 @@ export declare function frozenCopy<T extends Json>(x: T): T;
 export declare function listing(items: readonly string[]): string;
 export declare function quoted(items: readonly string[]): string;
 export declare function pathText(path: readonly string[]): string;
-export declare function packageOf(id: string): string | null;
+export declare function packageFromId(id: string): string | null;
 export declare function isPackageName(name: unknown): name is string;
 export declare function asNumber(text: string): number;
 export declare function asLogical(text: string): boolean | undefined;

@@ -8,4 +8,4 @@ export interface Graph {
     withDownstream(ids: Iterable<BlockId>): ReadonlySet<BlockId>;
     cycle(): readonly BlockId[] | undefined;
 }
-export declare function graphOf(board: Pick<Board, "blocks" | "links">): Graph;
+export declare function createGraph(board: Pick<Board, "blocks" | "links">): Graph;

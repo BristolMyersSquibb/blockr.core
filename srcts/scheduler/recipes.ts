@@ -24,7 +24,7 @@ export interface Inputs {
 }
 
 // The inputs of every block of the board, by block id.
-export function inputsOf(
+export function inputsByBlock(
   board: Pick<Board, "blocks" | "links">,
   graph: Graph,
   registry: Readonly<Record<RegistryId, RegistryEntry>>,

@@ -13,7 +13,7 @@ import { hello, openedStore, withPlugins } from "../testing/store.ts";
 import type { Board, Plugin } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { blockName, CommandError, createCommands, freeInputs, schemas, stateSchema } from "./index.ts";
+import { CommandError, createCommands, defaultBlockName, freeInputs, schemas, stateSchema } from "./index.ts";
 import type { Commands } from "./index.ts";
 
 async function setup(
@@ -639,9 +639,9 @@ describe("the schemas", () => {
     });
   });
 
-  test("blockName() names a block as R names it by its class", () => {
-    expect(blockName("blockr.core-head_block")).toBe("Head");
-    expect(blockName("blockr.dplyr-filter_expr_block")).toBe("Filter expr");
-    expect(blockName("my_block")).toBe("My");
+  test("defaultBlockName() names a block as R names it by its class", () => {
+    expect(defaultBlockName("blockr.core-head_block")).toBe("Head");
+    expect(defaultBlockName("blockr.dplyr-filter_expr_block")).toBe("Filter expr");
+    expect(defaultBlockName("my_block")).toBe("My");
   });
 });

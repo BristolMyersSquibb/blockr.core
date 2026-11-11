@@ -109,7 +109,7 @@ function setup(
 }
 
 // The id of the last request of a kind that the client sent.
-function idOf(sent: Sent[], kind: Request["kind"]): string {
+function lastRequestId(sent: Sent[], kind: Request["kind"]): string {
   const all = sent.flatMap((s) => s.message).filter((m) => m.kind === kind);
   const id = all.at(-1)?.id;
   if (id === undefined) throw new Error(`No ${kind} was sent.`);
@@ -119,7 +119,7 @@ function idOf(sent: Sent[], kind: Request["kind"]): string {
 // Starts a session and answers its hello as R does.
 function ready(t: ReturnType<typeof setup>, reply: Reply = helloReply): void {
   t.start();
-  t.receive({ ...reply, id: idOf(t.sent, "hello") });
+  t.receive({ ...reply, id: lastRequestId(t.sent, "hello") });
 }
 
 // A copy of an object without some of its properties.
@@ -173,7 +173,7 @@ describe("the handshake", () => {
     expect(t.messages()).toEqual([
       [
         {
-          id: idOf(t.sent, "hello"),
+          id: lastRequestId(t.sent, "hello"),
           kind: "hello",
           protocol: "1.0",
           capabilities: ["cancel", "progress"],
@@ -181,19 +181,19 @@ describe("the handshake", () => {
       ],
     ]);
 
-    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    t.receive({ ...helloReply, id: lastRequestId(t.sent, "hello") });
     await settle();
 
     // What was held goes in one message, in the order it came.
     expect(t.messages()[1]).toEqual([
-      { ...evaluate, id: idOf(t.sent, "evaluate") },
+      { ...evaluate, id: lastRequestId(t.sent, "evaluate") },
       { kind: "forget", blocks: ["z"] },
     ]);
     expect(t.sessions).toEqual([
-      { ...helloReply, id: idOf(t.sent, "hello") },
+      { ...helloReply, id: lastRequestId(t.sent, "hello") },
     ]);
 
-    t.receive({ ...okReply, id: idOf(t.sent, "evaluate") });
+    t.receive({ ...okReply, id: lastRequestId(t.sent, "evaluate") });
     expect((await pending).reply.status).toBe("ok");
   });
 
@@ -203,7 +203,7 @@ describe("the handshake", () => {
     void t.client.request(evaluate);
     t.start();
     t.receive({
-      id: idOf(t.sent, "hello"),
+      id: lastRequestId(t.sent, "hello"),
       status: "error",
       conditions: [],
     });
@@ -229,7 +229,7 @@ describe("the handshake", () => {
 
     t.start();
     expect([...t.client.capabilities()]).toEqual([]);
-    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    t.receive({ ...helloReply, id: lastRequestId(t.sent, "hello") });
     expect([...t.client.capabilities()]).toEqual(["cancel", "progress"]);
 
     t.end();
@@ -269,7 +269,7 @@ describe("replies", () => {
     ready(t);
 
     const a = t.client.request(echo);
-    const id = idOf(t.sent, "request");
+    const id = lastRequestId(t.sent, "request");
 
     t.receive({ id: "unknown", status: "ok", value: [] });
     t.receive({ id: "unknown", progress: { value: 0.5 } });
@@ -308,7 +308,7 @@ describe("replies", () => {
 
     const notes: unknown[] = [];
     const a = t.client.request(echo, { progress: (note) => notes.push(note) });
-    const id = idOf(t.sent, "request");
+    const id = lastRequestId(t.sent, "request");
 
     t.receive({ id, progress: { value: 0.3, message: "Rendering" } });
     t.receive({ id, progress: { value: 0.8 } });
@@ -349,11 +349,11 @@ describe("bodies", () => {
     const t = setup();
     ready(t);
     // The next id the client mints is the upload's.
-    t.refuse.add(String(Number(idOf(t.sent, "hello")) + 1));
+    t.refuse.add(String(Number(lastRequestId(t.sent, "hello")) + 1));
 
     const upload = t.client.request(echo, { body: new Blob(["big"]) });
     const other = t.client.request(echo);
-    const id = idOf(t.sent, "request");
+    const id = lastRequestId(t.sent, "request");
     t.receive({ id, status: "ok", value: [] });
 
     await expect(upload).rejects.toThrow("Maximum upload size exceeded");
@@ -367,8 +367,8 @@ describe("a session that ends", () => {
     ready(t);
 
     const lost = t.client.request(echo);
-    const lostId = idOf(t.sent, "request");
-    const lostHello = idOf(t.sent, "hello");
+    const lostId = lastRequestId(t.sent, "request");
+    const lostHello = lastRequestId(t.sent, "hello");
     t.end();
 
     await expect(lost).rejects.toBeInstanceOf(SessionEndedError);
@@ -387,14 +387,14 @@ describe("a session that ends", () => {
     t.receive({ id: lostId, status: "ok", value: [] });
     expect(t.sent).toHaveLength(3);
 
-    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    t.receive({ ...helloReply, id: lastRequestId(t.sent, "hello") });
     await settle();
     expect(t.sessions).toHaveLength(2);
     expect(t.messages()[3]).toEqual([
-      { ...evaluate, id: idOf(t.sent, "evaluate") },
+      { ...evaluate, id: lastRequestId(t.sent, "evaluate") },
     ]);
 
-    t.receive({ ...okReply, id: idOf(t.sent, "evaluate") });
+    t.receive({ ...okReply, id: lastRequestId(t.sent, "evaluate") });
     expect((await later).reply.status).toBe("ok");
   });
 
@@ -403,7 +403,7 @@ describe("a session that ends", () => {
     t.start();
     t.end();
     t.start();
-    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    t.receive({ ...helloReply, id: lastRequestId(t.sent, "hello") });
     await settle();
 
     expect(t.sessions).toHaveLength(1);
@@ -415,17 +415,17 @@ describe("another hello in the session", () => {
     const t = setup();
     ready(t);
     const waiting = t.client.request(echo);
-    const waitingId = idOf(t.sent, "request");
-    const firstHello = idOf(t.sent, "hello");
+    const waitingId = lastRequestId(t.sent, "request");
+    const firstHello = lastRequestId(t.sent, "hello");
 
     t.client.hello();
     const held = t.client.request(evaluate);
 
     await expect(waiting).rejects.toBeInstanceOf(SessionEndedError);
     expect(t.messages().at(-1)).toEqual([
-      { id: idOf(t.sent, "hello"), kind: "hello", protocol: "1.0", capabilities: ["cancel", "progress"] },
+      { id: lastRequestId(t.sent, "hello"), kind: "hello", protocol: "1.0", capabilities: ["cancel", "progress"] },
     ]);
-    expect(idOf(t.sent, "hello")).not.toBe(firstHello);
+    expect(lastRequestId(t.sent, "hello")).not.toBe(firstHello);
     expect([...t.client.capabilities()]).toEqual([]);
 
     // What R replies to a request before the hello, such as cancelled to one
@@ -433,12 +433,12 @@ describe("another hello in the session", () => {
     t.receive({ id: waitingId, status: "cancelled" });
     expect(t.sent).toHaveLength(3);
 
-    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    t.receive({ ...helloReply, id: lastRequestId(t.sent, "hello") });
     await settle();
     expect(t.sessions).toHaveLength(2);
-    expect(t.messages().at(-1)).toEqual([{ ...evaluate, id: idOf(t.sent, "evaluate") }]);
+    expect(t.messages().at(-1)).toEqual([{ ...evaluate, id: lastRequestId(t.sent, "evaluate") }]);
 
-    t.receive({ ...okReply, id: idOf(t.sent, "evaluate") });
+    t.receive({ ...okReply, id: lastRequestId(t.sent, "evaluate") });
     expect((await held).reply.status).toBe("ok");
   });
 
@@ -451,7 +451,7 @@ describe("another hello in the session", () => {
     t.client.hello();
     await expect(held).rejects.toBeInstanceOf(SessionEndedError);
 
-    t.receive({ ...helloReply, id: idOf(t.sent, "hello") });
+    t.receive({ ...helloReply, id: lastRequestId(t.sent, "hello") });
     await settle();
     expect(t.sessions).toHaveLength(1);
     expect(t.messages().map((message) => message.map((m) => m.kind))).toEqual([["hello"], ["hello"]]);
@@ -530,7 +530,7 @@ describe("a hello that R answers at another major of the protocol", () => {
     t.client.forget(["z"]);
 
     t.start();
-    t.receive({ ...(helloReply as HelloReply), id: idOf(t.sent, "hello"), protocol: "2.0" });
+    t.receive({ ...(helloReply as HelloReply), id: lastRequestId(t.sent, "hello"), protocol: "2.0" });
 
     const why = "R speaks version 2.0 of the wire protocol, where the client speaks 1.0, so the client sends R nothing.";
     await expect(held).rejects.toThrow(why);
@@ -577,7 +577,7 @@ describe("a request given up", () => {
     const ac = new AbortController();
 
     const pending = t.client.request(evaluate, { signal: ac.signal });
-    const id = idOf(t.sent, "evaluate");
+    const id = lastRequestId(t.sent, "evaluate");
     await settle();
     ac.abort();
 
@@ -593,7 +593,7 @@ describe("a request given up", () => {
     const ac = new AbortController();
 
     const pending = t.client.request(evaluate, { signal: ac.signal });
-    const id = idOf(t.sent, "evaluate");
+    const id = lastRequestId(t.sent, "evaluate");
     await settle();
     ac.abort();
 
@@ -625,7 +625,7 @@ describe("a request given up", () => {
     sendBody();
     await settle();
 
-    const id = idOf(t.sent, "request");
+    const id = lastRequestId(t.sent, "request");
     expect(t.messages().at(-1)).toEqual([{ kind: "cancel", request: id }]);
   });
 });
@@ -688,7 +688,7 @@ describe("the protocol's fixtures", () => {
     );
 
     t.start();
-    const ids = new Map([[request.id, idOf(t.sent, "hello")]]);
+    const ids = new Map([[request.id, lastRequestId(t.sent, "hello")]]);
     expect(t.messages()).toEqual([swap(fx.client, ids)]);
 
     play(t, swap(fx.r, ids));
@@ -763,7 +763,7 @@ describe("the protocol's fixtures", () => {
     await settle();
     ac.abort();
 
-    const ids = new Map([["17", idOf(t.sent, "evaluate")]]);
+    const ids = new Map([["17", lastRequestId(t.sent, "evaluate")]]);
     expect(t.messages().at(-1)).toEqual(swap(fx.client, ids));
 
     play(t, swap(fx.r, ids));
@@ -781,7 +781,7 @@ describe("the protocol's fixtures", () => {
 
     expect(t.messages().at(-1)).toEqual(fx.client);
 
-    const ids = new Map([["34", idOf(t.sent, "output")]]);
+    const ids = new Map([["34", lastRequestId(t.sent, "output")]]);
     play(t, swap(fx.r, ids));
     expect((await pending).reply).toEqual(swap(fx.r[0]?.[0], ids));
   });

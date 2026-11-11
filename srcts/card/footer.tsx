@@ -89,7 +89,7 @@ export function Banners({ shown, severities, open, panel }: FooterProps): ReactE
   const listed =
     shown === undefined
       ? []
-      : listedOf(shown).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+      : statusConditions(shown).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
   if (listed.length === 0) return null;
   return (
     <ul id={panel} aria-label="Conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0">
@@ -245,6 +245,6 @@ const OPEN_AT_START: ReadonlySet<Severity> = new Set<Severity>(["error"]);
 
 // The conditions that the footer opens to, in the order R raised them: those
 // of R's reply, which a waiting block has none of.
-function listedOf(status: BlockStatus): readonly Condition[] {
+function statusConditions(status: BlockStatus): readonly Condition[] {
   return status.status === "waiting" ? [] : status.conditions;
 }

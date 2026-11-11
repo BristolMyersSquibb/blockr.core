@@ -17,7 +17,7 @@ export interface Frontend {
 }
 export interface RunningPlugins {
     running(): Readonly<Record<PluginId, Plugin>>;
-    classOf(plugin: PluginId): PluginClass;
+    pluginClass(plugin: PluginId): PluginClass;
     storage(): Storage;
     mountPlugin(el: HTMLElement, plugin: PluginId): () => void;
     frontend(): Frontend;

@@ -4,7 +4,7 @@
 // the board opened.
 
 import type { Note } from "../../types/core-api.ts";
-import { messageOf } from "../../util/index.ts";
+import { errorMessage } from "../../util/index.ts";
 
 export type Severity = Note["severity"];
 
@@ -45,7 +45,7 @@ export function createNotices(): Notices {
   return {
     list: () => notices,
     failed(error) {
-      add({ message: messageOf(error), severity: "error" });
+      add({ message: errorMessage(error), severity: "error" });
     },
     add,
     dismiss(id) {

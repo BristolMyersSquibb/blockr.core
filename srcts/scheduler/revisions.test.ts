@@ -4,16 +4,16 @@
 // them.
 
 import { describe, expect, test } from "vitest";
-import { graphOf } from "../graph/index.ts";
+import { createGraph } from "../graph/index.ts";
 import { sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
-import { inputsOf } from "./recipes.ts";
+import { inputsByBlock } from "./recipes.ts";
 import { bump, counter, opening, revise } from "./revisions.ts";
 
 function read(board: Board) {
-  const graph = graphOf(board);
-  return { board, graph, inputs: inputsOf(board, graph, hello.block_registry, new Set()) };
+  const graph = createGraph(board);
+  return { board, graph, inputs: inputsByBlock(board, graph, hello.block_registry, new Set()) };
 }
 
 // The revisions that opening the sample board gives, and what revise() makes
@@ -42,7 +42,7 @@ describe("the counter", () => {
 
 describe("revisions", () => {
   test("of a board that opens come from the counter, upstream first", () => {
-    expect(Object.fromEntries(opening(graphOf(sample), counter()))).toEqual({
+    expect(Object.fromEntries(opening(createGraph(sample), counter()))).toEqual({
       a: 1,
       b: 2,
       d: 3,
@@ -96,7 +96,7 @@ describe("revisions", () => {
 
   test("go up for blocks that something invalidates and for everything downstream of them", () => {
     const next = counter();
-    const graph = graphOf(sample);
+    const graph = createGraph(sample);
     const revisions = opening(graph, next);
     const after = bump(graph, revisions, new Set(["d", "z"]), next);
     expect(Object.fromEntries(after)).toEqual({ ...Object.fromEntries(revisions), d: 7, e: 8 });

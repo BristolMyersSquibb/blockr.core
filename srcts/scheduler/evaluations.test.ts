@@ -3,20 +3,20 @@
 // What happens to one-time evaluations, on the sample board.
 
 import { describe, expect, test } from "vitest";
-import { graphOf } from "../graph/index.ts";
+import { createGraph } from "../graph/index.ts";
 import type { CancelledReply, EvaluateReply, MissingReply, Recipe } from "../protocol/index.ts";
-import { boardOf, sample } from "../testing/board.ts";
+import { createBoard, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
-import { answered, left, neededBy, oneTimeOf, pendingOf, sent, settle } from "./evaluations.ts";
+import { answered, createOneTime, left, neededBy, pendingEvaluations, sent, settle } from "./evaluations.ts";
 import type { OneTime, Plain, WithParams } from "./evaluations.ts";
-import { inputsOf } from "./recipes.ts";
+import { inputsByBlock } from "./recipes.ts";
 import { counter, opening } from "./revisions.ts";
-import { outcomeOf, statusesOf } from "./status.ts";
+import { blockStatuses, replyOutcome } from "./status.ts";
 import type { Outcome } from "./status.ts";
 
-const graph = graphOf(sample);
-const inputs = inputsOf(sample, graph, hello.block_registry, new Set());
+const graph = createGraph(sample);
+const inputs = inputsByBlock(sample, graph, hello.block_registry, new Set());
 // The revisions of the sample board as it opens: a 1, b 2, d 3, f 4, c 5, e 6.
 const revisions = opening(graph, counter());
 
@@ -39,7 +39,7 @@ function outcome(status: Outcome["status"], id: BlockId): Outcome {
 
 // The statuses of the sample board, where the blocks given replied.
 function statuses(replies: [BlockId, Outcome["status"]][] = []) {
-  return statusesOf({
+  return blockStatuses({
     graph,
     revisions,
     outcomes: new Map(replies.map(([id, status]) => [id, outcome(status, id)])),
@@ -50,20 +50,20 @@ function statuses(replies: [BlockId, Outcome["status"]][] = []) {
 }
 
 function plain(blocks: BlockId[], priority = 0): Plain {
-  const oneTime = oneTimeOf(blocks, undefined, priority, statuses());
+  const oneTime = createOneTime(blocks, undefined, priority, statuses());
   if (oneTime instanceof Error || "params" in oneTime) throw new Error("No one-time evaluation.");
   return oneTime;
 }
 
 function withParams(blocks: BlockId[], priority = 0): WithParams {
-  const oneTime = oneTimeOf(blocks, { save: true }, priority, statuses());
+  const oneTime = createOneTime(blocks, { save: true }, priority, statuses());
   if (oneTime instanceof Error || !("params" in oneTime)) {
     throw new Error("No one-time evaluation with parameters.");
   }
   return oneTime;
 }
 
-function errorOf(oneTime: OneTime | Error): string {
+function errorMessage(oneTime: OneTime | Error): string {
   return oneTime instanceof Error ? oneTime.message : "";
 }
 
@@ -89,10 +89,10 @@ function ok(oneTimes: ReadonlyMap<number, OneTime>, id: number, block: BlockId) 
     stdout: "Wrote iris.csv",
     stderr: "",
   };
-  return answered(oneTimes, id, block, reply, outcomeOf(reply, at(block)), at(block));
+  return answered(oneTimes, id, block, reply, replyOutcome(reply, at(block)), at(block));
 }
 
-function partOf(oneTimes: ReadonlyMap<number, OneTime>, id: number, block: BlockId) {
+function oneTimePart(oneTimes: ReadonlyMap<number, OneTime>, id: number, block: BlockId) {
   const oneTime = oneTimes.get(id);
   return oneTime !== undefined && "params" in oneTime ? oneTime.parts.get(block) : undefined;
 }
@@ -100,7 +100,7 @@ function partOf(oneTimes: ReadonlyMap<number, OneTime>, id: number, block: Block
 describe("a new one-time evaluation", () => {
   test("without parameters leaves out the blocks that the board lacks, and rejects where that leaves none", () => {
     expect(plain(["c", "z"], 1)).toEqual({ blocks: new Set(["c"]), priority: 1 });
-    expect(errorOf(oneTimeOf(["z", "y"], undefined, 0, statuses()))).toBe(
+    expect(errorMessage(createOneTime(["z", "y"], undefined, 0, statuses()))).toBe(
       'The board holds none of the blocks "z" and "y" to evaluate.',
     );
   });
@@ -110,21 +110,21 @@ describe("a new one-time evaluation", () => {
     expect([...oneTime.parts.keys()]).toEqual(["d", "b"]);
     expect(oneTime.parts.get("b")).toEqual({ recipe: undefined, sent: undefined, result: undefined });
 
-    expect(errorOf(oneTimeOf([], {}, 0, statuses()))).toBe("An evaluation with parameters names no block.");
-    expect(errorOf(oneTimeOf(["b", "z"], {}, 0, statuses()))).toBe(
+    expect(errorMessage(createOneTime([], {}, 0, statuses()))).toBe("An evaluation with parameters names no block.");
+    expect(errorMessage(createOneTime(["b", "z"], {}, 0, statuses()))).toBe(
       'The board holds no block "z" to evaluate.',
     );
-    const loose = boardOf({ c: "merge_block" });
-    const looseGraph = graphOf(loose);
-    const waiting = statusesOf({
+    const loose = createBoard({ c: "merge_block" });
+    const looseGraph = createGraph(loose);
+    const waiting = blockStatuses({
       graph: looseGraph,
       revisions: opening(looseGraph, counter()),
       outcomes: new Map(),
-      inputs: inputsOf(loose, looseGraph, hello.block_registry, new Set()),
+      inputs: inputsByBlock(loose, looseGraph, hello.block_registry, new Set()),
       running: new Set(),
       before: new Map(),
     }).statuses;
-    expect(errorOf(oneTimeOf(["c"], {}, 0, waiting))).toBe(
+    expect(errorMessage(createOneTime(["c"], {}, 0, waiting))).toBe(
       'Block "c" is waiting for its inputs "x" and "y" to be linked. Its evaluation with parameters is not sent.',
     );
   });
@@ -170,11 +170,11 @@ describe("a one-time evaluation with parameters", () => {
   test("resolves once R's replies give each of its blocks a result, with the statuses they give", () => {
     let oneTimes: ReadonlyMap<number, OneTime> = new Map([[7, withParams(["b", "d"])]]);
     oneTimes = sent(oneTimes, 7, "b", { id: 20, recipe });
-    expect(pendingOf(oneTimes)).toEqual([{ oneTime: 7, block: "d", priority: 0 }]);
+    expect(pendingEvaluations(oneTimes)).toEqual([{ oneTime: 7, block: "d", priority: 0 }]);
 
     const first = ok(oneTimes, 7, "b");
     expect(first.settled).toEqual([]);
-    expect(partOf(first.oneTimes, 7, "b")?.result).toMatchObject({
+    expect(oneTimePart(first.oneTimes, 7, "b")?.result).toMatchObject({
       status: "ready",
       revision: at("b"),
       stdout: "Wrote iris.csv",
@@ -186,7 +186,7 @@ describe("a one-time evaluation with parameters", () => {
     const result = second.settled[0]?.[1];
     const resolved = result !== undefined && "statuses" in result ? result.statuses : {};
     expect(Object.keys(resolved)).toEqual(["b", "d"]);
-    expect(resolved.b).toBe(partOf(first.oneTimes, 7, "b")?.result);
+    expect(resolved.b).toBe(oneTimePart(first.oneTimes, 7, "b")?.result);
     expect(resolved.d).toMatchObject({ status: "ready", revision: at("d") });
   });
 
@@ -195,8 +195,8 @@ describe("a one-time evaluation with parameters", () => {
 
     const again = answered(oneTimes, 7, "b", missing, undefined, at("b"));
     expect(again.settled).toEqual([]);
-    expect(partOf(again.oneTimes, 7, "b")).toEqual({ recipe: undefined, sent: undefined, result: undefined });
-    expect(pendingOf(again.oneTimes)).toEqual([{ oneTime: 7, block: "b", priority: 0 }]);
+    expect(oneTimePart(again.oneTimes, 7, "b")).toEqual({ recipe: undefined, sent: undefined, result: undefined });
+    expect(pendingEvaluations(again.oneTimes)).toEqual([{ oneTime: 7, block: "b", priority: 0 }]);
 
     const dropped = answered(oneTimes, 7, "b", cancelled, undefined, at("b"));
     expect(dropped.oneTimes.size).toBe(0);

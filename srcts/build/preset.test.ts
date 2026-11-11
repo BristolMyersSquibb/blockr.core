@@ -66,15 +66,15 @@ export default outputRenderer<TextOutput>(({ output }) => <pre>{output.text}</pr
 `;
 
 // The packages that the code of a bundle imports, by the specifier of each.
-function importsOf(code: string): string[] {
+function importedPackages(code: string): string[] {
   return [...new Set([...code.matchAll(/^(?:import|export)\b[^;]*?\bfrom\s*"([^"]+)"/gm)].map((m) => m[1] ?? ""))].sort();
 }
 
 test("leaves a package's module importing React and the React SDK, which the import map names", async () => {
   const code = await readFile(await bundle(textRenderer), "utf8");
 
-  expect(importsOf(code)).toEqual(["@blockr/core/react", "react/jsx-runtime"]);
-  expect(importsOf(code).every((name) => (IMPORTS as readonly string[]).includes(name))).toBe(true);
+  expect(importedPackages(code)).toEqual(["@blockr/core/react", "react/jsx-runtime"]);
+  expect(importedPackages(code).every((name) => (IMPORTS as readonly string[]).includes(name))).toBe(true);
   expect(code).not.toContain("function outputRenderer(");
   // React marks each element it makes with this symbol.
   expect(code).not.toContain("react.transitional.element");
@@ -115,7 +115,7 @@ export default label;
 test("leaves a package's module written without React importing the controls, with which it draws", async () => {
   const file = await bundle(plainModule);
   const code = await readFile(file, "utf8");
-  expect(importsOf(code)).toEqual(["@blockr/core/controls"]);
+  expect(importedPackages(code)).toEqual(["@blockr/core/controls"]);
   expect(code).not.toContain("function controls(");
   expect(code).not.toContain("react.transitional.element");
 
@@ -129,7 +129,7 @@ test("leaves a package's module written without React importing the controls, wi
 
 test("core's own block module, as core ships it, imports React and the SDK, and draws with them", async () => {
   const code = readFileSync(join(repo, "inst", "js", "head-block.js"), "utf8");
-  expect(importsOf(code)).toEqual(["@blockr/core/react", "react/jsx-runtime"]);
+  expect(importedPackages(code)).toEqual(["@blockr/core/react", "react/jsx-runtime"]);
   expect(code).not.toContain("function reactModule(");
 
   const fixture = JSON.parse(

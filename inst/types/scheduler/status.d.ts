@@ -21,7 +21,7 @@ export interface Outcome {
     readonly stdout: string;
     readonly stderr: string;
 }
-export declare function outcomeOf(reply: Reply, revision: number): Outcome | undefined;
+export declare function replyOutcome(reply: Reply, revision: number): Outcome | undefined;
 export declare function unsent(revision: number, message: string): Outcome;
 export declare function unevaluated(revision: number, running: boolean): BlockStatus;
 export declare function replied(outcome: Outcome, revision: number, running: boolean): BlockStatus;
@@ -32,7 +32,7 @@ export declare function waitingFor(what: {
     upstream: readonly BlockId[];
 }): Condition;
 export declare function sameStatus(a: BlockStatus, b: BlockStatus): boolean;
-export declare function statusesOf(input: {
+export declare function blockStatuses(input: {
     readonly graph: Graph;
     readonly revisions: ReadonlyMap<BlockId, number>;
     readonly outcomes: ReadonlyMap<BlockId, Outcome>;

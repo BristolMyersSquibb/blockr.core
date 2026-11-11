@@ -15,7 +15,7 @@ import type { CardCore } from "./card.tsx";
 
 const HEAD: Block = { registry_id: "blockr.core-head_block", state: { n: 6, direction: "head" }, name: "Head", locked: null };
 
-function boardOf(blocks: Board["blocks"]): Board {
+function createBoard(blocks: Board["blocks"]): Board {
   return { id: "quick_wren", name: "Quick wren", blocks, links: {}, stacks: {}, options: {}, plugins: {} };
 }
 
@@ -28,7 +28,7 @@ const UNEVALUATED: BlockStatus = { ...READY, status: "unevaluated", evaluated: n
 // What the card reads of CoreApi, played: the board given, the block's
 // status, which the test sets, the demands that the card makes, and what the
 // mounts draw and end.
-function played(board: Board = boardOf({ b: HEAD }), locked = false) {
+function played(board: Board = createBoard({ b: HEAD }), locked = false) {
   let status: BlockStatus | undefined = UNEVALUATED;
   const listeners = new Set<(changed: readonly string[]) => void>();
   const demands: { owner: string; blocks: string[]; released: boolean }[] = [];
@@ -153,7 +153,7 @@ describe("the card of a block that serve() serves alone", () => {
   });
 
   test("mounts no UI where the board lock fixes the block", () => {
-    const r = played(boardOf({ b: HEAD }), true);
+    const r = played(createBoard({ b: HEAD }), true);
     const { el } = draw(r.core);
 
     expect(el.querySelector('[aria-label="Inputs"]')).toBeNull();
@@ -318,7 +318,7 @@ describe("the card of a block that serve() serves alone", () => {
   test("says so in the element where the board holds no block or several", () => {
     const boards: Board["blocks"][] = [{}, { a: HEAD, b: HEAD }];
     for (const blocks of boards) {
-      const r = played(boardOf(blocks));
+      const r = played(createBoard(blocks));
       const { el } = draw(r.core);
 
       expect(find(el, '[role="alert"]').textContent).toContain("A block that serve() serves alone comes as a board of one block");

@@ -43,13 +43,13 @@ import type { BlockId, OptionId } from "../types/board.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
-import { asError, frozenCopy, isObject, jsonEqual, messageOf, own, packageOf, report } from "../util/index.ts";
+import { asError, errorMessage, frozenCopy, isObject, jsonEqual, own, packageFromId, report } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, moduleOf, onAbort, REPLACED, showError } from "./shared.ts";
+import { announceTo, attempt, mountableModule, onAbort, REPLACED, showError } from "./shared.ts";
 import type { Mountable } from "./shared.ts";
 
 // How long core waits for an element's size to settle before it asks R for an
@@ -153,7 +153,7 @@ export interface OutputDeps {
   ) => { readonly stop: () => void };
   // The defaults of the board options that the board lacks, which core sends
   // without adding them to the board (./block.ts).
-  readonly defaultsOf: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
+  readonly resolveDefaults: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
   readonly emit: (event: OutputEvent) => void;
 }
 
@@ -249,9 +249,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     let loading = preparing.get(given.id);
     if (loading === undefined) {
       loading = (async () => {
-        const pkg = packageOf(given.id);
+        const pkg = packageFromId(given.id);
         const source = given.css === undefined ? { module: given.module } : { module: given.module, css: given.css };
-        const mod = moduleOf<OutputArgs>(await loader.load(source, pkg), given.module, pkg);
+        const mod = mountableModule<OutputArgs>(await loader.load(source, pkg), given.module, pkg);
         const named = mod.options ?? [];
         // Core has reported why one did not go onto the board.
         const failures = await deps.addOptions(named, `the renderer "${given.id}"`);
@@ -333,7 +333,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     if (fetching) return;
     fetching = true;
     const lacking = Object.keys(store.options.registered()).filter((id) => !Object.hasOwn(store.board().options, id));
-    void deps.defaultsOf(lacking, `the first output of block "${block}"`).then((found) => {
+    void deps.resolveDefaults(lacking, `the first output of block "${block}"`).then((found) => {
       fetching = false;
       if (ended() || renderer !== undefined) return;
       unwritten = found;
@@ -359,7 +359,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         stopAsking();
         take(shelf.last);
       } else {
-        const key = keyOf(want.asked);
+        const key = outputRequestKey(want.asked);
         if (asking?.key !== key) {
           stopAsking();
           asking = join(key, want.asked);
@@ -485,7 +485,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       return;
     }
     failed(
-      { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message: messageOf(failure) },
+      { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message: errorMessage(failure) },
       [],
     );
   }
@@ -525,8 +525,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         else current.cleanup = rendered;
       } catch (failure) {
         if (signal.signal.aborted) return;
-        const pkg = packageOf(prepared.renderer.id);
-        const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${messageOf(failure)}`, {
+        const pkg = packageFromId(prepared.renderer.id);
+        const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${errorMessage(failure)}`, {
           cause: failure,
         });
         showError(el, why.message);
@@ -794,7 +794,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
 // What makes two asks of one block's output identical: the revision, the
 // board option values, the info and the parameters.
-function keyOf(asked: Asked): string {
+function outputRequestKey(asked: Asked): string {
   return JSON.stringify([asked.revision, sorted(asked.options), sorted(asked.info as unknown as Json), sorted(asked.params)]);
 }
 

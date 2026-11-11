@@ -16,7 +16,7 @@ import { BlockCard, StackGroup } from "./card.tsx";
 import { FrontEndContext, useFrontEnd } from "./context.ts";
 import type { FrontEnd } from "./context.ts";
 import { useBoard, useNotices } from "./hooks.ts";
-import { itemsOf } from "./layout.ts";
+import { layoutItems } from "./layout.ts";
 import { LinksDialog } from "./links.tsx";
 import type { Severity } from "./notices.ts";
 import { OptionsDialog } from "./options.tsx";
@@ -41,7 +41,7 @@ export function BasicBoard({ front }: { front: FrontEnd }): ReactElement {
 function Page(): ReactElement {
   const { core } = useFrontEnd();
   const board = useBoard(core);
-  const items = useMemo(() => itemsOf(board), [board]);
+  const items = useMemo(() => layoutItems(board), [board]);
   // The same array until show_conditions changes, so that a card draws again
   // only as its own block changes.
   const shown = board.options.show_conditions;

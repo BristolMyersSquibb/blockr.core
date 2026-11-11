@@ -23,7 +23,7 @@ import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { messageOf, own } from "../util/index.ts";
+import { errorMessage, own } from "../util/index.ts";
 
 export interface NumberInput {
   // Sets the largest number the input takes, or none.
@@ -166,7 +166,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
       },
       {
         settled: (refused) => {
-          refusal = refused === null ? null : messageOf(refused);
+          refusal = refused === null ? null : errorMessage(refused);
           redraw();
         },
       },
@@ -190,7 +190,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   }
 
   function alert(next: unknown): void {
-    error = next === null ? null : messageOf(next);
+    error = next === null ? null : errorMessage(next);
     redraw();
   }
 

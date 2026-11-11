@@ -24,7 +24,7 @@ var styles = {
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
-function messageOf(error) {
+function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -71,7 +71,7 @@ function controls(host, signal) {
       },
       {
         settled: (refused) => {
-          refusal = refused === null ? null : messageOf(refused);
+          refusal = refused === null ? null : errorMessage(refused);
           redraw();
         }
       }
@@ -94,7 +94,7 @@ function controls(host, signal) {
     );
   }
   function alert(next) {
-    error = next === null ? null : messageOf(next);
+    error = next === null ? null : errorMessage(next);
     redraw();
   }
   function get(key) {

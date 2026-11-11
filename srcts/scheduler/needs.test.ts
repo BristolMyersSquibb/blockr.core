@@ -3,13 +3,13 @@
 // The blocks needed, each at an evaluation priority.
 
 import { describe, expect, test } from "vitest";
-import { graphOf } from "../graph/index.ts";
+import { createGraph } from "../graph/index.ts";
 import { sample } from "../testing/board.ts";
-import { needsOf } from "./needs.ts";
+import { neededBlocks } from "./needs.ts";
 
 describe("what is needed", () => {
   test("is every block needed and everything upstream of it, at the highest evaluation priority of anything that needs it", () => {
-    const needs = needsOf(graphOf(sample), [
+    const needs = neededBlocks(createGraph(sample), [
       { blocks: ["c"], priority: 1 },
       { blocks: ["d", "z"], priority: 0 },
       { blocks: ["a"], priority: -1 },
@@ -18,6 +18,6 @@ describe("what is needed", () => {
   });
 
   test("is nothing where nothing needs a block", () => {
-    expect(needsOf(graphOf(sample), []).size).toBe(0);
+    expect(neededBlocks(createGraph(sample), []).size).toBe(0);
   });
 });

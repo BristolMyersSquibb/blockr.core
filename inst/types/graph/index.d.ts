@@ -1,2 +1,2 @@
-export { graphOf } from "./graph.ts";
+export { createGraph } from "./graph.ts";
 export type { Graph } from "./graph.ts";

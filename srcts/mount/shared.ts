@@ -14,7 +14,7 @@ export interface Mountable<A> {
 
 // What a module exports, as a module that core mounts, or a ModuleError that
 // says why it is none.
-export function moduleOf<A>(exports: unknown, module: string, pkg: string | null): Mountable<A> {
+export function mountableModule<A>(exports: unknown, module: string, pkg: string | null): Mountable<A> {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
   }

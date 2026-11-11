@@ -18,7 +18,7 @@
 import { SessionEndedError } from "../protocol/index.ts";
 import type { Client } from "../protocol/index.ts";
 import type { Json } from "../types/json.ts";
-import { messageOf, quoted } from "../util/index.ts";
+import { errorMessage, quoted } from "../util/index.ts";
 
 export interface BlockrOptions {
   // The blockr option's value as R sent it, asked of R once per page, or
@@ -62,9 +62,9 @@ export function createBlockrOptions(client: Pick<Client, "request">): BlockrOpti
     const asked = [...names.keys()];
     let values: Readonly<Record<string, Json>>;
     try {
-      values = await valuesOf(client, asked);
+      values = await requestBlockrOptions(client, asked);
     } catch (error) {
-      const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${messageOf(error)}`, { cause: error });
+      const failure = new Error(`R sent no values of the blockr options ${quoted(asked)}: ${errorMessage(error)}`, { cause: error });
       // Each read fails, and the names are asked again the next time code
       // reads them.
       for (const [name, settle] of names) {
@@ -91,7 +91,7 @@ export function createBlockrOptions(client: Pick<Client, "request">): BlockrOpti
 // The values that R has of the blockr options, by name, asked again of the
 // next session where the session ends before R replies, since reading them
 // changes nothing.
-async function valuesOf(client: Pick<Client, "request">, names: string[]): Promise<Readonly<Record<string, Json>>> {
+async function requestBlockrOptions(client: Pick<Client, "request">, names: string[]): Promise<Readonly<Record<string, Json>>> {
   for (;;) {
     let reply;
     try {

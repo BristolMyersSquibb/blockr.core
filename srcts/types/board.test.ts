@@ -115,7 +115,7 @@ const classes: readonly PluginClass[] = [
   },
 ];
 
-function jsonOf({ format, packages, board }: Fixture): JsonBoard {
+function jsonBoard({ format, packages, board }: Fixture): JsonBoard {
   return { format, packages, board };
 }
 
@@ -150,7 +150,7 @@ test("the check fails a fixture with a property that its type lacks", () => {
 // the plugin classes the versions it records, so that the store runs no
 // migration.
 test.each(names)("the store opens %s, saves it as R wrote it, and opens the text to the same board", async (name) => {
-  const json = jsonOf(read(name));
+  const json = jsonBoard(read(name));
   const replied: HelloReply = {
     ...hello,
     packages: json.packages,

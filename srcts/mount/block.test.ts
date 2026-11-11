@@ -27,9 +27,9 @@ const HEAD_CSS = "blockr.core/head-block.css?v=c03e7b58";
 const MERGE = "blockr.core/merge-block.js?v=77d0a9e3";
 const UPLOAD = "blockr.core/upload-block.js?v=d5932c60";
 
-const head = entryOf("blockr.core-head_block");
+const head = registryEntry("blockr.core-head_block");
 
-function entryOf(id: string): RegistryEntry {
+function registryEntry(id: string): RegistryEntry {
   const entry = hello.block_registry[id];
   if (entry === undefined) throw new Error(`The block registry has no class "${id}".`);
   return entry;
@@ -183,7 +183,7 @@ function lastRequest(r: PlayedR): BlockClassRequest {
   return request;
 }
 
-function revisionOf(scheduler: Scheduler, id: BlockId): number {
+function blockRevision(scheduler: Scheduler, id: BlockId): number {
   const status = scheduler.status(id);
   if (status === undefined) throw new Error(`Block "${id}" has no status.`);
   return status.revision;
@@ -527,7 +527,7 @@ describe("board options", () => {
     const reported = reports();
     const ui = recorder();
     // The merge block's class has the head block's module draw it too.
-    const merge = entryOf("blockr.core-merge_block");
+    const merge = registryEntry("blockr.core-merge_block");
     const reply: HelloReply = {
       ...withRequests,
       block_registry: { ...withRequests.block_registry, [merge.id]: { ...merge, module: HEAD } },
@@ -558,7 +558,7 @@ describe("the host", () => {
     expect(host.context()).toEqual({
       name: "Head",
       status: scheduler.status("b"),
-      inputs: [{ input: "data", revision: revisionOf(scheduler, "a") }],
+      inputs: [{ input: "data", revision: blockRevision(scheduler, "a") }],
       options: { n_rows: 50 },
     });
   });
@@ -600,7 +600,7 @@ describe("the host", () => {
     expect(contexts.at(-1)?.status.status).toBe("ready");
 
     scheduler.invalidate("a");
-    expect(contexts.at(-1)?.inputs).toEqual([{ input: "data", revision: revisionOf(scheduler, "a") }]);
+    expect(contexts.at(-1)?.inputs).toEqual([{ input: "data", revision: blockRevision(scheduler, "a") }]);
 
     store.apply({ blocks: { mod: { b: { name: "First rows" } } } });
     expect(contexts.at(-1)?.name).toBe("First rows");
@@ -834,7 +834,7 @@ describe("a request", () => {
       block: "b",
       name: "n_max",
       args: {},
-      reads: [{ input: "data", block: "a", revision: revisionOf(scheduler, "a") }],
+      reads: [{ input: "data", block: "a", revision: blockRevision(scheduler, "a") }],
     });
     r.reply({ id: lastRequest(r).id, status: "ok", value: [150] });
     await expect(max).resolves.toEqual([150]);
@@ -911,7 +911,7 @@ describe("a request", () => {
     const second = host.request("n_max");
     await evaluateAll(r);
     expect(requests(r)).toHaveLength(2);
-    expect(lastRequest(r).reads).toEqual([{ input: "data", block: "a", revision: revisionOf(scheduler, "a") }]);
+    expect(lastRequest(r).reads).toEqual([{ input: "data", block: "a", revision: blockRevision(scheduler, "a") }]);
     r.reply({ id: lastRequest(r).id, status: "ok", value: [120] });
     await expect(second).resolves.toEqual([120]);
   });
@@ -1036,7 +1036,7 @@ describe("a request", () => {
     const first = lastRequest(r);
 
     // R lost the result of a, which the scheduler then invalidates.
-    r.reply({ id: first.id, status: "missing", missing: [{ block: "a", revision: revisionOf(scheduler, "a") }] });
+    r.reply({ id: first.id, status: "missing", missing: [{ block: "a", revision: blockRevision(scheduler, "a") }] });
     await evaluateAll(r);
 
     expect(requests(r)).toHaveLength(2);
@@ -1116,7 +1116,7 @@ describe("a request", () => {
     await evaluateAll(r);
     const sent = lastRequest(r);
 
-    r.reply({ id: sent.id, status: "missing", missing: [{ block: "a", revision: revisionOf(scheduler, "a") }] });
+    r.reply({ id: sent.id, status: "missing", missing: [{ block: "a", revision: blockRevision(scheduler, "a") }] });
     await tick();
     await next(withRequests);
     await stopped;

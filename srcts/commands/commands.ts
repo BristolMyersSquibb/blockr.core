@@ -11,11 +11,11 @@
 
 import { computed, signal } from "@preact/signals-core";
 import type { Lock } from "../protocol/index.ts";
-import { isDeltas, isRandId, pluginOf, RAND_IDS } from "../store/index.ts";
+import { isDeltas, isRandId, pluginIdFromPath, RAND_IDS } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { compile, messageOf, packageOf, quoted } from "../util/index.ts";
+import { compile, errorMessage, packageFromId, quoted } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
 
@@ -244,7 +244,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         ? {}
         : {
             patches: patches.map((patch): Patch => {
-              const plugin = pluginOf(patch.path);
+              const plugin = pluginIdFromPath(patch.path);
               return plugin === undefined ? patch : edit(patch, store.editId({ plugin }));
             }),
           }),
@@ -293,7 +293,7 @@ function asRandId(randId: Json): RandId {
 // Whether an id is named as a registry id is: a package name, a dash, and a
 // name.
 function isCommandId(id: string): boolean {
-  const pkg = packageOf(id);
+  const pkg = packageFromId(id);
   return pkg !== null && id.length > pkg.length + 1;
 }
 
@@ -301,7 +301,7 @@ function isCommandId(id: string): boolean {
 // that names the command, unless it is one already.
 function failed(command: Command<Json, unknown>, error: unknown): CommandError {
   if (error instanceof CommandError) return error;
-  return new CommandError(`The command "${command.id}" failed`, [messageOf(error)], {
+  return new CommandError(`The command "${command.id}" failed`, [errorMessage(error)], {
     cause: error,
   });
 }

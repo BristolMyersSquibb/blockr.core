@@ -10,7 +10,7 @@ import { Field, reactModule, Stack, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
-import { messageOf } from "../../util/index.ts";
+import { errorMessage } from "../../util/index.ts";
 import type { State } from "./state.ts";
 
 export const api = 1;
@@ -40,7 +40,7 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
       if (kept === undefined) throw new Error(`R kept ${file.name} but gave no path for it.`);
       await path.commit(kept);
     } catch (error) {
-      if (!controller.signal.aborted) setFailed(messageOf(error));
+      if (!controller.signal.aborted) setFailed(errorMessage(error));
     } finally {
       setUploading(null);
     }
