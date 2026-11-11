@@ -1029,7 +1029,7 @@ test_that("R replies error where answering a request fails in R", {
     blockr.log_level = "error",
     width = 500L
   )
-  local_logging()
+  local_reset_logging()
 
   session$receive(list(list(id = "2", kind = "blockr_options", names = "a")))
 
@@ -1060,7 +1060,7 @@ test_that("R replies error where it cannot send a reply", {
     blockr.log_level = "error",
     width = 500L
   )
-  local_logging()
+  local_reset_logging()
 
   ev <- new_evaluator(board = obj())
   receive_requests(ev, hello_message(), function(message) NULL)
@@ -1090,7 +1090,7 @@ test_that("R replies error in place of a reply too large to send", {
     blockr.log_level = "warn",
     width = 500L
   )
-  local_logging()
+  local_reset_logging()
 
   session$send <- function(message) {
     if (identical(message[[1L]][["status"]], "ok")) {
@@ -1126,7 +1126,7 @@ test_that("R replies error in place of a reply too large to send", {
 
   # Logged as a warning, which a log level of error leaves out.
   withr::local_options(blockr.log_level = "error")
-  local_logging()
+  local_reset_logging()
 
   session$receive(list(evaluate_request("22", "a", 3L, sample_recipe("a"))))
 
@@ -1137,7 +1137,7 @@ test_that("R replies error in place of a reply too large to send", {
 test_that("the Shiny transport carries the evaluator's replies and bodies", {
 
   withr::local_options(blockr.log_level = "error")
-  local_logging()
+  local_reset_logging()
 
   ev <- new_evaluator(board = list(blocks = list()))
 
@@ -1197,7 +1197,7 @@ test_that("the page hears why R sent no reply too large for a message", {
     blockr.log_level = "error",
     blockr.max_message_size = 40000
   )
-  local_logging()
+  local_reset_logging()
 
   local_block_class(static_block, "blockr.core-static_block")
 

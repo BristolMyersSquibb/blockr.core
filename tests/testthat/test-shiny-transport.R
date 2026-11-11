@@ -837,7 +837,7 @@ test_that("the transport ignores what it cannot decode and outlives errors", {
     blockr.log_level = "warn",
     width = 500L
   )
-  local_logging()
+  local_reset_logging()
 
   got <- 0L
 

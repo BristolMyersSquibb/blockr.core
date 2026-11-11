@@ -6,7 +6,7 @@ test_that("logging", {
     BLOCKR_LOG_TIME = "",
     BLOCKR_LOGGER = ""
   )
-  local_logging()
+  local_reset_logging()
 
   withr::with_options(
     list(blockr.log_level = "info"),
@@ -61,7 +61,7 @@ test_that("a log message is a string, written from an environment", {
 
   withr::local_envvar(BLOCKR_LOG_LEVEL = "")
   withr::local_options(blockr.log_level = "info")
-  local_logging()
+  local_reset_logging()
 
   expect_error(write_log("abc", envir = 1), class = "write_log_envir_invalid")
   expect_error(write_log("abc", pkg = 1), class = "write_log_pkg_invalid")
@@ -79,7 +79,7 @@ test_that("log_time and log_mem read a string as as.logical() does", {
   )
 
   withr::local_envvar(BLOCKR_LOG_TIME = "FALSE", BLOCKR_LOG_MEM = "T")
-  local_logging()
+  local_reset_logging()
 
   with_mocked_bindings(
     expect_output(log_info("abc"), "^\\[INFO\\]\\[42B\\]"),
@@ -126,7 +126,7 @@ test_that("a logger gets the message as written, with its level and package", {
       )
     }
   )
-  local_logging()
+  local_reset_logging()
 
   n <- 2L
   log_warn("{n} lines", attributes = list(blockr.block.id = "a"))
@@ -163,7 +163,7 @@ test_that("the console's logger puts the prefix on each line it wraps", {
     blockr.log_mem = FALSE,
     width = 40L
   )
-  local_logging()
+  local_reset_logging()
 
   text <- "one two three four five six seven eight"
 
@@ -195,7 +195,7 @@ test_that("core keeps the logger and the level until reset_logging()", {
       got <<- c(got, msg)
     }
   )
-  local_logging()
+  local_reset_logging()
 
   log_info("first")
 
@@ -224,7 +224,7 @@ test_that("core logs through OpenTelemetry where it has set up an exporter", {
   )
 
   withr::local_options(blockr.log_level = "info", blockr.log_time = FALSE)
-  local_logging()
+  local_reset_logging()
 
   # With no exporter set up, core writes to the console.
   expect_output(log_info("abc"), "^\\[INFO\\]\\[blockr\\.core\\] abc$")
@@ -262,7 +262,7 @@ test_that("a logger named otel_logger() fails where no exporter is set up", {
 
   withr::local_envvar(BLOCKR_LOG_LEVEL = "", BLOCKR_LOGGER = "")
   withr::local_options(blockr.log_level = "info", blockr.logger = "otel_logger")
-  local_logging()
+  local_reset_logging()
 
   expect_error(log_info("abc"), class = "otel_logger_unavailable")
 

@@ -122,7 +122,7 @@ test_that("serve() reads the opening board for the locks as it is called", {
     blockr.log_level = "error",
     width = 500L
   )
-  local_logging()
+  local_reset_logging()
 
   expect_warning(
     replies <- served_replies(
@@ -153,7 +153,7 @@ test_that("serve() stops where the logger that the app names cannot work", {
 
   withr::local_envvar(BLOCKR_LOGGER = "")
   withr::local_options(blockr.logger = "otel_logger")
-  local_logging()
+  local_reset_logging()
 
   expect_error(serve(served_board()), class = "otel_logger_unavailable")
 })
@@ -378,7 +378,7 @@ test_that("the app exports the latest result of each block for e2e tests", {
     blockr.log_level = "error",
     width = 500L
   )
-  local_logging()
+  local_reset_logging()
 
   expect_warning(
     exports <- served_exports(
