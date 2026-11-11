@@ -36,6 +36,25 @@ outside_class <- function(name, expr, dir, schema = NULL, inputs = NULL,
   )
 }
 
+# A note block class of the package `package`, or from outside a package
+# where `package` is `NULL`. Its expression repeats the note where `n` is
+# `TRUE`, so that the two give two classes of one name.
+note_class <- function(n = FALSE, package = NULL) {
+
+  expr <- if (n) {
+    function(text = "", n = 1L) bbquote(rep(.(text), .(n)))
+  } else {
+    function(text = "") bbquote(.(text))
+  }
+
+  test_block_class(
+    "note_block",
+    expr = expr,
+    ui = js_module("note-block.js", package = NULL),
+    package = package
+  )
+}
+
 head_class <- test_block_class(
   "head_block",
   inputs = function(data) stopifnot(is.data.frame(data)),

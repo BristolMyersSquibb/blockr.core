@@ -85,6 +85,50 @@ test_that("serve() registers the class of a block that it serves alone", {
   expect_true("blockr.core-static_block" %in% list_blocks())
 })
 
+test_that("serve() replaces a class from outside a package that differs", {
+
+  local_declared(block_registry)
+
+  old <- note_class()
+  new <- note_class(n = TRUE)
+
+  serve(new_board(c(a = block_constructor(old)())))
+
+  expect_identical(get_registry_entry("note_block")$block_class, old)
+
+  # As when a script redefines the class and serves again
+  serve(new_board(c(a = block_constructor(new)())))
+
+  expect_identical(get_registry_entry("note_block")$block_class, new)
+
+  # A class from a package keeps the entry under its id, which its package
+  # registers
+  held <- note_class(package = "blockr.core")
+  register_block(block_constructor(held), "Note", "A note")
+
+  serve(new_board(c(a = block_constructor(note_class(TRUE, "blockr.core"))())))
+
+  expect_identical(
+    get_registry_entry("blockr.core-note_block")$block_class,
+    held
+  )
+})
+
+test_that("serve() refuses two classes of one name from outside a package", {
+
+  local_declared(block_registry)
+
+  one <- block_constructor(note_class())
+  two <- block_constructor(note_class(n = TRUE))
+
+  board <- new_board(c(a = one(), b = one(), c = two()))
+
+  expect_error(serve(board), "Blocks a and c", class = "board_blocks_invalid")
+
+  # It fails before it registers any class
+  expect_false("note_block" %in% list_blocks())
+})
+
 test_that("serve() takes nothing but the board, and says where the rest went", {
 
   board <- served_board()

@@ -375,7 +375,8 @@
   The `registry_id_from_block()` function reads the id from the block's class, whether or not the block registry holds the class.
   The `blockr_ser()` function reads a block's registry id, the version of its state and the schema of its state from its class, and registers no class.
   Before it writes a board, `serve()` registers the class of each block that the block registry lacks, under the id that the class gives.
-  So core's static and fixed blocks have the ids `blockr.core-static_block` and `blockr.core-fixed_block`, where they had `static_block` and `fixed_block` (#559).
+  So core's static and fixed blocks have the ids `blockr.core-static_block` and `blockr.core-fixed_block`, where they had `static_block` and `fixed_block`.
+  A class from outside a package replaces another class that the block registry holds under its id, so that a script that redefines a class and serves again runs the new definition, and a board with blocks of two such classes of one name fails (#559).
 
 # blockr.core 0.1.4
 
