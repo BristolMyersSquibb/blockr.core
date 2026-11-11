@@ -24,7 +24,7 @@ under \code{...}}
 and, optionally, its \code{args} and \code{options} (see \code{\link[=run_block_request]{run_block_request()}})}
 
 \item{name}{The fixture's file name, without extension, which defaults to
-the class's name}
+the class's id}
 }
 \value{
 Called for its expectations, returning invisibly.

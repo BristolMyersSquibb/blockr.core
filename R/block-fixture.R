@@ -48,7 +48,7 @@
 #' @param requests A list of request calls, each a list of the request's `name`
 #'   and, optionally, its `args` and `options` (see [run_block_request()])
 #' @param name The fixture's file name, without extension, which defaults to
-#'   the class's name
+#'   the class's id
 #'
 #' @return Called for its expectations, returning invisibly.
 #'
@@ -84,7 +84,7 @@ expect_block_fixture <- function(x, states, inputs = list(), requests = list(),
 
   testthat::expect_snapshot_file(
     file,
-    paste0(coal(name, cls[["class"]][1L], fail_all = FALSE), ".json")
+    paste0(coal(name, cls[["id"]], fail_all = FALSE), ".json")
   )
 
   invisible()
@@ -98,7 +98,7 @@ state_runs <- function(i, states, cls, ids) {
   testthat::expect(
     ok,
     paste0(
-      "State ", i, " of block class ", cls[["class"]][1L], " does not run ",
+      "State ", i, " of block class ", cls[["id"]], " does not run ",
       "(", res[["status"]], "): ",
       paste(chr_xtr(res[["conditions"]], "message"), collapse = "; ")
     )
@@ -113,7 +113,7 @@ fixture_state <- function(i, states, cls) {
 
   state <- plain_value(
     expr_state(cls, states[[i]]),
-    paste("State", i, "of block class", cls[["class"]][1L])
+    paste("State", i, "of block class", cls[["id"]])
   )
 
   as_json_object(shape_by_schema(state, class_schema(cls)))

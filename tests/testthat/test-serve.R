@@ -114,7 +114,7 @@ test_that("serve() replaces a class from outside a package that differs", {
   )
 })
 
-test_that("serve() refuses two classes of one name from outside a package", {
+test_that("serve() refuses two classes of one id from outside a package", {
 
   local_declared(block_registry)
 

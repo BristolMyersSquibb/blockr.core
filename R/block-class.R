@@ -6,15 +6,19 @@
 #' package exports both: the class, from whose properties another class can
 #' be built, and the constructor.
 #'
+#' A class has an id of its own, which `new_block_class()` takes and by which R
+#' identifies the class.
+#' The id also leads the class vector of every block of the class, which
+#' serves S3 dispatch alone.
 #' A class records the package whose code calls `new_block_class()`,
 #' as `js_module()` records the package of a module.
 #' A class that an app script defines records no package.
-#' The class's registry id is `{pkg}-{name}`, from that package and the
-#' class's name, as `blockr.core-head_block`, or the name alone where the
-#' class records no package (see [register_block()]).
-#' A class's name may therefore hold no `-`, since a registry id splits at its
+#' The class's registry id is `{pkg}-{id}`, from that package and the class's
+#' id, as `blockr.core-head_block`, or the id alone where the class records no
+#' package (see [register_block()]).
+#' A class's id may therefore hold no `-`, since a registry id splits at its
 #' first `-`.
-#' Otherwise a script's class named `my-block` would read as one from a
+#' Otherwise a script's class with the id `my-block` would read as one from a
 #' package `my`.
 #'
 #' Every class has an `expr`, a function whose formals are the state args and
@@ -78,7 +82,7 @@
 #' calls `expr` with its args and returns a block, a list of the state that
 #' the checks in `expr` left in the frame it ran in, which leaves out an arg
 #' that is still unset. A block holds its name, which defaults to one made
-#' from its class's name by `default_block_name()`, and its lock, `locked`,
+#' from its class's id by `default_block_name()`, and its lock, `locked`,
 #' which fixes the block's state where the board lock is on: `TRUE` locks the
 #' block, `FALSE` leaves it open, and `NA`, the default, follows the board
 #' lock, which then locks it (see [locked-board]). A block refers to its
@@ -91,8 +95,8 @@
 #' neither empty nor made of digits alone.
 #' A block passed without a name gets an ID that [rand_names()] draws.
 #'
-#' @param name Class name, which leads the class vector of every block of the
-#'   class and holds no `-`
+#' @param id Class id, from which the class's registry id comes, which leads
+#'   the class vector of every block of the class and holds no `-`
 #' @param inputs Data inputs, as a character vector of names, a list of formals
 #'   or a function of them
 #' @param expr Function of the state args that returns what interpolation
@@ -147,23 +151,23 @@
 #' all inherit from `blocks` and `is_blocks()` returns a scalar logical.
 #'
 #' @export
-new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
+new_block_class <- function(id, inputs = NULL, expr, ui, requests = NULL,
                             output = NULL, version = 1L) {
 
   package <- pkg_name(parent.frame())
 
-  if (!is_nonempty_string(name)) {
+  if (!is_nonempty_string(id)) {
     blockr_abort(
-      "A block class name is expected to be a non-empty string.",
-      class = "block_class_name_invalid"
+      "A block class id is expected to be a non-empty string.",
+      class = "block_class_id_invalid"
     )
   }
 
-  if (grepl("-", name, fixed = TRUE)) {
+  if (grepl("-", id, fixed = TRUE)) {
     blockr_abort(
-      "The block class name {name} holds a `-`, which no block class name ",
-      "may hold, since a registry id splits at its first `-`.",
-      class = "block_class_name_invalid"
+      "The block class id {id} holds a `-`, which no block class id may ",
+      "hold, since a registry id splits at its first `-`.",
+      class = "block_class_id_invalid"
     )
   }
 
@@ -174,7 +178,8 @@ new_block_class <- function(name, inputs = NULL, expr, ui, requests = NULL,
   validate_block_class(
     structure(
       list(
-        class = c(name, "block"),
+        id = id,
+        class = c(id, "block"),
         package = package,
         inputs = inputs,
         expr = expr,
@@ -860,7 +865,7 @@ format.block_class <- function(x, ...) {
   ui <- x[["ui"]]
 
   c(
-    paste0("<block_class> ", x[["class"]][1L]),
+    paste0("<block_class> ", x[["id"]]),
     if (length(inputs)) {
       paste0("Data inputs: ", paste_enum(inputs, quotes = "\""))
     },
@@ -890,7 +895,7 @@ format.block_constructor <- function(x, ...) {
   usage <- deparse(args(x))
 
   c(
-    paste0("<block_constructor> ", constructor_class(x)[["class"]][1L]),
+    paste0("<block_constructor> ", constructor_class(x)[["id"]]),
     usage[-length(usage)]
   )
 }

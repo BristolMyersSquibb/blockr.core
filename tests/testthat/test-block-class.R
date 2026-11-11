@@ -3,6 +3,9 @@ test_that("a block class holds its properties", {
   expect_true(is_block_class(head_class))
   expect_false(is_block_class(new_class_head_block()))
 
+  # R identifies the class by its id, which leads the class vector for S3
+  # dispatch
+  expect_identical(head_class$id, "head_block")
   expect_identical(head_class$class, c("head_block", "block"))
   expect_identical(class_inputs(head_class), "data")
   expect_identical(class_state_args(head_class), c("n", "direction"))
@@ -45,18 +48,18 @@ test_that("new_block_class() checks a class once", {
 
   expect_error(
     new_block_class(1, "data", expr, ui),
-    class = "block_class_name_invalid"
+    class = "block_class_id_invalid"
   )
 
   expect_error(
     new_block_class("", "data", expr, ui),
-    class = "block_class_name_invalid"
+    class = "block_class_id_invalid"
   )
 
-  # A registry id splits at its first `-`, so a class's name holds none
+  # A registry id splits at its first `-`, so a class's id holds none
   expect_error(
     new_block_class("my-block", "data", expr, ui),
-    class = "block_class_name_invalid",
+    class = "block_class_id_invalid",
     regexp = "my-block"
   )
 

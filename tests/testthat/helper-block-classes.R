@@ -38,7 +38,7 @@ outside_class <- function(name, expr, dir, schema = NULL, inputs = NULL,
 
 # A note block class of the package `package`, or from outside a package
 # where `package` is `NULL`. Its expression repeats the note where `n` is
-# `TRUE`, so that the two give two classes of one name.
+# `TRUE`, so that the two give two classes of one id.
 note_class <- function(n = FALSE, package = NULL) {
 
   expr <- if (n) {

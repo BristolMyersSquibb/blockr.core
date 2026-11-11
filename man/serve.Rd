@@ -47,11 +47,11 @@ So every block on the served board runs, and so does a block that \code{serve()}
 serves alone.
 A class from a package keeps its package's ID, so that a board saved from
 the app opens in an app that offers the package.
-A class from outside a package, whose ID is its name alone, replaces
-another class that the registry holds under that ID, so that a script that
-redefines a class and serves again runs the new definition.
-A board with blocks of two such classes of one name fails, since the client
-and the evaluator know a block's class by its ID alone.
+A class from outside a package, whose registry ID is its id alone,
+replaces another class that the registry holds under that ID, so that a
+script that redefines a class and serves again runs the new definition.
+A board with blocks of two such classes of one id fails, since the client
+and the evaluator know a block's class by its registry ID alone.
 For the path of a JSON board, R reads only the file's format, and sends the
 file's text as it is, for the client to open.
 It loads no package for the file.

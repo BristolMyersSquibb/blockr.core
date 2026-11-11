@@ -121,13 +121,13 @@ class.
 }
 \details{
 A block class's registry id comes from the class alone.
-It is \code{{pkg}-{name}}, such as \code{blockr.core-head_block},
+It is \code{{pkg}-{id}}, such as \code{blockr.core-head_block},
 where \code{{pkg}} is the package whose code defines the class
-and \code{{name}} is the class's name (see \code{\link[=new_block_class]{new_block_class()}}).
+and \code{{id}} is the class's id (see \code{\link[=new_block_class]{new_block_class()}}).
 A class that an app script defines records no package,
-and its registry id is its name alone.
+and its registry id is its id alone.
 So renaming a constructor leaves the registry id as it is,
-while renaming a class changes it.
+while changing a class's id changes it.
 The \code{registry_id_from_block()} function reads the registry id from a
 block's class, whether or not the block registry holds the class.
 Registering the block classes of a package with \code{register_package_blocks()}

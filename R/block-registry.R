@@ -11,13 +11,13 @@ block_registry <- new.env()
 #' class.
 #'
 #' A block class's registry id comes from the class alone.
-#' It is `{pkg}-{name}`, such as `blockr.core-head_block`,
+#' It is `{pkg}-{id}`, such as `blockr.core-head_block`,
 #' where `{pkg}` is the package whose code defines the class
-#' and `{name}` is the class's name (see [new_block_class()]).
+#' and `{id}` is the class's id (see [new_block_class()]).
 #' A class that an app script defines records no package,
-#' and its registry id is its name alone.
+#' and its registry id is its id alone.
 #' So renaming a constructor leaves the registry id as it is,
-#' while renaming a class changes it.
+#' while changing a class's id changes it.
 #' The `registry_id_from_block()` function reads the registry id from a
 #' block's class, whether or not the block registry holds the class.
 #' Registering the block classes of a package with `register_package_blocks()`
@@ -226,36 +226,36 @@ register_block <- function(ctor, name, description, category = NULL,
 # to be a plain value, as the JSON of a board holds it.
 check_sent_values <- function(cls, state, arguments) {
 
-  name <- cls[["class"]][1L]
+  id <- cls[["id"]]
 
   plain_value(
     state,
-    paste("The state a new block of class", name, "starts with")
+    paste("The state a new block of class", id, "starts with")
   )
 
   for (arg in names(arguments)) {
     plain_value(
       arg_spec_example(arguments[[arg]]),
-      paste("The example of arg", arg, "of block class", name)
+      paste("The example of arg", arg, "of block class", id)
     )
   }
 
   invisible()
 }
 
-# A block class's registry id, `{pkg}-{name}`, from the package that the class
-# records and the class's name, or the name alone for a class that records no
+# A block class's registry id, `{pkg}-{id}`, from the package that the class
+# records and the class's id, or the id alone for a class that records no
 # package, as one that an app script defines.
 class_registry_id <- function(cls) {
 
-  name <- cls[["class"]][1L]
+  id <- cls[["id"]]
   package <- cls[["package"]]
 
   if (is.null(package)) {
-    return(name)
+    return(id)
   }
 
-  paste0(package, "-", name)
+  paste0(package, "-", id)
 }
 
 class_schema <- function(cls) {
@@ -369,7 +369,7 @@ format.block_registry_entry <- function(x, ...) {
     paste0("Name: \"", x[["name"]], "\""),
     paste0("Description: \"", x[["description"]], "\""),
     paste0("Category: ", x[["category"]]),
-    paste0("Block class: ", x[["block_class"]][["class"]][1L])
+    paste0("Block class: ", x[["block_class"]][["id"]])
   )
 }
 

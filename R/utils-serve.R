@@ -19,11 +19,11 @@
 #' serves alone.
 #' A class from a package keeps its package's ID, so that a board saved from
 #' the app opens in an app that offers the package.
-#' A class from outside a package, whose ID is its name alone, replaces
-#' another class that the registry holds under that ID, so that a script that
-#' redefines a class and serves again runs the new definition.
-#' A board with blocks of two such classes of one name fails, since the client
-#' and the evaluator know a block's class by its ID alone.
+#' A class from outside a package, whose registry ID is its id alone,
+#' replaces another class that the registry holds under that ID, so that a
+#' script that redefines a class and serves again runs the new definition.
+#' A board with blocks of two such classes of one id fails, since the client
+#' and the evaluator know a block's class by its registry ID alone.
 #' For the path of a JSON board, R reads only the file's format, and sends the
 #' file's text as it is, for the client to open.
 #' It loads no package for the file.
@@ -142,7 +142,7 @@ serve.block <- function(x, ..., data = list()) {
 # A class from outside a package has no package that checks the ids of its
 # classes, so R checks it here. It replaces another class that the registry
 # holds under its id, as a class does that the script has redefined since an
-# earlier `serve()`, and two such classes of one name on a board fail.
+# earlier `serve()`, and two such classes of one id on a board fail.
 register_board_classes <- function(board) {
 
   classes <- lapply(as.list(board_blocks(board)), block_class)
@@ -167,8 +167,8 @@ register_board_classes <- function(board) {
   invisible()
 }
 
-# Two classes from outside a package with one name give one registry id, the
-# name, under which the client and the evaluator know only one class. The
+# Two classes from outside a package with one id give one registry id, the
+# class id, under which the client and the evaluator know only one class. The
 # classes are given by block id.
 check_outside_classes <- function(classes) {
 
@@ -182,8 +182,8 @@ check_outside_classes <- function(classes) {
 
     if (length(other)) {
       blockr_abort(
-        "Blocks {names(same)[1L]} and {other[1L]} are of two classes named ",
-        "{id}, defined outside a package, which give one registry id.",
+        "Blocks {names(same)[1L]} and {other[1L]} are of two classes with the ",
+        "id {id}, defined outside a package, which give one registry id.",
         class = "board_blocks_invalid"
       )
     }

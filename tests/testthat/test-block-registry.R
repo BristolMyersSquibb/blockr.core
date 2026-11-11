@@ -132,8 +132,8 @@ test_that("a block class's registry id comes from the class alone", {
   expect_identical(pkg$package, "blockr.pkg")
   expect_null(script$package)
 
-  # The package that defines the class names it, so a class of one name gives
-  # another id in each package, and its name alone outside a package
+  # The package that defines the class names it, so a class of one id gives
+  # another registry id in each package, and its id alone outside a package
   expect_identical(registry_id_from_block(pkg), "blockr.pkg-count_block")
   expect_identical(registry_id_from_block(script), "count_block")
 
