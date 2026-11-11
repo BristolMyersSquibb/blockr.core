@@ -97,25 +97,60 @@ test("submits a number at once on Enter, and as the user leaves the input", asyn
   expect(host.submitted).toHaveLength(2);
 });
 
-test("submits no number that the input does not take, and marks it", async () => {
-  const { host, n } = await mounted();
+test("submits no number that the input does not take, and marks it and says why", async () => {
+  const { host, view, n } = await mounted();
   await settle();
+  const said = () => [n.getAttribute("aria-invalid"), view.el.querySelector('[role="alert"]')?.textContent ?? null];
 
+  const shown: (string | null)[][] = [];
   for (const text of ["200", "-1", "2.5", ""]) {
     await step(() => {
       type(n, text);
     });
     await wait(PAUSE);
-    expect(n.getAttribute("aria-invalid")).toBe("true");
+    shown.push(said());
   }
+  expect(shown).toEqual([
+    ["true", "200 is more than 150, the most it takes."],
+    ["true", "-1 is less than 0, the least it takes."],
+    ["true", "2.5 is not a whole number."],
+    ["true", null],
+  ]);
   expect(host.submitted).toEqual([]);
 
   await step(() => {
     type(n, "10");
   });
-  expect(n.getAttribute("aria-invalid")).toBe("false");
+  expect(said()).toEqual(["false", null]);
   await wait(PAUSE);
   expect(host.submitted).toEqual([tenHead]);
+});
+
+test("goes back to the state as the user leaves a number above the rows, and says why until it asks for the rows again", async () => {
+  const host = stubBlockHost<State>(fixture, { state: six });
+  const release = holdRequests(host);
+  const view = await mountOnPage(head, host);
+  const n = find(view.el, 'input[type="number"]', HTMLInputElement);
+  const shown = () => [n.value, view.el.querySelector('[role="alert"]')?.textContent ?? null];
+  release();
+  await settle();
+
+  await step(() => {
+    type(n, "200");
+  });
+  await step(() => {
+    n.blur();
+  });
+  expect(shown()).toEqual(["6", "200 is more than 150, the most it takes."]);
+
+  await step(() => {
+    host.setContext({ inputs: [{ input: "data", revision: 2 }] });
+  });
+  expect(shown()).toEqual(["6", null]);
+  release();
+  await settle();
+  expect(shown()).toEqual(["6", null]);
+  expect(host.submitted).toEqual([]);
 });
 
 test("submits the direction as the user picks it", async () => {

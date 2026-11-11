@@ -304,24 +304,58 @@ describe("the inputs of a board option's UI", () => {
     expect(host.submitted).toEqual([50]);
   });
 
-  test("show the state again in place of a number above the most as the user leaves, so that none it never submitted stays once the most grows", async () => {
+  test("say why a number does not fit while the user types it, and mark it", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el } = draw(<Rows host={host} max={30} />);
+    const input = find(el, "input", HTMLInputElement);
+    const said = () => [input.getAttribute("aria-invalid"), el.querySelector('[role="alert"]')?.textContent ?? null];
+
+    const shown: (string | null)[][] = [];
+    for (const text of ["50", "0", "2.5", "", "20"]) {
+      act(() => {
+        type(input, text);
+      });
+      shown.push(said());
+    }
+    expect(shown).toEqual([
+      ["true", "50 is more than 30, the most it takes."],
+      ["true", "0 is less than 1, the least it takes."],
+      ["true", "2.5 is not a whole number."],
+      ["true", null],
+      ["false", null],
+    ]);
+    await wait(PAUSE);
+    expect(host.submitted).toEqual([20]);
+  });
+
+  test("go back to the state in place of a number outside the range on Enter and as the user leaves, saying why until the user types again or the range changes", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el, redraw } = draw(<Rows host={host} max={30} />);
     const input = find(el, "input", HTMLInputElement);
-    const shown = () => [input.value, input.getAttribute("aria-invalid")];
+    const shown = () => [input.value, el.querySelector('[role="alert"]')?.textContent ?? null];
 
     act(() => {
       type(input, "50");
     });
-    await wait(PAUSE);
-    expect(shown()).toEqual(["50", "true"]);
+    act(() => {
+      press(input, "Enter");
+    });
+    expect(shown()).toEqual(["25", "50 is more than 30, the most it takes."]);
+    act(() => {
+      type(input, "2");
+    });
+    expect(shown()).toEqual(["2", null]);
+
+    act(() => {
+      type(input, "60");
+    });
     act(() => {
       input.blur();
     });
-    expect(shown()).toEqual(["25", "false"]);
-
+    expect(shown()).toEqual(["25", "60 is more than 30, the most it takes."]);
     redraw(<Rows host={host} max={100} />);
-    expect(shown()).toEqual(["25", "false"]);
+    expect(shown()).toEqual(["25", null]);
+    await wait(PAUSE);
     expect(host.submitted).toEqual([]);
   });
 

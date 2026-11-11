@@ -3,7 +3,8 @@
 // so that each meets the contract of a block's UI as its binding does
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 // An input keeps what the user types until its binding submits it,
-// or, for a number outside the input's range, until the user leaves it,
+// or, for a number outside the input's range,
+// until the user presses Enter or leaves it,
 // submits a pick at once,
 // and says below itself why the host refused what it submitted.
 // A label holds its input, so that it needs no id,
@@ -73,13 +74,17 @@ export function TextInput({
 }
 
 // A number input for an integer, no smaller than `min` and no larger than
-// `max`, which submits only a number in that range and marks one outside it.
+// `max`, which submits only a number in that range,
+// and marks one outside it and says why below itself.
 // As the user presses Enter or leaves it, it checks the number it shows
 // against the range as it is then, since the range may have changed after
 // the user typed the number, as once a request answers for newer data,
 // and submits the number where it fits.
-// As the user leaves it, it shows the state again in place of a number
-// outside the range, which it never submitted.
+// Otherwise it shows the state again, and goes on saying why it did not take
+// the number until the user types again or the range changes.
+// It does not go back while the user types,
+// since typing passes through numbers outside the range,
+// such as an empty field on the way to a new number.
 // While it is `outdated`, as while the request that gives `max` asks again,
 // its `max` may be for older data.
 // It then submits a number above it and marks none,
@@ -100,19 +105,40 @@ export function NumberInput({
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
   const largest = outdated ? undefined : max;
-  const read = (input: string): number | undefined => {
-    const value = input.trim() === "" ? Number.NaN : Number(input);
-    if (!Number.isInteger(value)) return undefined;
-    if (min !== undefined && value < min) return undefined;
-    if (largest !== undefined && value > largest) return undefined;
-    return value;
+  const [kept, setKept] = useState<Kept | null>(null);
+  if (kept !== null && (kept.min !== min || kept.max !== largest)) setKept(null);
+  const read = (input: string): Read => {
+    const trimmed = input.trim();
+    if (trimmed === "") return {};
+    const value = Number(trimmed);
+    if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
+    if (min !== undefined && value < min) {
+      return { reason: `${trimmed} is less than ${String(min)}, the least it takes.` };
+    }
+    if (largest !== undefined && value > largest) {
+      return { reason: `${trimmed} is more than ${String(largest)}, the most it takes.` };
+    }
+    return { value };
   };
-  // Submits the number the user typed at once,
-  // checked against the range as it is now.
+  // Ends what the user typed, as they press Enter or leave the input:
+  // submits the number where it fits the range as it is now,
+  // and otherwise shows the state again.
   const settle = (): void => {
-    if (text !== null) bound.type(read(text));
+    if (text === null) {
+      bound.flush();
+      return;
+    }
+    const { value, reason } = read(text);
+    bound.type(value);
     bound.flush();
+    if (value !== undefined) return;
+    typed(null);
+    setKept(reason === undefined ? null : { reason, min, max: largest });
   };
+  // Why it does not take the number the user is typing,
+  // or the one it showed the state again in place of,
+  // or the state it shows.
+  const reason = text !== null ? read(text).reason : (kept?.reason ?? read(shown).reason);
   return (
     <>
       <Field label={label}>
@@ -124,23 +150,37 @@ export function NumberInput({
           required
           className={styles.box}
           value={shown}
-          aria-invalid={read(shown) === undefined}
+          aria-invalid={read(shown).value === undefined}
           onChange={(event) => {
             typed(event.target.value);
-            bound.type(read(event.target.value));
+            setKept(null);
+            bound.type(read(event.target.value).value);
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.nativeEvent.isComposing) settle();
           }}
-          onBlur={() => {
-            settle();
-            if (text !== null && read(text) === undefined) typed(null);
-          }}
+          onBlur={settle}
         />
       </Field>
-      <Refusal error={bound.error} />
+      <Refusal error={reason ?? bound.error} />
     </>
   );
+}
+
+// What a number input reads from a text: the number where it fits the range,
+// and otherwise why it does not, but for an empty text, which needs no saying.
+interface Read {
+  readonly value?: number;
+  readonly reason?: string;
+}
+
+// Why a number input showed the state again in place of a number it did not
+// take, and the range it checked the number against,
+// which it says until the user types again or the range changes.
+interface Kept {
+  readonly reason: string;
+  readonly min: number | undefined;
+  readonly max: number | undefined;
 }
 
 // A select of one string, which shows `placeholder` while the value is unset.

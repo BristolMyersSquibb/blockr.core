@@ -242,17 +242,34 @@ function NumberInput({
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
   const largest = outdated ? void 0 : max;
+  const [kept, setKept] = useState(null);
+  if (kept !== null && (kept.min !== min || kept.max !== largest)) setKept(null);
   const read = (input) => {
-    const value = input.trim() === "" ? Number.NaN : Number(input);
-    if (!Number.isInteger(value)) return void 0;
-    if (min !== void 0 && value < min) return void 0;
-    if (largest !== void 0 && value > largest) return void 0;
-    return value;
+    const trimmed = input.trim();
+    if (trimmed === "") return {};
+    const value = Number(trimmed);
+    if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
+    if (min !== void 0 && value < min) {
+      return { reason: `${trimmed} is less than ${String(min)}, the least it takes.` };
+    }
+    if (largest !== void 0 && value > largest) {
+      return { reason: `${trimmed} is more than ${String(largest)}, the most it takes.` };
+    }
+    return { value };
   };
   const settle = () => {
-    if (text !== null) bound.type(read(text));
+    if (text === null) {
+      bound.flush();
+      return;
+    }
+    const { value, reason: reason2 } = read(text);
+    bound.type(value);
     bound.flush();
+    if (value !== void 0) return;
+    typed(null);
+    setKept(reason2 === void 0 ? null : { reason: reason2, min, max: largest });
   };
+  const reason = text !== null ? read(text).reason : kept?.reason ?? read(shown).reason;
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsx(
       "input",
@@ -264,21 +281,19 @@ function NumberInput({
         required: true,
         className: styles.box,
         value: shown,
-        "aria-invalid": read(shown) === void 0,
+        "aria-invalid": read(shown).value === void 0,
         onChange: (event) => {
           typed(event.target.value);
-          bound.type(read(event.target.value));
+          setKept(null);
+          bound.type(read(event.target.value).value);
         },
         onKeyDown: (event) => {
           if (event.key === "Enter" && !event.nativeEvent.isComposing) settle();
         },
-        onBlur: () => {
-          settle();
-          if (text !== null && read(text) === void 0) typed(null);
-        }
+        onBlur: settle
       }
     ) }),
-    /* @__PURE__ */ jsx(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx(Refusal, { error: reason ?? bound.error })
   ] });
 }
 function Select({
