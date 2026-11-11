@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
-function messageOf(error) {
+function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function isObject(x) {
@@ -28,7 +28,7 @@ function jsonEqual(a, b) {
 // srcts/binding/binding.ts
 var PAUSE = 500;
 function bind(host, key, show, options = {}) {
-  const source = sourceOf(host);
+  const source = createSource(host);
   source.check(key);
   let shown;
   let typed;
@@ -93,7 +93,7 @@ function bind(host, key, show, options = {}) {
   };
 }
 function follow(host, name, options) {
-  const source = sourceOf(host);
+  const source = createSource(host);
   let asked;
   let latest;
   let released = false;
@@ -101,6 +101,7 @@ function follow(host, name, options) {
     latest?.abort();
     const controller = new AbortController();
     latest = controller;
+    options.loading?.();
     source.request(name, options.args?.() ?? {}, { signal: controller.signal }).then(
       (answer) => {
         if (latest === controller && !controller.signal.aborted) options.answer(answer);
@@ -134,7 +135,7 @@ function follow(host, name, options) {
     }
   };
 }
-function sourceOf(host) {
+function createSource(host) {
   if ("option" in host) {
     const check = (key) => {
       if (key !== host.option) {
@@ -235,17 +236,36 @@ function NumberInput({
   bound,
   label,
   min,
-  max
+  max,
+  outdated = false
 }) {
   const [text, typed] = useTyped(bound);
   const shown = text ?? (typeof bound.value === "number" ? String(bound.value) : "");
+  const largest = outdated ? void 0 : max;
   const read = (input) => {
-    const value = input.trim() === "" ? Number.NaN : Number(input);
-    if (!Number.isInteger(value)) return void 0;
-    if (min !== void 0 && value < min) return void 0;
-    if (max !== void 0 && value > max) return void 0;
-    return value;
+    const trimmed = input.trim();
+    if (trimmed === "") return {};
+    const value = Number(trimmed);
+    if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
+    if (min !== void 0 && value < min) {
+      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
+    }
+    if (largest !== void 0 && value > largest) {
+      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
+    }
+    return { value };
   };
+  const settle = () => {
+    if (text === null) {
+      bound.flush();
+      return;
+    }
+    const { value } = read(text);
+    bound.type(value);
+    bound.flush();
+    if (value === void 0) typed(null);
+  };
+  const checked = read(shown);
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsx(
       "input",
@@ -253,36 +273,35 @@ function NumberInput({
         type: "number",
         step: 1,
         min,
-        max,
+        max: largest,
         required: true,
         className: styles.box,
         value: shown,
-        "aria-invalid": read(shown) === void 0,
+        "aria-invalid": checked.value === void 0,
         onChange: (event) => {
           typed(event.target.value);
-          bound.type(read(event.target.value));
+          bound.type(read(event.target.value).value);
         },
         onKeyDown: (event) => {
-          if (event.key === "Enter" && !event.nativeEvent.isComposing) bound.flush();
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) settle();
         },
-        onBlur: () => {
-          bound.flush();
-        }
+        onBlur: settle
       }
     ) }),
-    /* @__PURE__ */ jsx(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx(Refusal, { error: checked.reason ?? bound.error })
   ] });
 }
 function Select({
   bound,
   label,
   placeholder,
-  choices
+  choices,
+  outdated = false
 }) {
   const current = typeof bound.value === "string" ? bound.value : void 0;
   const known = choices ?? [];
   const lacked = current !== void 0 && !known.some((choice) => choice.value === current);
-  const invalid = lacked && choices !== void 0;
+  const invalid = lacked && choices !== void 0 && !outdated;
   const shown = lacked ? [...known, { value: current, label: invalid ? missing(current) : current }] : known;
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsxs(
@@ -327,7 +346,8 @@ function Checklist({
   legend,
   choices,
   empty,
-  ordered = false
+  ordered = false,
+  outdated = false
 }) {
   const held = strings(bound.value);
   const known = choices ?? [];
@@ -343,7 +363,7 @@ function Checklist({
     /* @__PURE__ */ jsx("legend", { className: styles.legend, children: legend }),
     /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
       shown.map((value) => {
-        const invalid = choices !== void 0 && !known.includes(value);
+        const invalid = choices !== void 0 && !outdated && !known.includes(value);
         return /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
           /* @__PURE__ */ jsx(
             "input",
@@ -425,7 +445,7 @@ function controls(host, signal) {
       },
       {
         settled: (refused) => {
-          refusal = refused === null ? null : messageOf(refused);
+          refusal = refused === null ? null : errorMessage(refused);
           redraw();
         }
       }
@@ -448,7 +468,7 @@ function controls(host, signal) {
     );
   }
   function alert(next) {
-    error = next === null ? null : messageOf(next);
+    error = next === null ? null : errorMessage(next);
     redraw();
   }
   function get(key) {
@@ -473,20 +493,39 @@ function controls(host, signal) {
   }
   function number(key, options) {
     let max;
-    input(key, (bound) => /* @__PURE__ */ jsx2(NumberInput, { bound, label: options.label, min: options.min, max }));
+    let outdated = false;
+    input(key, (bound) => /* @__PURE__ */ jsx2(NumberInput, { bound, label: options.label, min: options.min, max, outdated }));
     return {
       setMax(next) {
         max = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       }
     };
   }
   function select(key, options) {
     let choices = options.choices;
-    input(key, (bound) => /* @__PURE__ */ jsx2(Select, { bound, label: options.label, placeholder: options.placeholder, choices }));
+    let outdated = false;
+    input(key, (bound) => /* @__PURE__ */ jsx2(
+      Select,
+      {
+        bound,
+        label: options.label,
+        placeholder: options.placeholder,
+        choices,
+        outdated
+      }
+    ));
     return {
       setChoices(next) {
         choices = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       }
     };
@@ -496,6 +535,7 @@ function controls(host, signal) {
   }
   function checklist(key, options) {
     let choices = options.choices;
+    let outdated = false;
     input(key, (bound) => /* @__PURE__ */ jsx2(
       Checklist,
       {
@@ -503,12 +543,17 @@ function controls(host, signal) {
         legend: options.legend,
         choices,
         empty: options.empty,
-        ordered: options.ordered
+        ordered: options.ordered,
+        outdated
       }
     ));
     return {
       setChoices(next) {
         choices = next;
+        redraw();
+      },
+      setOutdated(next) {
+        outdated = next;
         redraw();
       }
     };

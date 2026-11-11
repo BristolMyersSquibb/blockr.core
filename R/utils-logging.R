@@ -8,6 +8,39 @@
 #' set value (available as `get_log_level()`) and output is only generated if
 #' the message level is greater or equal to the currently set value.
 #'
+#' The blockr option `logger` picks the logger, the function that writes each
+#' line out.
+#' Where it names none, core picks `otel_logger()` where OpenTelemetry has set
+#' up an exporter of logs, as the environment variable `OTEL_LOGS_EXPORTER`
+#' does, and `cat_logger()` otherwise.
+#' Where it names `otel_logger()` and OpenTelemetry has set up no exporter,
+#' writing a line fails.
+#' The function `write_log()` calls the logger with the message as written,
+#' its level, its package, `asis` and `attributes`.
+#' Both `cat_logger()` and `cnd_logger()` put the level, the time and the
+#' package in front of the message, as the blockr options `log_time` and
+#' `log_mem` set.
+#' They wrap the message to the console's width unless `asis` is `TRUE`.
+#' Then `cat_logger()` writes an error to standard error and any other line to
+#' standard output.
+#' The other, `cnd_logger()`, signals an error or a warning as a warning and
+#' any other line as a message.
+#' The logger `otel_logger()` writes each line as a record through
+#' [otel::log()], with its level as the record's severity.
+#' The record's attributes are the package, as `blockr.package.name`, and
+#' `attributes`.
+#' Only the level that `get_log_level()` returns drops a line: OpenTelemetry's
+#' own level, as the environment variable `OTEL_LOG_LEVEL` sets it, drops none
+#' of these records.
+#' Every logger stops with an error at the level "fatal".
+#'
+#' Core works out the logger, the level and the blockr options `log_time` and
+#' `log_mem` each when it first needs them, and keeps them for the process.
+#' As it starts an app, [serve()] drops what core keeps and works out the
+#' logger afresh.
+#' After a change to one of these blockr options, as in a test, call
+#' `reset_logging()`, so that core works them out again for the next line.
+#'
 #' @param ... Concatenated as `paste0(..., "\n")`
 #' @param level Logging level (possible values are "fatal", "error", "warn",
 #' "info", "debug" and "trace"
@@ -15,15 +48,26 @@
 #' @param asis Flag to disable re-wrapping of text to terminal width
 #' @param use_glue Flag to disable use of glue
 #' @param pkg Package name
+#' @param attributes Attributes of the line's record, as a named list, such as
+#' `blockr.block.id`, which only `otel_logger()` writes
 #'
 #' @return Logging function `write_log()`, wrappers `log_*()` and loggers
-#' provided as `cnd_logger()`/cat_logger() all return `NULL` invisibly and are
-#' called for their side effect of emitting a message. Helpers `as_log_level()`
-#' and `get_log_level()` return a scalar-valued ordered factor.
+#' provided as `cnd_logger()`, `cat_logger()` and `otel_logger()` all return
+#' `NULL` invisibly and are called for their side effect of emitting a
+#' message, as does `reset_logging()` for its side effect. Helpers
+#' `as_log_level()` and `get_log_level()` return a scalar-valued ordered
+#' factor.
 #'
 #' @export
 write_log <- function(..., level = "info", envir = parent.frame(),
-                      asis = FALSE, use_glue = TRUE, pkg = pkg_name(envir)) {
+                      asis = FALSE, use_glue = TRUE, pkg = pkg_name(envir),
+                      attributes = list()) {
+
+  lvl <- as_log_level(level)
+
+  if (lvl > get_log_level()) {
+    return(invisible(NULL))
+  }
 
   if (!is.environment(envir)) {
     blockr_abort(
@@ -39,39 +83,14 @@ write_log <- function(..., level = "info", envir = parent.frame(),
     )
   }
 
-  lvl <- as_log_level(level)
-
-  if (lvl > get_log_level()) {
-    return(invisible(NULL))
+  if (!is.list(attributes) || !has_unique_names(attributes)) {
+    blockr_abort(
+      "Expecting `attributes` to be a named list.",
+      class = "write_log_attributes_invalid"
+    )
   }
 
   logger <- get_logger()
-
-  log_time <- as.logical(blockr_option("log_time", TRUE))
-
-  if (!is_bool(log_time)) {
-    blockr_abort(
-      "The blockr option `log_time` is TRUE or FALSE.",
-      class = "log_time_invalid"
-    )
-  }
-
-  log_mem <- as.logical(blockr_option("log_mem", FALSE))
-
-  if (!is_bool(log_mem)) {
-    blockr_abort(
-      "The blockr option `log_mem` is TRUE or FALSE.",
-      class = "log_mem_invalid"
-    )
-  }
-
-  pfx <- paste0(
-    "[", toupper(level), "]",
-    if (log_time) get_timmestamp("[", "]"),
-    if (log_mem) get_mem_use("[", "]"),
-    if (not_null(pkg)) paste0("[", pkg, "]"),
-    " "
-  )
 
   if (isTRUE(use_glue)) {
     msg <- glue_plur(..., envir = envir, .trim = !asis)
@@ -86,21 +105,34 @@ write_log <- function(..., level = "info", envir = parent.frame(),
     )
   }
 
-  msg <- strsplit(msg, "\n", fixed = TRUE)
+  logger(msg, level = lvl, pkg = pkg, asis = asis, attributes = attributes)
+}
+
+# The line that `cat_logger()` and `cnd_logger()` write: the message behind a
+# prefix of its level, the time and its package, as the blockr options
+# `log_time` and `log_mem` set, and wrapped to the console's width unless
+# `asis` is `TRUE`.
+format_log_line <- function(msg, level, pkg, asis) {
+
+  pfx <- paste0(
+    "[", toupper(level), "]",
+    if (get_log_flag("log_time", TRUE)) get_timmestamp("[", "]"),
+    if (get_log_flag("log_mem", FALSE)) get_mem_use("[", "]"),
+    if (not_null(pkg)) paste0("[", pkg, "]"),
+    " "
+  )
+
+  lines <- strsplit(msg, "\n", fixed = TRUE)[[1L]]
 
   if (!isTRUE(asis)) {
-
-    msg <- strwrap(
-      msg[[1L]],
+    lines <- strwrap(
+      lines,
       width = getOption("width") - nchar(pfx),
       exdent = 2L
     )
-
-  } else {
-    msg <- msg[[1L]]
   }
 
-  logger(paste0(pfx, msg, collapse = "\n"), level = lvl)
+  paste0(pfx, lines, collapse = "\n")
 }
 
 get_mem_use <- function(prefix = "", suffix = "") {
@@ -198,35 +230,127 @@ trace_log_level <- as_log_level("trace")
 #' @rdname write_log
 #' @export
 get_log_level <- function() {
-  as_log_level(
-    blockr_option("log_level", "info")
+  cached_log_setting(
+    "level",
+    function() as_log_level(blockr_option("log_level", "info"))
   )
 }
 
 get_logger <- function() {
+  cached_log_setting("logger", resolve_logger)
+}
 
-  fun <- blockr_option("logger", "cat_logger")
+#' @rdname write_log
+#' @export
+reset_logging <- function() {
+  rm(list = ls(log_cache, all.names = TRUE), envir = log_cache)
+  invisible()
+}
 
-  if (is.function(fun)) {
-    return(fun)
+# The log cache holds the settings that core works out about logging, until
+# `reset_logging()` drops them: the logger, the level that `get_log_level()`
+# returns, the blockr options `log_time` and `log_mem`, and core's logger in
+# OpenTelemetry.
+log_cache <- new.env(parent = emptyenv())
+
+# The setting that `name` names in the log cache, which `compute` works out
+# the first time core reads it.
+# Core keeps no setting that fails to compute, so that it computes the
+# setting again, and fails again, the next time.
+cached_log_setting <- function(name, compute) {
+
+  if (!exists(name, envir = log_cache, inherits = FALSE)) {
+    log_cache[[name]] <- compute()
   }
 
-  get(fun, mode = "function")
+  log_cache[[name]]
+}
+
+# The blockr option `log_time` or `log_mem`, which reads a string as
+# `as.logical()` does.
+get_log_flag <- function(name, default) {
+  cached_log_setting(
+    name,
+    function() {
+
+      val <- as.logical(blockr_option(name, default))
+
+      if (!is_bool(val)) {
+        blockr_abort(
+          "The blockr option `{name}` is TRUE or FALSE.",
+          class = paste0(name, "_invalid")
+        )
+      }
+
+      val
+    }
+  )
+}
+
+# Core's logger in OpenTelemetry, where OpenTelemetry has set up an exporter of
+# logs, as `OTEL_LOGS_EXPORTER` has it, and `NULL` otherwise.
+get_otel_logger <- function() {
+  cached_log_setting("otel_logger", make_otel_logger)
+}
+
+# Asks OpenTelemetry for core's logger, with the lowest minimum severity, so
+# that only `get_log_level()` drops a line, whatever `OTEL_LOG_LEVEL` sets.
+# Core asks the logger itself whether it is enabled, since
+# `otel::is_logging_enabled()` fails for a logger that it is given in otel
+# 0.2.0: it checks the logger for the class `otel_tracer`.
+make_otel_logger <- function() {
+
+  lgr <- otel::get_logger(minimum_severity = "trace")
+
+  if (!lgr$is_enabled("trace")) {
+    return(NULL)
+  }
+
+  lgr
+}
+
+# The logger that the blockr option `logger` names, or else OpenTelemetry's,
+# where it has set up an exporter, and the console's otherwise.
+resolve_logger <- function() {
+
+  fun <- blockr_option("logger", NULL)
+
+  if (is.null(fun)) {
+    return(if (is.null(get_otel_logger())) cat_logger else otel_logger)
+  }
+
+  if (!is.function(fun)) {
+    fun <- get(fun, mode = "function")
+  }
+
+  if (identical(fun, otel_logger) && is.null(get_otel_logger())) {
+    blockr_abort(
+      "The blockr option `logger` names `otel_logger()`, but OpenTelemetry ",
+      "has set up no exporter of logs. The environment variable ",
+      "`OTEL_LOGS_EXPORTER` sets one up, such as `otlp`, where otelsdk is ",
+      "installed.",
+      class = "otel_logger_unavailable"
+    )
+  }
+
+  fun
 }
 
 #' @param msg Message (string)
 #' @rdname write_log
 #' @export
-cnd_logger <- function(msg, level) {
+cnd_logger <- function(msg, level, pkg, asis, attributes) {
+
+  line <- format_log_line(msg, level, pkg, asis)
 
   if (level == fatal_log_level) {
-    stop(msg, call. = FALSE)
+    stop(line, call. = FALSE)
   }
 
   if (level <= warn_log_level) {
-    warning(msg, call. = FALSE)
+    warning(line, call. = FALSE)
   } else {
-    message(msg)
+    message(line)
   }
 
   invisible()
@@ -234,10 +358,12 @@ cnd_logger <- function(msg, level) {
 
 #' @rdname write_log
 #' @export
-cat_logger <- function(msg, level) {
+cat_logger <- function(msg, level, pkg, asis, attributes) {
+
+  line <- format_log_line(msg, level, pkg, asis)
 
   if (level == fatal_log_level) {
-    stop(msg, call. = FALSE)
+    stop(line, call. = FALSE)
   }
 
   if (level == error_log_level) {
@@ -246,7 +372,28 @@ cat_logger <- function(msg, level) {
     out <- stdout()
   }
 
-  cat(paste0(msg, "\n"), file = out)
+  cat(paste0(line, "\n"), file = out)
+
+  invisible()
+}
+
+#' @rdname write_log
+#' @export
+otel_logger <- function(msg, level, pkg, asis, attributes) {
+
+  otel::log(
+    msg,
+    severity = as.character(level),
+    logger = get_otel_logger(),
+    attributes = c(
+      if (not_null(pkg)) list(blockr.package.name = pkg),
+      attributes
+    )
+  )
+
+  if (level == fatal_log_level) {
+    stop(msg, call. = FALSE)
+  }
 
   invisible()
 }

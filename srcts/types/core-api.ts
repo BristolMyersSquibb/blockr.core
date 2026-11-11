@@ -48,7 +48,7 @@ export interface CoreApi {
     running(): Readonly<Record<PluginId, Plugin>>;
     // The definition of the class of a plugin that runs. It throws for a
     // plugin that the open board does not run.
-    classOf(plugin: PluginId): PluginClass;
+    pluginClass(plugin: PluginId): PluginClass;
     // What a frontend's save and open controls call: the storage of the open
     // board's storage plugin, or core's own, which saves a board as a download
     // and opens an upload, where the board holds no storage plugin.

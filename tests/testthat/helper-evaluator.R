@@ -3,18 +3,36 @@
 # `run()` has R run what it queued, as its event loop does,
 # and `sent` holds the messages that R sent,
 # in their order, each a list of replies and progress notes.
-# The session starts with the client's hello, unless `hello` is `FALSE`,
-# and logs only errors, since core's modules have no files yet.
+# The session's `logged` holds the lines that R logs from info up, in their
+# order, each with its level, its message and its attributes.
+# R writes none of them out.
+# The session starts with the client's hello, unless `hello` is `FALSE`.
 # Its lock is what `lock_board()` reads of the board unless given, as `serve()`
 # reads it.
 local_evaluator <- function(board = list(blocks = list()), data = list(),
                             lock = lock_board(board, data), hello = TRUE,
                             frame = parent.frame()) {
 
-  withr::local_options(blockr.log_level = "error", .local_envir = frame)
-
   session <- new.env()
   session$sent <- list()
+  session$logged <- list()
+
+  withr::local_options(
+    blockr.log_level = "info",
+    blockr.logger = function(msg, level, pkg, asis, attributes) {
+      session$logged[[length(session$logged) + 1L]] <- list(
+        level = as.character(level),
+        message = msg,
+        attributes = attributes
+      )
+      invisible()
+    },
+    .local_envir = frame
+  )
+
+  reset_logging()
+  withr::defer(reset_logging(), envir = frame)
+
   session$evaluator <- new_evaluator(board = board, data = data, lock = lock)
 
   session$send <- function(message) {
@@ -41,6 +59,7 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
     session$receive(hello_message())
     session$run()
     session$sent <- list()
+    session$logged <- list()
   }
 
   session
@@ -228,8 +247,8 @@ pptx_type <- paste0(
 # package or an app script does, for the duration of `frame`.
 local_block_class <- function(cls, frame = parent.frame()) {
 
-  name <- cls[["class"]][1L]
-  entry <- register_block(block_constructor(cls), name, paste("A", name))
+  id <- cls[["id"]]
+  entry <- register_block(block_constructor(cls), id, paste("A", id))
 
   withr::defer(unregister_blocks(entry[["id"]]), envir = frame)
 

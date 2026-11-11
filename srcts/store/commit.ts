@@ -23,7 +23,7 @@ import type {
 import type { Json } from "../types/json.ts";
 import { jsonEqual, own, without } from "../util/index.ts";
 import type { BlockMod, Delta, Patch, Values } from "./delta.ts";
-import { applyPatch, malformed, pointer } from "./patch.ts";
+import { applyPatch, malformed, segmentsFromPath } from "./patch.ts";
 
 // Where each entry that an inverse adds back goes, before the entry named or
 // last, by collection: "blocks", "links" or "stacks".
@@ -193,14 +193,14 @@ function patch(
       failures.push(`${name} ${problems.join(", ")}.`);
       continue;
     }
-    const parts = pointer(given.path) ?? [];
-    const misplaced = outside(parts, given.op);
+    const segments = segmentsFromPath(given.path) ?? [];
+    const misplaced = outside(segments, given.op);
     if (misplaced !== undefined) {
       failures.push(`${name}, ${given.op} at "${given.path}", ${misplaced}.`);
       continue;
     }
     const place = given.op === "add" ? own(placed, given.path) : undefined;
-    const applied = applyPatch(next, given, parts, place);
+    const applied = applyPatch(next, given, segments, place);
     if ("failure" in applied) {
       failures.push(`${name}, ${given.op} at "${given.path}", ${applied.failure}.`);
       continue;
@@ -209,28 +209,28 @@ function patch(
     if (applied.inverse === undefined) continue;
     inverse.unshift(applied.inverse);
     if (applied.place !== undefined) places[applied.inverse.path] = applied.place;
-    plugins.add(parts[1] ?? "");
+    plugins.add(segments[1] ?? "");
   }
 
   return { board: next as unknown as Board, inverse, places, plugins };
 }
 
-// Why a patch at the path `parts` changes what no patch may, in a clause, or
-// undefined where it changes a plugin's name or its state.
+// Why a patch at the path `segments` changes what no patch may, in a clause,
+// or undefined where it changes a plugin's name or its state.
 // No patch adds, removes or replaces a plugin, since the app's opening board
 // sets the plugins that a board holds.
-function outside(parts: readonly string[], op: Patch["op"]): string | undefined {
-  const [top, plugin, part] = parts;
-  if (top !== "plugins") return `changes "${top ?? ""}", where a patch changes the board's plugins alone`;
+function outside(segments: readonly string[], op: Patch["op"]): string | undefined {
+  const [boardProperty, plugin, pluginProperty] = segments;
+  if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the board's plugins alone`;
   if (plugin === undefined) return "changes the board's plugins as a whole, where a patch changes one plugin";
-  if (part === undefined) {
+  if (pluginProperty === undefined) {
     return `changes the plugin "${plugin}" as a whole, where a patch changes a plugin's name or its state, since the app's opening board sets the plugins that a board holds`;
   }
-  if (part !== "name" && part !== "state") {
-    return `changes "${part}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
+  if (pluginProperty !== "name" && pluginProperty !== "state") {
+    return `changes "${pluginProperty}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
   }
-  if (parts.length === 3 && op === "remove") {
-    return `removes the ${part} of the plugin "${plugin}", which a plugin always holds`;
+  if (segments.length === 3 && op === "remove") {
+    return `removes the ${pluginProperty} of the plugin "${plugin}", which a plugin always holds`;
   }
   return undefined;
 }

@@ -7,6 +7,7 @@ import { stubBlockHost } from "../../stubs/index.ts";
 import { find, texts, toggle } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
+import { holdRequests } from "../../testing/requests.ts";
 import * as merge from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -110,6 +111,30 @@ test("shows a column it joins by that the inputs do not share, as missing once R
   expect(checked()).toEqual(["rate"]);
   expect(checkbox("rate (not available)").getAttribute("aria-invalid")).toBe("true");
   expect(checkbox("Time").getAttribute("aria-invalid")).toBe("false");
+});
+
+test("keeps every column the inputs shared while R says again which they share, and marks none meanwhile", async () => {
+  const host = stubBlockHost<State>(fixture, { state: { by: ["rate"], all_x: false, all_y: false } });
+  const release = holdRequests(host);
+  const view = await mountOnPage(merge, host);
+  const shown = () => [
+    texts(view.el, "fieldset label"),
+    find(view.el, 'fieldset input[value="rate"]').getAttribute("aria-invalid"),
+  ];
+  release();
+  await settle();
+  const marked = [["Time", "demand", "rate (not available)"], "true"];
+  expect(shown()).toEqual(marked);
+
+  await step(() => {
+    host.setContext({ inputs: [{ input: "x", revision: 2 }] });
+  });
+  expect(shown()).toEqual([["Time", "demand", "rate"], "false"]);
+
+  release();
+  await settle();
+  expect(shown()).toEqual(marked);
+  expect(host.submitted).toEqual([]);
 });
 
 test("says that the inputs share no column once R says so, and not before", async () => {

@@ -40,13 +40,13 @@ export function LinksDialog({ onClose }: { onClose: () => void }): ReactElement 
           {links.map(([id, link]) => (
             <li key={id} className="bc:flex bc:items-center bc:gap-2 bc:text-sm">
               <span className="bc:flex-1">
-                {nameOf(board, link.from)} → {nameOf(board, link.to)}
+                {blockName(board, link.from)} → {blockName(board, link.to)}
                 {link.input === "" ? null : <span className="bc:text-text-muted"> as {link.input}</span>}
               </span>
               <button
                 type="button"
                 className={classes.button}
-                aria-label={`Remove the link from ${nameOf(board, link.from)} to ${nameOf(board, link.to)}`}
+                aria-label={`Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
                 onClick={() => {
                   void runCommand(front, "blockr.core-remove_link", { id });
                 }}
@@ -140,6 +140,6 @@ function BlockSelect({
 }
 
 // A block's name, or its id where the board lacks it.
-export function nameOf(board: Pick<Board, "blocks">, block: BlockId): string {
+export function blockName(board: Pick<Board, "blocks">, block: BlockId): string {
   return own(board.blocks, block)?.name ?? block;
 }

@@ -159,7 +159,7 @@ const head: BlockModule<HeadState> = {
 
 export default head;
 
-export function viewsOf(board: Board, plugin: string): ViewsState["views"] {
+export function pluginViews(board: Board, plugin: string): ViewsState["views"] {
   const state = board.plugins[plugin]?.state as ViewsState | undefined;
   return state?.views ?? {};
 }
@@ -175,7 +175,7 @@ export const viewsPlugin: PluginClass = {
   },
   update: (delta, board, plugin) =>
     (delta.blocks?.rm ?? [])
-      .filter((id) => Object.hasOwn(viewsOf(board, plugin), id))
+      .filter((id) => Object.hasOwn(pluginViews(board, plugin), id))
       .map((id) => ({ op: "remove", path: "/plugins/" + plugin + "/state/views/" + id })),
 };
 `;
@@ -195,8 +195,12 @@ const merge: BlockModule<MergeState> = {
     const by = ui.checklist("by", { legend: "By columns", empty: "No column is shared." });
     ui.checkbox("all_x", { label: "Keep the rows of x that y does not match" });
     ui.follow("shared", {
+      loading() {
+        by.setOutdated(true);
+      },
       answer(answer) {
         by.setChoices(strings(answer));
+        by.setOutdated(false);
       },
     });
     el.replaceChildren(ui.el);
@@ -221,7 +225,7 @@ const notes: PluginModule = {
     };
     draw();
     const others = Object.keys(core.plugins.running()).filter(
-      (id) => id !== plugin && core.plugins.classOf(id).ui !== undefined,
+      (id) => id !== plugin && core.plugins.pluginClass(id).ui !== undefined,
     );
     const ends = others.map((id) => core.mountPlugin(el.appendChild(document.createElement("section")), id));
     const offFocus = core.focus.subscribe((block) => {

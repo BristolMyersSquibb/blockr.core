@@ -5,7 +5,7 @@
 import { Validator } from "@cfworker/json-schema";
 import type { OutputUnit, SchemaDraft } from "@cfworker/json-schema";
 import type { JsonSchema } from "../types/json.ts";
-import { messageOf } from "./util.ts";
+import { errorMessage } from "./util.ts";
 
 // A validator of a schema, which gives each way a value fails it in a clause
 // that follows what the value is, such as `fails its schema at /x: Instance
@@ -22,9 +22,9 @@ export function compile(
 ): Validate {
   let validator: Validator;
   try {
-    validator = new Validator(schema, draftOf(schema), false);
+    validator = new Validator(schema, schemaDraft(schema), false);
   } catch (error) {
-    throw new Error(`The schema of ${what} cannot be read: ${messageOf(error)}`, {
+    throw new Error(`The schema of ${what} cannot be read: ${errorMessage(error)}`, {
       cause: error,
     });
   }
@@ -36,7 +36,7 @@ export function compile(
 
 // The draft a schema declares in its `$schema`, 2020-12 where it declares
 // none, as Zod's z.toJSONSchema() writes it.
-function draftOf(schema: JsonSchema): SchemaDraft {
+function schemaDraft(schema: JsonSchema): SchemaDraft {
   const declared = typeof schema.$schema === "string" ? schema.$schema : "";
   if (declared.includes("draft-04")) return "4";
   if (declared.includes("draft-07")) return "7";

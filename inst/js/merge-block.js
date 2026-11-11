@@ -4,15 +4,16 @@ import { Checkbox, Checklist, reactModule, Stack, useRequest, useValue } from "@
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 function MergeBlock({ host }) {
-  const shared = useRequest(host, "shared").answer;
+  const shared = useRequest(host, "shared");
   return /* @__PURE__ */ jsxs(Stack, { children: [
     /* @__PURE__ */ jsx(
       Checklist,
       {
         bound: useValue(host, "by"),
         legend: "By columns",
-        choices: shared === void 0 ? void 0 : strings(shared),
-        empty: "The inputs share no column."
+        choices: shared.answer === void 0 ? void 0 : strings(shared.answer),
+        empty: "The inputs share no column.",
+        outdated: shared.loading || shared.error !== null
       }
     ),
     /* @__PURE__ */ jsx(Checkbox, { bound: useValue(host, "all_x"), label: "Keep the rows of x that y does not match" }),

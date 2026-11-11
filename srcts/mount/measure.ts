@@ -38,7 +38,7 @@ export function domMeasure(): Measure {
         width,
         height,
         pixel_ratio: window.devicePixelRatio > 0 ? window.devicePixelRatio : 1,
-        bg: backgroundOf(el) ?? FALLBACK.bg,
+        bg: visibleBackground(el) ?? FALLBACK.bg,
         fg: asHex(style.color) ?? FALLBACK.fg,
         accent: asHex(style.getPropertyValue(ACCENT).trim()) ?? FALLBACK.accent,
         font: style.fontFamily,
@@ -112,7 +112,7 @@ const WHITE: Rgba = [255, 255, 255, 1];
 // own background over those of the elements around it, down to the nearest
 // opaque one. Where none is opaque, it blends them over the colour behind the
 // page. It is null where a background is a colour that core cannot read.
-function backgroundOf(el: HTMLElement): string | null {
+function visibleBackground(el: HTMLElement): string | null {
   const layers: Rgba[] = [];
   for (let at: Element | null = el; at !== null; at = at.parentElement) {
     const value = getComputedStyle(at).backgroundColor;

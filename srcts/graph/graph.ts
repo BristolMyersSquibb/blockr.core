@@ -24,7 +24,7 @@ export interface Graph {
   cycle(): readonly BlockId[] | undefined;
 }
 
-export function graphOf(board: Pick<Board, "blocks" | "links">): Graph {
+export function createGraph(board: Pick<Board, "blocks" | "links">): Graph {
   const blocks = Object.keys(board.blocks);
   const into = new Map<BlockId, LinkId[]>();
   // The ends of each link, once per link, so that two links between the same

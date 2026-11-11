@@ -17,7 +17,7 @@
 // The ids that they mint for what they add take the shape that the blockr
 // option rand_id names, as R's rand_names() draws them.
 
-import { mintId, pathOf, sentenceCase, stateFailures } from "../store/index.ts";
+import { mintId, pathFromSegments, sentenceCase, stateFailures } from "../store/index.ts";
 import type { Patch, RandId, Store } from "../store/index.ts";
 import type {
   Block,
@@ -31,7 +31,7 @@ import type {
 } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { own, packageOf, quoted, without } from "../util/index.ts";
+import { own, packageFromId, quoted, without } from "../util/index.ts";
 import { refusal } from "./commands.ts";
 import type { Command } from "./commands.ts";
 import * as schemas from "./schemas.ts";
@@ -88,7 +88,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
     return mintId(taken, options.randId);
   }
 
-  function classOf(command: string, registryId: RegistryId): RegistryEntry {
+  function registryEntry(command: string, registryId: RegistryId): RegistryEntry {
     const entry = own(store.blockRegistry(), registryId);
     if (entry === undefined) {
       throw refusal(command, [`The block registry has no block class "${registryId}".`]);
@@ -103,7 +103,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
     board: Board,
     args: NewBlock,
   ): [BlockId, Block, RegistryEntry] {
-    const entry = classOf(command, args.registry_id);
+    const entry = registryEntry(command, args.registry_id);
     const state = { ...entry.state, ...args.state };
     const failures = stateFailures(entry, state);
     if (failures.length > 0) {
@@ -112,7 +112,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
     const id = args.id ?? mint((id) => Object.hasOwn(board.blocks, id));
     return [
       id,
-      { registry_id: entry.id, state, name: args.name ?? blockName(entry.id), locked: null },
+      { registry_id: entry.id, state, name: args.name ?? defaultBlockName(entry.id), locked: null },
       entry,
     ];
   }
@@ -214,7 +214,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       run(board, { id, state, unset }) {
         const block = own(board.blocks, id);
         if (block === undefined) return [];
-        const entry = classOf(this.id, block.registry_id);
+        const entry = registryEntry(this.id, block.registry_id);
         const failures = stateFailures(entry, { ...without(block.state, unset ?? []), ...state });
         if (failures.length > 0) {
           throw refusal(this.id, failures.map((failure) => `The state of block "${id}" ${failure}`));
@@ -530,7 +530,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       ),
       enabled: (board, { plugin }) => options.locked !== true && Object.hasOwn(board.plugins, plugin),
       run: (_board, { plugin, patches }) => ({
-        patches: patches.map((patch) => ({ ...patch, path: `${pathOf(["plugins", plugin, "state"])}${patch.path}` })),
+        patches: patches.map((patch) => ({ ...patch, path: `${pathFromSegments(["plugins", plugin, "state"])}${patch.path}` })),
       }),
     }),
   ];
@@ -564,8 +564,8 @@ export function freeInputs(
 
 // The name of a new block, made as R makes one from its class, from the name
 // in its registry id: "Head" for "blockr.core-head_block".
-export function blockName(registryId: RegistryId): string {
-  const pkg = packageOf(registryId);
+export function defaultBlockName(registryId: RegistryId): string {
+  const pkg = packageFromId(registryId);
   const name = pkg === null ? registryId : registryId.slice(pkg.length + 1);
   return sentenceCase(name.replace(/_block$/, ""));
 }

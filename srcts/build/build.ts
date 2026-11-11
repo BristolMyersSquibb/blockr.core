@@ -473,7 +473,7 @@ async function writeJson(file: string, value: unknown): Promise<void> {
 }
 
 // The version of a package that core's build resolves.
-function versionOf(name: string): string {
+function packageVersion(name: string): string {
   return (createRequire(import.meta.url)(`${name}/package.json`) as { version: string }).version;
 }
 
@@ -502,7 +502,7 @@ export const TYPES_PACKAGE = {
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
     "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
-  peerDependencies: { react: versionOf("react"), "react-dom": versionOf("react-dom") },
+  peerDependencies: { react: packageVersion("react"), "react-dom": packageVersion("react-dom") },
 };
 
 // The modules of srcts that the types package bundles,

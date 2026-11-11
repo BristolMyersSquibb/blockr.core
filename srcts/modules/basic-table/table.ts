@@ -32,7 +32,7 @@ export function isNumber(column: TableColumn): boolean {
 // parameters give, or else as many as the board option n_rows gives, by which
 // the coercion pages, or else every row, where nothing gives n_rows. Where the
 // total is unknown, a page with fewer rows than a page holds is the last.
-export function pageOf(table: TableOutput, params: TableParams, nRows: Json | undefined): Page {
+export function tablePage(table: TableOutput, params: TableParams, nRows: Json | undefined): Page {
   const rows = table.rows.length;
   const size = params.page_size ?? (nRows === undefined ? Math.max(rows, 1) : asCount(nRows));
   const page = params.page ?? 1;
@@ -67,15 +67,15 @@ export function paramsFor(page: number, sort: Sort | undefined, params: TablePar
   const asked: Record<string, Json> = {};
   if (page > 1) asked.page = page;
   if (params.page_size !== undefined) asked.page_size = params.page_size;
-  if (sort !== undefined) asked.sort = sortOf(sort.column, sort.desc === true);
+  if (sort !== undefined) asked.sort = createSort(sort.column, sort.desc === true);
   return asked;
 }
 
 // The sort that a click on a column asks for: by the column from the smallest
 // value, then from the largest, then none.
 export function nextSort(sort: Sort | undefined, column: string): Sort | undefined {
-  if (sort?.column !== column) return sortOf(column, false);
-  return sort.desc === true ? undefined : sortOf(column, true);
+  if (sort?.column !== column) return createSort(column, false);
+  return sort.desc === true ? undefined : createSort(column, true);
 }
 
 // The index of the column that the table is sorted by, or -1. R sorts by the
@@ -102,7 +102,7 @@ export function cellText(value: Json): string | null {
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
-function sortOf(column: string, desc: boolean): Sort {
+function createSort(column: string, desc: boolean): Sort {
   return desc ? { column, desc: true } : { column };
 }
 

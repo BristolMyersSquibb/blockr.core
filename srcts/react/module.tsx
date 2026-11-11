@@ -14,7 +14,7 @@ import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 import { styles } from "../styles/index.ts";
-import { messageOf, report } from "../util/index.ts";
+import { errorMessage, report } from "../util/index.ts";
 import { useOutput } from "./hooks.ts";
 
 // What a module that reactModule() makes hands its component: the host that
@@ -116,7 +116,7 @@ class Boundary extends Component<{ output: Json; children?: ReactNode }, { faile
   override state: { failed: string | null } = { failed: null };
 
   static getDerivedStateFromError(error: unknown): { failed: string } {
-    return { failed: messageOf(error) };
+    return { failed: errorMessage(error) };
   }
 
   override componentDidCatch(error: unknown): void {

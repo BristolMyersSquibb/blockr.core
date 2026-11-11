@@ -24,6 +24,7 @@ export declare function useValue<V extends Json>(host: OptionHost<V>): Bound;
 export interface Answered {
     readonly answer: Json | Blob | undefined;
     readonly error: string | null;
+    readonly loading: boolean;
 }
 export interface RequestOptions {
     readonly args?: Readonly<Record<string, Json>>;

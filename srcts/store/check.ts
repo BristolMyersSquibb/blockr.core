@@ -11,7 +11,7 @@
 // them, so that no delta leaves a value that would keep the board from
 // opening again.
 
-import { graphOf } from "../graph/index.ts";
+import { createGraph } from "../graph/index.ts";
 import type { Board, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { compile, isObject, own, quoted } from "../util/index.ts";
@@ -164,7 +164,7 @@ function checkLinks(
     );
   }
 
-  const cycle = graphOf(board).cycle();
+  const cycle = createGraph(board).cycle();
   if (cycle !== undefined) {
     failures.push(`The links form a cycle through the blocks ${quoted(cycle)}.`);
   }
@@ -256,9 +256,9 @@ function checkPlugins(
     }
   }
 
-  const classOf = (id: string) => registrations.plugin(id)?.def;
+  const registeredClass = (id: string) => registrations.plugin(id)?.def;
   for (const role of ROLES) {
-    const held = inRole(board.plugins, classOf, role);
+    const held = inRole(board.plugins, registeredClass, role);
     if (held.length > 1) {
       failures.push(`The board holds the ${ROLE_NAMES[role]} ${quoted(held)}, where it holds one at most.`);
     }

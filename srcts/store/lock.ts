@@ -10,7 +10,7 @@
 import type { BlockId, Board } from "../types/board.ts";
 import { own, quoted } from "../util/index.ts";
 import type { Delta } from "./delta.ts";
-import { pointer } from "./patch.ts";
+import { segmentsFromPath } from "./patch.ts";
 
 // Whether a lock fixes a block's state: the board lock is on, and the block's
 // `locked` is not false, so that a block whose `locked` is null follows the
@@ -72,8 +72,8 @@ export function lockFailures(before: Board, inverse: Delta): string[] {
   // A patch changes a plugin's name or its state, and only the plugin locks
   // what sits in its state.
   const renamed = (inverse.patches ?? []).flatMap((patch) => {
-    const [, plugin, part] = pointer(patch.path) ?? [];
-    return plugin === undefined || part === "state" ? [] : [plugin];
+    const [, plugin, pluginProperty] = segmentsFromPath(patch.path) ?? [];
+    return plugin === undefined || pluginProperty === "state" ? [] : [plugin];
   });
   refuse("rename", "plugin", "plugins", [...new Set(renamed)]);
 

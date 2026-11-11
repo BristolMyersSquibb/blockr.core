@@ -8,6 +8,7 @@ import { stubBlockHost } from "../../stubs/index.ts";
 import { find, texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
+import { holdRequests } from "../../testing/requests.ts";
 import * as browser from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -70,6 +71,27 @@ test("opens the directory the user clicks, and submits the path of the file the 
     click("sales.csv");
   });
   expect(host.submitted).toEqual([sales]);
+});
+
+test("says that it is loading while R lists a place, and lists the place once R answers", async () => {
+  const host = stubBlockHost<State>(fixture, { state: { volumes } });
+  const release = holdRequests(host);
+  const view = await mountOnPage(browser, host);
+  const entries = (): string[] => texts(view.el, "li button");
+  expect([entries(), view.el.textContent.includes("Loading…")]).toEqual([[], true]);
+
+  release();
+  await settle();
+  expect([entries(), view.el.textContent.includes("Loading…")]).toEqual([["data/", "notes.txt"], false]);
+
+  await step(() => {
+    find(view.el, "li button").click();
+  });
+  expect([entries(), view.el.textContent.includes("Loading…")]).toEqual([[], true]);
+
+  release();
+  await settle();
+  expect(entries()).toEqual(["..", "sales.csv"]);
 });
 
 test("goes up a directory, and back to one the path above the list names", async () => {

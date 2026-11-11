@@ -9,5 +9,5 @@ export interface Inputs {
     readonly recipe: readonly Input[];
     readonly unlinked: readonly string[];
 }
-export declare function inputsOf(board: Pick<Board, "blocks" | "links">, graph: Graph, registry: Readonly<Record<RegistryId, RegistryEntry>>, bound: ReadonlySet<string>): Map<BlockId, Inputs>;
+export declare function inputsByBlock(board: Pick<Board, "blocks" | "links">, graph: Graph, registry: Readonly<Record<RegistryId, RegistryEntry>>, bound: ReadonlySet<string>): Map<BlockId, Inputs>;
 export declare function sameInputs(a: readonly Input[], b: readonly Input[]): boolean;

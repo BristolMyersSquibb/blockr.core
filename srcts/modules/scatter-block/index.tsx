@@ -1,5 +1,8 @@
 // The UI of the scatter block: a select for each axis of the columns of its
 // input, which the request columns gives.
+// While the request asks again, as after the input changed,
+// and after an ask failed, the columns are those of older data,
+// so the selects mark no column.
 
 import type { ReactElement } from "react";
 import { asChoices, strings } from "../../binding/index.ts";
@@ -11,12 +14,25 @@ import type { State } from "./state.ts";
 export const api = 1;
 
 function ScatterBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
-  const answer = useRequest(host, "columns").answer;
-  const columns = answer === undefined ? undefined : asChoices(strings(answer));
+  const columns = useRequest(host, "columns");
+  const choices = columns.answer === undefined ? undefined : asChoices(strings(columns.answer));
+  const outdated = columns.loading || columns.error !== null;
   return (
     <Stack>
-      <Select bound={useValue(host, "x")} label="X-axis" placeholder="Choose a column" choices={columns} />
-      <Select bound={useValue(host, "y")} label="Y-axis" placeholder="Choose a column" choices={columns} />
+      <Select
+        bound={useValue(host, "x")}
+        label="X-axis"
+        placeholder="Choose a column"
+        choices={choices}
+        outdated={outdated}
+      />
+      <Select
+        bound={useValue(host, "y")}
+        label="Y-axis"
+        placeholder="Choose a column"
+        choices={choices}
+        outdated={outdated}
+      />
     </Stack>
   );
 }

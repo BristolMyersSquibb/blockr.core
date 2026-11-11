@@ -52,7 +52,7 @@ async function reopen(s: Awaited<ReturnType<typeof stubCore>>): Promise<CoreApi>
 }
 
 describe("the plugins that run", () => {
-  test("are the open board's plugins, each of a class that a package registers, which classOf() gives", async () => {
+  test("are the open board's plugins, each of a class that a package registers, which pluginClass() gives", async () => {
     const s = await stubbed([notes, saving], {
       notes: plugin(notes, "Notes"),
       report: plugin(notes, "Report"),
@@ -64,8 +64,8 @@ describe("the plugins that run", () => {
     // The store drops the plugin whose class no package registers.
     expect(Object.keys(core.plugins.running())).toEqual(["notes", "report", "session"]);
     expect(core.plugins.running()).toBe(core.plugins.running());
-    expect(core.plugins.classOf("report")).toBe(notes);
-    expect(() => core.plugins.classOf("gone")).toThrow('The open board runs no plugin "gone".');
+    expect(core.plugins.pluginClass("report")).toBe(notes);
+    expect(() => core.plugins.pluginClass("gone")).toThrow('The open board runs no plugin "gone".');
     s.stop();
   });
 

@@ -1,7 +1,7 @@
 import type { Patch } from "./delta.ts";
-export declare function pointer(path: string): string[] | undefined;
-export declare function pluginOf(path: string): string | undefined;
-export declare function pathOf(parts: readonly string[]): string;
+export declare function segmentsFromPath(path: string): string[] | undefined;
+export declare function pluginIdFromPath(path: string): string | undefined;
+export declare function pathFromSegments(segments: readonly string[]): string;
 export declare function overlap(a: readonly string[], b: readonly string[], board: unknown): boolean;
 export declare function malformed(patch: unknown): string[];
 export type Applied = {
@@ -11,4 +11,4 @@ export type Applied = {
 } | {
     readonly failure: string;
 };
-export declare function applyPatch(board: Readonly<Record<string, unknown>>, patch: Patch, parts: readonly string[], place?: string | null): Applied;
+export declare function applyPatch(board: Readonly<Record<string, unknown>>, patch: Patch, segments: readonly string[], place?: string | null): Applied;

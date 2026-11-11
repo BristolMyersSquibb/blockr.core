@@ -28,11 +28,11 @@ import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { isObject, messageOf, own, packageOf, report } from "../util/index.ts";
+import { errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, moduleOf, onAbort, REPLACED, showError } from "./shared.ts";
+import { announceTo, attempt, mountableModule, onAbort, REPLACED, showError } from "./shared.ts";
 import type { Mountable } from "./shared.ts";
 
 export interface OptionDeps {
@@ -158,9 +158,9 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       if (renderer === undefined || id === undefined) {
         mod = def.ui;
       } else {
-        const pkg = packageOf(id);
+        const pkg = packageFromId(id);
         const source = renderer.css === undefined ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = moduleOf<OptionArgs>(await loader.load(source, pkg), renderer.module, pkg);
+        mod = mountableModule<OptionArgs>(await loader.load(source, pkg), renderer.module, pkg);
       }
     } catch (error) {
       fail(error);
@@ -189,18 +189,18 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       if (ended()) attempt(rendered);
       else cleanup = rendered;
     } catch (error) {
-      const why = `failed in render(): ${messageOf(error)}`;
+      const why = `failed in render(): ${errorMessage(error)}`;
       fail(
         renderer === undefined || id === undefined
           ? new Error(`The UI of the board option "${option}" ${why}`, { cause: error })
-          : new ModuleError(renderer.module, packageOf(id), why, { cause: error }),
+          : new ModuleError(renderer.module, packageFromId(id), why, { cause: error }),
       );
     }
   })();
 
   function fail(error: unknown): void {
     if (ended()) return;
-    showError(el, messageOf(error));
+    showError(el, errorMessage(error));
     report(error);
   }
 

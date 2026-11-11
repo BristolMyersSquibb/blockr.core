@@ -9,9 +9,9 @@
 // what another plugin appended.
 
 import type { Board, PluginId, Stack, StackId } from "../types/board.ts";
-import { jsonEqual, messageOf, own, quoted } from "../util/index.ts";
+import { errorMessage, jsonEqual, own, quoted } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
-import { malformed, overlap, pointer } from "./patch.ts";
+import { malformed, overlap, segmentsFromPath } from "./patch.ts";
 import type { Registrations } from "./registrations.ts";
 
 // How many rounds a delta may expand in before the store rejects it,
@@ -40,7 +40,7 @@ export function expand(
       try {
         patches = def.update(expanded, board, id);
       } catch (error) {
-        failures.push(`The plugin class "${def.id}" failed to update the delta for the plugin "${id}": ${messageOf(error)}`);
+        failures.push(`The plugin class "${def.id}" failed to update the delta for the plugin "${id}": ${errorMessage(error)}`);
         continue;
       }
       const wrong = misplaced(def.id, id, patches);
@@ -116,8 +116,8 @@ function misplaced(cls: string, id: PluginId, patches: unknown): string[] {
       continue;
     }
     const { path } = patch as Patch;
-    const [top, plugin, part] = pointer(path) ?? [];
-    if (top !== "plugins" || plugin !== id || part !== "state") {
+    const [boardProperty, plugin, pluginProperty] = segmentsFromPath(path) ?? [];
+    if (boardProperty !== "plugins" || plugin !== id || pluginProperty !== "state") {
       failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
     }
   }
@@ -135,19 +135,19 @@ function misplaced(cls: string, id: PluginId, patches: unknown): string[] {
 // not one that an `update` makes up for a new object.
 // An array's index, or its end as "-", names no element, so that the store
 // keeps what an `update` adds to an array that the delta adds to as well.
-// The board before the delta tells which parts of a path index an array.
+// The board before the delta tells which segments of a path index an array.
 // Where that board lacks a member on the way, one of the delta's own patches
 // adds the member.
 // That patch lies above the update's patch, which is left out all the same.
 function merge(delta: Delta, given: Delta, patches: readonly Patch[], board: Board): Delta {
   const held = delta.patches ?? [];
-  const fixed = (given.patches ?? []).map(({ path }) => pointer(path) ?? []);
+  const fixed = (given.patches ?? []).map(({ path }) => segmentsFromPath(path) ?? []);
 
   const added: Patch[] = [];
   for (const patch of patches) {
-    const parts = pointer(patch.path) ?? [];
+    const segments = segmentsFromPath(patch.path) ?? [];
     if ([...held, ...added].some((other) => same(other, patch))) continue;
-    if (fixed.some((path) => overlap(path, parts, board))) continue;
+    if (fixed.some((other) => overlap(other, segments, board))) continue;
     added.push(patch);
   }
 

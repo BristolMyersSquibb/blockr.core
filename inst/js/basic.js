@@ -9,7 +9,7 @@ import { useCallback as useCallback7, useMemo as useMemo2, useState as useState9
 function own(record, key) {
   return Object.hasOwn(record, key) ? record[key] : void 0;
 }
-function messageOf(error) {
+function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -129,7 +129,7 @@ function Footer({ status, shown, severities, open, toggle, panel }) {
   );
 }
 function Banners({ shown, severities, open, panel }) {
-  const listed = shown === void 0 ? [] : listedOf(shown).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+  const listed = shown === void 0 ? [] : statusConditions(shown).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
   if (listed.length === 0) return null;
   return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i) => /* @__PURE__ */ jsx(Banner, { condition }, i)) });
 }
@@ -241,7 +241,7 @@ function useShown(status) {
   return now ?? kept;
 }
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
-function listedOf(status) {
+function statusConditions(status) {
   return status.status === "waiting" ? [] : status.conditions;
 }
 
@@ -627,20 +627,20 @@ function useStore(core) {
 }
 
 // srcts/modules/basic/layout.ts
-function itemsOf(board) {
-  const stackOf = /* @__PURE__ */ new Map();
+function layoutItems(board) {
+  const stackByBlock = /* @__PURE__ */ new Map();
   for (const [id2, stack] of Object.entries(board.stacks)) {
-    for (const block of stack.blocks) stackOf.set(block, id2);
+    for (const block of stack.blocks) stackByBlock.set(block, id2);
   }
   const items = [];
   const placed2 = /* @__PURE__ */ new Set();
   for (const block of Object.keys(board.blocks)) {
-    const stack = stackOf.get(block);
+    const stack = stackByBlock.get(block);
     if (stack === void 0) {
       items.push({ block });
     } else if (!placed2.has(stack)) {
       placed2.add(stack);
-      items.push({ stack, blocks: blocksOf(board, stack) });
+      items.push({ stack, blocks: stackBlocks(board, stack) });
     }
   }
   for (const stack of Object.keys(board.stacks)) {
@@ -648,7 +648,7 @@ function itemsOf(board) {
   }
   return items;
 }
-function blocksOf(board, stack) {
+function stackBlocks(board, stack) {
   return (board.stacks[stack]?.blocks ?? []).filter((block) => Object.hasOwn(board.blocks, block));
 }
 
@@ -671,9 +671,9 @@ function LinksDialog({ onClose }) {
   return /* @__PURE__ */ jsxs4(Dialog, { title: "Links", onClose, children: [
     links.length === 0 ? /* @__PURE__ */ jsx5("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsx5("ul", { "aria-label": "Links", className: classes.list, children: links.map(([id2, link]) => /* @__PURE__ */ jsxs4("li", { className: "bc:flex bc:items-center bc:gap-2 bc:text-sm", children: [
       /* @__PURE__ */ jsxs4("span", { className: "bc:flex-1", children: [
-        nameOf(board, link.from),
+        blockName(board, link.from),
         " \u2192 ",
-        nameOf(board, link.to),
+        blockName(board, link.to),
         link.input === "" ? null : /* @__PURE__ */ jsxs4("span", { className: "bc:text-text-muted", children: [
           " as ",
           link.input
@@ -684,7 +684,7 @@ function LinksDialog({ onClose }) {
         {
           type: "button",
           className: classes.button,
-          "aria-label": `Remove the link from ${nameOf(board, link.from)} to ${nameOf(board, link.to)}`,
+          "aria-label": `Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
           onClick: () => {
             void runCommand(front, "blockr.core-remove_link", { id: id2 });
           },
@@ -768,7 +768,7 @@ function BlockSelect({
     )
   ] });
 }
-function nameOf(board, block) {
+function blockName(board, block) {
   return own(board.blocks, block)?.name ?? block;
 }
 
@@ -818,7 +818,7 @@ function AddBlockDialog({ mode, onClose }) {
   const target2 = mode.kind === "add" ? void 0 : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target2 === void 0 ? "Add block" : `Add block ${mode.kind} "${target2.name}"`;
   const before = mode.kind === "before" ? several(freeInputs(board, registry, mode.to) ?? []) : [];
-  const after = picked === void 0 ? [] : inputsOf(picked);
+  const after = picked === void 0 ? [] : dataInputChoices(picked);
   function add(entry, into) {
     onClose();
     const link = into === void 0 ? {} : { input: into };
@@ -827,7 +827,7 @@ function AddBlockDialog({ mode, onClose }) {
     else void runCommand(front, "blockr.core-prepend_block", { registry_id: entry.id, to: mode.to, ...link });
   }
   function pick(entry) {
-    if (mode.kind === "after" && inputsOf(entry).length > 0) {
+    if (mode.kind === "after" && dataInputChoices(entry).length > 0) {
       setPicked(entry);
       setInput(void 0);
     } else {
@@ -925,7 +925,7 @@ function InputSelect({
     )
   ] });
 }
-function inputsOf(entry) {
+function dataInputChoices(entry) {
   return entry.inputs.includes("...") ? [] : several(entry.inputs);
 }
 function several(inputs) {
@@ -949,7 +949,7 @@ function byCategory(entries) {
 import { useCallback as useCallback6 } from "react";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 function placed(core) {
-  return Object.entries(core.plugins.running()).filter(([id2]) => core.plugins.classOf(id2).ui !== void 0);
+  return Object.entries(core.plugins.running()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
 }
 function Plugins() {
   const { core } = useFrontEnd();
@@ -1284,7 +1284,7 @@ function BasicBoard({ front }) {
 function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
-  const items = useMemo2(() => itemsOf(board), [board]);
+  const items = useMemo2(() => layoutItems(board), [board]);
   const shown = board.options.show_conditions;
   const severities = useMemo2(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState9(null);
@@ -1447,7 +1447,7 @@ function createNotices() {
   return {
     list: () => notices,
     failed(error) {
-      add({ message: messageOf(error), severity: "error" });
+      add({ message: errorMessage(error), severity: "error" });
     },
     add,
     dismiss(id2) {
@@ -1468,7 +1468,7 @@ function createNotices() {
 // srcts/modules/basic/shortcuts.ts
 function bindShortcuts(doc, core, refused) {
   function onKey(event) {
-    const step = stepOf(event);
+    const step = undoOrRedo(event);
     if (step === void 0 || event.defaultPrevented || editable(event.target)) return;
     event.preventDefault();
     try {
@@ -1483,7 +1483,7 @@ function bindShortcuts(doc, core, refused) {
     doc.removeEventListener("keydown", onKey);
   };
 }
-function stepOf(event) {
+function undoOrRedo(event) {
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
   const key = event.key.toLowerCase();
   if (key === "z") return event.shiftKey ? "redo" : "undo";

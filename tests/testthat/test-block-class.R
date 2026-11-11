@@ -506,7 +506,7 @@ test_that("each of core's block classes ships its UI module and its schema", {
   expect_length(classes, 12L)
 
   for (cls in classes) {
-    expect_true(nzchar(module_file(cls[["ui"]])), info = cls[["class"]][1L])
+    expect_true(nzchar(module_file(cls[["ui"]])), info = cls[["id"]])
     expect_setequal(
       names(class_schema(cls)[["properties"]]),
       class_state_args(cls)

@@ -107,7 +107,7 @@ export function createAnswers(
 
   // Whether R still holds what the answer read, at the revisions it read.
   function current(request: Ask["request"]): boolean {
-    return readsOf(request).every(
+    return requestReads(request).every(
       (read) => read.block === undefined || scheduler.status(read.block)?.revision === read.revision,
     );
   }
@@ -209,7 +209,7 @@ export function createAnswers(
   return {
     ask(ask, { signal, progress } = {}) {
       if (signal?.aborted === true) return Promise.reject(asError(signal.reason));
-      const key = ask.share === "once" ? undefined : keyOf(ask.request);
+      const key = ask.share === "once" ? undefined : requestKey(ask.request);
       const answer = key === undefined ? undefined : kept.get(key)?.answer;
       if (answer !== undefined) return Promise.resolve(answer);
       const flight = (key === undefined ? undefined : flights.get(key)) ?? start(ask, key);
@@ -226,7 +226,7 @@ export function createAnswers(
 // shares the answer. For an output class's or a renderer's request, it is the
 // renderer, the output it belongs to, the name, the args and the board option
 // values and parameters that the output was asked with.
-function keyOf(request: Ask["request"]): string {
+function requestKey(request: Ask["request"]): string {
   if (request.type === "block_class") {
     return JSON.stringify(
       sorted([
@@ -254,7 +254,7 @@ function keyOf(request: Ask["request"]): string {
 
 // The results that a request reads: a block class's, the results it names,
 // and an output class's or a renderer's, the result its output was made from.
-function readsOf(request: Ask["request"]): readonly (BlockRevision | { block?: never })[] {
+function requestReads(request: Ask["request"]): readonly (BlockRevision | { block?: never })[] {
   return request.type === "block_class" ? request.reads : [request.output];
 }
 

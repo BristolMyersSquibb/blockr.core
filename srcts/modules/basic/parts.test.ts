@@ -7,7 +7,7 @@ import type { CoreApi } from "../../types/core-api.ts";
 import { asSeverities } from "./board.tsx";
 import { demandShown, IN_VIEW, OWNER, SHOWN } from "./demand.ts";
 import type { View } from "./demand.ts";
-import { itemsOf } from "./layout.ts";
+import { layoutItems } from "./layout.ts";
 
 describe("where each block goes", () => {
   const block = { registry_id: "blockr.core-head_block", state: {}, name: "Head", locked: null };
@@ -15,7 +15,7 @@ describe("where each block goes", () => {
 
   test("is the board's order, each stack at the place of its first block, with its blocks in its own order", () => {
     const blocks = { a: block, b: block, c: block, d: block };
-    expect(itemsOf({ blocks, stacks: { s1: stack(["d", "b"]) } })).toEqual([
+    expect(layoutItems({ blocks, stacks: { s1: stack(["d", "b"]) } })).toEqual([
       { block: "a" },
       { stack: "s1", blocks: ["d", "b"] },
       { block: "c" },
@@ -23,7 +23,7 @@ describe("where each block goes", () => {
   });
 
   test("puts a stack without blocks last", () => {
-    expect(itemsOf({ blocks: { a: block }, stacks: { empty: stack([]), s1: stack(["a"]) } })).toEqual([
+    expect(layoutItems({ blocks: { a: block }, stacks: { empty: stack([]), s1: stack(["a"]) } })).toEqual([
       { stack: "s1", blocks: ["a"] },
       { stack: "empty", blocks: [] },
     ]);

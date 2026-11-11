@@ -4,9 +4,10 @@
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost } from "../../stubs/index.ts";
-import { pick, texts } from "../../testing/inputs.ts";
+import { find, pick, texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
+import { holdRequests } from "../../testing/requests.ts";
 import * as scatter from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -66,6 +67,41 @@ test("shows a column that its input lacks as it is until the columns arrive, the
     "true",
   ]);
   expect([y.value, texts(y, "option"), y.getAttribute("aria-invalid")]).toEqual(["Sepal.Width", columns, "false"]);
+  expect(host.submitted).toEqual([]);
+});
+
+test("marks no column while the columns are asked again, as once its input changed, nor once that ask failed", async () => {
+  const requests = [...fixture.requests];
+  const host = stubBlockHost<State>({ ...fixture, requests }, { state: { x: "wt", y: "Sepal.Width" } });
+  const release = holdRequests(host);
+  const view = await mountOnPage(scatter, host);
+  const x = find(view.el, "select", HTMLSelectElement);
+  const shown = () => [texts(x, "option"), x.getAttribute("aria-invalid")];
+  expect(shown()).toEqual([["wt"], "false"]);
+
+  release();
+  await settle();
+  const marked = [[...columns, "wt (not available)"], "true"];
+  expect(shown()).toEqual(marked);
+
+  await step(() => {
+    host.setContext({ inputs: [{ input: "data", revision: 2 }] });
+  });
+  expect(shown()).toEqual([[...columns, "wt"], "false"]);
+
+  // R answers no more, as where the input failed.
+  requests.splice(0);
+  release();
+  await settle();
+  expect(shown()).toEqual([[...columns, "wt"], "false"]);
+
+  requests.push(...fixture.requests);
+  await step(() => {
+    host.setContext({ inputs: [{ input: "data", revision: 3 }] });
+  });
+  release();
+  await settle();
+  expect(shown()).toEqual(marked);
   expect(host.submitted).toEqual([]);
 });
 

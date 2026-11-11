@@ -27,7 +27,7 @@ function blockr(values: Readonly<Record<string, Json>> = {}) {
 }
 
 // The value that the board option's default resolves with.
-function defaultOf(option: Option): Promise<Json> {
+function resolveDefault(option: Option): Promise<Json> {
   const given = option.default;
   return typeof given === "function" ? given() : Promise.resolve(given);
 }
@@ -72,64 +72,64 @@ describe("core's board options", () => {
     prefers("light");
     const { core, asked } = blockr();
 
-    expect(await defaultOf(nRows(core))).toBe(10);
-    expect(await defaultOf(showConditions(core))).toEqual(["warning", "error"]);
-    expect(await defaultOf(darkMode(core))).toBe("light");
+    expect(await resolveDefault(nRows(core))).toBe(10);
+    expect(await resolveDefault(showConditions(core))).toEqual(["warning", "error"]);
+    expect(await resolveDefault(darkMode(core))).toBe("light");
     expect(asked).toEqual(["n_rows", "show_conditions", "dark_mode"]);
 
     const set = blockr({ n_rows: 25, show_conditions: ["message", "error"], dark_mode: "dark" }).core;
-    expect(await defaultOf(nRows(set))).toBe(25);
-    expect(await defaultOf(showConditions(set))).toEqual(["message", "error"]);
-    expect(await defaultOf(darkMode(set))).toBe("dark");
+    expect(await resolveDefault(nRows(set))).toBe(25);
+    expect(await resolveDefault(showConditions(set))).toEqual(["message", "error"]);
+    expect(await resolveDefault(darkMode(set))).toBe("dark");
   });
 
   test("read a single severity as R writes it, and TRUE and FALSE for dark and light, as today's R constructors do", async () => {
     const { core } = blockr({ show_conditions: "error", dark_mode: true });
-    expect(await defaultOf(showConditions(core))).toEqual(["error"]);
-    expect(await defaultOf(darkMode(core))).toBe("dark");
-    expect(await defaultOf(darkMode(blockr({ dark_mode: false }).core))).toBe("light");
+    expect(await resolveDefault(showConditions(core))).toEqual(["error"]);
+    expect(await resolveDefault(darkMode(core))).toBe("dark");
+    expect(await resolveDefault(darkMode(blockr({ dark_mode: false }).core))).toBe("light");
   });
 
   test("read the string that an environment variable sets as the number or the logical that it holds", async () => {
     const { core } = blockr({ n_rows: " 25 ", dark_mode: "TRUE" });
-    expect(await defaultOf(nRows(core))).toBe(25);
-    expect(await defaultOf(darkMode(core))).toBe("dark");
-    expect(await defaultOf(darkMode(blockr({ dark_mode: "F" }).core))).toBe("light");
-    expect(await defaultOf(darkMode(blockr({ dark_mode: "light" }).core))).toBe("light");
+    expect(await resolveDefault(nRows(core))).toBe(25);
+    expect(await resolveDefault(darkMode(core))).toBe("dark");
+    expect(await resolveDefault(darkMode(blockr({ dark_mode: "F" }).core))).toBe("light");
+    expect(await resolveDefault(darkMode(blockr({ dark_mode: "light" }).core))).toBe("light");
   });
 
   test("take the theme the user's system prefers where no blockr option sets dark_mode, as today's NULL does", async () => {
     prefers("dark");
-    expect(await defaultOf(darkMode(blockr().core))).toBe("dark");
+    expect(await resolveDefault(darkMode(blockr().core))).toBe("dark");
     prefers("light");
-    expect(await defaultOf(darkMode(blockr().core))).toBe("light");
+    expect(await resolveDefault(darkMode(blockr().core))).toBe("light");
   });
 
   test("fail where a blockr option holds a value that the schema refuses", async () => {
     prefers("dark");
     const { core } = blockr({ n_rows: 0, show_conditions: ["fatal"], dark_mode: "blue" });
 
-    await expect(defaultOf(nRows(core))).rejects.toThrow(
+    await expect(resolveDefault(nRows(core))).rejects.toThrow(
       "The blockr option n_rows is 0, which the board option n_rows does not take.",
     );
-    await expect(defaultOf(showConditions(core))).rejects.toThrow(
+    await expect(resolveDefault(showConditions(core))).rejects.toThrow(
       'The blockr option show_conditions is ["fatal"], which the board option show_conditions does not take.',
     );
-    await expect(defaultOf(darkMode(core))).rejects.toThrow(
+    await expect(resolveDefault(darkMode(core))).rejects.toThrow(
       'The blockr option dark_mode is "blue", which the board option dark_mode does not take.',
     );
 
     const strings = blockr({ n_rows: "many", dark_mode: "yes" }).core;
-    await expect(defaultOf(nRows(strings))).rejects.toThrow(
+    await expect(resolveDefault(nRows(strings))).rejects.toThrow(
       'The blockr option n_rows is "many", which the board option n_rows does not take.',
     );
-    await expect(defaultOf(nRows(blockr({ n_rows: "Inf" }).core))).rejects.toThrow(
+    await expect(resolveDefault(nRows(blockr({ n_rows: "Inf" }).core))).rejects.toThrow(
       'The blockr option n_rows is "Inf", which the board option n_rows does not take.',
     );
-    await expect(defaultOf(darkMode(strings))).rejects.toThrow(
+    await expect(resolveDefault(darkMode(strings))).rejects.toThrow(
       'The blockr option dark_mode is "yes", which the board option dark_mode does not take.',
     );
-    await expect(defaultOf(darkMode(blockr({ dark_mode: null }).core))).rejects.toThrow(
+    await expect(resolveDefault(darkMode(blockr({ dark_mode: null }).core))).rejects.toThrow(
       "The blockr option dark_mode is null, which the board option dark_mode does not take.",
     );
   });

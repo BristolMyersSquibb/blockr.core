@@ -50,6 +50,10 @@
 # and a `forget` drops results,
 # with the queued requests that evaluate or read them.
 #
+# R logs every condition that it sends in a reply, at the level of its
+# severity, naming the block and its revision where the request names one
+# (see `log_reply()`).
+#
 # Another evaluator, such as one that runs requests in backend processes,
 # differs in four generics: the capabilities that R names,
 # running a queued request, stopping one that has started,
@@ -251,7 +255,9 @@ receive_request <- function(ev, req, send) {
         return(invisible())
       }
 
-      send(list(error_reply(id, list(r_condition(e)))))
+      reply <- error_reply(id, list(r_condition(e)))
+      log_conditions(reply, paste("Request", id))
+      send(list(reply))
     }
   )
 
@@ -438,6 +444,7 @@ run_next <- function(ev) {
     run_request(ev, job),
     onFulfilled = function(reply) {
       on.exit(finish())
+      log_reply(job, reply)
       deliver_reply(ev, job, reply)
     },
     onRejected = function(e) {
@@ -497,4 +504,82 @@ job_error_reply <- function(job, e) {
     list(r_condition(e)),
     if (identical(job[["kind"]], "evaluate")) job[["req"]][["fields"]]
   )
+}
+
+# Logs the conditions of the reply to a request that R ran, before R sends it.
+# Each line names the block and its revision where the request names one,
+# as an evaluation and an output do, and the request otherwise.
+# The line's record holds the block and its revision as attributes too.
+# Two replies are left to their callers, which log their cause already: the
+# `error` of a request that R failed to run (see `run_next()`), and the `error`
+# that R sends in place of a reply that it could not send (see
+# `deliver_reply()`).
+log_reply <- function(job, reply) {
+
+  req <- job[["req"]]
+
+  block <- switch(
+    job[["kind"]],
+    evaluate = req[["fields"]],
+    output = ,
+    request = req[["output"]]
+  )
+
+  if (is.null(block)) {
+    return(log_conditions(reply, request_subject(job)))
+  }
+
+  log_conditions(
+    reply,
+    paste0("Block ", block[["block"]], " at revision ", block[["revision"]]),
+    list(
+      blockr.block.id = block[["block"]],
+      blockr.block.revision = block[["revision"]]
+    )
+  )
+}
+
+# How a log line names a request that names no block: by its name and the
+# block class, board option or plugin class that it belongs to, or else by its
+# id, as for a `blockr_options` request.
+request_subject <- function(job) {
+
+  req <- job[["req"]]
+
+  of <- if (inherits(req, "block_class_request")) {
+    paste("block class", req[["registry_id"]])
+  } else if (inherits(req, "option_request")) {
+    paste("board option", req[["option"]])
+  } else if (inherits(req, "plugin_request")) {
+    paste("plugin class", req[["plugin"]])
+  }
+
+  if (is.null(of)) {
+    return(paste("Request", job[["id"]]))
+  }
+
+  paste("Request", req[["name"]], "of", of)
+}
+
+# Logs each condition of a reply at the level of its severity: a message at
+# info, a warning at warn and an error at error.
+# Each line names what the reply concerns, `about`, and its record holds
+# `attributes`.
+log_conditions <- function(reply, about, attributes = list()) {
+
+  for (cnd in reply[["conditions"]]) {
+    write_log(
+      about, ": ", cnd[["message"]],
+      level = switch(
+        cnd[["severity"]],
+        message = "info",
+        warning = "warn",
+        error = "error"
+      ),
+      use_glue = FALSE,
+      attributes = attributes
+    )
+  }
+
+  invisible()
 }

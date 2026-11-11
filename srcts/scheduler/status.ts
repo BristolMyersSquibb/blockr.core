@@ -61,7 +61,7 @@ const NO_CONDITIONS: readonly Condition[] = Object.freeze([]);
 
 // The outcome of an evaluation of a revision, from R's reply to it. A reply of
 // `cancelled` or `missing` counts as none and gives undefined.
-export function outcomeOf(reply: Reply, revision: number): Outcome | undefined {
+export function replyOutcome(reply: Reply, revision: number): Outcome | undefined {
   if (reply.status === "cancelled" || reply.status === "missing") return undefined;
   const evaluated = reply as Partial<EvaluateReply> & Pick<EvaluateReply, "status">;
   return {
@@ -202,7 +202,7 @@ export function sameStatus(a: BlockStatus, b: BlockStatus): boolean {
 // its latest reply and its inputs, and from the statuses of the blocks it
 // reads. A status that reads as before keeps its object. The blocks whose
 // status changed include those that left the board.
-export function statusesOf(input: {
+export function blockStatuses(input: {
   readonly graph: Graph;
   readonly revisions: ReadonlyMap<BlockId, number>;
   readonly outcomes: ReadonlyMap<BlockId, Outcome>;

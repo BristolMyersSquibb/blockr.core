@@ -23,7 +23,7 @@
 
 import { action, batch, computed, effect, signal, untracked } from "@preact/signals-core";
 import type { ReadonlySignal } from "@preact/signals-core";
-import { graphOf } from "../graph/index.ts";
+import { createGraph } from "../graph/index.ts";
 import { SessionEndedError } from "../protocol/index.ts";
 import type {
   BlockRevision,
@@ -36,16 +36,16 @@ import type { Delta, Store } from "../store/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { asError, asLogical, asNumber, messageOf, own, report } from "../util/index.ts";
+import { asError, asLogical, asNumber, errorMessage, own, report } from "../util/index.ts";
 import * as evaluations from "./evaluations.ts";
 import type { OneTime, Settled } from "./evaluations.ts";
-import { needsOf } from "./needs.ts";
-import { planOf } from "./plan.ts";
+import { neededBlocks } from "./needs.ts";
+import { evaluationPlan } from "./plan.ts";
 import type { Asked, Plan, Sent } from "./plan.ts";
-import { inputsOf } from "./recipes.ts";
+import { inputsByBlock } from "./recipes.ts";
 import type { Inputs } from "./recipes.ts";
 import { bump, counter, opening, revise } from "./revisions.ts";
-import { outcomeOf, statusesOf, unsent } from "./status.ts";
+import { blockStatuses, replyOutcome, unsent } from "./status.ts";
 import type { BlockStatus, Outcome } from "./status.ts";
 
 export interface Scheduler {
@@ -211,15 +211,15 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   const holding = signal(true);
 
   // What follows from what the scheduler knows.
-  const graph = computed(() => graphOf(board.value ?? NO_BOARD));
+  const graph = computed(() => createGraph(board.value ?? NO_BOARD));
   const inputs = computed(() =>
-    inputsOf(board.value ?? NO_BOARD, graph.value, registry.value, bound.value),
+    inputsByBlock(board.value ?? NO_BOARD, graph.value, registry.value, bound.value),
   );
   // A status that reads as before keeps its object, so each computation
   // starts from the last.
   let last: ReadonlyMap<BlockId, BlockStatus> = new Map();
   const statuses = computed(() => {
-    last = statusesOf({
+    last = blockStatuses({
       graph: graph.value,
       revisions: revisions.value,
       outcomes: outcomes.value,
@@ -234,7 +234,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // reads it, so a demand's function of the board runs once a pass needs it,
   // and once for each board.
   const needs = computed(() =>
-    needsOf(graph.value, [
+    neededBlocks(graph.value, [
       ...[...demands.value.values()].map((demand) => ({
         blocks: demand.blocks.value,
         priority: demand.priority,
@@ -363,7 +363,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   // Sending
 
-  function recipeOf(id: BlockId): Recipe | undefined {
+  function blockRecipe(id: BlockId): Recipe | undefined {
     const block = board.value === undefined ? undefined : own(board.value.blocks, id);
     const recipe = inputs.value.get(id)?.recipe;
     if (block === undefined || recipe === undefined) return undefined;
@@ -379,7 +379,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
 
   function send(item: Plan["send"][number]): void {
-    const recipe = recipeOf(item.block);
+    const recipe = blockRecipe(item.block);
     const at = revisions.value.get(item.block);
     const block = board.value === undefined ? undefined : own(board.value.blocks, item.block);
     if (recipe === undefined || at === undefined || block === undefined) return;
@@ -459,7 +459,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     if (evaluation === undefined || ended()) return;
     if (reply.status === "missing") lacking(reply.missing);
 
-    const outcome = outcomeOf(reply, evaluation.revision);
+    const outcome = replyOutcome(reply, evaluation.revision);
     if (
       outcome !== undefined &&
       evaluation.revision === revisions.value.get(evaluation.block) &&
@@ -494,7 +494,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       !(error instanceof SessionEndedError) &&
       revisions.value.get(evaluation.block) === evaluation.revision
     ) {
-      const outcome = unsent(evaluation.revision, messageOf(error));
+      const outcome = unsent(evaluation.revision, errorMessage(error));
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
     }
   });
@@ -526,14 +526,14 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     passTimer = undefined;
     batch(() => {
       if (stopped === undefined && board.value !== undefined) {
-        const plan = planOf({
+        const plan = evaluationPlan({
           graph: graph.value,
           revisions: revisions.value,
           statuses: statuses.value,
           needs: needs.value,
           sent: sent.value.values(),
           asked: asked.value.values(),
-          pending: evaluations.pendingOf(oneTimes.value),
+          pending: evaluations.pendingEvaluations(oneTimes.value),
           queue,
           interrupt: client.capabilities().has("interrupt"),
           holding: holding.value,
@@ -581,7 +581,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           } catch (error) {
             report(
               new Error(
-                `The demand of ${owner} threw, so it demands nothing until it returns: ${messageOf(error)}`,
+                `The demand of ${owner} threw, so it demands nothing until it returns: ${errorMessage(error)}`,
                 { cause: error },
               ),
             );
@@ -698,7 +698,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           else resolve(result.statuses);
         });
 
-        const oneTime = evaluations.oneTimeOf([...new Set(blocks)], params, at, statuses.value);
+        const oneTime = evaluations.createOneTime([...new Set(blocks)], params, at, statuses.value);
         if (oneTime instanceof Error) {
           update({ oneTimes: oneTimes.value, settled: [[id, { error: oneTime }]] });
         } else {

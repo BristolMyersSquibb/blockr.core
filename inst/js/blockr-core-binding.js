@@ -20,7 +20,7 @@ function jsonEqual(a, b) {
 // srcts/binding/binding.ts
 var PAUSE = 500;
 function bind(host, key, show, options = {}) {
-  const source = sourceOf(host);
+  const source = createSource(host);
   source.check(key);
   let shown;
   let typed;
@@ -85,7 +85,7 @@ function bind(host, key, show, options = {}) {
   };
 }
 function follow(host, name, options) {
-  const source = sourceOf(host);
+  const source = createSource(host);
   let asked;
   let latest;
   let released = false;
@@ -93,6 +93,7 @@ function follow(host, name, options) {
     latest?.abort();
     const controller = new AbortController();
     latest = controller;
+    options.loading?.();
     source.request(name, options.args?.() ?? {}, { signal: controller.signal }).then(
       (answer) => {
         if (latest === controller && !controller.signal.aborted) options.answer(answer);
@@ -126,7 +127,7 @@ function follow(host, name, options) {
     }
   };
 }
-function sourceOf(host) {
+function createSource(host) {
   if ("option" in host) {
     const check = (key) => {
       if (key !== host.option) {

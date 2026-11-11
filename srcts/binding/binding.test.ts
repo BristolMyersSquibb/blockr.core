@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { READY, stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
+import { holdRequests } from "../testing/requests.ts";
 import type { Json } from "../types/json.ts";
 import { bind, follow, PAUSE } from "./index.ts";
 
@@ -152,5 +153,39 @@ describe("a followed request", () => {
 
     expect(answers).toEqual([]);
     expect(host.requested).toHaveLength(1);
+  });
+
+  test("says each time that it asks, before that ask answers or fails, and says nothing once it ends", async () => {
+    const host = stubBlockHost(fixture);
+    const release = holdRequests(host);
+    const heard: string[] = [];
+    let args: Readonly<Record<string, Json>> = {};
+    const names = follow(host, "names", {
+      args: () => args,
+      loading: () => heard.push("loading"),
+      answer: () => heard.push("answer"),
+      failed: () => heard.push("failed"),
+    });
+    expect(heard).toEqual(["loading"]);
+
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    host.setContext({ status: { ...READY, status: "stale", revision: 2 } });
+    host.setContext({ inputs: [{ input: "data", revision: 2 }] });
+    expect(heard).toEqual(["loading", "answer", "loading"]);
+
+    // The fixture records no answer with these args, and the ask they replace
+    // hands on nothing.
+    args = { pattern: "z" };
+    names.refresh();
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(heard).toEqual(["loading", "answer", "loading", "loading", "failed"]);
+
+    names.release();
+    host.setContext({ inputs: [{ input: "data", revision: 3 }] });
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(heard).toEqual(["loading", "answer", "loading", "loading", "failed"]);
   });
 });
