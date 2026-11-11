@@ -266,6 +266,7 @@ test_that("a logger named otel_logger() fails where no exporter is set up", {
 
   expect_error(log_info("abc"), class = "otel_logger_unavailable")
 
-  # Core keeps nothing of the setup that failed, so the next line fails too.
+  # Core keeps no logger that it failed to work out, so the next line fails
+  # too.
   expect_error(log_info("abc"), class = "otel_logger_unavailable")
 })

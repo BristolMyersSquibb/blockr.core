@@ -132,8 +132,9 @@ of these records.
 Every logger stops with an error at the level "fatal".
 
 Core works out the logger, the level and the blockr options \code{log_time} and
-\code{log_mem} as it writes its first line, and keeps them for the process.
-So does \code{\link[=serve]{serve()}}, afresh, as it starts an app.
+\code{log_mem} each when it first needs them, and keeps them for the process.
+As it starts an app, \code{\link[=serve]{serve()}} drops what core keeps and works out the
+logger afresh.
 After a change to one of these blockr options, as in a test, call
 \code{reset_logging()}, so that core works them out again for the next line.
 }

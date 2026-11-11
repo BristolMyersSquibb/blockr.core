@@ -35,8 +35,9 @@
 #' Every logger stops with an error at the level "fatal".
 #'
 #' Core works out the logger, the level and the blockr options `log_time` and
-#' `log_mem` as it writes its first line, and keeps them for the process.
-#' So does [serve()], afresh, as it starts an app.
+#' `log_mem` each when it first needs them, and keeps them for the process.
+#' As it starts an app, [serve()] drops what core keeps and works out the
+#' logger afresh.
 #' After a change to one of these blockr options, as in a test, call
 #' `reset_logging()`, so that core works them out again for the next line.
 #'
@@ -113,12 +114,10 @@ write_log <- function(..., level = "info", envir = parent.frame(),
 # `asis` is `TRUE`.
 log_line <- function(msg, level, pkg, asis) {
 
-  setup <- log_setup()
-
   pfx <- paste0(
     "[", toupper(level), "]",
-    if (setup[["log_time"]]) get_timmestamp("[", "]"),
-    if (setup[["log_mem"]]) get_mem_use("[", "]"),
+    if (log_flag("log_time", TRUE)) get_timmestamp("[", "]"),
+    if (log_flag("log_mem", FALSE)) get_mem_use("[", "]"),
     if (not_null(pkg)) paste0("[", pkg, "]"),
     " "
   )
@@ -231,11 +230,14 @@ trace_log_level <- as_log_level("trace")
 #' @rdname write_log
 #' @export
 get_log_level <- function() {
-  log_setup()[["level"]]
+  kept_logging(
+    "level",
+    function() as_log_level(blockr_option("log_level", "info"))
+  )
 }
 
 get_logger <- function() {
-  log_setup()[["logger"]]
+  kept_logging("logger", pick_logger)
 }
 
 #' @rdname write_log
@@ -245,64 +247,57 @@ reset_logging <- function() {
   invisible()
 }
 
-# What core works out about logging as it writes its first line, and keeps
-# until `reset_logging()` drops it: the logger, the level that
-# `get_log_level()` returns, the blockr options `log_time` and `log_mem`, and
-# core's logger in OpenTelemetry, where OpenTelemetry has set up an exporter.
+# What core works out about logging and keeps until `reset_logging()` drops
+# it: the logger, the level that `get_log_level()` returns, the blockr options
+# `log_time` and `log_mem`, and core's logger in OpenTelemetry.
 logging <- new.env(parent = emptyenv())
 
-log_setup <- function() {
+# The piece of what core keeps about logging that `name` names, which `fun`
+# works out the first time core reads it.
+# Core keeps no piece that fails, so that it works the piece out again, and
+# fails again, the next time.
+kept_logging <- function(name, fun) {
 
-  if (is.null(logging[["level"]])) {
-    set_up_logging()
+  if (!exists(name, envir = logging, inherits = FALSE)) {
+    logging[[name]] <- fun()
   }
 
-  logging
+  logging[[name]]
 }
 
-# Core keeps nothing of a setup that fails, so that the next line fails as
-# well, rather than writing with part of it.
-set_up_logging <- function() {
+# The blockr option `log_time` or `log_mem`, which reads a string as
+# `as.logical()` does.
+log_flag <- function(name, default) {
+  kept_logging(
+    name,
+    function() {
 
-  level <- as_log_level(blockr_option("log_level", "info"))
+      val <- as.logical(blockr_option(name, default))
 
-  log_time <- as.logical(blockr_option("log_time", TRUE))
+      if (!is_bool(val)) {
+        blockr_abort(
+          "The blockr option `{name}` is TRUE or FALSE.",
+          class = paste0(name, "_invalid")
+        )
+      }
 
-  if (!is_bool(log_time)) {
-    blockr_abort(
-      "The blockr option `log_time` is TRUE or FALSE.",
-      class = "log_time_invalid"
-    )
-  }
-
-  log_mem <- as.logical(blockr_option("log_mem", FALSE))
-
-  if (!is_bool(log_mem)) {
-    blockr_abort(
-      "The blockr option `log_mem` is TRUE or FALSE.",
-      class = "log_mem_invalid"
-    )
-  }
-
-  otel <- otel_core_logger()
-
-  logging[["logger"]] <- pick_logger(otel)
-  logging[["otel"]] <- otel
-  logging[["log_time"]] <- log_time
-  logging[["log_mem"]] <- log_mem
-  logging[["level"]] <- level
-
-  invisible()
+      val
+    }
+  )
 }
 
 # Core's logger in OpenTelemetry, where OpenTelemetry has set up an exporter of
 # logs, as `OTEL_LOGS_EXPORTER` has it, and `NULL` otherwise.
-# Its minimum severity is the lowest, so that only `get_log_level()` drops a
-# line, whatever `OTEL_LOG_LEVEL` sets.
+otel_core_logger <- function() {
+  kept_logging("otel", find_otel_logger)
+}
+
+# Asks OpenTelemetry for core's logger, with the lowest minimum severity, so
+# that only `get_log_level()` drops a line, whatever `OTEL_LOG_LEVEL` sets.
 # Core asks the logger itself whether it is enabled, since
 # `otel::is_logging_enabled()` fails for a logger that it is given in otel
 # 0.2.0: it checks the logger for the class `otel_tracer`.
-otel_core_logger <- function() {
+find_otel_logger <- function() {
 
   lgr <- otel::get_logger(minimum_severity = "trace")
 
@@ -315,19 +310,19 @@ otel_core_logger <- function() {
 
 # The logger that the blockr option `logger` names, or else OpenTelemetry's,
 # where it has set up an exporter, and the console's otherwise.
-pick_logger <- function(otel) {
+pick_logger <- function() {
 
   fun <- blockr_option("logger", NULL)
 
   if (is.null(fun)) {
-    return(if (is.null(otel)) cat_logger else otel_logger)
+    return(if (is.null(otel_core_logger())) cat_logger else otel_logger)
   }
 
   if (!is.function(fun)) {
     fun <- get(fun, mode = "function")
   }
 
-  if (identical(fun, otel_logger) && is.null(otel)) {
+  if (identical(fun, otel_logger) && is.null(otel_core_logger())) {
     blockr_abort(
       "The blockr option `logger` names `otel_logger()`, but OpenTelemetry ",
       "has set up no exporter of logs. The environment variable ",
@@ -388,7 +383,7 @@ otel_logger <- function(msg, level, pkg, asis, attributes) {
   otel::log(
     msg,
     severity = as.character(level),
-    logger = log_setup()[["otel"]],
+    logger = otel_core_logger(),
     attributes = c(
       if (not_null(pkg)) list(blockr.package.name = pkg),
       attributes
