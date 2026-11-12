@@ -467,6 +467,42 @@ window.e2e = {
     }, 'choice ' + value + ' of ' + label);
     e2e.set(select, value, 'change');
   },
+  // The field that the label of the text given names, through its for
+  // attribute or by holding it.
+  labelled(within, text) {
+    const label = [...within.querySelectorAll('label')]
+      .find((l) => l.textContent.trim() === text);
+    return label &&
+      (document.getElementById(label.htmlFor) || label.querySelector('input'));
+  },
+  // Types the text into the field of the label given.
+  async fill(label, value, within) {
+    const field = await e2e.until(
+      () => e2e.labelled(within, label),
+      'field ' + label
+    );
+    e2e.set(field, value, 'input');
+  },
+  // Picks the option of the label given in the searchable dropdown of the
+  // label given, as a user types the search into its field and clicks the
+  // option in the list that the search narrows.
+  async choose(label, search, option, within) {
+    const field = await e2e.until(
+      () => e2e.labelled(within, label),
+      'field ' + label
+    );
+    field.focus();
+    field.click();
+    e2e.set(field, search, 'input');
+    const found = await e2e.until(() => {
+      const list = document.getElementById(field.getAttribute('aria-controls'));
+      return [...(list?.querySelectorAll('[role=option]') ?? [])].find((o) =>
+        o.querySelector('span > span')?.textContent.replace(/^\u2713 /, '') ===
+          option
+      );
+    }, 'option ' + option + ' of ' + label);
+    found.click();
+  },
   async check(label, within) {
     const box = await e2e.until(
       () => e2e.label(within, label)?.querySelector('input[type=checkbox]'),

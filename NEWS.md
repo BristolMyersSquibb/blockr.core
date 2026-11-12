@@ -310,13 +310,14 @@
 * Core's Edit board plugin, which `new_edit_board_plugin()` makes, of class `c("edit_board_plugin", "plugin")`, adds, changes and removes blocks, links and stacks under every frontend, as the plugins `manage_blocks`, `manage_links` and `manage_stacks` did until now.
   It keeps no state, and an app runs it by default, since `available_plugins()` lists it.
   Every frontend places it as it places any plugin with a UI, as core's basic frontend does in a section of its own.
-  It adds a block of a class from the block registry's entries, which its search narrows, under the ID and the name that the user gives, or else under an ID that the command mints and the name of the block's class.
-  It renames and removes each block.
-  It changes the block that each link comes from, the block it goes to and the input it feeds, and removes each link, while its form adds a link into an input of the target that no link feeds.
-  It adds a stack, renames each stack, sets its color and its blocks, and removes it.
-  Each edit is one of core's commands, which applies as the user makes it, so that undo takes back each one, and the plugin tells the user through a notification why the store or the command registry refused one.
+  For blocks, links and stacks alike, it shows a form that adds one once the user submits it, and a table of those that the board holds, which a search narrows and which shows ten rows at a time.
+  Its form for a block picks the class in a searchable dropdown of the block registry's entries, grouped by category, and takes the new block's ID and name, which the command mints, or takes from the block's class, where the user leaves them empty.
+  Its form for a link offers as the target only a block that takes a link, and no link that closes a cycle, and takes a name for the input of a variadic block, which the user may leave empty.
+  Its form for a stack takes the stack's name, its color and its blocks, which a searchable dropdown picks, and suggests a name and a color that no other stack has.
+  A row of each table renames or removes its block, or opens a form that changes its link or its stack once the user saves it.
+  Each edit is one of core's commands, so that undo takes back each one, and the plugin tells the user through a notification why the store or the command registry refused one.
   Under the board lock, it draws no control and lists the board's links and stacks alone.
-  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the same picker as the plugin (#565).
+  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block (#565).
 * Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.

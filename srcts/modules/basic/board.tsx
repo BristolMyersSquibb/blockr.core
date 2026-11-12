@@ -104,8 +104,8 @@ function Page(): ReactElement {
   );
 }
 
-// The picker that a card's menu opens, which adds a block before or after the
-// card's block, and closes as the user picks a class.
+// The form that a card's menu opens, which adds a block before or after the
+// card's block, and closes once the block is on the board.
 function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void }): ReactElement {
   const front = useFrontEnd();
   const board = useBoard(front.core);
@@ -114,7 +114,7 @@ function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void 
   const run = useCallback((command: string, args: Json) => runCommand(front, command, args), [front]);
   return (
     <Dialog title={title} onClose={onClose}>
-      <BlockPicker core={front.core} mode={mode} run={run} onPicked={onClose} />
+      <BlockPicker core={front.core} mode={mode} run={run} onAdded={onClose} autofocus />
     </Dialog>
   );
 }

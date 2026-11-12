@@ -2,13 +2,18 @@
 // hello, whose app runs the plugin, with R played from the protocol's
 // fixtures, the plugin's UI mounted as a frontend places it, and the user
 // acting on it.
+// The fixture's board holds the blocks a, Iris, a dataset block; b, Head; c,
+// Merge, with the inputs x and y; d, Wide sepals; e, Bind, a variadic block;
+// and f, Scatter. Its links are ab, ac (x), bc (y), ad, be, de and keen_finch
+// (a to f), and its stack s1, Input, holds a and b.
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import type { HelloReply } from "../../protocol/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
-import { find, pick, press, texts, type } from "../../testing/inputs.ts";
+import { labelled, optionOf, optionsOf } from "../../testing/combobox.ts";
+import { find, press, texts, type } from "../../testing/inputs.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Note } from "../../types/core-api.ts";
@@ -58,24 +63,16 @@ function section(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): HTMLEle
   return find(el, `section[aria-label="${title}"]`);
 }
 
+// The form of the name given, such as "Add block".
+function form(el: ParentNode, name: string): HTMLFormElement {
+  return find(el, `form[aria-label="${name}"]`, HTMLFormElement);
+}
+
 // The button whose label or text is the one given, in `el`.
 function button(el: ParentNode, text: string): HTMLButtonElement {
   const found = [...el.querySelectorAll("button")].find((b) => b.getAttribute("aria-label") === text || b.textContent.trim() === text);
   if (found === undefined) throw new Error(`Found no button ${text}.`);
   return found;
-}
-
-// The button of the block registry's entry of the name given, in the picker.
-function entry(el: ParentNode, name: string): HTMLButtonElement {
-  const found = [...el.querySelectorAll("li button")].find((b) => b.querySelector("span")?.textContent === name);
-  if (!(found instanceof HTMLButtonElement)) throw new Error(`Found no entry ${name}.`);
-  return found;
-}
-
-// The field of the label given, as a label holds it.
-function field(el: ParentNode, label: string): HTMLInputElement {
-  const found = [...el.querySelectorAll("label")].find((l) => l.querySelector("span")?.textContent === label);
-  return find(found ?? document.createElement("label"), "input", HTMLInputElement);
 }
 
 // The select of the label given, as a label holds it.
@@ -84,14 +81,44 @@ function select(el: ParentNode, label: string): HTMLSelectElement {
   return find(found ?? document.createElement("label"), "select", HTMLSelectElement);
 }
 
-// The item of a link, by the names of the blocks it joins.
-function link(el: HTMLElement, from: string, to: string): HTMLElement {
-  return find(section(el, "Links"), `li[aria-label="${from} → ${to}"]`);
+// The row of a table, by its name, such as "Iris → Head" for a link.
+function row(el: ParentNode, name: string): HTMLTableRowElement {
+  return find(el, `tr[aria-label="${name}"]`, HTMLTableRowElement);
+}
+
+// The names of the rows of the section's table, in order.
+function rows(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): string[] {
+  return [...section(el, title).querySelectorAll("tbody tr")].map((tr) => tr.getAttribute("aria-label") ?? "");
+}
+
+// The line below a field, its hint or its error.
+function note(field: HTMLElement): string | undefined {
+  return field.ownerDocument.getElementById(field.getAttribute("aria-describedby") ?? "")?.textContent;
+}
+
+// Does what the user does, and lets what it set off run, the commands that a
+// form runs as the user submits it among them.
+async function acting(fn: () => void): Promise<void> {
+  await step(fn);
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 }
 
 async function click(el: HTMLElement): Promise<void> {
-  await step(() => {
+  await acting(() => {
     el.click();
+  });
+}
+
+// Picks the option of a searchable dropdown, through its search.
+async function chosen(el: ParentNode, label: string, search: string, option?: string): Promise<void> {
+  await step(() => {
+    labelled(el, label).click();
+  });
+  await step(() => {
+    type(labelled(el, label), search);
+  });
+  await step(() => {
+    optionOf(labelled(el, label), option ?? search).click();
   });
 }
 
@@ -101,57 +128,125 @@ function added(board: Board): [string, Board["blocks"][string]][] {
 }
 
 describe("the blocks", () => {
-  test("are added from the block registry, which the search narrows, under the ID and the name that the user gives", async () => {
+  test("are added once the user submits the form, of the class that the searchable dropdown picks, under the ID and the name that the user gives", async () => {
     const { el, board, notes } = await mounted();
-    const blocks = section(el, "Blocks");
+    const add = (): HTMLFormElement => form(section(el, "Blocks"), "Add block");
+    const classes = labelled(add(), "Block class");
 
-    // The picker groups the entries by category.
-    expect([...blocks.querySelectorAll("section")].map((s) => s.getAttribute("aria-label"))).toEqual(["input", "plot", "transform"]);
+    // The dropdown lists the block registry's entries by category.
     await step(() => {
-      type(field(blocks, "Search"), "scatter");
+      classes.click();
     });
-    expect(texts(blocks, "section li button span:first-child")).toEqual(["scatter plot block"]);
+    expect(optionsOf(classes)).toEqual([
+      "input: data upload block",
+      "input: dataset block",
+      "plot: scatter plot block",
+      "transform: head/tail block",
+      "transform: merge block",
+      "transform: rbind block",
+      "transform: subset block",
+    ]);
+    await step(() => {
+      type(classes, "scatter");
+    });
+    expect(optionsOf(classes)).toEqual(["plot: scatter plot block"]);
+
+    // Picking a class adds nothing, but shows the class's description and the
+    // name that a block of it takes.
+    await step(() => {
+      optionOf(classes, "scatter plot block").click();
+    });
+    expect(added(board())).toEqual([]);
+    expect(classes.value).toBe("scatter plot block");
+    expect(note(classes)).toBe("Scatter plotting");
+    expect(labelled(add(), "Name").placeholder).toBe("Scatter");
 
     await step(() => {
-      type(field(blocks, "ID"), "petals");
-      type(field(blocks, "Name"), "Petal plot");
+      type(labelled(add(), "ID"), "petals");
+      type(labelled(add(), "Name"), "Petal plot");
     });
-    await click(entry(blocks, "scatter plot block"));
+    await click(button(add(), "Add block"));
 
     expect(board().blocks.petals).toMatchObject({ registry_id: "blockr.core-scatter_block", name: "Petal plot" });
     expect(Object.values(board().links).filter((l) => l.to === "petals")).toEqual([]);
     expect(notes).toEqual([]);
-    // The next block takes an ID and a name of its own.
-    expect([field(blocks, "ID").value, field(blocks, "Name").value]).toEqual(["", ""]);
-    expect(texts(find(blocks, 'ul[aria-label="Blocks"]'), "li > span")).toContain("Petal plot (petals)");
+    // The form starts again for the next block.
+    expect([labelled(add(), "Block class").value, labelled(add(), "ID").value, labelled(add(), "Name").value]).toEqual(["", "", ""]);
+    expect(row(section(el, "Blocks"), "Petal plot").textContent).toContain("petals");
   });
 
   test("get an ID that the command mints and the name of their class where the user leaves the fields empty", async () => {
     const { el, board } = await mounted();
+    const add = form(section(el, "Blocks"), "Add block");
 
-    await click(entry(section(el, "Blocks"), "dataset block"));
+    await chosen(add, "Block class", "dataset", "dataset block");
+    await click(button(add, "Add block"));
 
     const [first] = added(board());
     expect(first?.[0]).toMatch(/^[a-z]+_[a-z]+$/);
     expect(first?.[1]).toMatchObject({ registry_id: "blockr.core-dataset_block", name: "Dataset" });
   });
 
-  test("keep what the user gave where the store refuses the block, and the user learns why", async () => {
+  test("are not added where the form says, next to the field, what to change: a class that is missing, or an ID of digits alone or that the board holds", async () => {
     const { el, board, notes } = await mounted();
-    const blocks = section(el, "Blocks");
+    const add = (): HTMLFormElement => form(section(el, "Blocks"), "Add block");
 
-    // The board holds a block of the ID a already.
+    // Without a class, the form names the field and puts the focus on it.
+    await click(button(add(), "Add block"));
+    const classes = labelled(add(), "Block class");
+    expect(classes.getAttribute("aria-invalid")).toBe("true");
+    expect(note(classes)).toBe("Pick the class of the new block.");
+    expect(document.activeElement).toBe(classes);
+
+    await chosen(add(), "Block class", "dataset", "dataset block");
+    expect(labelled(add(), "Block class").getAttribute("aria-invalid")).toBeNull();
+
+    // An ID is checked as the user leaves its field.
+    const id = labelled(add(), "ID");
     await step(() => {
-      type(field(blocks, "ID"), "a");
+      type(id, "12");
+      id.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     });
-    await click(entry(blocks, "dataset block"));
+    expect(note(labelled(add(), "ID"))).toBe('An ID needs a character other than a digit, such as "block_12".');
+    // Typing takes the error away until the user leaves the field again.
+    await step(() => {
+      type(labelled(add(), "ID"), "a");
+    });
+    expect(labelled(add(), "ID").getAttribute("aria-invalid")).toBeNull();
 
-    expect(board().blocks.a?.name).toBe("Iris");
+    await click(button(add(), "Add block"));
+    expect(note(labelled(add(), "ID"))).toBe('The board holds a block "a" already.');
+    expect(document.activeElement).toBe(labelled(add(), "ID"));
     expect(added(board())).toEqual([]);
-    expect(notes).toHaveLength(1);
-    expect(notes[0]?.severity).toBe("error");
-    expect(notes[0]?.message).toContain("The store rejected the delta");
-    expect(field(blocks, "ID").value).toBe("a");
+    expect(notes).toEqual([]);
+  });
+
+  test("are listed in a table, which a search narrows and which shows ten at a time", async () => {
+    const { el, core } = await mounted();
+    for (let i = 1; i <= 8; i++) {
+      await act(() => core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block", id: `h${String(i)}`, name: `Rows ${String(i)}` }));
+    }
+    const blocks = section(el, "Blocks");
+    expect(rows(el, "Blocks")).toEqual(["Iris", "Head", "Merge", "Wide sepals", "Bind", "Scatter", "Rows 1", "Rows 2", "Rows 3", "Rows 4"]);
+    expect(find(blocks, 'nav[aria-label="Pages of blocks"] span').textContent).toBe("Rows 1–10 of 14");
+
+    await click(button(blocks, "Next"));
+    expect(rows(el, "Blocks")).toEqual(["Rows 5", "Rows 6", "Rows 7", "Rows 8"]);
+
+    // The search finds blocks by name, ID or class, from the first page.
+    await step(() => {
+      type(find(blocks, "search input", HTMLInputElement), "merge");
+    });
+    expect(rows(el, "Blocks")).toEqual(["Merge"]);
+    await step(() => {
+      type(find(blocks, "search input", HTMLInputElement), "h7");
+    });
+    expect(rows(el, "Blocks")).toEqual(["Rows 7"]);
+    await step(() => {
+      type(find(blocks, "search input", HTMLInputElement), "head/tail");
+    });
+    expect(rows(el, "Blocks")).toEqual(["Head", "Rows 1", "Rows 2", "Rows 3", "Rows 4", "Rows 5", "Rows 6", "Rows 7", "Rows 8"]);
+    expect(blocks.querySelector("nav")).toBeNull();
   });
 
   test("are renamed and removed, each with its links and its place in its stack", async () => {
@@ -165,138 +260,238 @@ describe("the blocks", () => {
       press(name, "Enter");
     });
     expect(board().blocks.b?.name).toBe("First rows");
-    expect(find(blocks, 'li[aria-label="First rows"]').textContent).toContain("First rows (b)");
+    expect(row(blocks, "First rows").textContent).toContain("head/tail block");
 
     await click(button(blocks, "Remove the block First rows"));
     expect(Object.keys(board().blocks)).not.toContain("b");
     expect(Object.values(board().links).filter((l) => l.from === "b" || l.to === "b")).toEqual([]);
     expect(board().stacks.s1?.blocks).toEqual(["a"]);
-    expect(blocks.querySelector('li[aria-label="First rows"]')).toBeNull();
+    expect(rows(el, "Blocks")).not.toContain("First rows");
   });
 });
 
 describe("the links", () => {
-  test("each show the blocks they join and the input they feed, which the user changes in place", async () => {
-    const { el, board } = await mounted();
-    expect(find(section(el, "Links"), 'ul[aria-label="Links"]').children).toHaveLength(7);
+  test("are added from a form that offers as a target only a block that takes a link, and no link that closes a cycle", async () => {
+    const { el, core, board } = await mounted();
+    const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
+    const targets = async (): Promise<string[]> => {
+      await step(() => {
+        labelled(add(), "To").click();
+      });
+      const found = optionsOf(labelled(add(), "To"));
+      await step(() => {
+        press(labelled(add(), "To"), "Escape");
+      });
+      return found;
+    };
 
-    // Removing the link from Head frees the input y of Merge.
-    await click(button(link(el, "Head", "Merge"), "Remove the link from Head to Merge"));
-    expect(Object.keys(board().links)).not.toContain("bc");
+    // Of the blocks that Head may feed, the dataset block takes no input, and
+    // every input of Merge, Wide sepals and Scatter takes a link already,
+    // while Bind is variadic.
+    await chosen(add(), "From", "Head");
+    expect(await targets()).toEqual(["Bind"]);
 
-    // The input of a link, among the inputs of its target that no other link
-    // feeds.
-    const input = select(link(el, "Iris", "Merge"), "Input");
-    expect([...input.options].map((o) => o.value)).toEqual(["x", "y"]);
+    // With Head's input free, Bind still may not feed it, since Head feeds
+    // Bind, which would close a cycle.
+    await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
+    await chosen(add(), "From", "Bind");
+    expect(await targets()).toEqual([]);
+    expect(note(labelled(add(), "To"))).toBe("No block takes a link from this block.");
+
+    await chosen(add(), "From", "Scatter");
+    expect(await targets()).toEqual(["Head", "Bind"]);
+    await chosen(add(), "To", "Head");
+    // Head has one input, which the form shows.
+    expect([...select(add(), "Input").options].map((o) => o.value)).toEqual(["data"]);
+    await click(button(add(), "Add link"));
+    expect(Object.values(board().links)).toContainEqual({ from: "f", to: "b", input: "data" });
+    expect(labelled(add(), "To").value).toBe("");
+
+    // Picking the target first narrows the blocks that may feed it to those
+    // not downstream of it.
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
+    await chosen(add(), "To", "Merge");
     await step(() => {
-      pick(input, "y");
+      labelled(add(), "From").click();
     });
-    expect(board().links.ac).toEqual({ from: "a", to: "c", input: "y" });
-
-    // The block a link goes to, among those with an input that no other link
-    // feeds. The link then feeds the first such input.
-    const to = select(link(el, "Iris", "Scatter"), "To");
-    const open = [...to.options].filter((o) => !o.disabled).map((o) => o.value);
-    expect(open).toEqual(["c", "e", "f"]);
-    await step(() => {
-      pick(to, "c");
-    });
-    expect(board().links.keen_finch).toEqual({ from: "a", to: "c", input: "x" });
-
-    // The block a link comes from, which may be any block but its target.
-    const from = select(link(el, "Iris", "Head"), "From");
-    expect([...from.options].filter((o) => o.disabled).map((o) => o.value)).toEqual(["b"]);
-    await step(() => {
-      pick(from, "d");
-    });
-    expect(board().links.ab).toEqual({ from: "d", to: "b", input: "data" });
+    expect(optionsOf(labelled(add(), "From"))).toEqual(["Iris", "Head", "Wide sepals", "Bind", "Scatter"]);
   });
 
-  test("are added into a free input of their target, which the form offers", async () => {
+  test("into a variadic block, are given a name for the input, or none, which the table shows with the link's place among the block's links", async () => {
     const { el, board } = await mounted();
-    const form = (): HTMLElement => find(section(el, "Links"), 'form[aria-label="Add link"]');
+    const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
 
-    await click(button(link(el, "Iris", "Scatter"), "Remove the link from Iris to Scatter"));
+    await chosen(add(), "From", "Scatter");
+    await chosen(add(), "To", "Bind");
+    expect(add().querySelector("select")).toBeNull();
     await step(() => {
-      pick(select(form(), "From"), "b");
-      pick(select(form(), "To"), "f");
+      type(labelled(add(), "Input name"), "plotted");
     });
-    // The scatter block's one input is free again.
-    expect(select(form(), "Input").value).toBe("data");
-    await click(button(form(), "Add link"));
-    expect(Object.values(board().links)).toContainEqual({ from: "b", to: "f", input: "data" });
-    // With no input of the scatter block free, the form adds no link to it.
-    expect(select(form(), "Input").disabled).toBe(true);
-    expect(button(form(), "Add link").disabled).toBe(true);
+    await click(button(add(), "Add link"));
+    expect(Object.values(board().links)).toContainEqual({ from: "f", to: "e", input: "plotted" });
 
-    // A variadic block takes a link in order, so the form offers no input.
+    // A name that another link into the block gives does not do.
+    await chosen(add(), "From", "Iris");
+    await chosen(add(), "To", "Bind");
+    const name = labelled(add(), "Input name");
     await step(() => {
-      pick(select(form(), "From"), "c");
-      pick(select(form(), "To"), "e");
+      type(name, "plotted");
+      name.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     });
-    expect(form().querySelectorAll("select")).toHaveLength(2);
-    await click(button(form(), "Add link"));
-    expect(Object.values(board().links)).toContainEqual({ from: "c", to: "e", input: "" });
+    expect(note(labelled(add(), "Input name"))).toBe('Another link gives the input the name "plotted" already.');
+    await click(button(add(), "Add link"));
+    expect(Object.values(board().links).filter((l) => l.to === "e")).toHaveLength(3);
+
+    // An empty name gives an input without a name.
+    await step(() => {
+      type(labelled(add(), "Input name"), "");
+    });
+    await click(button(add(), "Add link"));
+    expect(Object.values(board().links)).toContainEqual({ from: "a", to: "e", input: "" });
+
+    const into = [...section(el, "Links").querySelectorAll("tbody tr")]
+      .filter((tr) => tr.getAttribute("aria-label")?.endsWith("→ Bind") === true)
+      .map((tr) => tr.querySelectorAll("td")[2]?.textContent);
+    expect(into).toEqual(["No namePosition 1", "No namePosition 2", "plottedPosition 3", "No namePosition 4"]);
   });
 
-  test("are added between the board's first two blocks unless the user picks others, on a board that held no blocks as well", async () => {
-    const empty: HelloReply = { ...HELLO, board: { ...HELLO.board, board: { ...HELLO.board.board, blocks: {}, links: {}, stacks: {} } } };
-    const { el, board } = await mounted({ hello: empty });
-    const form = (): HTMLElement => find(section(el, "Links"), 'form[aria-label="Add link"]');
-    expect(button(form(), "Add link").disabled).toBe(true);
+  test("are changed in their row once the user saves the edit, which Cancel and Escape leave as it was, the focus back on the row's Edit button", async () => {
+    const { el, board } = await mounted();
+    const links = section(el, "Links");
 
-    for (const [id, name] of [
-      ["iris", "dataset block"],
-      ["rows", "head/tail block"],
+    await click(button(links, "Edit the link from Iris to Merge"));
+    const edit = (): HTMLFormElement => form(links, "Change link");
+    expect([labelled(edit(), "From").value, labelled(edit(), "To").value]).toEqual(["Iris", "Merge"]);
+    // The link feeds x, while bc feeds Merge's other input.
+    expect([...select(edit(), "Input").options].map((o) => o.value)).toEqual(["x"]);
+    await click(button(edit(), "Cancel"));
+    expect(links.querySelector('form[aria-label="Change link"]')).toBeNull();
+    expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Merge"));
+
+    await click(button(links, "Edit the link from Iris to Merge"));
+    await step(() => {
+      press(labelled(edit(), "From"), "Escape");
+    });
+    expect(links.querySelector('form[aria-label="Change link"]')).toBeNull();
+    expect(board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
+
+    // Moved into the variadic Bind, the link takes a name for its input.
+    await click(button(links, "Edit the link from Iris to Merge"));
+    await chosen(edit(), "To", "Bind");
+    await step(() => {
+      type(labelled(edit(), "Input name"), "left");
+    });
+    await click(button(edit(), "Save"));
+    expect(board().links.ac).toEqual({ from: "a", to: "e", input: "left" });
+    expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Bind"));
+  });
+
+  test("are listed in a table that a search narrows by the blocks' names and IDs and by the input", async () => {
+    const { el } = await mounted();
+    const links = section(el, "Links");
+    expect(rows(el, "Links")).toEqual([
+      "Iris → Head",
+      "Iris → Merge",
+      "Head → Merge",
+      "Iris → Wide sepals",
+      "Head → Bind",
+      "Wide sepals → Bind",
+      "Iris → Scatter",
+    ]);
+
+    for (const [search, found] of [
+      ["scatter", ["Iris → Scatter"]],
+      ["Merge", ["Iris → Merge", "Head → Merge"]],
+      [" y", ["Head → Merge"]],
     ] as const) {
       await step(() => {
-        type(field(section(el, "Blocks"), "ID"), id);
+        type(find(links, "search input", HTMLInputElement), search);
       });
-      await click(entry(section(el, "Blocks"), name));
+      expect(rows(el, "Links")).toEqual(found);
     }
-
-    expect([select(form(), "From").value, select(form(), "To").value, select(form(), "Input").value]).toEqual(["iris", "rows", "data"]);
-    await click(button(form(), "Add link"));
-    expect(Object.values(board().links)).toEqual([{ from: "iris", to: "rows", input: "data" }]);
   });
 });
 
 describe("the stacks", () => {
-  test("are added, renamed, coloured, given blocks and removed", async () => {
+  test("are added with a name, a colour and blocks that the user picks, for which the form suggests a name and a colour of their own", async () => {
     const { el, board } = await mounted();
+    const add = (): HTMLFormElement => form(section(el, "Stacks"), "Add stack");
+    const color = (): HTMLInputElement => find(add(), 'input[type="color"]', HTMLInputElement);
+
+    expect(labelled(add(), "Name").placeholder).toBe("Stack 1");
+    expect(find(add(), 'input[type="checkbox"]', HTMLInputElement).checked).toBe(true);
+    expect(color().value).toBe("#66c2a5");
+
+    // The blocks of no stack come first, and those of another stack apart.
+    const blocks = labelled(add(), "Blocks");
+    await step(() => {
+      blocks.click();
+    });
+    expect(optionsOf(blocks)).toEqual([
+      "In no stack: Merge",
+      "In no stack: Wide sepals",
+      "In no stack: Bind",
+      "In no stack: Scatter",
+      "In another stack: Iris",
+      "In another stack: Head",
+    ]);
+    await step(() => {
+      optionOf(blocks, "Scatter").click();
+    });
+    await step(() => {
+      optionOf(blocks, "Merge").click();
+    });
+    expect(Object.keys(board().stacks)).toEqual(["s1"]);
+    await click(button(add(), "Add stack"));
+
+    const [id] = Object.keys(board().stacks).filter((stack) => stack !== "s1");
+    expect(board().stacks[id ?? ""]).toEqual({ name: "Stack 1", blocks: ["f", "c"], color: "#66c2a5" });
+    // The next stack gets a name and a colour of its own.
+    expect(labelled(add(), "Name").placeholder).toBe("Stack 2");
+    expect(color().value).toBe("#fc8d62");
+    expect(texts(row(section(el, "Stacks"), "Stack 1"), "li")).toEqual(["Scatter f", "Merge c"]);
+  });
+
+  test("are changed in their row: renamed, coloured and given other blocks, one of which leaves its stack, each change a step of its own", async () => {
+    const { el, core, board } = await mounted();
+    await act(() => core.commands.run("blockr.core-add_stack", { id: "plots", name: "Plots", blocks: ["f"] }));
     const stacks = section(el, "Stacks");
 
-    await click(button(stacks, "Add stack"));
-    const [id] = Object.keys(board().stacks).filter((stack) => stack !== "s1");
-    if (id === undefined) throw new Error("No stack was added.");
-    expect(board().stacks[id]).toEqual({ name: "Stack", blocks: [], color: null });
-    const item = () => find(stacks, 'li[aria-label="Stack"], li[aria-label="Plots"]');
-
-    await click(button(item(), "Rename the stack Stack"));
-    await step(() => {
-      const name = find(item(), 'input[aria-label="Stack name"]', HTMLInputElement);
-      type(name, "Plots");
-      press(name, "Enter");
-    });
-    expect(board().stacks[id]?.name).toBe("Plots");
+    await click(button(stacks, "Edit the stack Input"));
+    const edit = (): HTMLFormElement => form(stacks, "Change stack");
+    expect(labelled(edit(), "Name").value).toBe("Input");
+    expect(find(edit(), 'input[type="checkbox"]', HTMLInputElement).checked).toBe(false);
+    expect(texts(edit(), 'ul[aria-label="Blocks, picked"] li > span')).toEqual(["Iris", "Head"]);
 
     await step(() => {
-      const color = find(item(), 'input[type="color"]', HTMLInputElement);
-      color.value = "#66c2a5";
-      color.dispatchEvent(new Event("change", { bubbles: true }));
+      type(labelled(edit(), "Name"), "Sources");
+      find(edit(), 'input[type="checkbox"]', HTMLInputElement).click();
+      find(edit(), 'button[aria-label="Remove Head"]').click();
     });
-    expect(board().stacks[id]?.color).toBe("#66c2a5");
+    await chosen(edit(), "Blocks", "Scatter");
+    await click(button(edit(), "Save"));
 
-    // A block sits in one stack at most, so Head leaves Input.
-    await click(find(item(), 'label:has(input[type="checkbox"]):nth-of-type(2) input', HTMLInputElement));
-    expect(board().stacks[id]?.blocks).toEqual(["b"]);
-    expect(board().stacks.s1?.blocks).toEqual(["a"]);
+    expect(board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "f"], color: "#66c2a5" });
+    expect(board().stacks.plots?.blocks).toEqual([]);
+    expect(document.activeElement).toBe(button(stacks, "Edit the stack Sources"));
 
-    await click(button(item(), "No colour"));
-    expect(board().stacks[id]?.color).toBeNull();
-    await click(button(item(), "Remove the stack Plots"));
-    expect(Object.keys(board().stacks)).toEqual(["s1"]);
-    expect(Object.keys(board().blocks)).toContain("b");
+    // The name and the rest change in steps of their own.
+    await step(() => {
+      core.store.undo();
+    });
+    expect(board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "b"], color: null });
+    await step(() => {
+      core.store.undo();
+    });
+    expect(board().stacks.s1?.name).toBe("Input");
+  });
+
+  test("are removed, leaving their blocks on the board", async () => {
+    const { el, board } = await mounted();
+    await click(button(section(el, "Stacks"), "Remove the stack Input"));
+    expect(board().stacks).toEqual({});
+    expect(Object.keys(board().blocks)).toEqual(["a", "b", "c", "d", "e", "f"]);
+    expect(section(el, "Stacks").textContent).toContain("The board has no stacks yet.");
   });
 });
 
@@ -310,7 +505,7 @@ describe("each edit", () => {
       type(name, "First rows");
       press(name, "Enter");
     });
-    await click(button(link(el, "Iris", "Scatter"), "Remove the link from Iris to Scatter"));
+    await click(button(section(el, "Links"), "Remove the link from Iris to Scatter"));
     expect(board().blocks.b?.name).toBe("First rows");
     expect(Object.keys(board().links)).not.toContain("keen_finch");
 
@@ -319,7 +514,6 @@ describe("each edit", () => {
     });
     expect(Object.keys(board().links)).toContain("keen_finch");
     expect(board().blocks.b?.name).toBe("First rows");
-    expect(link(el, "Iris", "Scatter")).toBeDefined();
 
     await step(() => {
       core.store.undo();
@@ -328,40 +522,36 @@ describe("each edit", () => {
     expect(core.store.canUndo()).toBe(false);
   });
 
-  test("that the store refuses, the plugin tells the user of through a notification", async () => {
-    const { el, board, notes } = await mounted();
+  test("that the command registry or the store refuses, the plugin tells the user of through a notification", async () => {
+    const { el, core, board, notes } = await mounted();
+    const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
+    await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
 
-    // A link from Merge into Head, which feeds Merge, would make a cycle.
-    await step(() => {
-      pick(select(link(el, "Iris", "Head"), "From"), "c");
-    });
+    // Another edit feeds Head's one input while the form is filled in.
+    await chosen(add(), "From", "Scatter");
+    await chosen(add(), "To", "Head");
+    await act(() => core.commands.run("blockr.core-add_link", { from: "a", to: "b", input: "data" }));
+    await click(button(add(), "Add link"));
 
-    expect(board().links.ab).toEqual({ from: "a", to: "b", input: "data" });
+    expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
     expect(notes).toHaveLength(1);
     expect(notes[0]?.severity).toBe("error");
-    expect(notes[0]?.message).toContain("The store rejected the delta");
-    expect(select(link(el, "Iris", "Head"), "From").value).toBe("a");
+    expect(notes[0]?.message).toContain('The command "blockr.core-add_link" refused to run');
   });
 });
 
 describe("under the board lock", () => {
   const locked: HelloReply = { ...HELLO, lock: { board: true, load: false } };
 
-  test("the plugin draws no control, and lists the board's links and stacks alone", async () => {
+  test("the plugin draws no control, and lists the board's links and stacks alone, in tables that a search narrows", async () => {
     const { el } = await mounted({ hello: locked });
 
     expect([...el.querySelectorAll("section")].map((s) => s.getAttribute("aria-label"))).toEqual(["Links", "Stacks"]);
-    expect(el.querySelectorAll("button, input, select, form")).toHaveLength(0);
-    expect(texts(section(el, "Links"), "li")).toEqual([
-      "Iris → Head as data",
-      "Iris → Merge as x",
-      "Head → Merge as y",
-      "Iris → Wide sepals as data",
-      "Head → Bind",
-      "Wide sepals → Bind",
-      "Iris → Scatter as data",
-    ]);
-    expect(find(section(el, "Stacks"), 'li[aria-label="Input"]').textContent).toContain("Iris, Head");
+    expect(el.querySelectorAll("form, button, select")).toHaveLength(0);
+    expect([...el.querySelectorAll("input")].map((input) => input.type)).toEqual(["search", "search"]);
+    expect(rows(el, "Links")).toHaveLength(7);
+    expect(texts(row(section(el, "Links"), "Iris → Head"), "td")).toEqual(["Irisa", "Headb", "data"]);
+    expect(texts(row(section(el, "Stacks"), "Input"), "li")).toEqual(["Iris a", "Head b"]);
   });
 });
 
@@ -378,5 +568,33 @@ describe("the cleanup that render() returns", () => {
 
     await act(() => core.commands.run("blockr.core-rename_block", { id: "b", name: "First rows" }));
     expect(el.childNodes).toHaveLength(0);
+  });
+});
+
+describe("on a board that holds no blocks", () => {
+  test("the forms say what they need, and a link joins the first blocks added", async () => {
+    const empty: HelloReply = { ...HELLO, board: { ...HELLO.board, board: { ...HELLO.board.board, blocks: {}, links: {}, stacks: {} } } };
+    const { el, board } = await mounted({ hello: empty });
+    expect(section(el, "Blocks").textContent).toContain("The board holds no blocks yet.");
+    expect(section(el, "Links").textContent).toContain("A link joins two blocks, so the board needs two blocks first.");
+
+    for (const [id, name] of [
+      ["iris", "dataset block"],
+      ["rows", "head/tail block"],
+    ] as const) {
+      const add = form(section(el, "Blocks"), "Add block");
+      await chosen(add, "Block class", name.split(" ")[0] ?? name, name);
+      await step(() => {
+        type(labelled(add, "ID"), id);
+      });
+      await click(button(add, "Add block"));
+    }
+    expect(Object.keys(board().blocks)).toEqual(["iris", "rows"]);
+
+    const add = form(section(el, "Links"), "Add link");
+    await chosen(add, "From", "Dataset");
+    await chosen(add, "To", "Head");
+    await click(button(add, "Add link"));
+    expect(Object.values(board().links)).toEqual([{ from: "iris", to: "rows", input: "data" }]);
   });
 });

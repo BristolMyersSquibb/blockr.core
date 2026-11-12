@@ -10,6 +10,7 @@ import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass } from "../../store/index.ts";
+import { labelled, optionOf, optionsOf } from "../../testing/combobox.ts";
 import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
 import { pluginUi, registering } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
@@ -99,22 +100,35 @@ function button(el: ParentNode, text: string): HTMLButtonElement {
   return found;
 }
 
-// The button of the block registry's entry of the name given, in the dialog
-// that adds a block.
-function entry(el: ParentNode, name: string): HTMLButtonElement {
-  const found = [...el.querySelectorAll("li button")].find((b) => b.querySelector("span")?.textContent === name);
-  if (!(found instanceof HTMLButtonElement)) throw new Error(`Found no entry ${name}.`);
-  return found;
+// Picks the option of a searchable dropdown, through its search.
+async function chosen(el: ParentNode, label: string, search: string, option: string): Promise<void> {
+  await step(() => {
+    labelled(el, label).click();
+  });
+  await step(() => {
+    type(labelled(el, label), search);
+  });
+  await step(() => {
+    optionOf(labelled(el, label), option).click();
+  });
+}
+
+// The blocks that the board holds beside those of the fixture's board.
+function added(board: Board): [string, Board["blocks"][string]][] {
+  return Object.entries(board.blocks).filter(([id]) => !Object.hasOwn(HELLO.board.board.blocks, id));
 }
 
 function buttons(el: ParentNode): string[] {
   return [...el.querySelectorAll("button")].map((b) => b.getAttribute("aria-label") ?? b.textContent.trim());
 }
 
+// Clicks the element, and lets what the click set off run, such as the
+// command that a form runs as the user submits it.
 async function click(el: HTMLElement): Promise<void> {
   await step(() => {
     el.click();
   });
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 }
 
 // Picks an action from the menu of the card of the block of the name given.
@@ -351,29 +365,51 @@ describe("a card", () => {
     expect(el.querySelector('article[aria-label="Scatter"]')).toBeNull();
   });
 
-  test("adds a block after its block, which takes its block's result, picking the input where the new block has several", async () => {
+  test("adds a block after its block once the user submits the form, which takes its block's result, picking the input where the new block has several", async () => {
     const { el, board, settled } = await drawn();
 
     await menu(el, "Head", "Add block after");
     expect(find(dialog(el), "h2").textContent).toBe('Add block after "Head"');
+    const classes = labelled(dialog(el), "Block class");
+    expect(document.activeElement).toBe(classes);
     // A block added after another needs an input.
-    expect(texts(dialog(el), "li button span:first-child")).not.toContain("dataset block");
-    await click(entry(dialog(el), "subset block"));
+    await step(() => {
+      classes.click();
+    });
+    expect(optionsOf(classes)).not.toContain("input: dataset block");
+    await step(() => {
+      optionOf(classes, "subset block").click();
+    });
+    expect(added(board())).toEqual([]);
+    await click(button(dialog(el), "Add block"));
     await settled();
 
-    const [added] = Object.entries(board().blocks).filter(([id]) => !Object.hasOwn(HELLO.board.board.blocks, id));
-    expect(added?.[1].registry_id).toBe("blockr.core-subset_block");
-    expect(Object.values(board().links)).toContainEqual({ from: "b", to: added?.[0], input: "data" });
+    const [subset] = added(board());
+    expect(subset?.[1].registry_id).toBe("blockr.core-subset_block");
+    expect(Object.values(board().links)).toContainEqual({ from: "b", to: subset?.[0], input: "data" });
     expect(el.querySelector("dialog[open]")).toBeNull();
 
     await menu(el, "Iris", "Add block after");
-    await click(entry(dialog(el), "merge block"));
+    await chosen(dialog(el), "Block class", "merge", "merge block");
     await step(() => {
       pick(find(dialog(el), "select", HTMLSelectElement), "y");
     });
-    await click(button(dialog(el), "Add merge block"));
-    const merge = Object.entries(board().blocks).find(([id, block]) => id !== "c" && block.registry_id === "blockr.core-merge_block");
-    expect(Object.values(board().links)).toContainEqual({ from: "a", to: merge?.[0], input: "y" });
+    await step(() => {
+      type(labelled(dialog(el), "ID"), "joined");
+    });
+    await click(button(dialog(el), "Add block"));
+    expect(board().blocks.joined?.registry_id).toBe("blockr.core-merge_block");
+    expect(Object.values(board().links)).toContainEqual({ from: "a", to: "joined", input: "y" });
+
+    // A variadic block takes the link under the name that the user gives.
+    await menu(el, "Iris", "Add block after");
+    await chosen(dialog(el), "Block class", "rbind", "rbind block");
+    await step(() => {
+      type(labelled(dialog(el), "Input name of the new rbind block"), "first");
+      type(labelled(dialog(el), "ID"), "bound");
+    });
+    await click(button(dialog(el), "Add block"));
+    expect(Object.values(board().links)).toContainEqual({ from: "a", to: "bound", input: "first" });
   });
 
   test("adds a block before its block, into a free input, and offers it only where an input is free", async () => {
@@ -386,12 +422,23 @@ describe("a card", () => {
       press(document.body, "Escape");
     });
 
-    // The bind block is variadic, so it takes another link.
+    // The bind block is variadic, so it takes another link, under a name that
+    // the user may give, which none of its links may give already.
     await menu(el, "Bind", "Add block before");
-    await click(entry(dialog(el), "dataset block"));
-    const [added] = Object.entries(board().blocks).filter(([id]) => !Object.hasOwn(HELLO.board.board.blocks, id));
-    expect(added?.[1].registry_id).toBe("blockr.core-dataset_block");
-    expect(Object.values(board().links)).toContainEqual({ from: added?.[0], to: "e", input: "" });
+    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    await click(button(dialog(el), "Add block"));
+    const [first] = added(board());
+    expect(first?.[1].registry_id).toBe("blockr.core-dataset_block");
+    expect(Object.values(board().links)).toContainEqual({ from: first?.[0], to: "e", input: "" });
+
+    await menu(el, "Bind", "Add block before");
+    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    await step(() => {
+      type(labelled(dialog(el), 'Input name of "Bind"'), "extra");
+      type(labelled(dialog(el), "ID"), "more");
+    });
+    await click(button(dialog(el), "Add block"));
+    expect(Object.values(board().links)).toContainEqual({ from: "more", to: "e", input: "extra" });
   });
 });
 
@@ -407,10 +454,24 @@ describe("a card's block before", () => {
     await step(() => {
       pick(select, "y");
     });
-    await click(entry(dialog(el), "dataset block"));
+    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    await click(button(dialog(el), "Add block"));
 
-    const [added] = Object.entries(board().blocks).filter(([id]) => !Object.hasOwn(HELLO.board.board.blocks, id));
-    expect(Object.values(board().links)).toContainEqual({ from: added?.[0], to: "c", input: "y" });
+    const [first] = added(board());
+    expect(Object.values(board().links)).toContainEqual({ from: first?.[0], to: "c", input: "y" });
+  });
+
+  test("says why it adds none where another edit feeds the block's last free input meanwhile", async () => {
+    const { el, core, board } = await drawn();
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
+
+    await menu(el, "Merge", "Add block before");
+    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    await act(() => core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" }));
+
+    expect(dialog(el).textContent).toContain('Every input of "Merge" takes a link already.');
+    expect(button(dialog(el), "Add block").disabled).toBe(true);
+    expect(added(board())).toEqual([]);
   });
 });
 
@@ -721,20 +782,6 @@ describe("what the user learns", () => {
       ["warning", "The token expires soon."],
       ["error", "Not shared."],
     ]);
-  });
-
-  test("is which edit the command registry refused", async () => {
-    const { el, core, board } = await drawn();
-    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
-
-    // While the picker is open before the merge block, another edit feeds the
-    // block's one free input, so that the new block has none to feed.
-    await menu(el, "Merge", "Add block before");
-    await act(() => core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" }));
-    await click(entry(dialog(el), "dataset block"));
-
-    expect(Object.keys(board().blocks)).toEqual(Object.keys(HELLO.board.board.blocks));
-    expect(notices(el)).toEqual([["error", expect.stringContaining('The command "blockr.core-prepend_block" refused to run')]]);
   });
 });
 
