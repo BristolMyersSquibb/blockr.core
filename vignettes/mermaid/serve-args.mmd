@@ -1,0 +1,24 @@
+flowchart LR
+  subgraph old[blockr.core 0.1]
+    direction TB
+    o_id["serve(board, id)"]
+    o_plugins["serve(board, plugins = custom_plugins(...))"]
+    o_options["serve(board, options = custom_options(...))"]
+    o_loader["serve(board, loader = local_loader())"]
+    o_core["options(blockr.core_blocks = ...)"]
+  end
+
+  subgraph new[blockr.core 0.2]
+    direction TB
+    n_id["new_board(id = )"]
+    n_plugins["serve(board, plugins = )<br>rows of available_plugins(), the default"]
+    n_options["new_board(options = )<br>the values that differ from the defaults"]
+    n_loader["Nothing: the browser opens every board"]
+    n_core["serve(board, blocks = )<br>rows of available_blocks(), the default"]
+  end
+
+  o_id --> n_id
+  o_plugins --> n_plugins
+  o_options --> n_options
+  o_loader --> n_loader
+  o_core --> n_core
