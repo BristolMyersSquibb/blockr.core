@@ -42,7 +42,7 @@ function prefers(theme: "light" | "dark"): void {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
-  document.documentElement.removeAttribute("data-bs-theme");
+  document.documentElement.removeAttribute("data-bc-theme");
 });
 
 describe("core's board options", () => {
@@ -136,18 +136,18 @@ describe("core's board options", () => {
 });
 
 describe("dark_mode", () => {
-  test("switches the page's theme as its value changes, in the attribute that Bootstrap and blockr.ui read", () => {
+  test("switches the page's theme as its value changes, in an attribute of core's own", () => {
     const option = darkMode(blockr().core);
     const core = {} as Parameters<NonNullable<Option["onChange"]>>[1];
 
     option.onChange?.("dark", core);
-    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
     option.onChange?.("light", core);
-    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("light");
+    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("light");
 
     setTheme("dark");
     setTheme(null);
-    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("light");
+    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("light");
   });
 
   test("leaves the others without anything to do on the page", () => {

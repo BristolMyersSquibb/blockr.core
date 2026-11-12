@@ -3208,7 +3208,7 @@ function domMeasure() {
       });
       themed.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-bs-theme", "class", "style"]
+        attributeFilter: ["data-bc-theme", "class", "style"]
       });
       stops.push(() => {
         themed.disconnect();
@@ -4600,7 +4600,7 @@ function darkMode(core) {
   };
 }
 function setTheme(theme) {
-  document.documentElement.setAttribute("data-bs-theme", theme === "dark" ? "dark" : "light");
+  document.documentElement.setAttribute("data-bc-theme", theme === "dark" ? "dark" : "light");
 }
 function preferredTheme() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
