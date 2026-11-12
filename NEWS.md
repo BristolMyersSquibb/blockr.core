@@ -332,9 +332,12 @@
   Its form for a link offers as the target only a block that takes a link, and no link that closes a cycle, and takes a name for the input of a variadic block, which the user may leave empty.
   Its form for a stack takes the stack's name, its color and its blocks, which a searchable dropdown picks, and suggests a name and a color that no other stack has.
   A row of each table renames or removes its block, or opens a form that changes its link or its stack once the user saves it.
+  The form that changes a link into a variadic block also takes the link's position among the block's links.
+  The block takes its links in that order.
+  A new position moves the link with core's command `blockr.core-move_link`, which keeps the link's ID and its ends.
   Each edit is one of core's commands, so that undo takes back each one, and the plugin tells the user through a notification why the store or the command registry refused one.
   Under the board lock, it draws no control and lists the board's links and stacks alone.
-  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block (#565).
+  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block (#565, #573).
 * Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.

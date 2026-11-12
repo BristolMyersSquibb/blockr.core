@@ -375,6 +375,58 @@ describe("links", () => {
     expect(Object.hasOwn(store.board().links, "ab")).toBe(false);
     expect(commands.enabled("blockr.core-remove_link", { id: "ab" })).toBe(false);
   });
+
+  test("move_link moves a link before another into its block, keeping its id and its ends, as one step", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+
+    await commands.run("blockr.core-move_link", { id: "de", before: "be" });
+    expect(inputs(store.board(), "e")).toEqual([
+      ["d", ""],
+      ["b", ""],
+    ]);
+    expect(store.board().links.de).toBe(board.links.de);
+
+    store.undo();
+    expect(Object.keys(store.board().links)).toEqual(Object.keys(board.links));
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("move_link puts a link last among the links into its block, right after the block's last other link", async () => {
+    const { store, commands } = await setup();
+
+    await commands.run("blockr.core-move_link", { id: "be" });
+    expect(Object.keys(store.board().links)).toEqual(["ab", "ac", "bc", "ad", "de", "be", "keen_finch"]);
+
+    // The last link into its block, and the only one, stay where they are.
+    const board = store.board();
+    await commands.run("blockr.core-move_link", { id: "be" });
+    expect(store.board()).toBe(board);
+    await commands.run("blockr.core-remove_link", { id: "de" });
+    const alone = store.board();
+    await commands.run("blockr.core-move_link", { id: "be" });
+    expect(store.board()).toBe(alone);
+  });
+
+  test("move_link refuses a link into a block that is not variadic, a link into another block and the link itself, and is not enabled for a link that the board lacks", async () => {
+    const { commands } = await setup();
+
+    // The merge block c takes its links by their inputs, x and y.
+    await expect(commands.run("blockr.core-move_link", { id: "bc", before: "ac" })).rejects.toThrow(
+      'The block "c" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The command "blockr.core-change_link" changes the input that a link feeds.',
+    );
+
+    await expect(commands.run("blockr.core-move_link", { id: "de", before: "ad" })).rejects.toThrow(
+      'The link "de" goes into block "e" and the link "ad" into block "d", so the args have to name a link into block "e".',
+    );
+    await expect(commands.run("blockr.core-move_link", { id: "de", before: "de" })).rejects.toThrow(
+      'The link "de" cannot go before itself.',
+    );
+    await expect(commands.run("blockr.core-move_link", { id: "de", before: "zz" })).rejects.toThrow(
+      'The board holds no link "zz" for link "de" to go before.',
+    );
+    expect(commands.enabled("blockr.core-move_link", { id: "zz" })).toBe(false);
+  });
   test("free inputs are those of a block that no link feeds, an empty one for a variadic block, and none of a block the board lacks", async () => {
     const { store } = await setup();
     const board = store.board();

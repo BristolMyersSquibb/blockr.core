@@ -21,6 +21,9 @@ export type Origin = string;
 
 // Within each collection, `rm` applies before `add`,
 // since a delta may reuse an id it drops, and `mod` applies last.
+// The links that `before` moves move between the two, after `rm` and before
+// `add`, so that the inverse of a delta, which applies in the same order,
+// puts every link back in its place.
 // The patches apply in their order, after core's parts.
 export interface Delta {
   readonly blocks?: {
@@ -32,10 +35,14 @@ export interface Delta {
     readonly add?: Readonly<Record<LinkId, Link>>;
     readonly mod?: Readonly<Record<LinkId, Partial<Link>>>;
     readonly rm?: readonly LinkId[];
-    // Where an added link goes among the links, before the one named, as a
-    // variadic target takes its inputs in link order. A link that the delta
-    // removes leaves its place to the one named to go before it.
-    readonly before?: Readonly<Record<LinkId, LinkId>>;
+    // Where a link goes among the links, as a variadic target takes its
+    // inputs in link order: before the link named, or last for null.
+    // An added link goes there as the delta adds it.
+    // A link that the board holds moves there, keeping its id and its ends,
+    // in the order that `before` names the links.
+    // A link that the delta removes leaves its place to the one named to go
+    // before it.
+    readonly before?: Readonly<Record<LinkId, LinkId | null>>;
   };
   readonly stacks?: {
     readonly add?: Readonly<Record<StackId, Stack>>;
