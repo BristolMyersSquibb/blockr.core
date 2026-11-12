@@ -58,6 +58,7 @@ export type {
   Change,
   Delta,
   Dropped,
+  Hints,
   Migration,
   Option,
   Options,
@@ -66,6 +67,7 @@ export type {
   PluginClass,
   Plugins,
   Storage,
+  StorageControl,
   Store,
   StoreError,
 } from "./store/index.ts";

@@ -17,7 +17,8 @@
 //    what the store dropped as the board opened.
 // 3. It draws the board that the store holds, and then demands the blocks in
 //    view as the page lays out their cards.
-// 4. It binds undo and redo to their shortcuts.
+// 4. It binds undo, redo and the buttons among the storage controls to their
+//    shortcuts.
 // The cleanup that render() returns undoes all four.
 
 import { flushSync } from "react-dom";

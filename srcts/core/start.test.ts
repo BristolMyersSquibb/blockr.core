@@ -1198,7 +1198,7 @@ describe("the frontend and the plugins", () => {
     const storing: PluginClass = {
       id: "blockr.test-store_plugin",
       options: ["zoom"],
-      storage: { save: () => Promise.resolve(), open: () => Promise.resolve(null) },
+      storage: { controls: () => [] },
     };
     const s = await started(
       { [STARTUP]: registering([storing], [zoom]), [BASIC]: frontEnd().exports },

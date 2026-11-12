@@ -8,12 +8,14 @@ export type { BlockMod, Delta, Origin, Patch, Values } from "./delta.ts";
 export { pathFromSegments, pluginClassFromPath, segmentsFromPath } from "./patch.ts";
 export { inRole } from "./plugins.ts";
 export type {
+  Hints,
   Migration,
   Option,
   Options,
   PluginClass,
   Plugins,
   Storage,
+  StorageControl,
 } from "./registrations.ts";
 export { HEX_COLOR, stateFailures } from "./check.ts";
 export { FORMAT } from "./open.ts";

@@ -4803,18 +4803,36 @@ async function requestBlockrOptions(client, names) {
 }
 
 // srcts/storage/storage.ts
-function coreStorage(doc = document) {
+function coreStorage(doc) {
   return {
-    save(board) {
-      try {
-        download(board, fileName({ id: boardIdFromText(board) }), doc);
-        return Promise.resolve();
-      } catch (error) {
-        return Promise.reject(asError(error));
-      }
-    },
-    open: () => pickFile(doc)
+    controls({ core }) {
+      const save = {
+        kind: "button",
+        id: "save",
+        label: "Save",
+        run: () => saveBoard(core, doc ?? document)
+      };
+      const open = {
+        kind: "button",
+        id: "open",
+        label: "Open",
+        run: () => openBoard(core, doc ?? document)
+      };
+      return core.lock.load ? [save] : [save, open];
+    }
   };
+}
+function saveBoard(core, doc) {
+  try {
+    download(core.store.save(), fileName(core.store.board()), doc);
+    return Promise.resolve();
+  } catch (error) {
+    return Promise.reject(asError(error));
+  }
+}
+async function openBoard(core, doc) {
+  const text = await pickFile(doc);
+  if (text !== null) await core.store.open(text);
 }
 function fileName(board, now = /* @__PURE__ */ new Date()) {
   const two = (n2) => String(n2).padStart(2, "0");
@@ -4862,16 +4880,6 @@ function pickFile(doc = document) {
     doc.body.append(input2);
     input2.click();
   });
-}
-function boardIdFromText(text) {
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    return "board";
-  }
-  const board = isObject(json) ? json.board : void 0;
-  return isObject(board) && typeof board.id === "string" && board.id !== "" ? board.id : "board";
 }
 
 // srcts/store/words.ts
@@ -6980,8 +6988,13 @@ function createRegistrations() {
       }
     }
     const storage = given.storage;
-    if (storage !== void 0 && (!isObject(storage) || typeof storage.save !== "function" || typeof storage.open !== "function")) {
-      throw new Error(`The plugin class "${id2}" has a storage without save() and open() functions.`);
+    if (storage !== void 0) {
+      if (!isObject(storage) || typeof storage.controls !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage without a controls() function.`);
+      }
+      if (storage.subscribe !== void 0 && typeof storage.subscribe !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage whose subscribe is no function.`);
+      }
     }
     if (given.options !== void 0 && (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))) {
       throw new Error(`The plugin class "${id2}" requires board options that are no array of their ids.`);
@@ -7410,10 +7423,7 @@ function corePluginClasses() {
     },
     {
       id: "blockr.core-file_storage_plugin",
-      storage: {
-        save: (board) => coreStorage().save(board),
-        open: () => coreStorage().open()
-      }
+      storage: coreStorage()
     },
     {
       id: "blockr.core-edit_board_plugin",
