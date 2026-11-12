@@ -227,7 +227,7 @@ describe("the card of a block that serve() serves alone", () => {
     expect(banners(el)).toEqual([["error", "object 'Petal' not found"]]);
   });
 
-  test("shows why a waiting block waits or an invalid block cannot run in muted text, with no pill for it", async () => {
+  test("shows why a waiting block waits, and an invalid block's reason as its error", async () => {
     const r = played();
     const { el } = draw(r.core);
 
@@ -241,24 +241,9 @@ describe("the card of a block that serve() serves alone", () => {
     expect(footer(el).className).not.toContain("bc:opacity-50");
     expect(banners(el)).toEqual([]);
 
-    // A state that cannot run is no failure, such as that of a new upload
-    // block, so the error that stopped R shows as the line, with no pill of
-    // the errors and no banner.
-    await r.set({ status: "invalid", conditions: [condition("error", "Upload a file.")] });
-    expect(line(el)).toEqual(["Upload a file."]);
-    expect(find(footer(el), "span > span").className).toContain("bc:text-text-muted");
-    expect(footer(el).querySelector("button")).toBeNull();
-    expect(banners(el)).toEqual([]);
-
-    // The other conditions of the reply keep their pills.
-    await r.set({
-      status: "invalid",
-      conditions: [condition("warning", "Dropped a column."), condition("error", "Save to write the file.")],
-    });
-    expect(line(el)).toEqual(["Save to write the file.", "1 warning"]);
-    expect(banners(el)).toEqual([]);
-    await click(pill(el, "1 warning"));
-    expect(banners(el)).toEqual([["warning", "Dropped a column."]]);
+    await r.set({ status: "invalid", conditions: [condition("error", "Save to write the file.")] });
+    expect(line(el)).toEqual(["error"]);
+    expect(banners(el)).toEqual([["error", "Save to write the file."]]);
   });
 
   test("dims the footer and the output while R evaluates the block, and keeps what they show", async () => {

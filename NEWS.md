@@ -382,12 +382,12 @@
   R exports each block's latest result through `exportTestValues()` as `result`: a list by block ID for a board, and the block's result for a block that `serve()` serves alone.
   The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read (#443).
 * The cards of core's basic frontend show their block's status as the card of a block that `serve()` serves alone does, in place of the summary below the output and the list of conditions.
-  A footer, one centered line under the output, shows a ready block's summary, or why a waiting block waits or an invalid block cannot run, and a pill for each severity of the other conditions of R's reply that the board option `show_conditions` names.
+  A footer, one centered line under the output, shows a ready block's summary, or why a waiting block waits, and a pill for each severity of the conditions of R's reply that the board option `show_conditions` names.
   The pill of the errors reads `error`, and those of the warnings and the messages count them.
   Each pill opens and closes the banners of its conditions below the output, each condition in full, in the color of its severity and in the order R raised them.
   The pill of the errors is open from the start, so that a failed block shows its error at once.
   A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
-  Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547, #572).
+  Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
 * The logger that the blockr option `logger` picks gets the message as written, its level, its package, `asis` and `attributes`.
   Until now, it got one finished line.
   So `cat_logger()` and `cnd_logger()` put the level, the time and the package in front of the message themselves, and wrap it, as `write_log()` did.
