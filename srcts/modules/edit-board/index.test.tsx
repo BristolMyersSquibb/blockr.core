@@ -13,7 +13,7 @@ import type { HelloReply } from "../../protocol/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import { labelled, optionOf, optionsOf } from "../../testing/combobox.ts";
-import { find, press, texts, type } from "../../testing/inputs.ts";
+import { find, pick, press, texts, type } from "../../testing/inputs.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Note } from "../../types/core-api.ts";
@@ -349,64 +349,10 @@ describe("the links", () => {
     await click(button(add(), "Add link"));
     expect(Object.values(board().links)).toContainEqual({ from: "a", to: "e", input: "" });
 
-    // Each place shows with the buttons that move the link up and down, but
-    // for the first's Move up and the last's Move down.
     const into = [...section(el, "Links").querySelectorAll("tbody tr")]
       .filter((tr) => tr.getAttribute("aria-label")?.endsWith("→ Bind") === true)
       .map((tr) => tr.querySelectorAll("td")[2]?.textContent);
-    expect(into).toEqual(["No namePosition 1↓", "No namePosition 2↑↓", "plottedPosition 3↑↓", "No namePosition 4↑"]);
-  });
-
-  test("into a variadic block, move up and down among the block's links, keeping their IDs and their ends, each move a step that undo takes back", async () => {
-    const { el, core, board } = await mounted();
-    const links = section(el, "Links");
-    const moves = (): string[] =>
-      [...links.querySelectorAll("button")].map((b) => b.getAttribute("aria-label") ?? "").filter((label) => label.startsWith("Move"));
-    const into = (): string[] => Object.keys(board().links).filter((id) => board().links[id]?.to === "e");
-    const ends = board().links.be;
-
-    // The links into Bind, Head's and then Wide sepals', each with the button
-    // that moves it to the other's place. A block of fixed inputs gets none.
-    expect(moves()).toEqual(["Move the link from Head to Bind down", "Move the link from Wide sepals to Bind up"]);
-
-    await click(button(links, "Move the link from Head to Bind down"));
-    expect(into()).toEqual(["de", "be"]);
-    expect(board().links.be).toBe(ends);
-    expect(rows(el, "Links").filter((name) => name.endsWith("→ Bind"))).toEqual(["Wide sepals → Bind", "Head → Bind"]);
-    expect(texts(row(links, "Head → Bind"), "td")[2]).toBe("No namePosition 2↑");
-
-    await click(button(links, "Move the link from Head to Bind up"));
-    expect(into()).toEqual(["be", "de"]);
-
-    await step(() => {
-      core.store.undo();
-    });
-    expect(into()).toEqual(["de", "be"]);
-    await step(() => {
-      core.store.undo();
-    });
-    expect(into()).toEqual(["be", "de"]);
-    expect(core.store.canUndo()).toBe(false);
-  });
-
-  test("into a variadic block, keep the focus at the row they move, on the button that the user pressed, or on the other one where a move takes that one away", async () => {
-    const { el, core, board } = await mounted();
-    const links = section(el, "Links");
-    await act(() => core.commands.run("blockr.core-add_link", { from: "f", to: "e", id: "fe" }));
-    const into = (): string[] => Object.keys(board().links).filter((id) => board().links[id]?.to === "e");
-
-    // From the first place to the second, the link keeps its Move down.
-    const down = button(links, "Move the link from Head to Bind down");
-    down.focus();
-    await click(down);
-    expect(into()).toEqual(["de", "be", "fe"]);
-    expect(document.activeElement).toBe(button(links, "Move the link from Head to Bind down"));
-
-    // To the last place, the link loses its Move down, and the focus goes to
-    // its Move up.
-    await click(button(links, "Move the link from Head to Bind down"));
-    expect(into()).toEqual(["de", "fe", "be"]);
-    expect(document.activeElement).toBe(button(links, "Move the link from Head to Bind up"));
+    expect(into).toEqual(["No namePosition 1", "No namePosition 2", "plottedPosition 3", "No namePosition 4"]);
   });
 
   test("are changed in their row once the user saves the edit, which Cancel and Escape leave as it was, the focus back on the row's Edit button", async () => {
@@ -438,6 +384,65 @@ describe("the links", () => {
     await click(button(edit(), "Save"));
     expect(board().links.ac).toEqual({ from: "a", to: "e", input: "left" });
     expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Bind"));
+  });
+
+  test("into a variadic block, move to the place that the user picks in the row's edit form, keeping their IDs and their ends, as a step of its own", async () => {
+    const { el, core, board } = await mounted();
+    const links = section(el, "Links");
+    const edit = (): HTMLFormElement => form(links, "Change link");
+    const into = (): string[] => Object.keys(board().links).filter((id) => board().links[id]?.to === "e");
+    const ends = board().links.de;
+
+    // The links into Bind, Head's first and Wide sepals' second.
+    await click(button(links, "Edit the link from Wide sepals to Bind"));
+    expect([...select(edit(), "Position").options].map((o) => o.value)).toEqual(["1", "2"]);
+    expect(select(edit(), "Position").value).toBe("2");
+    await step(() => {
+      pick(select(edit(), "Position"), "1");
+    });
+    await click(button(edit(), "Save"));
+
+    expect(into()).toEqual(["de", "be"]);
+    expect(board().links.de).toBe(ends);
+    expect(texts(row(links, "Wide sepals → Bind"), "td")[2]).toBe("No namePosition 1");
+
+    await step(() => {
+      core.store.undo();
+    });
+    expect(into()).toEqual(["be", "de"]);
+    expect(core.store.canUndo()).toBe(false);
+  });
+
+  test("into a variadic block from another block, take the place that the user picks there, in a step after the one that changes the link", async () => {
+    const { el, core, board } = await mounted();
+    const links = section(el, "Links");
+    const edit = (): HTMLFormElement => form(links, "Change link");
+    const into = (): string[] => Object.keys(board().links).filter((id) => board().links[id]?.to === "e");
+
+    // Merge's inputs are fixed, so its link's form offers no place.
+    await click(button(links, "Edit the link from Iris to Merge"));
+    expect(texts(edit(), "label > span")).toContain("Input");
+    expect(texts(edit(), "label > span")).not.toContain("Position");
+
+    // On the board, the link comes before Bind's two, so it would be first.
+    await chosen(edit(), "To", "Bind");
+    expect([...select(edit(), "Position").options].map((o) => o.value)).toEqual(["1", "2", "3"]);
+    expect(select(edit(), "Position").value).toBe("1");
+    await step(() => {
+      pick(select(edit(), "Position"), "3");
+    });
+    await click(button(edit(), "Save"));
+    expect(into()).toEqual(["be", "de", "ac"]);
+    expect(board().links.ac).toEqual({ from: "a", to: "e", input: "" });
+
+    await step(() => {
+      core.store.undo();
+    });
+    expect(into()).toEqual(["ac", "be", "de"]);
+    await step(() => {
+      core.store.undo();
+    });
+    expect(board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
   });
 
   test("are listed in a table that a search narrows by the blocks' names and IDs and by the input", async () => {
