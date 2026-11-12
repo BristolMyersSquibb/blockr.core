@@ -47,10 +47,9 @@
 #' The packages that the app uses are core, those of the block classes in the
 #' app's block registry, whether the app offers them or R registers them from
 #' the board, and those of the app's plugins.
-#' R tells the client of the startup modules, the modules and the board
-#' options of these packages alone, whatever a block's code loads later, and
-#' orders the startup modules by the packages' dependencies, which their
-#' DESCRIPTION files give, and by name where those leave two unordered.
+#' R tells the client of the startup modules and the modules of these
+#' packages alone, whatever a block's code loads later, in the order in which
+#' the packages declared them (see [register_startup_module()]).
 #'
 #' For a board, R writes the board's JSON once, as `serve()` is called, and
 #' sends it to the client as each session starts.
@@ -196,15 +195,14 @@ serve.block <- function(x, ..., data = list()) {
   serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
 }
 
-# The packages that an app uses, in the order of their dependencies (see
-# `package_order()`): core, those of the block classes in the app's block
-# registry, `registry`, and those of the classes of the app's plugins,
-# `plugins`, as `app_plugins()` gives them.
+# The packages that an app uses: core, those of the block classes in the
+# app's block registry, `registry`, and those of the classes of the app's
+# plugins, `plugins`, as `app_plugins()` gives them.
 used_packages <- function(registry, plugins = list()) {
 
   classes <- lapply(registry_entries(registry), function(x) x[["block_class"]])
 
-  package_order(
+  unique(
     c(
       "blockr.core",
       unlst(lapply(classes, `[[`, "package")),

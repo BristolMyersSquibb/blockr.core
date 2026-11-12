@@ -10,12 +10,9 @@
 # As the app started, `serve()` filled the block registry with the block
 # classes that the app offers, beside those of the app script and of its board,
 # and loaded their packages, which the app uses, with core and the packages of
-# its plugins, in `packages`, in the order of their dependencies, in which R
-# sends their startup modules.
-# Loading the packages declared their modules and registered their methods.
-# What another package declares or registers, such as one that a block's code
-# loads, stays out, and so do the output coercions that it gives, while an app
-# script's methods count.
+# its plugins, in `packages`.
+# Loading the packages declared their modules, and what another package
+# declares, such as one that a block's code loads, stays out.
 # These are the properties `packages`, `block_registry`, `startup_modules`,
 # `modules`, `plugins`, `option_versions` and `renderers` of
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
@@ -28,15 +25,13 @@ loaded_reply <- function(packages = "blockr.core", registry = block_registry,
 
   entries <- registry_entries(registry)
   startup <- Filter(used, startup_modules())
-  startup <- startup[order(match(chr_xtr(startup, "package"), packages))]
   modules <- Filter(
     used,
     lapply(set_names(nm = list_modules()), get_module)
   )
-  options <- option_versions(packages)
   renderers <- option_renderers()
 
-  coercions <- output_coercions(packages)
+  coercions <- output_coercions()
   drawn <- lapply(entries, entry_renderer, coercions)
 
   # The packages that the reply's parts come from, whose versions it names
@@ -58,7 +53,7 @@ loaded_reply <- function(packages = "blockr.core", registry = block_registry,
     startup_modules = unname(lapply(startup, startup_module_reply)),
     modules = as_json_object(lapply(modules, declared_module_reply)),
     plugins = as_json_object(plugins),
-    option_versions = options,
+    option_versions = option_versions(),
     renderers = as_json_object(lapply(renderers, option_renderer_reply))
   )
 }

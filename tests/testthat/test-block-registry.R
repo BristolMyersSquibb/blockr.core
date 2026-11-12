@@ -588,11 +588,12 @@ test_that("a package's blocks.yml that R cannot read stops the app", {
     class = "package_blocks_invalid"
   )
 
-  # As a file written by hand might, with each fault of each entry
+  # As a file written by hand might, with each fault of each entry, while
+  # register_block() checks the other fields as for any class
   writeLines(
-    c("new_probe_block:", "  id: probe-block", "  name: 1",
-      "  description: Probes", "  keywords: [1, 2]", "  arguments:",
-      "    rows: ten", "  examples: [3]", "new_other_block: other"),
+    c("new_probe_block:", "  id: probe_block", "  name: 1",
+      "  description: Probes", "  keywords: [1, 2]",
+      "new_other_block: other"),
     file
   )
 
@@ -607,19 +608,6 @@ test_that("a package's blocks.yml that R cannot read stops the app", {
       "Its entry for new_probe_block gives `name` as a value other than a",
       "non-empty string."
     ),
-    paste(
-      "Its entry for new_probe_block gives the `id` probe-block with a `-`,",
-      "which no block class id may hold."
-    ),
-    "Its entry for new_probe_block gives `keywords` that are not strings.",
-    paste(
-      "Its entry for new_probe_block gives `arguments` that do not map each",
-      "argument to its arg spec."
-    ),
-    paste(
-      "Its entry for new_probe_block gives `examples` that are not a list of",
-      "mappings."
-    ),
     "Its entry for new_other_block is not a mapping."
   )
 
@@ -627,25 +615,10 @@ test_that("a package's blocks.yml that R cannot read stops the app", {
     expect_match(conditionMessage(err), fault, fixed = TRUE)
   }
 
-  # Every entry here gives an id
+  expect_no_match(conditionMessage(err), "keywords", fixed = TRUE)
+
+  # Every entry here that is a mapping gives an id
   expect_no_match(conditionMessage(err), "devtools::document()", fixed = TRUE)
-
-  writeLines(
-    c("new_probe_block:", "  id: probe_block", "  name: Probe",
-      "  description: Probes", "  category: input", "  arguments:",
-      "    rows:", "      description: 1", "      type: integer"),
-    file
-  )
-
-  expect_error(
-    available_blocks(),
-    paste(
-      "Its entry for new_probe_block gives an arg spec whose `description` is",
-      "not a string, or whose `type` is not a mapping, for `rows`."
-    ),
-    fixed = TRUE,
-    class = "package_blocks_entry_invalid"
-  )
 
   # A file that holds no YAML, and one that maps no constructors
   for (lines in list("new_probe_block: [", "- new_probe_block")) {

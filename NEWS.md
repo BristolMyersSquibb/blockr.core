@@ -415,7 +415,7 @@
   The app's sessions read it alone, so a later `serve()` or `register_block()` in the same process changes no app built before.
   The blockr option `core_blocks` is gone, since `blocks` narrows core's classes too.
   The block registration roclet writes the id of each class into `blocks.yml`, which it reads off the class's constructor.
-  R builds the reply to `hello` from the packages that the app uses alone: core, those of the block classes in the app's block registry and those of the app's plugins, whose startup modules it orders by the packages' dependencies, and by name where those leave two unordered.
+  R sends the startup modules and modules of the packages that the app uses alone in its reply to `hello`: core, those of the block classes in the app's block registry and those of the app's plugins.
   The `register_package_blocks()` function is gone, and core's `.onLoad()` registers no block class, so a block package drops its call of `register_package_blocks()` from its `.onLoad()`.
   Core reads the files of another package, such as its `blocks.yml`, its modules and its JSON Schemas, through the package's own `system.file()`, so that it finds them for a package that `pkgload::load_all()` loaded too (#498).
 

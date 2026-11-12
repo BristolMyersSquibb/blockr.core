@@ -222,16 +222,6 @@ test_that("R gives the version of each board option that a package versions", {
   expect_identical(json(declared_fields()$option_versions), "{\"grid_gap\":2}")
   expect_identical(json(option_versions()), "{}")
 
-  # Of a package that the app offers, even where nothing else of the reply
-  # comes from it, while a package that the app does not offer gives none
-  local_board_option_version("gap", 3L, "blockr.opt")
-
-  expect_identical(
-    json(loaded_reply(c("blockr.core", "blockr.opt"))$option_versions),
-    "{\"gap\":3}"
-  )
-  expect_identical(json(loaded_reply()$option_versions), "{}")
-
   # A method that gives no version fails as R builds the reply
   local_board_option_version("bad_gap", 0L)
 
@@ -319,7 +309,7 @@ test_that("R names the renderers that the app names for board options", {
   expect_identical(json(loaded_reply()$renderers), "{}")
 })
 
-test_that("R sends the startup modules in the order of the packages", {
+test_that("R keeps the startup modules in the order packages declare them", {
 
   dir <- withr::local_tempdir()
   local_empty_declarations()
@@ -337,18 +327,18 @@ test_that("R sends the startup modules in the order of the packages", {
     register_startup_module(js_module("js/startup.js", package = pkg))
   }
 
-  # In the order of the packages that the app uses, which `serve()` gives by
-  # their dependencies, whatever the order in which they declared them
+  # Those of the packages that the app uses, in the order in which they
+  # declared them
   reply <- loaded_reply(c("blockr.dag", "blockr.dock", "blockr.ui"))
 
   expect_identical(
     chr_xtr(reply$startup_modules, "package"),
-    c("blockr.dag", "blockr.dock", "blockr.ui")
+    c("blockr.ui", "blockr.dock", "blockr.dag")
   )
   expect_identical(
-    chr_xtr(loaded_reply(c("blockr.dock", "blockr.ui"))$startup_modules,
+    chr_xtr(loaded_reply(c("blockr.dag", "blockr.ui"))$startup_modules,
             "package"),
-    c("blockr.dock", "blockr.ui")
+    c("blockr.ui", "blockr.dag")
   )
   expect_identical(
     json(reply$packages),
@@ -359,22 +349,9 @@ test_that("R sends the startup modules in the order of the packages", {
   )
 })
 
-test_that("serve() orders the packages by their dependencies, then by name", {
+test_that("R reads the DESCRIPTION of a package that load_all() loaded", {
 
-  # The cli package imports utils, so utils comes first, though cli comes
-  # first by name, and core, which imports cli, comes after both
-  expect_identical(
-    package_order(c("blockr.core", "utils", "cli")),
-    c("utils", "cli", "blockr.core")
-  )
-
-  # Packages that require none of each other come by name
-  expect_identical(
-    package_order(c("tools", "grDevices", "tools")),
-    c("grDevices", "tools")
-  )
-
-  # The DESCRIPTION of a package that load_all() loaded is in its source
+  # In its source
   local_load_all_package()
 
   expect_identical(installed_dependencies("regprobe"), "blockr.core")
@@ -401,45 +378,7 @@ test_that("R tells the client of what the packages it uses declare alone", {
 
   expect_length(alone$startup_modules, 0L)
   expect_identical(json(alone$modules), "{}")
-  expect_identical(json(alone$option_versions), "{}")
   expect_false("blockr.test" %in% names(alone$packages))
-})
-
-test_that("R takes the output coercions of the packages that the app uses", {
-
-  ns <- asNamespace("blockr.core")
-  table <- get(".__S3MethodsTable__.", envir = ns)
-
-  # The environment of each method, whose package is the method's
-  methods <- list(
-    other_output = list2env(list(.packageName = "blockr.other")),
-    script_output = globalenv()
-  )
-
-  for (class in names(methods)) {
-
-    method <- function(x, ...) function(out) out
-    environment(method) <- methods[[class]]
-
-    registerS3method("output_coercion", class, method, envir = ns)
-  }
-
-  withr::defer(
-    rm(list = paste0("output_coercion.", names(methods)), envir = table)
-  )
-
-  expect_contains(names(output_coercions()), names(methods))
-
-  # Core's own and an app script's count, while another package's stays out
-  # where the app does not use it
-  used <- names(output_coercions("blockr.core"))
-
-  expect_contains(used, c("table_output", "script_output"))
-  expect_false("other_output" %in% used)
-  expect_contains(
-    names(output_coercions(c("blockr.core", "blockr.other"))),
-    "other_output"
-  )
 })
 
 test_that("building what R tells the client builds no block", {

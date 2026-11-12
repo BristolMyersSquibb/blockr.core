@@ -37,44 +37,6 @@ pkg_file <- function(..., pkg = parent.frame()) {
   package_system_file(..., package = pkg_name(pkg))
 }
 
-# The package of each method of `generic` that R finds from core's namespace,
-# by the method's class: the package whose namespace defines the method's
-# function, or `NA` for a method that an app script defines, from no package.
-method_packages <- function(generic) {
-
-  ns <- asNamespace("blockr.core")
-  methods <- as.character(utils::.S3methods(generic, envir = ns))
-  classes <- sub(paste0("^", generic, "[.]"), "", methods)
-
-  set_names(
-    chr_ply(
-      classes,
-      function(class) {
-        fun <- utils::getS3method(generic, class, optional = TRUE, envir = ns)
-        pkg <- if (is.function(fun)) utils::packageName(environment(fun))
-        coal(pkg, NA_character_, fail_all = FALSE)
-      }
-    ),
-    classes
-  )
-}
-
-# The classes of the methods of `generic` that R finds from core's namespace,
-# those that packages register and those that an app script defines.
-# Where `packages` is given, as the packages that an app uses, only those whose
-# method a package among them defines, or an app script (see
-# `method_packages()`).
-method_classes <- function(generic, packages = NULL) {
-
-  pkgs <- method_packages(generic)
-
-  if (is.null(packages)) {
-    return(names(pkgs))
-  }
-
-  names(pkgs)[is.na(pkgs) | pkgs %in% packages]
-}
-
 # What `system.file()` gives for the files of a package, through the package's
 # own `system.file()` where its namespace is loaded.
 # For a package that `pkgload::load_all()` loaded, that is pkgload's, which
@@ -95,30 +57,6 @@ package_system_file <- function(..., package) {
 # marks.
 is_dev_namespace <- function(pkg) {
   exists(".__DEVTOOLS__", envir = asNamespace(pkg), inherits = FALSE)
-}
-
-# The packages in the order of their dependencies, which their DESCRIPTION
-# files give, each after those that it requires, directly or through others,
-# and in the order of their names where that leaves two unordered.
-package_order <- function(packages) {
-
-  todo <- sort(unique(packages), method = "radix")
-  needs <- lapply(
-    set_names(nm = todo),
-    function(x) intersect(dependency_closure(installed_dependencies(x)), todo)
-  )
-  res <- character()
-
-  while (length(todo)) {
-
-    ready <- todo[lgl_ply(todo, function(x) all(needs[[x]] %in% res))]
-    nxt <- if (length(ready)) ready[1L] else todo[1L]
-
-    res <- c(res, nxt)
-    todo <- todo[todo != nxt]
-  }
-
-  res
 }
 
 #' @rdname set_names

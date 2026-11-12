@@ -636,11 +636,10 @@ package_yaml_blocks <- function(package) {
 # A package's `inst/registry/blocks.yml` maps each of its block constructors,
 # by name, to the registry metadata of the class that the constructor makes, as
 # the block registration roclet writes it.
-# Each entry holds the class's `id`, `name`, `description` and `category`, each
-# a string, and may hold its `icon`, `details`, `link` and `guidance`, each a
-# string, its `keywords`, as strings, its `arguments`, as a mapping of each
-# argument to its arg spec, and its `examples`, as a list of mappings.
-# A file that holds anything else stops the app, with each fault of each entry.
+# R reads each entry's `id`, `name`, `description` and `category` as strings,
+# so an entry that lacks one, or gives one as anything else, stops the app,
+# with each such fault of each entry, while `register_block()` checks the
+# entry's other fields as for any class.
 check_yaml_blocks <- function(entries, package) {
 
   if (!is_yaml_mapping(entries)) {
@@ -697,22 +696,11 @@ yaml_block_faults <- function(entry, ctor) {
     return(fault("is not a mapping"))
   }
 
-  entry <- Filter(not_null, entry)
-  given <- names(entry)
+  fields <- c("id", "name", "description", "category")
 
-  lacks <- setdiff(c("id", "name", "description", "category"), given)
-
-  strings <- intersect(
-    c("id", "name", "description", "category", "icon", "details", "link",
-      "guidance"),
-    given
-  )
-  strings <- strings[!lgl_ply(entry[strings], is_nonempty_string)]
-
-  id <- entry[["id"]]
-  keywords <- entry[["keywords"]]
-  args <- entry[["arguments"]]
-  examples <- entry[["examples"]]
+  lacks <- fields[lgl_ply(fields, function(x) is.null(entry[[x]]))]
+  given <- setdiff(fields, lacks)
+  strings <- given[!lgl_ply(entry[given], is_nonempty_string)]
 
   c(
     if (length(lacks)) {
@@ -724,44 +712,13 @@ yaml_block_faults <- function(entry, ctor) {
         if (length(strings) > 1L) "values other than" else "a value other than",
         " a non-empty string"
       )
-    },
-    if (is_nonempty_string(id) && grepl("-", id, fixed = TRUE)) {
-      fault(
-        "gives the `id` ", id, " with a `-`, which no block class id may hold"
-      )
-    },
-    if (not_null(keywords) && !(is.character(keywords) && !anyNA(keywords))) {
-      fault("gives `keywords` that are not strings")
-    },
-    if (not_null(args) && !is_yaml_mapping(args, nested = TRUE)) {
-      fault("gives `arguments` that do not map each argument to its arg spec")
-    } else if (not_null(args) && !all(lgl_ply(args, is_yaml_arg_spec))) {
-      fault(
-        "gives an arg spec whose `description` is not a string, or whose ",
-        "`type` is not a mapping, for ",
-        paste_enum(names(args)[!lgl_ply(args, is_yaml_arg_spec)])
-      )
-    },
-    if (not_null(examples) &&
-          !(is.list(examples) && all(lgl_ply(examples, is_yaml_mapping)))) {
-      fault("gives `examples` that are not a list of mappings")
     }
   )
 }
 
-# Whether YAML gave an arg spec whose `description`, where it has one, is a
-# string, and whose `type`, where it has one, is a mapping.
-is_yaml_arg_spec <- function(x) {
-  (is.null(x[["description"]]) || is_string(x[["description"]])) &&
-    (is.null(x[["type"]]) || is_yaml_mapping(x[["type"]]))
-}
-
-# Whether YAML gave `x` as a mapping, a named list, and with `nested`, one
-# whose every value is a mapping too.
-is_yaml_mapping <- function(x, nested = FALSE) {
-
-  is.list(x) && (!length(x) || not_null(names(x))) &&
-    (!nested || all(lgl_ply(x, is_yaml_mapping)))
+# Whether YAML gave `x` as a mapping, a named list.
+is_yaml_mapping <- function(x) {
+  is.list(x) && (!length(x) || not_null(names(x)))
 }
 
 # The block registry of an app, which `serve()` builds as it starts the app,

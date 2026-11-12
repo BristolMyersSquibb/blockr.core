@@ -71,7 +71,8 @@ each argument to its arg spec, with \code{description}, \code{example} and \code
 its \code{examples}, a list of mappings.
 A package that writes the file by hand gives the same fields.
 R reads the file as \code{\link[=available_blocks]{available_blocks()}} lists the package's classes and as
-\code{\link[=serve]{serve()}} registers them, and stops on a file that holds anything else, with
-each fault of each entry.
+\code{\link[=serve]{serve()}} registers them, and stops on an entry that lacks one of the first
+four or gives it as anything but a string, with each such fault, while it
+checks the others as \code{\link[=register_block]{register_block()}} does.
 }
 

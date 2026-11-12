@@ -359,11 +359,14 @@ output_coercion.block_output <- function(x, ...) {
 # `output_coercion()`, by class, among the methods that R finds from core's
 # namespace: those that packages register, and those that an app script
 # defines.
-# Where `packages` is given, those of other packages stay out (see
-# `method_classes()`).
-output_coercions <- function(packages = NULL) {
+output_coercions <- function() {
 
-  classes <- method_classes("output_coercion", packages)
+  methods <- utils::.S3methods(
+    "output_coercion",
+    envir = asNamespace("blockr.core")
+  )
+
+  classes <- sub("^output_coercion[.]", "", as.character(methods))
   classes <- set_names(nm = setdiff(classes, "block_output"))
 
   res <- lapply(classes, function(cls) {

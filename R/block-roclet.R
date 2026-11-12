@@ -57,8 +57,9 @@
 #' its `examples`, a list of mappings.
 #' A package that writes the file by hand gives the same fields.
 #' R reads the file as [available_blocks()] lists the package's classes and as
-#' [serve()] registers them, and stops on a file that holds anything else, with
-#' each fault of each entry.
+#' [serve()] registers them, and stops on an entry that lacks one of the first
+#' four or gives it as anything but a string, with each such fault, while it
+#' checks the others as [register_block()] does.
 #'
 #' @return `block_registration_roclet()` returns a roclet object.
 #'

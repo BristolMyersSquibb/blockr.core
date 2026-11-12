@@ -198,7 +198,6 @@ test_that("the app's sessions tell of what the packages it uses declare", {
 
   expect_length(reply$startup_modules, 0L)
   expect_length(reply$modules, 0L)
-  expect_length(reply$option_versions, 0L)
   expect_contains(names(reply$block_registry), "blockr.core-head_block")
 
   # A plugin of blockr.test's that the app runs, as its frontend is by
@@ -211,7 +210,6 @@ test_that("the app's sessions tell of what the packages it uses declare", {
   )
   expect_named(reply$modules, c("blockr.test-grid", "blockr.test-picker"))
   expect_contains(names(reply$plugins), "blockr.test-grid_plugin")
-  expect_named(reply$option_versions, "grid_gap")
 })
 
 test_that("blocks and plugins read their rows alike, and plugins no file", {
