@@ -43,9 +43,10 @@
   expression, `bbquote()` returns a `bquoted_expr`, whose placeholders it
   fills in with the upstream ids, and `evaluate_block()` evaluates a block
   from its class, state and upstream results through `block_eval()`. A state
-  reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg. With
-  them come `result_summary()`, `new_block_request()` and
-  `run_block_request()`, `expect_block_fixture()`, which tests a class
+  reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg,
+  and R reports why as a message. With them come `result_summary()`,
+  `new_block_request()` and `run_block_request()`,
+  `expect_block_fixture()`, which tests a class
   without Shiny, and `trace_block_classes()`, which a package calls in
   `.onLoad()` so that covr counts the code its classes hold (#421).
 * Registration reads a block class from its constructor and builds no block.

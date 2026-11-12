@@ -48,9 +48,10 @@ addition to \code{class}, conditions inherit from "blockr_error",
 The fourth wrapper, \code{blockr_invalid()}, signals that a block's state cannot
 run yet, such as a selection the user emptied, as an error that also
 inherits from "blockr_invalid". R then reports the block as \code{invalid}
-rather than \code{error}, and runs nothing. A block class signals it from its
-\code{expr}, while the check of a function given as its \code{inputs} signals an error
-with \code{blockr_abort()} (see \code{\link[=new_block_class]{new_block_class()}}).
+rather than \code{error}, records the condition as a message, and runs nothing.
+A block class signals it from its \code{expr}, while the check of a function
+given as its \code{inputs} signals an error with \code{blockr_abort()} (see
+\code{\link[=new_block_class]{new_block_class()}}).
 }
 \examples{
 merge_block <- new_block_class(

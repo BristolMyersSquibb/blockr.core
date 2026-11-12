@@ -269,7 +269,7 @@ protocol_r_values <- function() {
           status = "invalid",
           conditions = list(
             proto_condition(
-              "error",
+              "message",
               c("blockr_invalid", "blockr_error", "rlang_error", "error",
                 "condition"),
               "Choose at least one column to join by.",

@@ -227,7 +227,7 @@ describe("the card of a block that serve() serves alone", () => {
     expect(banners(el)).toEqual([["error", "object 'Petal' not found"]]);
   });
 
-  test("shows why a waiting block waits, and an invalid block's reason as its error", async () => {
+  test("shows why a waiting block waits, and an invalid block's reason as a message", async () => {
     const r = played();
     const { el } = draw(r.core);
 
@@ -241,9 +241,13 @@ describe("the card of a block that serve() serves alone", () => {
     expect(footer(el).className).not.toContain("bc:opacity-50");
     expect(banners(el)).toEqual([]);
 
-    await r.set({ status: "invalid", conditions: [condition("error", "Save to write the file.")] });
-    expect(line(el)).toEqual(["error"]);
-    expect(banners(el)).toEqual([["error", "Save to write the file."]]);
+    // R reports why a block is invalid as a message, whose pill opens its
+    // banner, as any message's does, and no pill of the errors.
+    await r.set({ status: "invalid", conditions: [condition("message", "Upload a file.")] });
+    expect(line(el)).toEqual(["1 message"]);
+    expect(banners(el)).toEqual([]);
+    await click(pill(el, "1 message"));
+    expect(banners(el)).toEqual([["message", "Upload a file."]]);
   });
 
   test("dims the footer and the output while R evaluates the block, and keeps what they show", async () => {
@@ -279,7 +283,7 @@ describe("the card of a block that serve() serves alone", () => {
     expect(box(el).className).not.toContain("bc:h-96");
     expect(line(el)).toEqual(["error"]);
     expect(banners(el)).toEqual([["error", "object 'Sepal' not found"]]);
-    await r.set({ status: "invalid", revision: 2, evaluated: 2, conditions: [condition("error", "Save to write the file.")] });
+    await r.set({ status: "invalid", revision: 2, evaluated: 2, conditions: [condition("message", "Save to write the file.")] });
     expect(output(el).className).toContain("bc:h-0");
 
     await r.set({ revision: 3, evaluated: 3, summary: "<data.frame> [6 × 5]" });

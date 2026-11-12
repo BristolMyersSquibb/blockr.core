@@ -1,5 +1,5 @@
 {
-  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr signals blockr_invalid() for it, so R runs nothing and replies invalid, with the class's message.",
+  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr signals blockr_invalid() for it, so R runs nothing and replies invalid, with the class's message as a condition of the severity message, since the status already says that the state cannot run.",
   "client": [
     {
       "id": "21",
@@ -27,7 +27,7 @@
         "summary": null,
         "conditions": [
           {
-            "severity": "error",
+            "severity": "message",
             "class": ["blockr_invalid", "blockr_error", "rlang_error", "error", "condition"],
             "phase": "expr",
             "message": "Choose at least one column to join by."
