@@ -16,16 +16,17 @@
 #' The object is a list, or an environment that the package's `.onLoad()`
 #' fills, of up to four parts, each a list:
 #'
-#' * `blocks`: each block constructor by name, with the registry metadata of
-#'   the class that it makes, as the block registration roclet writes them into
-#'   the package's `inst/registry/blocks.yml`, from which `read_blocks_yml()`
-#'   reads them (see [block_registration_roclet()]).
-#' * `plugins`: each plugin constructor by name, with the `id` of the class of
-#'   the plugins that it makes, the class's `name`, the human-readable form of
-#'   its id, and the class's `module` (see [new_plugin()]).
-#' * `options`: each board option by its ID, with its `module` (see
-#'   [new_board_option()]).
-#' * `modules`: each module that the package offers other packages' UIs, by a
+#' * Its block classes, in `blocks`: each block constructor by name, with the
+#'   registry metadata of the class that it makes, as the block registration
+#'   roclet writes them into the package's `inst/registry/blocks.yml`, from
+#'   which `read_blocks_yml()` reads them (see [block_registration_roclet()]).
+#' * Its plugin classes, in `plugins`: each plugin constructor by name, with
+#'   the `id` of the class of the plugins that it makes, the class's `name`,
+#'   the human-readable form of its id, and the class's `module` (see
+#'   [new_plugin()]).
+#' * Its board options, in `options`: each board option by its ID, with its
+#'   `module` (see [new_board_option()]).
+#' * The modules that it offers other packages' UIs, in `modules`: each by a
 #'   name that gives it the ID `{pkg}-{name}`, as a registry id is, by which
 #'   `host.module()` and `CoreApi.module()` reach it in the client.
 #'

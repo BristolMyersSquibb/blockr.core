@@ -33,16 +33,17 @@ package as it reads the package's object, as \code{\link[=available_blocks]{avai
 The object is a list, or an environment that the package's \code{.onLoad()}
 fills, of up to four parts, each a list:
 \itemize{
-\item \code{blocks}: each block constructor by name, with the registry metadata of
-the class that it makes, as the block registration roclet writes them into
-the package's \code{inst/registry/blocks.yml}, from which \code{read_blocks_yml()}
-reads them (see \code{\link[=block_registration_roclet]{block_registration_roclet()}}).
-\item \code{plugins}: each plugin constructor by name, with the \code{id} of the class of
-the plugins that it makes, the class's \code{name}, the human-readable form of
-its id, and the class's \code{module} (see \code{\link[=new_plugin]{new_plugin()}}).
-\item \code{options}: each board option by its ID, with its \code{module} (see
-\code{\link[=new_board_option]{new_board_option()}}).
-\item \code{modules}: each module that the package offers other packages' UIs, by a
+\item Its block classes, in \code{blocks}: each block constructor by name, with the
+registry metadata of the class that it makes, as the block registration
+roclet writes them into the package's \code{inst/registry/blocks.yml}, from
+which \code{read_blocks_yml()} reads them (see \code{\link[=block_registration_roclet]{block_registration_roclet()}}).
+\item Its plugin classes, in \code{plugins}: each plugin constructor by name, with
+the \code{id} of the class of the plugins that it makes, the class's \code{name},
+the human-readable form of its id, and the class's \code{module} (see
+\code{\link[=new_plugin]{new_plugin()}}).
+\item Its board options, in \code{options}: each board option by its ID, with its
+\code{module} (see \code{\link[=new_board_option]{new_board_option()}}).
+\item The modules that it offers other packages' UIs, in \code{modules}: each by a
 name that gives it the ID \code{{pkg}-{name}}, as a registry id is, by which
 \code{host.module()} and \code{CoreApi.module()} reach it in the client.
 }
