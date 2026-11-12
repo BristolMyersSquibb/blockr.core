@@ -213,9 +213,9 @@ export default merge;
 `;
 
 // A plugin's UI module, which draws the plugin of its class, by the name that
-// the app gives it, and the class, whose storage a frontend's save and open
-// controls call, as a package writes them.
-const notesModule = `import type { PluginClass, PluginModule } from "@blockr/core";
+// the app gives it, and the class, whose storage gives the controls that a
+// frontend draws, as a package writes them.
+const notesModule = `import type { PluginClass, PluginModule, StorageControl } from "@blockr/core";
 
 export const api = 1;
 
@@ -250,8 +250,15 @@ export const notesPlugin: PluginClass = {
   id: "blockr.notes-notes_plugin",
   ui: "blockr.notes-notes",
   storage: {
-    save: () => Promise.resolve(),
-    open: () => Promise.resolve(null),
+    controls: ({ core }) => {
+      const save: StorageControl = { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: () => Promise.resolve() };
+      const status: StorageControl = { kind: "status", id: "saved", text: core.store.board().name, placement: "end" };
+      return [save, { kind: "menu", id: "more", label: "More", items: [status] }];
+    },
+    subscribe: (listener) => {
+      listener();
+      return () => undefined;
+    },
   },
   start: ({ core, signal }) => {
     const off = core.notifications.subscribe((note) => {
