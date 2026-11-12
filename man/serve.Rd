@@ -9,11 +9,11 @@
 \usage{
 serve(x, ...)
 
-\method{serve}{board}(x, ..., block_classes = available_blocks())
+\method{serve}{board}(x, ..., blocks = available_blocks())
 
-\method{serve}{character}(x, ..., block_classes = available_blocks())
+\method{serve}{character}(x, ..., blocks = available_blocks())
 
-\method{serve}{block}(x, ..., data = list(), block_classes = available_blocks())
+\method{serve}{block}(x, ..., data = list(), blocks = available_blocks())
 }
 \arguments{
 \item{x}{A board, the path of a JSON board, or a block}
@@ -21,8 +21,8 @@ serve(x, ...)
 \item{...}{For a block, its data where \code{data} is empty.
 R ignores it otherwise, with a warning.}
 
-\item{block_classes}{The block classes that the app offers, as rows with
-the class's package in \code{package} and its id in \code{id}, such as those of
+\item{blocks}{The block classes that the app offers, as rows with the
+class's package in \code{package} and its id in \code{id}, such as those of
 \code{\link[=available_blocks]{available_blocks()}}, or as the path of a YAML file that lists them}
 
 \item{data}{The block's data, a list by input}
@@ -42,8 +42,8 @@ the session, which evaluates the blocks.
 \details{
 Which block classes an app offers is the app's choice, never a board's, and
 loading a package registers no block class.
-Each method takes them in \code{block_classes}, which defaults to every block
-class of every available package, as \code{\link[=available_blocks]{available_blocks()}} gives them.
+Each method takes them in \code{blocks}, which defaults to every block class of
+every available package, as \code{\link[=available_blocks]{available_blocks()}} gives them.
 A script narrows them with plain R, as
 \code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
 but those of blockr.ggplot, or gives the path of a YAML file that lists them

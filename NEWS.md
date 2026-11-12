@@ -394,13 +394,13 @@
   So core's static and fixed blocks have the ids `blockr.core-static_block` and `blockr.core-fixed_block`, where they had `static_block` and `fixed_block`.
   A class from outside a package replaces another class that the script registered under its id, so that a script that redefines a class after it registered it runs the new definition, and a board with blocks of two such classes of one id fails (#559).
 * Which block classes an app offers is the app's choice, and loading a package registers none.
-  Each method of `serve()` takes them in `block_classes`, which defaults to `available_blocks()`, every block class of every available package: one that is installed and depends on blockr.core, or that `pkgload::load_all()` loaded, and that lists block classes in its `inst/registry/blocks.yml`.
+  Each method of `serve()` takes them in `blocks`, which defaults to `available_blocks()`, every block class of every available package: one that is installed and depends on blockr.core, or that `pkgload::load_all()` loaded, and that lists block classes in its `inst/registry/blocks.yml`.
   The `available_blocks()` function gives these classes as a data frame, with the class's package in `package` and its id in `id`, in place of the block registry's entries.
   A script narrows them with plain R, as `subset(available_blocks(), package != "blockr.ggplot")`, or gives the path of a YAML file that lists packages and, for each, the ids of the classes to offer.
   As `serve()` is called, R loads the packages of these classes and builds the app's own block registry from them, and a class that no available package lists stops the app.
   The app's block registry also holds the classes that the app script registers with `register_block()`, in place of a row's class of the same registry id, and the classes of the board's blocks that it lacks.
   The app's sessions read it alone, so a later `serve()` or `register_block()` in the same process changes no app built before.
-  The blockr option `core_blocks` is gone, since `block_classes` narrows core's classes too.
+  The blockr option `core_blocks` is gone, since `blocks` narrows core's classes too.
   The block registration roclet writes the id of each class into `blocks.yml`, which it reads off the class's constructor.
   R builds the reply to `hello` from the packages that the app uses alone: core, those of the block classes in the app's block registry and those of the board's plugins, whose startup modules it orders by the packages' dependencies, and by name where those leave two unordered.
   The `register_package_blocks()` function is gone, and core's `.onLoad()` registers no block class, so a block package drops its call of `register_package_blocks()` from its `.onLoad()`.

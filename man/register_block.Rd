@@ -122,7 +122,7 @@ block's class, whether or not the block registry holds the class.
 
 Which block classes an app offers is the app's choice, and loading a package
 registers none.
-Each method of \code{\link[=serve]{serve()}} takes them in \code{block_classes}, which defaults to
+Each method of \code{\link[=serve]{serve()}} takes them in \code{blocks}, which defaults to
 \code{available_blocks()}: a data frame with a row for each block class of each
 available package, with the class's package in \code{package} and its id in
 \code{id}.
@@ -142,7 +142,7 @@ it lists none:
 - blockr.dplyr
 }\if{html}{\out{</div>}}
 
-R reads the file into the same rows, and a package that the file leaves out
+The file offers what the same rows would, and a package that it leaves out
 offers nothing.
 A row whose package is not available, or whose class its package does not
 list, stops the app, naming the row, and so does a package that lists two
@@ -155,8 +155,8 @@ An app script registers the block classes that it defines itself in the
 block registry of the R process, with \code{register_block()} or
 \code{register_blocks()}.
 Every app that the script serves after that holds them, whatever its
-\code{block_classes}, and a class that the script registers under the registry
-id of a row's class takes that class's place.
+\code{blocks}, and a class that the script registers under the registry id of a
+row's class takes that class's place.
 So a later \code{serve()} or \code{register_block()} changes no app that \code{serve()}
 built before.
 

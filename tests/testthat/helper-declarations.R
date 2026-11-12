@@ -14,7 +14,7 @@ local_declared <- function(env, frame = parent.frame()) {
 }
 
 # The rows of `available_blocks()` for core's block classes, as an app that
-# offers core's classes alone gives them to `serve()` in `block_classes`.
+# offers core's classes alone gives them to `serve()` in `blocks`.
 core_block_rows <- function() {
   rows <- available_blocks()
   rows[rows[["package"]] == "blockr.core", ]

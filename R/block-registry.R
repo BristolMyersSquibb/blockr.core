@@ -23,7 +23,7 @@ block_registry <- new.env()
 #'
 #' Which block classes an app offers is the app's choice, and loading a package
 #' registers none.
-#' Each method of [serve()] takes them in `block_classes`, which defaults to
+#' Each method of [serve()] takes them in `blocks`, which defaults to
 #' `available_blocks()`: a data frame with a row for each block class of each
 #' available package, with the class's package in `package` and its id in
 #' `id`.
@@ -44,7 +44,7 @@ block_registry <- new.env()
 #' - blockr.dplyr
 #' ```
 #'
-#' R reads the file into the same rows, and a package that the file leaves out
+#' The file offers what the same rows would, and a package that it leaves out
 #' offers nothing.
 #' A row whose package is not available, or whose class its package does not
 #' list, stops the app, naming the row, and so does a package that lists two
@@ -57,8 +57,8 @@ block_registry <- new.env()
 #' block registry of the R process, with `register_block()` or
 #' `register_blocks()`.
 #' Every app that the script serves after that holds them, whatever its
-#' `block_classes`, and a class that the script registers under the registry
-#' id of a row's class takes that class's place.
+#' `blocks`, and a class that the script registers under the registry id of a
+#' row's class takes that class's place.
 #' So a later `serve()` or `register_block()` changes no app that `serve()`
 #' built before.
 #'
@@ -589,20 +589,21 @@ package_yaml_blocks <- function(package) {
 
 # The block registry of an app, which `serve()` builds as it starts the app,
 # and which the app's sessions read alone.
-# It holds the block classes that the app offers, as `block_classes` gives
-# them, whose packages R loads, the classes that the app script registered in
-# the block registry of the process, each in place of a row's class of the
-# same registry id, and the classes of the blocks on `board` that it lacks
-# (see `register_board_classes()`).
-app_block_registry <- function(block_classes = available_blocks(),
-                               board = NULL) {
+# It holds the block classes that the app offers, as `blocks` gives them, whose
+# packages R loads, the classes that the app script registered in the block
+# registry of the process, each in place of a row's class of the same registry
+# id, and the classes of the blocks on `board` that it lacks (see
+# `register_board_classes()`).
+# Building it reads the `blocks.yml` of each package that the app offers once,
+# as it registers the package's classes, and no other package's.
+app_block_registry <- function(blocks = available_blocks(), board = NULL) {
 
-  rows <- offered_block_classes(block_classes)
+  offered <- offered_block_classes(blocks)
   registry <- new.env(parent = emptyenv())
 
-  for (pkg in unique(rows[["package"]])) {
+  for (pkg in names(offered)) {
     loadNamespace(pkg)
-    register_yaml_blocks(pkg, registry, rows[["id"]][rows[["package"]] == pkg])
+    register_yaml_blocks(pkg, registry, offered[[pkg]])
   }
 
   list2env(as.list(block_registry, all.names = TRUE), registry)
@@ -614,38 +615,24 @@ app_block_registry <- function(block_classes = available_blocks(),
   registry
 }
 
-# The block classes that an app offers, as `serve()` takes them in
-# `block_classes`, as rows with the class's package in `package` and its id in
-# `id`: those of a data frame, or those that a YAML file at the path lists.
-# Each names a class that an available package lists, and a row that names
-# none stops the app.
-offered_block_classes <- function(block_classes,
-                                  available = available_blocks()) {
+# The block classes that an app offers, as `serve()` takes them in `blocks`,
+# by package: the ids of the package's classes to offer, or `NULL` for all of
+# them.
+# They come from the rows of a data frame, with the class's package in
+# `package` and its id in `id`, or from a YAML file at the path.
+# A package that is not available stops the app, and so does an id that its
+# package does not list, as R registers the package's classes.
+offered_block_classes <- function(blocks) {
 
-  rows <- if (is_string(block_classes)) {
-    yaml_block_classes(block_classes, available)
+  offered <- if (is_string(blocks)) {
+    yaml_block_classes(blocks)
   } else {
-    frame_block_classes(block_classes)
+    frame_block_classes(blocks)
   }
 
-  rows <- unique(rows)
-  rownames(rows) <- NULL
+  check_block_class_packages(names(offered))
 
-  check_block_class_packages(rows[["package"]], available)
-
-  key <- function(x) paste(x[["package"]], x[["id"]], sep = "\r")
-  unknown <- !key(rows) %in% key(available)
-  rows_unknown <- paste(rows[["id"]], "of", rows[["package"]])[unknown]
-
-  if (length(rows_unknown)) {
-    blockr_abort(
-      "The app offers {qty(rows_unknown)}block class{?es} {rows_unknown}, ",
-      "which {?its/their} package{?s} {?does/do} not list.",
-      class = "block_classes_unknown"
-    )
-  }
-
-  rows
+  offered
 }
 
 frame_block_classes <- function(x) {
@@ -663,13 +650,16 @@ frame_block_classes <- function(x) {
     )
   }
 
-  data.frame(package = x[["package"]], id = x[["id"]])
+  packages <- x[["package"]]
+
+  lapply(split(x[["id"]], factor(packages, unique(packages))), unique)
 }
 
-# The rows of a YAML file that lists packages and, for each, the ids of the
-# block classes to offer, or none for all that the package lists, as the
-# example in `?register_block` shows.
-yaml_block_classes <- function(path, available) {
+# The block classes that a YAML file at `path` lists, by package, as
+# `offered_block_classes()` gives them: the file lists packages, each as its
+# name, for all of its classes, or as its name with the ids of the classes to
+# offer, as the example in `?register_block` shows.
+yaml_block_classes <- function(path) {
 
   if (is.na(path) || !file.exists(path) || dir.exists(path)) {
     blockr_abort(
@@ -704,24 +694,16 @@ yaml_block_classes <- function(path, available) {
   }
 
   packages <- chr_xtr(listed, "package")
-  check_block_class_packages(packages, available)
+  ids <- lapply(listed, `[[`, "ids")
 
-  do.call(
-    rbind,
-    c(
-      list(data.frame(package = character(), id = character())),
-      lapply(
-        listed,
-        function(x) {
-          ids <- coal(
-            x[["ids"]],
-            available[["id"]][available[["package"]] == x[["package"]]],
-            fail_all = FALSE
-          )
-          data.frame(package = rep(x[["package"]], length(ids)), id = ids)
-        }
-      )
-    )
+  # A package that the file lists twice offers the classes of both items, and
+  # all of its classes where one item lists no ids
+  lapply(
+    set_names(nm = unique(packages)),
+    function(pkg) {
+      pkg_ids <- ids[packages == pkg]
+      if (!any(lgl_ply(pkg_ids, is.null))) unique(unlst(pkg_ids))
+    }
   )
 }
 
@@ -739,9 +721,9 @@ yaml_block_class_item <- function(x) {
   if (valid) list(package = names(x), ids = x[[1L]])
 }
 
-check_block_class_packages <- function(packages, available) {
+check_block_class_packages <- function(packages) {
 
-  missing <- setdiff(packages, available[["package"]])
+  missing <- setdiff(packages, available_block_packages())
 
   if (length(missing)) {
     blockr_abort(
@@ -756,14 +738,26 @@ check_block_class_packages <- function(packages, available) {
 
 # Registers the block classes that a package lists in its
 # `inst/registry/blocks.yml` in `registry`, or those of them whose ids `ids`
-# gives.
+# gives, where an id that the package does not list stops the app.
 # A package that lists none registers none.
 register_yaml_blocks <- function(package, registry, ids = NULL) {
 
   entries <- package_yaml_blocks(package)
 
   if (not_null(ids)) {
-    entries <- entries[chr_xtr(entries, "id") %in% ids]
+
+    listed <- chr_xtr(entries, "id")
+    unknown <- setdiff(ids, listed)
+
+    if (length(unknown)) {
+      blockr_abort(
+        "The app offers {qty(unknown)}block class{?es} {unknown} of ",
+        "{package}, which its package does not list.",
+        class = "block_classes_unknown"
+      )
+    }
+
+    entries <- entries[listed %in% ids]
   }
 
   if (!length(entries)) {

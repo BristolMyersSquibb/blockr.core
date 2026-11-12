@@ -708,7 +708,7 @@ new_head_block <- block_constructor(head_block)
 
 With `blockr.core::block_registration_roclet` in the `Roxygen` field of its `DESCRIPTION`, `devtools::document()` writes the tags into `inst/registry/blocks.yml`, with the id of each class, which it reads off the constructor.
 Loading the package registers none of them.
-Once the package is installed, `available_blocks()` lists its classes, and an app offers them, as it offers every available class unless its script narrows them through `serve()`'s `block_classes`, as in `serve(new_board(), block_classes = subset(available_blocks(), package != "blockr.ggplot"))`.
+Once the package is installed, `available_blocks()` lists its classes, and an app offers them, as it offers every available class unless its script narrows them through `serve()`'s `blocks`, as in `serve(new_board(), blocks = subset(available_blocks(), package != "blockr.ggplot"))`.
 The package's `.onLoad()` calls `trace_block_classes()` alone, which lets covr count the lines of the functions that the classes hold (see "Testing" below):
 
 ```r

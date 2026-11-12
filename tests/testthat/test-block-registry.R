@@ -322,7 +322,7 @@ test_that("available_blocks() lists the classes of the available packages", {
   expect_true(all(lgl_ply(unique(rows[["package"]]), depends_on_core)))
 })
 
-test_that("an app offers the block classes that `block_classes` gives", {
+test_that("an app offers the block classes that `blocks` gives", {
 
   local_declared(block_registry)
   unregister_blocks()
@@ -480,6 +480,34 @@ test_that("an app offers the classes of a package that load_all() loads", {
     get_registry_entry("regprobe-probe_block", app_block_registry(probe))$name,
     "Probe"
   )
+})
+
+test_that("an app's block registry reads each offered package's file once", {
+
+  local_load_all_package()
+
+  rows <- core_block_rows()
+  read <- character()
+  yaml_blocks <- package_yaml_blocks
+
+  local_mocked_bindings(
+    package_yaml_blocks = function(package) {
+      read <<- c(read, package)
+      yaml_blocks(package)
+    }
+  )
+
+  # As R registers the package's classes, and no file of a package that the
+  # app does not offer, such as regprobe
+  app_block_registry(rows)
+  expect_identical(read, "blockr.core")
+
+  file <- withr::local_tempfile(fileext = ".yml")
+  writeLines("- blockr.core", file)
+
+  read <- character()
+  app_block_registry(file)
+  expect_identical(read, "blockr.core")
 })
 
 test_that("YAML examples of an array type are lists", {

@@ -93,14 +93,14 @@ test_that("serve() builds the app's block registry of the classes it offers", {
   for (x in list(served_board(), path, new_static_block("datasets::BOD"))) {
 
     registry <- served_registry(
-      serve(x, block_classes = rows[rows[["id"]] == "csv_block", ])
+      serve(x, blocks = rows[rows[["id"]] == "csv_block", ])
     )
 
     expect_contains(ls(registry), "blockr.core-csv_block")
     expect_false("blockr.core-merge_block" %in% ls(registry))
 
     expect_error(
-      serve(x, block_classes = absent),
+      serve(x, blocks = absent),
       "Package blockr.absent, whose block classes the app offers, is not ",
       class = "block_classes_unavailable"
     )
@@ -116,7 +116,7 @@ test_that("an app's sessions read the block registry that serve() built", {
   unregister_blocks()
 
   rows <- core_block_rows()
-  app <- serve(served_board(), block_classes = rows)
+  app <- serve(served_board(), blocks = rows)
 
   # A later register_block() or serve() leaves the app as it was, while the
   # later app holds the class that the script registered
@@ -129,7 +129,7 @@ test_that("an app's sessions read the block registry that serve() built", {
 
   later <- serve(
     served_board(),
-    block_classes = rows[rows[["id"]] %in% c("dataset_block", "head_block"), ]
+    blocks = rows[rows[["id"]] %in% c("dataset_block", "head_block"), ]
   )
 
   expect_setequal(
@@ -166,12 +166,12 @@ test_that("an app's sessions read the block registry that serve() built", {
   # evaluation
   withr::local_options(blockr.locked = TRUE, blockr.lock_load = TRUE)
 
-  expect_no_error(serve(served_board(), block_classes = rows))
+  expect_no_error(serve(served_board(), blocks = rows))
 
   withr::local_options(blockr.lock_load = FALSE)
 
   replies <- served_replies(
-    serve(served_board(), block_classes = rows),
+    serve(served_board(), blocks = rows),
     hello_message(),
     list(evaluate_request("2", "a", 1L, sample_recipe("a")))
   )
@@ -271,7 +271,7 @@ test_that("serve() replaces a class from outside a package that differs", {
   registry <- served_registry(
     serve(
       new_board(c(a = block_constructor(other)())),
-      block_classes = rows[rows[["package"]] == "regprobe", ]
+      blocks = rows[rows[["package"]] == "regprobe", ]
     )
   )
 
@@ -298,7 +298,7 @@ test_that("serve() takes nothing but the board, and says where the rest went", {
   expect_error(
     serve(board, id = "my_board"),
     paste0(
-      "For a board, `serve()` takes no argument but `x` and `block_classes`, ",
+      "For a board, `serve()` takes no argument but `x` and `blocks`, ",
       "and it was given `id`. A board holds its ID, which `new_board()` takes ",
       "as `id`."
     ),

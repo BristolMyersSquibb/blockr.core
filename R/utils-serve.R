@@ -10,8 +10,8 @@
 #'
 #' Which block classes an app offers is the app's choice, never a board's, and
 #' loading a package registers no block class.
-#' Each method takes them in `block_classes`, which defaults to every block
-#' class of every available package, as [available_blocks()] gives them.
+#' Each method takes them in `blocks`, which defaults to every block class of
+#' every available package, as [available_blocks()] gives them.
 #' A script narrows them with plain R, as
 #' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
 #' but those of blockr.ggplot, or gives the path of a YAML file that lists them
@@ -87,8 +87,8 @@
 #' @param x A board, the path of a JSON board, or a block
 #' @param ... For a block, its data where `data` is empty.
 #'   R ignores it otherwise, with a warning.
-#' @param block_classes The block classes that the app offers, as rows with
-#'   the class's package in `package` and its id in `id`, such as those of
+#' @param blocks The block classes that the app offers, as rows with the
+#'   class's package in `package` and its id in `id`, such as those of
 #'   [available_blocks()], or as the path of a YAML file that lists them
 #'
 #' @examples
@@ -122,9 +122,9 @@ serve <- function(x, ...) {
 
 #' @rdname serve
 #' @export
-serve.board <- function(x, ..., block_classes = available_blocks()) {
+serve.board <- function(x, ..., blocks = available_blocks()) {
   check_board_args(substitute(list(...)), "a board")
-  registry <- app_block_registry(block_classes, x)
+  registry <- app_block_registry(blocks, x)
   serve_app(
     encode_message(blockr_ser(x)),
     registry,
@@ -134,17 +134,16 @@ serve.board <- function(x, ..., block_classes = available_blocks()) {
 
 #' @rdname serve
 #' @export
-serve.character <- function(x, ..., block_classes = available_blocks()) {
+serve.character <- function(x, ..., blocks = available_blocks()) {
   check_board_args(substitute(list(...)), "the path of a JSON board")
-  registry <- app_block_registry(block_classes)
+  registry <- app_block_registry(blocks)
   serve_app(read_board_json(x), registry)
 }
 
 #' @param data The block's data, a list by input
 #' @rdname serve
 #' @export
-serve.block <- function(x, ..., data = list(),
-                        block_classes = available_blocks()) {
+serve.block <- function(x, ..., data = list(), blocks = available_blocks()) {
 
   dots <- dots_names(substitute(list(...)))
 
@@ -162,7 +161,7 @@ serve.block <- function(x, ..., data = list(),
   check_block_data(x, data)
 
   board <- new_board(x)
-  registry <- app_block_registry(block_classes, board)
+  registry <- app_block_registry(blocks, board)
 
   serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
 }
@@ -376,8 +375,8 @@ page_script <- function(runtime, alone = FALSE, test = NULL) {
   )
 }
 
-# Refuses every argument but `x` and `block_classes` of the method of
-# `serve()` for a board or for the path of a JSON board.
+# Refuses every argument but `x` and `blocks` of the method of `serve()` for
+# a board or for the path of a JSON board.
 # The arguments come as the call `list(...)`, unevaluated, so that one that
 # names something gone, such as `local_loader()`, fails here too.
 # The error says where each argument of today's `serve()` went.
@@ -406,7 +405,7 @@ check_board_args <- function(args, what) {
   nms <- arg_labels(nms)
 
   blockr_abort(
-    "For {what}, `serve()` takes no argument but `x` and `block_classes`, ",
+    "For {what}, `serve()` takes no argument but `x` and `blocks`, ",
     "and it was given {nms}.",
     if (length(moved)) paste0(" ", paste(moved, collapse = " ")) else "",
     class = "serve_args_invalid"
