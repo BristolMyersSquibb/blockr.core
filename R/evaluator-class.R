@@ -34,6 +34,12 @@
 # Without the load lock, R keeps by block id what it holds each block to,
 # which a later `hello` drops.
 #
+# The reply to `hello` sends the entries of the app's block registry,
+# `registry`, which
+# `serve()` built for the app, and by which R evaluates every block and
+# answers every request.
+# Outside an app, as in a test, that is the block registry of the process.
+#
 # The results live in an environment keyed by block id.
 # For each block that R evaluated, it holds the revision,
 # value, block expression and registry id of the latest evaluation.
@@ -65,7 +71,7 @@
 # and dropping results.
 # The rest is the protocol, which every evaluator shares.
 new_evaluator <- function(board, data = list(), lock = NULL,
-                          plugins = list()) {
+                          registry = block_registry, plugins = list()) {
 
   if (missing(board) || is.null(board)) {
     blockr_abort(
@@ -104,6 +110,7 @@ new_evaluator <- function(board, data = list(), lock = NULL,
   )
 
   ev$data <- data
+  ev$registry <- registry
   ev$plugins <- plugins
   ev$started <- FALSE
   ev$shared <- character()
@@ -306,7 +313,7 @@ start_session <- function(ev, req, send) {
           protocol = protocol_version(),
           capabilities = I(evaluator_capabilities(ev))
         ),
-        loaded_reply(ev$plugins),
+        loaded_reply(ev$registry, ev$plugins),
         list(lock = ev$locks),
         ev$opening
       )

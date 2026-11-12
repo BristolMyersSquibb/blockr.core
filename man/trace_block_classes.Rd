@@ -36,7 +36,6 @@ as \code{\link[testthat:skip_on_covr]{testthat::skip_on_covr()}} does.
 In a package that defines block classes:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{.onLoad <- function(libname, pkgname) \{
-  register_package_blocks(package = pkgname)
   trace_block_classes(pkgname)
 \}
 }\if{html}{\out{</div>}}

@@ -1,8 +1,22 @@
+# The source of a block constructor below the roxygen tags of a roclet test:
+# `ctor`, made from a class with the id `id`, as a package defines one.
+block_ctor_src <- function(ctor = "new_demo_block", id = "demo_block") {
+  paste0(
+    ctor, " <- blockr.core::block_constructor(\n",
+    "  blockr.core::new_block_class(\n",
+    "    \"", id, "\",\n",
+    "    expr = function() quote(seq_len(1L)),\n",
+    "    ui = blockr.core::js_module(\"demo.js\", package = NULL)\n",
+    "  )\n",
+    ")\n"
+  )
+}
+
 test_that("the roclet reads block metadata off constructor tags", {
 
   skip_if_not_installed("roxygen2")
 
-  txt <- "
+  txt <- paste0("
 #' Title
 #' @block demo block
 #' @blockDescr A demo
@@ -18,11 +32,11 @@ test_that("the roclet reads block metadata off constructor tags", {
 #'   [example] \"tail\"
 #'   [type] arg_enum(c(\"head\", \"tail\"))
 #' @export
-new_demo_block <- function(n = 1, direction = \"head\") n
-"
+", block_ctor_src())
 
   res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
 
+  expect_identical(res[["id"]], "demo_block")
   expect_identical(res[["name"]], "demo block")
   expect_identical(res[["description"]], "A demo")
   expect_identical(res[["category"]], "transform")
@@ -52,7 +66,7 @@ test_that("@blockArg allows an explicit description and type-only args", {
 
   skip_if_not_installed("roxygen2")
 
-  txt <- "
+  txt <- paste0("
 #' Title
 #' @block demo block
 #' @blockDescr A demo
@@ -61,8 +75,7 @@ test_that("@blockArg allows an explicit description and type-only args", {
 #'   [type] arg_string()
 #'   [description] The x column
 #' @export
-new_demo_block <- function(x = \"\") x
-"
+", block_ctor_src())
 
   args <- roxygen2::roc_proc_text(
     block_registration_roclet(), txt
@@ -78,7 +91,7 @@ test_that("@blockExamples yields block-level worked configs", {
 
   skip_if_not_installed("roxygen2")
 
-  txt <- "
+  txt <- paste0("
 #' Title
 #' @block demo block
 #' @blockDescr A demo
@@ -88,8 +101,7 @@ test_that("@blockExamples yields block-level worked configs", {
 #'   list(n = 3L)
 #' )
 #' @export
-new_demo_block <- function(n = 1) n
-"
+", block_ctor_src())
 
   res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
 
@@ -100,7 +112,7 @@ test_that("details falls back to @section and @blockLink is captured", {
 
   skip_if_not_installed("roxygen2")
 
-  txt <- "
+  txt <- paste0("
 #' Title
 #' @block demo block
 #' @blockDescr A demo
@@ -108,8 +120,7 @@ test_that("details falls back to @section and @blockLink is captured", {
 #' @blockLink https://example.com/demo
 #' @section Demo block: Prose about the block.
 #' @export
-new_demo_block <- function() NULL
-"
+", block_ctor_src())
 
   res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
 
@@ -121,7 +132,7 @@ test_that("@blockDetails overrides the @section fallback", {
 
   skip_if_not_installed("roxygen2")
 
-  txt <- "
+  txt <- paste0("
 #' Title
 #' @block demo block
 #' @blockDescr A demo
@@ -129,8 +140,7 @@ test_that("@blockDetails overrides the @section fallback", {
 #' @blockDetails An explicit detail.
 #' @section Demo block: Ignored prose.
 #' @export
-new_demo_block <- function() NULL
-"
+", block_ctor_src())
 
   res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
 
@@ -200,7 +210,7 @@ test_that("@blockCtor overrides the derived constructor name", {
 
   skip_if_not_installed("roxygen2")
 
-  txt <- "
+  txt <- paste0("
 #' Title
 #' @block demo
 #' @blockDescr A demo
@@ -208,11 +218,51 @@ test_that("@blockCtor overrides the derived constructor name", {
 #' @blockCtor make_demo
 #' @export
 new_demo_block <- function() NULL
-"
+
+", block_ctor_src("make_demo"))
 
   expect_named(
     roxygen2::roc_proc_text(block_registration_roclet(), txt),
     "make_demo"
+  )
+})
+
+test_that("the roclet reads each class's id off its constructor", {
+
+  skip_if_not_installed("roxygen2")
+
+  txt <- paste0("
+#' Title
+#' @block shown block
+#' @blockDescr A demo
+#' @blockCategory transform
+#' @export
+", block_ctor_src("new_shown_block", "other_block"))
+
+  res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)
+
+  # The class's own id, whatever the constructor's name, first in its entry
+  expect_named(res, "new_shown_block")
+  expect_identical(names(res[["new_shown_block"]])[1L], "id")
+  expect_identical(res[["new_shown_block"]][["id"]], "other_block")
+})
+
+test_that("a @block that documents no block constructor aborts", {
+
+  skip_if_not_installed("roxygen2")
+
+  txt <- "
+#' Title
+#' @block demo
+#' @blockDescr A demo
+#' @blockCategory transform
+#' @export
+new_demo_block <- function() NULL
+"
+
+  expect_error(
+    roxygen2::roc_proc_text(block_registration_roclet(), txt),
+    class = "block_roclet_invalid"
   )
 })
 
@@ -264,12 +314,12 @@ test_that("YAML arguments become an arg_specs collection, examples included", {
   expect_null(arg_spec_type(desc_only[["x"]]))
 })
 
-test_that("register_package_blocks is a no-op when no registry ships", {
+test_that("a package that ships no YAML registry registers no block class", {
 
-  before <- list_blocks()
+  registry <- new.env()
 
-  expect_invisible(register_package_blocks(package = "utils"))
-  expect_identical(list_blocks(), before)
+  expect_invisible(register_yaml_blocks("utils", registry))
+  expect_length(ls(registry), 0L)
 })
 
 test_that("the shipped core registry is complete", {
@@ -281,6 +331,10 @@ test_that("the shipped core registry is complete", {
   reg <- yaml::read_yaml(file)
 
   expect_length(reg, 10L)
+
+  # Each with the id of its class, which core's classes take from their
+  # constructors' names
+  expect_identical(chr_xtr(reg, "id"), sub("^new_", "", names(reg)))
   expect_identical(
     reg[["new_dataset_block"]][["arguments"]][["dataset"]][["example"]],
     "iris"

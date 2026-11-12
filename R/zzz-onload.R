@@ -12,8 +12,6 @@
   # so that both reach one copy.
   register_module("controls", js_module("js/blockr-core-controls.js"))
 
-  register_core_blocks()
-
   trace_block_classes(pkgname)
 
   invisible(NULL)

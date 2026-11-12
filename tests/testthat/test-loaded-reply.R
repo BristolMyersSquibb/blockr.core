@@ -212,7 +212,7 @@ test_that("R gives the app's plugins with their classes' names and versions", {
   local_versions(blockr.one = "1.2.0")
 
   reply <- loaded_reply(
-    list(`blockr.one-dag_plugin` = list(name = "DAG", version = 3L))
+    plugins = list(`blockr.one-dag_plugin` = list(name = "DAG", version = 3L))
   )
 
   expect_identical(reply$packages$blockr.one, "1.2.0")
