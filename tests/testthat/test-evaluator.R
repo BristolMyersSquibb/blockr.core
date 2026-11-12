@@ -21,7 +21,15 @@ test_that("R answers the handshake as the fixture hello-declared has it", {
     )
   )
 
-  session <- local_evaluator(proto_declared_board(), hello = FALSE)
+  # The script passes `serve()` a title, which blockr.test's frontend takes
+  plugins <- app_plugins(available_plugins())
+
+  session <- local_evaluator(
+    proto_declared_board(),
+    plugins = plugins,
+    frontend = frontend_reply(title = "Trials", plugins = plugins),
+    hello = FALSE
+  )
 
   expect_fixture_replies(session, "hello-declared")
 })
@@ -203,7 +211,7 @@ test_that("R binds a variadic block's inputs in link order", {
   expect_fixture_replies(session, "evaluate-variadic")
 })
 
-test_that("R replies invalid where the state leaves a used arg unset", {
+test_that("R replies invalid where the state cannot run", {
 
   session <- local_evaluator()
 
@@ -211,6 +219,13 @@ test_that("R replies invalid where the state leaves a used arg unset", {
   hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
 
   expect_fixture_replies(session, "evaluate-invalid")
+
+  # R logs why the block is invalid at info, as a message, not as an error.
+  expect_identical(chr_xtr(session$logged, "level"), "info")
+  expect_identical(
+    chr_xtr(session$logged, "message"),
+    "Block c at revision 9: Choose at least one column to join by."
+  )
 })
 
 test_that("R passes the parameters of a one-time evaluation to block_eval()", {

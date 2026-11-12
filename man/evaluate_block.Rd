@@ -70,6 +70,8 @@ Every condition raised on the way is recorded with its severity, its class,
 its message and the phase that raised it: \code{inputs}, \code{expr}, which covers
 interpolation, \code{block_eval} or \code{result_summary}. Warnings and messages are
 recorded rather than signaled.
+The error that makes a block \code{invalid} is recorded with the severity
+\code{message}, since the status already says that the state cannot run.
 
 The \code{block_eval()} generic runs the block expression, \code{expr}, in \code{env},
 where each upstream block's result is bound to its id, dispatching on the

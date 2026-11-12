@@ -11,9 +11,11 @@
 // CoreApi.blockrOption(), so that a deployment still sets the default, and
 // takes a fallback only where nothing sets the blockr option. The fallbacks
 // are today's, but for n_rows, whose page holds 10 rows where today's holds
-// 50. Core calls the function only where something needs the board option and
-// the board lacks its value, as a mounted renderer or an onChange() does, so
-// that nothing is read before then.
+// 50, and for show_conditions, which names every severity where today's names
+// warnings and errors, so that a frontend shows why a block is invalid, which
+// R reports as a message. Core calls the function only where something needs
+// the board option and the board lacks its value, as a mounted renderer or an
+// onChange() does, so that nothing is read before then.
 // Each default reads a string, as an environment variable gives, as the
 // number or the logical that it holds, and where R holds a value that the
 // board option's schema then refuses, the default fails, naming the value as
@@ -62,7 +64,7 @@ const SEVERITIES = ["message", "warning", "error"] as const;
 // reports every severity.
 export function showConditions(core: BlockrOptions): Option {
   const schema = optionSchemas.show_conditions;
-  const fallback = ["warning", "error"] as const;
+  const fallback = SEVERITIES;
   return {
     id: "show_conditions",
     label: "Message types to display",

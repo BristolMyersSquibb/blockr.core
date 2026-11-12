@@ -76,9 +76,10 @@ glue_plur <- function(..., envir = parent.frame()) {
 #' The fourth wrapper, `blockr_invalid()`, signals that a block's state cannot
 #' run yet, such as a selection the user emptied, as an error that also
 #' inherits from "blockr_invalid". R then reports the block as `invalid`
-#' rather than `error`, and runs nothing. A block class signals it from its
-#' `expr`, while the check of a function given as its `inputs` signals an error
-#' with `blockr_abort()` (see [new_block_class()]).
+#' rather than `error`, records the condition as a message, and runs nothing.
+#' A block class signals it from its `expr`, while the check of a function
+#' given as its `inputs` signals an error with `blockr_abort()` (see
+#' [new_block_class()]).
 #'
 #' @param ... Forwarded to [cli::pluralize()]
 #' @param class Condition class

@@ -24,6 +24,9 @@
 # `app_plugins()` worked out as the app started, each under the ID of its
 # class with its class's name and version, and none for a block that `serve()`
 # serves alone.
+# Beside them, it carries in `frontend` what the app's frontend reads of the
+# arguments of `serve()`, as JSON, which `frontend_reply()` wrote as the app
+# started, and an empty JSON object for a block that `serve()` serves alone.
 #
 # The reply to `hello` carries the locks that the app sets, which R reads as
 # the evaluator starts, and R holds every evaluation to them
@@ -71,7 +74,8 @@
 # and dropping results.
 # The rest is the protocol, which every evaluator shares.
 new_evaluator <- function(board, data = list(), lock = NULL,
-                          registry = block_registry, plugins = list()) {
+                          registry = block_registry, plugins = list(),
+                          frontend = as_json_object(list())) {
 
   if (missing(board) || is.null(board)) {
     blockr_abort(
@@ -112,6 +116,7 @@ new_evaluator <- function(board, data = list(), lock = NULL,
   ev$data <- data
   ev$registry <- registry
   ev$plugins <- plugins
+  ev$frontend <- frontend
   ev$started <- FALSE
   ev$shared <- character()
   ev$results <- new.env(parent = emptyenv())
@@ -313,7 +318,7 @@ start_session <- function(ev, req, send) {
           protocol = protocol_version(),
           capabilities = I(evaluator_capabilities(ev))
         ),
-        loaded_reply(ev$registry, ev$plugins),
+        loaded_reply(ev$registry, ev$plugins, ev$frontend),
         list(lock = ev$locks),
         ev$opening
       )

@@ -54,6 +54,15 @@ export interface PluginModule {
         signal: AbortSignal;
     }): Rendered;
 }
+export interface FrontendModule {
+    render(args: {
+        el: HTMLElement;
+        core: CoreApi;
+        plugin: PluginClassId;
+        signal: AbortSignal;
+        args: Readonly<Record<string, Json>>;
+    }): Rendered;
+}
 export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;
 export interface RequestOpts {
     reads?: BlockId[];

@@ -10,9 +10,13 @@
 # Its lock is what `lock_board()` reads of the board unless given, as `serve()`
 # reads it, and so are the app's plugins, which are the plugins of every class
 # that an available package lists, or none for a block served alone.
+# What the app's frontend reads of the arguments of `serve()` is likewise what
+# `serve()` sends where the script passes it none, or nothing for a block
+# served alone.
 local_evaluator <- function(board = list(blocks = list()), data = list(),
                             lock = lock_board(board, data),
                             plugins = default_app_plugins(data),
+                            frontend = default_frontend(plugins),
                             hello = TRUE, frame = parent.frame()) {
 
   session <- new.env()
@@ -39,7 +43,8 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
     board = board,
     data = data,
     lock = lock,
-    plugins = plugins
+    plugins = plugins,
+    frontend = frontend
   )
 
   session$send <- function(message) {
@@ -77,6 +82,18 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
 # that it serves alone, with the data that R binds to its inputs.
 default_app_plugins <- function(data = list()) {
   if (length(data)) list() else app_plugins(available_plugins())
+}
+
+# What the app's frontend reads where the script passes `serve()` no argument
+# for it, as `serve()` works it out, or nothing where the app runs no plugin,
+# as for a block that `serve()` serves alone.
+default_frontend <- function(plugins) {
+
+  if (!length(plugins)) {
+    return(as_json_object(list()))
+  }
+
+  frontend_reply(plugins = plugins)
 }
 
 hello_message <- function(id = "1",

@@ -14,7 +14,7 @@ scatter_block <- new_block_class(
     }
   },
   expr = function(x, y) {
-    if (!isTRUE(nzchar(x)) || !isTRUE(nzchar(y))) {
+    if (missing(x) || missing(y) || !isTRUE(nzchar(x)) || !isTRUE(nzchar(y))) {
       blockr_invalid("Choose a column for each axis.")
     }
     # Each column is taken with `[`, which fails on one the data lacks, where

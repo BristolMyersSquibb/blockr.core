@@ -7898,16 +7898,16 @@ function pageFrontEnds(el) {
         return;
       }
       let prepared;
-      const { id: id2, source, plugin } = front;
+      const { id: id2, source, plugin, args } = front;
       const pkg = packageFromId(id2);
       if (source === void 0) {
-        prepared = { id: id2, module: id2, plugin, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
+        prepared = { id: id2, module: id2, plugin, args, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
       } else {
         try {
           const mod = mountableModule(await loader.load(source, pkg), source.module, pkg);
-          prepared = { id: id2, module: source.module, plugin, render: mod.render.bind(mod) };
+          prepared = { id: id2, module: source.module, plugin, args, render: mod.render.bind(mod) };
         } catch (error) {
-          prepared = { id: id2, module: source.module, plugin, error };
+          prepared = { id: id2, module: source.module, plugin, args, error };
         }
       }
       if (signal.aborted) return;
@@ -7948,7 +7948,13 @@ function pageFrontEnds(el) {
       };
       drawn2 = current2;
       try {
-        const rendered = await prepared.render({ el, core, plugin: prepared.plugin, signal: controller.signal });
+        const rendered = await prepared.render({
+          el,
+          core,
+          plugin: prepared.plugin,
+          signal: controller.signal,
+          args: prepared.args
+        });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current2.cleanup = rendered;
@@ -8904,7 +8910,12 @@ function start(options) {
       const [failures] = await Promise.all([
         front?.added ?? [],
         options.frontEnds?.prepare(
-          front === void 0 ? { none: noFrontend(reply, core) } : { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+          front === void 0 ? { none: noFrontend(reply, core) } : {
+            id: front.module,
+            source: own(latest?.modules ?? {}, front.module),
+            plugin: front.plugin,
+            args: reply.frontend
+          },
           loader,
           signal
         )
@@ -9481,7 +9492,7 @@ function nRows(core) {
 var SEVERITIES2 = ["message", "warning", "error"];
 function showConditions(core) {
   const schema = optionSchemas.show_conditions;
-  const fallback = ["warning", "error"];
+  const fallback = SEVERITIES2;
   return {
     id: "show_conditions",
     label: "Message types to display",
@@ -9533,7 +9544,7 @@ function checked2(id2, schema, sent2, value2 = sent2) {
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderer of its outputs, where each module is served, the app's plugins, core's basic frontend and its storage plugin, each under the id of its class with its class's name and version, since the script passes serve() no plugins and no other package lists a plugin class, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderer of its outputs, where each module is served, the app's plugins, core's basic frontend and its storage plugin, each under the id of its class with its class's name and version, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -9863,6 +9874,7 @@ var hello_default = {
           "blockr.core-file_storage_plugin": { name: "File storage", version: 1 },
           "blockr.core-edit_board_plugin": { name: "Edit board", version: 1 }
         },
+        frontend: {},
         option_versions: {},
         renderers: {},
         lock: { board: false, load: false },

@@ -68,6 +68,26 @@
 #' A plugin class that needs R gives its requests through its method of
 #' [plugin_requests()], which R calls on such a plugin too.
 #'
+#' The app's frontend may take arguments of [serve()], as the dock takes the
+#' items of its bar in `navbar`, through its class's method of
+#' `frontend_args()`.
+#' As `serve()` is called, R calls the method on the plugin that the
+#' frontend's constructor makes, with the arguments in the `...` of `serve()`
+#' that `serve()` does not refuse itself.
+#' The method takes the arguments that the frontend knows and refuses the
+#' rest, naming the frontend.
+#' It returns what the frontend reads of them, as a list by name.
+#' R writes that list as a JSON object, and sends it in its reply to `hello`,
+#' so that no board or file sets it.
+#' Core then calls the `render()` of the frontend's module with it, in `args`.
+#' A method cannot hand the arguments that it does not know on to core's
+#' method with `NextMethod()`, since R would hand on those that it took as
+#' well, so each method refuses them itself.
+#' Core's method for `frontend_plugin` takes no argument and returns an empty
+#' list.
+#' So core's basic frontend refuses every argument, and so does a frontend
+#' whose class has no method of its own.
+#'
 #' @param state The plugin's state, the args of its constructor, as a list by
 #'   name
 #' @param id The id of the plugin's class without its package, named as
@@ -75,7 +95,8 @@
 #' @param class The plugin's class vector without `"plugin"`, its own class
 #'   first, as `c("dock_plugin", "frontend_plugin")`, which defaults to `id`
 #' @param x Plugin
-#' @param ... Generic consistency
+#' @param ... For `frontend_args()`, the arguments that [serve()] hands the
+#'   app's frontend, and generic consistency otherwise
 #'
 #' @examples
 #' \dontrun{
@@ -86,11 +107,22 @@
 #' }
 #'
 #' plugin_version.dag_plugin <- function(x, ...) 2L
+#'
+#' # In a package whose frontend, of the class grid_plugin, shows a title that
+#' # the app script gives, as in serve(board, title = "Trials")
+#' frontend_args.grid_plugin <- function(x, ..., title = "Grid") {
+#'   if (...length()) {
+#'     stop("The Grid frontend takes no argument of `serve()` but `title`.")
+#'   }
+#'   list(title = title)
+#' }
 #' }
 #'
 #' available_plugins()
 #'
 #' plugin_class_id(new_basic_frontend_plugin())
+#'
+#' frontend_args(new_basic_frontend_plugin())
 #'
 #' @return The constructors `new_plugin()`, `new_basic_frontend_plugin()`,
 #' `new_file_storage_plugin()` and `new_edit_board_plugin()` return a `plugin`
@@ -99,6 +131,8 @@
 #' full, a string, and `plugin_state()` the state, a list by name.
 #' The generic `plugin_version()` returns a whole number, and
 #' `available_plugins()` a data frame with a row for each plugin class.
+#' The generic `frontend_args()` returns what the frontend reads of the
+#' arguments, a list by name.
 #'
 #' @export
 new_plugin <- function(state = list(), id, class = id) {
@@ -236,6 +270,32 @@ plugin_version <- function(x, ...) {
 #' @export
 plugin_version.plugin <- function(x, ...) {
   1L
+}
+
+#' @rdname new_plugin
+#' @export
+frontend_args <- function(x, ...) {
+  UseMethod("frontend_args")
+}
+
+#' @rdname new_plugin
+#' @export
+frontend_args.frontend_plugin <- function(x, ...) {
+
+  # R reads the arguments unevaluated, so that one that calls a function of a
+  # package that the app has not loaded, as `navbar = default_navbar()`
+  # without blockr.dock, fails with this error too.
+  nms <- dots_names(substitute(list(...)))
+
+  if (length(nms)) {
+    blockr_abort(
+      "The app's frontend, {plugin_class_id(x)}, takes no argument of ",
+      "`serve()`, and was given {arg_labels(nms)}.",
+      class = "frontend_args_invalid"
+    )
+  }
+
+  list()
 }
 
 # Whether a plugin is a frontend or a storage plugin, of which an app runs one

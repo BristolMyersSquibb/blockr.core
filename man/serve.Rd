@@ -18,7 +18,10 @@ serve(x, ...)
 \arguments{
 \item{x}{A board, the path of a JSON board, or a block}
 
-\item{...}{For a block, its data where \code{data} is empty.
+\item{...}{For a board or the path of a JSON board, the arguments of the
+app's frontend, by name, which R hands to the method of \code{\link[=frontend_args]{frontend_args()}}
+for the frontend's class.
+For a block, its data where \code{data} is empty.
 R ignores it otherwise, with a warning.}
 
 \item{blocks}{The block classes that the app offers, as rows with the
@@ -79,6 +82,20 @@ A board that the script builds gives only the state of its plugins, and a
 board with a plugin of a class that the app does not run stops the app too,
 naming the class.
 A block that \code{serve()} serves alone runs no plugin.
+
+The methods for a board and for a path refuse an unnamed argument, and
+\code{id}, \code{options} and \code{loader}, which \code{serve()} took before blockr.core 0.2.0,
+with an error that says where each went.
+The methods hand every other argument in \code{...} to the app's frontend, by
+name, as the dock takes the items of its bar in \code{navbar}.
+As \code{serve()} is called, R hands them to the method of \code{\link[=frontend_args]{frontend_args()}} for
+the class of the app's frontend.
+The method refuses each argument that the frontend does not know, naming
+the frontend.
+Core's basic frontend knows none, so an app that runs it and passes
+\code{navbar} fails as \code{serve()} is called.
+R sends what the method returns in its reply to \code{hello}, so that every
+board that the app opens gets the same.
 
 For a board, R writes the board's JSON once, as \code{serve()} is called, and
 sends it to the client as each session starts.

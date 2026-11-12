@@ -197,7 +197,7 @@ protocol_r_values <- function() {
             protocol = protocol_version(),
             capabilities = I(c("cancel", "progress"))
           ),
-          declared_fields(),
+          declared_fields(title = "Trials"),
           obj(lock = proto_lock(), board = proto_declared_board())
         )
       )
@@ -269,9 +269,10 @@ protocol_r_values <- function() {
           status = "invalid",
           conditions = list(
             proto_condition(
-              "error",
-              c("evalError", "missingArgError", "error", "condition"),
-              "argument \"by\" is missing, with no default",
+              "message",
+              c("blockr_invalid", "blockr_error", "rlang_error", "error",
+                "condition"),
+              "Choose at least one column to join by.",
               phase = "expr"
             )
           )
@@ -520,7 +521,9 @@ proto_hello_reply <- function(block_registry, lock, ...,
 
 # What the reply to `hello` of a core app says of the modules that R serves,
 # among them core's basic frontend, which draws the board, and the UI of its
-# Edit board plugin, and of the app's plugins, core's own three.
+# Edit board plugin, of the app's plugins, core's own three, and of what the
+# frontend reads of the arguments of `serve()`, nothing for core's basic
+# frontend.
 proto_served <- function() {
   obj(
     startup_modules = list(),
@@ -534,6 +537,7 @@ proto_served <- function() {
       )
     ),
     plugins = proto_core_plugins(),
+    frontend = obj(),
     option_versions = obj(),
     renderers = obj()
   )
@@ -1119,7 +1123,8 @@ proto_output <- function(x) {
 # blockr.test, which no library holds: it declares, from its `.onLoad()`, a
 # startup module, two modules that it offers others and two renderers, one for
 # table outputs and one for the board option dark_mode, and it lists its
-# plugin class grid_plugin, a frontend, whose state it gives version 2.
+# plugin class grid_plugin, a frontend, whose state it gives version 2 and
+# which takes a title from `serve()`.
 # Beside it, a script defines two block classes, one whose module ships a
 # stylesheet and the schema of its state, and one whose module ships neither.
 # The helper writes the files of all of them, so that their content, and so the
@@ -1240,14 +1245,22 @@ local_declared_package <- function(dir, frame = parent.frame()) {
   )
 
   # The methods, from blockr.test's namespace, of `plugin_version()`, by which
-  # blockr.test gives the state of its plugin class grid_plugin version 2, and
-  # of `board_option_version()`, by which it gives its board option grid_gap
-  # version 2
+  # blockr.test gives the state of its plugin class grid_plugin version 2, of
+  # `board_option_version()`, by which it gives its board option grid_gap
+  # version 2, and of `frontend_args()`, by which its frontend takes a title
+  # from `serve()`, "Grid" where the script passes none, and refuses any other
+  # argument
   ns <- list2env(list(.packageName = "blockr.test"))
 
   methods <- list(
     plugin_version.grid_plugin = function(x, ...) 2L,
-    board_option_version.grid_gap_option = function(x, ...) 2L
+    board_option_version.grid_gap_option = function(x, ...) 2L,
+    frontend_args.grid_plugin = function(x, ..., title = "Grid") {
+      if (...length()) {
+        stop("The Grid frontend takes no argument of `serve()` but `title`.")
+      }
+      list(title = title)
+    }
   )
 
   for (name in names(methods)) {
@@ -1351,8 +1364,9 @@ register_script_blocks <- function(dir) {
 # `hello`, for an app whose script loaded blockr.test beside its own block
 # classes, with nothing of core's, and runs the plugins of every class that
 # an available package lists: core's storage plugin and blockr.test's
-# frontend, in place of core's basic frontend.
-declared_fields <- function() {
+# frontend, in place of core's basic frontend, which reads the arguments that
+# the script passes `serve()` in `...`.
+declared_fields <- function(...) {
 
   dir <- withr::local_tempdir()
   write_declared_files(dir)
@@ -1376,5 +1390,10 @@ declared_fields <- function() {
     )
   )
 
-  loaded_reply(plugins = app_plugins(available_plugins()))
+  plugins <- app_plugins(available_plugins())
+
+  loaded_reply(
+    plugins = plugins,
+    frontend = frontend_reply(..., plugins = plugins)
+  )
 }

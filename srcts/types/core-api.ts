@@ -125,15 +125,35 @@ export interface Note {
 // What a plugin's module exports as its default, beside the JS API major it
 // was built against, as `export const api = 1`: the `ui` of a plugin class,
 // which a frontend places with mountPlugin(), or its `frontend`, which draws
-// the page. Core calls render() with the element to draw in, CoreApi, the id
-// of the class of the plugin it draws and a signal, which it aborts when it
-// unmounts the module, as the contract of a block's UI has it with a host in
-// place of CoreApi (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#plugin-classes).
+// the page and gets more (FrontendModule, below). Core calls render() with
+// the element to draw in, CoreApi, the id of the class of the plugin it draws
+// and a signal, which it aborts when it unmounts the module, as the contract
+// of a block's UI has it with a host in place of CoreApi
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#plugin-classes).
 // So one module draws the plugin of its class, from the state that the board
 // holds under that id, and never names its own id. The render() function may
 // be async and may return its cleanup.
 export interface PluginModule {
   render(args: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }): Rendered;
+}
+
+// What the module of a frontend exports as its default, the `frontend` of its
+// plugin class, which draws the page. Core calls its render() as it calls that
+// of a plugin's module, with the page's element, and with `args` beside: what
+// the frontend reads of the arguments that `serve()` hands it, by name, as the
+// method of R's frontend_args() for the frontend's class returned them, which
+// R's reply to `hello` carries in `frontend`. So no board sets them, and every
+// board that the app opens gets the same. They are empty for core's basic
+// frontend, which takes none
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#the-frontend).
+export interface FrontendModule {
+  render(args: {
+    el: HTMLElement;
+    core: CoreApi;
+    plugin: PluginClassId;
+    signal: AbortSignal;
+    args: Readonly<Record<string, Json>>;
+  }): Rendered;
 }
 
 export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;

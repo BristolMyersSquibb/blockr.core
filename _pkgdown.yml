@@ -17,6 +17,8 @@ navbar:
       href: articles/create-block.html
     - text: Block expressions
       href: articles/block-expressions.html
+    - text: Migration notes for app scripts
+      href: articles/migration-notes.html
 
 reference:
 - title: Board objects
