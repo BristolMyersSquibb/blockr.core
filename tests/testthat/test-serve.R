@@ -309,15 +309,15 @@ test_that("serve() refuses two classes of one id from outside a package", {
   expect_error(serve(board), "Blocks a and c", class = "board_blocks_invalid")
 })
 
-test_that("serve() takes nothing but the board, and says where the rest went", {
+test_that("serve() refuses what it took before, and says where each went", {
 
   board <- served_board()
 
   expect_error(
     serve(board, id = "my_board"),
     paste0(
-      "For a board, `serve()` takes no argument but `x`, `blocks` and ",
-      "`plugins`, and it was given `id`. A board holds its ID, which ",
+      "For a board, `serve()` takes no `id`, `options` or `loader`, and no ",
+      "unnamed argument. It was given `id`. A board holds its ID, which ",
       "`new_board()` takes as `id`."
     ),
     fixed = TRUE,
@@ -329,18 +329,160 @@ test_that("serve() takes nothing but the board, and says where the rest went", {
   expect_error(
     serve(board, loader = local_loader(), new_board()),
     paste0(
-      "it was given `loader` and an unnamed argument. The client opens and ",
-      "saves boards itself, with no loader."
+      "It was given `loader` and an unnamed argument. The client opens and ",
+      "saves boards itself, with no loader. R hands every other argument to ",
+      "the app's frontend, by name."
     ),
     fixed = TRUE,
     class = "serve_args_invalid"
   )
 
+  # R refuses them before it hands the frontend the other arguments
   expect_error(
     serve(board, options = list(), navbar = "x"),
-    "`new_board()` takes as `options`.",
+    paste0(
+      "It was given `options`. A board holds the values of its board options, ",
+      "which `new_board()` takes as `options`."
+    ),
     fixed = TRUE,
     class = "serve_args_invalid"
+  )
+
+  # A script written for blockr.core 0.1 passed the board's ID unnamed
+  expect_error(
+    serve(board, "my_board"),
+    "It was given an unnamed argument. R hands every other argument",
+    fixed = TRUE,
+    class = "serve_args_invalid"
+  )
+})
+
+test_that("serve() hands the app's frontend the other arguments, by name", {
+
+  dir <- withr::local_tempdir()
+  write_declared_files(dir)
+
+  local_empty_declarations()
+  local_declared_package(dir)
+
+  # The app runs blockr.test's frontend in place of core's basic frontend, and
+  # R sends what the frontend's method returns for the title in `frontend`
+  reply <- served_replies(
+    serve(new_board(), title = "Trials"),
+    hello_message()
+  )[[1L]]
+
+  expect_identical(reply$frontend, list(title = "Trials"))
+
+  # The method gives its default where the script passes no title
+  reply <- served_replies(serve(new_board()), hello_message())[[1L]]
+  expect_identical(reply$frontend, list(title = "Grid"))
+
+  # So does the path of a JSON board, which never sets what the frontend reads
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines(unclass(encode_message(proto_served_file())), path)
+
+  reply <- served_replies(serve(path, title = "Trials"), hello_message())[[1L]]
+  expect_identical(reply$frontend, list(title = "Trials"))
+
+  # R calls the method as serve() is called, so an argument that the method
+  # refuses stops the app then
+  expect_error(
+    serve(new_board(), navbar = list()),
+    "The Grid frontend takes no argument of `serve()` but `title`.",
+    fixed = TRUE
+  )
+})
+
+test_that("core's basic frontend takes no argument, and reads nothing", {
+
+  board <- served_board()
+
+  # An app without the dock that passes the dock's navbar stops as serve() is
+  # called, which evaluates no argument for it
+  expect_error(
+    serve(board, navbar = default_navbar()),
+    paste0(
+      "The app's frontend, blockr.core-basic_frontend_plugin, takes no ",
+      "argument of `serve()`, and was given `navbar`."
+    ),
+    fixed = TRUE,
+    class = "frontend_args_invalid"
+  )
+
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines(unclass(encode_message(proto_served_file())), path)
+
+  expect_error(
+    serve(path, navbar = list(), theme = "dark"),
+    "and was given `navbar` and `theme`.",
+    fixed = TRUE,
+    class = "frontend_args_invalid"
+  )
+
+  empty <- set_names(list(), character())
+
+  reply <- served_replies(serve(board), hello_message())[[1L]]
+  expect_identical(reply$frontend, empty)
+
+  # A block that serve() serves alone has no frontend, and takes its data in
+  # `...` still
+  reply <- served_replies(
+    serve(new_rbind_block(), a = datasets::BOD, b = datasets::BOD),
+    hello_message()
+  )[[1L]]
+
+  expect_identical(reply$frontend, empty)
+  expect_identical(reply$bound, c("a", "b"))
+})
+
+test_that("serve() refuses what a frontend's method returns but a list", {
+
+  local_plugin_classes(
+    Sheet = plugin_ctor(function() NULL, c("sheet_plugin", "frontend_plugin"))
+  )
+  local_versions(blockr.test = "0.1.0")
+
+  board <- served_board()
+
+  for (value in list("dark", list("dark"), list(a = 1, a = 2))) {
+
+    local_method(
+      "frontend_args",
+      "sheet_plugin",
+      value,
+      "blockr.test",
+      environment()
+    )
+
+    expect_error(
+      serve(board),
+      paste0(
+        "The method of `frontend_args()` for the frontend ",
+        "blockr.test-sheet_plugin returns no list by name, which R writes as ",
+        "a JSON object."
+      ),
+      fixed = TRUE,
+      class = "frontend_args_invalid"
+    )
+  }
+
+  local_method(
+    "frontend_args",
+    "sheet_plugin",
+    list(theme = function() "dark"),
+    "blockr.test",
+    environment()
+  )
+
+  expect_error(
+    serve(board),
+    paste0(
+      "The method of `frontend_args()` for the frontend ",
+      "blockr.test-sheet_plugin returns a list that R cannot write as JSON"
+    ),
+    fixed = TRUE,
+    class = "frontend_args_invalid"
   )
 })
 
@@ -453,7 +595,7 @@ test_that("serve() serves the path of a JSON board, whose text R sends", {
 
   expect_error(
     serve(path, id = "cars"),
-    "For the path of a JSON board, `serve()` takes no argument but `x`",
+    "For the path of a JSON board, `serve()` takes no `id`, `options` or",
     fixed = TRUE,
     class = "serve_args_invalid"
   )

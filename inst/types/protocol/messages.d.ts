@@ -40,6 +40,7 @@ export interface HelloReply {
         css?: string;
     }>;
     plugins: Record<PluginClassId, PluginEntry>;
+    frontend: Record<string, Json>;
     option_versions: Record<OptionId, number>;
     renderers: Record<string, Renderer>;
     lock: Lock;

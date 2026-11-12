@@ -21,11 +21,12 @@
 // 6. Once the board is open, core imports the module of the app's frontend,
 //    the plugin that runs whose class has `frontend`, such as core's basic
 //    frontend. Once the board options that the frontend requires are on the
-//    board, core calls the frontend's render(), and starts the scheduler once
-//    render() has returned, so that the scheduler sends R nothing before. It
-//    then sends, through `notifications`, the note that names what the store
-//    dropped, which the frontend shows. Where the app runs no frontend, the
-//    page shows why in place of the board.
+//    board, core calls the frontend's render(), with what R's reply holds in
+//    `frontend`, and starts the scheduler once render() has returned, so
+//    that the scheduler sends R nothing before. It then sends, through
+//    `notifications`, the note that names what the store dropped, which the
+//    frontend shows. Where the app runs no frontend, the page shows why in
+//    place of the board.
 // 7. Core then calls the start of each plugin whose class has one, so that
 //    what the frontend first shows comes before what the plugins ask for as
 //    they start.
@@ -93,6 +94,7 @@ import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, Note } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 import { asError, errorMessage, isObject, own, quoted, report } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
@@ -102,11 +104,18 @@ import { corePluginClasses } from "./plugins.ts";
 const CAPABILITIES: Capability[] = ["cancel", "interrupt", "progress"];
 
 // The frontend that draws a board that opens: the id of its module, from where
-// R serves the module, which is undefined where R serves no such module, and
-// the id of the frontend's class, which names the plugin that it is. Or, where
-// the app runs no frontend, why, which the page shows in place of the board.
+// R serves the module, which is undefined where R serves no such module, the
+// id of the frontend's class, which names the plugin that it is, and what it
+// reads of the arguments that `serve()` hands it, which R's reply to `hello`
+// holds in `frontend`. Or, where the app runs no frontend, why, which the page
+// shows in place of the board.
 export type Front =
-  | { readonly id: string; readonly source: Source | undefined; readonly plugin: PluginClassId }
+  | {
+      readonly id: string;
+      readonly source: Source | undefined;
+      readonly plugin: PluginClassId;
+      readonly args: Readonly<Record<string, Json>>;
+    }
   | { readonly none: string };
 
 // What draws the frontends of the boards that open, which the page gives, and
@@ -118,11 +127,12 @@ export interface FrontEnds {
   // meanwhile, it leaves the page to that board.
   prepare(front: Front, loader: Loader, signal: AbortSignal): Promise<void>;
   // Calls the render() of the frontend that prepare() imported, with the
-  // element, CoreApi, the id of the frontend's class and a signal, and
-  // resolves once render() has returned or resolved. Where board options that
-  // the frontend requires did not go onto the board, or the app runs no
-  // frontend, it shows why in the element instead, and calls no render(). The
-  // frontend ends as the signal aborts, as the next board opens.
+  // element, CoreApi, the id of the frontend's class, a signal and what the
+  // frontend reads of the arguments of `serve()`, and resolves once render()
+  // has returned or resolved. Where board options that the frontend requires
+  // did not go onto the board, or the app runs no frontend, it shows why in
+  // the element instead, and calls no render(). The frontend ends as the
+  // signal aborts, as the next board opens.
   render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
   // Draws the board's one block in its card, for a block that serve() serves
   // alone, and returns once the card has mounted the block. The card ends as
@@ -435,7 +445,12 @@ export function start(options: StartOptions): Started {
         options.frontEnds?.prepare(
           front === undefined
             ? { none: noFrontend(reply, core) }
-            : { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+            : {
+                id: front.module,
+                source: own(latest?.modules ?? {}, front.module),
+                plugin: front.plugin,
+                args: reply.frontend,
+              },
           loader,
           signal,
         ),

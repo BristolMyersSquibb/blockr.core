@@ -8,10 +8,11 @@
 //   shows why in place of the board.
 // - Once the board options that the frontend requires are on the board, core
 //   calls the frontend's render() with the element, CoreApi, the id of the
-//   frontend's class and a signal, which aborts as the next board opens, since
-//   core starts again for that board. Where a board option that the frontend
-//   requires did not go onto the board, the element shows why in place of the
-//   frontend.
+//   frontend's class, a signal, which aborts as the next board opens, since
+//   core starts again for that board, and `args`, what the frontend reads of
+//   the arguments that `serve()` hands it, which R's reply to `hello` holds in
+//   `frontend`. Where a board option that the frontend requires did not go
+//   onto the board, the element shows why in place of the frontend.
 // - As the signal aborts, core runs the cleanup that render() returned, and the
 //   element says that the board is loading until the next frontend draws.
 // A frontend releases what it holds as its signal aborts, as a module does as
@@ -20,9 +21,10 @@
 
 import { attempt, ModuleError, mountableModule, showError } from "../mount/index.ts";
 import type { PluginClassId } from "../types/board.ts";
+import type { FrontendModule } from "../types/core-api.ts";
 import type { Rendered } from "../types/hosts.ts";
+import type { Json } from "../types/json.ts";
 import { errorMessage, packageFromId, report } from "../util/index.ts";
-import type { PluginArgs } from "./plugins.ts";
 import type { FrontEnds } from "./start.ts";
 
 interface Drawn {
@@ -50,7 +52,8 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         id: string;
         module: string;
         plugin: PluginClassId;
-        render?: (args: PluginArgs) => Rendered;
+        args: Readonly<Record<string, Json>>;
+        render?: (args: Parameters<FrontendModule["render"]>[0]) => Rendered;
         error?: unknown;
       }
     | { none: string }
@@ -75,16 +78,16 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         return;
       }
       let prepared: NonNullable<typeof next>;
-      const { id, source, plugin } = front;
+      const { id, source, plugin, args } = front;
       const pkg = packageFromId(id);
       if (source === undefined) {
-        prepared = { id, module: id, plugin, error: new Error(`R serves no module ${id}, the frontend that draws the board.`) };
+        prepared = { id, module: id, plugin, args, error: new Error(`R serves no module ${id}, the frontend that draws the board.`) };
       } else {
         try {
-          const mod = mountableModule<PluginArgs>(await loader.load(source, pkg), source.module, pkg);
-          prepared = { id, module: source.module, plugin, render: mod.render.bind(mod) };
+          const mod = mountableModule<Parameters<FrontendModule["render"]>[0]>(await loader.load(source, pkg), source.module, pkg);
+          prepared = { id, module: source.module, plugin, args, render: mod.render.bind(mod) };
         } catch (error) {
-          prepared = { id, module: source.module, plugin, error };
+          prepared = { id, module: source.module, plugin, args, error };
         }
       }
       if (signal.aborted) return;
@@ -125,7 +128,13 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       };
       drawn = current;
       try {
-        const rendered = await prepared.render({ el, core, plugin: prepared.plugin, signal: controller.signal });
+        const rendered = await prepared.render({
+          el,
+          core,
+          plugin: prepared.plugin,
+          signal: controller.signal,
+          args: prepared.args,
+        });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current.cleanup = rendered;

@@ -121,6 +121,7 @@
           "blockr.core-file_storage_plugin": { "name": "File storage", "version": 1 },
           "blockr.core-edit_board_plugin": { "name": "Edit board", "version": 1 }
         },
+        "frontend": {},
         "option_versions": {},
         "renderers": {},
         "lock": { "board": true, "load": true },

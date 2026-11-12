@@ -88,6 +88,12 @@ export interface HelloReply {
   // under the id of its class, in the order of the rows that `serve()` takes,
   // and none for a block that `serve()` serves alone.
   plugins: Record<PluginClassId, PluginEntry>;
+  // What the app's frontend reads of the arguments that `serve()` hands it,
+  // by name, as the method of R's `frontend_args()` for the frontend's class
+  // returns them, which core passes to the frontend's render() in `args`. It
+  // is empty for core's basic frontend, which takes none, and for a block that
+  // `serve()` serves alone, which has no frontend.
+  frontend: Record<string, Json>;
   // The version of the shape of each board option's value that a loaded
   // package gives one through its method of R's `board_option_version()`, by
   // the board option's id. A board option that it lacks is at version 1.

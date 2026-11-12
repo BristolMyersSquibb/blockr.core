@@ -3,10 +3,12 @@ import type { Transport } from "../protocol/index.ts";
 import type { Option } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 export type Front = {
     readonly id: string;
     readonly source: Source | undefined;
     readonly plugin: PluginClassId;
+    readonly args: Readonly<Record<string, Json>>;
 } | {
     readonly none: string;
 };

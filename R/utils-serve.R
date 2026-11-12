@@ -44,6 +44,20 @@
 #' naming the class.
 #' A block that `serve()` serves alone runs no plugin.
 #'
+#' The methods for a board and for a path refuse an unnamed argument, and
+#' `id`, `options` and `loader`, which `serve()` took before blockr.core 0.2.0,
+#' with an error that says where each went.
+#' The methods hand every other argument in `...` to the app's frontend, by
+#' name, as the dock takes the items of its bar in `navbar`.
+#' As `serve()` is called, R hands them to the method of [frontend_args()] for
+#' the class of the app's frontend.
+#' The method refuses each argument that the frontend does not know, naming
+#' the frontend.
+#' Core's basic frontend knows none, so an app that runs it and passes
+#' `navbar` fails as `serve()` is called.
+#' R sends what the method returns in its reply to `hello`, so that every
+#' board that the app opens gets the same.
+#'
 #' For a board, R writes the board's JSON once, as `serve()` is called, and
 #' sends it to the client as each session starts.
 #' So a board that R cannot write as JSON fails as the script runs (see
@@ -101,7 +115,10 @@
 #' `app$get_js("blockrTest.statuses()")`.
 #'
 #' @param x A board, the path of a JSON board, or a block
-#' @param ... For a block, its data where `data` is empty.
+#' @param ... For a board or the path of a JSON board, the arguments of the
+#'   app's frontend, by name, which R hands to the method of [frontend_args()]
+#'   for the frontend's class.
+#'   For a block, its data where `data` is empty.
 #'   R ignores it otherwise, with a warning.
 #' @param blocks The block classes that the app offers, as rows with the
 #'   class's package in `package` and its id in `id`, such as those of
@@ -147,7 +164,13 @@ serve.board <- function(x, ..., blocks = available_blocks(),
   plugins <- app_plugins(plugins)
   check_board_plugins(x, plugins)
   registry <- app_block_registry(blocks, x)
-  serve_app(encode_message(blockr_ser(x)), registry, plugins = plugins)
+  frontend <- frontend_reply(..., plugins = plugins)
+  serve_app(
+    encode_message(blockr_ser(x)),
+    registry,
+    plugins = plugins,
+    frontend = frontend
+  )
 }
 
 #' @rdname serve
@@ -157,7 +180,13 @@ serve.character <- function(x, ..., blocks = available_blocks(),
   check_board_args(substitute(list(...)), "the path of a JSON board")
   plugins <- app_plugins(plugins)
   registry <- app_block_registry(blocks)
-  serve_app(read_board_json(x), registry, plugins = plugins)
+  frontend <- frontend_reply(..., plugins = plugins)
+  serve_app(
+    read_board_json(x),
+    registry,
+    plugins = plugins,
+    frontend = frontend
+  )
 }
 
 #' @param data The block's data, a list by input
@@ -205,6 +234,46 @@ check_board_plugins <- function(board, plugins) {
   }
 
   invisible()
+}
+
+# What the app's frontend reads of the arguments that `serve()` does not take
+# itself, as JSON, which R sends in `frontend` in its reply to `hello`.
+# The app's plugins, as `app_plugins()` gives them, hold one frontend. R finds
+# it as `app_plugins()` does, by the R class of the plugin that its class's
+# constructor makes, and calls the method of `frontend_args()` on that plugin.
+# R checks what the method returns and writes it as a JSON object, once, as
+# `serve()` is called. So a method that returns anything but a list by name
+# stops the app then, naming the frontend.
+# The app's plugins come after `...`, since R would match an argument of
+# `serve()` named `p` to a `plugins` before it.
+frontend_reply <- function(..., plugins) {
+
+  available <- available_plugin_classes()
+  plugins <- lapply(set_names(nm = names(plugins)), plugin_of_class, available)
+
+  front <- plugins[lgl_ply(plugins, is_frontend_plugin)][[1L]]
+  args <- frontend_args(front, ...)
+
+  if (!is.list(args) || is.object(args) || !has_unique_names(args)) {
+    blockr_abort(
+      "The method of `frontend_args()` for the frontend ",
+      "{plugin_class_id(front)} returns no list by name, which R writes as ",
+      "a JSON object.",
+      class = "frontend_args_invalid"
+    )
+  }
+
+  tryCatch(
+    encode_message(as_json_object(args)),
+    error = function(e) {
+      blockr_abort(
+        "The method of `frontend_args()` for the frontend ",
+        "{plugin_class_id(front)} returns a list that R cannot write as ",
+        "JSON: {conditionMessage(e)}",
+        class = "frontend_args_invalid"
+      )
+    }
+  )
 }
 
 # Registers the class of each block on a board that an app's block registry,
@@ -271,7 +340,10 @@ check_outside_classes <- function(classes) {
 # block's inputs.
 # Each session's evaluator reads the app's block registry, `registry`, alone.
 # The app's plugins, `plugins`, which `app_plugins()` gives, go to the
-# evaluator of every session, which sends them in its reply to `hello`.
+# evaluator of every session, which sends them in its reply to `hello`, and so
+# does what the app's frontend reads of the arguments of `serve()`,
+# `frontend`, as `frontend_reply()` gives it, an empty JSON object for a block
+# that `serve()` serves alone.
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -283,7 +355,7 @@ check_outside_classes <- function(classes) {
 # It works out the logger afresh, so that a logger that cannot work stops the
 # app here (see `write_log()`).
 serve_app <- function(board, registry, data = list(), alone = FALSE,
-                      plugins = list()) {
+                      plugins = list(), frontend = as_json_object(list())) {
 
   reset_logging()
   get_logger()
@@ -296,7 +368,7 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
     ui = function(req) serve_page(alone),
     server = function(input, output, session) {
 
-      ev <- new_evaluator(board, data, lock, registry, plugins)
+      ev <- new_evaluator(board, data, lock, registry, plugins, frontend)
 
       shiny::exportTestValues(result = latest_results(ev, alone))
 
@@ -398,18 +470,18 @@ page_script <- function(runtime, alone = FALSE, test = NULL) {
   )
 }
 
-# Refuses every argument but `x`, `blocks` and `plugins` of the method of
-# `serve()` for a board or for the path of a JSON board.
+# Refuses three arguments that the methods of `serve()` for a board and for
+# the path of a JSON board took before blockr.core 0.2.0, `id`, `options` and
+# `loader`, and any unnamed argument. The methods hand every other argument in
+# `...` to the app's frontend, by name.
+# A script written for blockr.core 0.1 passed the board's ID unnamed, as in
+# `serve(board, "my_id")`.
 # The arguments come as the call `list(...)`, unevaluated, so that one that
 # names something gone, such as `local_loader()`, fails here too.
-# The error says where each argument of today's `serve()` went.
+# The error says where each of them went.
 check_board_args <- function(args, what) {
 
   nms <- dots_names(args)
-
-  if (!length(nms)) {
-    return(invisible())
-  }
 
   moved <- c(
     id = "A board holds its ID, which `new_board()` takes as `id`.",
@@ -420,13 +492,23 @@ check_board_args <- function(args, what) {
     loader = "The client opens and saves boards itself, with no loader."
   )
 
-  moved <- moved[intersect(names(moved), nms)]
-  nms <- arg_labels(nms)
+  refused <- nms[!nzchar(nms) | nms %in% names(moved)]
+
+  if (!length(refused)) {
+    return(invisible())
+  }
+
+  went <- c(
+    moved[intersect(names(moved), refused)],
+    if (!all(nzchar(refused))) {
+      "R hands every other argument to the app's frontend, by name."
+    }
+  )
 
   blockr_abort(
-    "For {what}, `serve()` takes no argument but `x`, `blocks` and ",
-    "`plugins`, and it was given {nms}.",
-    if (length(moved)) paste0(" ", paste(moved, collapse = " ")) else "",
+    "For {what}, `serve()` takes no `id`, `options` or `loader`, and no ",
+    "unnamed argument. It was given {arg_labels(refused)}. ",
+    paste(went, collapse = " "),
     class = "serve_args_invalid"
   )
 }

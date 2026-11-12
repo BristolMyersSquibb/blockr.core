@@ -1040,6 +1040,46 @@ describe("the frontend and the plugins", () => {
     expect(basic.seen).toEqual([[BASIC_FRONTEND, ["warning", "error"], "light"]]);
   });
 
+  test("calls the frontend's render() with what R's reply to hello holds in frontend, in args, for every board that opens", async () => {
+    // A frontend that keeps the args that each render() gets.
+    const keeping = () => {
+      const seen: Readonly<Record<string, Json>>[] = [];
+      const exports = {
+        api: 1,
+        default: {
+          render({ args }: { args: Readonly<Record<string, Json>> }) {
+            seen.push(args);
+          },
+        },
+      };
+      return { seen, exports };
+    };
+
+    // Core's basic frontend takes no argument of serve(), so it gets none in a
+    // core app.
+    const basic = keeping();
+    await started({ [BASIC]: basic.exports }, hello);
+    expect(basic.seen).toEqual([{}]);
+
+    // An app whose frontend takes a title from serve().
+    const front = keeping();
+    const frontend: PluginClass = { id: GRID, frontend: "blockr.test-front" };
+    const reply: HelloReply = {
+      ...replied({ [GRID]: { name: "Grid" } }, undefined, [BASIC_FRONTEND]),
+      frontend: { title: "Trials" },
+    };
+    const s = await started({ [STARTUP]: registering([frontend]), [FRONT]: front.exports }, reply);
+    expect(front.seen).toEqual([{ title: "Trials" }]);
+
+    // A board that opens later, whatever it holds, gets the same, from R's
+    // reply to the hello with which core starts again.
+    const opening = s.core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Next" } }));
+    await tick();
+    s.r.answer(reply);
+    await opening;
+    expect(front.seen).toEqual([{ title: "Trials" }, { title: "Trials" }]);
+  });
+
   test("shows why in the page's element in place of the board where the app runs no frontend", async () => {
     const basic = frontEnd();
     const reported = reports();
