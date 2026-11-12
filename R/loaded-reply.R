@@ -3,18 +3,21 @@
 # `registry`, each with the renderer of its class's outputs, where R serves the
 # startup modules and the modules that packages offer each other, the app's
 # plugins, `plugins`, each under the ID of its class with the class's name and
-# version, as `app_plugins()` gives them, the versions of the board options
-# that packages give them, the renderers that the app names for board options,
-# and the versions of the packages that all of these come from.
+# version, as `app_plugins()` gives them, what the app's frontend reads of the
+# arguments of `serve()`, `frontend`, as `frontend_reply()` writes it, the
+# versions of the board options that packages give them, the renderers that
+# the app names for board options, and the versions of the packages that all
+# of these come from.
 # R loads no package for it: `serve()` loaded the packages of the block
 # classes that the app offers, and the app's script the others, and loading
 # them declared their modules and registered their methods.
 # These are the properties `packages`, `block_registry`, `startup_modules`,
-# `modules`, `plugins`, `option_versions` and `renderers` of
+# `modules`, `plugins`, `frontend`, `option_versions` and `renderers` of
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
 # reply's JSON.
 # Building them builds no block.
-loaded_reply <- function(registry = block_registry, plugins = list()) {
+loaded_reply <- function(registry = block_registry, plugins = list(),
+                         frontend = as_json_object(list())) {
 
   entries <- registry_entries(registry)
   startup <- startup_modules()
@@ -43,6 +46,7 @@ loaded_reply <- function(registry = block_registry, plugins = list()) {
     startup_modules = unname(lapply(startup, startup_module_reply)),
     modules = as_json_object(lapply(modules, declared_module_reply)),
     plugins = as_json_object(plugins),
+    frontend = frontend,
     option_versions = option_versions(),
     renderers = as_json_object(lapply(renderers, option_renderer_reply))
   )

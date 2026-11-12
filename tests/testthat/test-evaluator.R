@@ -21,7 +21,15 @@ test_that("R answers the handshake as the fixture hello-declared has it", {
     )
   )
 
-  session <- local_evaluator(proto_declared_board(), hello = FALSE)
+  # The script passes `serve()` a title, which blockr.test's frontend takes
+  plugins <- app_plugins(available_plugins())
+
+  session <- local_evaluator(
+    proto_declared_board(),
+    plugins = plugins,
+    frontend = frontend_reply(title = "Trials", plugins = plugins),
+    hello = FALSE
+  )
 
   expect_fixture_replies(session, "hello-declared")
 })

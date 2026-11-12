@@ -7896,16 +7896,16 @@ function pageFrontEnds(el) {
         return;
       }
       let prepared;
-      const { id: id2, source, plugin } = front;
+      const { id: id2, source, plugin, args } = front;
       const pkg = packageFromId(id2);
       if (source === void 0) {
-        prepared = { id: id2, module: id2, plugin, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
+        prepared = { id: id2, module: id2, plugin, args, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
       } else {
         try {
           const mod = mountableModule(await loader.load(source, pkg), source.module, pkg);
-          prepared = { id: id2, module: source.module, plugin, render: mod.render.bind(mod) };
+          prepared = { id: id2, module: source.module, plugin, args, render: mod.render.bind(mod) };
         } catch (error) {
-          prepared = { id: id2, module: source.module, plugin, error };
+          prepared = { id: id2, module: source.module, plugin, args, error };
         }
       }
       if (signal.aborted) return;
@@ -7946,7 +7946,13 @@ function pageFrontEnds(el) {
       };
       drawn2 = current2;
       try {
-        const rendered = await prepared.render({ el, core, plugin: prepared.plugin, signal: controller.signal });
+        const rendered = await prepared.render({
+          el,
+          core,
+          plugin: prepared.plugin,
+          signal: controller.signal,
+          args: prepared.args
+        });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current2.cleanup = rendered;
@@ -8856,7 +8862,12 @@ function start(options) {
       const [failures] = await Promise.all([
         front?.added ?? [],
         options.frontEnds?.prepare(
-          front === void 0 ? { none: noFrontend(reply, core) } : { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
+          front === void 0 ? { none: noFrontend(reply, core) } : {
+            id: front.module,
+            source: own(latest?.modules ?? {}, front.module),
+            plugin: front.plugin,
+            args: reply.frontend
+          },
           loader,
           signal
         )

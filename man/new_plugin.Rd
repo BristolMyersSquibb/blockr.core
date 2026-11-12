@@ -10,6 +10,8 @@
 \alias{plugin_state}
 \alias{plugin_version}
 \alias{plugin_version.plugin}
+\alias{frontend_args}
+\alias{frontend_args.frontend_plugin}
 \alias{available_plugins}
 \title{Plugins}
 \usage{
@@ -31,6 +33,10 @@ plugin_version(x, ...)
 
 \method{plugin_version}{plugin}(x, ...)
 
+frontend_args(x, ...)
+
+\method{frontend_args}{frontend_plugin}(x, ...)
+
 available_plugins()
 }
 \arguments{
@@ -45,7 +51,8 @@ first, as \code{c("dock_plugin", "frontend_plugin")}, which defaults to \code{id
 
 \item{x}{Plugin}
 
-\item{...}{Generic consistency}
+\item{...}{For \code{frontend_args()}, the arguments that \code{\link[=serve]{serve()}} hands the
+app's frontend, and generic consistency otherwise}
 }
 \value{
 The constructors \code{new_plugin()}, \code{new_basic_frontend_plugin()},
@@ -55,6 +62,8 @@ Of the getters, \code{plugin_class_id()} returns the id of the plugin's class in
 full, a string, and \code{plugin_state()} the state, a list by name.
 The generic \code{plugin_version()} returns a whole number, and
 \code{available_plugins()} a data frame with a row for each plugin class.
+The generic \code{frontend_args()} returns what the frontend reads of the
+arguments, a list by name.
 }
 \description{
 A plugin extends a board as a whole, such as a frontend that draws the page,
@@ -124,6 +133,26 @@ without args, and sends the version of the class of each of the app's
 plugins in its reply to \code{hello}.
 A plugin class that needs R gives its requests through its method of
 \code{\link[=plugin_requests]{plugin_requests()}}, which R calls on such a plugin too.
+
+The app's frontend may take arguments of \code{\link[=serve]{serve()}}, as the dock takes the
+items of its bar in \code{navbar}, through its class's method of
+\code{frontend_args()}.
+As \code{serve()} is called, R calls the method on the plugin that the
+frontend's constructor makes, with the arguments in the \code{...} of \code{serve()}
+that \code{serve()} does not refuse itself.
+The method takes the arguments that the frontend knows and refuses the
+rest, naming the frontend.
+It returns what the frontend reads of them, as a list by name.
+R writes that list as a JSON object, and sends it in its reply to \code{hello},
+so that no board or file sets it.
+Core then calls the \code{render()} of the frontend's module with it, in \code{args}.
+A method cannot hand the arguments that it does not know on to core's
+method with \code{NextMethod()}, since R would hand on those that it took as
+well, so each method refuses them itself.
+Core's method for \code{frontend_plugin} takes no argument and returns an empty
+list.
+So core's basic frontend refuses every argument, and so does a frontend
+whose class has no method of its own.
 }
 \examples{
 \dontrun{
@@ -134,10 +163,21 @@ new_dag_plugin <- function(positions = list()) {
 }
 
 plugin_version.dag_plugin <- function(x, ...) 2L
+
+# In a package whose frontend, of the class grid_plugin, shows a title that
+# the app script gives, as in serve(board, title = "Trials")
+frontend_args.grid_plugin <- function(x, ..., title = "Grid") {
+  if (...length()) {
+    stop("The Grid frontend takes no argument of `serve()` but `title`.")
+  }
+  list(title = title)
+}
 }
 
 available_plugins()
 
 plugin_class_id(new_basic_frontend_plugin())
+
+frontend_args(new_basic_frontend_plugin())
 
 }

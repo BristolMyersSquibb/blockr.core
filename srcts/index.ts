@@ -53,7 +53,16 @@ export type {
   Rendered,
   State,
 } from "./types/hosts.ts";
-export type { BlockRegistry, CoreApi, Note, OutputEvents, Plugin, PluginModule, RequestOpts } from "./types/core-api.ts";
+export type {
+  BlockRegistry,
+  CoreApi,
+  FrontendModule,
+  Note,
+  OutputEvents,
+  Plugin,
+  PluginModule,
+  RequestOpts,
+} from "./types/core-api.ts";
 export type {
   Change,
   Delta,

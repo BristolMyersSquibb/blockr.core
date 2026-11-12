@@ -68,7 +68,7 @@ export function corePluginClasses(): readonly PluginClass[] {
   ];
 }
 
-// What the render() of a plugin's module gets, a frontend's among them.
+// What the render() of the `ui` module of a plugin's class gets.
 export type PluginArgs = Parameters<PluginModule["render"]>[0];
 
 // The frontend that draws the open board.
