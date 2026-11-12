@@ -519,15 +519,17 @@ test_that("R finds the installed files of a package that load_all() loads", {
   inst <- file.path(local_load_all_package(), "inst")
   ns <- asNamespace("regprobe")
 
+  # Both sides as `normalizePath()` writes them, since on Windows its separator
+  # is not the one of `file.path()`
   found <- function(file) normalizePath(file, mustWork = TRUE)
 
   expect_identical(
     found(module_file(get("probe_block", envir = ns)[["ui"]])),
-    file.path(inst, "js", "probe-block.js")
+    found(file.path(inst, "js", "probe-block.js"))
   )
   expect_identical(
     found(pkg_file("schemas", "probe.json", pkg = ns)),
-    file.path(inst, "schemas", "probe.json")
+    found(file.path(inst, "schemas", "probe.json"))
   )
   expect_identical(
     read_json_schema("schemas/probe.json", package = "regprobe"),
@@ -535,6 +537,6 @@ test_that("R finds the installed files of a package that load_all() loads", {
   )
   expect_identical(
     found(js_types_dirs("regprobe")[["regprobe"]]),
-    file.path(inst, "types")
+    found(file.path(inst, "types"))
   )
 })
