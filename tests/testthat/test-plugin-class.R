@@ -262,23 +262,35 @@ test_that("the app runs the plugins of its rows, by the ids of their classes", {
 
   local_plugin_version("notes_plugin", 2L)
 
+  plugins <- app_plugins(available_plugins())
+
   expect_identical(
-    app_plugins(available_plugins()),
+    lst_xtr(plugins, "name"),
     list(
-      `blockr.core-basic_frontend_plugin` = list(
-        name = "Basic frontend",
-        version = 1L
-      ),
-      `blockr.core-file_storage_plugin` = list(
-        name = "File storage",
-        version = 1L
-      ),
-      `blockr.core-edit_board_plugin` = list(
-        name = "Edit board",
-        version = 1L
-      ),
-      `blockr.test-notes_plugin` = list(name = "Notes", version = 2L)
+      `blockr.core-basic_frontend_plugin` = "Basic frontend",
+      `blockr.core-file_storage_plugin` = "File storage",
+      `blockr.core-edit_board_plugin` = "Edit board",
+      `blockr.test-notes_plugin` = "Notes"
     )
+  )
+  expect_identical(
+    unlist(lst_xtr(plugins, "version")),
+    c(
+      `blockr.core-basic_frontend_plugin` = 1L,
+      `blockr.core-file_storage_plugin` = 1L,
+      `blockr.core-edit_board_plugin` = 1L,
+      `blockr.test-notes_plugin` = 2L
+    )
+  )
+
+  # Each with its class's module, as its package lists it
+  expect_identical(
+    plugins[["blockr.core-basic_frontend_plugin"]]$module,
+    js_module("js/basic.js", package = "blockr.core")
+  )
+  expect_identical(
+    plugins[["blockr.test-notes_plugin"]]$module,
+    js_module("js/notes_plugin.js", package = "blockr.test")
   )
 
   # Rows that narrow the app's plugins keep their order

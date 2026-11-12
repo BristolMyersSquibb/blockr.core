@@ -22,8 +22,8 @@
 #
 # The reply to `hello` carries the app's plugins in `plugins`, which
 # `app_plugins()` worked out as the app started, each under the ID of its
-# class with its class's name and version, and none for a block that `serve()`
-# serves alone.
+# class with its class's name and version and where R serves its class's
+# module, and none for a block that `serve()` serves alone.
 #
 # The reply to `hello` carries the locks that the app sets, which R reads as
 # the evaluator starts, and R holds every evaluation to them

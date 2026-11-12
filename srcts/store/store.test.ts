@@ -4,9 +4,10 @@
 
 import { describe, expect, test, vi } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
-import { coreOptions, hello, noUi, reply, withoutPlugins, withPlugins } from "../testing/store.ts";
+import { coreOptions, hello, noUi, pluginUrl, reply, withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
 import type { Block, Board } from "../types/board.ts";
+import type { PluginModule } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { ROUNDS } from "./expand.ts";
 import { createStore, StoreError } from "./index.ts";
@@ -53,12 +54,15 @@ function pluginState(board: Board, plugin: string): unknown {
   return board.plugins[plugin];
 }
 
+// What draws a plugin of a class whose UI no test here draws.
+const drawn: PluginModule = { render: () => undefined };
+
 // The dock's plugin class, a frontend.
 // Its update drops a removed block's panels from the views of its plugin, the
 // last first, so that each index still names the panel it names on the board.
 const dock: PluginClass = {
   id: "blockr.dock-dock_plugin",
-  frontend: "blockr.dock-dock",
+  frontend: drawn,
   state: {
     schema: {
       type: "object",
@@ -95,7 +99,7 @@ const dock: PluginClass = {
 // The DAG's plugin class, whose update drops a removed block's position.
 const dag: PluginClass = {
   id: "blockr.dag-dag_plugin",
-  ui: "blockr.dag-dag",
+  ui: drawn,
   state: {
     schema: {
       type: "object",
@@ -116,7 +120,7 @@ const dag: PluginClass = {
 // it.
 const noted: PluginClass = {
   id: "blockr.notes-notes_plugin",
-  ui: "blockr.notes-notes",
+  ui: drawn,
   state: {
     schema: {
       type: "object",
@@ -176,13 +180,15 @@ async function opened(
 }
 
 // A store that has R's reply to `hello`, with which it opens a JSON board's
-// text, once what `setup` registers is registered. It holds no board yet, since
-// a store opens one board.
+// text, once what `setup` registers is registered, and the migrations of block
+// classes given, by registry id, as core takes them from the classes' UI
+// modules. It holds no board yet, since a store opens one board.
 function unopened(
   setup?: (store: Store) => void,
   replied: HelloReply = hello,
+  migrations: Readonly<Record<string, Migration>> = {},
 ): Store {
-  const store = createStore({ hello: replied });
+  const store = createStore({ hello: replied, migration: (id) => migrations[id] });
   for (const option of coreOptions) store.options.register(option);
   setup?.(store);
   return store;
@@ -564,7 +570,7 @@ describe("opening a board", () => {
   test("runs the app's frontend and storage plugin, whichever plugins' state the board holds", async () => {
     const grid: PluginClass = {
       id: "blockr.grid-grid_plugin",
-      frontend: "blockr.grid-grid",
+      frontend: drawn,
       state: { schema: { type: "object" }, default: { columns: 1 } },
     };
     const session = storage("blockr.session-session_plugin");
@@ -847,11 +853,13 @@ describe("opening a board", () => {
     const head = hello.block_registry["blockr.core-head_block"];
     if (head === undefined) throw new Error("The fixture has no head block.");
     const migrating = unopened(
-      (store) =>
-        store.registerMigration("blockr.core-head_block", () => {
-          throw new Error("The n is unreadable.");
-        }),
+      undefined,
       { ...hello, block_registry: { ...hello.block_registry, "blockr.core-head_block": { ...head, version: 2 } } },
+      {
+        "blockr.core-head_block": () => {
+          throw new Error("The n is unreadable.");
+        },
+      },
     );
     await expect(migrating.check(file({}))).rejects.toThrow(
       'The migration of the block class "blockr.core-head_block" failed: The n is unreadable.',
@@ -964,7 +972,7 @@ describe("migrations", () => {
   // wrote at those versions.
   const replied: HelloReply = {
     ...docking,
-    plugins: { ...docking.plugins, [dock.id]: { name: "Dock", version: 3 } },
+    plugins: { ...docking.plugins, [dock.id]: { name: "Dock", version: 3, module: pluginUrl(dock.id) } },
     block_registry: Object.fromEntries(
       Object.entries(docking.block_registry).map(([id, entry]) => [
         id,
@@ -1018,12 +1026,15 @@ describe("migrations", () => {
   });
 
   function store(head?: Migration, def: PluginClass = migrating): Store {
-    return unopened((store) => {
-      store.plugins.register(def);
-      store.plugins.register(dag);
-      store.plugins.register(noted);
-      if (head !== undefined) store.registerMigration("blockr.core-head_block", head);
-    }, replied);
+    return unopened(
+      (store) => {
+        store.plugins.register(def);
+        store.plugins.register(dag);
+        store.plugins.register(noted);
+      },
+      replied,
+      head === undefined ? {} : { "blockr.core-head_block": head },
+    );
   }
 
   test("migrates what a JSON board holds of an older version, by the version it records", async () => {
@@ -1158,7 +1169,7 @@ describe("migrating board option values", () => {
   };
 
   // A core app whose package gives the seed version 2 of its value.
-  const replied: HelloReply = { ...hello, option_versions: { seed: 2 } };
+  const replied: HelloReply = withOptions(["seed"], hello, { seed: 2 });
 
   function store(option: Option = seed): Store {
     return unopened((store) => store.options.register(option), replied);
@@ -1309,7 +1320,7 @@ describe("applying a delta", () => {
   test("runs the update of the class of each plugin whose state the board holds, with the id of the class", async () => {
     const update = vi.fn<NonNullable<PluginClass["update"]>>((delta, board, id) => noted.update?.(delta, board, id) ?? []);
     const untouched = vi.fn<NonNullable<PluginClass["update"]>>(() => []);
-    const tools: PluginClass = { id: "blockr.tools-tools_plugin", ui: "blockr.tools-tools", update: untouched };
+    const tools: PluginClass = { id: "blockr.tools-tools_plugin", ui: drawn, update: untouched };
     const store = await opened(
       (store) => {
         store.plugins.register(dock);
@@ -2277,7 +2288,7 @@ describe("registering", () => {
     expect(createStoreWithCoreOptions().plugins.registered()).toEqual({});
   });
 
-  test("a plugin class, a board option id or a block class's migration registered twice fails", () => {
+  test("a plugin class or a board option id registered twice fails", () => {
     const store = createStoreWithCoreOptions();
     store.plugins.register(dock);
 
@@ -2287,10 +2298,6 @@ describe("registering", () => {
     ).toThrow(
       'The board option "n_rows" is registered already.',
     );
-    expect(() => {
-      store.registerMigration("blockr.foo-bar_block", (state) => state);
-      store.registerMigration("blockr.foo-bar_block", (state) => state);
-    }).toThrow('The block class "blockr.foo-bar_block" has a migration registered already.');
   });
 
   test("a plugin class is named as R names one, {pkg}-{name}_plugin", () => {
@@ -2313,11 +2320,15 @@ describe("registering", () => {
     expect(() => register({ id, update: "views" })).toThrow(`The plugin class "${id}" has an update that is no function.`);
     expect(() => register({ id, migrate: 3 })).toThrow(`The plugin class "${id}" has a migrate that is no function.`);
     expect(() => register({ id, start: {} })).toThrow(`The plugin class "${id}" has a start that is no function.`);
-    expect(() => register({ id, ui: "" })).toThrow(`The plugin class "${id}" has a ui that is no module's id.`);
-    expect(() => register({ id, frontend: 1 })).toThrow(`The plugin class "${id}" has a frontend that is no module's id.`);
+    expect(() => register({ id, ui: "blockr.dock-dock" })).toThrow(`The plugin class "${id}" has a ui without a render() function.`);
+    expect(() => register({ id, frontend: {} })).toThrow(`The plugin class "${id}" has a frontend without a render() function.`);
     expect(() => register({ id, storage: { save: () => undefined } })).toThrow(
       `The plugin class "${id}" has a storage without save() and open() functions.`,
     );
+    expect(() => register({ id, storage: { save: () => undefined, open: () => undefined, load: "board" } })).toThrow(
+      `The plugin class "${id}" has a storage whose load is no function.`,
+    );
+    expect(() => register({ id, commands: { relayout: {} } })).toThrow(`The plugin class "${id}" gives commands that are no array.`);
     expect(() => register({ id, options: "n_rows" })).toThrow(
       `The plugin class "${id}" requires board options that are no array of their ids.`,
     );

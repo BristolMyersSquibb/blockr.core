@@ -78,20 +78,17 @@ export interface HelloReply {
   // of.
   packages: Record<string, string>;
   block_registry: Record<RegistryId, RegistryEntry>;
-  // In the order in which the packages declared them, each package's after
-  // those of the packages its NAMESPACE imports.
-  startup_modules: { package: string; module: string; css?: string }[];
-  // Where each module that packages offer each other is served,
-  // by the module's id, those of plugin classes among them.
+  // Where each module that the loaded packages offer each other's UIs is
+  // served, by the module's id, as "blockr.core-controls", which
+  // `host.module()` and `CoreApi.module()` load.
   modules: Record<string, { module: string; css?: string }>;
   // The app's plugins, which run on every board that the app opens, each
   // under the id of its class, in the order of the rows that `serve()` takes,
   // and none for a block that `serve()` serves alone.
   plugins: Record<PluginClassId, PluginEntry>;
-  // The version of the shape of each board option's value that a loaded
-  // package gives one through its method of R's `board_option_version()`, by
-  // the board option's id. A board option that it lacks is at version 1.
-  option_versions: Record<OptionId, number>;
+  // The board options that core and the packages that the app uses list in
+  // R, each under its id.
+  options: Record<OptionId, OptionEntry>;
   // The renderers that the app names for board options, by the renderer's id.
   renderers: Record<string, Renderer>;
   // The locks that the app sets.
@@ -106,11 +103,26 @@ export interface HelloReply {
 }
 
 // One of the app's plugins, under the id of its class in the reply to `hello`:
-// the name of its class, which titles its panel, as "Document", and the
-// version of its class's state, which the class's method of R's
-// `plugin_version()` gives, 1 for a class without one.
+// the name of its class, which titles its panel, as "Document", the version
+// of its class's state, which the class's method of R's `plugin_version()`
+// gives, 1 for a class without one, and where R serves the module of its
+// class, whose default export is the class's PluginClass without its id.
 export interface PluginEntry {
   name: string;
+  version: number;
+  module: string;
+  css?: string;
+}
+
+// A board option, under its id in the reply to `hello`: the package that lists
+// it in R, where R serves its module, whose default export is the board
+// option's Option without its id, and the version of the shape of its value,
+// which the method of R's `board_option_version()` for the board option gives,
+// 1 for one without.
+export interface OptionEntry {
+  package: string;
+  module: string;
+  css?: string;
   version: number;
 }
 

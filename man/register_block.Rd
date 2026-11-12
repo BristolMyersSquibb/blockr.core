@@ -126,11 +126,13 @@ which defaults to \code{available_blocks()}: a data frame with a row for each
 block class of each available package, with the class's package in
 \code{package} and its id in \code{id}.
 A block that \code{serve()} serves alone offers none.
-A package is available where it is installed or \code{pkgload::load_all()}
-loaded it, and it lists block classes in its \code{inst/registry/blocks.yml},
-which the \code{\link[=block_registration_roclet]{block_registration_roclet()}} writes, or where the block registry
-of the process holds a class of it (below).
-Reading the files loads no package.
+A package is available where it exports \code{._BLOCKR_MODULES_}, installed or
+loaded by \code{pkgload::load_all()}, and lists its block classes there, as it
+reads them from its \code{inst/registry/blocks.yml}, which the
+\code{\link[=block_registration_roclet]{block_registration_roclet()}} writes (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}).
+A package is also available where the block registry of the process holds a
+class of it (below).
+R loads each available package to read what it lists.
 A script narrows the rows with plain R, as
 \code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
 but those of blockr.ggplot, or gives the path of a YAML file that lists
@@ -148,18 +150,18 @@ offers nothing.
 A row whose package is not available, or whose class its package does not
 list, stops the app, naming the row, and so does a package that lists two
 constructors whose classes give one registry id.
-A package whose \code{inst/registry/blocks.yml} holds anything that R cannot read
-stops \code{available_blocks()}, and every app that offers the package's classes,
-with each fault of each entry (see \code{\link[=block_registration_roclet]{block_registration_roclet()}}).
+A package that lists block classes that R cannot read stops
+\code{available_blocks()}, and every app that offers the package's classes, with
+each fault of each entry (see \code{\link[=block_registration_roclet]{block_registration_roclet()}}).
 
 Each app holds a block registry of its own, which \code{serve()} builds as it is
 called, and which the app's sessions read alone.
 R loads the packages of the rows and registers their classes in it.
 The block registry of the R process holds the classes that
 \code{register_block()} and \code{register_blocks()} register.
-A package that writes no \code{inst/registry/blocks.yml} registers its own
-classes there as it loads, and an app script may register a package's class
-there in place of the one that the package lists.
+A package that lists no block classes may register its own classes there
+as it loads, and an app script may register a package's class there in
+place of the one that the package lists.
 Each class of a package that the process registry holds is a row of
 \code{available_blocks()}, as a class that a package lists is, and an app offers
 it where its rows hold it, from the process registry.

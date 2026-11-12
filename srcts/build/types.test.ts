@@ -212,9 +212,10 @@ const merge: BlockModule<MergeState> = {
 export default merge;
 `;
 
-// A plugin's UI module, which draws the plugin of its class, by the name that
-// the app gives it, and the class, whose storage a frontend's save and open
-// controls call, as a package writes them.
+// A plugin class's module, whose default export is the class without its id,
+// with the `ui` that draws the plugin of the class, by the name that the app
+// gives it, and the storage that a frontend's save and open controls call, as
+// a package writes it.
 const notesModule = `import type { PluginClass, PluginModule } from "@blockr/core";
 
 export const api = 1;
@@ -244,14 +245,12 @@ const notes: PluginModule = {
   },
 };
 
-export default notes;
-
-export const notesPlugin: PluginClass = {
-  id: "blockr.notes-notes_plugin",
-  ui: "blockr.notes-notes",
+export default {
+  ui: notes,
   storage: {
     save: () => Promise.resolve(),
     open: () => Promise.resolve(null),
+    load: ({ core }) => Promise.resolve(core.lock.load ? undefined : '{"format": 1}'),
   },
   start: ({ core, signal }) => {
     const off = core.notifications.subscribe((note) => {
@@ -259,7 +258,7 @@ export const notesPlugin: PluginClass = {
     });
     signal.addEventListener("abort", off);
   },
-};
+} satisfies Omit<PluginClass, "id">;
 `;
 
 const headTest = `import { mount, stubBlockHost } from "@blockr/core/stubs";

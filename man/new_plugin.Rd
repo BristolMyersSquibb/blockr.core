@@ -78,19 +78,18 @@ The class vector, \code{class}, defaults to the id, and serves S3 dispatch alone
 
 The id of a plugin's class in full is \code{{pkg}-{id}}, as
 \code{blockr.dag-dag_plugin}, where the package is the one that the constructor
-lives in, since that package defines the class in JavaScript, where its
-startup module registers the class under that id (see
-\code{\link[=register_startup_module]{register_startup_module()}}).
+lives in, since that package defines the class in JavaScript, in a module of
+its own, whose default export the client registers under that id.
 So an app script defines no plugin class, and \code{new_plugin()} raises an error
 where the constructor that calls it lives outside a package.
-A package lists each of its plugin classes with its id, its constructor and
-its name, the human-readable form of its id, such as "Document" for
-\code{md_plugin}, which titles the plugin's panel.
+A package lists each of its plugin classes in its \code{._BLOCKR_MODULES_}, by
+its constructor, with its id, its name, the human-readable form of its id,
+such as "Document" for \code{md_plugin}, which titles the plugin's panel, and its
+module (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}).
 The function \code{available_plugins()} gives the plugin classes that the
 available packages list, as a data frame with a row for each class, with
 its package in \code{package} and its id in \code{id}, which identify the class.
 The rest of a class, such as its name, stays with its package's listing.
-Until other packages list their own, it gives core's classes alone.
 
 Core defines two plugin classes beside \code{plugin}, since every page relies on
 what each does: \code{frontend_plugin}, the class of a plugin that draws the page,

@@ -3415,7 +3415,7 @@ async function evaluateReads(deps, block, entry, name3, names, signal) {
 }
 
 // srcts/mount/shared.ts
-function mountableModule(exports, module, pkg) {
+function moduleExports(exports, module, pkg) {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
   }
@@ -3426,7 +3426,10 @@ function mountableModule(exports, module, pkg) {
       `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`
     );
   }
-  const mod = exports.default;
+  return exports;
+}
+function mountableModule(exports, module, pkg) {
+  const mod = moduleExports(exports, module, pkg).default;
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new ModuleError(module, pkg, "has no default export with a render() function.");
   }
@@ -4173,7 +4176,7 @@ function createMounts(options) {
     const pending = resolving.get(id2);
     if (pending !== void 0) return pending;
     const given = def.default;
-    const started = typeof given === "function" ? Promise.resolve().then(given) : Promise.resolve(given);
+    const started = typeof given === "function" ? Promise.resolve().then(() => given(options.core())) : Promise.resolve(given);
     resolving.set(id2, started);
     const settled2 = () => {
       if (resolving.get(id2) === started) resolving.delete(id2);
@@ -4492,124 +4495,6 @@ function sameContext(a2, b2) {
   return a2.name === b2.name && a2.status === b2.status && a2.inputs.length === b2.inputs.length && a2.inputs.every((input2, i2) => input2.input === b2.inputs[i2]?.input && input2.revision === b2.inputs[i2].revision) && jsonEqual(a2.options, b2.options);
 }
 
-// srcts/options/schemas.ts
-var optionSchemas = {
-  n_rows: {
-    type: "integer",
-    // A page of a table holds a row at least, as the coercion of table
-    // outputs takes it.
-    minimum: 1,
-    description: "How many rows of a table a block's output shows"
-  },
-  show_conditions: {
-    type: "array",
-    items: { enum: ["message", "warning", "error"] },
-    uniqueItems: true,
-    description: "The severities of a block's conditions that the board shows"
-  },
-  dark_mode: {
-    enum: ["light", "dark"],
-    description: "Whether the board shows in its light or its dark theme"
-  }
-};
-
-// srcts/options/ui.tsx
-import { Checklist, NumberInput, Select } from "@blockr/core/react";
-import { reactModule, useValue } from "@blockr/core/react";
-import { jsx } from "react/jsx-runtime";
-function numberUi(label, min) {
-  function NumberUi({ host }) {
-    return /* @__PURE__ */ jsx(NumberInput, { bound: useValue(host), label, min });
-  }
-  return reactModule(NumberUi);
-}
-function checklistUi(legend, choices) {
-  function ChecklistUi({ host }) {
-    return /* @__PURE__ */ jsx(Checklist, { bound: useValue(host), legend, choices, ordered: true });
-  }
-  return reactModule(ChecklistUi);
-}
-function selectUi(label, placeholder, choices) {
-  function SelectUi({ host }) {
-    return /* @__PURE__ */ jsx(Select, { bound: useValue(host), label, placeholder, choices });
-  }
-  return reactModule(SelectUi);
-}
-
-// srcts/options/options.ts
-function coreOptions(core) {
-  return [nRows(core), showConditions(core), darkMode(core)];
-}
-function nRows(core) {
-  const schema = optionSchemas.n_rows;
-  const fallback = 10;
-  return {
-    id: "n_rows",
-    label: "Preview rows",
-    category: "Table options",
-    schema,
-    // A string reads as the number that it holds.
-    default: async () => {
-      const value2 = await core.blockrOption("n_rows");
-      if (value2 === void 0) return fallback;
-      return checked2("n_rows", schema, value2, typeof value2 === "string" ? asNumber(value2) : value2);
-    },
-    ui: numberUi("Preview rows", schema.minimum)
-  };
-}
-var SEVERITIES = ["message", "warning", "error"];
-function showConditions(core) {
-  const schema = optionSchemas.show_conditions;
-  const fallback = ["warning", "error"];
-  return {
-    id: "show_conditions",
-    label: "Message types to display",
-    category: "Board options",
-    schema,
-    // R writes a blockr option of one severity as a string, as an
-    // environment variable gives it.
-    default: async () => {
-      const value2 = await core.blockrOption("show_conditions");
-      if (value2 === void 0) return fallback;
-      return checked2("show_conditions", schema, value2, typeof value2 === "string" ? [value2] : value2);
-    },
-    ui: checklistUi("Message types to display", SEVERITIES)
-  };
-}
-function darkMode(core) {
-  const schema = optionSchemas.dark_mode;
-  return {
-    id: "dark_mode",
-    label: "Light/dark mode",
-    category: "Theme options",
-    schema,
-    default: async () => {
-      const value2 = await core.blockrOption("dark_mode");
-      if (value2 === void 0) return preferredTheme();
-      const logical = typeof value2 === "string" ? asLogical(value2) : value2;
-      if (typeof logical === "boolean") return logical ? "dark" : "light";
-      return checked2("dark_mode", schema, value2);
-    },
-    ui: selectUi("Light/dark mode", "Choose a mode", [
-      { value: "light", label: "Light" },
-      { value: "dark", label: "Dark" }
-    ]),
-    onChange(value2) {
-      setTheme(value2);
-    }
-  };
-}
-function setTheme(theme) {
-  document.documentElement.setAttribute("data-bs-theme", theme === "dark" ? "dark" : "light");
-}
-function preferredTheme() {
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-function checked2(id2, schema, sent2, value2 = sent2) {
-  if (compile(`the board option "${id2}"`, schema)(value2).length === 0) return value2;
-  throw new TypeError(`The blockr option ${id2} is ${JSON.stringify(sent2)}, which the board option ${id2} does not take.`);
-}
-
 // srcts/transport/shiny.ts
 var name = "blockr";
 function shinyTransport(options = {}) {
@@ -4827,78 +4712,6 @@ async function requestBlockrOptions(client, names) {
     }
     return reply.values;
   }
-}
-
-// srcts/storage/storage.ts
-function coreStorage(doc = document) {
-  return {
-    save(board) {
-      try {
-        download(board, fileName({ id: boardIdFromText(board) }), doc);
-        return Promise.resolve();
-      } catch (error) {
-        return Promise.reject(asError(error));
-      }
-    },
-    open: () => pickFile(doc)
-  };
-}
-function fileName(board, now = /* @__PURE__ */ new Date()) {
-  const two = (n2) => String(n2).padStart(2, "0");
-  const date2 = `${String(now.getFullYear())}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
-  const time2 = `${two(now.getHours())}-${two(now.getMinutes())}-${two(now.getSeconds())}`;
-  return `${board.id}_${date2}_${time2}.json`;
-}
-function download(text, name3, doc = document) {
-  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-  const link = doc.createElement("a");
-  link.href = url;
-  link.download = name3;
-  link.hidden = true;
-  doc.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 0);
-}
-function pickFile(doc = document) {
-  return new Promise((resolve, reject) => {
-    const input2 = doc.createElement("input");
-    input2.type = "file";
-    input2.accept = ".json,application/json";
-    input2.hidden = true;
-    input2.addEventListener(
-      "change",
-      () => {
-        const file = input2.files?.[0];
-        input2.remove();
-        if (file === void 0) resolve(null);
-        else file.text().then(resolve, reject);
-      },
-      { once: true }
-    );
-    input2.addEventListener(
-      "cancel",
-      () => {
-        input2.remove();
-        resolve(null);
-      },
-      { once: true }
-    );
-    doc.body.append(input2);
-    input2.click();
-  });
-}
-function boardIdFromText(text) {
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    return "board";
-  }
-  const board = isObject(json) ? json.board : void 0;
-  return isObject(board) && typeof board.id === "string" && board.id !== "" ? board.id : "board";
 }
 
 // srcts/store/words.ts
@@ -6897,7 +6710,7 @@ function migrate(board, json, reply, registrations) {
       const def = registrations.option(id2)?.def;
       if (def === void 0) return [id2, value2];
       const from = own(json.options, id2)?.version;
-      const to = own(reply.option_versions, id2) ?? 1;
+      const to = own(reply.options, id2)?.version ?? 1;
       if (from === void 0 || from === to) return [id2, value2];
       if (from > to) {
         failures.add(
@@ -6965,10 +6778,9 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-function createRegistrations() {
+function createRegistrations(migration = () => void 0) {
   const classes = y(/* @__PURE__ */ new Map());
   const options = y([]);
-  const migrations = y(/* @__PURE__ */ new Map());
   const optionIndex = O(
     () => new Map(options.value.map((option) => [option.def.id, option]))
   );
@@ -7002,13 +6814,20 @@ function createRegistrations() {
       }
     }
     for (const member of ["ui", "frontend"]) {
-      if (given[member] !== void 0 && (typeof given[member] !== "string" || given[member] === "")) {
-        throw new Error(`The plugin class "${id2}" has a ${member} that is no module's id.`);
+      const drawn2 = given[member];
+      if (drawn2 !== void 0 && (!isObject(drawn2) || typeof drawn2.render !== "function")) {
+        throw new Error(`The plugin class "${id2}" has a ${member} without a render() function.`);
       }
     }
     const storage = given.storage;
     if (storage !== void 0 && (!isObject(storage) || typeof storage.save !== "function" || typeof storage.open !== "function")) {
       throw new Error(`The plugin class "${id2}" has a storage without save() and open() functions.`);
+    }
+    if (isObject(storage) && storage.load !== void 0 && typeof storage.load !== "function") {
+      throw new Error(`The plugin class "${id2}" has a storage whose load is no function.`);
+    }
+    if (given.commands !== void 0 && !Array.isArray(given.commands)) {
+      throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
     }
     if (given.options !== void 0 && (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))) {
       throw new Error(`The plugin class "${id2}" requires board options that are no array of their ids.`);
@@ -7066,21 +6885,9 @@ function createRegistrations() {
       },
       registered: () => optionDefs.value
     },
-    registerMigration(registryId2, fn) {
-      if (migrations.value.has(registryId2)) {
-        throw new Error(`The block class "${registryId2}" has a migration registered already.`);
-      }
-      migrations.value = new Map([...migrations.value, [registryId2, fn]]);
-      return () => {
-        if (migrations.value.get(registryId2) !== fn) return;
-        const rest = new Map(migrations.value);
-        rest.delete(registryId2);
-        migrations.value = rest;
-      };
-    },
     plugin: (id2) => classes.value.get(id2),
     option: (id2) => optionIndex.value.get(id2),
-    migration: (registryId2) => migrations.value.get(registryId2)
+    migration
   };
 }
 function isPluginClassId(id2) {
@@ -7091,7 +6898,7 @@ function isPluginClassId(id2) {
 // srcts/store/store.ts
 var ENDED = "Another board opened in a new store, so this store changes its board no more.";
 function createStore(options = {}) {
-  const registrations = createRegistrations();
+  const registrations = createRegistrations(options.migration);
   const board = y(void 0);
   let hello = options.hello;
   const registry = y(options.hello?.block_registry ?? {});
@@ -7358,7 +7165,7 @@ function createStore(options = {}) {
     const options2 = Object.fromEntries(
       Object.entries(next.options).map(([id3, value2]) => [
         id3,
-        { value: value2, version: own(hello?.option_versions ?? {}, id3) ?? 1 }
+        { value: value2, version: own(hello?.options ?? {}, id3)?.version ?? 1 }
       ])
     );
     const { id: id2, name: name3, links, stacks, plugins } = next;
@@ -7410,7 +7217,6 @@ function createStore(options = {}) {
     canUndo: (origin = "user") => steps(origin).undo.length > 0,
     canRedo: (origin = "user") => steps(origin).redo.length > 0,
     plugins: registrations.plugins,
-    registerMigration: (registryId2, fn) => registrations.registerMigration(registryId2, fn),
     options: registrations.options,
     jsonBoard,
     save,
@@ -7428,30 +7234,10 @@ function settled(fn) {
 }
 
 // srcts/core/plugins.ts
-function corePluginClasses() {
-  return [
-    {
-      id: "blockr.core-basic_frontend_plugin",
-      frontend: "blockr.core-basic",
-      options: ["show_conditions", "dark_mode"]
-    },
-    {
-      id: "blockr.core-file_storage_plugin",
-      storage: {
-        save: (board) => coreStorage().save(board),
-        open: () => coreStorage().open()
-      }
-    },
-    {
-      id: "blockr.core-edit_board_plugin",
-      ui: "blockr.core-edit_board"
-    }
-  ];
-}
 var NONE = Object.freeze({});
 var NOTHING_FAILED = Promise.resolve([]);
 function runPlugins(deps) {
-  const { store, loader, keepOptions } = deps;
+  const { store, keepOptions } = deps;
   const replaced = deps.signal ?? new AbortController().signal;
   const registeredClass = (id2) => own(store.plugins.registered(), id2);
   const added = /* @__PURE__ */ new Map();
@@ -7498,9 +7284,9 @@ function runPlugins(deps) {
   }
   function frontend() {
     const [id2] = inRole(appPlugins(), registeredClass, "frontend");
-    const module = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
-    if (id2 === void 0 || module === void 0) return void 0;
-    return { module, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
+    const drawn2 = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
+    if (id2 === void 0 || drawn2 === void 0) return void 0;
+    return { frontend: drawn2, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
   }
   let started = false;
   async function start2() {
@@ -7550,7 +7336,6 @@ function runPlugins(deps) {
     if (ui === void 0) {
       throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
     }
-    const pkg = packageFromId(ui);
     const controller = new AbortController();
     const { signal } = controller;
     const ended = () => signal.aborted;
@@ -7571,14 +7356,6 @@ function runPlugins(deps) {
       report(error);
     }
     void (async () => {
-      let mod;
-      try {
-        mod = mountableModule(await loader.module(ui), ui, pkg);
-      } catch (error) {
-        fail(error);
-        return;
-      }
-      if (ended()) return;
       const kept = keepOptions(def.options ?? [], `the plugin class "${plugin}"`, (failures2) => {
         if (ended()) return;
         end();
@@ -7593,12 +7370,12 @@ function runPlugins(deps) {
         return;
       }
       try {
-        const rendered = await mod.render({ el, core: deps.core(), plugin, signal });
+        const rendered = await ui.render({ el, core: deps.core(), plugin, signal });
         if (typeof rendered !== "function") return;
         if (ended()) attempt(rendered);
         else cleanup = rendered;
       } catch (error) {
-        fail(new ModuleError(ui, pkg, `failed in render(): ${errorMessage(error)}`, { cause: error }));
+        fail(new Error(`The ui of the plugin class "${plugin}" failed in render(): ${errorMessage(error)}`, { cause: error }));
       }
     })();
     return end;
@@ -7705,6 +7482,7 @@ function createCore(parts) {
     commands,
     scheduler,
     loader,
+    core: () => api,
     renderers: parts.renderers,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
@@ -7720,7 +7498,6 @@ function createCore(parts) {
   });
   const plugins = runPlugins({
     store,
-    loader,
     keepOptions: (ids2, by, failed2) => mounts.keepOptions(ids2, by, failed2),
     core: () => api,
     plugins: parts.plugins,
@@ -7788,7 +7565,7 @@ function createCore(parts) {
   }
   return { api, plugins };
 }
-var SEVERITIES2 = ["message", "warning", "error"];
+var SEVERITIES = ["message", "warning", "error"];
 function createNotifications(signal) {
   const listeners = /* @__PURE__ */ new Set();
   signal?.addEventListener(
@@ -7801,7 +7578,7 @@ function createNotifications(signal) {
   return {
     notify(note) {
       const given = note;
-      if (!isObject(given) || typeof given.message !== "string" || !SEVERITIES2.includes(given.severity)) {
+      if (!isObject(given) || typeof given.message !== "string" || !SEVERITIES.includes(given.severity)) {
         throw new TypeError('A note holds a message, as a string, and a severity, "message", "warning" or "error".');
       }
       const sent2 = Object.freeze({ message: given.message, severity: given.severity });
@@ -7878,29 +7655,10 @@ function pageFrontEnds(el) {
     el.replaceChildren(loadingNote());
   }
   return {
-    async prepare(front, loader, signal) {
-      if ("none" in front) {
-        if (signal.aborted) return;
-        end();
-        next = front;
-        return;
-      }
-      let prepared;
-      const { id: id2, source, plugin } = front;
-      const pkg = packageFromId(id2);
-      if (source === void 0) {
-        prepared = { id: id2, module: id2, plugin, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
-      } else {
-        try {
-          const mod = mountableModule(await loader.load(source, pkg), source.module, pkg);
-          prepared = { id: id2, module: source.module, plugin, render: mod.render.bind(mod) };
-        } catch (error) {
-          prepared = { id: id2, module: source.module, plugin, error };
-        }
-      }
+    prepare(front, signal) {
       if (signal.aborted) return;
       end();
-      next = prepared;
+      next = front;
     },
     async render(core, signal, failures) {
       if (signal.aborted) return;
@@ -7917,11 +7675,6 @@ function pageFrontEnds(el) {
         showError(el, failures.join("\n"));
         return;
       }
-      if (prepared.render === void 0) {
-        showError(el, `The frontend ${prepared.id} cannot draw the board: ${errorMessage(prepared.error)}`);
-        report(prepared.error);
-        return;
-      }
       const controller = new AbortController();
       const ending = () => {
         if (drawn2 === current2) end();
@@ -7936,13 +7689,13 @@ function pageFrontEnds(el) {
       };
       drawn2 = current2;
       try {
-        const rendered = await prepared.render({ el, core, plugin: prepared.plugin, signal: controller.signal });
+        const rendered = await prepared.frontend.render({ el, core, plugin: prepared.plugin, signal: controller.signal });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current2.cleanup = rendered;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const why = new ModuleError(prepared.module, packageFromId(prepared.id), `failed in render(): ${errorMessage(error)}`, {
+        const why = new Error(`The frontend of the plugin class "${prepared.plugin}" failed in render(): ${errorMessage(error)}`, {
           cause: error
         });
         showError(el, why.message);
@@ -8652,6 +8405,60 @@ function attempt2(command2, fn) {
   }
 }
 
+// srcts/core/migrations.ts
+function createMigrations(loader) {
+  const known = /* @__PURE__ */ new Map();
+  async function load(registryId2, module) {
+    const pkg = packageFromId(registryId2);
+    let migration;
+    try {
+      migration = migrationOf(await loader.load({ module }, pkg), module, pkg);
+    } catch (error) {
+      report(error);
+    }
+    known.set(registryId2, { module, migration });
+  }
+  return {
+    get: (registryId2) => known.get(registryId2)?.migration,
+    async prepare(board, registry) {
+      const needed = /* @__PURE__ */ new Map();
+      for (const block of olderBlocks(board, registry)) {
+        const entry = own(registry, block);
+        if (entry === void 0 || known.get(block)?.module === entry.module) continue;
+        needed.set(block, entry.module);
+      }
+      await Promise.all([...needed].map(([registryId2, module]) => load(registryId2, module)));
+    }
+  };
+}
+function olderBlocks(given, registry) {
+  let json = given;
+  if (typeof given === "string") {
+    try {
+      json = JSON.parse(given);
+    } catch {
+      return /* @__PURE__ */ new Set();
+    }
+  }
+  const blocks = isObject(json) && isObject(json.board) ? json.board.blocks : void 0;
+  const older = /* @__PURE__ */ new Set();
+  if (!isObject(blocks)) return older;
+  for (const block of Object.values(blocks)) {
+    if (!isObject(block) || typeof block.registry_id !== "string" || typeof block.version !== "number") continue;
+    const version = own(registry, block.registry_id)?.version;
+    if (version !== void 0 && block.version < version) older.add(block.registry_id);
+  }
+  return older;
+}
+function migrationOf(exports, module, pkg) {
+  const { migrate: migrate2 } = moduleExports(exports, module, pkg);
+  if (migrate2 === void 0) return void 0;
+  if (typeof migrate2 !== "function") {
+    throw new ModuleError(module, pkg, "exports a migrate that is no function.");
+  }
+  return migrate2;
+}
+
 // srcts/core/start.ts
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start(options) {
@@ -8685,6 +8492,7 @@ function start(options) {
     modules: () => latest?.modules ?? {},
     changed: (pkg) => changed.find((c2) => c2.package === pkg)
   });
+  const migrations = createMigrations(loader);
   function heard(reply) {
     if (page.signal.aborted) return;
     const error = helloError(reply);
@@ -8774,12 +8582,9 @@ function start(options) {
       blockrOptions.read("gate_visibility"),
       blockrOptions.read("rand_id")
     ]);
-    const store = createStore({ hello: reply, signal });
-    for (const def of corePluginClasses()) store.plugins.register(def);
+    const store = createStore({ hello: reply, signal, migration: (id2) => migrations.get(id2) });
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
-    for (const option of options.options({ blockrOption: (name3) => blockrOptions.read(name3) })) {
-      store.options.register(option);
-    }
+    await register(reply, store, commands, signal);
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -8807,11 +8612,11 @@ function start(options) {
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
     running2 = { store, scheduler, core, controller };
-    const named2 = await initialize(reply, core, signal, later === void 0);
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = alone ? void 0 : chosen(reply, named2);
+      const instead = alone ? void 0 : await named2(reply, store, core, signal);
+      await migrations.prepare(instead ?? reply.board, reply.block_registry);
       if (instead === void 0) {
         dropped = await store.open(reply);
       } else {
@@ -8819,11 +8624,13 @@ function start(options) {
           dropped = await store.open(instead);
         } catch (error) {
           report(error);
+          await migrations.prepare(reply.board, reply.block_registry);
           dropped = await store.open(reply);
         }
       }
     } else {
       try {
+        await migrations.prepare(later.text, reply.block_registry);
         dropped = await store.open(later.text);
       } catch (error) {
         failure = asError(error);
@@ -8843,14 +8650,11 @@ function start(options) {
       }
     } else {
       const front = plugins.frontend();
-      const [failures] = await Promise.all([
-        front?.added ?? [],
-        options.frontEnds?.prepare(
-          front === void 0 ? { none: noFrontend(reply, core) } : { id: front.module, source: own(latest?.modules ?? {}, front.module), plugin: front.plugin },
-          loader,
-          signal
-        )
-      ]);
+      options.frontEnds?.prepare(
+        front === void 0 ? { none: noFrontend(reply, core) } : { frontend: front.frontend, plugin: front.plugin },
+        signal
+      );
+      const failures = await (front?.added ?? []);
       try {
         await options.frontEnds?.render(core, signal, failures);
       } finally {
@@ -8862,61 +8666,75 @@ function start(options) {
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
-  async function initialize(reply, core, signal, naming) {
-    const named2 = [];
-    for (const entry of reply.startup_modules) {
-      if (signal.aborted) break;
+  async function register(reply, store, commands, signal) {
+    const [defs, opts] = await Promise.all([
+      Promise.all(Object.entries(reply.plugins).map(([id2, entry]) => listed(entry, packageFromId(id2)))),
+      Promise.all(Object.values(reply.options).map((entry) => listed(entry, entry.package)))
+    ]);
+    if (signal.aborted) return;
+    Object.keys(reply.options).forEach((id2, i2) => {
+      const def = opts[i2];
+      if (def === void 0) return;
       try {
-        const source = entry.css === void 0 ? { module: entry.module } : { module: entry.module, css: entry.css };
-        const mod = asStartupModule(await loader.load(source, entry.package), entry.module, entry.package);
-        let result;
-        try {
-          result = await mod.initialize({ core, signal });
-        } catch (error) {
-          throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${errorMessage(error)}`, { cause: error });
-        }
-        if (typeof result === "string") {
-          if (naming) {
-            named2.push({ package: entry.package, text: result });
-          } else {
-            report(
-              new Error(
-                `The startup module of ${entry.package} named a board to open as another board opened, which core ignores, since only a startup module that runs as the page starts names one.`
-              )
-            );
-          }
-        } else if (result !== void 0) {
-          throw new ModuleError(entry.module, entry.package, "resolved initialize() with something other than the text of a JSON board.");
-        }
+        store.options.register({ ...def, id: id2 });
       } catch (error) {
         report(error);
       }
-    }
-    return named2;
+    });
+    Object.keys(reply.plugins).forEach((id2, i2) => {
+      const def = defs[i2];
+      if (def === void 0) return;
+      let cls;
+      try {
+        cls = { ...def, id: id2 };
+        store.plugins.register(cls);
+      } catch (error) {
+        report(error);
+        return;
+      }
+      for (const command2 of cls.commands ?? []) {
+        try {
+          commands.register(command2);
+        } catch (error) {
+          report(new Error(`A command of the plugin class "${id2}" is refused: ${errorMessage(error)}`, { cause: error }));
+        }
+      }
+    });
   }
-  function chosen(reply, named2) {
-    const [only, ...more] = named2;
-    if (only === void 0) return void 0;
-    const packages = quoted(named2.map((entry) => entry.package));
-    if (more.length > 0) {
-      report(new Error(`The startup modules of ${packages} each named a board to open, so core opens the board that R sent.`));
+  async function listed(source, pkg) {
+    try {
+      const at = source.css === void 0 ? { module: source.module } : { module: source.module, css: source.css };
+      return listedDefault(await loader.load(at, pkg), source.module, pkg);
+    } catch (error) {
+      report(error);
       return void 0;
     }
-    if (reply.lock.load) {
-      report(
-        new Error(
-          `The load lock is on, so core opens the board that R sent rather than the one that ${only.package} named.`
-        )
-      );
+  }
+  async function named2(reply, store, core, signal) {
+    if (reply.lock.load) return void 0;
+    const classes = store.plugins.registered();
+    const plugin = Object.keys(reply.plugins).find((id2) => own(classes, id2)?.storage !== void 0);
+    const storage = plugin === void 0 ? void 0 : own(classes, plugin)?.storage;
+    if (plugin === void 0 || storage?.load === void 0) return void 0;
+    let text;
+    try {
+      text = await storage.load({ core, plugin, signal });
+    } catch (error) {
+      report(new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, { cause: error }));
+      return void 0;
+    }
+    if (text === void 0) return void 0;
+    if (typeof text !== "string") {
+      report(new Error(`The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`));
       return void 0;
     }
     try {
-      JSON.parse(only.text);
+      JSON.parse(text);
     } catch (error) {
-      report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
+      report(new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
       return void 0;
     }
-    return only.text;
+    return text;
   }
   let queue = Promise.resolve();
   function reopen(given, of) {
@@ -8934,6 +8752,7 @@ function start(options) {
       throw new StoreError(refused2, ["The store holds no board yet, so it opens none in place of it."]);
     }
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
+    await migrations.prepare(text, current2.store.blockRegistry());
     await current2.store.check(text);
     const before = current2.store.save();
     of.abort();
@@ -8966,7 +8785,7 @@ function start(options) {
   };
 }
 function helloError(reply) {
-  if (reply.status !== "ok" || !("startup_modules" in reply)) {
+  if (reply.status !== "ok" || !("block_registry" in reply)) {
     const said = "conditions" in reply ? reply.conditions.map((c2) => c2.message).join(" ") : "";
     return new Error(`R replied ${reply.status} to the client's hello. ${said}`.trim());
   }
@@ -8974,7 +8793,7 @@ function helloError(reply) {
 }
 function noFrontend(reply, core) {
   const missing = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
-  const why = missing.length === 0 ? "none of the app's plugins is a frontend" : `no package registered the ${missing.length === 1 ? "class" : "classes"} of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
+  const why = missing.length === 0 ? "none of the app's plugins is a frontend" : `core registered no class of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
   return `The app runs no frontend that draws the board, since ${why}.`;
 }
 function changedPackages(loaded, reply) {
@@ -8999,22 +8818,12 @@ function droppedNote(dropped) {
   });
   return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
 }
-function asStartupModule(exports, module, pkg) {
-  if (!isObject(exports) || typeof exports.api !== "number") {
-    throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
+function listedDefault(exports, module, pkg) {
+  const def = moduleExports(exports, module, pkg).default;
+  if (!isObject(def)) {
+    throw new ModuleError(module, pkg, "has no default export, an object.");
   }
-  if (exports.api !== API) {
-    throw new ModuleError(
-      module,
-      pkg,
-      `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`
-    );
-  }
-  const mod = exports.default;
-  if (!isObject(mod) || typeof mod.initialize !== "function") {
-    throw new ModuleError(module, pkg, "has no default export with an initialize() function.");
-  }
-  return mod;
+  return def;
 }
 
 // srcts/page/card.tsx
@@ -9024,9 +8833,9 @@ import { createRoot } from "react-dom/client";
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
-import { Fragment, jsx as jsx2, jsxs } from "react/jsx-runtime";
-var SEVERITIES3 = ["error", "warning", "message"];
-function useFooter(status, severities = SEVERITIES3) {
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+var SEVERITIES2 = ["error", "warning", "message"];
+function useFooter(status, severities = SEVERITIES2) {
   const shown2 = useShown(status);
   const [open, setOpen] = useState(OPEN_AT_START);
   const panel = useId();
@@ -9041,20 +8850,20 @@ function useFooter(status, severities = SEVERITIES3) {
 }
 function Footer({ status, shown: shown2, severities, open, toggle, panel }) {
   const settled2 = status !== void 0 && status === shown2 && !status.running;
-  return /* @__PURE__ */ jsx2(
+  return /* @__PURE__ */ jsx(
     "footer",
     {
       "aria-busy": status?.running === true,
       "data-status": shown2?.status,
       className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
-      children: shown2 === void 0 ? null : /* @__PURE__ */ jsx2(StatusLine, { status: shown2, severities, panel, open, toggle })
+      children: shown2 === void 0 ? null : /* @__PURE__ */ jsx(StatusLine, { status: shown2, severities, panel, open, toggle })
     }
   );
 }
 function Banners({ shown: shown2, severities, open, panel }) {
   const listed = shown2 === void 0 ? [] : statusConditions(shown2).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
   if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx2("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx2(Banner, { condition }, i2)) });
+  return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx(Banner, { condition }, i2)) });
 }
 var MARKS = {
   error: {
@@ -9087,9 +8896,9 @@ function StatusLine({
   toggle
 }) {
   if (status.status === "waiting") {
-    return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
+    return /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
   }
-  const pills = SEVERITIES3.filter((severity) => severities.includes(severity)).flatMap((severity) => {
+  const pills = SEVERITIES2.filter((severity) => severities.includes(severity)).flatMap((severity) => {
     const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
     if (n2 === 0) return [];
     const mark = MARKS[severity];
@@ -9105,7 +8914,7 @@ function StatusLine({
           },
           className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
           children: [
-            /* @__PURE__ */ jsx2(SeverityIcon, { severity }),
+            /* @__PURE__ */ jsx(SeverityIcon, { severity }),
             severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
           ]
         },
@@ -9114,7 +8923,7 @@ function StatusLine({
     ];
   });
   return /* @__PURE__ */ jsxs("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
-    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.summary }) : null,
+    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", children: status.summary }) : null,
     pills
   ] });
 }
@@ -9126,17 +8935,17 @@ function Banner({ condition }) {
       "data-severity": condition.severity,
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
       children: [
-        /* @__PURE__ */ jsx2("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx2(SeverityIcon, { severity: condition.severity }) }),
+        /* @__PURE__ */ jsx("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx(SeverityIcon, { severity: condition.severity }) }),
         /* @__PURE__ */ jsxs("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
-          /* @__PURE__ */ jsx2("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx2("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
+          /* @__PURE__ */ jsx("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
+          /* @__PURE__ */ jsx("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
         ] })
       ]
     }
   );
 }
 function SeverityIcon({ severity }) {
-  return /* @__PURE__ */ jsx2(
+  return /* @__PURE__ */ jsx(
     "svg",
     {
       "aria-hidden": "true",
@@ -9148,11 +8957,11 @@ function SeverityIcon({ severity }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx2("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
-        /* @__PURE__ */ jsx2("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+        /* @__PURE__ */ jsx("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx("path", { d: "M8 6.2v3.2M8 11.6v.1" })
       ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx2("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx2("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+        /* @__PURE__ */ jsx("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
       ] })
     }
   );
@@ -9170,7 +8979,7 @@ function statusConditions(status) {
 
 // srcts/card/mounted.tsx
 import { useLayoutEffect, useRef } from "react";
-import { jsx as jsx3 } from "react/jsx-runtime";
+import { jsx as jsx2 } from "react/jsx-runtime";
 function Mounted({
   mount,
   label,
@@ -9186,7 +8995,7 @@ function Mounted({
       queueMicrotask(cleanup);
     };
   }, [mount]);
-  return /* @__PURE__ */ jsx3("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
+  return /* @__PURE__ */ jsx2("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
 }
 
 // srcts/card/status.ts
@@ -9208,7 +9017,7 @@ function useSized(status) {
 }
 
 // srcts/page/card.tsx
-import { jsx as jsx4, jsxs as jsxs2 } from "react/jsx-runtime";
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var OWNER = "blockr.core";
 function drawCard(el, core, signal) {
   if (signal.aborted) return;
@@ -9222,7 +9031,7 @@ function drawCard(el, core, signal) {
   el.replaceChildren();
   const root = createRoot(el);
   flushSync(() => {
-    root.render(/* @__PURE__ */ jsx4(AloneCard, { core, id: id2 }));
+    root.render(/* @__PURE__ */ jsx3(AloneCard, { core, id: id2 }));
   });
   signal.addEventListener(
     "abort",
@@ -9249,14 +9058,14 @@ function AloneCard({ core, id: id2 }) {
       "aria-label": name3,
       className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
       children: [
-        /* @__PURE__ */ jsx4("header", { children: /* @__PURE__ */ jsx4("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
-        inputs ? /* @__PURE__ */ jsx4(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsx3("header", { children: /* @__PURE__ */ jsx3("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
+        inputs ? /* @__PURE__ */ jsx3(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
         /* @__PURE__ */ jsxs2(
           "div",
           {
             className: `bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
-              /* @__PURE__ */ jsx4(
+              /* @__PURE__ */ jsx3(
                 Mounted,
                 {
                   mount: mountOutput2,
@@ -9265,11 +9074,11 @@ function AloneCard({ core, id: id2 }) {
                   className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              /* @__PURE__ */ jsx4(Footer, { ...footer })
+              /* @__PURE__ */ jsx3(Footer, { ...footer })
             ]
           }
         ),
-        /* @__PURE__ */ jsx4(Banners, { ...footer })
+        /* @__PURE__ */ jsx3(Banners, { ...footer })
       ]
     }
   );
@@ -9292,7 +9101,6 @@ function startPage(options) {
     transport: options.transport ?? shinyTransport(),
     ...options.loader === void 0 ? {} : { loader: options.loader },
     ...options.measure === void 0 ? {} : { measure: options.measure },
-    options: coreOptions,
     frontEnds: {
       ...pageFrontEnds(el),
       card(core, signal) {

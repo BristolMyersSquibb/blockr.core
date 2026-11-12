@@ -3,6 +3,7 @@ export interface Mountable<A> {
     readonly options?: readonly string[];
     render(args: A): Rendered;
 }
+export declare function moduleExports(exports: unknown, module: string, pkg: string | null): Readonly<Record<string, unknown>>;
 export declare function mountableModule<A>(exports: unknown, module: string, pkg: string | null): Mountable<A>;
 export declare function showError(el: HTMLElement, message: string): void;
 export declare function attempt(fn: () => void): void;

@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, as a JSON board, with the ids that it drew for the block and for the board, which it names after its id, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone. A block that serve() serves alone runs no plugin, so the reply names none.",
+  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, as a JSON board, with the ids that it drew for the block and for the board, which it names after its id, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone. A block that serve() serves alone runs no plugin, so the reply names none, while it names core's board options, as every reply does, since every app uses core.",
   "client": [
     {
       "id": "1",
@@ -62,18 +62,29 @@
             }
           }
         },
-        "startup_modules": [],
         "modules": {
-          "blockr.core-basic": {
-            "module": "blockr.core/basic.js?v=0f3d8e21",
-            "css": "blockr.core/basic.css?v=6a9b2c4e"
-          },
-          "blockr.core-edit_board": {
-            "module": "blockr.core/edit-board.js?v=5c1e7a39"
+          "blockr.core-controls": {
+            "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
           }
         },
         "plugins": {},
-        "option_versions": {},
+        "options": {
+          "n_rows": {
+            "package": "blockr.core",
+            "module": "blockr.core/n-rows-option.js?v=2b9c7e14",
+            "version": 1
+          },
+          "show_conditions": {
+            "package": "blockr.core",
+            "module": "blockr.core/show-conditions-option.js?v=6f3a8d05",
+            "version": 1
+          },
+          "dark_mode": {
+            "package": "blockr.core",
+            "module": "blockr.core/dark-mode-option.js?v=a47e2c19",
+            "version": 1
+          }
+        },
         "renderers": {},
         "lock": { "board": false, "load": false },
         "board": {

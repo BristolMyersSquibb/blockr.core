@@ -1,11 +1,12 @@
-// What core gives a frontend, a plugin and a startup module: `CoreApi`,
-// through which they work on the board, as Drawing the board has it
+// What core gives a frontend and a plugin: `CoreApi`, through which they work
+// on the board, as Drawing the board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-plugins).
 // Core makes one for each board that opens, and ends it as the next board
-// opens, with the signal that the startup modules, the module of every plugin
-// and every plugin class's start get beside it. The modules that core mounts
-// inside a frontend's layout get a host instead (./hosts.ts), but for the
-// module of a plugin, which gets CoreApi.
+// opens, with the signal that the load() of the app's storage plugin, the `ui`
+// and the `frontend` of every plugin class and every plugin class's start get
+// beside it. The modules that core mounts inside a frontend's layout get a host
+// instead (./hosts.ts), but for the `ui` of a plugin class, which gets
+// CoreApi.
 
 import type { Commands } from "../commands/index.ts";
 import type { Lock } from "../protocol/index.ts";
@@ -39,8 +40,9 @@ export interface CoreApi {
   // run on every board that the app opens, each named by the id of its class
   // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#running-a-plugin).
   readonly plugins: {
-    // Registers a plugin class under the class's id, as a package's startup
-    // module does, and returns what unregisters it.
+    // Registers a plugin class under the class's id, as core does with the
+    // default export of the module that R names for the class of each of the
+    // app's plugins, and returns what unregisters it.
     register(def: PluginClass): () => void;
     // The app's plugins whose classes are registered, by the ids of their
     // classes, each with its class's name, as R's reply to `hello` names

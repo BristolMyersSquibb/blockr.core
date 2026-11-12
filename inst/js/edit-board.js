@@ -1607,14 +1607,16 @@ function useRowEditing() {
 import { jsx as jsx10 } from "react/jsx-runtime";
 var api = 1;
 var edit_board_default = {
-  render({ el, core }) {
-    const root = createRoot(el);
-    flushSync3(() => {
-      root.render(/* @__PURE__ */ jsx10(EditBoard, { core }));
-    });
-    return () => {
-      root.unmount();
-    };
+  ui: {
+    render({ el, core }) {
+      const root = createRoot(el);
+      flushSync3(() => {
+        root.render(/* @__PURE__ */ jsx10(EditBoard, { core }));
+      });
+      return () => {
+        root.unmount();
+      };
+    }
   }
 };
 export {

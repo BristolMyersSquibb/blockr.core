@@ -27,11 +27,13 @@ block_registry <- new.env()
 #' block class of each available package, with the class's package in
 #' `package` and its id in `id`.
 #' A block that `serve()` serves alone offers none.
-#' A package is available where it is installed or `pkgload::load_all()`
-#' loaded it, and it lists block classes in its `inst/registry/blocks.yml`,
-#' which the [block_registration_roclet()] writes, or where the block registry
-#' of the process holds a class of it (below).
-#' Reading the files loads no package.
+#' A package is available where it exports `._BLOCKR_MODULES_`, installed or
+#' loaded by `pkgload::load_all()`, and lists its block classes there, as it
+#' reads them from its `inst/registry/blocks.yml`, which the
+#' [block_registration_roclet()] writes (see [read_blocks_yml()]).
+#' A package is also available where the block registry of the process holds a
+#' class of it (below).
+#' R loads each available package to read what it lists.
 #' A script narrows the rows with plain R, as
 #' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
 #' but those of blockr.ggplot, or gives the path of a YAML file that lists
@@ -50,18 +52,18 @@ block_registry <- new.env()
 #' A row whose package is not available, or whose class its package does not
 #' list, stops the app, naming the row, and so does a package that lists two
 #' constructors whose classes give one registry id.
-#' A package whose `inst/registry/blocks.yml` holds anything that R cannot read
-#' stops `available_blocks()`, and every app that offers the package's classes,
-#' with each fault of each entry (see [block_registration_roclet()]).
+#' A package that lists block classes that R cannot read stops
+#' `available_blocks()`, and every app that offers the package's classes, with
+#' each fault of each entry (see [block_registration_roclet()]).
 #'
 #' Each app holds a block registry of its own, which `serve()` builds as it is
 #' called, and which the app's sessions read alone.
 #' R loads the packages of the rows and registers their classes in it.
 #' The block registry of the R process holds the classes that
 #' `register_block()` and `register_blocks()` register.
-#' A package that writes no `inst/registry/blocks.yml` registers its own
-#' classes there as it loads, and an app script may register a package's class
-#' there in place of the one that the package lists.
+#' A package that lists no block classes may register its own classes there
+#' as it loads, and an app script may register a package's class there in
+#' place of the one that the package lists.
 #' Each class of a package that the process registry holds is a row of
 #' `available_blocks()`, as a class that a package lists is, and an app offers
 #' it where its rows hold it, from the process registry.
@@ -321,13 +323,12 @@ class_registry_id <- function(cls) {
 
 class_schema <- function(cls) {
 
-  path <- module_file(cls[["ui"]], ".schema.json")
+  schema <- module_schema(cls[["ui"]])
 
-  if (!nzchar(path)) {
+  if (is.null(schema)) {
     return(NULL)
   }
 
-  schema <- decode_schema(path)
   props <- names(schema[["properties"]])
   args <- class_state_args(cls)
 
@@ -517,7 +518,7 @@ get_registry_entry <- function(uid, registry = block_registry) {
 #' @export
 available_blocks <- function() {
 
-  rows <- lapply(available_block_packages(), package_block_rows)
+  rows <- lapply(available_packages(), package_block_rows)
 
   res <- unique(
     do.call(rbind, c(list(block_rows()), rows, list(registered_block_rows())))
@@ -564,36 +565,10 @@ registry_entries <- function(registry = block_registry) {
   lapply(set_names(nm = ls(envir = registry)), get_registry_entry, registry)
 }
 
-# The packages whose block classes an app may offer, by name: those that ship
-# a `registry/blocks.yml`, core itself among them, whether installed or loaded
-# by `pkgload::load_all()`, which puts a package in no library.
-# A package whose file lists no block class gives `available_blocks()` no row.
-available_block_packages <- function() {
-
-  installed <- unlst(
-    lapply(
-      .libPaths(),
-      function(lib) {
-        pkgs <- list.files(lib)
-        pkgs[file.exists(file.path(lib, pkgs, "registry", "blocks.yml"))]
-      }
-    )
-  )
-
-  # A package that `pkgload::load_all()` loaded is among the loaded ones,
-  # whose files `pkg_file()` finds wherever they are
-  loaded <- Filter(
-    function(pkg) nzchar(package_file("registry/blocks.yml", pkg)),
-    loadedNamespaces()
-  )
-
-  sort(unique(c(installed, loaded)))
-}
-
 # The block classes that a package lists, as rows of `available_blocks()`.
 package_block_rows <- function(package) {
 
-  entries <- package_yaml_blocks(package)
+  entries <- listed_blocks(package)
 
   block_rows(
     package = rep(package, length(entries)),
@@ -601,55 +576,44 @@ package_block_rows <- function(package) {
   )
 }
 
-# The block classes that a package lists in its `inst/registry/blocks.yml`,
-# which the roclet writes from its `@block` tags, by constructor, each with the
-# id of its class, or none where it ships no such file.
-# A file that R cannot read stops the app (see `check_yaml_blocks()`).
-package_yaml_blocks <- function(package) {
+# The block classes that package `pkg` lists in the `blocks` of its
+# `._BLOCKR_MODULES_`, by constructor, each with the id of its class and its
+# registry metadata, as the roclet writes them into its
+# `inst/registry/blocks.yml`, from which the package reads them (see
+# `read_blocks_yml()`).
+# A part that R cannot read stops the app (see `check_listed_blocks()`).
+listed_blocks <- function(pkg, listing = package_listing(pkg)) {
 
-  file <- package_file("registry/blocks.yml", package)
+  entries <- listing[["blocks"]]
 
-  if (!nzchar(file)) {
-    return(list())
-  }
-
-  entries <- tryCatch(
-    yaml::read_yaml(file),
-    error = function(e) {
-      blockr_abort(
-        "The `inst/registry/blocks.yml` of package {package} holds no YAML: ",
-        "{conditionMessage(e)}",
-        class = c("package_blocks_yaml_invalid", "package_blocks_invalid")
-      )
-    }
-  )
-
-  entries <- coal(entries, list(), fail_all = FALSE)
-
-  check_yaml_blocks(entries, package)
+  check_listed_blocks(entries, pkg)
 
   entries
 }
 
-# A package's `inst/registry/blocks.yml` maps each of its block constructors,
-# by name, to the registry metadata of the class that the constructor makes, as
-# the block registration roclet writes it.
+# A package lists each of its block classes by constructor, with the registry
+# metadata of the class that the constructor makes, as the block registration
+# roclet writes them.
 # R reads each entry's `id`, `name`, `description` and `category` as strings,
 # so an entry that lacks one, or gives one as anything else, stops the app,
 # with each such fault of each entry, while `register_block()` checks the
 # entry's other fields as for any class.
-check_yaml_blocks <- function(entries, package) {
+check_listed_blocks <- function(entries, package) {
 
-  if (!is_yaml_mapping(entries)) {
+  if (!is_named_list(entries)) {
     blockr_abort(
-      "The `inst/registry/blocks.yml` of package {package} is expected to ",
-      "map each block constructor to the registry metadata of its class, as ",
-      "the block registration roclet writes it.",
-      class = c("package_blocks_yaml_invalid", "package_blocks_invalid")
+      "Package {package} lists its block classes in its `._BLOCKR_MODULES_` ",
+      "as no list of block constructors by name, each with the registry ",
+      "metadata of its class, as the block registration roclet writes them.",
+      class = c("package_blocks_invalid", "package_listing_invalid")
     )
   }
 
-  faults <- unlst(Map(yaml_block_faults, entries, names(entries)))
+  fields <- c("id", "name", "description", "category")
+
+  faults <- unlst(
+    Map(listing_entry_faults, entries, names(entries), list(fields))
+  )
 
   if (!length(faults)) {
     return(invisible())
@@ -657,7 +621,7 @@ check_yaml_blocks <- function(entries, package) {
 
   no_id <- lgl_ply(
     entries,
-    function(x) is_yaml_mapping(x) && is.null(x[["id"]])
+    function(x) is_named_list(x) && is.null(x[["id"]])
   )
 
   hint <- if (any(no_id)) {
@@ -674,49 +638,17 @@ check_yaml_blocks <- function(entries, package) {
   faults <- paste(faults, collapse = " ")
 
   blockr_abort(
-    "The `inst/registry/blocks.yml` of package {package} holds registry ",
-    "metadata that R cannot read. {faults} Each entry needs `id`, `name`, ",
-    "`description` and `category`, each a string, as the block registration ",
-    "roclet writes them.",
+    "Package {package} lists block classes in its `._BLOCKR_MODULES_` with ",
+    "registry metadata that R cannot read. {faults} Each entry needs `id`, ",
+    "`name`, `description` and `category`, each a string, as the block ",
+    "registration roclet writes them.",
     hint,
-    class = c("package_blocks_entry_invalid", "package_blocks_invalid")
+    class = c(
+      "package_blocks_entry_invalid",
+      "package_blocks_invalid",
+      "package_listing_invalid"
+    )
   )
-}
-
-# The faults of the entry for the block constructor `ctor` in a package's
-# `inst/registry/blocks.yml`, each as a sentence, where a field given as `null`
-# counts as left out.
-yaml_block_faults <- function(entry, ctor) {
-
-  fault <- function(...) paste0("Its entry for ", ctor, " ", ..., ".")
-
-  if (!is_yaml_mapping(entry)) {
-    return(fault("is not a mapping"))
-  }
-
-  fields <- c("id", "name", "description", "category")
-
-  lacks <- fields[lgl_ply(fields, function(x) is.null(entry[[x]]))]
-  given <- setdiff(fields, lacks)
-  strings <- given[!lgl_ply(entry[given], is_nonempty_string)]
-
-  c(
-    if (length(lacks)) {
-      fault("lacks ", paste_enum(lacks))
-    },
-    if (length(strings)) {
-      fault(
-        "gives ", paste_enum(strings), " as ",
-        if (length(strings) > 1L) "values other than" else "a value other than",
-        " a non-empty string"
-      )
-    }
-  )
-}
-
-# Whether YAML gave `x` as a mapping, a named list.
-is_yaml_mapping <- function(x) {
-  is.list(x) && (!length(x) || not_null(names(x)))
 }
 
 # The block registry of an app, which `serve()` builds as it starts the app,
@@ -725,15 +657,15 @@ is_yaml_mapping <- function(x) {
 # packages R loads, the classes that the app script defined and registered
 # itself, and the classes of the blocks on `board` that it lacks (see
 # `register_board_classes()`).
-# Building it reads the `blocks.yml` of each package that the app offers once,
-# as it registers the package's classes, and no other package's.
+# Building it reads the listing of each package that the app offers, as it
+# registers the package's classes.
 app_block_registry <- function(blocks = available_blocks(), board = NULL) {
 
   offered <- offered_block_classes(blocks)
   registry <- new.env(parent = emptyenv())
 
+  # Reading a package's listing loads the package
   for (pkg in names(offered)) {
-    loadNamespace(pkg)
     register_offered_classes(pkg, registry, offered[[pkg]])
   }
 
@@ -854,7 +786,7 @@ check_block_class_packages <- function(packages) {
 
   missing <- setdiff(
     packages,
-    c(available_block_packages(), registered_block_rows()[["package"]])
+    c(available_packages(), registered_block_rows()[["package"]])
   )
 
   if (length(missing)) {
@@ -870,8 +802,8 @@ check_block_class_packages <- function(packages) {
 
 # Registers in `registry` the block classes of `package` that an app offers,
 # those whose ids `ids` gives, or all of them for `NULL`: each from the block
-# registry of the process where that holds it, in place of the entry of the
-# package's `inst/registry/blocks.yml`, and from the file otherwise.
+# registry of the process where that holds it, in place of the class that the
+# package lists, and from the package's listing otherwise.
 register_offered_classes <- function(package, registry, ids = NULL) {
 
   held <- process_entries(package)
@@ -882,19 +814,19 @@ register_offered_classes <- function(package, registry, ids = NULL) {
     ids <- setdiff(ids, held_ids)
   }
 
-  register_yaml_blocks(package, registry, ids)
+  register_listed_blocks(package, registry, ids)
   list2env(held, registry)
 
   invisible()
 }
 
-# Registers the block classes that a package lists in its
-# `inst/registry/blocks.yml` in `registry`, or those of them whose ids `ids`
-# gives, where an id that the package does not list stops the app.
+# Registers the block classes that a package lists in `registry`, or those of
+# them whose ids `ids` gives, where an id that the package does not list stops
+# the app.
 # A package that lists none registers none.
-register_yaml_blocks <- function(package, registry, ids = NULL) {
+register_listed_blocks <- function(package, registry, ids = NULL) {
 
-  entries <- package_yaml_blocks(package)
+  entries <- listed_blocks(package)
 
   if (not_null(ids)) {
 
@@ -937,8 +869,8 @@ register_yaml_blocks <- function(package, registry, ids = NULL) {
       icon = lapply(entries, `[[`, "icon"),
       guidance = lapply(entries, `[[`, "guidance"),
       keywords = lapply(entries, `[[`, "keywords"),
-      arguments = lapply(entries, yaml_block_arguments),
-      examples = lapply(entries, yaml_block_examples),
+      arguments = lapply(entries, listed_block_arguments),
+      examples = lapply(entries, listed_block_examples),
       MoreArgs = list(registry = registry, overwrite = TRUE)
     )
   )
@@ -963,7 +895,7 @@ check_package_registry_ids <- function(ctors, package) {
   invisible()
 }
 
-yaml_block_examples <- function(entry) {
+listed_block_examples <- function(entry) {
 
   types <- lapply(entry[["arguments"]], `[[`, "type")
 
@@ -971,14 +903,14 @@ yaml_block_examples <- function(entry) {
     coal(entry[["examples"]], list(), fail_all = FALSE),
     function(example) {
       set_names(
-        map(yaml_arg_example, example, types[names(example)]),
+        map(listed_arg_example, example, types[names(example)]),
         names(example)
       )
     }
   )
 }
 
-yaml_block_arguments <- function(entry) {
+listed_block_arguments <- function(entry) {
 
   args <- entry[["arguments"]]
 
@@ -993,7 +925,7 @@ yaml_block_arguments <- function(entry) {
       function(a) {
         new_arg_spec(
           a[["description"]],
-          yaml_arg_example(a[["example"]], a[["type"]]),
+          listed_arg_example(a[["example"]], a[["type"]]),
           a[["type"]]
         )
       }
@@ -1002,8 +934,9 @@ yaml_block_arguments <- function(entry) {
 }
 
 # YAML reads an array of single values back as an atomic vector, where the R
-# value of an arg spec's array type is a list
-yaml_arg_example <- function(example, type) {
+# value of an arg spec's array type is a list, and so may a package that
+# writes its listing in R.
+listed_arg_example <- function(example, type) {
 
   if (identical(type[["type"]], "array") && is.atomic(example) &&
         !is.null(example)) {

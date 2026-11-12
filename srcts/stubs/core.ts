@@ -1,19 +1,18 @@
 // A CoreApi for tests, whose store, command registry and scheduler are core's
 // own and whose replies from R come from the fixtures of the wire protocol,
-// those that both test suites round-trip, so that a frontend, a plugin or
-// a startup module runs in a test runner on a board, needing neither R nor a
-// browser (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
+// those that both test suites round-trip, so that a frontend or a plugin runs
+// in a test runner on a board, needing neither R nor a browser
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
 //
-// Core starts as it does on the page, with core's board options and their UIs
-// and the classes of core's own plugins: it initializes the startup modules
-// given, in their order, opens the board of R's reply to hello, draws it with
-// the module given for the app's frontend where the test gives an element to
-// draw in, and runs the app's plugins, which the reply names, their start,
-// update and migrate included, with the plugin classes that the startup
-// modules register. The frontend is the app's plugin whose class has
-// `frontend`, core's basic frontend for the reply of the fixture hello. A
-// board that the test opens later through the store's open() starts core
-// again, as on the page.
+// Core starts as it does on the page: it imports the module of the class of
+// each of the app's plugins and of each board option that R's reply names,
+// those that the test gives and core's own, registers them, opens the board of
+// R's reply to hello, draws it with the app's frontend where the test gives an
+// element to draw in, and runs the app's plugins, which the reply names, their
+// start, update and migrate included. The frontend is the app's plugin whose
+// class has `frontend`, core's basic frontend for the reply of the fixture
+// hello. A board that the test opens later through the store's open() starts
+// core again, as on the page.
 // R, played from the fixtures, replies to the client's hello with the
 // reply of the fixture hello unless given, and drops what it holds at a later
 // hello, as R does. It evaluates every block as ok, makes a block's output
@@ -21,6 +20,14 @@
 // what the test gives.
 
 import { pageFrontEnds, start } from "../core/index.ts";
+// The stubs serve the modules of core's own plugin classes, which the build
+// bundles on their own, as the page imports them.
+// eslint-disable-next-line no-restricted-imports
+import basicFrontend from "../modules/basic/index.tsx";
+// eslint-disable-next-line no-restricted-imports
+import editBoard from "../modules/edit-board/index.tsx";
+// eslint-disable-next-line no-restricted-imports
+import fileStorage from "../modules/file-storage/index.ts";
 import type { Measure } from "../mount/index.ts";
 import { coreOptions } from "../options/index.ts";
 import type {
@@ -37,7 +44,7 @@ import type {
   Transport,
   TransportListener,
 } from "../protocol/index.ts";
-import type { BlockId } from "../types/board.ts";
+import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput, OutputFixtures } from "../types/outputs.ts";
@@ -62,6 +69,15 @@ const SAMPLES: Readonly<Record<string, OutputFixtures>> = {
   "blockr.core-table_output": tableFixtures as unknown as OutputFixtures,
   "blockr.core-text_output": textFixtures,
   "blockr.core-plot_output": plotFixtures,
+};
+
+// The modules of core's own plugin classes, by the id of each class, which the
+// stub serves where R's reply names the class and the test gives no module of
+// its own, as the page imports them.
+const CORE_CLASSES: Readonly<Record<PluginClassId, unknown>> = {
+  "blockr.core-basic_frontend_plugin": { api: 1, default: basicFrontend },
+  "blockr.core-file_storage_plugin": { api: 1, default: fileStorage },
+  "blockr.core-edit_board_plugin": { api: 1, default: editBoard },
 };
 
 // What an element measures for an output's info: a panel of 640 by 400 CSS
@@ -91,15 +107,15 @@ export interface StubCoreOptions {
   // given, so that the code that reads them takes its fallbacks.
   readonly blockrOptions?: Readonly<Record<string, Json>>;
   // What each module that core imports exports, by the URL that R serves it
-  // at or by the id of a module that packages offer each other, such as the
-  // `ui` or the `frontend` of a plugin class, or "blockr.core-basic", core's
-  // basic frontend, which draws the board of a core app. R serves a
-  // module that the test gives by an id that R's reply does not name as well.
-  // A module that the test leaves out fails to load.
+  // at, or by an id that R's reply names: the id of the class of one of the
+  // app's plugins, for the module of the class, the id of a board option, for
+  // its module, or the id of a module that packages offer each other's UIs,
+  // such as "blockr.core-controls". R serves a module that the test gives by
+  // an id of the form `{pkg}-{name}` that R's reply does not name as one that
+  // packages offer each other. The stub gives the modules of core's own plugin
+  // classes and board options, as the page imports them, unless the test gives
+  // its own, and a module that the test leaves out fails to load.
   readonly modules?: Readonly<Record<string, unknown>>;
-  // What the startup module of each package exports, by package, in the order
-  // in which core initializes them, after those that the reply names.
-  readonly startup?: Readonly<Record<string, unknown>>;
   // What R replies to an evaluation, beside its id, block and revision, ok
   // with no conditions unless given.
   readonly evaluate?: (request: EvaluateRequest) => Partial<Omit<EvaluateReply, "id" | "block" | "revision">> | undefined;
@@ -132,23 +148,32 @@ export interface StubCore {
 }
 
 export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore> {
-  const startup = options.startup ?? {};
   const base = options.hello ?? HELLO;
+  const given = options.modules ?? {};
   // The modules that the test gives by an id that R's reply does not name,
   // which R then serves at a URL of their own.
-  const offered = Object.keys(options.modules ?? {}).filter((id) => isModuleId(id) && !Object.hasOwn(base.modules, id));
+  const offered = Object.keys(given).filter(
+    (id) =>
+      isModuleId(id) && !Object.hasOwn(base.modules, id) && !Object.hasOwn(base.plugins, id) && !Object.hasOwn(base.options, id),
+  );
   const hello: HelloReply = {
     ...base,
-    packages: { ...base.packages, ...Object.fromEntries(Object.keys(startup).map((pkg) => [pkg, "1.0.0"])) },
-    startup_modules: [
-      ...base.startup_modules,
-      ...Object.keys(startup).map((pkg) => ({ package: pkg, module: startupUrl(pkg) })),
-    ],
     modules: { ...base.modules, ...Object.fromEntries(offered.map((id) => [id, { module: moduleUrl(id) }])) },
   };
-  const modules: Readonly<Record<string, unknown>> = {
-    ...options.modules,
-    ...Object.fromEntries(Object.entries(startup).map(([pkg, exports]) => [startupUrl(pkg), exports])),
+  // What each URL that R's reply names serves: what the test gives by the URL
+  // or by the id that the reply names it under, or else core's own module.
+  const named = (url: string): unknown => {
+    if (Object.hasOwn(given, url)) return given[url];
+    const ids = [
+      ...Object.entries(hello.plugins).filter(([, entry]) => entry.module === url).map(([id]) => id),
+      ...Object.entries(hello.options).filter(([, entry]) => entry.module === url).map(([id]) => id),
+      ...Object.entries(hello.modules).filter(([, source]) => source.module === url).map(([id]) => id),
+    ];
+    const id = ids.find((key) => Object.hasOwn(given, key));
+    if (id !== undefined) return given[id];
+    const own = ids.find((key) => Object.hasOwn(CORE_CLASSES, key) || Object.hasOwn(coreOptions, key));
+    if (own === undefined) return undefined;
+    return Object.hasOwn(CORE_CLASSES, own) ? CORE_CLASSES[own] : { api: 1, default: coreOptions[own] };
   };
 
   const r = fixtureR(hello, options);
@@ -156,14 +181,12 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     transport: r.transport,
     loader: {
       importer(url) {
-        if (Object.hasOwn(modules, url)) return Promise.resolve(modules[url]);
-        const id = Object.entries(hello.modules).find(([, source]) => source.module === url)?.[0];
-        if (id !== undefined && Object.hasOwn(modules, id)) return Promise.resolve(modules[id]);
+        const exports = named(url);
+        if (exports !== undefined) return Promise.resolve(exports);
         return Promise.reject(new TypeError(`The test gives no module ${url}.`));
       },
       stylesheet: () => Promise.resolve(),
     },
-    options: coreOptions,
     ...(options.el === undefined ? {} : { frontEnds: pageFrontEnds(options.el) }),
     measure: options.measure ?? { info: () => INFO, watch: () => () => undefined },
   });
@@ -185,10 +208,6 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
       started.stop();
     },
   };
-}
-
-function startupUrl(pkg: string): string {
-  return `${pkg}/startup.js`;
 }
 
 // Where R serves a module that the test gives by its id, `{pkg}-{name}`, as

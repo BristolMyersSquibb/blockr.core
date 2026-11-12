@@ -6,8 +6,8 @@
 // What a module exports is checked where core mounts it (./block.ts).
 // Where R now runs a package at another version than the page loaded, the
 // loader imports no module of that package but those it has imported already,
-// rather than load a second copy of the package, as Startup modules has it
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#startup-modules).
+// rather than load a second copy of the package, as Handshake has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.9#handshake).
 // This also holds for a URL that the page loaded the package from, since R
 // now serves the file of the new version there.
 

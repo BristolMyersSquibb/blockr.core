@@ -10,7 +10,6 @@ export interface StubCoreOptions {
     readonly hello?: HelloReply;
     readonly blockrOptions?: Readonly<Record<string, Json>>;
     readonly modules?: Readonly<Record<string, unknown>>;
-    readonly startup?: Readonly<Record<string, unknown>>;
     readonly evaluate?: (request: EvaluateRequest) => Partial<Omit<EvaluateReply, "id" | "block" | "revision">> | undefined;
     readonly output?: (request: OutputRequest) => {
         output: BlockOutput & Record<string, Json>;
