@@ -431,14 +431,14 @@ check_board_args <- function(args, what) {
   )
 }
 
-# The classes that `serve()` takes in `blocks` or in `plugins`, as the rows of
-# a data frame with the character columns `package`, for the class's package,
-# and `id`, for its id, in their order.
+# Checks the classes that `serve()` takes in `blocks` or in `plugins` as the
+# rows of a data frame with the character columns `package`, for the class's
+# package, and `id`, for its id, and gives them back as they are, invisibly.
 # The errors name the classes as `what` gives them, such as "block classes
 # that an app offers", and the function that lists them, `listing`, are of the
 # class `class`, and with `yaml`, say that the argument takes the path of a
 # YAML file too.
-frame_class_rows <- function(x, what, listing, class, yaml = FALSE) {
+check_class_rows <- function(x, what, listing, class, yaml = FALSE) {
 
   valid <- is.data.frame(x) && all(c("package", "id") %in% names(x)) &&
     is.character(x[["package"]]) && is.character(x[["id"]]) &&
@@ -454,7 +454,7 @@ frame_class_rows <- function(x, what, listing, class, yaml = FALSE) {
     )
   }
 
-  data.frame(package = x[["package"]], id = x[["id"]])
+  invisible(x)
 }
 
 # The names of the arguments that the call `list(...)` holds, unevaluated,

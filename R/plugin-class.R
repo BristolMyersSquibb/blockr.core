@@ -437,7 +437,7 @@ app_plugins <- function(rows, available = available_plugin_classes()) {
 
 # The plugin classes that an app runs, as `serve()` takes them in `plugins`:
 # the rows of a data frame, with the class's package in `package` and its id
-# in `id`, in their order (see `frame_class_rows()`).
+# in `id`, in their order (see `check_class_rows()`).
 # Each names a class that an available package lists, and a row that names
 # none stops the app.
 plugin_rows <- function(rows, available) {
@@ -447,7 +447,7 @@ plugin_rows <- function(rows, available) {
     id = chr_xtr(available, "id")
   )
 
-  rows <- frame_class_rows(
+  rows <- check_class_rows(
     rows,
     "plugins that an app runs",
     "available_plugins()",

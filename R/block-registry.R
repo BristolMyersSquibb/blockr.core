@@ -748,7 +748,7 @@ app_block_registry <- function(blocks = available_blocks(), board = NULL) {
 
 # The block classes that an app offers, as `serve()` takes them in `blocks`,
 # by package: the ids of the package's classes to offer, or `NULL` for all of
-# them, from the rows of a data frame (see `frame_class_rows()`) or from a YAML
+# them, from the rows of a data frame (see `check_class_rows()`) or from a YAML
 # file at the path (see `yaml_block_rows()`).
 # A package that is not available stops the app, and so does an id that its
 # package does not list, as R registers the package's classes.
@@ -757,7 +757,7 @@ offered_block_classes <- function(blocks) {
   rows <- if (is_string(blocks)) {
     yaml_block_rows(blocks)
   } else {
-    frame_class_rows(
+    check_class_rows(
       blocks,
       "block classes that an app offers",
       "available_blocks()",
