@@ -416,7 +416,7 @@
   The blockr option `core_blocks` is gone, since `blocks` narrows core's classes too.
   The block registration roclet writes the id of each class into `blocks.yml`, which it reads off the class's constructor.
   The `register_package_blocks()` function is gone, and core's `.onLoad()` registers no block class, so a block package drops its call of `register_package_blocks()` from its `.onLoad()`.
-  Core reads the files of another package, such as its `blocks.yml`, its modules and its JSON Schemas, through the package's own `system.file()`, so that it finds them for a package that `pkgload::load_all()` loaded too (#498).
+  Core reads the files of another package, such as its `blocks.yml`, its modules and its JSON Schemas, with `pkg_file()`, which now goes through the package's own `system.file()` and takes a package's name as well as an environment, so that it finds them for a package that `pkgload::load_all()` loaded too (#498).
 
 # blockr.core 0.1.4
 
