@@ -13,7 +13,7 @@ serve(x, ...)
 
 \method{serve}{character}(x, ..., blocks = available_blocks(), plugins = available_plugins())
 
-\method{serve}{block}(x, ..., data = list(), blocks = available_blocks())
+\method{serve}{block}(x, ..., data = list())
 }
 \arguments{
 \item{x}{A board, the path of a JSON board, or a block}
@@ -45,8 +45,9 @@ the session, which evaluates the blocks.
 }
 \details{
 Which block classes an app offers is the app's choice, never a board's.
-Each method takes them in \code{blocks}, which defaults to every block class of
-every available package, as \code{\link[=available_blocks]{available_blocks()}} gives them.
+The methods for a board and for a path take them in \code{blocks}, which
+defaults to every block class of every available package, as
+\code{\link[=available_blocks]{available_blocks()}} gives them.
 A script narrows them with plain R, as
 \code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
 but those of blockr.ggplot, or gives the path of a YAML file that lists them
@@ -126,6 +127,8 @@ to them.
 
 A single block is served alone, with fixed data and no board around it, so
 that its developer can try it out.
+Its app offers no block classes, so that its block registry holds the
+block's class alone, and R reads no package's \code{blocks.yml} for it.
 The page shows the block in a card of its own: its name, its UI, its output
 and a line of its status.
 R keeps the data for the process, and binds each entry to the block's input

@@ -9,8 +9,9 @@
 #' the session, which evaluates the blocks.
 #'
 #' Which block classes an app offers is the app's choice, never a board's.
-#' Each method takes them in `blocks`, which defaults to every block class of
-#' every available package, as [available_blocks()] gives them.
+#' The methods for a board and for a path take them in `blocks`, which
+#' defaults to every block class of every available package, as
+#' [available_blocks()] gives them.
 #' A script narrows them with plain R, as
 #' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
 #' but those of blockr.ggplot, or gives the path of a YAML file that lists them
@@ -91,6 +92,8 @@
 #'
 #' A single block is served alone, with fixed data and no board around it, so
 #' that its developer can try it out.
+#' Its app offers no block classes, so that its block registry holds the
+#' block's class alone, and R reads no package's `blocks.yml` for it.
 #' The page shows the block in a card of its own: its name, its UI, its output
 #' and a line of its status.
 #' R keeps the data for the process, and binds each entry to the block's input
@@ -179,7 +182,7 @@ serve.character <- function(x, ..., blocks = available_blocks(),
 #' @param data The block's data, a list by input
 #' @rdname serve
 #' @export
-serve.block <- function(x, ..., data = list(), blocks = available_blocks()) {
+serve.block <- function(x, ..., data = list()) {
 
   dots <- dots_names(substitute(list(...)))
 
@@ -197,7 +200,9 @@ serve.block <- function(x, ..., data = list(), blocks = available_blocks()) {
   check_block_data(x, data)
 
   board <- new_board(x)
-  registry <- app_block_registry(blocks, board)
+
+  registry <- new.env(parent = emptyenv())
+  register_board_classes(board, registry)
 
   serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
 }

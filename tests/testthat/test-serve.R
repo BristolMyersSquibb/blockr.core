@@ -82,15 +82,15 @@ test_that("serve() builds the app's block registry of the classes it offers", {
     c("blockr.core-merge_block", "blockr.core-csv_block")
   )
 
-  # Each method takes the classes that the app offers, and refuses one that no
-  # available package lists as it is called
+  # The methods for a board and for a path take the classes that the app
+  # offers, and refuse one that no available package lists as they are called
   path <- withr::local_tempfile(fileext = ".json")
   writeLines(unclass(encode_message(proto_served_file())), path)
 
   rows <- core_block_rows()
   absent <- data.frame(package = "blockr.absent", id = "absent_block")
 
-  for (x in list(served_board(), path, new_static_block("datasets::BOD"))) {
+  for (x in list(served_board(), path)) {
 
     registry <- served_registry(
       serve(x, blocks = rows[rows[["id"]] == "csv_block", ])
@@ -216,10 +216,32 @@ test_that("the app's sessions tell of what the packages it uses declare", {
 
 test_that("serve() registers the class of a block that it serves alone", {
 
+  local_declared(block_registry)
+  register_block(new_class_head_block, "Head", "First rows")
+
   registry <- served_registry(serve(new_static_block("datasets::BOD")))
 
-  expect_true("blockr.core-static_block" %in% ls(registry))
+  # The block's class alone, whatever the script registered, and in the block
+  # registry of the process none
+  expect_identical(ls(registry), "blockr.core-static_block")
   expect_false("blockr.core-static_block" %in% list_blocks())
+
+  # R reads no package's file for it, so a file that R cannot read stops none
+  # of these apps
+  file <- file.path(local_load_all_package(), "inst", "registry", "blocks.yml")
+  writeLines("new_probe_block: [", file)
+
+  expect_error(available_blocks(), class = "package_blocks_yaml_invalid")
+  expect_no_error(serve(new_static_block("datasets::BOD")))
+
+  # A block takes no `blocks`, which it reads as data for an input of that name
+  expect_error(
+    serve(
+      new_static_block("datasets::BOD"),
+      blocks = data.frame(package = "blockr.core", id = "head_block")
+    ),
+    class = "serve_data_invalid"
+  )
 })
 
 test_that("serve() replaces a class from outside a package that differs", {
