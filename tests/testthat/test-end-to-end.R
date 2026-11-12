@@ -92,18 +92,27 @@ test_that("a board built up from an empty one evaluates its blocks", {
 
   expect_length(app_statuses(app), 0L)
 
+  # The app runs core's Edit board plugin by default, which the basic
+  # frontend shows beside the board, and which adds the blocks and the links,
+  # each with a form that the user fills in and submits.
+  blocks <- "section[aria-label='Blocks']"
+  add_link <- "form[aria-label='Add link']"
+
+  add_block <- function(search, class) {
+    act(app, "choose", "Block class", search, class, selector = blocks)
+    act(app, "click", "Add block", selector = blocks)
+  }
+
   # Two dataset blocks, each drawn by a card named "Dataset", as their class
   # names them.
-  act(app, "click", "Add block")
-  act(app, "click", "dataset block", dialog = TRUE)
+  add_block("dataset", "dataset block")
   wait_for_board(app, function(b) length(b$blocks) == 1L, "a first block")
   a <- app_blocks(app)
 
   act(app, "pick", "Dataset", "BOD", block = a)
   wait_for_statuses(app, ready(a))
 
-  act(app, "click", "Add block")
-  act(app, "click", "dataset block", dialog = TRUE)
+  add_block("dataset", "dataset block")
   wait_for_board(app, function(b) length(b$blocks) == 2L, "a second block")
   b <- setdiff(app_blocks(app), a)
 
@@ -111,23 +120,28 @@ test_that("a board built up from an empty one evaluates its blocks", {
   wait_for_statuses(app, ready(a, b))
 
   # A merge block, which reads nothing until links feed its inputs.
-  act(app, "click", "Add block")
-  act(app, "click", "merge block", dialog = TRUE)
+  add_block("merge", "merge block")
   wait_for_board(app, function(b) length(b$blocks) == 3L, "a third block")
   c <- setdiff(app_blocks(app), c(a, b))
 
   wait_for_statuses(app, set_names("waiting", c))
 
-  act(app, "click", "Links")
-
+  # The dropdowns name each block by its name, and find it by its ID too,
+  # which tells apart the two dataset blocks.
   for (link in list(c(a, "x"), c(b, "y"))) {
-    act(app, "pick", "From", link[[1L]], dialog = TRUE)
-    act(app, "pick", "To", c, dialog = TRUE)
-    act(app, "pick", "Input", link[[2L]], dialog = TRUE)
-    act(app, "click", "Add link", dialog = TRUE)
-  }
 
-  act(app, "click", "Close", dialog = TRUE)
+    act(app, "choose", "From", paste(link[[1L]], "\u00b7"), "Dataset",
+        selector = add_link)
+    act(app, "choose", "To", paste(c, "\u00b7"), "Merge", selector = add_link)
+    act(app, "pick", "Input", link[[2L]], selector = add_link)
+    act(app, "click", "Add link", selector = add_link)
+
+    wait_for_board(
+      app,
+      function(board) link[[2L]] %in% chr_xtr(board$links, "input"),
+      paste("the link into", link[[2L]])
+    )
+  }
 
   wait_for_board(
     app,
@@ -181,58 +195,52 @@ test_that("the user edits the stacks of a board", {
 
   wait_for_statuses(app, ready("a", "b", "c"))
 
-  act(app, "click", "Stacks")
+  # Core's Edit board plugin edits the stacks, in a section of its own: a
+  # stack's row opens a form that changes the stack once the user saves it,
+  # and another form adds a stack once the user submits it.
+  stacks <- "section[aria-label='Stacks']"
+  change <- "form[aria-label='Change stack']"
+  add <- "form[aria-label='Add stack']"
 
-  act(app, "check", "Dataset (b)", dialog = TRUE)
+  # The dropdown of blocks names each block by its name, and finds it by its
+  # ID too, which tells apart the two dataset blocks.
+  labels <- c(a = "Dataset", b = "Dataset", c = "Merge")
+
+  act(app, "click", "Edit the stack Stack", selector = stacks)
+  act(app, "fill", "Name", "abc", selector = change)
+  act(app, "choose", "Blocks", "b \u00b7", labels[["b"]], selector = change)
+  act(app, "click", "Save", selector = change)
+
   wait_for_board(
     app,
-    function(board) identical(board$stacks$ac$blocks, list("a", "c", "b")),
-    "b in the stack"
+    function(board) {
+      identical(board$stacks$ac$name, "abc") &&
+        identical(board$stacks$ac$blocks, list("a", "c", "b"))
+    },
+    "the stack abc of a, c and b"
   )
 
-  act(app, "click", "Rename", dialog = TRUE)
-  act(app, "rename", "Stack name", "abc", dialog = TRUE)
-  wait_for_board(
-    app,
-    function(board) identical(board$stacks$ac$name, "abc"),
-    "the stack's new name"
-  )
-
-  act(app, "click", "Remove the stack abc", dialog = TRUE)
+  act(app, "click", "Remove the stack abc", selector = stacks)
   wait_for_board(app, function(board) !length(board$stacks), "no stack")
 
-  act(app, "click", "Add stack", dialog = TRUE)
-  wait_for_board(app, function(board) length(board$stacks) == 1L, "a stack")
-
-  act(app, "click", "Rename", dialog = TRUE)
-  act(app, "rename", "Stack name", "ABC", dialog = TRUE)
-
-  # Each check adds the block to the blocks that the dialog shows in the stack.
-  # So the test waits until the board holds the block before the next check.
-  labels <- c(a = "Dataset (a)", b = "Dataset (b)", c = "Merge (c)")
+  act(app, "fill", "Name", "ABC", selector = add)
 
   for (block in names(labels)) {
-
-    act(app, "check", labels[[block]], dialog = TRUE)
-
-    wait_for_board(
-      app,
-      function(board) block %in% unlist(lst_xtr(board$stacks, "blocks")),
-      paste(block, "in the new stack")
-    )
+    act(app, "choose", "Blocks", paste(block, "\u00b7"), labels[[block]],
+        selector = add)
   }
+
+  act(app, "click", "Add stack", selector = add)
 
   wait_for_board(
     app,
     function(board) {
       stack <- board$stacks[[1L]]
-      identical(stack$name, "ABC") &&
+      length(board$stacks) == 1L && identical(stack$name, "ABC") &&
         identical(unlist(stack$blocks), c("a", "b", "c"))
     },
     "the stack ABC of a, b and c"
   )
-
-  act(app, "click", "Close", dialog = TRUE)
 
   # The page draws the stack as a group of the cards of its blocks.
   # The blocks stay as they were.

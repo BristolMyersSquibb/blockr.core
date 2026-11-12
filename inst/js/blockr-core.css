@@ -25,6 +25,7 @@
       --tw-ring-offset-width: 0px;
       --tw-ring-offset-color: #fff;
       --tw-ring-offset-shadow: 0 0 #0000;
+      --tw-outline-style: solid;
       --tw-blur: initial;
       --tw-brightness: initial;
       --tw-contrast: initial;
@@ -38,7 +39,6 @@
       --tw-drop-shadow-color: initial;
       --tw-drop-shadow-alpha: 100%;
       --tw-drop-shadow-size: initial;
-      --tw-outline-style: solid;
     }
   }
 }
@@ -123,6 +123,18 @@
   }
 }
 
+.bc\:sr-only {
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  position: absolute;
+  overflow: hidden;
+}
+
 .bc\:absolute {
   position: absolute;
 }
@@ -139,8 +151,16 @@
   inset-inline: 0;
 }
 
+.bc\:inset-y-0 {
+  inset-block: 0;
+}
+
 .bc\:top-0 {
   top: 0;
+}
+
+.bc\:top-full {
+  top: 100%;
 }
 
 .bc\:right-0 {
@@ -149,6 +169,10 @@
 
 .bc\:z-20 {
   z-index: 20;
+}
+
+.bc\:z-30 {
+  z-index: 30;
 }
 
 .bc\:z-50 {
@@ -203,6 +227,10 @@
   display: grid;
 }
 
+.bc\:inline-block {
+  display: inline-block;
+}
+
 .bc\:inline-flex {
   display: inline-flex;
 }
@@ -237,8 +265,8 @@
   max-height: calc(var(--bc-spacing) * 64);
 }
 
-.bc\:max-h-96 {
-  max-height: calc(var(--bc-spacing) * 96);
+.bc\:max-h-72 {
+  max-height: calc(var(--bc-spacing) * 72);
 }
 
 .bc\:max-h-full {
@@ -261,8 +289,20 @@
   min-height: 100%;
 }
 
+.bc\:w-8 {
+  width: calc(var(--bc-spacing) * 8);
+}
+
 .bc\:w-10 {
   width: calc(var(--bc-spacing) * 10);
+}
+
+.bc\:w-24 {
+  width: calc(var(--bc-spacing) * 24);
+}
+
+.bc\:w-28 {
+  width: calc(var(--bc-spacing) * 28);
 }
 
 .bc\:w-full {
@@ -301,12 +341,20 @@
   flex-shrink: 0;
 }
 
+.bc\:table-fixed {
+  table-layout: fixed;
+}
+
 .bc\:border-collapse {
   border-collapse: collapse;
 }
 
 .bc\:animate-pulse {
   animation: var(--bc-animate-pulse);
+}
+
+.bc\:cursor-default {
+  cursor: default;
 }
 
 .bc\:cursor-pointer {
@@ -335,6 +383,10 @@
 
 .bc\:content-start {
   align-content: flex-start;
+}
+
+.bc\:items-baseline {
+  align-items: baseline;
 }
 
 .bc\:items-center {
@@ -367,6 +419,10 @@
 
 .bc\:gap-1 {
   gap: var(--bc-spacing);
+}
+
+.bc\:gap-1\.5 {
+  gap: calc(var(--bc-spacing) * 1.5);
 }
 
 .bc\:gap-2 {
@@ -547,6 +603,10 @@
   padding: calc(var(--bc-spacing) * 4);
 }
 
+.bc\:px-1 {
+  padding-inline: var(--bc-spacing);
+}
+
 .bc\:px-1\.5 {
   padding-inline: calc(var(--bc-spacing) * 1.5);
 }
@@ -571,12 +631,24 @@
   padding-block: var(--bc-spacing);
 }
 
+.bc\:py-1\.5 {
+  padding-block: calc(var(--bc-spacing) * 1.5);
+}
+
 .bc\:py-2 {
   padding-block: calc(var(--bc-spacing) * 2);
 }
 
-.bc\:pt-3 {
-  padding-top: calc(var(--bc-spacing) * 3);
+.bc\:pt-2 {
+  padding-top: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:pr-0\.5 {
+  padding-right: calc(var(--bc-spacing) * .5);
+}
+
+.bc\:pr-8 {
+  padding-right: calc(var(--bc-spacing) * 8);
 }
 
 .bc\:pb-1 {
@@ -585,6 +657,10 @@
 
 .bc\:pb-3 {
   padding-bottom: calc(var(--bc-spacing) * 3);
+}
+
+.bc\:pl-2 {
+  padding-left: calc(var(--bc-spacing) * 2);
 }
 
 .bc\:text-center {
@@ -601,6 +677,10 @@
 
 .bc\:align-bottom {
   vertical-align: bottom;
+}
+
+.bc\:align-top {
+  vertical-align: top;
 }
 
 .bc\:\[font-family\:inherit\] {
@@ -663,6 +743,14 @@
 .bc\:tracking-wide {
   --tw-tracking: var(--bc-tracking-wide);
   letter-spacing: var(--bc-tracking-wide);
+}
+
+.bc\:break-words {
+  overflow-wrap: break-word;
+}
+
+.bc\:break-all {
+  word-break: break-all;
 }
 
 .bc\:whitespace-nowrap {
@@ -750,6 +838,15 @@
 .bc\:shadow-xl {
   --tw-shadow: 0 20px 25px -5px var(--tw-shadow-color, #0000001a), 0 8px 10px -6px var(--tw-shadow-color, #0000001a);
   box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+}
+
+.bc\:outline, .bc\:outline-1 {
+  outline-style: var(--tw-outline-style);
+  outline-width: 1px;
+}
+
+.bc\:outline-border-accent {
+  outline-color: var(--bc-color-border-accent);
 }
 
 .bc\:grayscale {
@@ -1017,6 +1114,12 @@
   initial-value: 0 0 #0000;
 }
 
+@property --tw-outline-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+
 @property --tw-blur {
   syntax: "*";
   inherits: false
@@ -1081,12 +1184,6 @@
 @property --tw-drop-shadow-size {
   syntax: "*";
   inherits: false
-}
-
-@property --tw-outline-style {
-  syntax: "*";
-  inherits: false;
-  initial-value: solid;
 }
 
 @keyframes pulse {

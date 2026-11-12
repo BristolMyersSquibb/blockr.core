@@ -5,8 +5,9 @@
 // 2. Once R has answered the first, core asks R for the blockr options that its
 //    scheduler reads and for rand_id, the shape of the ids that its commands
 //    mint, and creates for the board that it opens the store, with the classes
-//    of core's own plugins, its basic frontend and its storage plugin, the
-//    command registry with core's board options, the scheduler and CoreApi.
+//    of core's own plugins, its basic frontend, its storage plugin and its Edit
+//    board plugin, the command registry with core's board options, the
+//    scheduler and CoreApi.
 // 3. It initializes the startup module of every package that R has loaded, one
 //    at a time in R's order, awaiting each initialize(). It names one that
 //    fails and carries on.

@@ -4,6 +4,7 @@
 \alias{new_plugin}
 \alias{new_basic_frontend_plugin}
 \alias{new_file_storage_plugin}
+\alias{new_edit_board_plugin}
 \alias{is_plugin}
 \alias{plugin_class_id}
 \alias{plugin_state}
@@ -17,6 +18,8 @@ new_plugin(state = list(), id, class = id)
 new_basic_frontend_plugin()
 
 new_file_storage_plugin()
+
+new_edit_board_plugin()
 
 is_plugin(x)
 
@@ -45,11 +48,12 @@ first, as \code{c("dock_plugin", "frontend_plugin")}, which defaults to \code{id
 \item{...}{Generic consistency}
 }
 \value{
-The constructors \code{new_plugin()}, \code{new_basic_frontend_plugin()} and
-\code{new_file_storage_plugin()} return a \code{plugin} object, and \code{is_plugin()} a
-scalar logical. Of the getters, \code{plugin_class_id()} returns the id of the
-plugin's class in full, a string, and \code{plugin_state()} the state, a list by
-name. The generic \code{plugin_version()} returns a whole number, and
+The constructors \code{new_plugin()}, \code{new_basic_frontend_plugin()},
+\code{new_file_storage_plugin()} and \code{new_edit_board_plugin()} return a \code{plugin}
+object, and \code{is_plugin()} a scalar logical.
+Of the getters, \code{plugin_class_id()} returns the id of the plugin's class in
+full, a string, and \code{plugin_state()} the state, a list by name.
+The generic \code{plugin_version()} returns a whole number, and
 \code{available_plugins()} a data frame with a row for each plugin class.
 }
 \description{
@@ -94,12 +98,21 @@ and \code{storage_plugin}, the class of a plugin through which every frontend
 saves boards and opens them.
 A package's class extends one of them or \code{plugin} itself, as
 \code{c("session_plugin", "storage_plugin", "plugin")}.
-Core's own plugins do so too, and neither keeps any state.
+Core's own plugins do so too, and none of them keeps any state.
 Its basic frontend, which \code{new_basic_frontend_plugin()} makes, is of class
 \code{c("basic_frontend_plugin", "frontend_plugin", "plugin")}.
 Its storage plugin, which \code{new_file_storage_plugin()} makes, is of class
 \code{c("file_storage_plugin", "storage_plugin", "plugin")}, and saves a board as
 a download and opens an upload.
+Its Edit board plugin, which \code{new_edit_board_plugin()} makes, is of class
+\code{c("edit_board_plugin", "plugin")}.
+It adds, renames and removes blocks, and adds, changes and removes links and
+stacks.
+Every frontend places it as it places any plugin with a UI.
+An app runs it unless its rows leave it out, as it runs every plugin class
+that \code{available_plugins()} gives.
+So the user can add the first block to the board that \code{serve(new_board())}
+draws.
 
 The version of a plugin class is the version of the shape of its plugins'
 state, a whole number from 1, which the class's method of \code{plugin_version()}

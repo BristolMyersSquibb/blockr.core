@@ -7414,6 +7414,10 @@ function corePluginClasses() {
         save: (board) => coreStorage().save(board),
         open: () => coreStorage().open()
       }
+    },
+    {
+      id: "blockr.core-edit_board_plugin",
+      ui: "blockr.core-edit_board"
     }
   ];
 }
@@ -9764,11 +9768,15 @@ var hello_default = {
           "blockr.core-basic": {
             module: "blockr.core/basic.js?v=0f3d8e21",
             css: "blockr.core/basic.css?v=6a9b2c4e"
+          },
+          "blockr.core-edit_board": {
+            module: "blockr.core/edit-board.js?v=5c1e7a39"
           }
         },
         plugins: {
           "blockr.core-basic_frontend_plugin": { name: "Basic frontend", version: 1 },
-          "blockr.core-file_storage_plugin": { name: "File storage", version: 1 }
+          "blockr.core-file_storage_plugin": { name: "File storage", version: 1 },
+          "blockr.core-edit_board_plugin": { name: "Edit board", version: 1 }
         },
         option_versions: {},
         renderers: {},

@@ -40,10 +40,11 @@ import { Banners, Footer, Mounted, useFooter, useSized, useStatus } from "../../
 import type { Condition } from "../../protocol/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
+import type { AddMode } from "../../picker/index.ts";
+import { classes, NameField } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
-import type { AddMode } from "./picker.tsx";
-import { classes, Menu, NameField } from "./ui.tsx";
+import { Menu } from "./ui.tsx";
 
 type Severity = Condition["severity"];
 
