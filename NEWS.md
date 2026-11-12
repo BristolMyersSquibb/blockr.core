@@ -303,12 +303,11 @@
   As `serve()` runs, R refuses rows that name a class that no available package lists, or one class twice, or that hold no frontend, two frontends or two storage plugins, and a board that holds a plugin of a class that the app does not run.
   A block that `serve()` serves alone runs no plugin.
   So a file that `serve()` is given never sets which plugins run, and `plugin_name()` and `default_plugin_name()` go, since a plugin's name is its class's (#558, #565, #560).
-* The methods of `serve()` for a board and for the path of a JSON board hand the arguments in `...` to the app's frontend, by name, through the generic `frontend_args()`, which R calls on the frontend's plugin as `serve()` is called.
-  Both methods refuse an unnamed argument, and `id`, `options` and `loader`, with an error that says where each went.
+* The methods of `serve()` for a board and for the path of a JSON board hand every argument in `...` to the app's frontend, through the generic `frontend_args()`, which R calls on the frontend's plugin as `serve()` is called.
   A method of `frontend_args()` takes the arguments that its frontend knows and refuses the rest, naming the frontend.
   It returns what the frontend reads of them, as a list by name, which R sends in `frontend` in its reply to `hello`, so that every board that the app opens gets the same.
   Core calls the `render()` of the frontend, the `frontend` of its class, with it, in `args`.
-  Core's method for `frontend_plugin` takes no argument, so core's basic frontend refuses every one, such as the dock's `navbar` (#570).
+  Core's method for `frontend_plugin` takes no argument, so core's basic frontend refuses every one, such as the dock's `navbar` (#570, #582).
 * The frontend is a plugin: core draws every board with the app's frontend, the plugin whose class has `frontend`, such as core's basic frontend, whose class, `blockr.core-basic_frontend_plugin`, core registers as it starts, and the page shows why where the app runs none.
   Core calls a frontend's `render()` with the page's element, `CoreApi`, the ID of the frontend's class and a signal, as it calls the `render()` of a plugin's UI module, which a frontend places with the `mountPlugin()` of `CoreApi`.
   Once the frontend's `render()` has returned, core calls the `start` of each plugin's class, in the order of the app's plugins, and as the next board opens it aborts the plugin's signal and runs the cleanup that `start` returned.

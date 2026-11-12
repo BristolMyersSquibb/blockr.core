@@ -308,55 +308,7 @@ test_that("serve() refuses two classes of one id from outside a package", {
   expect_error(serve(board), "Blocks a and c", class = "board_blocks_invalid")
 })
 
-test_that("serve() refuses what it took before, and says where each went", {
-
-  board <- served_board()
-
-  expect_error(
-    serve(board, id = "my_board"),
-    paste0(
-      "For a board, `serve()` takes no `id`, `options` or `loader`, and no ",
-      "unnamed argument. It was given `id`. A board holds its ID, which ",
-      "`new_board()` takes as `id`."
-    ),
-    fixed = TRUE,
-    class = "serve_args_invalid"
-  )
-
-  # R evaluates none of them, so that one naming a function that is gone fails
-  # with the same error.
-  expect_error(
-    serve(board, loader = local_loader(), new_board()),
-    paste0(
-      "It was given `loader` and an unnamed argument. The client opens and ",
-      "saves boards itself, with no loader. R hands every other argument to ",
-      "the app's frontend, by name."
-    ),
-    fixed = TRUE,
-    class = "serve_args_invalid"
-  )
-
-  # R refuses them before it hands the frontend the other arguments
-  expect_error(
-    serve(board, options = list(), navbar = "x"),
-    paste0(
-      "It was given `options`. A board holds the values of its board options, ",
-      "which `new_board()` takes as `options`."
-    ),
-    fixed = TRUE,
-    class = "serve_args_invalid"
-  )
-
-  # A script written for blockr.core 0.1 passed the board's ID unnamed
-  expect_error(
-    serve(board, "my_board"),
-    "It was given an unnamed argument. R hands every other argument",
-    fixed = TRUE,
-    class = "serve_args_invalid"
-  )
-})
-
-test_that("serve() hands the app's frontend the other arguments, by name", {
+test_that("serve() hands the app's frontend every argument in its `...`", {
 
   dir <- withr::local_tempdir()
   write_declared_files(dir)
@@ -391,6 +343,14 @@ test_that("serve() hands the app's frontend the other arguments, by name", {
     "The Grid frontend takes no argument of `serve()` but `title`.",
     fixed = TRUE
   )
+
+  # The method gets an unnamed argument too, such as the board's ID, which a
+  # script written for blockr.core 0.1 passed second
+  expect_error(
+    serve(new_board(), "my_board"),
+    "The Grid frontend takes no argument of `serve()` but `title`.",
+    fixed = TRUE
+  )
 })
 
 test_that("core's basic frontend takes no argument, and reads nothing", {
@@ -405,6 +365,26 @@ test_that("core's basic frontend takes no argument, and reads nothing", {
       "The app's frontend, blockr.core-basic_frontend_plugin, takes no ",
       "argument of `serve()`, and was given `navbar`."
     ),
+    fixed = TRUE,
+    class = "frontend_args_invalid"
+  )
+
+  # So does a script written for blockr.core 0.1, which passed the board's ID
+  # second and unnamed, and `id`, `options` and `loader` by name, with a loader
+  # that no longer exists
+  expect_error(
+    serve(board, "my_board"),
+    paste0(
+      "The app's frontend, blockr.core-basic_frontend_plugin, takes no ",
+      "argument of `serve()`, and was given an unnamed argument."
+    ),
+    fixed = TRUE,
+    class = "frontend_args_invalid"
+  )
+
+  expect_error(
+    serve(board, id = "my_board", options = list(), loader = local_loader()),
+    "and was given `id`, `options`, and `loader`.",
     fixed = TRUE,
     class = "frontend_args_invalid"
   )
@@ -602,13 +582,6 @@ test_that("serve() serves the path of a JSON board, whose text R sends", {
 
   expect_identical(reply$board, decode_message(text))
   expect_null(reply$bound)
-
-  expect_error(
-    serve(path, id = "cars"),
-    "For the path of a JSON board, `serve()` takes no `id`, `options` or",
-    fixed = TRUE,
-    class = "serve_args_invalid"
-  )
 
   # R reads the file as serve() is called, so a missing file fails at once.
   expect_error(serve(tempfile()), class = "board_json_missing")
