@@ -3,6 +3,7 @@
 // registry refused, the notes that plugins send, and what the store dropped as
 // the board opened.
 
+import { useSyncExternalStore } from "react";
 import type { Note } from "../../types/core-api.ts";
 import { errorMessage } from "../../util/index.ts";
 
@@ -61,4 +62,10 @@ export function createNotices(): Notices {
       };
     },
   };
+}
+
+// The notices, which a component follows as React's useSyncExternalStore
+// follows a store.
+export function useNotices(notices: Notices): readonly Notice[] {
+  return useSyncExternalStore(notices.subscribe, notices.list);
 }

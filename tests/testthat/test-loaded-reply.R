@@ -200,6 +200,8 @@ test_that("R gives the app's plugins with their classes' names and versions", {
     paste0(
       "{\"blockr.core-file_storage_plugin\":",
       "{\"name\":\"File storage\",\"version\":1},",
+      "\"blockr.core-edit_board_plugin\":",
+      "{\"name\":\"Edit board\",\"version\":1},",
       "\"blockr.test-grid_plugin\":{\"name\":\"Grid\",\"version\":2}}"
     )
   )

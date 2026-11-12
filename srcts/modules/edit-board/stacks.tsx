@@ -1,53 +1,78 @@
-// The dialog that edits the board's stacks through core's commands.
-// For each stack, it shows these:
+// The Edit board plugin's section of stacks. For each stack, it shows these:
 // - The stack's name, which rename_stack changes.
 // - Its colour and its blocks, which change_stack changes.
 // - A button for remove_stack, which leaves the stack's blocks on the board.
-// Below the stacks, a button adds an empty stack with add_stack.
+// Below the stacks, a button adds an empty stack with add_stack, which asks for
+// no id, since the command mints one.
 // A block sits in one stack at most, so checking a block in one stack takes
 // it out of the stack it was in.
+// Under the board lock, it lists each stack alone, with its colour and its
+// blocks.
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { styles } from "../../styles/index.ts";
 import type { Board, Stack, StackId } from "../../types/board.ts";
-import { runCommand, useFrontEnd } from "./context.ts";
-import { useBoard } from "./hooks.ts";
-import { classes, Dialog, NameField } from "./ui.tsx";
+import type { CoreApi } from "../../types/core-api.ts";
+import { classes, NameField } from "../../ui/index.ts";
+import { Section } from "./board.tsx";
+import { blockName } from "./links.tsx";
+import { runCommand } from "./run.ts";
 
 // The colour that a stack without one shows in its picker.
 const NO_COLOR = "#808080";
 
-export function StacksDialog({ onClose }: { onClose: () => void }): ReactElement {
-  const front = useFrontEnd();
-  const board = useBoard(front.core);
+export function StacksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
   const stacks = Object.entries(board.stacks);
 
   return (
-    <Dialog title="Stacks" onClose={onClose}>
+    <Section title="Stacks">
       {stacks.length === 0 ? <p className={styles.hint}>The board has no stacks yet.</p> : null}
       <ul aria-label="Stacks" className={classes.list}>
-        {stacks.map(([id, stack]) => (
-          <StackItem key={id} id={id} stack={stack} board={board} />
-        ))}
+        {stacks.map(([id, stack]) =>
+          locked ? (
+            <StackText key={id} stack={stack} board={board} />
+          ) : (
+            <StackItem key={id} core={core} id={id} stack={stack} board={board} />
+          ),
+        )}
       </ul>
-      <div>
-        <button
-          type="button"
-          className={classes.primary}
-          onClick={() => {
-            void runCommand(front, "blockr.core-add_stack", {});
-          }}
-        >
-          Add stack
-        </button>
-      </div>
-    </Dialog>
+      {locked ? null : (
+        <div>
+          <button
+            type="button"
+            className={classes.primary}
+            onClick={() => {
+              void runCommand(core, "blockr.core-add_stack", {});
+            }}
+          >
+            Add stack
+          </button>
+        </div>
+      )}
+    </Section>
   );
 }
 
-function StackItem({ id, stack, board }: { id: StackId; stack: Stack; board: Board }): ReactElement {
-  const front = useFrontEnd();
+// A stack as the user reads it under the board lock: its name in its colour,
+// and its blocks.
+function StackText({ stack, board }: { stack: Stack; board: Board }): ReactElement {
+  return (
+    <li aria-label={stack.name} className="bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:text-sm">
+      <span
+        aria-hidden="true"
+        className="bc:size-3 bc:rounded-full bc:border bc:border-border-default"
+        style={stack.color === null ? undefined : { backgroundColor: stack.color }}
+      />
+      <span className="bc:font-medium">{stack.name}</span>
+      <span className="bc:text-text-muted">
+        {stack.blocks.length === 0 ? "No blocks" : stack.blocks.map((block) => blockName(board, block)).join(", ")}
+      </span>
+    </li>
+  );
+}
+
+function StackItem({ core, id, stack, board }: { core: CoreApi; id: StackId; stack: Stack; board: Board }): ReactElement {
   const [renaming, setRenaming] = useState(false);
 
   return (
@@ -58,7 +83,7 @@ function StackItem({ id, stack, board }: { id: StackId; stack: Stack; board: Boa
             label="Stack name"
             name={stack.name}
             onSubmit={(name) => {
-              void runCommand(front, "blockr.core-rename_stack", { id, name });
+              void runCommand(core, "blockr.core-rename_stack", { id, name });
             }}
             onDone={() => {
               setRenaming(false);
@@ -71,6 +96,7 @@ function StackItem({ id, stack, board }: { id: StackId; stack: Stack; board: Boa
           <button
             type="button"
             className={classes.quiet}
+            aria-label={`Rename the stack ${stack.name}`}
             onClick={() => {
               setRenaming(true);
             }}
@@ -82,7 +108,7 @@ function StackItem({ id, stack, board }: { id: StackId; stack: Stack; board: Boa
           label={`Colour of ${stack.name}`}
           color={stack.color}
           onChange={(color) => {
-            void runCommand(front, "blockr.core-change_stack", { id, color });
+            void runCommand(core, "blockr.core-change_stack", { id, color });
           }}
         />
         {stack.color === null ? null : (
@@ -90,7 +116,7 @@ function StackItem({ id, stack, board }: { id: StackId; stack: Stack; board: Boa
             type="button"
             className={classes.quiet}
             onClick={() => {
-              void runCommand(front, "blockr.core-change_stack", { id, color: null });
+              void runCommand(core, "blockr.core-change_stack", { id, color: null });
             }}
           >
             No colour
@@ -101,7 +127,7 @@ function StackItem({ id, stack, board }: { id: StackId; stack: Stack; board: Boa
           className={`${classes.button} bc:ml-auto`}
           aria-label={`Remove the stack ${stack.name}`}
           onClick={() => {
-            void runCommand(front, "blockr.core-remove_stack", { id });
+            void runCommand(core, "blockr.core-remove_stack", { id });
           }}
         >
           Remove
@@ -119,7 +145,7 @@ function StackItem({ id, stack, board }: { id: StackId; stack: Stack; board: Boa
                 checked={stack.blocks.includes(block)}
                 onChange={(event) => {
                   const blocks = event.target.checked ? [...stack.blocks, block] : stack.blocks.filter((b) => b !== block);
-                  void runCommand(front, "blockr.core-change_stack", { id, blocks });
+                  void runCommand(core, "blockr.core-change_stack", { id, blocks });
                 }}
               />
               {name} ({block})

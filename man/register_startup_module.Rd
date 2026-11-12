@@ -40,7 +40,8 @@ The module that a plugin class names, such as the UI that every frontend
 places for the class's plugin, is such a module, which the class names by
 its ID in JavaScript (see \code{\link[=new_plugin]{new_plugin()}}).
 Core declares its basic frontend the same way, as \code{blockr.core-basic},
-which draws the board.
+which draws the board, and the UI of its Edit board plugin as
+\code{blockr.core-edit_board}.
 
 Next to its startup module, a package puts a JSON Schema for each plugin
 class and each board option that it registers, in a file of its own, as a

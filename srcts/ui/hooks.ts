@@ -1,11 +1,10 @@
-// The hooks through which the basic frontend follows core, as React's
-// useSyncExternalStore follows a store: the store's board and undo history,
-// and the notices.
+// The hooks through which core's basic frontend and its Edit board plugin
+// follow the store, as React's useSyncExternalStore follows a store: the
+// store's board and its undo history.
 
 import { useCallback, useSyncExternalStore } from "react";
-import type { Board } from "../../types/board.ts";
-import type { CoreApi } from "../../types/core-api.ts";
-import type { Notice, Notices } from "./notices.ts";
+import type { Board } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
 
 // The board, which the store keeps the same object until it announces a
 // change.
@@ -20,10 +19,6 @@ export function useHistory(core: Pick<CoreApi, "store">): { canUndo: boolean; ca
   const canUndo = useSyncExternalStore(subscribe, () => core.store.canUndo());
   const canRedo = useSyncExternalStore(subscribe, () => core.store.canRedo());
   return { canUndo, canRedo };
-}
-
-export function useNotices(notices: Notices): readonly Notice[] {
-  return useSyncExternalStore(notices.subscribe, notices.list);
 }
 
 function useStore(core: Pick<CoreApi, "store">): (notify: () => void) => () => void {

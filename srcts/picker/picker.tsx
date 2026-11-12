@@ -1,24 +1,30 @@
-// Adding a block of a class from the block registry, through core's commands.
-// Each of the three ways runs a command of its own:
-// - On its own, with add_block.
+// The picker of the block registry's entries, which adds a block of the class
+// that the user picks, through core's commands. Core's Edit board plugin
+// shows it in its add mode, and the menu of a card of core's basic frontend
+// opens it in its other two modes, so that both share it.
+// Each of the three modes runs a command of its own:
+// - On its own, with add_block, under the ID and the name that the user gives
+//   in the picker's fields. Where the user leaves a field empty, the command
+//   mints the ID, or takes the name from the block's class.
 // - After a block, taking that block's result, with append_block.
 // - Before a block, feeding an input of that block, with prepend_block.
 // Added after or before a block, the new block comes with a link. Where the
 // link could go into one of several inputs, the user picks the input, since
 // the input that a link feeds changes what a block computes, as the left and
 // the right table of a merge.
+// The search narrows the entries by their names, descriptions, keywords and
+// registry ids, and the picker groups them by category.
 
 import { useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import { freeInputs } from "../../commands/index.ts";
-import { styles } from "../../styles/index.ts";
-import type { BlockId } from "../../types/board.ts";
-import type { Json } from "../../types/json.ts";
-import type { RegistryEntry } from "../../types/registry.ts";
-import { own } from "../../util/index.ts";
-import { runCommand, useFrontEnd } from "./context.ts";
-import { useBoard } from "./hooks.ts";
-import { classes, Dialog } from "./ui.tsx";
+import { freeInputs } from "../commands/index.ts";
+import { styles } from "../styles/index.ts";
+import type { BlockId } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
+import type { RegistryEntry } from "../types/registry.ts";
+import { classes, useBoard } from "../ui/index.ts";
+import { own } from "../util/index.ts";
 
 // Where the new block goes.
 export type AddMode =
@@ -26,12 +32,24 @@ export type AddMode =
   | { readonly kind: "after"; readonly from: BlockId }
   | { readonly kind: "before"; readonly to: BlockId };
 
-export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void }): ReactElement {
-  const front = useFrontEnd();
-  const { core } = front;
+export interface PickerProps {
+  readonly core: Pick<CoreApi, "store" | "blockRegistry">;
+  readonly mode: AddMode;
+  // Runs the command with the args, as one step of the user, and resolves
+  // whether it ran. Where the command registry or the store refuses it, the
+  // caller tells the user why.
+  readonly run: (command: string, args: Json) => Promise<boolean>;
+  // Called as the user picks a class, before the command runs, as where a
+  // dialog that shows the picker closes.
+  readonly onPicked?: () => void;
+}
+
+export function BlockPicker({ core, mode, run, onPicked }: PickerProps): ReactElement {
   const board = useBoard(core);
   const registry = core.blockRegistry();
   const [search, setSearch] = useState("");
+  const [id, setId] = useState("");
+  const [name, setName] = useState("");
   const [picked, setPicked] = useState<RegistryEntry | undefined>(undefined);
   const [input, setInput] = useState<string | undefined>(undefined);
 
@@ -45,7 +63,6 @@ export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () =
   );
   const categories = useMemo(() => byCategory(entries), [entries]);
   const target = mode.kind === "add" ? undefined : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
-  const title = target === undefined ? "Add block" : `Add block ${mode.kind} "${target.name}"`;
 
   // Before a block, the user picks among the free inputs of that block, the
   // same for every class. After a block, the user picks among the inputs of
@@ -53,12 +70,22 @@ export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () =
   const before = mode.kind === "before" ? several(freeInputs(board, registry, mode.to) ?? []) : [];
   const after = picked === undefined ? [] : dataInputChoices(picked);
 
-  function add(entry: RegistryEntry, into: string | undefined): void {
-    onClose();
+  async function add(entry: RegistryEntry, into: string | undefined): Promise<void> {
+    onPicked?.();
     const link: Readonly<Record<string, Json>> = into === undefined ? {} : { input: into };
-    if (mode.kind === "add") void runCommand(front, "blockr.core-add_block", { registry_id: entry.id });
-    else if (mode.kind === "after") void runCommand(front, "blockr.core-append_block", { registry_id: entry.id, from: mode.from, ...link });
-    else void runCommand(front, "blockr.core-prepend_block", { registry_id: entry.id, to: mode.to, ...link });
+    if (mode.kind === "after") {
+      await run("blockr.core-append_block", { registry_id: entry.id, from: mode.from, ...link });
+    } else if (mode.kind === "before") {
+      await run("blockr.core-prepend_block", { registry_id: entry.id, to: mode.to, ...link });
+    } else {
+      const given = { ...filled("id", id), ...filled("name", name) };
+      // The next block takes an ID and a name of its own, while the user
+      // keeps what they gave where the store refused it, to put it right.
+      if (await run("blockr.core-add_block", { registry_id: entry.id, ...given })) {
+        setId("");
+        setName("");
+      }
+    }
   }
 
   function pick(entry: RegistryEntry): void {
@@ -66,12 +93,12 @@ export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () =
       setPicked(entry);
       setInput(undefined);
     } else {
-      add(entry, before.length > 0 ? (input ?? before[0]) : undefined);
+      void add(entry, before.length > 0 ? (input ?? before[0]) : undefined);
     }
   }
 
   return (
-    <Dialog title={title} onClose={onClose}>
+    <div className="bc:grid bc:gap-3">
       <label className={styles.field}>
         <span className={styles.label}>Search</span>
         <input
@@ -85,6 +112,12 @@ export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () =
           }}
         />
       </label>
+      {mode.kind === "add" ? (
+        <div className="bc:grid bc:grid-cols-2 bc:gap-2">
+          <TextField label="ID" value={id} placeholder="Made up if left empty" onChange={setId} />
+          <TextField label="Name" value={name} placeholder="The class's name if left empty" onChange={setName} />
+        </div>
+      ) : null}
       {before.length > 0 ? (
         <InputSelect label={`Input of "${target?.name ?? ""}"`} inputs={before} value={input ?? before[0]} onChange={setInput} />
       ) : null}
@@ -96,7 +129,7 @@ export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () =
               type="button"
               className={classes.primary}
               onClick={() => {
-                add(picked, input ?? after[0]);
+                void add(picked, input ?? after[0]);
               }}
             >
               Add {picked.name}
@@ -139,7 +172,35 @@ export function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () =
           ))}
         </div>
       )}
-    </Dialog>
+    </div>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}): ReactElement {
+  return (
+    <label className={styles.field}>
+      <span className={styles.label}>{label}</span>
+      <input
+        type="text"
+        spellCheck={false}
+        className={styles.box}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+      />
+    </label>
   );
 }
 
@@ -172,6 +233,13 @@ function InputSelect({
       </select>
     </label>
   );
+}
+
+// The arg of the name given, where the user gave the field a value that is
+// more than blanks, and none otherwise, so that the command fills it in.
+function filled(arg: "id" | "name", value: string): Readonly<Record<string, string>> {
+  const trimmed = value.trim();
+  return trimmed === "" ? {} : { [arg]: trimmed };
 }
 
 // The inputs of a class among which the user picks the one that the link of

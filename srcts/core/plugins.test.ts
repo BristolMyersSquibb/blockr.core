@@ -18,6 +18,7 @@ import type { CoreApi, Note } from "../types/core-api.ts";
 // The classes of core's own plugins, which the app of the fixture hello runs.
 const BASIC = "blockr.core-basic_frontend_plugin";
 const FILE = "blockr.core-file_storage_plugin";
+const EDIT = "blockr.core-edit_board_plugin";
 
 const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: "blockr.test-notes" };
 // A class whose plugin draws with the module of the notes' class.
@@ -71,12 +72,17 @@ describe("the plugins that run", () => {
 
     // In the order of the reply, core's own first, but for the plugin whose
     // class no package registers.
-    expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC, FILE, notes.id, report.id, saving.id]);
+    expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT, notes.id, report.id, saving.id]);
     expect(core.plugins.appPlugins()[report.id]).toEqual({ name: "Report" });
     expect(core.plugins.appPlugins()[BASIC]).toEqual({ name: "Basic frontend" });
+    expect(core.plugins.appPlugins()[EDIT]).toEqual({ name: "Edit board" });
     expect(core.plugins.appPlugins()).toBe(core.plugins.appPlugins());
     expect(core.plugins.pluginClass(report.id)).toBe(report);
     expect(core.plugins.pluginClass(BASIC).frontend).toBe("blockr.core-basic");
+    // Core's Edit board plugin has a ui alone, so that the board holds nothing
+    // for it.
+    expect(core.plugins.pluginClass(EDIT)).toEqual({ id: EDIT, ui: "blockr.core-edit_board" });
+    expect(Object.keys(core.store.board().plugins)).not.toContain(EDIT);
     expect(() => core.plugins.pluginClass("blockr.gone-gone_plugin")).toThrow(
       'The app runs no plugin "blockr.gone-gone_plugin" on the open board.',
     );
@@ -104,13 +110,13 @@ describe("the plugins that run", () => {
     };
     const s = await stubCore({ hello, startup: { "blockr.test": registering([dag, kept]) } });
 
-    expect(Object.keys(s.core.plugins.appPlugins())).toEqual([BASIC, FILE, kept.id]);
+    expect(Object.keys(s.core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT, kept.id]);
     expect(s.core.store.board().plugins).toEqual({ [kept.id]: { kept: false } });
     expect(() => s.core.plugins.pluginClass(dag.id)).toThrow(`The app runs no plugin "${dag.id}" on the open board.`);
 
     // The next board runs the same plugins.
     const next = await reopen(s);
-    expect(Object.keys(next.plugins.appPlugins())).toEqual([BASIC, FILE, kept.id]);
+    expect(Object.keys(next.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT, kept.id]);
     s.stop();
   });
 
@@ -121,7 +127,7 @@ describe("the plugins that run", () => {
     const own = t.core.plugins.storage();
     expect(Object.keys(own ?? {})).toEqual(["save", "open"]);
     expect(t.core.plugins.storage()).toBe(own);
-    expect(Object.keys(t.core.plugins.appPlugins())).toEqual([BASIC, FILE]);
+    expect(Object.keys(t.core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT]);
     t.stop();
 
     // The storage plugin that takes the place of core's own.
@@ -131,7 +137,7 @@ describe("the plugins that run", () => {
 
     const u = await stubCore({ hello: withoutPlugins(HELLO, FILE) });
     expect(u.core.plugins.storage()).toBeUndefined();
-    expect(Object.keys(u.core.plugins.appPlugins())).toEqual([BASIC]);
+    expect(Object.keys(u.core.plugins.appPlugins())).toEqual([BASIC, EDIT]);
     u.stop();
   });
 });

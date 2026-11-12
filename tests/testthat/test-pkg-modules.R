@@ -129,3 +129,15 @@ test_that("core declares its basic frontend as a module it offers", {
   expect_identical(entry$package, "blockr.core")
   expect_identical(entry$module, test_module("js/basic.js", "blockr.core"))
 })
+
+test_that("core declares the UI of its Edit board plugin as a module", {
+
+  entry <- get_module("blockr.core-edit_board")
+
+  expect_identical(entry$name, "edit_board")
+  expect_identical(entry$package, "blockr.core")
+  expect_identical(
+    entry$module,
+    test_module("js/edit-board.js", "blockr.core")
+  )
+})

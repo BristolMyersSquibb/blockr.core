@@ -41,12 +41,21 @@
 #' saves boards and opens them.
 #' A package's class extends one of them or `plugin` itself, as
 #' `c("session_plugin", "storage_plugin", "plugin")`.
-#' Core's own plugins do so too, and neither keeps any state.
+#' Core's own plugins do so too, and none of them keeps any state.
 #' Its basic frontend, which `new_basic_frontend_plugin()` makes, is of class
 #' `c("basic_frontend_plugin", "frontend_plugin", "plugin")`.
 #' Its storage plugin, which `new_file_storage_plugin()` makes, is of class
 #' `c("file_storage_plugin", "storage_plugin", "plugin")`, and saves a board as
 #' a download and opens an upload.
+#' Its Edit board plugin, which `new_edit_board_plugin()` makes, is of class
+#' `c("edit_board_plugin", "plugin")`.
+#' It adds, renames and removes blocks, and adds, changes and removes links and
+#' stacks.
+#' Every frontend places it as it places any plugin with a UI.
+#' An app runs it unless its rows leave it out, as it runs every plugin class
+#' that `available_plugins()` gives.
+#' So the user can add the first block to the board that `serve(new_board())`
+#' draws.
 #'
 #' The version of a plugin class is the version of the shape of its plugins'
 #' state, a whole number from 1, which the class's method of `plugin_version()`
@@ -83,11 +92,12 @@
 #'
 #' plugin_class_id(new_basic_frontend_plugin())
 #'
-#' @return The constructors `new_plugin()`, `new_basic_frontend_plugin()` and
-#' `new_file_storage_plugin()` return a `plugin` object, and `is_plugin()` a
-#' scalar logical. Of the getters, `plugin_class_id()` returns the id of the
-#' plugin's class in full, a string, and `plugin_state()` the state, a list by
-#' name. The generic `plugin_version()` returns a whole number, and
+#' @return The constructors `new_plugin()`, `new_basic_frontend_plugin()`,
+#' `new_file_storage_plugin()` and `new_edit_board_plugin()` return a `plugin`
+#' object, and `is_plugin()` a scalar logical.
+#' Of the getters, `plugin_class_id()` returns the id of the plugin's class in
+#' full, a string, and `plugin_state()` the state, a list by name.
+#' The generic `plugin_version()` returns a whole number, and
 #' `available_plugins()` a data frame with a row for each plugin class.
 #'
 #' @export
@@ -175,6 +185,12 @@ new_file_storage_plugin <- function() {
     "file_storage_plugin",
     c("file_storage_plugin", "storage_plugin")
   )
+}
+
+#' @rdname new_plugin
+#' @export
+new_edit_board_plugin <- function() {
+  new_plugin(list(), "edit_board_plugin")
 }
 
 #' @rdname new_plugin
@@ -277,6 +293,11 @@ available_plugin_classes <- function() {
       id = "file_storage_plugin",
       name = "File storage",
       constructor = new_file_storage_plugin
+    ),
+    list(
+      id = "edit_board_plugin",
+      name = "Edit board",
+      constructor = new_edit_board_plugin
     )
   )
 

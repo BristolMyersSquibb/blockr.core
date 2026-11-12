@@ -14,8 +14,8 @@ import type { ReactElement } from "react";
 import { Mounted } from "../../card/index.ts";
 import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Plugin } from "../../types/core-api.ts";
+import { classes } from "../../ui/index.ts";
 import { useFrontEnd } from "./context.ts";
-import { classes } from "./ui.tsx";
 
 // The plugins that the frontend shows, in the order of the app's plugins: those
 // that run whose class has a `ui`, each by the id of its class.

@@ -40,12 +40,16 @@ import type { CoreApi, Plugin, PluginModule } from "../types/core-api.ts";
 import { errorMessage, own, packageFromId, report } from "../util/index.ts";
 
 // The classes of core's own plugins, which core registers as it starts, before
-// any startup module runs, under the ids that R lists them by: its basic
-// frontend, whose module draws the page and which requires the severities of
-// the conditions that its cards show and the theme that it draws in, and its
-// storage plugin, which saves a board as a download and opens an upload.
-// Neither keeps state, so the board holds nothing for either. The storage
-// reaches for the page's document only as a frontend calls it.
+// any startup module runs, under the ids that R lists them by:
+// - Its basic frontend, whose module draws the page and which requires the
+//   severities of the conditions that its cards show and the theme that it
+//   draws in.
+// - Its storage plugin, which saves a board as a download and opens an upload.
+//   The storage reaches for the page's document only as a frontend calls it.
+// - Its Edit board plugin, whose `ui` adds, changes and removes blocks, links
+//   and stacks, and which every frontend places as it places any plugin whose
+//   class has a `ui` (../modules/edit-board).
+// None keeps state, so the board holds nothing for any of them.
 export function corePluginClasses(): readonly PluginClass[] {
   return [
     {
@@ -59,6 +63,10 @@ export function corePluginClasses(): readonly PluginClass[] {
         save: (board) => coreStorage().save(board),
         open: () => coreStorage().open(),
       },
+    },
+    {
+      id: "blockr.core-edit_board_plugin",
+      ui: "blockr.core-edit_board",
     },
   ];
 }

@@ -1,7 +1,8 @@
 // The toolbar of core's basic frontend. It shows the board's name, which the
-// user renames, and the controls for the board: adding a block, editing links
-// and stacks, setting the board options, undo and redo, and saving the board
-// and opening another.
+// user renames, and the controls for the board: setting the board options,
+// undo and redo, and saving the board and opening another. Adding a block and
+// editing links and stacks are the Edit board plugin's, which the frontend
+// shows beside the board.
 // It saves and opens through the storage that core.plugins.storage() gives,
 // that of the app's storage plugin, such as core's own, which saves a download
 // and opens an upload, and draws neither control where the app runs none.
@@ -13,19 +14,16 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
 import type { Board } from "../../types/board.ts";
+import { classes, NameField, useHistory } from "../../ui/index.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
-import { useHistory } from "./hooks.ts";
-import { classes, NameField } from "./ui.tsx";
-
-// A dialog that the toolbar opens.
-export type ToolbarDialog = "add" | "links" | "stacks" | "options";
 
 export interface ToolbarProps {
   readonly board: Board;
-  readonly show: (dialog: ToolbarDialog) => void;
+  // Opens the dialog of the board options.
+  readonly showOptions: () => void;
 }
 
-export function Toolbar({ board, show }: ToolbarProps): ReactElement {
+export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
   const front = useFrontEnd();
   const { core, notices } = front;
   const { canUndo, canRedo } = useHistory(core);
@@ -93,42 +91,11 @@ export function Toolbar({ board, show }: ToolbarProps): ReactElement {
         </button>
       )}
       <div role="toolbar" aria-label="Board" className="bc:ml-auto bc:flex bc:flex-wrap bc:items-center bc:gap-2">
-        {locked ? null : (
-          <>
-            <button
-              type="button"
-              className={classes.primary}
-              onClick={() => {
-                show("add");
-              }}
-            >
-              Add block
-            </button>
-            <button
-              type="button"
-              className={classes.button}
-              onClick={() => {
-                show("links");
-              }}
-            >
-              Links
-            </button>
-            <button
-              type="button"
-              className={classes.button}
-              onClick={() => {
-                show("stacks");
-              }}
-            >
-              Stacks
-            </button>
-          </>
-        )}
         <button
           type="button"
           className={classes.button}
           onClick={() => {
-            show("options");
+            showOptions();
           }}
         >
           Options

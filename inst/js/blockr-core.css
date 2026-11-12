@@ -575,8 +575,8 @@
   padding-block: calc(var(--bc-spacing) * 2);
 }
 
-.bc\:pt-3 {
-  padding-top: calc(var(--bc-spacing) * 3);
+.bc\:pt-2 {
+  padding-top: calc(var(--bc-spacing) * 2);
 }
 
 .bc\:pb-1 {

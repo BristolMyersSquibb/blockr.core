@@ -1,7 +1,8 @@
 // Core's basic frontend on the CoreApi for tests: the board of the fixture
 // hello, drawn by the frontend as the page draws it, with R played from the
 // protocol's fixtures, every block UI and renderer a stub that names what it
-// draws, the plugins a test needs, and the user acting on the page.
+// draws, the UI of core's Edit board plugin a stub that names its plugin, the
+// plugins a test needs, and the user acting on the page.
 
 import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -37,6 +38,7 @@ function stub(what: string) {
 const entries = Object.values(HELLO.block_registry);
 const MODULES: Readonly<Record<string, unknown>> = {
   "blockr.core-basic": basic,
+  "blockr.core-edit_board": pluginUi().exports,
   ...Object.fromEntries(entries.map((entry) => [entry.module, stub("UI")])),
   ...Object.fromEntries(entries.flatMap((entry) => (entry.renderer === undefined ? [] : [[entry.renderer.module, stub("Output")]]))),
 };
@@ -413,82 +415,12 @@ describe("a card's block before", () => {
 });
 
 describe("the toolbar", () => {
-  test("adds a block of a class from the block registry, which the search narrows", async () => {
-    const { el, board } = await drawn();
+  test("draws no control for adding a block or for links and stacks, which the Edit board plugin edits in a section of its own", async () => {
+    const { el } = await drawn();
 
-    await click(button(el, "Add block"));
-    expect(document.activeElement).toBe(find(dialog(el), 'input[type="search"]'));
-    expect(texts(dialog(el), "h3")).toEqual(["input", "plot", "transform"]);
-    await step(() => {
-      type(find(dialog(el), 'input[type="search"]', HTMLInputElement), "scatter");
-    });
-    expect(texts(dialog(el), "li button span:first-child")).toEqual(["scatter plot block"]);
-    await click(entry(dialog(el), "scatter plot block"));
-
-    const [added] = Object.entries(board().blocks).filter(([id]) => !Object.hasOwn(HELLO.board.board.blocks, id));
-    expect(added?.[1]).toMatchObject({ registry_id: "blockr.core-scatter_block", name: "Scatter" });
-    expect(Object.values(board().links).filter((link) => link.to === added?.[0])).toEqual([]);
-  });
-
-  test("removes a link and adds one into a free input of its target", async () => {
-    const { el, board } = await drawn();
-
-    await click(button(el, "Links"));
-    expect(find(dialog(el), 'ul[aria-label="Links"]').children).toHaveLength(7);
-    await click(find(dialog(el), 'button[aria-label="Remove the link from Iris to Scatter"]'));
-    expect(Object.keys(board().links)).not.toContain("keen_finch");
-
-    const selects = () => [...dialog(el).querySelectorAll("form select")] as HTMLSelectElement[];
-    const [from, to] = selects();
-    if (from === undefined || to === undefined) throw new Error("The form lacks its selects.");
-    await step(() => {
-      pick(from, "b");
-      pick(to, "f");
-    });
-    // The scatter block's one input is free again.
-    expect(selects()[2]?.value).toBe("data");
-    await click(button(dialog(el), "Add link"));
-    expect(Object.values(board().links)).toContainEqual({ from: "b", to: "f", input: "data" });
-    // With no input of the scatter block free, the form adds no link to it.
-    expect(button(dialog(el), "Add link").disabled).toBe(true);
-  });
-
-  test("adds a stack, renames it, colours it, puts a block in it and removes it", async () => {
-    const { el, board } = await drawn();
-
-    await click(button(el, "Stacks"));
-    await click(button(dialog(el), "Add stack"));
-    const [id] = Object.keys(board().stacks).filter((stack) => stack !== "s1");
-    if (id === undefined) throw new Error("No stack was added.");
-    expect(board().stacks[id]).toEqual({ name: "Stack", blocks: [], color: null });
-    const item = () => find(dialog(el), 'li[aria-label="Stack"], li[aria-label="Plots"]');
-
-    await click(button(item(), "Rename"));
-    await step(() => {
-      const field = find(item(), 'input[aria-label="Stack name"]', HTMLInputElement);
-      type(field, "Plots");
-      press(field, "Enter");
-    });
-    expect(board().stacks[id]?.name).toBe("Plots");
-
-    await step(() => {
-      const color = find(item(), 'input[type="color"]', HTMLInputElement);
-      color.value = "#66c2a5";
-      color.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    expect(board().stacks[id]?.color).toBe("#66c2a5");
-
-    // A block sits in one stack at most, so Head leaves Input.
-    await click(find(item(), 'label:has(input[type="checkbox"]):nth-of-type(2) input', HTMLInputElement));
-    expect(board().stacks[id]?.blocks).toEqual(["b"]);
-    expect(board().stacks.s1?.blocks).toEqual(["a"]);
-    expect(texts(find(el, 'section[aria-label="Plots"]'), "article h3")).toEqual(["Head"]);
-
-    await click(button(item(), "No colour"));
-    expect(board().stacks[id]?.color).toBeNull();
-    await click(find(item(), 'button[aria-label="Remove the stack Plots"]'));
-    expect(Object.keys(board().stacks)).toEqual(["s1"]);
-    expect(Object.keys(board().blocks)).toContain("b");
+    expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save", "Open"]);
+    expect(texts(find(el, 'aside[aria-label="Plugins"]'), "summary")).toEqual(["Edit board"]);
+    expect(find(el, 'aside[aria-label="Plugins"] details').textContent).toContain("Edit board");
   });
 
   test("sets the board options that the board holds through their UIs, by category", async () => {
@@ -589,7 +521,7 @@ describe("the toolbar", () => {
     // An app whose storage plugin takes the place of core's own.
     const page = await drawn(withClasses([session], plugin(session, "Session"), withoutPlugins(HELLO, FILE_STORAGE)));
     // The plugin's class has no ui, so the page shows no section for it.
-    expect(page.el.querySelector("aside")).toBeNull();
+    expect(texts(find(page.el, 'aside[aria-label="Plugins"]'), "summary")).toEqual(["Edit board"]);
 
     await click(button(page.el, "Save"));
     expect(saves).toEqual([page.core.store.save()]);
@@ -618,7 +550,7 @@ describe("the toolbar", () => {
     const page = await drawn({ hello: withoutPlugins(HELLO, FILE_STORAGE) });
 
     expect(page.core.plugins.storage()).toBeUndefined();
-    expect(buttons(toolbar(page.el))).toEqual(["Add block", "Links", "Stacks", "Options", "Undo", "Redo"]);
+    expect(buttons(toolbar(page.el))).toEqual(["Options", "Undo", "Redo"]);
   });
 });
 
@@ -642,17 +574,22 @@ describe("a plugin", () => {
     });
     const sections = (): HTMLDetailsElement[] => [...find(page.el, 'aside[aria-label="Plugins"]').querySelectorAll("details")];
     const shown = () => sections().map((section) => [section.querySelector("summary")?.textContent, section.open]);
+    const summary = (name: string): HTMLElement => {
+      const found = sections().find((section) => section.querySelector("summary")?.textContent === name);
+      return find(found ?? document.createElement("details"), "summary");
+    };
 
     // Each section starts open, in the order of the app's plugins, titled by
     // the name of the plugin's class, and core mounts the UI of the class in
-    // it. Core's own plugins have no UI, and so no section. The board stays
-    // beside them.
+    // it. Of core's own plugins, the Edit board plugin alone has a UI, and so
+    // a section. The board stays beside them.
     expect(shown()).toEqual([
+      ["Edit board", true],
       ["To do", true],
       ["Later", true],
     ]);
     expect(ui.renders.map((render) => render.plugin)).toEqual([notes.id, later.id]);
-    expect(sections()[0]?.contains(ui.renders[0]?.el ?? null)).toBe(true);
+    expect(sections()[1]?.contains(ui.renders[0]?.el ?? null)).toBe(true);
     expect(ui.renders[0]?.el.textContent).toBe("To do");
     expect(page.el.querySelectorAll("article")).toHaveLength(6);
     expect(buttons(toolbar(page.el)).at(-1)).toBe("Open");
@@ -661,19 +598,21 @@ describe("a plugin", () => {
 
     // A collapsed section stays collapsed as the board changes, and its
     // plugin's UI stays mounted.
-    await click(find(page.el, "summary"));
+    await click(summary("To do"));
     await act(() => page.core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
     await page.settled();
     expect(page.board().name).toBe("Sepals");
     expect(shown()).toEqual([
+      ["Edit board", true],
       ["To do", false],
       ["Later", true],
     ]);
     expect(ui.renders).toHaveLength(2);
     expect(ui.cleanups()).toBe(0);
 
-    await click(find(page.el, "summary"));
+    await click(summary("To do"));
     expect(shown()).toEqual([
+      ["Edit board", true],
       ["To do", true],
       ["Later", true],
     ]);
@@ -784,22 +723,18 @@ describe("what the user learns", () => {
     ]);
   });
 
-  test("is which edit the store refused", async () => {
-    const { el, board } = await drawn();
+  test("is which edit the command registry refused", async () => {
+    const { el, core, board } = await drawn();
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
 
-    // A link from the bind block into itself would make a cycle.
-    await click(button(el, "Links"));
-    const [from, to] = [...dialog(el).querySelectorAll("form select")] as HTMLSelectElement[];
-    if (from === undefined || to === undefined) throw new Error("The form lacks its selects.");
-    await step(() => {
-      pick(from, "e");
-      pick(to, "e");
-    });
-    await click(button(dialog(el), "Add link"));
-    await click(button(dialog(el), "Close"));
+    // While the picker is open before the merge block, another edit feeds the
+    // block's one free input, so that the new block has none to feed.
+    await menu(el, "Merge", "Add block before");
+    await act(() => core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" }));
+    await click(entry(dialog(el), "dataset block"));
 
-    expect(Object.values(board().links)).not.toContainEqual({ from: "e", to: "e", input: "" });
-    expect(notices(el)).toEqual([["error", expect.stringContaining("The store rejected the delta")]]);
+    expect(Object.keys(board().blocks)).toEqual(Object.keys(HELLO.board.board.blocks));
+    expect(notices(el)).toEqual([["error", expect.stringContaining('The command "blockr.core-prepend_block" refused to run')]]);
   });
 });
 
@@ -869,7 +804,7 @@ describe("a locked board", () => {
     // The board options, the history, saving and the plugins stay, since no
     // lock fixes them, and the load lock takes opening another board.
     expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save"]);
-    expect(find(el, 'aside[aria-label="Plugins"] summary').textContent).toBe("To do");
+    expect(texts(find(el, 'aside[aria-label="Plugins"]'), "summary")).toEqual(["Edit board", "To do"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).toBeNull();
     // No card has a menu.
     expect(el.querySelectorAll("article button")).toHaveLength(0);
@@ -894,7 +829,7 @@ describe("a locked board", () => {
   test("under the load lock alone, draws every control but the one for opening a board", async () => {
     const { el } = await drawn({ hello: lockedHello({ board: false, load: true }) });
 
-    expect(buttons(toolbar(el))).toEqual(["Add block", "Links", "Stacks", "Options", "Undo", "Redo", "Save"]);
+    expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).not.toBeNull();
     expect(card(el, "Iris").querySelector("button")).not.toBeNull();
     expect(card(el, "Iris").textContent).toContain("UI of a");

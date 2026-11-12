@@ -261,7 +261,7 @@
   Until then, core keeps the modules of that package that it loaded, and loads no other module of it (#515).
 * Core's basic frontend, `blockr.core-basic`, draws every board that holds no frontend.
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
-  Its toolbar adds a block from the block registry's entries, edits links and stacks, sets the board options that the board holds, renames the board, and saves the board or opens another.
+  Its toolbar sets the board options that the board holds, renames the board, and saves the board or opens another.
   It draws each stack as a group of its blocks' cards.
   A card shows its block's name, class and status, the block's UI and output with the summary of the block's result below it, and the conditions of the severities that the board option `show_conditions` names.
   A card's menu renames or removes its block, or adds a block before or after it.
@@ -272,7 +272,7 @@
   On a locked board, it draws no control for what the lock fixes.
   It requires the board options `show_conditions` and `dark_mode`, so that a board that it draws gets them as it opens.
   The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scroll bars in that theme too.
-  Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441).
+  Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441, #565).
 * A board has no class of its own, and plugins take the place of board classes as core's way to extend a board as a whole, beside block classes.
   An app runs at most one plugin of each plugin class, so a plugin is identified by the ID of its class and named by its class.
   A package's constructor `new_{name}_plugin()` makes a plugin with `new_plugin()`, of class `c("{name}_plugin", ..., "plugin")`, from its args, which are the plugin's state, and the id of its class, as `new_plugin(list(positions = positions), "dag_plugin")`, whose class vector defaults to the id and serves S3 dispatch alone.
@@ -288,11 +288,11 @@
   The app's plugins, which R sends in its reply to `hello`, are the plugins of every board that the app opens: opening a board keeps the state that it holds for each of them, migrating it by its class's `migrate`, drops every other state and names its plugin, and gives each other plugin of the app whose class has `state` its class's default state.
   So no patch adds or removes what the board holds for a plugin, and core's command `blockr.core-set_plugin_state` changes a plugin's state (#504, #558).
 * The methods of `serve()` for a board and for the path of a JSON board take the app's plugins in `plugins`, as rows that give each plugin's class by its package in `package` and its id in `id`, or as the path of a YAML file that lists packages and, for each, the ids of the plugin classes to run.
-  They default to `available_plugins()`, the plugin classes that the available packages list, which are core's alone for now: its basic frontend, which `new_basic_frontend_plugin()` makes, and its storage plugin, which `new_file_storage_plugin()` makes.
+  They default to `available_plugins()`, the plugin classes that the available packages list, which are core's alone for now: its basic frontend, which `new_basic_frontend_plugin()` makes, its storage plugin, which `new_file_storage_plugin()` makes, and its Edit board plugin, which `new_edit_board_plugin()` makes.
   Core's basic frontend runs only where no other row is a frontend, and core's storage plugin only where no other row is a storage plugin.
   As `serve()` runs, R refuses rows that name a class that no available package lists, or one class twice, or that hold no frontend, two frontends or two storage plugins, and a board that holds a plugin of a class that the app does not run.
   A block that `serve()` serves alone runs no plugin.
-  So a file that `serve()` is given never sets which plugins run, and `plugin_name()` and `default_plugin_name()` go, since a plugin's name is its class's (#558).
+  So a file that `serve()` is given never sets which plugins run, and `plugin_name()` and `default_plugin_name()` go, since a plugin's name is its class's (#558, #565).
 * The frontend is a plugin: core draws every board with the app's frontend, the plugin whose class has `frontend`, such as core's basic frontend, whose class, `blockr.core-basic_frontend_plugin`, core registers as it starts, and the page shows why where the app runs none.
   Core calls a frontend's `render()` with the page's element, `CoreApi`, the ID of the frontend's class and a signal, as it calls the `render()` of a plugin's UI module, which a frontend places with the `mountPlugin()` of `CoreApi`.
   Once the frontend's `render()` has returned, core calls the `start` of each plugin's class, in the order of the app's plugins, and as the next board opens it aborts the plugin's signal and runs the cleanup that `start` returned.
@@ -307,6 +307,16 @@
   A card gives its block focus as the user clicks into it or moves the keyboard's focus into it.
   Beside the edits that the store refused, the frontend shows the notes that plugins send, in the color of their severity, and the note that core sends as a board opens, which names what the store dropped.
   On a locked board, the toolbar keeps the board options, and keeps opening another board unless the load lock is on (#507, #558).
+* Core's Edit board plugin, which `new_edit_board_plugin()` makes, of class `c("edit_board_plugin", "plugin")`, adds, changes and removes blocks, links and stacks under every frontend, as the plugins `manage_blocks`, `manage_links` and `manage_stacks` did until now.
+  It keeps no state, and an app runs it by default, since `available_plugins()` lists it.
+  Every frontend places it as it places any plugin with a UI, as core's basic frontend does in a section of its own.
+  It adds a block of a class from the block registry's entries, which its search narrows, under the ID and the name that the user gives, or else under an ID that the command mints and the name of the block's class.
+  It renames and removes each block.
+  It changes the block that each link comes from, the block it goes to and the input it feeds, and removes each link, while its form adds a link into an input of the target that no link feeds.
+  It adds a stack, renames each stack, sets its color and its blocks, and removes it.
+  Each edit is one of core's commands, which applies as the user makes it, so that undo takes back each one, and the plugin tells the user through a notification why the store or the command registry refused one.
+  Under the board lock, it draws no control and lists the board's links and stacks alone.
+  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the same picker as the plugin (#565).
 * Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.
