@@ -31,6 +31,11 @@
 #' }
 #' ```
 #'
+#' Before it calls npm, each call of `install_js_types()` removes from
+#' `node_modules` the copies that an earlier call made.
+#' Otherwise npm would keep the old copies,
+#' even after an update of the R packages they came from.
+#'
 #' @param path The package's directory, which holds its `DESCRIPTION` and its
 #' `package.json`
 #'
@@ -127,6 +132,8 @@ js_types_dirs <- function(pkgs) {
 
 # Installs the directories into the package at `path` with one call of npm,
 # each as a copy, and gives npm's exit status.
+# Before that call, it removes the copies that an earlier call made.
+# Otherwise npm would keep the old copies, even once the directories change.
 npm_install_links <- function(path, dirs) {
 
   npm <- Sys.which("npm")
@@ -137,6 +144,13 @@ npm_install_links <- function(path, dirs) {
       class = "js_types_no_npm"
     )
   }
+
+  pkg_json <- lapply(file.path(dirs, "package.json"), yyjsonr::read_json_file)
+
+  unlink(
+    file.path(path, "node_modules", chr_xtr(pkg_json, "name")),
+    recursive = TRUE
+  )
 
   owd <- setwd(path)
   on.exit(setwd(owd), add = TRUE)

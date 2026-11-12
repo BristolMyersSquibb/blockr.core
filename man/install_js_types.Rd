@@ -45,6 +45,11 @@ through the \code{pre} scripts that npm runs before the script of the same name:
   "prebuild": "Rscript -e 'blockr.core::install_js_types()'"
 \}
 }\if{html}{\out{</div>}}
+
+Before it calls npm, each call of \code{install_js_types()} removes from
+\code{node_modules} the copies that an earlier call made.
+Otherwise npm would keep the old copies,
+even after an update of the R packages they came from.
 }
 \examples{
 \dontrun{
