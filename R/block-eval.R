@@ -199,7 +199,7 @@ check_summary <- function(result) {
   res
 }
 
-as_block_class <- function(x) {
+as_block_class <- function(x, registry = block_registry) {
 
   if (is_block_class(x)) {
     return(x)
@@ -212,7 +212,7 @@ as_block_class <- function(x) {
     )
   }
 
-  get_registry_entry(x)[["block_class"]]
+  get_registry_entry(x, registry)[["block_class"]]
 }
 
 input_results <- function(names, inputs, results) {

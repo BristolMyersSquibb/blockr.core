@@ -119,7 +119,7 @@ dependency_names <- function(fields) {
 # named by the package.
 js_types_dirs <- function(pkgs) {
   dirs <- set_names(
-    chr_ply(pkgs, function(pkg) system.file("types", package = pkg)),
+    chr_ply(pkgs, function(pkg) pkg_file("types", pkg = pkg)),
     pkgs
   )
   dirs[nzchar(dirs) & file.exists(file.path(dirs, "package.json"))]

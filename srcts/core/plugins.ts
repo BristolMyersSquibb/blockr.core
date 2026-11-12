@@ -44,8 +44,8 @@ import { errorMessage, own, packageFromId, report } from "../util/index.ts";
 // - Its basic frontend, whose module draws the page and which requires the
 //   severities of the conditions that its cards show and the theme that it
 //   draws in.
-// - Its storage plugin, which saves a board as a download and opens an upload.
-//   The storage reaches for the page's document only as a frontend calls it.
+// - Its storage plugin, whose buttons save a board as a download and open an
+//   upload. They reach for the page's document only as they run.
 // - Its Edit board plugin, whose `ui` adds, changes and removes blocks, links
 //   and stacks, and which every frontend places as it places any plugin whose
 //   class has a `ui` (../modules/edit-board).
@@ -59,10 +59,7 @@ export function corePluginClasses(): readonly PluginClass[] {
     },
     {
       id: "blockr.core-file_storage_plugin",
-      storage: {
-        save: (board) => coreStorage().save(board),
-        open: () => coreStorage().open(),
-      },
+      storage: coreStorage(),
     },
     {
       id: "blockr.core-edit_board_plugin",

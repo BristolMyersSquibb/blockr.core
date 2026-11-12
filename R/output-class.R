@@ -425,7 +425,7 @@ read_json_schema <- function(path, package = pkg_name(parent.frame())) {
     )
   }
 
-  file <- if (is.null(package)) path else system.file(path, package = package)
+  file <- if (is.null(package)) path else pkg_file(path, pkg = package)
 
   if (!nzchar(file) || !file.exists(file)) {
     blockr_abort(

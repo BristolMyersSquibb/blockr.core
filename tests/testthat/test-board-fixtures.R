@@ -36,7 +36,10 @@ test_that("serving a fixture registers its classes, and writing it does not", {
 
   expect_false(any(ids %in% list_blocks()))
 
-  serve(board)
+  # In the app's block registry, which the block registry of the process
+  # leaves as it was
+  registry <- served_registry(serve(board))
 
-  expect_true(all(ids %in% list_blocks()))
+  expect_true(all(ids %in% ls(registry)))
+  expect_false(any(ids %in% list_blocks()))
 })

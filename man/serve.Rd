@@ -9,9 +9,9 @@
 \usage{
 serve(x, ...)
 
-\method{serve}{board}(x, ..., plugins = available_plugins())
+\method{serve}{board}(x, ..., blocks = available_blocks(), plugins = available_plugins())
 
-\method{serve}{character}(x, ..., plugins = available_plugins())
+\method{serve}{character}(x, ..., blocks = available_blocks(), plugins = available_plugins())
 
 \method{serve}{block}(x, ..., data = list())
 }
@@ -21,9 +21,13 @@ serve(x, ...)
 \item{...}{For a block, its data where \code{data} is empty.
 R ignores it otherwise, with a warning.}
 
+\item{blocks}{The block classes that the app offers, as rows with the
+class's package in \code{package} and its id in \code{id}, such as those of
+\code{\link[=available_blocks]{available_blocks()}}, or as the path of a YAML file that lists them}
+
 \item{plugins}{The plugins that the app runs, as rows with the package of
 each plugin's class in \code{package} and the class's id in \code{id}, such as those
-of \code{\link[=available_plugins]{available_plugins()}}, or as the path of a YAML file that lists them}
+of \code{\link[=available_plugins]{available_plugins()}}}
 
 \item{data}{The block's data, a list by input}
 }
@@ -40,6 +44,22 @@ The app's server function hands what the client sends to the evaluator of
 the session, which evaluates the blocks.
 }
 \details{
+Which block classes an app offers is the app's choice, never a board's.
+The methods for a board and for a path take them in \code{blocks}, which
+defaults to every block class of every available package, as
+\code{\link[=available_blocks]{available_blocks()}} gives them.
+A script narrows them with plain R, as
+\code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
+but those of blockr.ggplot, or gives the path of a YAML file that lists them
+(see \code{\link[=register_block]{register_block()}}).
+As \code{serve()} is called, R loads the packages of these classes and builds the
+app's own block registry from them, from the classes that the app script
+defined and registered itself (see \code{\link[=register_block]{register_block()}}) and from the board
+(below).
+The app's sessions read that registry alone, so a later \code{serve()} or
+\code{register_block()} changes no app that \code{serve()} built before.
+A class that no available package lists stops the app, naming it.
+
 Which plugins run is the app's choice, never a board's.
 The methods for a board and for a path take the app's plugins in \code{plugins},
 which run on every board that the app opens, the opening board among them,
@@ -48,17 +68,7 @@ They default to every plugin class that an available package lists, as
 \code{\link[=available_plugins]{available_plugins()}} gives them.
 A script narrows them with plain R, as
 \code{subset(available_plugins(), package != "blockr.session")} runs every
-plugin but those of blockr.session, or gives the path of a YAML file that
-lists packages and, for each, the ids of the plugin classes to run, all of
-them where it lists none:
-
-\if{html}{\out{<div class="sourceCode yaml">}}\preformatted{- blockr.core:
-  - basic_frontend_plugin
-- blockr.dag
-}\if{html}{\out{</div>}}
-
-R reads the file into the same rows, and a package that the file leaves out
-runs no plugin.
+plugin but those of blockr.session.
 Core's basic frontend runs only where no other row is a frontend, and core's
 storage plugin only where no other row is a storage plugin (see
 \code{\link[=new_plugin]{new_plugin()}}).
@@ -75,15 +85,16 @@ sends it to the client as each session starts.
 So a board that R cannot write as JSON fails as the script runs (see
 \code{\link[=blockr_ser]{blockr_ser()}}).
 Before it writes the board, R registers the class of each block on the
-board that the block registry lacks, under the registry ID that the class
-gives (see \code{\link[=register_block]{register_block()}}).
+board that the app's block registry lacks, under the registry ID that the
+class gives (see \code{\link[=register_block]{register_block()}}).
 So every block on the served board runs, and so does a block that \code{serve()}
 serves alone.
 A class from a package keeps its package's ID, so that a board saved from
 the app opens in an app that offers the package.
 A class from outside a package, whose registry ID is its id alone,
-replaces another class that the registry holds under that ID, so that a
-script that redefines a class and serves again runs the new definition.
+replaces another class that the script registered under that ID, so that a
+script that redefines a class after it registered it runs the new
+definition.
 A board with blocks of two such classes of one id fails, since the client
 and the evaluator know a block's class by its registry ID alone.
 For the path of a JSON board, R reads only the file's format, and sends the
@@ -98,6 +109,8 @@ to them.
 
 A single block is served alone, with fixed data and no board around it, so
 that its developer can try it out.
+Its app offers no block classes, so that its block registry holds the
+block's class alone, and R reads no package's \code{blocks.yml} for it.
 The page shows the block in a card of its own: its name, its UI, its output
 and a line of its status.
 R keeps the data for the process, and binds each entry to the block's input

@@ -23,8 +23,32 @@ export interface PluginClass {
     }): (() => void) | undefined;
 }
 export interface Storage {
-    save(board: string): Promise<void>;
-    open(): Promise<string | null>;
+    controls(args: {
+        readonly core: CoreApi;
+    }): readonly StorageControl[];
+    subscribe?(listener: () => void): () => void;
+}
+export type StorageControl = Hints & ({
+    readonly kind: "button";
+    readonly id: string;
+    readonly label: string;
+    readonly tooltip?: string;
+    readonly shortcut?: string;
+    readonly disabled?: boolean;
+    run(): Promise<void>;
+} | {
+    readonly kind: "menu";
+    readonly id: string;
+    readonly label: string;
+    readonly items: readonly StorageControl[];
+} | {
+    readonly kind: "status";
+    readonly id: string;
+    readonly text: string;
+    readonly tooltip?: string;
+});
+export interface Hints {
+    readonly placement?: "end";
 }
 export interface Plugins {
     register(def: PluginClass): () => void;

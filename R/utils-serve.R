@@ -8,6 +8,22 @@
 #' The app's server function hands what the client sends to the evaluator of
 #' the session, which evaluates the blocks.
 #'
+#' Which block classes an app offers is the app's choice, never a board's.
+#' The methods for a board and for a path take them in `blocks`, which
+#' defaults to every block class of every available package, as
+#' [available_blocks()] gives them.
+#' A script narrows them with plain R, as
+#' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
+#' but those of blockr.ggplot, or gives the path of a YAML file that lists them
+#' (see [register_block()]).
+#' As `serve()` is called, R loads the packages of these classes and builds the
+#' app's own block registry from them, from the classes that the app script
+#' defined and registered itself (see [register_block()]) and from the board
+#' (below).
+#' The app's sessions read that registry alone, so a later `serve()` or
+#' `register_block()` changes no app that `serve()` built before.
+#' A class that no available package lists stops the app, naming it.
+#'
 #' Which plugins run is the app's choice, never a board's.
 #' The methods for a board and for a path take the app's plugins in `plugins`,
 #' which run on every board that the app opens, the opening board among them,
@@ -16,18 +32,7 @@
 #' [available_plugins()] gives them.
 #' A script narrows them with plain R, as
 #' `subset(available_plugins(), package != "blockr.session")` runs every
-#' plugin but those of blockr.session, or gives the path of a YAML file that
-#' lists packages and, for each, the ids of the plugin classes to run, all of
-#' them where it lists none:
-#'
-#' ```yaml
-#' - blockr.core:
-#'   - basic_frontend_plugin
-#' - blockr.dag
-#' ```
-#'
-#' R reads the file into the same rows, and a package that the file leaves out
-#' runs no plugin.
+#' plugin but those of blockr.session.
 #' Core's basic frontend runs only where no other row is a frontend, and core's
 #' storage plugin only where no other row is a storage plugin (see
 #' [new_plugin()]).
@@ -44,15 +49,16 @@
 #' So a board that R cannot write as JSON fails as the script runs (see
 #' [blockr_ser()]).
 #' Before it writes the board, R registers the class of each block on the
-#' board that the block registry lacks, under the registry ID that the class
-#' gives (see [register_block()]).
+#' board that the app's block registry lacks, under the registry ID that the
+#' class gives (see [register_block()]).
 #' So every block on the served board runs, and so does a block that `serve()`
 #' serves alone.
 #' A class from a package keeps its package's ID, so that a board saved from
 #' the app opens in an app that offers the package.
 #' A class from outside a package, whose registry ID is its id alone,
-#' replaces another class that the registry holds under that ID, so that a
-#' script that redefines a class and serves again runs the new definition.
+#' replaces another class that the script registered under that ID, so that a
+#' script that redefines a class after it registered it runs the new
+#' definition.
 #' A board with blocks of two such classes of one id fails, since the client
 #' and the evaluator know a block's class by its registry ID alone.
 #' For the path of a JSON board, R reads only the file's format, and sends the
@@ -67,6 +73,8 @@
 #'
 #' A single block is served alone, with fixed data and no board around it, so
 #' that its developer can try it out.
+#' Its app offers no block classes, so that its block registry holds the
+#' block's class alone, and R reads no package's `blocks.yml` for it.
 #' The page shows the block in a card of its own: its name, its UI, its output
 #' and a line of its status.
 #' R keeps the data for the process, and binds each entry to the block's input
@@ -95,9 +103,12 @@
 #' @param x A board, the path of a JSON board, or a block
 #' @param ... For a block, its data where `data` is empty.
 #'   R ignores it otherwise, with a warning.
+#' @param blocks The block classes that the app offers, as rows with the
+#'   class's package in `package` and its id in `id`, such as those of
+#'   [available_blocks()], or as the path of a YAML file that lists them
 #' @param plugins The plugins that the app runs, as rows with the package of
 #'   each plugin's class in `package` and the class's id in `id`, such as those
-#'   of [available_plugins()], or as the path of a YAML file that lists them
+#'   of [available_plugins()]
 #'
 #' @examples
 #' if (interactive()) {
@@ -130,20 +141,23 @@ serve <- function(x, ...) {
 
 #' @rdname serve
 #' @export
-serve.board <- function(x, ..., plugins = available_plugins()) {
+serve.board <- function(x, ..., blocks = available_blocks(),
+                        plugins = available_plugins()) {
   check_board_args(substitute(list(...)), "a board")
   plugins <- app_plugins(plugins)
   check_board_plugins(x, plugins)
-  register_board_classes(x)
-  serve_app(encode_message(blockr_ser(x)), plugins = plugins)
+  registry <- app_block_registry(blocks, x)
+  serve_app(encode_message(blockr_ser(x)), registry, plugins = plugins)
 }
 
 #' @rdname serve
 #' @export
-serve.character <- function(x, ..., plugins = available_plugins()) {
+serve.character <- function(x, ..., blocks = available_blocks(),
+                            plugins = available_plugins()) {
   check_board_args(substitute(list(...)), "the path of a JSON board")
   plugins <- app_plugins(plugins)
-  serve_app(read_board_json(x), plugins = plugins)
+  registry <- app_block_registry(blocks)
+  serve_app(read_board_json(x), registry, plugins = plugins)
 }
 
 #' @param data The block's data, a list by input
@@ -167,9 +181,11 @@ serve.block <- function(x, ..., data = list()) {
   check_block_data(x, data)
 
   board <- new_board(x)
-  register_board_classes(board)
 
-  serve_app(encode_message(blockr_ser(board)), data, alone = TRUE)
+  registry <- new.env(parent = emptyenv())
+  register_board_classes(board, registry)
+
+  serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
 }
 
 # Refuses a board that the script builds with a plugin of a class that the app
@@ -191,16 +207,16 @@ check_board_plugins <- function(board, plugins) {
   invisible()
 }
 
-# Registers the class of each block on a board that the block registry lacks,
-# under the registry id that the class gives, so that every block on the
-# served board runs. A class from a package keeps its package's id. Core's
-# static and fixed blocks get theirs this way, since core does not register
-# them as it loads.
+# Registers the class of each block on a board that an app's block registry,
+# `registry`, lacks, under the registry id that the class gives, so that every
+# block on the served board runs. A class from a package keeps its package's
+# id. Core's static and fixed blocks get theirs this way, since core does not
+# register them as it loads.
 # A class from outside a package has no package that checks the ids of its
 # classes, so R checks it here. It replaces another class that the registry
-# holds under its id, as a class does that the script has redefined since an
-# earlier `serve()`, and two such classes of one id on a board fail.
-register_board_classes <- function(board) {
+# holds under its id, as a class does that the script redefined after it
+# registered it, and two such classes of one id on a board fail.
+register_board_classes <- function(board, registry) {
 
   classes <- lapply(as.list(board_blocks(board)), block_class)
 
@@ -209,10 +225,11 @@ register_board_classes <- function(board) {
   for (cls in classes) {
 
     id <- class_registry_id(cls)
-    old <- if (id %in% list_blocks()) get_registry_entry(id)[["block_class"]]
+    old <- get0(id, envir = registry, inherits = FALSE)[["block_class"]]
 
     if (is.null(old) || (is.null(cls[["package"]]) && !identical(old, cls))) {
-      register_block(
+      add_block_entry(
+        registry,
         block_constructor(cls),
         default_block_name(cls[["class"]]),
         "",
@@ -252,8 +269,9 @@ check_outside_classes <- function(classes) {
 # The app that `serve()` returns, for the opening board given as JSON, and
 # for a block that `serve()` serves alone, with the data that R binds to the
 # block's inputs.
-# The app's plugins, which `app_plugins()` gives, go to the evaluator of every
-# session, which sends them in its reply to `hello`.
+# Each session's evaluator reads the app's block registry, `registry`, alone.
+# The app's plugins, `plugins`, which `app_plugins()` gives, go to the
+# evaluator of every session, which sends them in its reply to `hello`.
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -264,7 +282,7 @@ check_outside_classes <- function(classes) {
 # set the blockr options, whatever core logged before.
 # It works out the logger afresh, so that a logger that cannot work stops the
 # app here (see `write_log()`).
-serve_app <- function(board, data = list(), alone = FALSE,
+serve_app <- function(board, registry, data = list(), alone = FALSE,
                       plugins = list()) {
 
   reset_logging()
@@ -272,13 +290,13 @@ serve_app <- function(board, data = list(), alone = FALSE,
 
   force(board)
 
-  lock <- lock_board(board, data)
+  lock <- lock_board(board, data, registry)
 
   shiny::shinyApp(
     ui = function(req) serve_page(alone),
     server = function(input, output, session) {
 
-      ev <- new_evaluator(board, data, lock, plugins)
+      ev <- new_evaluator(board, data, lock, registry, plugins)
 
       shiny::exportTestValues(result = latest_results(ev, alone))
 
@@ -380,8 +398,8 @@ page_script <- function(runtime, alone = FALSE, test = NULL) {
   )
 }
 
-# Refuses every argument but `x` and `plugins` of the method of `serve()` for a
-# board or for the path of a JSON board.
+# Refuses every argument but `x`, `blocks` and `plugins` of the method of
+# `serve()` for a board or for the path of a JSON board.
 # The arguments come as the call `list(...)`, unevaluated, so that one that
 # names something gone, such as `local_loader()`, fails here too.
 # The error says where each argument of today's `serve()` went.
@@ -406,11 +424,37 @@ check_board_args <- function(args, what) {
   nms <- arg_labels(nms)
 
   blockr_abort(
-    "For {what}, `serve()` takes no argument but `x` and `plugins`, and it ",
-    "was given {nms}.",
+    "For {what}, `serve()` takes no argument but `x`, `blocks` and ",
+    "`plugins`, and it was given {nms}.",
     if (length(moved)) paste0(" ", paste(moved, collapse = " ")) else "",
     class = "serve_args_invalid"
   )
+}
+
+# Checks the classes that `serve()` takes in `blocks` or in `plugins` as the
+# rows of a data frame with the character columns `package`, for the class's
+# package, and `id`, for its id, and gives them back as they are, invisibly.
+# The errors name the classes as `what` gives them, such as "block classes
+# that an app offers", and the function that lists them, `listing`, are of the
+# class `class`, and with `yaml`, say that the argument takes the path of a
+# YAML file too.
+check_class_rows <- function(x, what, listing, class, yaml = FALSE) {
+
+  valid <- is.data.frame(x) && all(c("package", "id") %in% names(x)) &&
+    is.character(x[["package"]]) && is.character(x[["id"]]) &&
+    !anyNA(x[["package"]]) && !anyNA(x[["id"]])
+
+  if (!valid) {
+    blockr_abort(
+      "The {what} are expected as a data frame with the character columns ",
+      "`package` and `id`, as `{listing}` gives",
+      if (yaml) ", or as the path of a YAML file" else "",
+      ".",
+      class = class
+    )
+  }
+
+  invisible(x)
 }
 
 # The names of the arguments that the call `list(...)` holds, unevaluated,

@@ -50,9 +50,9 @@ export interface CoreApi {
     // The definition of the class of a plugin that runs. It throws for a
     // plugin that the app does not run.
     pluginClass(plugin: PluginClassId): PluginClass;
-    // What a frontend's save and open controls call: the storage of the app's
-    // storage plugin, or undefined where the app runs none, where a frontend
-    // draws neither control.
+    // The storage of the app's storage plugin, whose controls a frontend
+    // draws, or undefined where the app runs none, where a frontend draws no
+    // storage control.
     storage(): Storage | undefined;
   };
   // The locks that the app sets, from R's reply to `hello`: whether the board

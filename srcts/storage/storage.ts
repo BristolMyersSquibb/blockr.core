@@ -1,30 +1,62 @@
 // The storage of core's own storage plugin, as Storage has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#storage):
-// it saves a board as a file that the browser downloads, and opens a file that
-// the user picks, as today's `preserve_board` plugin does. The plugin's class,
-// blockr.core-file_storage_plugin, keeps no state and has no `ui`, since a
-// frontend draws the controls that call it, and an app runs it unless another
-// of its plugins is a storage plugin.
+// two buttons, as today's `preserve_board` plugin gives Import and Export.
+// Save has the browser download the board's file. Open opens the board in a
+// file that the user picks, and the storage leaves it out under the load lock,
+// which fixes the app to its opening board.
+// The plugin's class, blockr.core-file_storage_plugin, keeps no state and has
+// no `ui`, since a frontend draws its controls, and an app runs it unless
+// another of its plugins is a storage plugin.
 // The store writes the text of the board's file and opens such a text, so core
 // only moves the text between the page and the user's disk.
 
-import type { Storage } from "../store/index.ts";
+import type { Storage, StorageControl } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
-import { asError, isObject } from "../util/index.ts";
+import type { CoreApi } from "../types/core-api.ts";
+import { asError } from "../util/index.ts";
 
-// The storage of core's own storage plugin.
-export function coreStorage(doc: Document = document): Storage {
+// The storage of core's own storage plugin. Its buttons reach for the document
+// given, or else for the page's, only as they run.
+export function coreStorage(doc?: Document): Storage {
   return {
-    save(board) {
-      try {
-        download(board, fileName({ id: boardIdFromText(board) }), doc);
-        return Promise.resolve();
-      } catch (error) {
-        return Promise.reject(asError(error));
-      }
+    controls({ core }) {
+      const save: StorageControl = {
+        kind: "button",
+        id: "save",
+        label: "Save",
+        run: () => saveBoard(core, doc ?? document),
+      };
+      const open: StorageControl = {
+        kind: "button",
+        id: "open",
+        label: "Open",
+        run: () => openBoard(core, doc ?? document),
+      };
+      return core.lock.load ? [save] : [save, open];
     },
-    open: () => pickFile(doc),
   };
+}
+
+// Has the browser download the board's file, named by the board's id and the
+// time.
+function saveBoard(core: Pick<CoreApi, "store">, doc: Document): Promise<void> {
+  try {
+    download(core.store.save(), fileName(core.store.board()), doc);
+    return Promise.resolve();
+  } catch (error) {
+    return Promise.reject(asError(error));
+  }
+}
+
+// Asks the user for a file, and opens the board that it holds, while nothing
+// opens where the user picks none. It asks before it awaits anything, since a
+// browser shows its file picker only within the user's click or key press.
+// Core starts again for the board that opens, so what the store's open()
+// resolves with goes unread here: core names what the store dropped in a note
+// to the frontend that draws the board.
+async function openBoard(core: Pick<CoreApi, "store">, doc: Document): Promise<void> {
+  const text = await pickFile(doc);
+  if (text !== null) await core.store.open(text);
 }
 
 // The name of the board's file, as today's: the board's id and the local time
@@ -53,8 +85,8 @@ export function download(text: string, name: string, doc: Document = document): 
 }
 
 // Asks the user for a JSON file, and resolves with its text, or with null
-// where the user picks none. A frontend calls it as the user clicks its open
-// control, since the browser shows the picker only within such a click.
+// where the user picks none. Open calls it as it runs, within the user's click
+// or key press, since the browser shows the picker only then.
 export function pickFile(doc: Document = document): Promise<string | null> {
   return new Promise((resolve, reject) => {
     const input = doc.createElement("input");
@@ -82,17 +114,4 @@ export function pickFile(doc: Document = document): Promise<string | null> {
     doc.body.append(input);
     input.click();
   });
-}
-
-// The id of the board that a JSON board's text holds, or "board" where the
-// text holds none, so that a text that the store did not write still saves.
-function boardIdFromText(text: string): string {
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    return "board";
-  }
-  const board = isObject(json) ? json.board : undefined;
-  return isObject(board) && typeof board.id === "string" && board.id !== "" ? board.id : "board";
 }

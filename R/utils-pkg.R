@@ -34,7 +34,22 @@ pkg_version <- function(pkg = parent.frame()) {
 #' @rdname set_names
 #' @export
 pkg_file <- function(..., pkg = parent.frame()) {
-  system.file(..., package = pkg_name(pkg))
+
+  if (is.environment(pkg)) {
+    pkg <- pkg_name(pkg)
+  }
+
+  # Through the package's own `system.file()` where its namespace is loaded,
+  # which for a package that `pkgload::load_all()` loaded is pkgload's, which
+  # looks under the package's `inst/`, while base R's looks in its source
+  # directory, where no installed file is
+  fun <- if (is_string(pkg) && isNamespaceLoaded(pkg)) {
+    get("system.file", envir = asNamespace(pkg), mode = "function")
+  } else {
+    system.file
+  }
+
+  fun(..., package = pkg)
 }
 
 #' @rdname set_names
