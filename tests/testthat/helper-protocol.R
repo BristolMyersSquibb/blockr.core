@@ -169,7 +169,8 @@ protocol_r_values <- function() {
               plugins = obj()
             )
           ),
-          bound = I("data")
+          bound = I("data"),
+          plugins = obj()
         )
       )
     ),
@@ -496,10 +497,12 @@ proto_pptx <- function() {
 }
 
 proto_hello_reply <- function(block_registry, lock, ...,
-                              renderers = obj()) {
+                              renderers = obj(),
+                              plugins = proto_core_plugins()) {
 
   served <- proto_served()
   served$renderers <- renderers
+  served$plugins <- plugins
 
   c(
     obj(
@@ -516,7 +519,8 @@ proto_hello_reply <- function(block_registry, lock, ...,
 }
 
 # What the reply to `hello` of a core app says of the modules that R serves,
-# among them core's basic frontend, which draws the board.
+# among them core's basic frontend, which draws the board, and of the app's
+# plugins, core's basic frontend and its storage plugin.
 proto_served <- function() {
   obj(
     startup_modules = list(),
@@ -526,9 +530,25 @@ proto_served <- function() {
         css = proto_js("basic.css", "6a9b2c4e")
       )
     ),
-    plugin_versions = obj(),
+    plugins = proto_core_plugins(),
     option_versions = obj(),
     renderers = obj()
+  )
+}
+
+# The app's plugins of a core app whose script names none, as the reply to
+# `hello` gives them: core's basic frontend and its storage plugin, each under
+# the id of its class, with its class's name and version.
+proto_core_plugins <- function() {
+  obj(
+    `blockr.core-basic_frontend_plugin` = obj(
+      name = "Basic frontend",
+      version = 1L
+    ),
+    `blockr.core-file_storage_plugin` = obj(
+      name = "File storage",
+      version = 1L
+    )
   )
 }
 
@@ -864,8 +884,9 @@ proto_lock <- function(board = FALSE, load = FALSE) {
 }
 
 # The opening board of the app of the fixture hello-declared: the empty board
-# that its script built, with the id that R drew, which holds a plugin of
-# blockr.test's class grid_plugin, whose state blockr.test gives version 2.
+# that its script built, with the id that R drew, which holds the state of a
+# plugin of blockr.test's class grid_plugin, whose state blockr.test gives
+# version 2.
 proto_declared_board <- function() {
   proto_json_board(
     obj(
@@ -875,13 +896,7 @@ proto_declared_board <- function() {
       links = obj(),
       stacks = obj(),
       options = obj(),
-      plugins = obj(
-        grid = obj(
-          class = "blockr.test-grid_plugin",
-          name = "Grid",
-          state = obj()
-        )
-      )
+      plugins = obj(`blockr.test-grid_plugin` = obj(columns = 2L))
     ),
     packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0"),
     versions = obj(`blockr.test-grid_plugin` = 2L)
@@ -1095,8 +1110,8 @@ proto_output <- function(x) {
 # What R tells the client about the packages it has loaded, for the package
 # blockr.test, which no library holds: it declares, from its `.onLoad()`, a
 # startup module, two modules that it offers others and two renderers, one for
-# table outputs and one for the board option dark_mode, and it gives the state
-# of its plugin class grid_plugin version 2.
+# table outputs and one for the board option dark_mode, and it lists its
+# plugin class grid_plugin, a frontend, whose state it gives version 2.
 # Beside it, a script defines two block classes, one whose module ships a
 # stylesheet and the schema of its state, and one whose module ships neither.
 # The helper writes the files of all of them, so that their content, and so the
@@ -1206,6 +1221,16 @@ local_declared_package <- function(dir, frame = parent.frame()) {
   register_startup_module(module("js/startup.js"))
   register_module("picker", module("js/picker.js"))
 
+  # Linting skips the calls of local_plugin_classes() and plugin_ctor(),
+  # helpers of another file, which lintr does not see.
+  local_plugin_classes( # nolint: object_usage_linter.
+    Grid = plugin_ctor( # nolint: object_usage_linter.
+      function(columns = 2L) NULL,
+      c("grid_plugin", "frontend_plugin")
+    ),
+    frame = frame
+  )
+
   # The methods, from blockr.test's namespace, of `plugin_version()`, by which
   # blockr.test gives the state of its plugin class grid_plugin version 2, and
   # of `board_option_version()`, by which it gives its board option grid_gap
@@ -1314,9 +1339,11 @@ register_script_blocks <- function(dir) {
   invisible()
 }
 
-# What R tells the client about the packages that the app offers, in its
-# reply to `hello`, for an app that offers blockr.test beside core, and whose
-# script registers its own block classes, with nothing of core's.
+# What R tells the client about the packages that the app uses, in its reply
+# to `hello`, for an app that offers blockr.test beside core, whose script
+# registers its own block classes, with nothing of core's, and which runs the
+# plugins of every class that an available package lists: core's storage
+# plugin and blockr.test's frontend, in place of core's basic frontend.
 declared_fields <- function() {
 
   dir <- withr::local_tempdir()
@@ -1341,5 +1368,8 @@ declared_fields <- function() {
     )
   )
 
-  loaded_reply(c("blockr.core", "blockr.test"))
+  loaded_reply(
+    c("blockr.core", "blockr.test"),
+    plugins = app_plugins(available_plugins())
+  )
 }

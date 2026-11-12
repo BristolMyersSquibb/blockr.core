@@ -189,35 +189,28 @@ test_that("the app's sessions tell of what the packages it uses declare", {
 
   # An app whose block classes and plugins are all core's tells of nothing of
   # blockr.test's, which its script loaded
-  reply <- served_replies(serve(served_board()), hello_message())[[1L]]
+  core <- subset(available_plugins(), package == "blockr.core")
+
+  reply <- served_replies(
+    serve(served_board(), plugins = core),
+    hello_message()
+  )[[1L]]
 
   expect_length(reply$startup_modules, 0L)
   expect_length(reply$modules, 0L)
-  expect_length(reply$plugin_versions, 0L)
   expect_length(reply$option_versions, 0L)
   expect_contains(names(reply$block_registry), "blockr.core-head_block")
 
-  # A plugin of blockr.test's on the board makes the app use blockr.test
-  new_grid_plugin <- function() new_plugin(list(), "Grid", "grid_plugin")
-  environment(new_grid_plugin) <- list2env(
-    list(.packageName = "blockr.test"),
-    parent = asNamespace("blockr.core")
-  )
-
-  board <- new_board(
-    c(a = new_dataset_block("BOD")),
-    plugins = list(grid = new_grid_plugin()),
-    id = "grid_board"
-  )
-
-  reply <- served_replies(serve(board), hello_message())[[1L]]
+  # A plugin of blockr.test's that the app runs, as its frontend is by
+  # default, makes the app use blockr.test
+  reply <- served_replies(serve(served_board()), hello_message())[[1L]]
 
   expect_identical(
     chr_xtr(reply$startup_modules, "package"),
     "blockr.test"
   )
   expect_named(reply$modules, c("blockr.test-grid", "blockr.test-picker"))
-  expect_named(reply$plugin_versions, "blockr.test-grid_plugin")
+  expect_contains(names(reply$plugins), "blockr.test-grid_plugin")
   expect_named(reply$option_versions, "grid_gap")
 })
 
@@ -298,9 +291,9 @@ test_that("serve() takes nothing but the board, and says where the rest went", {
   expect_error(
     serve(board, id = "my_board"),
     paste0(
-      "For a board, `serve()` takes no argument but `x` and `blocks`, ",
-      "and it was given `id`. A board holds its ID, which `new_board()` takes ",
-      "as `id`."
+      "For a board, `serve()` takes no argument but `x`, `blocks` and ",
+      "`plugins`, and it was given `id`. A board holds its ID, which ",
+      "`new_board()` takes as `id`."
     ),
     fixed = TRUE,
     class = "serve_args_invalid"
@@ -319,10 +312,101 @@ test_that("serve() takes nothing but the board, and says where the rest went", {
   )
 
   expect_error(
-    serve(board, plugins = list(), options = list(), navbar = "x"),
-    "`new_board()` takes as `plugins`.",
+    serve(board, options = list(), navbar = "x"),
+    "`new_board()` takes as `options`.",
     fixed = TRUE,
     class = "serve_args_invalid"
+  )
+})
+
+test_that("serve() sends the app's plugins in its reply to hello", {
+
+  core <- list(
+    `blockr.core-basic_frontend_plugin` = list(
+      name = "Basic frontend",
+      version = 1L
+    ),
+    `blockr.core-file_storage_plugin` = list(
+      name = "File storage",
+      version = 1L
+    )
+  )
+
+  # By default, the app runs every plugin class that an available package
+  # lists
+  reply <- served_replies(serve(served_board()), hello_message())[[1L]]
+
+  expect_identical(reply$plugins, core)
+  expect_false("plugin_versions" %in% names(reply))
+
+  # Rows that narrow them leave out what they do not name, as an app without
+  # storage
+  rows <- subset(available_plugins(), id != "file_storage_plugin")
+  reply <- served_replies(serve(served_board(), plugins = rows),
+                          hello_message())[[1L]]
+
+  expect_identical(reply$plugins, core[1L])
+
+  # So does the path of a JSON board
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines(unclass(encode_message(proto_served_file())), path)
+
+  reply <- served_replies(serve(path), hello_message())[[1L]]
+  expect_identical(reply$plugins, core)
+
+  reply <- served_replies(serve(path, plugins = rows), hello_message())[[1L]]
+  expect_identical(reply$plugins, core[1L])
+
+  # A block that serve() serves alone runs no plugin
+  reply <- served_replies(
+    serve(new_head_block(), data = list(data = datasets::BOD)),
+    hello_message()
+  )[[1L]]
+
+  expect_identical(reply$plugins, set_names(list(), character()))
+
+  # Rows that R refuses stop the app as serve() is called
+  expect_error(
+    serve(served_board(), plugins = rows[0L, ]),
+    class = "app_plugins_invalid"
+  )
+  expect_error(serve(path, plugins = "none.yml"), class = "app_plugins_invalid")
+})
+
+test_that("serve() refuses a board with a plugin that the app does not run", {
+
+  local_plugin_classes(
+    Notes = plugin_ctor(function(text = "") NULL, "notes_plugin")
+  )
+  local_versions(blockr.test = "0.1.0")
+
+  board <- new_board(
+    plugins = plugin_ctor(function(text = "") NULL, "notes_plugin")("To do")
+  )
+
+  # The app runs the plugin by default, as the available packages list it
+  reply <- served_replies(serve(board), hello_message())[[1L]]
+
+  expect_named(
+    reply$plugins,
+    c(
+      "blockr.core-basic_frontend_plugin",
+      "blockr.core-file_storage_plugin",
+      "blockr.test-notes_plugin"
+    )
+  )
+  expect_identical(
+    reply$board$board$plugins,
+    list(`blockr.test-notes_plugin` = list(text = "To do"))
+  )
+
+  expect_error(
+    serve(
+      board,
+      plugins = subset(available_plugins(), package != "blockr.test")
+    ),
+    "blockr.test-notes_plugin, which the app does not run",
+    class = "board_plugins_invalid"
   )
 })
 

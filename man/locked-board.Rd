@@ -14,7 +14,7 @@ The client's store then opens no other board,
 and a frontend draws no control for opening one.
 \item The board lock, the blockr option \code{locked}, fixes what every board that
 the app shows holds: its blocks and links, its name, every block's name
-and lock, its stacks and the names of its plugins.
+and lock, and its stacks.
 A reader may still change a board option, such as dark mode,
 the state of a block that the board lock leaves open,
 and what sits inside a plugin's state, which each plugin locks itself.

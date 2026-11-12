@@ -11,7 +11,7 @@
 
 import { computed, signal } from "@preact/signals-core";
 import type { Lock } from "../protocol/index.ts";
-import { isDeltas, isRandId, pluginIdFromPath, RAND_IDS } from "../store/index.ts";
+import { isDeltas, isRandId, pluginClassFromPath, RAND_IDS } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
@@ -244,7 +244,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         ? {}
         : {
             patches: patches.map((patch): Patch => {
-              const plugin = pluginIdFromPath(patch.path);
+              const plugin = pluginClassFromPath(patch.path);
               return plugin === undefined ? patch : edit(patch, store.editId({ plugin }));
             }),
           }),

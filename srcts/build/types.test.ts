@@ -131,7 +131,8 @@ test("what a package's tests load imports no package but the React that `@blockr
 // A block's UI module and a plugin class, written against `@blockr/core` as a
 // package writes them.
 // The module types its block's state, and the class types the state of its
-// plugins with `type`, so that the state is assignable to `Json`.
+// plugin with `type`, so that the state is assignable to `Json`, which the
+// board holds under the id of the plugin's class.
 const headModule = `import type { BlockModule, Board, Json, PluginClass } from "@blockr/core";
 
 type ViewsState = { readonly views: Readonly<Record<string, { readonly name: string }>> };
@@ -160,7 +161,7 @@ const head: BlockModule<HeadState> = {
 export default head;
 
 export function pluginViews(board: Board, plugin: string): ViewsState["views"] {
-  const state = board.plugins[plugin]?.state as ViewsState | undefined;
+  const state = board.plugins[plugin] as ViewsState | undefined;
   return state?.views ?? {};
 }
 
@@ -176,7 +177,7 @@ export const viewsPlugin: PluginClass = {
   update: (delta, board, plugin) =>
     (delta.blocks?.rm ?? [])
       .filter((id) => Object.hasOwn(pluginViews(board, plugin), id))
-      .map((id) => ({ op: "remove", path: "/plugins/" + plugin + "/state/views/" + id })),
+      .map((id) => ({ op: "remove", path: "/plugins/" + plugin + "/views/" + id })),
 };
 `;
 
@@ -211,9 +212,9 @@ const merge: BlockModule<MergeState> = {
 export default merge;
 `;
 
-// A plugin's UI module, which draws one plugin of its class, and the class,
-// whose storage a frontend's save and open controls call, as a package writes
-// them.
+// A plugin's UI module, which draws the plugin of its class, by the name that
+// the app gives it, and the class, whose storage a frontend's save and open
+// controls call, as a package writes them.
 const notesModule = `import type { PluginClass, PluginModule } from "@blockr/core";
 
 export const api = 1;
@@ -221,10 +222,10 @@ export const api = 1;
 const notes: PluginModule = {
   render({ el, core, plugin, signal }) {
     const draw = (): void => {
-      el.textContent = core.store.board().plugins[plugin]?.name ?? "";
+      el.textContent = core.plugins.appPlugins()[plugin]?.name ?? "";
     };
     draw();
-    const others = Object.keys(core.plugins.running()).filter(
+    const others = Object.keys(core.plugins.appPlugins()).filter(
       (id) => id !== plugin && core.plugins.pluginClass(id).ui !== undefined,
     );
     const ends = others.map((id) => core.mountPlugin(el.appendChild(document.createElement("section")), id));

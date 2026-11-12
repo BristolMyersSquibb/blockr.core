@@ -16,7 +16,7 @@ import type {
   Link,
   LinkId,
   OptionId,
-  PluginId,
+  PluginClassId,
   Stack,
   StackId,
 } from "../types/board.ts";
@@ -47,8 +47,8 @@ export interface Changed {
   readonly stacks: ReadonlySet<StackId>;
   // Set or removed, by id, which the inverse leaves out.
   readonly options: ReadonlySet<OptionId>;
-  // The plugins that a patch changed, by id.
-  readonly plugins: ReadonlySet<PluginId>;
+  // The plugins whose state a patch changed, by the ids of their classes.
+  readonly plugins: ReadonlySet<PluginClassId>;
   // What has an edit id that the delta added, changed or removed, as target()
   // names it.
   readonly targets: ReadonlySet<string>;
@@ -60,8 +60,8 @@ export interface Committed {
   readonly changed: Changed;
 }
 
-// What has an edit id: a block or a plugin.
-export type Target = { readonly block: BlockId } | { readonly plugin: PluginId };
+// What has an edit id: a block, or a plugin by the id of its class.
+export type Target = { readonly block: BlockId } | { readonly plugin: PluginClassId };
 
 export function target(of: Target): string {
   return "block" in of
@@ -166,10 +166,9 @@ export function commit(
 // An `add` of a member that `placed` gives a place for goes in that place, and
 // each member that a patch removes leaves its place for the patch that adds
 // it back.
-// A patch changes the board's plugins, never one of core's objects: it changes
-// a plugin's name or its state, which a plugin always holds, and never the
-// plugin as a whole or its class, since the app's opening board sets the
-// plugins that a board holds.
+// A patch changes the state of the board's plugins, never one of core's
+// objects, and never adds or removes what the board holds for a plugin, since
+// the app sets the plugins that run.
 function patch(
   board: Board,
   patches: readonly Patch[],
@@ -179,12 +178,12 @@ function patch(
   board: Board;
   inverse: Patch[];
   places: Readonly<Record<string, string | null>>;
-  plugins: ReadonlySet<PluginId>;
+  plugins: ReadonlySet<PluginClassId>;
 } {
   let next: Readonly<Record<string, unknown>> = board as unknown as Readonly<Record<string, unknown>>;
   const inverse: Patch[] = [];
   const places: Record<string, string | null> = {};
-  const plugins = new Set<PluginId>();
+  const plugins = new Set<PluginClassId>();
 
   for (const [i, given] of patches.entries()) {
     const name = `The patch ${String(i + 1)}`;
@@ -216,21 +215,17 @@ function patch(
 }
 
 // Why a patch at the path `segments` changes what no patch may, in a clause,
-// or undefined where it changes a plugin's name or its state.
-// No patch adds, removes or replaces a plugin, since the app's opening board
-// sets the plugins that a board holds.
+// or undefined where it changes a plugin's state, at or below
+// `/plugins/{id}`, the id of the plugin's class.
+// No patch adds or removes what the board holds for a plugin, as an `add` or a
+// `remove` at `/plugins/{id}` would, since the app sets the plugins that run,
+// while a `replace` there replaces the plugin's state as a whole.
 function outside(segments: readonly string[], op: Patch["op"]): string | undefined {
-  const [boardProperty, plugin, pluginProperty] = segments;
-  if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the board's plugins alone`;
-  if (plugin === undefined) return "changes the board's plugins as a whole, where a patch changes one plugin";
-  if (pluginProperty === undefined) {
-    return `changes the plugin "${plugin}" as a whole, where a patch changes a plugin's name or its state, since the app's opening board sets the plugins that a board holds`;
-  }
-  if (pluginProperty !== "name" && pluginProperty !== "state") {
-    return `changes "${pluginProperty}" of the plugin "${plugin}", where a patch below a plugin changes its name or its state`;
-  }
-  if (segments.length === 3 && op === "remove") {
-    return `removes the ${pluginProperty} of the plugin "${plugin}", which a plugin always holds`;
+  const [boardProperty, plugin] = segments;
+  if (boardProperty !== "plugins") return `changes "${boardProperty ?? ""}", where a patch changes the state of the board's plugins alone`;
+  if (plugin === undefined) return "changes the board's plugins as a whole, where a patch changes the state of one plugin";
+  if (segments.length === 2 && op !== "replace") {
+    return `${op === "add" ? "adds" : "removes"} what the board holds for the plugin "${plugin}", where a patch changes a plugin's state alone, since the app sets the plugins that run`;
   }
   return undefined;
 }

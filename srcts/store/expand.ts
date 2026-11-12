@@ -3,12 +3,12 @@
 // core's part as R's augment_board_update() did,
 // removing a removed block's links and its places in stacks,
 // and the state of each plugin through the `update` of its class, which the
-// store calls once for each plugin of the class.
+// store calls once for each plugin whose state the board holds.
 // Every `update` runs again on what the rounds before added,
 // until none adds anything, as ProseMirror calls `appendTransaction` again for
 // what another plugin appended.
 
-import type { Board, PluginId, Stack, StackId } from "../types/board.ts";
+import type { Board, PluginClassId, Stack, StackId } from "../types/board.ts";
 import { errorMessage, jsonEqual, own, quoted } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 import { malformed, overlap, segmentsFromPath } from "./patch.ts";
@@ -26,24 +26,24 @@ export function expand(
   let expanded = delta;
 
   for (let round = 0; round < ROUNDS; round++) {
-    const adding: PluginId[] = [];
+    const adding: PluginClassId[] = [];
     const failures: string[] = [];
 
     const core = expandCore(expanded, board);
     const grew = core !== expanded;
     expanded = core;
 
-    for (const [id, plugin] of Object.entries(board.plugins)) {
-      const def = registrations.plugin(plugin.class)?.def;
+    for (const id of Object.keys(board.plugins)) {
+      const def = registrations.plugin(id)?.def;
       if (def?.update === undefined) continue;
       let patches: unknown;
       try {
         patches = def.update(expanded, board, id);
       } catch (error) {
-        failures.push(`The plugin class "${def.id}" failed to update the delta for the plugin "${id}": ${errorMessage(error)}`);
+        failures.push(`The plugin class "${id}" failed to update the delta for its plugin: ${errorMessage(error)}`);
         continue;
       }
-      const wrong = misplaced(def.id, id, patches);
+      const wrong = misplaced(id, patches);
       if (wrong.length > 0) {
         failures.push(...wrong);
         continue;
@@ -103,10 +103,10 @@ function expandCore(delta: Delta, board: Board): Delta {
   };
 }
 
-// What is wrong with what the `update` of a plugin's class returned for the
-// plugin `id`: no array of patches, or a patch outside that plugin's state.
-function misplaced(cls: string, id: PluginId, patches: unknown): string[] {
-  const of = `The plugin class "${cls}" updated the delta for the plugin "${id}"`;
+// What is wrong with what the `update` of the plugin class `id` returned for its
+// plugin: no array of patches, or a patch outside that plugin's state.
+function misplaced(id: PluginClassId, patches: unknown): string[] {
+  const of = `The plugin class "${id}" updated the delta for its plugin`;
   if (!Array.isArray(patches)) return [`${of} with no array of patches.`];
   const failures: string[] = [];
   for (const patch of patches as unknown[]) {
@@ -116,8 +116,8 @@ function misplaced(cls: string, id: PluginId, patches: unknown): string[] {
       continue;
     }
     const { path } = patch as Patch;
-    const [boardProperty, plugin, pluginProperty] = segmentsFromPath(path) ?? [];
-    if (boardProperty !== "plugins" || plugin !== id || pluginProperty !== "state") {
+    const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
+    if (boardProperty !== "plugins" || plugin !== id) {
       failures.push(`${of} with a patch at "${path}", outside that plugin's state.`);
     }
   }

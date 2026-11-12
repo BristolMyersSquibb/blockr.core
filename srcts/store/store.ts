@@ -11,7 +11,7 @@
 
 import { signal } from "@preact/signals-core";
 import type { HelloReply } from "../protocol/index.ts";
-import type { BlockId, Board, JsonBoard, PluginId, RegistryId } from "../types/board.ts";
+import type { BlockId, Board, JsonBoard, PluginClassId, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { asError, own, packageFromId, report } from "../util/index.ts";
 import { check } from "./check.ts";
@@ -22,7 +22,7 @@ import type { Delta, Origin } from "./delta.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
 import { fixes, lockFailures } from "./lock.ts";
-import { pluginIdFromPath } from "./patch.ts";
+import { pluginClassFromPath } from "./patch.ts";
 import { fit, isEmpty } from "./undo.ts";
 import { checkJsonBoard, FORMAT, openJsonBoard, parse } from "./open.ts";
 import type { Dropped } from "./open.ts";
@@ -79,13 +79,13 @@ export interface Store {
   check(text: string): Promise<Dropped[]>;
   // The board as a JSON board, as a file holds it.
   // It records the version of each package that the board's content comes
-  // from, as the reply to `hello` gives it: the package of each plugin's
-  // class, which the class's id names, and the package of each block's class,
-  // which its registry id names.
+  // from, as the reply to `hello` gives it: the package of the class of each
+  // plugin whose state it holds, which the class's id names, and the package
+  // of each block's class, which its registry id names.
   // It records the versions of the shapes that the board holds as well: of
-  // each plugin class whose plugins it holds, as the reply to `hello` gives it,
-  // 1 where it gives none, and of each block's state, as the class's entry in
-  // the block registry gives it.
+  // each plugin class whose plugin's state it holds, as the app's plugin of
+  // the class carries it in the reply to `hello`, 1 where it gives none, and of
+  // each block's state, as the class's entry in the block registry gives it.
   jsonBoard(): JsonBoard;
   // The text of the board's file: its JSON board, written with
   // JSON.stringify(), indented by two spaces and ending in a newline, as R
@@ -122,9 +122,10 @@ export interface Store {
   blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
   packages(): Readonly<Record<string, string>>;
 
-  // The edit id of a block or of a plugin, which only their own edits change
-  // and which a delta names to be refused where another edit came first.
-  editId(of: { readonly block: BlockId } | { readonly plugin: PluginId }): number | undefined;
+  // The edit id of a block or of a plugin, by the id of its class, which only
+  // their own edits change and which a delta names to be refused where another
+  // edit came first.
+  editId(of: { readonly block: BlockId } | { readonly plugin: PluginClassId }): number | undefined;
 }
 
 // The store sends R nothing: it opens its board with what the reply to `hello`
@@ -321,7 +322,7 @@ export function createStore(options: StoreOptions = {}): Store {
         compare(target({ block: id }), mod.edit);
       }
       for (const patch of delta.patches ?? []) {
-        const plugin = pluginIdFromPath(patch.path);
+        const plugin = pluginClassFromPath(patch.path);
         if (plugin !== undefined) compare(target({ plugin }), patch.edit);
       }
     }
@@ -428,7 +429,7 @@ export function createStore(options: StoreOptions = {}): Store {
   }
 
   // The board that a JSON board opens to, as openJsonBoard() migrates it and
-  // gives it the plugins of the app's opening board.
+  // gives it the state of the app's plugins, which the reply names.
   function build(json: JsonBoard, reply: HelloReply): { board: Board; dropped: Dropped[] } {
     guard();
     busy = true;
@@ -488,7 +489,7 @@ export function createStore(options: StoreOptions = {}): Store {
     if (next === undefined) {
       throw new Error("The store holds no board until it opens one.");
     }
-    const classes = [...new Set(Object.values(next.plugins).map((plugin) => plugin.class))];
+    const classes = Object.keys(next.plugins);
     const owned = new Set([
       ...classes.flatMap((cls) => packageFromId(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? []),
@@ -500,7 +501,7 @@ export function createStore(options: StoreOptions = {}): Store {
       }),
     );
     const versions = Object.fromEntries(
-      classes.map((cls) => [cls, own(hello?.plugin_versions ?? {}, cls) ?? 1]),
+      classes.map((cls) => [cls, own(hello?.plugins ?? {}, cls)?.version ?? 1]),
     );
     const blocks = Object.fromEntries(
       Object.entries(next.blocks).map(([id, block]) => [

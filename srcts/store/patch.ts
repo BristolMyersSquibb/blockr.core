@@ -1,4 +1,4 @@
-// Patches, the changes to the board's plugins and inside their state,
+// Patches, the changes to the state of the board's plugins,
 // applied as JSON Patch applies its `add`, `remove` and `replace` (RFC 6902):
 // at a path from the board's root, without knowing the state's structure.
 // A patch copies only the objects and arrays along its path,
@@ -16,7 +16,8 @@ import { isObject, jsonEqual, own, without } from "../util/index.ts";
 import type { Patch } from "./delta.ts";
 
 // The segments of a JSON Pointer, its reference tokens in RFC 6901, reading
-// "~1" as "/" and "~0" as "~", as "/plugins/dock" gives ["plugins", "dock"].
+// "~1" as "/" and "~0" as "~", as "/plugins/blockr.dock-dock_plugin" gives
+// ["plugins", "blockr.dock-dock_plugin"].
 // They are undefined where the text is no pointer below the board's root: where
 // it is empty, does not start with "/", or holds a "~" that escapes nothing.
 export function segmentsFromPath(path: string): string[] | undefined {
@@ -26,9 +27,11 @@ export function segmentsFromPath(path: string): string[] | undefined {
   return segments.map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
 }
 
-// The plugin that a path leads into, "dag" for "/plugins/dag/state/positions/a"
-// and for "/plugins/dag", or undefined where it leads into no plugin.
-export function pluginIdFromPath(path: string): string | undefined {
+// The id of the class of the plugin whose state a path leads into,
+// "blockr.dag-dag_plugin" for "/plugins/blockr.dag-dag_plugin/positions/a" and
+// for "/plugins/blockr.dag-dag_plugin", or undefined where it leads into no
+// plugin's state.
+export function pluginClassFromPath(path: string): string | undefined {
   const [boardProperty, plugin] = segmentsFromPath(path) ?? [];
   return boardProperty === "plugins" ? plugin : undefined;
 }

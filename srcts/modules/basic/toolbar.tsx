@@ -2,9 +2,9 @@
 // user renames, and the controls for the board: adding a block, editing links
 // and stacks, setting the board options, undo and redo, and saving the board
 // and opening another.
-// It saves and opens through the storage that core.plugins.storage() gives:
-// that of the board's storage plugin, or core's own, which saves a download
-// and opens an upload, where the board holds none.
+// It saves and opens through the storage that core.plugins.storage() gives,
+// that of the app's storage plugin, such as core's own, which saves a download
+// and opens an upload, and draws neither control where the app runs none.
 // Under the board lock, it draws no control for what the lock fixes, so that
 // the board options, undo, redo, saving and opening stay. Under
 // the load lock, it draws no control for opening a board, since the store
@@ -31,7 +31,8 @@ export function Toolbar({ board, show }: ToolbarProps): ReactElement {
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState(false);
   const locked = core.lock.board;
-  const opens = !core.lock.load;
+  const storage = core.plugins.storage();
+  const opens = !core.lock.load && storage !== undefined;
 
   function step(back: boolean): void {
     try {
@@ -44,7 +45,7 @@ export function Toolbar({ board, show }: ToolbarProps): ReactElement {
 
   async function save(): Promise<void> {
     try {
-      await core.plugins.storage().save(core.store.save());
+      await storage?.save(core.store.save());
     } catch (error) {
       notices.failed(error);
     }
@@ -56,7 +57,7 @@ export function Toolbar({ board, show }: ToolbarProps): ReactElement {
   // what the store dropped, so what open() resolves with goes unread here.
   async function open(): Promise<void> {
     try {
-      const text = await core.plugins.storage().open();
+      const text = (await storage?.open()) ?? null;
       if (text !== null) await core.store.open(text);
     } catch (error) {
       notices.failed(error);
@@ -154,15 +155,17 @@ export function Toolbar({ board, show }: ToolbarProps): ReactElement {
         >
           Redo
         </button>
-        <button
-          type="button"
-          className={classes.button}
-          onClick={() => {
-            void save();
-          }}
-        >
-          Save
-        </button>
+        {storage === undefined ? null : (
+          <button
+            type="button"
+            className={classes.button}
+            onClick={() => {
+              void save();
+            }}
+          >
+            Save
+          </button>
+        )}
         {opens ? (
           <button
             type="button"

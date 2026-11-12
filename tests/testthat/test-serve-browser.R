@@ -16,7 +16,9 @@ test_that("serve() serves a board, a JSON board's path and a block alone", {
   skip_if(inherits(page, "try-error"), "Chrome does not start.")
   withr::defer(page$close())
 
-  # Core's basic frontend draws a board that holds no frontend.
+  # Core's basic frontend draws the board of an app whose plugins hold no
+  # other frontend, and its toolbar saves and opens through core's storage
+  # plugin, which the app runs by default.
   url <- start_served_app(
     quote(
       serve(
@@ -34,6 +36,27 @@ test_that("serve() serves a board, a JSON board's path and a block alone", {
     url,
     c("Served board", "<data.frame> [6 × 2]", "<data.frame> [3 × 2]")
   )
+
+  toolbar <- paste(
+    "[...document.querySelectorAll('[role=\"toolbar\"] button')]",
+    ".map((b) => b.textContent).join(',')"
+  )
+
+  expect_match(page_eval(page, toolbar), "Save,Open")
+
+  # An app that runs no storage plugin draws neither control.
+  url <- start_served_app(
+    quote(
+      serve(
+        new_board(name = "Unsaved board"),
+        plugins = subset(available_plugins(), id != "file_storage_plugin")
+      )
+    )
+  )
+
+  page_showing(page, url, "Unsaved board")
+
+  expect_no_match(page_eval(page, toolbar), "Save|Open")
 
   # The page holds the import map ahead of its first module script.
   expect_true(

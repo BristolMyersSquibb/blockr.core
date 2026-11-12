@@ -8,8 +8,9 @@ import { fileURLToPath } from "node:url";
 import type { Fixture, HelloReply } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
-import type { Plugin, PluginClassId, PluginId } from "../types/board.ts";
+import type { PluginClassId } from "../types/board.ts";
 import type { OptionModule } from "../types/hosts.ts";
+import type { Json } from "../types/json.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -67,28 +68,52 @@ export async function openedStore(setup?: (store: Store) => void, replied: Hello
   return store;
 }
 
-// R's reply to `hello`, that of the fixture hello unless given, with an
-// opening board that holds the plugins given too, as an app script's board
-// would, and with the versions given of their classes, which R sends and the
-// board records, 1 for a class that they leave out.
+// R's reply to `hello` without the app's plugins of the classes given, as for
+// an app whose rows leave them out, or where another plugin takes their place.
+export function withoutPlugins(replied: HelloReply, ...classes: readonly PluginClassId[]): HelloReply {
+  return {
+    ...replied,
+    plugins: Object.fromEntries(Object.entries(replied.plugins).filter(([id]) => !classes.includes(id))),
+  };
+}
+
+// A plugin that withPlugins() has the app run: its class's name, and the state
+// that the opening board holds for it, if any.
+export interface GivenPlugin {
+  readonly name: string;
+  readonly state?: Json;
+}
+
+// R's reply to `hello`, that of the fixture hello unless given, whose app runs
+// the plugins given too, after its own, each under the id of its class, with
+// an opening board that holds the state given of each, as an app script's
+// board would, and with the versions given of their classes, which the
+// reply's plugins carry and the board records, 1 for a class that they leave
+// out.
 export function withPlugins(
-  plugins: Readonly<Record<PluginId, Plugin>>,
+  plugins: Readonly<Record<PluginClassId, GivenPlugin>>,
   replied: HelloReply = hello,
   versions: Readonly<Record<PluginClassId, number>> = {},
 ): HelloReply {
-  const classes = [...new Set(Object.values(plugins).map((plugin) => plugin.class))];
+  const version = (cls: PluginClassId): number => versions[cls] ?? 1;
+  const held = Object.entries(plugins).flatMap(([cls, given]) =>
+    given.state === undefined ? [] : [[cls, given.state] as const],
+  );
   return {
     ...replied,
-    plugin_versions: { ...replied.plugin_versions, ...versions },
+    plugins: {
+      ...replied.plugins,
+      ...Object.fromEntries(Object.entries(plugins).map(([cls, given]) => [cls, { name: given.name, version: version(cls) }])),
+    },
     board: {
       ...replied.board,
       board: {
         ...replied.board.board,
         versions: {
           ...replied.board.board.versions,
-          ...Object.fromEntries(classes.map((cls) => [cls, versions[cls] ?? 1])),
+          ...Object.fromEntries(held.map(([cls]) => [cls, version(cls)])),
         },
-        plugins: { ...replied.board.board.plugins, ...plugins },
+        plugins: { ...replied.board.board.plugins, ...Object.fromEntries(held) },
       },
     },
   };

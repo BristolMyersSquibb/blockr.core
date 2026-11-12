@@ -24,10 +24,10 @@
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
-import type { Lock, Renderer } from "../protocol/index.ts";
+import type { Lock, PluginEntry, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
-import type { BlockId, Board, OptionId, PluginId } from "../types/board.ts";
+import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, Note, OutputEvents } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { isObject, jsonEqual, own, report } from "../util/index.ts";
@@ -49,19 +49,19 @@ export interface CoreParts {
   // The renderers that the app names for board options, from R's latest reply
   // to `hello`.
   readonly renderers: () => Readonly<Record<string, Renderer>>;
+  // The app's plugins, which run on the board, from the reply to `hello` that
+  // core starts with for it, by the ids of their classes.
+  readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
   // Ends what CoreApi runs as it aborts, as another board opens: every mount,
   // and what core keeps of outputs and answers, while the outputs' events
   // reach nobody more.
   readonly signal?: AbortSignal;
-  // Whether the board is a block that serve() serves alone, which no frontend
-  // draws (./start.ts).
-  readonly alone?: boolean;
 }
 
-// What core makes for one board: CoreApi, and what draws and starts the
-// board's plugins as the board opens, which core calls (./start.ts).
+// What core makes for one board: CoreApi, and what draws and starts the app's
+// plugins as the board opens, which core calls (./start.ts).
 export interface Core {
   readonly api: CoreApi;
   readonly plugins: Pick<RunningPlugins, "frontend" | "start">;
@@ -117,8 +117,8 @@ export function createCore(parts: CoreParts): Core {
     loader,
     keepOptions: (ids, by, failed) => mounts.keepOptions(ids, by, failed),
     core: () => api,
+    plugins: parts.plugins,
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
-    ...(parts.alone === true ? { alone: true } : {}),
   });
 
   const api: CoreApi = {
@@ -141,7 +141,7 @@ export function createCore(parts: CoreParts): Core {
     },
     plugins: {
       register: (def) => store.plugins.register(def),
-      running: () => plugins.running(),
+      appPlugins: () => plugins.appPlugins(),
       pluginClass: (plugin) => plugins.pluginClass(plugin),
       storage: () => plugins.storage(),
     },
@@ -149,8 +149,8 @@ export function createCore(parts: CoreParts): Core {
     outputEvents,
     notifications: createNotifications(parts.signal),
     focus: createFocus(store, parts.signal),
-    request: <T = Json>(plugin: PluginId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
-      pluginRequest({ store, scheduler }, plugin, name, args, opts) as Promise<T | Blob>,
+    request: <T = Json>(plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
+      pluginRequest({ plugins, scheduler }, plugin, name, args, opts) as Promise<T | Blob>,
     module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
     blockrOption: (name) => blockrOptions.read(name),
     mountBlock: (el, block) => mounts.mountBlock(el, block),

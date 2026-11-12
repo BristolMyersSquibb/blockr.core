@@ -91,9 +91,11 @@ export const value: JsonSchema = {
   description: "A JSON value, which the schema of what it is set on types.",
 };
 
-export const pluginId: JsonSchema = {
-  ...id,
-  description: "The id of a plugin, unique among the board's plugins.",
+export const pluginClassId: JsonSchema = {
+  type: "string",
+  minLength: 1,
+  description:
+    'The id of a plugin\'s class, such as "blockr.dag-dag_plugin", which identifies the plugin, since an app runs at most one plugin of each class.',
 };
 
 // The patches of a plugin's state, each in the shape of a JSON Patch

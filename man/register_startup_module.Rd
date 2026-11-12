@@ -37,7 +37,7 @@ replaces it, as when a package is loaded again.
 }
 \details{
 The module that a plugin class names, such as the UI that every frontend
-places for each of its plugins, is such a module, which the class names by
+places for the class's plugin, is such a module, which the class names by
 its ID in JavaScript (see \code{\link[=new_plugin]{new_plugin()}}).
 Core declares its basic frontend the same way, as \code{blockr.core-basic},
 which draws the board.
@@ -45,17 +45,16 @@ which draws the board.
 Next to its startup module, a package puts a JSON Schema for each plugin
 class and each board option that it registers, in a file of its own, as a
 block class's UI module ships the schema of the block's state next to it.
-The schema of the state of the plugins of the class \verb{\{pkg\}-\{name\}_plugin}
-goes in \verb{\{name\}_plugin.schema.json}, and that of the value of the board
-option \code{{id}} in \verb{\{id\}_option.schema.json}, each named by the class in R of
-the plugins or of the board option, on which \code{\link[=plugin_version]{plugin_version()}} and
-\code{\link[=board_option_version]{board_option_version()}} dispatch.
+The schema of the state of the plugins of the class \code{{pkg}-{id}} goes in
+\verb{\{id\}.schema.json}, named by the id of the class, and that of the value of
+the board option \code{{id}} in \verb{\{id\}_option.schema.json}, named by the class in
+R of the board option, on which \code{\link[=board_option_version]{board_option_version()}} dispatches.
 So blockr.dag might put the schema of the class \code{blockr.dag-dag_plugin} in
 \code{dag_plugin.schema.json}, and that of a board option \code{grid_gap} in
 \code{grid_gap_option.schema.json}.
 R finds the schema of a plugin's state next to the startup module of the
-package that its class's ID names, whatever ID the plugin has on a board,
-and the schema of a board option's value next to that of any package.
+package that its class's ID names, and the schema of a board option's value
+next to that of any package.
 R shapes the board that an app script builds by them, as it does by core's
 schema of the board (see \code{\link[=blockr_ser]{blockr_ser()}}), so that a value of length one stays
 an array where a schema has one.

@@ -8,10 +8,12 @@
 # R writes none of them out.
 # The session starts with the client's hello, unless `hello` is `FALSE`.
 # Its lock is what `lock_board()` reads of the board unless given, as `serve()`
-# reads it.
+# reads it, and so are the app's plugins, which are the plugins of every class
+# that an available package lists, or none for a block served alone.
 local_evaluator <- function(board = list(blocks = list()), data = list(),
-                            lock = lock_board(board, data), hello = TRUE,
-                            packages = "blockr.core",
+                            lock = lock_board(board, data),
+                            plugins = default_app_plugins(data),
+                            hello = TRUE, packages = "blockr.core",
                             frame = parent.frame()) {
 
   session <- new.env()
@@ -38,7 +40,8 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
     board = board,
     data = data,
     lock = lock,
-    packages = packages
+    packages = packages,
+    plugins = plugins
   )
 
   session$send <- function(message) {
@@ -69,6 +72,13 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
   }
 
   session
+}
+
+# The app's plugins as `serve()` works them out where its script names none:
+# those of every class that an available package lists, or none for a block
+# that it serves alone, with the data that R binds to its inputs.
+default_app_plugins <- function(data = list()) {
+  if (length(data)) list() else app_plugins(available_plugins())
 }
 
 hello_message <- function(id = "1",
@@ -449,8 +459,24 @@ report_export <- function(reads, format) {
 # blockr.io gives the requests of its board option data_dir,
 # blockr.code's plugin class gives the request script, for the script of the
 # blocks it reads, and blockr.md's gives the request export, which reports
-# progress.
+# progress. The packages list their plugin classes.
+# Linting skips the calls of local_plugin_classes() and plugin_ctor(), helpers
+# of another file, which lintr does not see.
 local_request_types <- function(frame = parent.frame()) {
+
+  local_plugin_classes( # nolint: object_usage_linter.
+    Code = plugin_ctor( # nolint: object_usage_linter.
+      function() NULL,
+      "code_plugin",
+      "blockr.code"
+    ),
+    Document = plugin_ctor( # nolint: object_usage_linter.
+      function() NULL,
+      "md_plugin",
+      "blockr.md"
+    ),
+    frame = frame
+  )
 
   testthat::local_mocked_s3_method(
     "board_option_requests",

@@ -29,8 +29,8 @@ is_board(x)
 
 \item{options}{Board options, with the values the script gives}
 
-\item{plugins}{The board's plugins, a list of plugins made by their packages'
-constructors, each by its ID}
+\item{plugins}{The state of the board's plugins, a list of plugins made by
+their packages' constructors, with no names}
 
 \item{id}{Board ID, which \code{\link[=rand_names]{rand_names()}} draws where it is \code{NULL}}
 
@@ -53,27 +53,25 @@ available for retrieving board components (see \code{\link[=board_blocks]{board_
 }
 \details{
 A board holds what the client's board holds: its blocks, links and stacks,
-the values of the board options that the script gives, its plugins, and its
-ID and name.
+the values of the board options that the script gives, the state of its
+plugins, and its ID and name.
 Every board is of class \code{board}: what a package adds to a board, such as the
 views of a frontend like blockr.dock's, is the state of one of its plugins
 (see \code{\link[=new_plugin]{new_plugin()}}).
 A board takes no board options by default, since a board holds the value of a
 board option only once something sets it (see \code{\link[=new_board_options]{new_board_options()}}).
 
-A board holds its plugins in \code{plugins}, each under its ID, which is its name
-in the list given, or the name of its class without \verb{_plugin} where the list
-gives it none, as \code{dag} for a plugin of class \code{dag_plugin}.
-So two plugins of one class need names of their own, as two documents of
-\code{blockr.md} do.
-A board holds at most one frontend, a plugin of class \code{frontend_plugin}, and
-one storage plugin, a plugin of class \code{storage_plugin}, and the constructor
-refuses a second of either.
-The plugins of the board that an app script builds are the app's: every
-board that the app opens holds them, each with the name and the state of
-the board's plugin under its ID where that plugin is of the same class, and
-with its class's default state otherwise, while the board's other plugins
-go.
+A board gives only the state of its plugins, which \code{new_board()} takes in
+\code{plugins} as a list of plugins with no names, and holds each under the ID of
+its class, as \code{blockr.dag-dag_plugin}.
+It holds one plugin of each class, so the constructor refuses two of one
+class.
+Which plugins run is the app's choice, never the board's: \code{\link[=serve]{serve()}} takes
+the app's plugins in \code{plugins}, and refuses a board that holds a plugin of a
+class that the app does not run.
+Each of the app's plugins runs on every board that the app opens, with the
+state that the board holds for it, or its class's default state where the
+board holds none.
 
 A board has an ID, which identifies it, and a name, which the user calls it
 by.

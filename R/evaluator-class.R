@@ -20,6 +20,11 @@
 # `data` holds the data that `serve()` was given, by input.
 # R binds each entry itself to the block's input of that name.
 #
+# The reply to `hello` carries the app's plugins in `plugins`, which
+# `app_plugins()` worked out as the app started, each under the ID of its
+# class with its class's name and version, and none for a block that `serve()`
+# serves alone.
+#
 # The reply to `hello` carries the locks that the app sets, which R reads as
 # the evaluator starts, and R holds every evaluation to them
 # (see `lock_evaluation()`).
@@ -67,7 +72,8 @@
 # and dropping results.
 # The rest is the protocol, which every evaluator shares.
 new_evaluator <- function(board, data = list(), lock = NULL,
-                          packages = "blockr.core", registry = block_registry) {
+                          packages = "blockr.core", registry = block_registry,
+                          plugins = list()) {
 
   if (missing(board) || is.null(board)) {
     blockr_abort(
@@ -108,6 +114,7 @@ new_evaluator <- function(board, data = list(), lock = NULL,
   ev$data <- data
   ev$packages <- packages
   ev$registry <- registry
+  ev$plugins <- plugins
   ev$started <- FALSE
   ev$shared <- character()
   ev$results <- new.env(parent = emptyenv())
@@ -309,7 +316,7 @@ start_session <- function(ev, req, send) {
           protocol = protocol_version(),
           capabilities = I(evaluator_capabilities(ev))
         ),
-        loaded_reply(ev$packages, ev$registry),
+        loaded_reply(ev$packages, ev$registry, ev$plugins),
         list(lock = ev$locks),
         ev$opening
       )

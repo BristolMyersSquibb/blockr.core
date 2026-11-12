@@ -99,11 +99,15 @@ function entry(id: string, inputs: readonly string[]): RegistryEntry {
   };
 }
 
-// The plugin classes that blockr.test defines, whose plugins the fixture
-// plugins holds: a frontend, and the notes, whose state R wrote by the schema
-// that blockr.test ships.
+// The plugin classes that blockr.test defines, whose plugins' state the
+// fixture plugins holds: a frontend, which keeps how many columns it draws,
+// and the notes, whose state R wrote by the schema that blockr.test ships.
 const classes: readonly PluginClass[] = [
-  { id: "blockr.test-grid_plugin", frontend: "blockr.test-grid" },
+  {
+    id: "blockr.test-grid_plugin",
+    frontend: "blockr.test-grid",
+    state: { schema: { type: "object" }, default: { columns: 1 } },
+  },
   {
     id: "blockr.test-notes_plugin",
     state: {
@@ -114,6 +118,12 @@ const classes: readonly PluginClass[] = [
     },
   },
 ];
+
+// The names of blockr.test's plugin classes, as R's reply to hello gives them.
+const classNames: Readonly<Record<string, string>> = {
+  "blockr.test-grid_plugin": "Grid",
+  "blockr.test-notes_plugin": "Notes",
+};
 
 function jsonBoard({ format, packages, board }: Fixture): JsonBoard {
   return { format, packages, board };
@@ -146,15 +156,21 @@ test("the check fails a fixture with a property that its type lacks", () => {
   expect(found.join("\n")).toMatch(/'"class"' does not exist in type 'JsonBlock'/);
 });
 
-// R loaded the packages at the versions that the JSON board records, and gives
-// the plugin classes the versions it records, so that the store runs no
-// migration.
+// R loaded the packages at the versions that the JSON board records, and the
+// app runs core's plugins and the plugin of each class whose state the board
+// holds, as the app that served the board runs them, at the versions that the
+// board records, so that the store runs no migration.
 test.each(names)("the store opens %s, saves it as R wrote it, and opens the text to the same board", async (name) => {
   const json = jsonBoard(read(name));
   const replied: HelloReply = {
     ...hello,
     packages: json.packages,
-    plugin_versions: { "blockr.test-notes_plugin": 2 },
+    plugins: {
+      ...hello.plugins,
+      ...Object.fromEntries(
+        Object.keys(json.board.plugins).map((id) => [id, { name: classNames[id] ?? id, version: json.board.versions[id] ?? 1 }]),
+      ),
+    },
     block_registry: {
       letters_block: entry("letters_block", []),
       join_block: entry("join_block", ["x", "y"]),

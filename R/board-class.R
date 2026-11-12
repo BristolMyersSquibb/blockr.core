@@ -7,27 +7,25 @@
 #' available for retrieving board components (see [board_blocks()]).
 #'
 #' A board holds what the client's board holds: its blocks, links and stacks,
-#' the values of the board options that the script gives, its plugins, and its
-#' ID and name.
+#' the values of the board options that the script gives, the state of its
+#' plugins, and its ID and name.
 #' Every board is of class `board`: what a package adds to a board, such as the
 #' views of a frontend like blockr.dock's, is the state of one of its plugins
 #' (see [new_plugin()]).
 #' A board takes no board options by default, since a board holds the value of a
 #' board option only once something sets it (see [new_board_options()]).
 #'
-#' A board holds its plugins in `plugins`, each under its ID, which is its name
-#' in the list given, or the name of its class without `_plugin` where the list
-#' gives it none, as `dag` for a plugin of class `dag_plugin`.
-#' So two plugins of one class need names of their own, as two documents of
-#' `blockr.md` do.
-#' A board holds at most one frontend, a plugin of class `frontend_plugin`, and
-#' one storage plugin, a plugin of class `storage_plugin`, and the constructor
-#' refuses a second of either.
-#' The plugins of the board that an app script builds are the app's: every
-#' board that the app opens holds them, each with the name and the state of
-#' the board's plugin under its ID where that plugin is of the same class, and
-#' with its class's default state otherwise, while the board's other plugins
-#' go.
+#' A board gives only the state of its plugins, which `new_board()` takes in
+#' `plugins` as a list of plugins with no names, and holds each under the ID of
+#' its class, as `blockr.dag-dag_plugin`.
+#' It holds one plugin of each class, so the constructor refuses two of one
+#' class.
+#' Which plugins run is the app's choice, never the board's: [serve()] takes
+#' the app's plugins in `plugins`, and refuses a board that holds a plugin of a
+#' class that the app does not run.
+#' Each of the app's plugins runs on every board that the app opens, with the
+#' state that the board holds for it, or its class's default state where the
+#' board holds none.
 #'
 #' A board has an ID, which identifies it, and a name, which the user calls it
 #' by.
@@ -43,8 +41,8 @@
 #' @param links Set of links
 #' @param stacks Set of stacks
 #' @param options Board options, with the values the script gives
-#' @param plugins The board's plugins, a list of plugins made by their packages'
-#'   constructors, each by its ID
+#' @param plugins The state of the board's plugins, a list of plugins made by
+#'   their packages' constructors, with no names
 #' @param id Board ID, which [rand_names()] draws where it is `NULL`
 #' @param name Board name, which is made from the ID where it is `NULL`
 #'
@@ -101,8 +99,8 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
   )
 }
 
-# The plugins of a board, by ID: each under its name in the list given, or the
-# name of its class without `_plugin` where the list gives it none.
+# The plugins of a board, each under the ID of its class, from a list of
+# plugins with no names, or a plugin alone.
 as_board_plugins <- function(x) {
 
   if (is_plugin(x)) {
@@ -116,11 +114,19 @@ as_board_plugins <- function(x) {
     )
   }
 
-  ids <- coal(names(x), rep("", length(x)), fail_all = FALSE)
-  unnamed <- is.na(ids) | !nzchar(ids)
-  ids[unnamed] <- chr_ply(x[unnamed], default_plugin_id)
+  nms <- coal(names(x), rep("", length(x)), fail_all = FALSE)
+  named <- nms[!is.na(nms) & nzchar(nms)]
 
-  set_names(x, ids)
+  if (length(named)) {
+    blockr_abort(
+      "A board holds each plugin under the ID of its class, so the list of ",
+      "its plugins takes no names, while it gives the ",
+      "{qty(named)}name{?s} {named}.",
+      class = "board_plugins_invalid"
+    )
+  }
+
+  set_names(x, chr_ply(x, plugin_class_id))
 }
 
 validate_board_plugins <- function(plugins) {
@@ -132,35 +138,23 @@ validate_board_plugins <- function(plugins) {
     )
   }
 
-  ids <- coal(names(plugins), character(), fail_all = FALSE)
+  ids <- chr_ply(plugins, plugin_class_id)
 
-  validate_ids(ids, "Plugin", "board_plugin_id_invalid")
+  if (!identical(coal(names(plugins), character(), fail_all = FALSE), ids)) {
+    blockr_abort(
+      "A board holds each plugin under the ID of its class.",
+      class = "board_plugins_invalid"
+    )
+  }
 
   twice <- unique(ids[duplicated(ids)])
 
   if (length(twice)) {
     blockr_abort(
-      "Plugin IDs are required to be unique among a board's plugins, which ",
-      "does not hold for {twice}. Two plugins of one class need names of ",
-      "their own.",
-      class = "board_plugin_id_invalid"
+      "A board holds one plugin of each class, while it is given ",
+      "{qty(twice)}two plugins of the class{?es} {twice}.",
+      class = "board_plugins_invalid"
     )
-  }
-
-  for (role in list(
-    list(test = is_frontend_plugin, what = "frontend"),
-    list(test = is_storage_plugin, what = "storage plugin")
-  )) {
-
-    held <- ids[lgl_ply(plugins, role$test)]
-
-    if (length(held) > 1L) {
-      blockr_abort(
-        "A board holds at most one {role$what}, while the plugins {held} are ",
-        "{role$what}s.",
-        class = "board_plugins_invalid"
-      )
-    }
   }
 
   invisible(plugins)
@@ -381,7 +375,7 @@ is_acyclic.board <- function(x) {
 #' @return Functions for retrieving components (`board_blocks()`,
 #' `board_links()`, `board_stacks()` and `board_options()`) return objects of
 #' the corresponding classes `blocks`, `links`, `stacks` and `board_options`,
-#' and `board_plugins()` a list of plugins by ID,
+#' and `board_plugins()` a list of plugins by the IDs of their classes,
 #' while ID getters (`board_block_ids()`, `board_link_ids()`,
 #' `board_stack_ids()` and `board_option_ids()`) return character vectors, as
 #' does `available_stack_blocks()`, and `board_id()` and `board_name()` return
@@ -464,7 +458,8 @@ board_option_ids <- function(x) {
 
 #' @section Plugins:
 #' A board's plugins can be retrieved using `board_plugins()`, a list of
-#' plugins by ID (see [new_plugin()]).
+#' plugins by the IDs of their classes, each of which holds the state that the
+#' board gives the plugin (see [new_plugin()]).
 #'
 #' @rdname board_blocks
 #' @export
@@ -572,14 +567,14 @@ format.board <- function(x, ...) {
 
   if (length(plg)) {
 
-    plg <- lapply(plg, format, ...)
+    plg <- lapply(plg, function(p) c(format(p, ...), ""))
 
     out <- c(
       out,
       "",
       paste0("Plugins[", length(plg), "]:"),
       "",
-      unlst(map(paste_name_append_empty, plg, names(plg)))
+      unlst(plg)
     )
 
     out <- out[-length(out)]
@@ -606,12 +601,7 @@ str_value.board <- function(x, ...) {
       if (length(board_plugins(x))) {
         paste0(
           "plugins: ",
-          paste0(
-            names(board_plugins(x)),
-            " ",
-            chr_ply(board_plugins(x), str_value),
-            collapse = ", "
-          )
+          paste(chr_ply(board_plugins(x), str_value), collapse = ", ")
         )
       }
     ),

@@ -1,6 +1,6 @@
 import type { Patch } from "./delta.ts";
 export declare function segmentsFromPath(path: string): string[] | undefined;
-export declare function pluginIdFromPath(path: string): string | undefined;
+export declare function pluginClassFromPath(path: string): string | undefined;
 export declare function pathFromSegments(segments: readonly string[]): string;
 export declare function overlap(a: readonly string[], b: readonly string[], board: unknown): boolean;
 export declare function malformed(patch: unknown): string[];

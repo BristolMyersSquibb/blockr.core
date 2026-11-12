@@ -1,8 +1,8 @@
 // Starting core in the order of the startup modules, and starting it again for
 // each board that opens, with R played over a transport whose replies the test
 // sends, on the board of the fixture hello, which core's basic frontend,
-// blockr.core-basic, draws, as it draws every board that holds no frontend,
-// and on boards whose plugins a test's package defines, a frontend among them.
+// blockr.core-basic, draws, since the app of the fixture runs it, and in apps
+// that run plugins that a test's package defines, a frontend among them.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
@@ -10,15 +10,21 @@ import { coreOptions } from "../options/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { registering } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
-import { hello, reply, withPlugins } from "../testing/store.ts";
+import { hello, reply, withoutPlugins, withPlugins } from "../testing/store.ts";
+import type { GivenPlugin } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
-import type { JsonBoard, Plugin, PluginId } from "../types/board.ts";
+import type { JsonBoard, PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { pageFrontEnds, start } from "./index.ts";
 import type { Changed, StartOptions } from "./index.ts";
 
 const BASIC = "blockr.core/basic.js?v=0f3d8e21";
+
+// The classes of core's own plugins, which the app of the fixture hello runs:
+// its basic frontend and its storage plugin.
+const BASIC_FRONTEND = "blockr.core-basic_frontend_plugin";
+const FILE_STORAGE = "blockr.core-file_storage_plugin";
 
 // R, played over a transport: the test starts sessions and sends replies.
 // Once the test has answered the blockr options that the scheduler reads, R
@@ -154,13 +160,13 @@ function setup(modules: Readonly<Record<string, unknown>>, given: Partial<StartO
 // A frontend that demands every block from within render(), records each
 // core it renders with, and returns its cleanup once the test lets it.
 function frontEnd(wait?: Promise<void>) {
-  const renders: { core: CoreApi; signal: AbortSignal; el: HTMLElement; plugin: string | undefined }[] = [];
+  const renders: { core: CoreApi; signal: AbortSignal; el: HTMLElement; plugin: string }[] = [];
   let cleanups = 0;
   return {
     exports: {
       api: 1,
       default: {
-        async render({ el, core, signal, plugin }: { el: HTMLElement; core: CoreApi; signal: AbortSignal; plugin?: string }) {
+        async render({ el, core, signal, plugin }: { el: HTMLElement; core: CoreApi; signal: AbortSignal; plugin: string }) {
           renders.push({ core, signal, el, plugin });
           core.scheduler.demand("frontend", (board) => Object.keys(board.blocks));
           el.textContent = core.store.board().name;
@@ -414,26 +420,27 @@ describe("starting the page", () => {
     expect(core.store.board().name).toBe("From the URL");
   });
 
-  test("has the board that a startup module names hold the plugins of R's, each with the state that the named board gives it", async () => {
-    // A package whose plugin class the board that R sent holds two plugins of,
-    // and the board that its startup module names holds one of them and one
-    // of its own.
+  test("has the board that a startup module names run the app's plugins, each with the state that the named board holds for it", async () => {
+    // A package with three plugin classes, of which the app runs two. The
+    // board that R sent holds the state of both, and the board that the
+    // package's startup module names holds the state of one of them and of
+    // the class that the app does not run.
+    const classes = ["blockr.notes-todo_plugin", "blockr.notes-done_plugin", "blockr.notes-later_plugin"];
     const notes = {
       api: 1,
       default: {
         initialize({ core }: { core: CoreApi }) {
-          core.plugins.register({
-            id: "blockr.notes-notes_plugin",
-            state: { schema: { type: "object" }, default: { text: "" } },
-          });
+          for (const id of classes) {
+            core.plugins.register({ id, state: { schema: { type: "object" }, default: { text: "" } } });
+          }
           return JSON.stringify({
             ...hello.board,
             board: {
               ...hello.board.board,
               name: "From the URL",
               plugins: {
-                todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Call back" } },
-                later: { class: "blockr.notes-notes_plugin", name: "Later", state: { text: "Soon" } },
+                "blockr.notes-todo_plugin": { text: "Call back" },
+                "blockr.notes-later_plugin": { text: "Soon" },
               },
             },
           });
@@ -442,8 +449,8 @@ describe("starting the page", () => {
     };
     const reply = withPlugins(
       {
-        todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Buy milk" } },
-        done: { class: "blockr.notes-notes_plugin", name: "Done", state: { text: "Paid" } },
+        "blockr.notes-todo_plugin": { name: "To do", state: { text: "Buy milk" } },
+        "blockr.notes-done_plugin": { name: "Done", state: { text: "Paid" } },
       },
       withStartup("blockr.notes"),
     );
@@ -455,9 +462,15 @@ describe("starting the page", () => {
 
     expect(core.store.board().name).toBe("From the URL");
     expect(core.store.board().plugins).toEqual({
-      todo: { class: "blockr.notes-notes_plugin", name: "To do", state: { text: "Call back" } },
-      done: { class: "blockr.notes-notes_plugin", name: "Done", state: { text: "" } },
+      "blockr.notes-todo_plugin": { text: "Call back" },
+      "blockr.notes-done_plugin": { text: "" },
     });
+    expect(Object.keys(core.plugins.appPlugins())).toEqual([
+      BASIC_FRONTEND,
+      FILE_STORAGE,
+      "blockr.notes-todo_plugin",
+      "blockr.notes-done_plugin",
+    ]);
   });
 
   test.each([
@@ -564,11 +577,11 @@ describe("a board opened later", () => {
 
   test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason", async () => {
     const basic = frontEnd();
-    // R's board holds a plugin of a class that a package registers once the
-    // page has started.
+    // The app runs a plugin of a class that a package registers once the
+    // page has started, whose state R's board holds.
     const s = await started(
       { [BASIC]: basic.exports },
-      withPlugins({ strict: { class: "test.pkg-strict_plugin", name: "Strict", state: { zoom: 1 } } }),
+      withPlugins({ "test.pkg-strict_plugin": { name: "Strict", state: { zoom: 1 } } }),
     );
     const sent = s.r.sent.length;
 
@@ -579,9 +592,9 @@ describe("a board opened later", () => {
     });
     const strict = JSON.stringify({
       ...hello.board,
-      board: { ...hello.board.board, plugins: { strict: { class: "test.pkg-strict_plugin", name: "Strict", state: {} } } },
+      board: { ...hello.board.board, plugins: { "test.pkg-strict_plugin": {} } },
     });
-    await expect(s.core.store.open(strict)).rejects.toThrow('The state of the plugin "strict"');
+    await expect(s.core.store.open(strict)).rejects.toThrow('The state of the plugin "test.pkg-strict_plugin"');
     await expect(s.core.store.open(JSON.stringify(unfit()))).rejects.toThrow(unfitness);
 
     expect(s.r.sent.slice(sent)).toEqual([]);
@@ -778,19 +791,19 @@ describe("a board opened later", () => {
     };
     const basic = frontEnd();
     const reply = withPlugins(
-      { zoom: { class: "blockr.strict-zoom_plugin", name: "Zoom", state: { zoom: 1 } } },
+      { "blockr.strict-zoom_plugin": { name: "Zoom", state: { zoom: 1 } } },
       withStartup("blockr.strict"),
     );
     const s = await started({ "blockr.strict/startup.js?v=1": strict, [BASIC]: basic.exports }, reply);
     s.core.store.apply({ name: "Kept" });
     const board = JSON.stringify({
       ...hello.board,
-      board: { ...hello.board.board, plugins: { zoom: { class: "blockr.strict-zoom_plugin", name: "Zoom", state: { zoom: "big" } } } },
+      board: { ...hello.board.board, plugins: { "blockr.strict-zoom_plugin": { zoom: "big" } } },
     });
 
     const reported = reports();
     const opening = reopen(s, s.core, board, reply);
-    await expect(opening).rejects.toThrow('The state of the plugin "zoom"');
+    await expect(opening).rejects.toThrow('The state of the plugin "blockr.strict-zoom_plugin"');
     reported.restore();
 
     expect(s.started.core()?.store.board().name).toBe("Kept");
@@ -925,10 +938,15 @@ describe("the frontend and the plugins", () => {
   const FRONT = "blockr.test/front.js?v=1";
 
   // R's reply to hello with the startup module of blockr.test, which offers
-  // the module of a frontend too, and an opening board that holds the plugins
-  // given, and the board options given in place of the fixture's.
-  function replied(plugins: Readonly<Record<PluginId, Plugin>>, options?: JsonBoard["board"]["options"]): HelloReply {
-    const base = withPlugins(plugins, withStartup("blockr.test"));
+  // the module of a frontend too, whose app runs the plugins given beside
+  // core's, but for those of core's classes given in `instead`, and an opening
+  // board with the board options given in place of the fixture's.
+  function replied(
+    plugins: Readonly<Record<PluginClassId, GivenPlugin>>,
+    options?: JsonBoard["board"]["options"],
+    instead: readonly PluginClassId[] = [],
+  ): HelloReply {
+    const base = withPlugins(plugins, withoutPlugins(withStartup("blockr.test"), ...instead));
     return {
       ...base,
       modules: { ...base.modules, "blockr.test-front": { module: FRONT } },
@@ -945,7 +963,7 @@ describe("the frontend and the plugins", () => {
       exports: {
         api: 1,
         default: {
-          render({ core, plugin }: { core: CoreApi; plugin?: string }) {
+          render({ core, plugin }: { core: CoreApi; plugin: string }) {
             seen.push([plugin, ...ids.map((id) => core.store.board().options[id])]);
           },
         },
@@ -961,8 +979,10 @@ describe("the frontend and the plugins", () => {
     default: 1,
     ui: { render: () => undefined },
   };
-  const grid: Plugin = { class: "blockr.test-grid_plugin", name: "Grid", state: {} };
-  const plugin = (name: string): Plugin => ({ class: `blockr.test-${name}_plugin`, name, state: {} });
+  const GRID = "blockr.test-grid_plugin";
+  // The app's plugin of blockr.test's class of the name given, as the reply
+  // names it.
+  const plugin = (name: string): Readonly<Record<PluginClassId, GivenPlugin>> => ({ [`blockr.test-${name}_plugin`]: { name } });
 
   async function started(modules: Readonly<Record<string, unknown>>, reply: HelloReply, given: Partial<StartOptions> = {}) {
     const s = setup(modules, given);
@@ -974,39 +994,81 @@ describe("the frontend and the plugins", () => {
     return { ...s, core };
   }
 
-  test("draws a board with the frontend that it holds, whose render() gets the plugin's id once the board options of its class are on the board", async () => {
+  test("draws every board with the app's frontend, whose render() gets the id of its class once the board options of its class are on the board", async () => {
     const front = recording("zoom");
     const basic = frontEnd();
-    const frontend: PluginClass = { id: "blockr.test-grid_plugin", frontend: "blockr.test-front", options: ["zoom"] };
+    const frontend: PluginClass = { id: GRID, frontend: "blockr.test-front", options: ["zoom"] };
+    // An app whose frontend takes the place of core's basic frontend.
+    const reply = replied({ [GRID]: { name: "Grid" } }, {}, [BASIC_FRONTEND]);
     const s = await started(
       { [STARTUP]: registering([frontend], [zoom]), [FRONT]: front.exports, [BASIC]: basic.exports },
-      replied({ grid }, {}),
+      reply,
     );
 
-    expect(front.seen).toEqual([["grid", 1]]);
+    expect(front.seen).toEqual([[GRID, 1]]);
     expect(basic.renders).toHaveLength(0);
     expect(s.imported).toEqual([STARTUP, FRONT]);
-    // Core's basic frontend draws nothing, so the board takes none of the
-    // board options that it requires, but for dark_mode, whose onChange core
-    // calls as every board opens.
+    // The app runs no basic frontend, so the board takes none of the board
+    // options that it requires, but for dark_mode, whose onChange core calls
+    // as every board opens.
     expect(s.core.store.board().options).toEqual({ zoom: 1, dark_mode: "light" });
+    // The frontend's state stays out of the board, since its class keeps none.
+    expect(s.core.store.board().plugins).toEqual({});
+
+    // A board that opens later, whatever plugins' state it holds, is drawn
+    // with the same frontend.
+    const opening = s.core.store.open(
+      JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Next", plugins: { [BASIC_FRONTEND]: {} } } }),
+    );
+    await tick();
+    s.r.answer(reply);
+    await opening;
+    expect(front.seen).toEqual([
+      [GRID, 1],
+      [GRID, 1],
+    ]);
+    expect(basic.renders).toHaveLength(0);
   });
 
-  test("draws a board that holds no frontend with core's basic frontend, which gets no plugin's id, once its board options are on the board", async () => {
+  test("draws the board of a core app with core's basic frontend, which gets the id of its class, once its board options are on the board", async () => {
     const basic = recording("show_conditions", "dark_mode");
     const empty = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } };
     await started({ [BASIC]: basic.exports }, empty);
 
-    expect(basic.seen).toEqual([[undefined, ["warning", "error"], "light"]]);
+    expect(basic.seen).toEqual([[BASIC_FRONTEND, ["warning", "error"], "light"]]);
+  });
+
+  test("shows why in the page's element in place of the board where the app runs no frontend", async () => {
+    const basic = frontEnd();
+    const reported = reports();
+    const s = await started({ [BASIC]: basic.exports }, withoutPlugins(hello, BASIC_FRONTEND));
+    reported.restore();
+
+    const why = "The app runs no frontend that draws the board, since none of the app's plugins is a frontend.";
+    expect(basic.renders).toHaveLength(0);
+    expect(s.el.firstElementChild?.getAttribute("role")).toBe("alert");
+    expect(s.el.textContent).toBe(why);
+    expect(reported.errors().map((error) => (error as Error).message)).toEqual([why]);
+    expect(s.core.store.board().name).toBe("Iris review");
+
+    // So it does where no package registers the class of the app's frontend.
+    const front = frontEnd();
+    const again = reports();
+    const t = await started({ [FRONT]: front.exports }, replied({ [GRID]: { name: "Grid" } }, undefined, [BASIC_FRONTEND]));
+    again.restore();
+    expect(front.renders).toHaveLength(0);
+    expect(t.el.textContent).toBe(
+      'The app runs no frontend that draws the board, since no package registered the class of the app\'s plugin "blockr.test-grid_plugin".',
+    );
   });
 
   test("shows why in the page's element in place of the frontend where a board option that it requires does not go onto the board", async () => {
     const front = frontEnd();
-    const frontend: PluginClass = { id: "blockr.test-grid_plugin", frontend: "blockr.test-front", options: ["zoom", "nowhere"] };
+    const frontend: PluginClass = { id: GRID, frontend: "blockr.test-front", options: ["zoom", "nowhere"] };
     const reported = reports();
     const s = await started(
       { [STARTUP]: registering([frontend], [zoom]), [FRONT]: front.exports },
-      replied({ grid }, {}),
+      replied({ [GRID]: { name: "Grid" } }, {}, [BASIC_FRONTEND]),
     );
     reported.restore();
 
@@ -1028,11 +1090,11 @@ describe("the frontend and the plugins", () => {
     again.restore();
     expect(basic.renders).toHaveLength(0);
     expect(t.el.textContent).toBe(
-      'The board option "show_conditions", which core\'s basic frontend requires, is defined by no package loaded.',
+      'The board option "show_conditions", which the plugin class "blockr.core-basic_frontend_plugin" requires, is defined by no package loaded.',
     );
   });
 
-  test("calls each plugin class's start once the frontend's render() has returned, in the order of the board's plugins, and ends each as the next board opens", async () => {
+  test("calls each plugin class's start once the frontend's render() has returned, in the order of the app's plugins, and ends each as the next board opens", async () => {
     const events: string[] = [];
     const drawn = gate();
     const starting = (name: string): PluginClass => ({
@@ -1056,7 +1118,7 @@ describe("the frontend and the plugins", () => {
       },
     };
     const classes = [starting("dag"), starting("notes"), { id: "blockr.test-quiet_plugin" }];
-    const plugins = { notes: plugin("notes"), dag: plugin("dag"), quiet: plugin("quiet") };
+    const plugins = { ...plugin("notes"), ...plugin("dag"), ...plugin("quiet") };
     const s = setup({ [STARTUP]: registering(classes), [BASIC]: basic });
     s.r.session(replied(plugins));
     await tick();
@@ -1069,8 +1131,8 @@ describe("the frontend and the plugins", () => {
     expect(events).toEqual([
       "the frontend renders",
       "the frontend has rendered",
-      "notes starts on Iris review",
-      "dag starts on Iris review",
+      "blockr.test-notes_plugin starts on Iris review",
+      "blockr.test-dag_plugin starts on Iris review",
     ]);
 
     events.length = 0;
@@ -1079,14 +1141,14 @@ describe("the frontend and the plugins", () => {
     s.r.answer(replied(plugins));
     await opening;
     expect(events).toEqual([
-      "notes aborts",
-      "notes cleans up",
-      "dag aborts",
-      "dag cleans up",
+      "blockr.test-notes_plugin aborts",
+      "blockr.test-notes_plugin cleans up",
+      "blockr.test-dag_plugin aborts",
+      "blockr.test-dag_plugin cleans up",
       "the frontend renders",
       "the frontend has rendered",
-      "notes starts on Next",
-      "dag starts on Next",
+      "blockr.test-notes_plugin starts on Next",
+      "blockr.test-dag_plugin starts on Next",
     ]);
   });
 
@@ -1117,7 +1179,7 @@ describe("the frontend and the plugins", () => {
     const reported = reports();
     const s = await started(
       { [STARTUP]: registering(classes, [zoom]), [BASIC]: frontEnd().exports },
-      replied({ needy: plugin("needy"), broken: plugin("broken"), fine: plugin("fine") }),
+      replied({ ...plugin("needy"), ...plugin("broken"), ...plugin("fine") }),
     );
     reported.restore();
 
@@ -1125,8 +1187,8 @@ describe("the frontend and the plugins", () => {
     expect(s.core.store.board().options.zoom).toBe(1);
     expect(reported.errors().map((error) => (error as Error).message)).toEqual([
       'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
-      'The plugin "needy" does not start, since board options that its class "blockr.test-needy_plugin" requires did not go onto the board.',
-      'The start of the plugin class "blockr.test-broken_plugin" failed for the plugin "broken": boom',
+      'The plugin "blockr.test-needy_plugin" does not start, since board options that its class requires did not go onto the board.',
+      'The start of the plugin class "blockr.test-broken_plugin" failed: boom',
     ]);
   });
 
@@ -1138,7 +1200,7 @@ describe("the frontend and the plugins", () => {
     };
     const s = await started(
       { [STARTUP]: registering([storing], [zoom]), [BASIC]: frontEnd().exports },
-      replied({ store: plugin("store") }),
+      replied(plugin("store"), undefined, [FILE_STORAGE]),
     );
     expect(s.core.store.board().options.zoom).toBe(1);
 
@@ -1296,7 +1358,7 @@ describe("a block that serve() serves alone", () => {
     startup_modules: [{ package: "blockr.session", module: "blockr.session/startup.js?v=1" }],
   };
 
-  test("opens R's board, adds no board options of core's basic frontend, and draws the block in its card before the scheduler sends", async () => {
+  test("opens R's board, runs no plugin, and draws the block in its card before the scheduler sends", async () => {
     const drawn: { core: CoreApi; sent: number }[] = [];
     const s = setup(
       { "blockr.session/startup.js?v=1": startup("blockr.session", [], () => JSON.stringify(named)) },
@@ -1320,6 +1382,10 @@ describe("a block that serve() serves alone", () => {
     expect(core.store.board().name).toBe(helloBlock.board.board.name);
     expect(drawn).toEqual([{ core, sent: 0 }]);
     expect(s.imported).toEqual(["blockr.session/startup.js?v=1"]);
+    // R names no plugin for a block served alone, so none runs, core's own
+    // included, though core registers their classes.
+    expect(core.plugins.appPlugins()).toEqual({});
+    expect(core.plugins.storage()).toBeUndefined();
 
     // The scheduler sends what the card demands, naming the input that R binds
     // by the input alone.
@@ -1328,7 +1394,7 @@ describe("a block that serve() serves alone", () => {
 
     // The board takes dark_mode, which switches the page's theme, as every
     // board does, but not show_conditions, which only the basic frontend
-    // requires.
+    // requires, which does not run.
     expect(Object.keys(core.store.board().options).sort()).toEqual(["dark_mode", "n_rows"]);
   });
 });

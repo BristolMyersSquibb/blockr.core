@@ -23,9 +23,7 @@ export type {
   Link,
   LinkId,
   OptionId,
-  Plugin,
   PluginClassId,
-  PluginId,
   RegistryId,
   Stack,
   StackId,
@@ -55,7 +53,7 @@ export type {
   Rendered,
   State,
 } from "./types/hosts.ts";
-export type { BlockRegistry, CoreApi, Note, OutputEvents, PluginModule, RequestOpts } from "./types/core-api.ts";
+export type { BlockRegistry, CoreApi, Note, OutputEvents, Plugin, PluginModule, RequestOpts } from "./types/core-api.ts";
 export type {
   Change,
   Delta,
