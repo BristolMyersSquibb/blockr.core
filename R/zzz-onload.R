@@ -2,6 +2,10 @@
 
   register_module("basic", js_module("js/basic.js"))
 
+  # The UI of core's Edit board plugin, which the plugin's class names as
+  # blockr.core-edit_board.
+  register_module("edit_board", js_module("js/edit-board.js"))
+
   # Core's inputs for modules written without React,
   # which other packages' modules reach as blockr.core-controls,
   # in the file that the page's import map names `@blockr/core/controls`,

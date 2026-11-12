@@ -10,8 +10,8 @@ import type { ReactElement } from "react";
 import { Mounted } from "../../card/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { OptionId } from "../../types/board.ts";
+import { useBoard } from "../../ui/index.ts";
 import { useFrontEnd } from "./context.ts";
-import { useBoard } from "./hooks.ts";
 import { Dialog } from "./ui.tsx";
 
 export function OptionsDialog({ onClose }: { onClose: () => void }): ReactElement {

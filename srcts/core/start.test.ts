@@ -25,6 +25,7 @@ const BASIC = "blockr.core/basic.js?v=0f3d8e21";
 // its basic frontend and its storage plugin.
 const BASIC_FRONTEND = "blockr.core-basic_frontend_plugin";
 const FILE_STORAGE = "blockr.core-file_storage_plugin";
+const EDIT_BOARD = "blockr.core-edit_board_plugin";
 
 // R, played over a transport: the test starts sessions and sends replies.
 // Once the test has answered the blockr options that the scheduler reads, R
@@ -468,6 +469,7 @@ describe("starting the page", () => {
     expect(Object.keys(core.plugins.appPlugins())).toEqual([
       BASIC_FRONTEND,
       FILE_STORAGE,
+      EDIT_BOARD,
       "blockr.notes-todo_plugin",
       "blockr.notes-done_plugin",
     ]);

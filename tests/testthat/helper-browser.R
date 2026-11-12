@@ -358,15 +358,18 @@ wait_for_board <- function(app, check, what) {
 }
 
 # Has the page run the helper of `e2e` that `fun` names, with the arguments
-# given, in the element given: the card of a block, the open dialog or the
-# whole page.
+# given, in the element given: the card of a block, the open dialog, the
+# element that a CSS selector finds, such as a section of core's Edit board
+# plugin, or the whole page.
 # It fails with what the helper threw.
-act <- function(app, fun, ..., block = NULL, dialog = FALSE) {
+act <- function(app, fun, ..., block = NULL, dialog = FALSE, selector = NULL) {
 
   within <- if (not_null(block)) {
     paste0("await e2e.card(", js_value(block), ")")
   } else if (dialog) {
     "await e2e.dialog()"
+  } else if (not_null(selector)) {
+    paste0("await e2e.element(", js_value(selector), ")")
   } else {
     "document"
   }
@@ -432,6 +435,9 @@ window.e2e = {
   dialog() {
     return e2e.until(() => document.querySelector('dialog[open]'), 'dialog');
   },
+  element(selector) {
+    return e2e.until(() => document.querySelector(selector), selector);
+  },
   label(within, text) {
     return [...within.querySelectorAll('label')].find((label) =>
       label.textContent.trim() === text ||
@@ -460,6 +466,42 @@ window.e2e = {
       return known && found;
     }, 'choice ' + value + ' of ' + label);
     e2e.set(select, value, 'change');
+  },
+  // The field that the label of the text given names, through its for
+  // attribute or by holding it.
+  labelled(within, text) {
+    const label = [...within.querySelectorAll('label')]
+      .find((l) => l.textContent.trim() === text);
+    return label &&
+      (document.getElementById(label.htmlFor) || label.querySelector('input'));
+  },
+  // Types the text into the field of the label given.
+  async fill(label, value, within) {
+    const field = await e2e.until(
+      () => e2e.labelled(within, label),
+      'field ' + label
+    );
+    e2e.set(field, value, 'input');
+  },
+  // Picks the option of the label given in the searchable dropdown of the
+  // label given, as a user types the search into its field and clicks the
+  // option in the list that the search narrows.
+  async choose(label, search, option, within) {
+    const field = await e2e.until(
+      () => e2e.labelled(within, label),
+      'field ' + label
+    );
+    field.focus();
+    field.click();
+    e2e.set(field, search, 'input');
+    const found = await e2e.until(() => {
+      const list = document.getElementById(field.getAttribute('aria-controls'));
+      return [...(list?.querySelectorAll('[role=option]') ?? [])].find((o) =>
+        o.querySelector('span > span')?.textContent.replace(/^\u2713 /, '') ===
+          option
+      );
+    }, 'option ' + option + ' of ' + label);
+    found.click();
   },
   async check(label, within) {
     const box = await e2e.until(

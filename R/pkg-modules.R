@@ -25,7 +25,8 @@ declared_modules <- new.env()
 #' places for the class's plugin, is such a module, which the class names by
 #' its ID in JavaScript (see [new_plugin()]).
 #' Core declares its basic frontend the same way, as `blockr.core-basic`,
-#' which draws the board.
+#' which draws the board, and the UI of its Edit board plugin as
+#' `blockr.core-edit_board`.
 #'
 #' Next to its startup module, a package puts a JSON Schema for each plugin
 #' class and each board option that it registers, in a file of its own, as a

@@ -519,8 +519,8 @@ proto_hello_reply <- function(block_registry, lock, ...,
 }
 
 # What the reply to `hello` of a core app says of the modules that R serves,
-# among them core's basic frontend, which draws the board, and of the app's
-# plugins, core's basic frontend and its storage plugin.
+# among them core's basic frontend, which draws the board, and the UI of its
+# Edit board plugin, and of the app's plugins, core's own three.
 proto_served <- function() {
   obj(
     startup_modules = list(),
@@ -528,6 +528,9 @@ proto_served <- function() {
       `blockr.core-basic` = obj(
         module = proto_js("basic.js", "0f3d8e21"),
         css = proto_js("basic.css", "6a9b2c4e")
+      ),
+      `blockr.core-edit_board` = obj(
+        module = proto_js("edit-board.js", "5c1e7a39")
       )
     ),
     plugins = proto_core_plugins(),
@@ -537,8 +540,9 @@ proto_served <- function() {
 }
 
 # The app's plugins of a core app whose script names none, as the reply to
-# `hello` gives them: core's basic frontend and its storage plugin, each under
-# the id of its class, with its class's name and version.
+# `hello` gives them: core's basic frontend, its storage plugin and its Edit
+# board plugin, each under the id of its class, with its class's name and
+# version.
 proto_core_plugins <- function() {
   obj(
     `blockr.core-basic_frontend_plugin` = obj(
@@ -547,6 +551,10 @@ proto_core_plugins <- function() {
     ),
     `blockr.core-file_storage_plugin` = obj(
       name = "File storage",
+      version = 1L
+    ),
+    `blockr.core-edit_board_plugin` = obj(
+      name = "Edit board",
       version = 1L
     )
   )

@@ -63,7 +63,7 @@ test_that("a plugin's class vector defaults to its id and serves dispatch", {
   expect_identical(plugin_class_id(other), "blockr.test-notes_plugin")
 })
 
-test_that("core's basic frontend and storage plugin keep no state", {
+test_that("core's own plugins keep no state", {
 
   frontend <- new_basic_frontend_plugin()
 
@@ -87,6 +87,18 @@ test_that("core's basic frontend and storage plugin keep no state", {
   )
   expect_identical(plugin_class_id(storage), "blockr.core-file_storage_plugin")
   expect_length(plugin_state(storage), 0L)
+
+  # The Edit board plugin is neither a frontend nor a storage plugin, so an
+  # app runs it beside whichever of those it runs
+  edit <- new_edit_board_plugin()
+
+  expect_s3_class(edit, c("edit_board_plugin", "plugin"), exact = TRUE)
+  expect_identical(plugin_class_id(edit), "blockr.core-edit_board_plugin")
+  expect_length(plugin_state(edit), 0L)
+  expect_false(is_frontend_plugin(edit))
+  expect_false(is_storage_plugin(edit))
+  expect_identical(plugin_version(edit), 1L)
+  expect_identical(plugin_requests(edit), list())
 })
 
 test_that("available_plugins() gives core's plugin classes by package and id", {
@@ -94,16 +106,20 @@ test_that("available_plugins() gives core's plugin classes by package and id", {
   expect_identical(
     available_plugins(),
     data.frame(
-      package = c("blockr.core", "blockr.core"),
-      id = c("basic_frontend_plugin", "file_storage_plugin")
+      package = rep("blockr.core", 3L),
+      id = c(
+        "basic_frontend_plugin",
+        "file_storage_plugin",
+        "edit_board_plugin"
+      )
     )
   )
 
   local_plugin_classes(Notes = plugin_ctor(function() NULL, "notes_plugin"))
 
   expect_identical(
-    available_plugins()[3L, ],
-    data.frame(package = "blockr.test", id = "notes_plugin", row.names = 3L)
+    available_plugins()[4L, ],
+    data.frame(package = "blockr.test", id = "notes_plugin", row.names = 4L)
   )
 
   # A class's name stays with its package's listing, which the app's plugins
@@ -255,6 +271,10 @@ test_that("the app runs the plugins of its rows, by the ids of their classes", {
       ),
       `blockr.core-file_storage_plugin` = list(
         name = "File storage",
+        version = 1L
+      ),
+      `blockr.core-edit_board_plugin` = list(
+        name = "Edit board",
         version = 1L
       ),
       `blockr.test-notes_plugin` = list(name = "Notes", version = 2L)

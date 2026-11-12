@@ -7441,6 +7441,10 @@ function corePluginClasses() {
         save: (board) => coreStorage().save(board),
         open: () => coreStorage().open()
       }
+    },
+    {
+      id: "blockr.core-edit_board_plugin",
+      ui: "blockr.core-edit_board"
     }
   ];
 }

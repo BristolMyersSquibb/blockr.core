@@ -1,34 +1,35 @@
 // The page that core's basic frontend draws: the toolbar, the notices, the
 // board's blocks, each stack as a group of its blocks' cards, which the user
 // collapses, and the plugins that it shows. One dialog at a time shows over
-// the page.
+// the page: the picker that a card's menu opens, or the board options.
 // The page follows the board through the store, so a removed block's card
 // goes because the board changed.
+// Adding a block on its own and editing links and stacks are the Edit board
+// plugin's, which the page shows as it shows any plugin.
 
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { freeInputs } from "../../commands/index.ts";
+import { BlockPicker } from "../../picker/index.ts";
+import type { AddMode } from "../../picker/index.ts";
 import type { Condition } from "../../protocol/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Json } from "../../types/json.ts";
+import { classes, useBoard } from "../../ui/index.ts";
+import { own } from "../../util/index.ts";
 import { BlockCard, StackGroup } from "./card.tsx";
-import { FrontEndContext, useFrontEnd } from "./context.ts";
+import { FrontEndContext, runCommand, useFrontEnd } from "./context.ts";
 import type { FrontEnd } from "./context.ts";
-import { useBoard, useNotices } from "./hooks.ts";
 import { layoutItems } from "./layout.ts";
-import { LinksDialog } from "./links.tsx";
+import { useNotices } from "./notices.ts";
 import type { Severity } from "./notices.ts";
 import { OptionsDialog } from "./options.tsx";
-import { AddBlockDialog } from "./picker.tsx";
-import type { AddMode } from "./picker.tsx";
 import { Plugins } from "./plugins.tsx";
-import { StacksDialog } from "./stacks.tsx";
 import { Toolbar } from "./toolbar.tsx";
-import type { ToolbarDialog } from "./toolbar.tsx";
-import { classes } from "./ui.tsx";
+import { Dialog } from "./ui.tsx";
 
-type Shown = { readonly kind: "add"; readonly mode: AddMode } | { readonly kind: Exclude<ToolbarDialog, "add"> };
+type Shown = { readonly kind: "add"; readonly mode: AddMode } | { readonly kind: "options" };
 
 export function BasicBoard({ front }: { front: FrontEnd }): ReactElement {
   return (
@@ -73,8 +74,8 @@ function Page(): ReactElement {
     <div className={`${classes.page} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`}>
       <Toolbar
         board={board}
-        show={(kind) => {
-          setDialog(kind === "add" ? { kind, mode: { kind: "add" } } : { kind });
+        showOptions={() => {
+          setDialog({ kind: "options" });
         }}
       />
       <Notices />
@@ -98,10 +99,23 @@ function Page(): ReactElement {
         </div>
       </div>
       {dialog?.kind === "add" ? <AddBlockDialog mode={dialog.mode} onClose={close} /> : null}
-      {dialog?.kind === "links" ? <LinksDialog onClose={close} /> : null}
-      {dialog?.kind === "stacks" ? <StacksDialog onClose={close} /> : null}
       {dialog?.kind === "options" ? <OptionsDialog onClose={close} /> : null}
     </div>
+  );
+}
+
+// The form that a card's menu opens, which adds a block before or after the
+// card's block, and closes once the block is on the board.
+function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void }): ReactElement {
+  const front = useFrontEnd();
+  const board = useBoard(front.core);
+  const target = mode.kind === "add" ? undefined : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
+  const title = target === undefined ? "Add block" : `Add block ${mode.kind} "${target.name}"`;
+  const run = useCallback((command: string, args: Json) => runCommand(front, command, args), [front]);
+  return (
+    <Dialog title={title} onClose={onClose}>
+      <BlockPicker core={front.core} mode={mode} run={run} onAdded={onClose} autofocus />
+    </Dialog>
   );
 }
 

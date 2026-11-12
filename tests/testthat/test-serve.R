@@ -354,11 +354,15 @@ test_that("serve() sends the app's plugins in its reply to hello", {
     `blockr.core-file_storage_plugin` = list(
       name = "File storage",
       version = 1L
+    ),
+    `blockr.core-edit_board_plugin` = list(
+      name = "Edit board",
+      version = 1L
     )
   )
 
   # By default, the app runs every plugin class that an available package
-  # lists
+  # lists, core's Edit board plugin among them
   reply <- served_replies(serve(served_board()), hello_message())[[1L]]
 
   expect_identical(reply$plugins, core)
@@ -370,7 +374,7 @@ test_that("serve() sends the app's plugins in its reply to hello", {
   reply <- served_replies(serve(served_board(), plugins = rows),
                           hello_message())[[1L]]
 
-  expect_identical(reply$plugins, core[1L])
+  expect_identical(reply$plugins, core[-2L])
 
   # So does the path of a JSON board
   path <- withr::local_tempfile(fileext = ".json")
@@ -380,7 +384,7 @@ test_that("serve() sends the app's plugins in its reply to hello", {
   expect_identical(reply$plugins, core)
 
   reply <- served_replies(serve(path, plugins = rows), hello_message())[[1L]]
-  expect_identical(reply$plugins, core[1L])
+  expect_identical(reply$plugins, core[-2L])
 
   # A block that serve() serves alone runs no plugin
   reply <- served_replies(
@@ -417,6 +421,7 @@ test_that("serve() refuses a board with a plugin that the app does not run", {
     c(
       "blockr.core-basic_frontend_plugin",
       "blockr.core-file_storage_plugin",
+      "blockr.core-edit_board_plugin",
       "blockr.test-notes_plugin"
     )
   )
