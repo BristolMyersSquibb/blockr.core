@@ -1,9 +1,8 @@
 // The checks a board passes after every delta and as it opens,
 // each failure in a sentence: the invariants of core's objects,
 // as R's validate_links() and the board's checks did,
-// the schemas of the blocks' states and of the board options, and the
-// plugins: their classes, the schemas of their states, and at most one
-// frontend and one storage plugin.
+// the schemas of the blocks' states and of the board options, and the state of
+// each plugin: its class, which keeps state, and the schema of that state.
 // Where a delta changed only some objects, their shapes and schemas
 // are checked alone, since nothing else can have broken them,
 // while the invariants run on the whole board every time.
@@ -18,8 +17,6 @@ import { compile, isObject, own, quoted } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Changed } from "./commit.ts";
 import { isId } from "./ids.ts";
-import { inRole, ROLES } from "./plugins.ts";
-import type { Role } from "./plugins.ts";
 import type { Registrations } from "./registrations.ts";
 
 // A stack's colour: a hex colour of six digits, such as "#66c2a5",
@@ -226,51 +223,34 @@ function checkValues(
   }
 }
 
-// Each plugin that a patch added or changed, or every one as the board opens:
-// its shape, its class, which a package has to register, and its state against
-// the schema of its class's state, as a whole.
-// The board holds at most one frontend and one storage plugin, since no opening
-// makes a board that holds two.
+// The state of each plugin that a patch changed, or of every one as the board
+// opens, under the id of the plugin's class: the class, which a package has to
+// register and which has to keep state, and the state against the schema of
+// the class's state, as a whole.
 function checkPlugins(
   board: Board,
   registrations: Registrations,
   changed: Changed | undefined,
   failures: string[],
 ): void {
-  ids("plugin", board.plugins, failures);
-
-  for (const [id, plugin] of Object.entries(board.plugins)) {
+  for (const [id, state] of Object.entries(board.plugins)) {
     if (changed !== undefined && !changed.plugins.has(id)) continue;
-    const fields = shape(plugin, { class: "string", name: "string", state: "value" });
-    if (fields.length > 0) {
-      failures.push(`The plugin "${id}" ${fields.join(", ")}.`);
-      continue;
-    }
-    const cls = registrations.plugin(plugin.class);
+    const cls = registrations.plugin(id);
     if (cls === undefined) {
-      failures.push(`The plugin "${id}" is of the class "${plugin.class}", which no package registered.`);
+      failures.push(`The board holds the state of a plugin of the class "${id}", which no package registered.`);
       continue;
     }
-    for (const failure of cls.validate(plugin.state)) {
-      failures.push(`The state of the plugin "${id}" ${failure}`);
+    if (cls.def.state === undefined) {
+      failures.push(`The board holds the state of a plugin of the class "${id}", which keeps none.`);
+      continue;
     }
-  }
-
-  const registeredClass = (id: string) => registrations.plugin(id)?.def;
-  for (const role of ROLES) {
-    const held = inRole(board.plugins, registeredClass, role);
-    if (held.length > 1) {
-      failures.push(`The board holds the ${ROLE_NAMES[role]} ${quoted(held)}, where it holds one at most.`);
+    for (const failure of cls.validate(state)) {
+      failures.push(`The state of the plugin "${id}" ${failure}`);
     }
   }
 }
 
-const ROLE_NAMES: Readonly<Record<Role, string>> = {
-  frontend: "frontends",
-  storage: "storage plugins",
-};
-
-type Kind = "string" | "string or null" | "boolean or null" | "object" | "array" | "value";
+type Kind = "string" | "string or null" | "boolean or null" | "object" | "array";
 
 // What an object of core's lacks or holds beyond its properties, which a
 // delta built in plain JS or by a model may get wrong.
@@ -288,8 +268,6 @@ function shape(value: unknown, fields: Readonly<Record<string, Kind>>): string[]
 
 function fits(x: unknown, kind: Kind): boolean {
   switch (kind) {
-    case "value":
-      return x !== undefined;
     case "array":
       return Array.isArray(x);
     case "object":

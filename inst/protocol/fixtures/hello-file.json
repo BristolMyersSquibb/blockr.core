@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app that serves a JSON board, as serve(\"cars.json\") does. R passes the file's text on as it is, in place of a board an app script built, and loads nothing for it, and the client opens it as it opens any JSON board, running the migrations of the packages whose version the file records differs from the one R loaded.",
+  "description": "The handshake of an app that serves a JSON board, as serve(\"cars.json\") does. R passes the file's text on as it is, in place of a board an app script built, and loads nothing for it, beside the app's plugins, which the file never sets, and the client opens it with them as it opens any JSON board, running the migrations of the packages whose version the file records differs from the one R loaded.",
   "client": [
     {
       "id": "1",
@@ -114,7 +114,10 @@
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           }
         },
-        "plugin_versions": {},
+        "plugins": {
+          "blockr.core-basic_frontend_plugin": { "name": "Basic frontend", "version": 1 },
+          "blockr.core-file_storage_plugin": { "name": "File storage", "version": 1 }
+        },
         "option_versions": {},
         "renderers": {},
         "lock": { "board": false, "load": false },

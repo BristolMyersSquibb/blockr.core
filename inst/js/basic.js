@@ -48,10 +48,6 @@ var state = {
   type: "object",
   description: "Values of a block's state args, which the schema of its class types."
 };
-var pluginId = {
-  ...id,
-  description: "The id of a plugin, unique among the board's plugins."
-};
 
 // srcts/commands/core.ts
 var newBlock = {
@@ -949,7 +945,7 @@ function byCategory(entries) {
 import { useCallback as useCallback6 } from "react";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 function placed(core) {
-  return Object.entries(core.plugins.running()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
+  return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
 }
 function Plugins() {
   const { core } = useFrontEnd();
@@ -1127,7 +1123,8 @@ function Toolbar({ board, show }) {
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState8(false);
   const locked2 = core.lock.board;
-  const opens = !core.lock.load;
+  const storage = core.plugins.storage();
+  const opens = !core.lock.load && storage !== void 0;
   function step(back) {
     try {
       if (back) core.store.undo();
@@ -1138,14 +1135,14 @@ function Toolbar({ board, show }) {
   }
   async function save() {
     try {
-      await core.plugins.storage().save(core.store.save());
+      await storage?.save(core.store.save());
     } catch (error) {
       notices.failed(error);
     }
   }
   async function open() {
     try {
-      const text = await core.plugins.storage().open();
+      const text = await storage?.open() ?? null;
       if (text !== null) await core.store.open(text);
     } catch (error) {
       notices.failed(error);
@@ -1250,7 +1247,7 @@ function Toolbar({ board, show }) {
           children: "Redo"
         }
       ),
-      /* @__PURE__ */ jsx10(
+      storage === void 0 ? null : /* @__PURE__ */ jsx10(
         "button",
         {
           type: "button",

@@ -5,7 +5,7 @@ export { createStore } from "./store.ts";
 export type { Change, Store, StoreOptions } from "./store.ts";
 export { isDeltas } from "./delta.ts";
 export type { BlockMod, Delta, Origin, Patch, Values } from "./delta.ts";
-export { pathFromSegments, pluginIdFromPath, segmentsFromPath } from "./patch.ts";
+export { pathFromSegments, pluginClassFromPath, segmentsFromPath } from "./patch.ts";
 export { inRole } from "./plugins.ts";
 export type {
   Migration,

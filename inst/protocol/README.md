@@ -54,7 +54,7 @@ R replies `ok` with:
 | `block_registry` | the block registry's entries, by registry id, each as `RegistryEntry` in [`srcts/types/registry.ts`](../../srcts/types/registry.ts) gives it ([Registration](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#registration)), with the renderer of the class's outputs in `renderer` where R knows it ([Outputs](#outputs)) |
 | `startup_modules` | the startup module of every package R has loaded that declares one, each as `{ "package": "...", "module": "...", "css": "..." }`, in the order in which the packages declared them, which is the order in which their namespaces loaded, so that each package's comes after those of the packages its NAMESPACE imports ([Startup modules](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#startup-modules)) |
 | `modules` | where each module that packages offer each other is served, by the module's id, as `{ "module": "...", "css": "..." }`, among them those that plugin classes name |
-| `plugin_versions` | the version of the state of each plugin class that a loaded package gives one through its method of `plugin_version()`, by the class's id, as `{ "blockr.dock-dock_plugin": 2 }`, where a plugin class that it lacks is at version 1 ([A plugin](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#a-plugin)) |
+| `plugins` | the app's plugins, which run on every board that the client opens, each under the id of its class, with the class's name, which titles its panel, and the version of the class's state, which the class's method of `plugin_version()` gives, 1 for a class without one, as `{ "blockr.core-basic_frontend_plugin": { "name": "Basic frontend", "version": 1 } }`, in the order of the rows that `serve()` takes, and none for a block that `serve()` serves alone ([Which plugins a board has](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#which-plugins-a-board-has)) |
 | `option_versions` | the version of the shape of each board option's value that a loaded package gives one through its method of `board_option_version()`, by the board option's id, as `{ "grid_gap": 2 }`, where a board option that it lacks is at version 1 ([Migrations](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#migrations)) |
 | `renderers` | the renderers that the app names for board options in the blockr option `renderers`, by the renderer's id, each with the board option it draws in `option`, while the renderer of an output comes in the output ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)) |
 | `lock` | the locks that the app sets, as `{ "board": true, "load": true }`, with `false` for a lock that the app does not set ([Locked boards](#locked-boards)) |
@@ -98,14 +98,15 @@ The client opens that board with R's reply to that `hello`.
 Where that reply names a package at another version than the page loaded, the client opens the board with the reply that it used before ([The handshake](#the-handshake)).
 
 The client has initialized the startup modules of the packages that R loaded, which register their plugin classes, before it opens the opening board ([Plugins](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#plugins)).
-The plugins of the opening board in the reply to `hello`, the board that the app script built, are the plugins of every board that the client opens ([Which plugins a board has](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#which-plugins-a-board-has)).
-So the client keeps each plugin of the JSON board that the opening board holds under the same id and of the same class, where a startup module registered the class, with its name and its state, and drops the others, naming each with the package that the id of its class gives.
-It migrates what the JSON board holds in an older shape, by the versions of the shapes that it records: the state of each plugin that it keeps whose class's version in `versions` is below the one that R gives in `plugin_versions`, the state of each block whose `version` is below the one that its class's entry in the block registry gives, and the value of each board option whose `version` is below the one that R gives in `option_versions`, with the migrations that the startup modules registered.
+The app's plugins in the reply to `hello` run on every board that the client opens, the opening board among them, whatever plugins' state a board holds ([Which plugins a board has](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#which-plugins-a-board-has)).
+So the client keeps the state that the JSON board holds under the id of the class of each of the app's plugins, where a startup module registered the class and the class has a state.
+It drops every other state, and names each plugin whose state it drops by the id of its class, with the package that the id gives, but for a plugin that the app runs whose class keeps no state, which it drops unnamed.
+It migrates what the JSON board holds in an older shape, by the versions of the shapes that it records: the state of each plugin that it keeps whose class's version in `versions` is below the one that the app's plugin of the class carries in `plugins`, the state of each block whose `version` is below the one that its class's entry in the block registry gives, and the value of each board option whose `version` is below the one that R gives in `option_versions`, with the migrations that the startup modules registered.
 It names each package that the JSON board lists and R did not load, with the version that the JSON board records.
-It drops each block whose class the block registry lacks, with its links, its places in stacks and what the board's plugins keep about it, naming the package to install from its registry id.
+It drops each block whose class the block registry lacks, with its links, its places in stacks and what the app's plugins keep about it, naming the package to install from its registry id.
 It drops each board option value that no package registered, naming the board option by its id.
-It then gives the board each other plugin of the opening board whose class a startup module registered, under its id and name, with its class's default state.
-So a board that a startup module names, or that the user opens, holds the plugins of the board that the app script built, each with the state that the board gives it where it gives one, and the client replaces its board.
+It then gives its class's default state to each other plugin of the app whose class a startup module registered and has a state.
+So a board that a startup module names, or that the user opens, runs the app's plugins, each with the state that the board gives it where it gives one, and the client replaces its board.
 The client refuses a board that holds a value that its schema refuses once migrated, and names every such value.
 The schema of a block's state is the one in its class's entry of the block registry, the schema of a plugin's state is its class's, and the schema of a board option's value is its definition's.
 A file of today's stack is converted to a JSON board before it is opened, outside core.
@@ -204,11 +205,10 @@ Each of core's types names the request in `name`, such as `"n_max"`:
 | `output_class` | an output class | among those that the method of `output_requests()` for the class vector of the latest output that R made from the result that `output` names, as `{ "block": "c", "revision": 7 }`, gives, a subclass's before its class's | `output`, `options` and `params` |
 | `renderer` | a renderer of an output class | among the requests of the renderer that draws that output, which has to be the one that `renderer` names, as `"blockr.ui-table_preview"`, never among those of the output class | `renderer`, `output`, `options` and `params` |
 | `option` | a board option | among the requests that `board_option_requests()` returns for the board option that `option` names, by its class `{id}_option`, for which the package that ships the board option has a method | `option` |
-| `plugin` | a plugin class | among the requests that `plugin_requests()` returns for the plugin class whose id `plugin` names, as `"blockr.md-md_plugin"`, called on an object of class `c("{name}_plugin", "plugin")` that R makes from the id, for which the package of the class has a method | `plugin` and `reads` |
+| `plugin` | a plugin class | among the requests that `plugin_requests()` returns for the plugin class whose id `plugin` names, as `"blockr.md-md_plugin"`, which an available package lists, called on the plugin that the class's constructor makes, for which the package of the class has a method | `plugin` and `reads` |
 
-A plugin's request belongs to a plugin of the board.
-The code that sends it names the plugin by its id, through `CoreApi.request()`.
-The request names the plugin's class in `plugin`, by the class's id, since R holds no board and finds the request by the class ([A plugin's requests](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#a-plugins-requests)).
+A plugin's request belongs to one of the app's plugins.
+The code that sends it names the plugin by the id of its class, through `CoreApi.request()`, and the request names it so in `plugin`, by which R finds the request, since R holds no board ([A plugin's requests](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#a-plugins-requests)).
 
 The properties of core's types:
 
@@ -303,7 +303,7 @@ R then drops every result and every queued request, replying `cancelled` to each
 An app sets three locks, each on its own ([Locked boards and the properties of blocks](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.11#three-locks)):
 
 - The load lock, the blockr option `lock_load`, which an app sets as `blockr.lock_load` and a deployment as `BLOCKR_LOCK_LOAD`, fixes the app to its opening board.
-- The board lock, the blockr option `locked`, which an app sets as `blockr.locked` and a deployment as `BLOCKR_LOCKED`, fixes what every board that the app shows holds: its blocks and links, its name, every block's name and `locked`, its stacks and the names of its plugins.
+- The board lock, the blockr option `locked`, which an app sets as `blockr.locked` and a deployment as `BLOCKR_LOCKED`, fixes what every board that the app shows holds: its blocks and links, its name, every block's name and `locked`, and its stacks.
 - A block's `locked` fixes the block's state under the board lock: `true` locks the block, `false` leaves it open, and `null`, which a block holds unless a script or a command sets another, follows the board lock.
 
 Each lock is off unless the app or the deployment sets it.
@@ -311,7 +311,7 @@ R sends the locks with its reply to `hello`, as `{ "board": true, "load": true }
 
 The client keeps to the locks.
 Under the load lock, its store opens no JSON board's text, so that the app shows its opening board alone.
-Under the board lock, its store refuses every change but one to the state of a block that the board lock leaves open, one to a board option's value and one inside a plugin's state, which each plugin locks itself, and a frontend draws no control for what the locks fix.
+Under the board lock, its store refuses every change but one to the state of a block that the board lock leaves open, one to a board option's value and one to a plugin's state, which each plugin locks itself, and a frontend draws no control for what the locks fix.
 Board options stay open on a locked board, since none reaches what R evaluates.
 
 That stops only a client that plays by the rules, so R refuses what it can tell breaks the board lock or a block's lock, with an `error` whose condition names the lock and has no phase, as the fixture [`evaluate-locked`](fixtures/evaluate-locked.json) shows.

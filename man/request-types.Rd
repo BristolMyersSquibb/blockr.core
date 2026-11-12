@@ -18,8 +18,8 @@ plugin_requests(x, ...)
 }
 \arguments{
 \item{x}{A board option, for \code{board_option_requests()}, and for
-\code{plugin_requests()}, a plugin, which R makes from the ID of the plugin's
-class as an object of class \code{c("{name}_plugin", "plugin")}}
+\code{plugin_requests()}, a plugin, which the constructor of the plugin's class
+makes}
 
 \item{...}{Generic consistency}
 }
@@ -59,9 +59,10 @@ the board option that \code{option} names, by the board option's class,
 \item The type \code{plugin}, a plugin's request,
 which a plugin sends through \code{CoreApi.request()} in the client.
 R finds it among the requests that \code{plugin_requests()} returns for the
-plugin class whose ID \code{plugin} names, as \code{blockr.md-md_plugin}.
-R calls the method on an object of class \code{c("{name}_plugin", "plugin")},
-which it makes from the ID, as \code{c("md_plugin", "plugin")}.
+plugin class whose ID \code{plugin} names, as \code{blockr.md-md_plugin}, which an
+available package lists (see \code{\link[=available_plugins]{available_plugins()}}).
+R calls the method on the plugin that the class's constructor makes,
+called without args.
 }
 
 No package adds a type of its own,

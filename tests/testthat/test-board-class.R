@@ -166,19 +166,20 @@ test_that("R draws the IDs of blocks, links and stacks a script leaves out", {
   expect_lt(match("a", topo_sort(board)), match("b", topo_sort(board)))
 })
 
-test_that("a board holds its plugins, each by its name or its class's", {
+test_that("a board holds the state of its plugins, by their classes' ids", {
 
   notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
   grid <- plugin_ctor(function() NULL, c("grid_plugin", "frontend_plugin"))
 
-  board <- new_board(
-    plugins = list(grid(), todo = notes("To do"), done = notes("Done"))
-  )
+  board <- new_board(plugins = list(grid(), notes("To do")))
 
-  expect_identical(names(board_plugins(board)), c("grid", "todo", "done"))
+  expect_identical(
+    names(board_plugins(board)),
+    c("blockr.test-grid_plugin", "blockr.test-notes_plugin")
+  )
   expect_true(all(lgl_ply(board_plugins(board), is_plugin)))
   expect_identical(
-    plugin_state(board_plugins(board)$todo),
+    plugin_state(board_plugins(board)[["blockr.test-notes_plugin"]]),
     list(text = "To do")
   )
 
@@ -187,54 +188,45 @@ test_that("a board holds its plugins, each by its name or its class's", {
   expect_identical(board_plugins(new_board()), set_names(list(), character()))
 
   # A board holds a plugin given alone
-  expect_identical(names(board_plugins(new_board(plugins = grid()))), "grid")
+  expect_identical(
+    names(board_plugins(new_board(plugins = grid()))),
+    "blockr.test-grid_plugin"
+  )
+
+  # A board holds two frontends, since the app says which plugins run
+  dock <- plugin_ctor(function() NULL, c("dock_plugin", "frontend_plugin"))
+
+  expect_length(board_plugins(new_board(plugins = list(dock(), grid()))), 2L)
 
   # A board takes no other component and no class
   expect_error(new_board(views = list()), "unused argument")
   expect_error(new_board(class = "dock_board"), "unused argument")
 })
 
-test_that("a board refuses plugin IDs that break the rules of every ID", {
+test_that("a board refuses names and two plugins of one class", {
 
   notes <- plugin_ctor(function() NULL, "notes_plugin")
 
-  # Two plugins of one class need names of their own
   expect_error(
     new_board(plugins = list(notes(), notes())),
-    "notes",
-    class = "board_plugin_id_invalid"
+    "blockr.test-notes_plugin",
+    class = "board_plugins_invalid"
   )
 
   expect_error(
-    new_board(plugins = list(`42` = notes())),
-    "\"42\"",
-    class = "board_plugin_id_invalid"
+    new_board(plugins = list(todo = notes())),
+    "todo",
+    class = "board_plugins_invalid"
   )
 
   expect_error(new_board(plugins = list(1L)), class = "board_plugins_invalid")
   expect_error(new_board(plugins = "notes"), class = "board_plugins_invalid")
-})
 
-test_that("a board holds at most one frontend and one storage plugin", {
+  # A board that holds a plugin under another id than its class's is invalid
+  board <- new_board(plugins = notes())
+  names(board[["plugins"]]) <- "notes"
 
-  dock <- plugin_ctor(function() NULL, c("dock_plugin", "frontend_plugin"))
-  grid <- plugin_ctor(function() NULL, c("grid_plugin", "frontend_plugin"))
-  session <- plugin_ctor(function() NULL, c("session_plugin", "storage_plugin"))
-  drive <- plugin_ctor(function() NULL, c("drive_plugin", "storage_plugin"))
-
-  expect_silent(new_board(plugins = list(dock(), session())))
-
-  expect_error(
-    new_board(plugins = list(dock(), grid())),
-    "frontend",
-    class = "board_plugins_invalid"
-  )
-
-  expect_error(
-    new_board(plugins = list(session(), drive())),
-    "storage plugin",
-    class = "board_plugins_invalid"
-  )
+  expect_error(validate_board(board), class = "board_plugins_invalid")
 })
 
 test_that("validate_board checks each collection, not just cross-relations", {
@@ -299,7 +291,7 @@ test_that("a board has a compact str_value()", {
 
   expect_identical(
     lines[length(lines)],
-    "plugins: notes <notes_plugin> \"Notes\""
+    "plugins: <notes_plugin> blockr.test-notes_plugin"
   )
 })
 
@@ -307,11 +299,11 @@ test_that("a board prints its plugins", {
 
   notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
 
-  out <- format(new_board(plugins = list(todo = notes("To do")), name = "B"))
+  out <- format(new_board(plugins = notes("To do"), name = "B"))
 
   expect_identical(out[1L], "<board>")
   expect_true("Plugins[1]:" %in% out)
-  expect_true("todo<notes_plugin> \"Notes\"" %in% out)
+  expect_true("<notes_plugin> blockr.test-notes_plugin" %in% out)
   expect_true("text: To do" %in% out)
 })
 

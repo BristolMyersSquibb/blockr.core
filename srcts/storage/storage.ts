@@ -1,9 +1,10 @@
-// Core's own storage plugin, as Storage has it
+// The storage of core's own storage plugin, as Storage has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#storage):
 // it saves a board as a file that the browser downloads, and opens a file that
-// the user picks, as today's `preserve_board` plugin does. No board holds it:
-// it saves and opens for every board that holds no storage plugin, keeps no
-// state and has no `ui`, since a frontend draws the controls that call it.
+// the user picks, as today's `preserve_board` plugin does. The plugin's class,
+// blockr.core-file_storage_plugin, keeps no state and has no `ui`, since a
+// frontend draws the controls that call it, and an app runs it unless another
+// of its plugins is a storage plugin.
 // The store writes the text of the board's file and opens such a text, so core
 // only moves the text between the page and the user's disk.
 

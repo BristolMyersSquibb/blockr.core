@@ -3,10 +3,41 @@
 #' The generic `serve()` starts an app, as an app script does at its top level.
 #' Its methods take a board, the path of a JSON board, or a single block, and
 #' return a Shiny app.
-#' The app's page holds core's client, which draws the board with the board's
-#' frontend, or with core's basic frontend where the board holds none.
+#' The app's page holds core's client, which draws the board with the app's
+#' frontend.
 #' The app's server function hands what the client sends to the evaluator of
 #' the session, which evaluates the blocks.
+#'
+#' Which plugins run is the app's choice, never a board's.
+#' The methods for a board and for a path take the app's plugins in `plugins`,
+#' which run on every board that the app opens, the opening board among them,
+#' each with the state that the board holds for it.
+#' They default to every plugin class that an available package lists, as
+#' [available_plugins()] gives them.
+#' A script narrows them with plain R, as
+#' `subset(available_plugins(), package != "blockr.session")` runs every
+#' plugin but those of blockr.session, or gives the path of a YAML file that
+#' lists packages and, for each, the ids of the plugin classes to run, all of
+#' them where it lists none:
+#'
+#' ```yaml
+#' - blockr.core:
+#'   - basic_frontend_plugin
+#' - blockr.dag
+#' ```
+#'
+#' R reads the file into the same rows, and a package that the file leaves out
+#' runs no plugin.
+#' Core's basic frontend runs only where no other row is a frontend, and core's
+#' storage plugin only where no other row is a storage plugin (see
+#' [new_plugin()]).
+#' A row that names a class that no available package lists stops the app,
+#' naming it, and so do rows that name one class twice, or that then hold no
+#' frontend, two frontends or two storage plugins.
+#' A board that the script builds gives only the state of its plugins, and a
+#' board with a plugin of a class that the app does not run stops the app too,
+#' naming the class.
+#' A block that `serve()` serves alone runs no plugin.
 #'
 #' For a board, R writes the board's JSON once, as `serve()` is called, and
 #' sends it to the client as each session starts.
@@ -27,8 +58,9 @@
 #' For the path of a JSON board, R reads only the file's format, and sends the
 #' file's text as it is, for the client to open.
 #' It loads no package for the file.
-#' The board's ID, its plugins and its board options come from the board (see
-#' [new_board()]), and the client reads the query of the page's URL itself.
+#' The board's ID, the state of its plugins and its board options come from
+#' the board (see [new_board()]), and the client reads the query of the page's
+#' URL itself.
 #' Where the board lock and the load lock are both on, R reads the board's
 #' blocks and links once, as `serve()` is called, and holds every evaluation
 #' to them.
@@ -63,6 +95,9 @@
 #' @param x A board, the path of a JSON board, or a block
 #' @param ... For a block, its data where `data` is empty.
 #'   R ignores it otherwise, with a warning.
+#' @param plugins The plugins that the app runs, as rows with the package of
+#'   each plugin's class in `package` and the class's id in `id`, such as those
+#'   of [available_plugins()], or as the path of a YAML file that lists them
 #'
 #' @examples
 #' if (interactive()) {
@@ -95,17 +130,20 @@ serve <- function(x, ...) {
 
 #' @rdname serve
 #' @export
-serve.board <- function(x, ...) {
+serve.board <- function(x, ..., plugins = available_plugins()) {
   check_board_args(substitute(list(...)), "a board")
+  plugins <- app_plugins(plugins)
+  check_board_plugins(x, plugins)
   register_board_classes(x)
-  serve_app(encode_message(blockr_ser(x)))
+  serve_app(encode_message(blockr_ser(x)), plugins = plugins)
 }
 
 #' @rdname serve
 #' @export
-serve.character <- function(x, ...) {
+serve.character <- function(x, ..., plugins = available_plugins()) {
   check_board_args(substitute(list(...)), "the path of a JSON board")
-  serve_app(read_board_json(x))
+  plugins <- app_plugins(plugins)
+  serve_app(read_board_json(x), plugins = plugins)
 }
 
 #' @param data The block's data, a list by input
@@ -132,6 +170,25 @@ serve.block <- function(x, ..., data = list()) {
   register_board_classes(board)
 
   serve_app(encode_message(blockr_ser(board)), data, alone = TRUE)
+}
+
+# Refuses a board that the script builds with a plugin of a class that the app
+# does not run, since the client would drop its state, naming the class of
+# each such plugin. The app's plugins are given by the IDs of their classes.
+check_board_plugins <- function(board, plugins) {
+
+  unknown <- setdiff(names(board_plugins(board)), names(plugins))
+
+  if (length(unknown)) {
+    blockr_abort(
+      "The board holds {qty(unknown)}{?a plugin/plugins} of the ",
+      "class{?es} {unknown}, which the app does not run, so that the board ",
+      "would open without {?its/their} state.",
+      class = "board_plugins_invalid"
+    )
+  }
+
+  invisible()
 }
 
 # Registers the class of each block on a board that the block registry lacks,
@@ -195,6 +252,8 @@ check_outside_classes <- function(classes) {
 # The app that `serve()` returns, for the opening board given as JSON, and
 # for a block that `serve()` serves alone, with the data that R binds to the
 # block's inputs.
+# The app's plugins, which `app_plugins()` gives, go to the evaluator of every
+# session, which sends them in its reply to `hello`.
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -205,7 +264,8 @@ check_outside_classes <- function(classes) {
 # set the blockr options, whatever core logged before.
 # It works out the logger afresh, so that a logger that cannot work stops the
 # app here (see `write_log()`).
-serve_app <- function(board, data = list(), alone = FALSE) {
+serve_app <- function(board, data = list(), alone = FALSE,
+                      plugins = list()) {
 
   reset_logging()
   get_logger()
@@ -218,7 +278,7 @@ serve_app <- function(board, data = list(), alone = FALSE) {
     ui = function(req) serve_page(alone),
     server = function(input, output, session) {
 
-      ev <- new_evaluator(board, data, lock)
+      ev <- new_evaluator(board, data, lock, plugins)
 
       shiny::exportTestValues(result = latest_results(ev, alone))
 
@@ -320,8 +380,8 @@ page_script <- function(runtime, alone = FALSE, test = NULL) {
   )
 }
 
-# Refuses every argument but `x` of the method of `serve()` for a board or for
-# the path of a JSON board.
+# Refuses every argument but `x` and `plugins` of the method of `serve()` for a
+# board or for the path of a JSON board.
 # The arguments come as the call `list(...)`, unevaluated, so that one that
 # names something gone, such as `local_loader()`, fails here too.
 # The error says where each argument of today's `serve()` went.
@@ -335,10 +395,6 @@ check_board_args <- function(args, what) {
 
   moved <- c(
     id = "A board holds its ID, which `new_board()` takes as `id`.",
-    plugins = paste(
-      "A board holds its plugins, which `new_board()` takes as",
-      "`plugins`."
-    ),
     options = paste(
       "A board holds the values of its board options, which `new_board()`",
       "takes as `options`."
@@ -350,8 +406,8 @@ check_board_args <- function(args, what) {
   nms <- arg_labels(nms)
 
   blockr_abort(
-    "For {what}, `serve()` takes no argument but `x`, and it was given ",
-    "{nms}.",
+    "For {what}, `serve()` takes no argument but `x` and `plugins`, and it ",
+    "was given {nms}.",
     if (length(moved)) paste0(" ", paste(moved, collapse = " ")) else "",
     class = "serve_args_invalid"
   )

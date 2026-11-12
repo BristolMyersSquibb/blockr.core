@@ -1,24 +1,24 @@
 # What R tells the client about the packages it has loaded, in its reply to
 # `hello`, for neither side to edit: the block registry's entries, each with
 # the renderer of its class's outputs, where R serves the startup modules and
-# the modules that packages offer each other, the versions of the plugin
-# classes and of the board options that packages give them, the renderers that
-# the app names for board options, and the versions of the packages that all
-# of these come from.
+# the modules that packages offer each other, the app's plugins, `plugins`,
+# each under the ID of its class with the class's name and version, as
+# `app_plugins()` gives them, the versions of the board options that packages
+# give them, the renderers that the app names for board options, and the
+# versions of the packages that all of these come from.
 # R loads no package for it: the app's script has loaded them, and loading
 # them filled the block registry, declared their modules and registered their
 # methods.
 # These are the properties `packages`, `block_registry`, `startup_modules`,
-# `modules`, `plugin_versions`, `option_versions` and `renderers` of
+# `modules`, `plugins`, `option_versions` and `renderers` of
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
 # reply's JSON.
 # Building them builds no block.
-loaded_reply <- function() {
+loaded_reply <- function(plugins = list()) {
 
   entries <- available_blocks()
   startup <- startup_modules()
   modules <- lapply(set_names(nm = list_modules()), get_module)
-  plugins <- plugin_versions()
   renderers <- option_renderers()
 
   coercions <- output_coercions()
@@ -41,7 +41,7 @@ loaded_reply <- function() {
     block_registry = as_json_object(Map(registry_entry_reply, entries, drawn)),
     startup_modules = unname(lapply(startup, startup_module_reply)),
     modules = as_json_object(lapply(modules, declared_module_reply)),
-    plugin_versions = plugins,
+    plugins = as_json_object(plugins),
     option_versions = option_versions(),
     renderers = as_json_object(lapply(renderers, option_renderer_reply))
   )

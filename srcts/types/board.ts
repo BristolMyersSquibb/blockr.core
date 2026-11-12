@@ -11,10 +11,11 @@ export type BlockId = string;
 export type LinkId = string;
 export type StackId = string;
 export type OptionId = string;
-export type PluginId = string;
 
-// A plugin class's id, `{pkg}-{name}_plugin`, such as "blockr.dag-dag_plugin",
-// which names the package that registers the class from its startup module.
+// A plugin class's id, `{pkg}-{id}`, such as "blockr.dag-dag_plugin", which
+// names the package that registers the class from its startup module. An app
+// runs at most one plugin of each class, so the id of its class identifies a
+// plugin.
 export type PluginClassId = string;
 
 // A block class's id in the block registry, `{pkg}-{name}`, such as
@@ -22,8 +23,8 @@ export type PluginClassId = string;
 export type RegistryId = string;
 
 // A board has no class of its own. What a package adds to a board, such as the
-// dock's views, is the state of one of its plugins, under the plugin's id in
-// `plugins`, which core carries without reading it.
+// dock's views, is the state of one of its plugins, under the id of the
+// plugin's class in `plugins`, which core carries without reading it.
 export interface Board {
   readonly id: string;
   readonly name: string;
@@ -32,8 +33,11 @@ export interface Board {
   readonly stacks: Readonly<Record<StackId, Stack>>;
   // Each board option's value by the board option's id, as { n_rows: 50 }.
   readonly options: Readonly<Record<OptionId, Json>>;
-  // Each plugin by its id, as { dag: { class: "blockr.dag-dag_plugin", ... } }.
-  readonly plugins: Readonly<Record<PluginId, Plugin>>;
+  // The state of each plugin whose class has `state`, by the id of the
+  // plugin's class, in the shape that the class's schema gives, as
+  // { "blockr.dag-dag_plugin": { positions: {} } }. The app says which plugins
+  // run, so the board holds nothing for a plugin whose class keeps no state.
+  readonly plugins: Readonly<Record<PluginClassId, Json>>;
 }
 
 export interface Block {
@@ -46,15 +50,6 @@ export interface Block {
   // board lock locks the block. The store's locked() says which blocks a lock
   // fixes, so that no frontend reads null as open.
   readonly locked: boolean | null;
-}
-
-// A plugin, which names its class by the class's id and keeps its state in the
-// shape that its class's schema gives, such as the DAG's positions.
-export interface Plugin {
-  readonly class: PluginClassId;
-  // What the user calls it, which titles its panel, as "Notes".
-  readonly name: string;
-  readonly state: Json;
 }
 
 export interface Link {
@@ -90,8 +85,8 @@ export interface JsonBoard {
   readonly format: number;
   readonly packages: Readonly<Record<string, string>>;
   readonly board: Omit<Board, "blocks" | "options"> & {
-    // The version of the state of each plugin class whose plugins the board
-    // holds, by the class's id, as R's `plugin_version()` gives it.
+    // The version of the state of each plugin class whose plugin's state the
+    // board holds, by the class's id, as R's `plugin_version()` gives it.
     readonly versions: Readonly<Record<PluginClassId, number>>;
     readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
     readonly options: Readonly<Record<OptionId, JsonOption>>;

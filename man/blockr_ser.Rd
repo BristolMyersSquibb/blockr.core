@@ -71,18 +71,22 @@ package that the board's content comes from, by package.
 Those are the packages that the IDs of the plugins' classes and of the
 blocks' classes name, each the part of the ID before its first \code{-}.
 The ID of a block class that an app script defines names no package.
-The board holds its \code{id} and \code{name}, and its blocks, links, stacks and
-plugins, each by ID, in their order.
-In \code{versions}, it holds the version of each plugin class whose plugins it
-holds, by the class's ID (see \code{\link[=plugin_version]{plugin_version()}}), and each block holds the
-version of its class's state in \code{version} (see \code{\link[=new_block_class]{new_block_class()}}), so that
-the client migrates by the versions of the shapes that a JSON board holds.
+The board holds its \code{id} and \code{name}, its blocks, links and stacks, each by
+ID, in their order, and the state of its plugins, by the IDs of their
+classes.
+In \code{versions}, it holds the version of each plugin class whose plugin's
+state it holds, by the class's ID (see \code{\link[=plugin_version]{plugin_version()}}), and each block
+holds the version of its class's state in \code{version} (see
+\code{\link[=new_block_class]{new_block_class()}}), so that the client migrates by the versions of the
+shapes that a JSON board holds.
 It holds each board option that the script gives a value, by ID, as its
 \code{value} with the \code{version} of the value's shape (see
 \code{\link[=board_option_version]{board_option_version()}}), and no other.
 
-A plugin is written by the ID of its class, with its name and its state
-(see \code{\link[=new_plugin]{new_plugin()}}).
+A plugin is written as its state alone, under the ID of its class (see
+\code{\link[=new_plugin]{new_plugin()}}), and a plugin whose constructor gives it no state is not
+written at all, so that no board names a plugin that keeps nothing, such as
+core's basic frontend.
 R checks no plugin's state, since the plugin's class is defined in the
 client, which checks the state against the class's schema as it opens the
 board.
@@ -105,9 +109,10 @@ A block's state is written by the schema that its class's UI ships (see
 \code{\link[=register_block]{register_block()}}), and bare where it ships none.
 The state of each plugin and the value of each board option are written by
 the schema that a package puts next to its startup module in a file of its
-own, named by the class in R of the plugin or of the board option, as
-\code{dag_plugin.schema.json} or \code{n_rows_option.schema.json}, and core next to
-its runtime for its own board options (see \code{\link[=register_startup_module]{register_startup_module()}}).
+own, named by the id of the plugin's class or by the class in R of the board
+option, as \code{dag_plugin.schema.json} or \code{n_rows_option.schema.json}, and core
+next to its runtime for its own board options (see
+\code{\link[=register_startup_module]{register_startup_module()}}).
 Each is written bare where no package gives one.
 
 A board that the format cannot hold fails as it is written, and so as the

@@ -3,7 +3,6 @@ export type BlockId = string;
 export type LinkId = string;
 export type StackId = string;
 export type OptionId = string;
-export type PluginId = string;
 export type PluginClassId = string;
 export type RegistryId = string;
 export interface Board {
@@ -13,18 +12,13 @@ export interface Board {
     readonly links: Readonly<Record<LinkId, Link>>;
     readonly stacks: Readonly<Record<StackId, Stack>>;
     readonly options: Readonly<Record<OptionId, Json>>;
-    readonly plugins: Readonly<Record<PluginId, Plugin>>;
+    readonly plugins: Readonly<Record<PluginClassId, Json>>;
 }
 export interface Block {
     readonly registry_id: RegistryId;
     readonly state: Readonly<Record<string, Json>>;
     readonly name: string;
     readonly locked: boolean | null;
-}
-export interface Plugin {
-    readonly class: PluginClassId;
-    readonly name: string;
-    readonly state: Json;
 }
 export interface Link {
     readonly from: BlockId;

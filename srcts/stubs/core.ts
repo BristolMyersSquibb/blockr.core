@@ -4,15 +4,16 @@
 // a startup module runs in a test runner on a board, needing neither R nor a
 // browser (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
 //
-// Core starts as it does on the page, with core's board options and their UIs:
-// it initializes the startup modules given, in their order, opens the board of
-// R's reply to hello, draws it with the module given for its frontend where
-// the test gives an element to draw in, and runs its plugins, their start,
+// Core starts as it does on the page, with core's board options and their UIs
+// and the classes of core's own plugins: it initializes the startup modules
+// given, in their order, opens the board of R's reply to hello, draws it with
+// the module given for the app's frontend where the test gives an element to
+// draw in, and runs the app's plugins, which the reply names, their start,
 // update and migrate included, with the plugin classes that the startup
-// modules register. The frontend is the board's plugin whose class has
-// `frontend`, or core's basic frontend where the board holds none. A board
-// that the test opens later through the store's open() starts core again, as
-// on the page.
+// modules register. The frontend is the app's plugin whose class has
+// `frontend`, core's basic frontend for the reply of the fixture hello. A
+// board that the test opens later through the store's open() starts core
+// again, as on the page.
 // R, played from the fixtures, replies to the client's hello with the
 // reply of the fixture hello unless given, and drops what it holds at a later
 // hello, as R does. It evaluates every block as ok, makes a block's output
@@ -92,7 +93,7 @@ export interface StubCoreOptions {
   // What each module that core imports exports, by the URL that R serves it
   // at or by the id of a module that packages offer each other, such as the
   // `ui` or the `frontend` of a plugin class, or "blockr.core-basic", core's
-  // basic frontend, which draws a board that holds no frontend. R serves a
+  // basic frontend, which draws the board of a core app. R serves a
   // module that the test gives by an id that R's reply does not name as well.
   // A module that the test leaves out fails to load.
   readonly modules?: Readonly<Record<string, unknown>>;

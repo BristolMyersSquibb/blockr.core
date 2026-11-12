@@ -1,19 +1,27 @@
-// The plugins of the open board on the CoreApi for tests: which run and of
-// which class, the storage that a frontend's save and open controls call,
-// mounting a plugin's UI where a frontend places it, and what a frontend
-// offers other plugins, the notes they send and which block has focus.
+// The app's plugins on the CoreApi for tests: which run and of which class, as
+// R's reply to hello names them, the storage that a frontend's save and open
+// controls call, mounting a plugin's UI where a frontend places it, and what a
+// frontend offers other plugins, the notes they send and which block has
+// focus.
 
 import { describe, expect, test } from "vitest";
+import type { HelloReply } from "../protocol/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
 import { pluginUi, registering } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
-import { withPlugins } from "../testing/store.ts";
-import type { Plugin, PluginId } from "../types/board.ts";
+import { withoutPlugins, withPlugins } from "../testing/store.ts";
+import type { GivenPlugin } from "../testing/store.ts";
 import type { CoreApi, Note } from "../types/core-api.ts";
 
+// The classes of core's own plugins, which the app of the fixture hello runs.
+const BASIC = "blockr.core-basic_frontend_plugin";
+const FILE = "blockr.core-file_storage_plugin";
+
 const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: "blockr.test-notes" };
+// A class whose plugin draws with the module of the notes' class.
+const report: PluginClass = { id: "blockr.test-report_plugin", ui: "blockr.test-notes" };
 const saving: PluginClass = {
   id: "blockr.test-session_plugin",
   storage: { save: () => Promise.resolve(), open: () => Promise.resolve(null) },
@@ -27,18 +35,18 @@ const zoom: Option = {
   ui: { render: () => undefined },
 };
 
-const plugin = (cls: PluginClass, name: string): Plugin => ({ class: cls.id, name, state: {} });
-
-// The CoreApi for tests on the board of the fixture hello, which holds the
-// plugins given, of the classes given, which blockr.test registers.
+// The CoreApi for tests on the board of the fixture hello, whose app runs core's
+// plugins and the plugins given too, by the ids of their classes, of the classes
+// given, which blockr.test registers.
 function stubbed(
   classes: readonly PluginClass[],
-  plugins: Readonly<Record<PluginId, Plugin>>,
+  plugins: Readonly<Record<string, GivenPlugin>>,
   options: StubCoreOptions & { readonly options?: readonly Option[] } = {},
+  replied: HelloReply = HELLO,
 ) {
   return stubCore({
     ...options,
-    hello: withPlugins(plugins),
+    hello: withPlugins(plugins, replied),
     startup: { "blockr.test": registering(classes, options.options) },
   });
 }
@@ -52,51 +60,98 @@ async function reopen(s: Awaited<ReturnType<typeof stubCore>>): Promise<CoreApi>
 }
 
 describe("the plugins that run", () => {
-  test("are the open board's plugins, each of a class that a package registers, which pluginClass() gives", async () => {
-    const s = await stubbed([notes, saving], {
-      notes: plugin(notes, "Notes"),
-      report: plugin(notes, "Report"),
-      session: plugin(saving, "Session"),
-      gone: { class: "blockr.gone-gone_plugin", name: "Gone", state: {} },
+  test("are the app's plugins that the reply names, each of a class that a package registers, which pluginClass() gives", async () => {
+    const s = await stubbed([notes, report, saving], {
+      [notes.id]: { name: "Notes" },
+      [report.id]: { name: "Report" },
+      [saving.id]: { name: "Session" },
+      "blockr.gone-gone_plugin": { name: "Gone" },
     });
     const { core } = s;
 
-    // The store drops the plugin whose class no package registers.
-    expect(Object.keys(core.plugins.running())).toEqual(["notes", "report", "session"]);
-    expect(core.plugins.running()).toBe(core.plugins.running());
-    expect(core.plugins.pluginClass("report")).toBe(notes);
-    expect(() => core.plugins.pluginClass("gone")).toThrow('The open board runs no plugin "gone".');
+    // In the order of the reply, core's own first, but for the plugin whose
+    // class no package registers.
+    expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC, FILE, notes.id, report.id, saving.id]);
+    expect(core.plugins.appPlugins()[report.id]).toEqual({ name: "Report" });
+    expect(core.plugins.appPlugins()[BASIC]).toEqual({ name: "Basic frontend" });
+    expect(core.plugins.appPlugins()).toBe(core.plugins.appPlugins());
+    expect(core.plugins.pluginClass(report.id)).toBe(report);
+    expect(core.plugins.pluginClass(BASIC).frontend).toBe("blockr.core-basic");
+    expect(() => core.plugins.pluginClass("blockr.gone-gone_plugin")).toThrow(
+      'The app runs no plugin "blockr.gone-gone_plugin" on the open board.',
+    );
     s.stop();
   });
 
-  test("give their storage to a frontend's save and open controls, or core's own where the board holds no storage plugin", async () => {
-    const s = await stubbed([saving], { session: plugin(saving, "Session") });
+  test("are the reply's plugins, whatever the opening board holds the state of", async () => {
+    const dag: PluginClass = {
+      id: "blockr.test-dag_plugin",
+      state: { schema: { type: "object" }, default: { positions: {} } },
+    };
+    const kept: PluginClass = {
+      id: "blockr.test-kept_plugin",
+      state: { schema: { type: "object" }, default: { kept: false } },
+    };
+    const replied = withPlugins({ [kept.id]: { name: "Kept" } });
+    // An opening board that holds the state of a plugin that the app does not
+    // run, and none for the plugin that it runs.
+    const hello: HelloReply = {
+      ...replied,
+      board: {
+        ...replied.board,
+        board: { ...replied.board.board, versions: { [dag.id]: 1 }, plugins: { [dag.id]: { positions: { a: { x: 1 } } } } },
+      },
+    };
+    const s = await stubCore({ hello, startup: { "blockr.test": registering([dag, kept]) } });
+
+    expect(Object.keys(s.core.plugins.appPlugins())).toEqual([BASIC, FILE, kept.id]);
+    expect(s.core.store.board().plugins).toEqual({ [kept.id]: { kept: false } });
+    expect(() => s.core.plugins.pluginClass(dag.id)).toThrow(`The app runs no plugin "${dag.id}" on the open board.`);
+
+    // The next board runs the same plugins.
+    const next = await reopen(s);
+    expect(Object.keys(next.plugins.appPlugins())).toEqual([BASIC, FILE, kept.id]);
+    s.stop();
+  });
+
+  test("give their storage to a frontend's save and open controls: the app's storage plugin's, or none where the app runs none", async () => {
+    // Core's own storage plugin, which saves a download and opens an upload,
+    // where the app runs no other.
+    const t = await stubCore();
+    const own = t.core.plugins.storage();
+    expect(Object.keys(own ?? {})).toEqual(["save", "open"]);
+    expect(t.core.plugins.storage()).toBe(own);
+    expect(Object.keys(t.core.plugins.appPlugins())).toEqual([BASIC, FILE]);
+    t.stop();
+
+    // The storage plugin that takes the place of core's own.
+    const s = await stubbed([saving], { [saving.id]: { name: "Session" } }, {}, withoutPlugins(HELLO, FILE));
     expect(s.core.plugins.storage()).toBe(saving.storage);
     s.stop();
 
-    const t = await stubCore();
-    const own = t.core.plugins.storage();
-    expect(Object.keys(own)).toEqual(["save", "open"]);
-    expect(t.core.plugins.storage()).toBe(own);
-    expect(t.core.plugins.running()).toEqual({});
-    t.stop();
+    const u = await stubCore({ hello: withoutPlugins(HELLO, FILE) });
+    expect(u.core.plugins.storage()).toBeUndefined();
+    expect(Object.keys(u.core.plugins.appPlugins())).toEqual([BASIC]);
+    u.stop();
   });
 });
 
 describe("mounting a plugin's UI", () => {
-  test("mounts the module of its class once for each plugin, with CoreApi, the plugin's id and a signal, until the cleanup runs", async () => {
+  test("mounts the module of its class, with CoreApi, the id of the class and a signal, until the cleanup runs", async () => {
     const ui = pluginUi();
-    const s = await stubbed([notes], { notes: plugin(notes, "Notes"), report: plugin(notes, "Report") }, {
+    const s = await stubbed([notes, report], { [notes.id]: { name: "Notes" }, [report.id]: { name: "Report" } }, {
       modules: { "blockr.test-notes": ui.exports },
     });
     const first = document.createElement("div");
     const second = document.createElement("div");
 
-    const end = s.core.mountPlugin(first, "notes");
-    s.core.mountPlugin(second, "report");
+    // One module draws the plugin of each class that names it, by the id that
+    // it gets.
+    const end = s.core.mountPlugin(first, notes.id);
+    s.core.mountPlugin(second, report.id);
     await s.settled();
 
-    expect(ui.renders.map((render) => render.plugin)).toEqual(["notes", "report"]);
+    expect(ui.renders.map((render) => render.plugin)).toEqual([notes.id, report.id]);
     expect(ui.renders[0]?.core).toBe(s.core);
     expect([first.textContent, second.textContent]).toEqual(["Notes", "Report"]);
 
@@ -109,22 +164,22 @@ describe("mounting a plugin's UI", () => {
     const next = await reopen(s);
     expect(ui.renders[1]?.signal.aborted).toBe(true);
     expect(ui.cleanups()).toBe(2);
-    expect(() => s.core.mountPlugin(first, "notes")).not.toThrow();
+    expect(() => s.core.mountPlugin(first, notes.id)).not.toThrow();
     expect(next).not.toBe(ui.renders[0]?.core);
     s.stop();
   });
 
-  test("throws for a plugin that the board does not run or whose class has no ui, and shows why in the element where its module cannot draw", async () => {
+  test("throws for a plugin that the app does not run or whose class has no ui, and shows why in the element where its module cannot draw", async () => {
     const missing: PluginClass = { id: "blockr.test-missing_plugin", ui: "blockr.test-missing" };
     const older: PluginClass = { id: "blockr.test-older_plugin", ui: "blockr.test-older" };
     const broken: PluginClass = { id: "blockr.test-broken_plugin", ui: "blockr.test-broken" };
     const s = await stubbed(
       [saving, missing, older, broken],
       {
-        session: plugin(saving, "Session"),
-        missing: plugin(missing, "Missing"),
-        older: plugin(older, "Older"),
-        broken: plugin(broken, "Broken"),
+        [saving.id]: { name: "Session" },
+        [missing.id]: { name: "Missing" },
+        [older.id]: { name: "Older" },
+        [broken.id]: { name: "Broken" },
       },
       {
         modules: {
@@ -139,19 +194,25 @@ describe("mounting a plugin's UI", () => {
           },
         },
       },
+      withoutPlugins(HELLO, FILE),
     );
     const el = (): HTMLElement => document.createElement("div");
 
-    expect(() => s.core.mountPlugin(el(), "nowhere")).toThrow('The open board runs no plugin "nowhere".');
-    expect(() => s.core.mountPlugin(el(), "session")).toThrow(
-      'The class "blockr.test-session_plugin" of the plugin "session" has no ui to mount.',
+    expect(() => s.core.mountPlugin(el(), "blockr.test-nowhere_plugin")).toThrow(
+      'The app runs no plugin "blockr.test-nowhere_plugin" on the open board.',
+    );
+    expect(() => s.core.mountPlugin(el(), saving.id)).toThrow(
+      'The class of the plugin "blockr.test-session_plugin" has no ui to mount.',
+    );
+    expect(() => s.core.mountPlugin(el(), BASIC)).toThrow(
+      'The class of the plugin "blockr.core-basic_frontend_plugin" has no ui to mount.',
     );
 
     const reported = reports();
     const [a, b, c] = [el(), el(), el()];
-    s.core.mountPlugin(a, "missing");
-    s.core.mountPlugin(b, "older");
-    s.core.mountPlugin(c, "broken");
+    s.core.mountPlugin(a, missing.id);
+    s.core.mountPlugin(b, older.id);
+    s.core.mountPlugin(c, broken.id);
     await s.settled();
     reported.restore();
 
@@ -177,14 +238,14 @@ describe("mounting a plugin's UI", () => {
       },
     };
     const reported = reports();
-    const s = await stubbed([zoomed, needy], { notes: plugin(zoomed, "Notes"), needy: plugin(needy, "Needy") }, {
+    const s = await stubbed([zoomed, needy], { [zoomed.id]: { name: "Notes" }, [needy.id]: { name: "Needy" } }, {
       modules: { "blockr.test-notes": ui },
       options: [zoom],
     });
     const fine = document.createElement("div");
     const failing = document.createElement("div");
-    s.core.mountPlugin(fine, "notes");
-    s.core.mountPlugin(failing, "needy");
+    s.core.mountPlugin(fine, zoomed.id);
+    s.core.mountPlugin(failing, needy.id);
     await s.settled();
     reported.restore();
 

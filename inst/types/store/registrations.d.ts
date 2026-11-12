@@ -1,4 +1,4 @@
-import type { Block, Board, OptionId, PluginClassId, PluginId, RegistryId } from "../types/board.ts";
+import type { Block, Board, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
@@ -11,14 +11,14 @@ export interface PluginClass {
         readonly schema: JsonSchema;
         readonly default: Json;
     };
-    update?(delta: Delta, board: Board, plugin: PluginId): readonly Patch[];
+    update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
     migrate?(state: Json, version: number): Json;
     readonly ui?: string;
     readonly frontend?: string;
     readonly storage?: Storage;
     start?(args: {
         readonly core: CoreApi;
-        readonly plugin: PluginId;
+        readonly plugin: PluginClassId;
         readonly signal: AbortSignal;
     }): (() => void) | undefined;
 }
