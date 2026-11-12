@@ -52,12 +52,6 @@ pkg_file <- function(..., pkg = parent.frame()) {
   fun(..., package = pkg)
 }
 
-# Whether `pkgload::load_all()` loaded a package's namespace, which pkgload
-# marks.
-is_dev_namespace <- function(pkg) {
-  exists(".__DEVTOOLS__", envir = asNamespace(pkg), inherits = FALSE)
-}
-
 #' @rdname set_names
 #' @export
 pkg_avail <- function(...) {

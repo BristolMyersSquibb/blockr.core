@@ -580,14 +580,14 @@ available_block_packages <- function() {
     )
   )
 
-  dev <- Filter(
-    function(pkg) {
-      is_dev_namespace(pkg) && nzchar(package_file("registry/blocks.yml", pkg))
-    },
+  # A package that `pkgload::load_all()` loaded is among the loaded ones,
+  # whose files `pkg_file()` finds wherever they are
+  loaded <- Filter(
+    function(pkg) nzchar(package_file("registry/blocks.yml", pkg)),
     loadedNamespaces()
   )
 
-  sort(unique(c(installed, dev)))
+  sort(unique(c(installed, loaded)))
 }
 
 # The block classes that a package lists, as rows of `available_blocks()`.
