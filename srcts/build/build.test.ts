@@ -178,7 +178,7 @@ test("draws what floats over the board on the page's background, which the dark 
   const start = css.indexOf("@layer theme {");
   const theme = css.slice(start, css.indexOf("\n}\n", start));
   expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-bg-raised: Canvas;/);
-  expect(theme).toMatch(/:root\[data-bs-theme="dark"\] \{[^}]*--bc-color-bg-raised: color-mix\(in oklab, Canvas, currentColor 10%\);/);
+  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-bg-raised: color-mix\(in oklab, Canvas, currentColor 10%\);/);
   expect(css.replace(theme, "")).not.toContain("--bc-color-bg-raised:");
 });
 

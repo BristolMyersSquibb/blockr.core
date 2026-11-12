@@ -3208,7 +3208,7 @@ function domMeasure() {
       });
       themed.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-bs-theme", "class", "style"]
+        attributeFilter: ["data-bc-theme", "class", "style"]
       });
       stops.push(() => {
         themed.disconnect();

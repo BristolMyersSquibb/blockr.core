@@ -27,24 +27,24 @@
  *   `label { display: inline-block; }` would over `bc:block`.
  * - The dark variant, as in `bc:dark:text-gray-100`, applies under the dark
  *   theme that the board option dark_mode switches the page to, in the
- *   attribute data-bs-theme of its root element, which Bootstrap and
- *   blockr.ui's design tokens read too.
+ *   attribute data-bc-theme of its root element.
+ *   A package that styles the dark theme keys off the same attribute.
  */
 @layer theme;
 @import "tailwindcss/theme.css" layer(theme) prefix(bc);
 @import "tailwindcss/utilities.css" source(none);
-@custom-variant dark (&:where([data-bs-theme="dark"], [data-bs-theme="dark"] *));
+@custom-variant dark (&:where([data-bc-theme="dark"], [data-bc-theme="dark"] *));
 
 /*
  * The browser draws the page's background, form controls and scrollbars in
- * the theme that core switches the page to, as Bootstrap has it under the
- * same attribute. It is the one style that core gives an element not its
- * own: the page's root, whose theme core sets.
+ * the theme that core switches the page to.
+ * It is the one style that core gives an element not its own:
+ * the page's root, whose theme core sets.
  */
-:root[data-bs-theme="dark"] {
+:root[data-bc-theme="dark"] {
   color-scheme: dark;
 }
-:root[data-bs-theme="light"] {
+:root[data-bc-theme="light"] {
   color-scheme: light;
 }
 @source "../**/*.{ts,tsx}";
@@ -80,7 +80,7 @@
  * wins over it.
  */
 @layer theme {
-  :root[data-bs-theme="dark"] {
+  :root[data-bc-theme="dark"] {
     --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
   }
 }

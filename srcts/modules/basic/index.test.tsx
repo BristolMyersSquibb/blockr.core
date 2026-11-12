@@ -540,7 +540,7 @@ describe("the toolbar", () => {
       pick(find(dialog(el), 'section[aria-label="Theme options"] select', HTMLSelectElement), "dark");
     });
     expect(board().options.dark_mode).toBe("dark");
-    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
   });
 
   test("renames the board", async () => {

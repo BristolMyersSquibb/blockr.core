@@ -122,12 +122,12 @@
     }
   }
 
-  :root, :host, :root[data-bs-theme="dark"] {
+  :root, :host, :root[data-bc-theme="dark"] {
     --bc-color-bg-raised: Canvas;
   }
 
   @supports (color: color-mix(in lab, red, red)) {
-    :root[data-bs-theme="dark"] {
+    :root[data-bc-theme="dark"] {
       --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
     }
   }
@@ -979,19 +979,19 @@
   }
 }
 
-.bc\:dark\:text-blue-400:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+.bc\:dark\:text-blue-400:where([data-bc-theme="dark"], [data-bc-theme="dark"] *) {
   color: var(--bc-color-blue-400);
 }
 
-.bc\:dark\:text-gray-100:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
+.bc\:dark\:text-gray-100:where([data-bc-theme="dark"], [data-bc-theme="dark"] *) {
   color: var(--bc-color-gray-100);
 }
 
-:root[data-bs-theme="dark"] {
+:root[data-bc-theme="dark"] {
   color-scheme: dark;
 }
 
-:root[data-bs-theme="light"] {
+:root[data-bc-theme="light"] {
   color-scheme: light;
 }
 
