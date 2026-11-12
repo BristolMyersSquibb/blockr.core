@@ -1342,13 +1342,13 @@ describe("a later session", () => {
 
   test("that names a package at another version asks the user to reload the page in a banner, on the background that core's theme gives what floats over the board", async () => {
     const r = playedR();
-    const basic = frontEnd();
+    const modules: Readonly<Record<string, unknown>> = { ...CORE, [BASIC]: frontEnd().exports };
     const started = startPage({
       el: document.createElement("div"),
       transport: r.transport,
       loader: {
         importer: (url) =>
-          url === BASIC ? Promise.resolve(basic.exports) : Promise.reject(new TypeError(`No module at ${url}.`)),
+          Object.hasOwn(modules, url) ? Promise.resolve(modules[url]) : Promise.reject(new TypeError(`No module at ${url}.`)),
         stylesheet: () => Promise.resolve(),
       },
       measure: { info: () => null, watch: () => () => undefined },

@@ -955,26 +955,25 @@ describe("which block has focus", () => {
 
 // R's reply to hello whose opening board the store opens without what the
 // app cannot rebuild: the package blockr.dplyr, which R did not load, a block
-// of its filter block class, the state of a plugin of the app whose class no
-// package registers, and a value of a board option that no package registers.
+// of its filter block class, the state of a plugin that the app does not run,
+// and a value of a board option that no package registers.
 function droppingHello(): HelloReply {
   const json = HELLO.board;
   const filter = { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter", locked: null };
-  return withPlugins(
-    { "blockr.gone-gone_plugin": { name: "Gone", state: {} } },
-    {
-      ...HELLO,
+  return {
+    ...HELLO,
+    board: {
+      ...json,
+      packages: { ...json.packages, "blockr.dplyr": "0.3.0" },
       board: {
-        ...json,
-        packages: { ...json.packages, "blockr.dplyr": "0.3.0" },
-        board: {
-          ...json.board,
-          blocks: { ...json.board.blocks, x: filter },
-          options: { ...json.board.options, zoom: { value: 2, version: 1 } },
-        },
+        ...json.board,
+        blocks: { ...json.board.blocks, x: filter },
+        versions: { ...json.board.versions, "blockr.gone-gone_plugin": 1 },
+        plugins: { ...json.board.plugins, "blockr.gone-gone_plugin": {} },
+        options: { ...json.board.options, zoom: { value: 2, version: 1 } },
       },
     },
-  );
+  };
 }
 
 describe("what the user learns", () => {
