@@ -59,6 +59,23 @@ export interface Outcome {
 
 const NO_CONDITIONS: readonly Condition[] = Object.freeze([]);
 
+// The conditions that the scheduler writes itself, rather than R: the message
+// of a block that waits and the error of an evaluation that the transport
+// could not send. A condition of R's may have no phase either, as where a lock
+// refuses an evaluation, so the phase does not tell them apart.
+const written = new WeakSet<Condition>();
+
+// Whether the scheduler wrote the condition itself, which makes the origin of
+// its notification "core" rather than "r".
+export function writtenByCore(condition: Condition): boolean {
+  return written.has(condition);
+}
+
+function byCore(condition: Condition): Condition {
+  written.add(condition);
+  return condition;
+}
+
 // The outcome of an evaluation of a revision, from R's reply to it. A reply of
 // `cancelled` or `missing` counts as none and gives undefined.
 export function replyOutcome(reply: Reply, revision: number): Outcome | undefined {
@@ -82,11 +99,11 @@ export function unsent(revision: number, message: string): Outcome {
     revision,
     summary: null,
     conditions: [
-      {
+      byCore({
         severity: "error",
         class: ["blockr_error", "error", "condition"],
         message: `The evaluation could not be sent to R: ${message}`,
-      },
+      }),
     ],
     stdout: "",
     stderr: "",
@@ -170,12 +187,12 @@ export function waitingFor(
     const inputs = what.unlinked.length === 1 ? "input" : "inputs";
     message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
   }
-  return {
+  return byCore({
     severity: "message",
     class: ["blockr_message", "message", "condition"],
     phase: "status",
     message,
-  };
+  });
 }
 
 // Whether two statuses read the same. The scheduler then keeps handing out the

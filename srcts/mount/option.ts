@@ -20,6 +20,9 @@
 // Where the renderer fails in render(), the error names the renderer's module
 // and its package. Where the UI of the board option's definition fails, the
 // error names the board option, since only one package can register its id.
+// Either way, core shows the error in the element, and raises a notification
+// that concerns the board option, with the package of the renderer or of the
+// board option, which holds until the next board opens.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
@@ -28,7 +31,8 @@ import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
+import { coreNotification, errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
+import type { Raise } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
@@ -52,6 +56,10 @@ export interface OptionDeps {
     by: string,
     failed: (failures: readonly string[]) => void,
   ) => { readonly added: Promise<readonly string[]>; readonly stop: () => void };
+  // Raises a notification of the board (../core/notifications.ts).
+  readonly raise: Raise;
+  // The package that lists a board option, from R's reply to `hello`.
+  readonly optionPackage: (option: OptionId) => string | undefined;
 }
 
 interface OptionArgs {
@@ -151,16 +159,19 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     el.replaceChildren();
   }
 
+  // The package of the module that draws: the renderer's, or else the board
+  // option's.
+  const [id, renderer] = chosen ?? [];
+  const pkg = id === undefined ? deps.optionPackage(option) : packageFromId(id);
+
   void (async () => {
     let mod: Mountable<OptionArgs>;
-    const [id, renderer] = chosen ?? [];
     try {
       if (renderer === undefined || id === undefined) {
         mod = def.ui;
       } else {
-        const pkg = packageFromId(id);
         const source = renderer.css === undefined ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule<OptionArgs>(await loader.load(source, pkg), renderer.module, pkg);
+        mod = mountableModule<OptionArgs>(await loader.load(source, packageFromId(id)), renderer.module, packageFromId(id));
       }
     } catch (error) {
       fail(error);
@@ -202,6 +213,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     if (ended()) return;
     showError(el, errorMessage(error));
     report(error);
+    deps.raise(coreNotification("module_failed", "error", errorMessage(error), { option, package: pkg }));
   }
 
   return end;

@@ -3,6 +3,7 @@ import type { Scheduler } from "../scheduler/index.ts";
 import type { OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
+import type { Raise } from "../util/index.ts";
 import type { Answers } from "./answers.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
@@ -33,6 +34,7 @@ interface Flight {
 interface Shelf {
     params: Readonly<Record<string, Json>>;
     last: Made | undefined;
+    failure: (() => void) | undefined;
     readonly mounts: Set<() => void>;
     readonly flights: Map<string, Flight>;
 }
@@ -55,6 +57,7 @@ export interface OutputDeps {
     };
     readonly resolveDefaults: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
     readonly emit: (event: OutputEvent) => void;
+    readonly raise: Raise;
 }
 export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void;
 export {};

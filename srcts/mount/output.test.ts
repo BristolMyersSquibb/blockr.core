@@ -15,10 +15,12 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
+import type { Notification } from "../types/core-api.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import type { Raise } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Measure, Mounts, OutputEvent } from "./index.ts";
 
@@ -106,6 +108,8 @@ interface Setup {
   imported: string[];
   events: OutputEvent[];
   size: ReturnType<typeof measuring>;
+  // The notifications that the mounts raised, while they hold.
+  raised: Omit<Notification, "id">[];
   // Ends what core runs for the board, as core does as another board opens,
   // and opens the board of the reply given in a new store with new mounts, on
   // the same R and the same loader, as core starts again.
@@ -135,6 +139,16 @@ async function setup(
   const events: OutputEvent[] = [];
   const size = measuring(info);
   const page = counter();
+  const raised: Omit<Notification, "id">[] = [];
+  const raise: Raise = (notification) => {
+    raised.push(notification);
+    let holds = true;
+    return () => {
+      const at = raised.indexOf(notification);
+      if (holds && at >= 0) raised.splice(at, 1);
+      holds = false;
+    };
+  };
 
   async function open(given: HelloReply): Promise<Setup> {
     const controller = new AbortController();
@@ -154,6 +168,7 @@ async function setup(
       emit: (event) => {
         events.push(event);
       },
+      raise,
       signal,
     });
     return {
@@ -164,6 +179,7 @@ async function setup(
       imported,
       events,
       size,
+      raised,
       next: (after = bare) => {
         controller.abort();
         return open(after);
@@ -368,6 +384,56 @@ describe("asking", () => {
     expect(table.host().error()).toEqual(failure);
     expect(table.host().output()).toMatchObject({ total: 150 });
   });
+
+  test("raises a notification with the condition that error() gives, which concerns the block, in place of the one before, until the block's next output arrives", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    const el = await ready(s);
+    s.mounts.mountOutput(document.createElement("div"), "b");
+    await tick();
+    const failure = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "output" as const, message: "no page 9" };
+
+    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [failure] });
+    await tick();
+    // One ask for both mounts, so one notification.
+    expect(s.raised).toEqual([{ ...failure, origin: "r", block: "b" }]);
+
+    // Where R gives no condition, core writes the one that error() gives.
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [] });
+    await tick();
+    expect(el.querySelector("[role=alert]")?.textContent).toBe('R failed to make the output of block "b".');
+    expect(s.raised).toEqual([
+      {
+        severity: "error",
+        class: ["blockr_error", "error", "condition"],
+        message: 'R failed to make the output of block "b".',
+        origin: "core",
+        phase: "output",
+        block: "b",
+      },
+    ]);
+
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(s.raised).toEqual([]);
+  });
+
+  test("raises none where a board option that the renderer names does not go onto the board, whose own notification tells of it", async () => {
+    const reported = reports();
+    const table = renderer(["n_rows", "broken"]);
+    const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
+    const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
+    await ready(s);
+    reported.restore();
+    const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
+    expect(s.raised).toEqual([
+      { severity: "error", class: ["board_option_failed", "blockr_error", "error", "condition"], message: why, origin: "core", option: "broken" },
+    ]);
+  });
 });
 
 describe("what core keeps", () => {
@@ -544,17 +610,32 @@ describe("the renderer", () => {
     expect(outputs(s.r)).toHaveLength(1);
   });
 
-  test("that fails to load, declares another major or throws shows an error in the element", async () => {
+  test("that fails to load, declares another major or throws shows an error in the element, and raises a notification that concerns the block, with the renderer's package", async () => {
     const reported = reports();
     const s = await setup({ [TABLE.module]: { api: 2, default: renderer().exports.default } });
     const el = await ready(s);
+    s.mounts.mountOutput(document.createElement("div"), "b");
+    await tick();
     reported.restore();
 
     expect(el.textContent).toContain(
       "The module blockr.core/basic-table.js of blockr.core was built against major 2 of core's JS API",
     );
-    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
+    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(2);
     expect(outputs(s.r)).toHaveLength(0);
+    // Each mount raises the same, which core holds once.
+    expect(new Set(s.raised.map((n) => JSON.stringify(n)))).toEqual(
+      new Set([
+        JSON.stringify({
+          severity: "error",
+          class: ["module_failed", "blockr_error", "error", "condition"],
+          message: el.textContent,
+          origin: "core",
+          block: "b",
+          package: "blockr.core",
+        }),
+      ]),
+    );
   });
 
   test("hears a new output in place, and is mounted again by a mount after its cleanup ran", async () => {

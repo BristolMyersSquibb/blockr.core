@@ -1,7 +1,7 @@
 import type { Commands } from "../commands/index.ts";
-import type { Lock } from "../protocol/index.ts";
+import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
+import type { Options, Origin, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, OptionId, PluginClassId, RegistryId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
@@ -23,8 +23,9 @@ export interface CoreApi {
     readonly lock: Lock;
     readonly outputEvents: OutputEvents;
     readonly notifications: {
-        notify(note: Note): void;
-        subscribe(fn: (note: Note) => void): () => void;
+        notify(notification: Omit<Notification, "id">): () => void;
+        get(): readonly Notification[];
+        subscribe(fn: (all: readonly Notification[]) => void): () => void;
     };
     readonly focus: {
         get(): BlockId | null;
@@ -42,9 +43,17 @@ export interface CoreApi {
 export interface Plugin {
     readonly name: string;
 }
-export interface Note {
-    readonly message: string;
+export interface Notification {
+    readonly id: string;
     readonly severity: "message" | "warning" | "error";
+    readonly class: readonly string[];
+    readonly message: string;
+    readonly origin: Origin;
+    readonly phase?: Phase;
+    readonly block?: BlockId;
+    readonly option?: OptionId;
+    readonly plugin?: PluginClassId;
+    readonly package?: string;
 }
 export interface PluginModule {
     render(args: {

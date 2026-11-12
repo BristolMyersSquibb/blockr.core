@@ -9,9 +9,9 @@
 // CoreApi.
 
 import type { Commands } from "../commands/index.ts";
-import type { Lock } from "../protocol/index.ts";
+import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
+import type { Options, Origin, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, OptionId, PluginClassId, RegistryId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
@@ -64,13 +64,25 @@ export interface CoreApi {
   // What renderers report that the user did, such as a selection, for
   // plugins to act on.
   readonly outputEvents: OutputEvents;
-  // The notes that plugins send, and the one in which core names what the
-  // store dropped as a board opened, which the frontend hears and draws.
+  // Every notification of the open board, whoever raised it, which a frontend
+  // draws as it chooses, as Notifications has it
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications):
+  // one for each condition of each block's status, those that core raises
+  // where it fails at something that the user asked for or that the board
+  // needs, and those that plugins raise. Core holds them outside the board, in
+  // the order they came, so that one raised before the frontend draws still
+  // reaches it. It withdraws those that concern a block as the block leaves
+  // the board, and every one as the next board opens.
   readonly notifications: {
-    // Hands the note to each subscriber. Core keeps no note, so a note sent
-    // before anything subscribes reaches nobody.
-    notify(note: Note): void;
-    subscribe(fn: (note: Note) => void): () => void;
+    // Raises a notification, which holds until the function that it returns
+    // runs. It throws for one whose members are of the wrong kind, or that
+    // concerns a block that the board does not hold.
+    notify(notification: Omit<Notification, "id">): () => void;
+    // Those that hold, the same array until one comes or goes.
+    get(): readonly Notification[];
+    // Calls `fn` with those that hold whenever one comes or goes, as React's
+    // useSyncExternalStore follows a store with get().
+    subscribe(fn: (all: readonly Notification[]) => void): () => void;
   };
   // Which block has focus, which the frontend sets as the user moves into a
   // block, and which a plugin such as the assistant reads to tell which block
@@ -118,10 +130,28 @@ export interface Plugin {
   readonly name: string;
 }
 
-// A note that a plugin sends, which the frontend draws.
-export interface Note {
-  readonly message: string;
+// A message, warning or error that the user should see, whoever raised it.
+// The browser has a global of the same name, for desktop notifications, whose
+// constructor a module that imports this type still calls as
+// `new Notification()`, since the type has no value.
+export interface Notification {
+  // The same while it holds, so that a frontend knows which it has shown.
+  readonly id: string;
   readonly severity: "message" | "warning" | "error";
+  // A condition's class, or core's own, as ["module_failed", "blockr_error",
+  // "error", "condition"], by which a frontend chooses how to draw it.
+  readonly class: readonly string[];
+  readonly message: string;
+  // Who raised it: "r", "core" or a plugin's class's id.
+  readonly origin: Origin;
+  // What raised a block's condition, as on the protocol's Condition.
+  readonly phase?: Phase;
+  // What it concerns, none of these for the board.
+  readonly block?: BlockId;
+  readonly option?: OptionId;
+  readonly plugin?: PluginClassId;
+  // The package whose code failed, such as a module's.
+  readonly package?: string;
 }
 
 // What a plugin's module exports as its default, beside the JS API major it

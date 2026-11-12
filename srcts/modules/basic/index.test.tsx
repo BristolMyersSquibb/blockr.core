@@ -1009,14 +1009,23 @@ describe("what the user learns", () => {
     expect(notices(page.el)).toEqual([]);
   });
 
-  test("is each note that a plugin sends, in the colour of its severity, until the user dismisses it", async () => {
-    const { el, core } = await drawn();
-
-    await step(() => {
-      core.notifications.notify({ message: "Saved to Connect.", severity: "message" });
-      core.notifications.notify({ message: "The token expires soon.", severity: "warning" });
-      core.notifications.notify({ message: "Not shared.", severity: "error" });
+  test("is each notification of the board that concerns no block or that a plugin raises, in the colour of its severity, until it is withdrawn or the user dismisses it", async () => {
+    const { el, core } = await drawn({
+      evaluate: (request) =>
+        request.block === "b"
+          ? { conditions: [{ severity: "warning", class: ["warning", "condition"], phase: "block_eval", message: "Few rows." }] }
+          : undefined,
     });
+    const origin = "blockr.test-session_plugin";
+
+    let shared: () => void = () => undefined;
+    await step(() => {
+      core.notifications.notify({ severity: "message", class: ["saved"], message: "Saved to Connect.", origin });
+      core.notifications.notify({ severity: "warning", class: ["token_expiring"], message: "The token expires soon.", origin });
+      shared = core.notifications.notify({ severity: "error", class: ["share_failed"], message: "Not shared.", origin, block: "b" });
+    });
+    // The condition of block b, which its card shows, is not among them.
+    expect(core.notifications.get().some((n) => n.message === "Few rows." && n.block === "b")).toBe(true);
     expect(notices(el)).toEqual([
       ["message", "Saved to Connect."],
       ["warning", "The token expires soon."],
@@ -1030,6 +1039,29 @@ describe("what the user learns", () => {
       ["warning", "The token expires soon."],
       ["error", "Not shared."],
     ]);
+    await step(() => {
+      shared();
+    });
+    expect(notices(el)).toEqual([["warning", "The token expires soon."]]);
+    expect(core.notifications.get().some((n) => n.message === "Saved to Connect.")).toBe(true);
+  });
+
+  test("that asks for the page to be reloaded offers to reload it", async () => {
+    const { el, core } = await drawn();
+    await step(() => {
+      core.notifications.notify({
+        severity: "warning",
+        class: ["page_reload_needed", "blockr_warning", "warning", "condition"],
+        message: "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.1). Save the board, then reload the page.",
+        origin: "core",
+      });
+    });
+    const notice = find(el, '[data-severity="warning"]');
+    expect(buttons(notice)).toEqual(["Reload", "Dismiss"]);
+    const reload = vi.spyOn(window.location, "reload").mockImplementation(() => undefined);
+    await click(button(notice, "Reload"));
+    expect(reload).toHaveBeenCalledTimes(1);
+    reload.mockRestore();
   });
 });
 

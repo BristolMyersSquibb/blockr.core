@@ -57,7 +57,7 @@ export type {
   BlockRegistry,
   CoreApi,
   FrontendModule,
-  Note,
+  Notification,
   OutputEvents,
   Plugin,
   PluginModule,

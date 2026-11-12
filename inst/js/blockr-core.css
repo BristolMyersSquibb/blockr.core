@@ -149,10 +149,6 @@
   position: absolute;
 }
 
-.bc\:fixed {
-  position: fixed;
-}
-
 .bc\:relative {
   position: relative;
 }
@@ -163,10 +159,6 @@
 
 .bc\:inset-y-0 {
   inset-block: 0;
-}
-
-.bc\:top-0 {
-  top: 0;
 }
 
 .bc\:top-full {
@@ -183,10 +175,6 @@
 
 .bc\:z-30 {
   z-index: 30;
-}
-
-.bc\:z-50 {
-  z-index: 50;
 }
 
 .bc\:m-0 {

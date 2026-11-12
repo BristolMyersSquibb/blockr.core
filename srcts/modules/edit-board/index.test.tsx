@@ -16,7 +16,7 @@ import { labelled, optionOf, optionsOf } from "../../testing/combobox.ts";
 import { find, pick, press, texts, type } from "../../testing/inputs.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
-import type { CoreApi, Note } from "../../types/core-api.ts";
+import type { CoreApi, Notification } from "../../types/core-api.ts";
 import * as editBoard from "./index.tsx";
 
 // The class of the plugin, which the app of the fixture hello runs.
@@ -26,8 +26,8 @@ interface Mounted {
   readonly el: HTMLElement;
   readonly core: CoreApi;
   readonly board: () => Board;
-  // The notes that the plugin sent, in order.
-  readonly notes: readonly Note[];
+  // The notifications that the plugin raised, in order, while they hold.
+  readonly notes: readonly Notification[];
   // Ends the mount, as a frontend does.
   readonly end: () => void;
 }
@@ -46,9 +46,9 @@ async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
   document.body.append(el);
   const stubbed = await act(() => stubCore({ ...options, modules: { "blockr.core-edit_board": editBoard, ...options.modules } }));
   stops.push(stubbed.stop);
-  const notes: Note[] = [];
-  stubbed.core.notifications.subscribe((note) => {
-    notes.push(note);
+  const notes: Notification[] = [];
+  stubbed.core.notifications.subscribe((all) => {
+    notes.splice(0, notes.length, ...all.filter((notification) => notification.origin === EDIT));
   });
   let end = (): void => undefined;
   await act(async () => {
@@ -595,6 +595,8 @@ describe("each edit", () => {
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
     expect(notes).toHaveLength(1);
     expect(notes[0]?.severity).toBe("error");
+    expect(notes[0]?.class).toEqual(["edit_refused", "blockr_error", "error", "condition"]);
+    expect(notes[0]?.block).toBeUndefined();
     expect(notes[0]?.message).toContain('The command "blockr.core-add_link" refused to run');
   });
 });

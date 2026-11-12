@@ -15,8 +15,10 @@
 // Its render() takes four steps:
 // 1. It demands every block, and the blocks in view higher still, from the
 //    board, so that the scheduler evaluates first what the page first shows.
-// 2. It shows each note that a plugin sends, and the one in which core names
-//    what the store dropped as the board opened.
+// 2. It shows above the board the notifications of the board that concern no
+//    block, such as the one in which core names what the store dropped as the
+//    board opened, and those that plugins raise, until core withdraws one or
+//    the user dismisses it.
 // 3. It draws the board that the store holds, and then demands the blocks in
 //    view as the page lays out their cards.
 // 4. It binds undo, redo and the buttons among the storage controls to their
@@ -43,10 +45,7 @@ export default {
 function render({ el, core }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }): () => void {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
-  const notices = createNotices();
-  const unnotify = core.notifications.subscribe((note) => {
-    notices.add(note);
-  });
+  const notices = createNotices(core.notifications);
   const front: FrontEnd = { core, notices, inView: shown };
   const root = createRoot(el);
   flushSync(() => {
@@ -59,7 +58,7 @@ function render({ el, core }: { el: HTMLElement; core: CoreApi; signal: AbortSig
   });
   return () => {
     unbind();
-    unnotify();
+    notices.stop();
     shown.release();
     root.unmount();
   };

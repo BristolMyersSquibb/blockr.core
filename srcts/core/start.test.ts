@@ -22,7 +22,7 @@ import type { CoreApi, FrontendModule, PluginModule } from "../types/core-api.ts
 import type { Json, JsonSchema } from "../types/json.ts";
 import { own } from "../util/index.ts";
 import { pageFrontEnds, start } from "./index.ts";
-import type { Changed, StartOptions } from "./index.ts";
+import type { StartOptions } from "./index.ts";
 
 // The URL at which the fixture hello has R serve the module of the class of
 // core's basic frontend, which each test gives as frontEnd() makes it.
@@ -505,7 +505,7 @@ describe("starting the page", () => {
       () => Promise.resolve(3 as unknown as string),
       'The load() of the storage plugin "blockr.session-session_plugin" resolved with something other than the text of a JSON board, so core opens the board that R sent.',
     ],
-  ])("keeps the board R sent where %s, naming why", async (_, load, message) => {
+  ])("keeps the board R sent where %s, naming why in a notification that concerns the storage plugin's package", async (_, load, message) => {
     const storage = session(load);
     const s = setup({ [BASIC]: frontEnd().exports, [pluginUrl(SESSION)]: storage.exports });
     const reported = reports();
@@ -518,8 +518,35 @@ describe("starting the page", () => {
     expect(core.store.board().name).toBe("Iris review");
     expect(storage.loads).toHaveLength(1);
     const messages = reported.errors().map((error) => (error as Error).message);
-    if (message === undefined) expect(messages).toEqual([]);
-    else expect(messages.some((said) => said.startsWith(message))).toBe(true);
+    const named = core.notifications.get().filter((n) => n.class[0] === "board_open_failed");
+    if (message === undefined) {
+      expect(messages).toEqual([]);
+      expect(named).toEqual([]);
+    } else {
+      expect(messages.some((said) => said.startsWith(message))).toBe(true);
+      expect(named.map((n) => [n.severity, n.class, n.origin, n.package, n.message.startsWith(message)])).toEqual([
+        ["error", ["board_open_failed", "blockr_error", "error", "condition"], "core", "blockr.session", true],
+      ]);
+    }
+  });
+
+  test("keeps the board R sent where the board that load() names fails to open, naming why in a notification", async () => {
+    const storage = session(() => Promise.resolve(JSON.stringify({ format: 1 })));
+    const s = setup({ [BASIC]: frontEnd().exports, [pluginUrl(SESSION)]: storage.exports });
+    const reported = reports();
+    s.r.session(withSession());
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+    reported.restore();
+
+    expect(core.store.board().name).toBe("Iris review");
+    expect(reported.errors()).toHaveLength(1);
+    const named = core.notifications.get().filter((n) => n.class[0] === "board_open_failed");
+    expect(named.map((n) => n.package)).toEqual(["blockr.session"]);
+    expect(named[0]?.message).toContain(
+      'The board that the storage plugin "blockr.session-session_plugin" named did not open, so core opens the board that R sent: ',
+    );
   });
 
   test("asks the storage plugin for no board under the load lock, which fixes the app to the board that R sent", async () => {
@@ -565,6 +592,53 @@ describe("starting the page", () => {
       "The module blockr.missing/blockr.missing-missing_plugin.js of blockr.missing failed to load: Failed to fetch dynamically imported module: blockr.missing/blockr.missing-missing_plugin.js",
       "The module blockr.test/gap.js of blockr.test has no default export, an object.",
       'The plugin class "blockr.bad-bad_plugin" has a start that is no function.',
+    ]);
+    // Each raises a notification that concerns its plugin class or board
+    // option, with the module's package, which the frontend hears as it draws.
+    const failed = core.notifications.get().filter((n) => n.class[0] === "module_failed");
+    expect(failed.map((n) => [n.plugin ?? n.option, n.package, n.origin, n.message]).sort()).toEqual([
+      [
+        "blockr.bad-bad_plugin",
+        "blockr.bad",
+        "core",
+        'The plugin class "blockr.bad-bad_plugin" has a start that is no function.',
+      ],
+      [
+        "blockr.missing-missing_plugin",
+        "blockr.missing",
+        "core",
+        "The module blockr.missing/blockr.missing-missing_plugin.js of blockr.missing failed to load: Failed to fetch dynamically imported module: blockr.missing/blockr.missing-missing_plugin.js",
+      ],
+      ["gap", "blockr.test", "core", "The module blockr.test/gap.js of blockr.test has no default export, an object."],
+    ]);
+  });
+
+  test("raises the notification that names what the store dropped before the frontend draws, which reads it as it draws", async () => {
+    const seen: (readonly string[])[] = [];
+    const front = basicModule({
+      render({ core }) {
+        seen.push(core.notifications.get().map((n) => n.class[0] ?? ""));
+      },
+    });
+    const filter = { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter", locked: null };
+    const dropping: HelloReply = {
+      ...hello,
+      board: { ...hello.board, board: { ...hello.board.board, blocks: { ...hello.board.board.blocks, x: filter } } },
+    };
+    const s = setup({ [BASIC]: front });
+    s.r.session(dropping);
+    await tick();
+    s.r.options();
+    const core = await s.started.ready;
+
+    expect(seen).toEqual([["board_objects_dropped"]]);
+    expect(core.notifications.get().map(({ severity, class: cls, message, origin }) => ({ severity, class: cls, message, origin }))).toEqual([
+      {
+        severity: "warning",
+        class: ["board_objects_dropped", "blockr_warning", "warning", "condition"],
+        message: 'The board opened without:\n- block "x" (blockr.dplyr-filter_block)',
+        origin: "core",
+      },
     ]);
   });
 
@@ -858,6 +932,13 @@ describe("a board opened later", () => {
     expect(basic.renders).toHaveLength(2);
     expect(basic.renders[1]?.signal.aborted).toBe(false);
     expect(s.el.textContent).toBe("Kept");
+    // The opening has ended the code that called open(), so core tells the
+    // user itself, in a notification that concerns the board.
+    const failed = s.started.core()?.notifications.get().filter((n) => n.class[0] === "board_open_failed") ?? [];
+    expect(failed.map((n) => [n.origin, n.package])).toEqual([["core", undefined]]);
+    expect(failed[0]?.message).toMatch(
+      /^The board did not open, so core opened the board before it again: .*The state of the plugin "blockr\.strict-zoom_plugin"/s,
+    );
   });
 
   test("migrates a block's state by the migrate that its class's UI module exports, which core imports before the board opens", async () => {
@@ -991,6 +1072,38 @@ describe("board options", () => {
     await reopen(s, next, {});
     expect(heard).toEqual([1, 2, 1, 3, 1]);
     expect(calls).toBe(3);
+  });
+
+  test("whose onChange throws raise a notification that concerns the board option, with its package, until its next call returns", async () => {
+    let failing = true;
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: 1,
+      ui: { render: () => undefined },
+      onChange(value) {
+        if (failing) throw new Error(`No zoom of ${JSON.stringify(value)}.`);
+      },
+    };
+    const reported = reports();
+    const s = await started(zoom);
+    const changes = (): readonly unknown[] =>
+      s.core.notifications
+        .get()
+        .filter((n) => n.class[0] === "on_change_failed")
+        .map((n) => [n.option, n.package, n.message]);
+    expect(changes()).toEqual([["zoom", "blockr.test", 'The onChange of the board option "zoom" failed: No zoom of 1.']]);
+
+    s.core.store.apply({ options: { set: { zoom: 2 } } });
+    expect(changes()).toEqual([["zoom", "blockr.test", 'The onChange of the board option "zoom" failed: No zoom of 2.']]);
+
+    failing = false;
+    s.core.store.apply({ options: { set: { zoom: 3 } } });
+    expect(changes()).toEqual([]);
+    reported.restore();
+    expect(reported.errors().map(String)).toEqual(["Error: No zoom of 1.", "Error: No zoom of 2."]);
   });
 
   test("give their values as the board holds them through value()", async () => {
@@ -1321,50 +1434,47 @@ describe("the frontend and the plugins", () => {
 });
 
 describe("a later session", () => {
-  test("gives every block a new revision, and asks for a reload where R runs a package at another version", async () => {
-    const changes: (readonly Changed[])[] = [];
-    const s = setup({ [BASIC]: frontEnd().exports }, { reload: (changed) => changes.push(changed) });
+  test("gives every block a new revision, and asks for a reload through a notification while R runs a package at another version", async () => {
+    const s = setup({ [BASIC]: frontEnd().exports });
     s.r.session();
     await tick();
     s.r.options();
     const core = await s.started.ready;
     const revision = core.scheduler.status("a")?.revision ?? 0;
+    const reloads = (): readonly string[] =>
+      core.notifications
+        .get()
+        .filter((n) => n.class[0] === "page_reload_needed")
+        .map((n) => n.message);
 
     s.r.session();
     await tick();
     expect(core.scheduler.status("a")?.revision).toBeGreaterThan(revision);
-    expect(changes).toEqual([]);
+    expect(reloads()).toEqual([]);
 
     s.r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
     await tick();
-    expect(changes).toEqual([[{ package: "blockr.core", loaded: "0.2.0", now: "0.2.1" }]]);
-  });
-
-  test("that names a package at another version asks the user to reload the page in a banner, on the background that core's theme gives what floats over the board", async () => {
-    const r = playedR();
-    const modules: Readonly<Record<string, unknown>> = { ...CORE, [BASIC]: frontEnd().exports };
-    const started = startPage({
-      el: document.createElement("div"),
-      transport: r.transport,
-      loader: {
-        importer: (url) =>
-          Object.hasOwn(modules, url) ? Promise.resolve(modules[url]) : Promise.reject(new TypeError(`No module at ${url}.`)),
-        stylesheet: () => Promise.resolve(),
+    expect(core.notifications.get().filter((n) => n.class[0] === "page_reload_needed")).toEqual([
+      {
+        id: expect.any(String) as string,
+        severity: "warning",
+        class: ["page_reload_needed", "blockr_warning", "warning", "condition"],
+        message:
+          "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.1). Save the board, then reload the page.",
+        origin: "core",
       },
-      measure: { info: () => null, watch: () => () => undefined },
-    });
-    r.session();
-    await tick();
-    r.options();
-    await started.ready;
+    ]);
 
-    r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
+    // A reply that names another version again replaces it, and one that
+    // names those the page loaded withdraws it.
+    s.r.session({ ...hello, packages: { "blockr.core": "0.2.2" } });
     await tick();
-    const banner = document.getElementById("blockr-core-reload");
-    banner?.remove();
-    expect(banner?.textContent).toContain("(blockr.core 0.2.0 to 0.2.1)");
-    // Its backgrounds in the page's theme and under the dark theme.
-    expect(banner?.className.split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name))).toEqual(["bc:bg-bg-raised"]);
+    expect(reloads()).toEqual([
+      "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.2). Save the board, then reload the page.",
+    ]);
+    s.r.session();
+    await tick();
+    expect(reloads()).toEqual([]);
   });
 
   test("where R speaks another major of the protocol stops the page, sending R nothing more and saying what to do", async () => {
@@ -1450,19 +1560,18 @@ describe("a later session", () => {
         "blockr.test-other": { module: "blockr.test/other.js?v=2" },
       },
     };
-    const changes: (readonly Changed[])[] = [];
-    const s = setup(
-      {
-        "blockr.test/notes.js?v=1": versioned("1.0.0"),
-        "blockr.test/notes.js?v=2": versioned("1.1.0"),
-        "blockr.test/shared.js?v=1": shared,
-        "blockr.test/shared.js?v=2": { name: "shared at 1.1.0" },
-        "blockr.test/other.js?v=1": {},
-        "blockr.test/other.js?v=2": {},
-        [BASIC]: frontEnd().exports,
-      },
-      { reload: (changed) => changes.push(changed) },
-    );
+    const s = setup({
+      "blockr.test/notes.js?v=1": versioned("1.0.0"),
+      "blockr.test/notes.js?v=2": versioned("1.1.0"),
+      "blockr.test/shared.js?v=1": shared,
+      "blockr.test/shared.js?v=2": { name: "shared at 1.1.0" },
+      "blockr.test/other.js?v=1": {},
+      "blockr.test/other.js?v=2": {},
+      [BASIC]: frontEnd().exports,
+    });
+    const reloads = (core: CoreApi | undefined): readonly string[] =>
+      (core?.notifications.get() ?? []).filter((n) => n.class[0] === "page_reload_needed").map((n) => n.message);
+    const asked = "R now runs other versions of packages than this page loaded (blockr.test 1.0.0 to 1.1.0). Save the board, then reload the page.";
     s.r.session(first);
     await tick();
     s.r.options();
@@ -1471,8 +1580,7 @@ describe("a later session", () => {
 
     s.r.session(later);
     await tick();
-    const changed = [{ package: "blockr.test", loaded: "1.0.0", now: "1.1.0" }];
-    expect(changes).toEqual([changed]);
+    expect(reloads(core)).toEqual([asked]);
     expect(await core.module("blockr.test-shared")).toBe(shared);
     await expect(core.module("blockr.test-other")).rejects.toThrow(
       "The module blockr.test/other.js of blockr.test is not loaded: R now runs blockr.test 1.1.0, where the page loaded 1.0.0. Reload the page to load it.",
@@ -1487,7 +1595,8 @@ describe("a later session", () => {
     const next = s.started.core();
     expect(next?.store.board().name).toBe("Opened");
     expect(await next?.module("blockr.test-shared")).toBe(shared);
-    expect(changes).toEqual([changed, changed]);
+    // The board that opens asks again, while R runs the other version.
+    expect(reloads(next)).toEqual([asked]);
     expect(events).toEqual(["1.0.0 starts", "1.0.0 starts"]);
     expect(s.imported.filter((url) => url.endsWith("?v=2"))).toEqual([]);
   });

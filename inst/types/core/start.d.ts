@@ -26,7 +26,6 @@ export interface StartOptions {
     readonly frontEnds?: FrontEnds;
     readonly alone?: boolean;
     readonly measure?: Measure;
-    readonly reload?: (changed: readonly Changed[]) => void;
     readonly fail?: (error: Error) => void;
 }
 export interface Started {

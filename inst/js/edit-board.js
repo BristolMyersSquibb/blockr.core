@@ -917,11 +917,17 @@ function without2(errors, key) {
 }
 
 // srcts/modules/edit-board/run.ts
+var EDIT_BOARD = "blockr.core-edit_board_plugin";
 function runCommand(core, id2, args) {
   return core.commands.run(id2, args).then(
     () => true,
     (error) => {
-      core.notifications.notify({ message: errorMessage(error), severity: "error" });
+      core.notifications.notify({
+        severity: "error",
+        class: ["edit_refused", "blockr_error", "error", "condition"],
+        message: errorMessage(error),
+        origin: EDIT_BOARD
+      });
       return false;
     }
   );

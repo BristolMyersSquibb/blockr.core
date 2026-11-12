@@ -15,10 +15,13 @@
 // Where the module fails to load, declares another major, leaves out such a
 // board option or throws in render(), core shows an error in the element that
 // names the module and its package, while the page and the block's evaluation
-// carry on. So it does where a board option that the module names does not go
-// onto the board, as where its default fails: the module goes without none of
-// them, and core ends a module that it has drawn once one does not go onto the
-// board again.
+// carry on, and raises a notification that concerns the block, with the
+// module's package, which holds until the next board opens or the block leaves
+// the board. So it shows an error where a board option that the module names
+// does not go onto the board, as where its default fails: the module goes
+// without none of them, and core ends a module that it has drawn once one does
+// not go onto the board again. The notification that concerns the board option
+// tells of that, once for the board.
 //
 // A host keeps nothing of its own: the state is the store's, the status the
 // scheduler's and the answers core's, so one block mounts in several places
@@ -44,7 +47,19 @@ import type {
 } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { compile, errorMessage, isObject, jsonEqual, own, packageFromId, quoted, report } from "../util/index.ts";
+import {
+  compile,
+  coreNotification,
+  errorMessage,
+  isObject,
+  jsonEqual,
+  own,
+  packageFromId,
+  quoted,
+  raiseNothing,
+  report,
+} from "../util/index.ts";
+import type { Raise } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { Answers } from "./answers.ts";
 import { ModuleError } from "./load.ts";
@@ -71,7 +86,8 @@ export interface Mounts {
   mountOption(el: HTMLElement, option: OptionId): () => void;
   // Adds the board options to the board, each with its definition's default
   // where the board lacks it, and resolves with why any did not go onto the
-  // board, as core reports it, naming `by`, what requires the board option.
+  // board, as core reports it and raises a notification of it, naming `by`,
+  // what requires the board option.
   // Mounts that add a board option at once share one call of a default that
   // is a function, and core keeps nothing of a default once the board holds
   // it. The origin of what it adds is "blockr.core".
@@ -105,6 +121,13 @@ export interface MountsOptions {
   // The CoreApi that a board option's default gets, where it is a function,
   // as one that reads a blockr option.
   readonly core: () => CoreApi;
+  // Raises a notification of the board where a module cannot draw or a board
+  // option does not go onto the board (../core/notifications.ts). It raises
+  // none unless given.
+  readonly raise?: Raise;
+  // The package that lists a board option, from R's reply to `hello`, which
+  // the notification of the board option's failing UI names.
+  readonly optionPackage?: (option: OptionId) => string | undefined;
 }
 
 // The origin of what core changes on the board itself, such as the board
@@ -123,6 +146,8 @@ export function createMounts(options: MountsOptions): Mounts {
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? ((): void => undefined);
   const renderers = options.renderers ?? ((): Readonly<Record<string, Renderer>> => ({}));
+  const raise = options.raise ?? raiseNothing;
+  const optionPackage = options.optionPackage ?? ((): undefined => undefined);
 
   // What core keeps of the board, which goes with the mounts as another board
   // opens: the answers of requests, and of each block's output its parameters
@@ -139,11 +164,13 @@ export function createMounts(options: MountsOptions): Mounts {
   // What core has reported for the board, each once.
   const reported = new Set<string>();
 
-  // Reports why a board option did not go onto the board, once for the board.
-  function failure(message: string): readonly string[] {
+  // Reports why a board option did not go onto the board, and raises a
+  // notification of it that concerns the board option, once for the board.
+  function failure(option: OptionId, message: string): readonly string[] {
     if (!replaced.aborted && !reported.has(message)) {
       reported.add(message);
       report(new Error(message));
+      raise(coreNotification("board_option_failed", "error", message, { option }));
     }
     return [message];
   }
@@ -168,13 +195,13 @@ export function createMounts(options: MountsOptions): Mounts {
         if (Object.hasOwn(store.board().options, id)) return [];
         const def = own(store.options.registered(), id);
         if (def === undefined) {
-          return failure(`The board option "${id}", which ${by} requires, is defined by no package loaded.`);
+          return failure(id, `The board option "${id}", which ${by} requires, is defined by no package loaded.`);
         }
         let value: Json;
         try {
           value = await resolveDefault(id, def);
         } catch (error) {
-          return failure(`The default of the board option "${id}", which ${by} requires, failed: ${errorMessage(error)}`);
+          return failure(id, `The default of the board option "${id}", which ${by} requires, failed: ${errorMessage(error)}`);
         }
         // Something may have set it while the default resolved, and another
         // board may have opened, which takes the board options its own mounts
@@ -184,6 +211,7 @@ export function createMounts(options: MountsOptions): Mounts {
           await commands.run("blockr.core-set_option", { id, value }, CORE);
         } catch (error) {
           return failure(
+            id,
             `The default of the board option "${id}", which ${by} requires, did not go onto the board: ${errorMessage(error)}`,
           );
         }
@@ -236,12 +264,12 @@ export function createMounts(options: MountsOptions): Mounts {
         try {
           value = await resolveDefault(id, def);
         } catch (error) {
-          failure(`The default of the board option "${id}", which ${by} requires, failed: ${errorMessage(error)}`);
+          failure(id, `The default of the board option "${id}", which ${by} requires, failed: ${errorMessage(error)}`);
           return [];
         }
         const unfit = compile(`the board option "${id}"`, def.schema)(value);
         if (unfit.length > 0) {
-          failure(`The default of the board option "${id}", which ${by} requires, ${unfit.join(" ")}`);
+          failure(id, `The default of the board option "${id}", which ${by} requires, ${unfit.join(" ")}`);
           return [];
         }
         return [[id, value]];
@@ -349,6 +377,7 @@ export function createMounts(options: MountsOptions): Mounts {
       if (ended()) return;
       showError(el, errorMessage(error));
       report(error);
+      raise(coreNotification("module_failed", "error", errorMessage(error), { block, package: pkg }));
     }
 
     return end;
@@ -358,12 +387,12 @@ export function createMounts(options: MountsOptions): Mounts {
     mountBlock,
     mountOutput: (el, block) =>
       mountOutput(
-        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit },
+        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit, raise },
         el,
         block,
       ),
     mountOption: (el, option) =>
-      mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions }, el, option),
+      mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions, raise, optionPackage }, el, option),
     addOptions,
     keepOptions,
   };

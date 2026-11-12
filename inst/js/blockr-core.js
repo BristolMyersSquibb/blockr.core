@@ -566,6 +566,23 @@ function asLogical(text) {
   return void 0;
 }
 
+// srcts/util/notification.ts
+var raiseNothing = () => () => void 0;
+var ERROR = ["blockr_error", "error", "condition"];
+var WARNING = ["blockr_warning", "warning", "condition"];
+function coreNotification(code, severity, message, concerns = {}) {
+  return {
+    severity,
+    class: [code, ...severity === "error" ? ERROR : WARNING],
+    message,
+    origin: "core",
+    ...concerns.block === void 0 ? {} : { block: concerns.block },
+    ...concerns.option === void 0 ? {} : { option: concerns.option },
+    ...concerns.plugin === void 0 ? {} : { plugin: concerns.plugin },
+    ...concerns.package === void 0 || concerns.package === null ? {} : { package: concerns.package }
+  };
+}
+
 // node_modules/@cfworker/json-schema/dist/esm/deep-compare-strict.js
 function deepCompareStrict(a2, b2) {
   const typeofa = typeof a2;
@@ -1972,6 +1989,14 @@ var PROTOCOL_VERSION = "1.0";
 
 // srcts/scheduler/status.ts
 var NO_CONDITIONS = Object.freeze([]);
+var written = /* @__PURE__ */ new WeakSet();
+function writtenByCore(condition) {
+  return written.has(condition);
+}
+function byCore(condition) {
+  written.add(condition);
+  return condition;
+}
 function replyOutcome(reply, revision) {
   if (reply.status === "cancelled" || reply.status === "missing") return void 0;
   const evaluated = reply;
@@ -1990,11 +2015,11 @@ function unsent(revision, message) {
     revision,
     summary: null,
     conditions: [
-      {
+      byCore({
         severity: "error",
         class: ["blockr_error", "error", "condition"],
         message: `The evaluation could not be sent to R: ${message}`
-      }
+      })
     ],
     stdout: "",
     stderr: ""
@@ -2047,12 +2072,12 @@ function waitingFor(what) {
     const inputs = what.unlinked.length === 1 ? "input" : "inputs";
     message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
   }
-  return {
+  return byCore({
     severity: "message",
     class: ["blockr_message", "message", "condition"],
     phase: "status",
     message
-  };
+  });
 }
 function sameStatus(a2, b2) {
   return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.conditions.length === b2.conditions.length && a2.conditions.every(
@@ -3476,7 +3501,7 @@ function mountOption(deps, el, option) {
   if (def === void 0) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const chosen = Object.entries(deps.renderers()).find(([, renderer]) => renderer.option === option);
+  const chosen = Object.entries(deps.renderers()).find(([, renderer2]) => renderer2.option === option);
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
@@ -3539,16 +3564,16 @@ function mountOption(deps, el, option) {
     if (cleanup !== void 0) attempt(cleanup);
     el.replaceChildren();
   }
+  const [id2, renderer] = chosen ?? [];
+  const pkg = id2 === void 0 ? deps.optionPackage(option) : packageFromId(id2);
   void (async () => {
     let mod;
-    const [id2, renderer] = chosen ?? [];
     try {
       if (renderer === void 0 || id2 === void 0) {
         mod = def.ui;
       } else {
-        const pkg = packageFromId(id2);
         const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule(await loader.load(source, pkg), renderer.module, pkg);
+        mod = mountableModule(await loader.load(source, packageFromId(id2)), renderer.module, packageFromId(id2));
       }
     } catch (error) {
       fail(error);
@@ -3585,6 +3610,7 @@ function mountOption(deps, el, option) {
     if (ended()) return;
     showError(el, errorMessage(error));
     report(error);
+    deps.raise(coreNotification("module_failed", "error", errorMessage(error), { option, package: pkg }));
   }
   return end;
 }
@@ -3625,7 +3651,7 @@ function createShelves() {
     of(block) {
       let shelf = shelves.get(block);
       if (shelf === void 0) {
-        shelf = { params: {}, last: void 0, mounts: /* @__PURE__ */ new Set(), flights: /* @__PURE__ */ new Map() };
+        shelf = { params: {}, last: void 0, failure: void 0, mounts: /* @__PURE__ */ new Set(), flights: /* @__PURE__ */ new Map() };
         shelves.set(block, shelf);
       }
       return shelf;
@@ -3637,6 +3663,9 @@ function createShelves() {
       shelves.delete(block);
     }
   };
+}
+function noOutput(message) {
+  return { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message };
 }
 function mountOutput(deps, el, block) {
   const { store, scheduler, loader, measure } = deps;
@@ -3788,10 +3817,13 @@ function mountOutput(deps, el, block) {
         if (answer.reply.status === "ok" && "output" in answer.reply && !deps.replaced.aborted) {
           shelf.last = { asked, output: answer.reply.output, body: answer.body };
         }
+        heard(answer.reply);
         return answer;
       });
       const started = { done, controller: aborted, callers: 0 };
-      void done.catch(() => void 0).finally(() => {
+      void done.catch((failure) => {
+        if (!aborted.signal.aborted) unanswered(errorMessage(failure));
+      }).finally(() => {
         if (shelf.flights.get(key) === started) shelf.flights.delete(key);
       });
       shelf.flights.set(key, started);
@@ -3838,20 +3870,38 @@ function mountOutput(deps, el, block) {
         return;
       case "error": {
         const conditions = "conditions" in reply ? reply.conditions : [];
-        failed2(
-          conditions[0] ?? {
-            severity: "error",
-            class: ["blockr_error", "error", "condition"],
-            phase: "output",
-            message: `R failed to make the output of block "${block}".`
-          },
-          conditions
-        );
+        failed2(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`), conditions);
         return;
       }
       default:
         announce2();
     }
+  }
+  function heard(reply) {
+    if (deps.replaced.aborted) return;
+    if (reply.status === "ok" && "output" in reply) {
+      const before = shelf.failure;
+      shelf.failure = void 0;
+      before?.();
+    } else if (reply.status === "error") {
+      const first = "conditions" in reply ? reply.conditions[0] : void 0;
+      hold(first ?? noOutput(`R failed to make the output of block "${block}".`), first === void 0 ? "core" : "r");
+    }
+  }
+  function unanswered(message) {
+    if (!deps.replaced.aborted) hold(noOutput(message), "core");
+  }
+  function hold(condition, origin) {
+    const before = shelf.failure;
+    shelf.failure = deps.raise({
+      severity: condition.severity,
+      class: condition.class,
+      message: condition.message,
+      origin,
+      ...condition.phase === void 0 ? {} : { phase: condition.phase },
+      block
+    });
+    before?.();
   }
   function failed2(condition, conditions) {
     error = condition;
@@ -3864,14 +3914,14 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     if (failure instanceof ModuleError) {
       showError(el, failure.message);
-      if (!broken.has(failure)) report(failure);
+      if (!broken.has(failure)) {
+        report(failure);
+        deps.raise(coreNotification("module_failed", "error", failure.message, { block, package: failure.package }));
+      }
       broken.add(failure);
       return;
     }
-    failed2(
-      { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message: errorMessage(failure) },
-      []
-    );
+    failed2(noOutput(errorMessage(failure)), []);
   }
   function take(next) {
     held = next;
@@ -3912,6 +3962,7 @@ function mountOutput(deps, el, block) {
         });
         showError(el, why.message);
         report(why);
+        deps.raise(coreNotification("module_failed", "error", why.message, { block, package: pkg }));
       }
     })();
   }
@@ -4051,8 +4102,8 @@ function mountOutput(deps, el, block) {
       loading: () => asking !== void 0,
       error: () => error,
       on(event, fn) {
-        const heard = event;
-        if (heard !== "output") {
+        const heard2 = event;
+        if (heard2 !== "output") {
           throw new Error(`The host of an output announces "output", not ${JSON.stringify(event)}.`);
         }
         const wrapped = () => {
@@ -4159,16 +4210,19 @@ function createMounts(options) {
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
   const renderers = options.renderers ?? (() => ({}));
+  const raise = options.raise ?? raiseNothing;
+  const optionPackage = options.optionPackage ?? (() => void 0);
   store.subscribe((change) => {
     if ("opened" in change) return;
     for (const id2 of change.delta.blocks?.rm ?? []) shelves.drop(id2);
   });
   const resolving = /* @__PURE__ */ new Map();
   const reported = /* @__PURE__ */ new Set();
-  function failure(message) {
+  function failure(option, message) {
     if (!replaced.aborted && !reported.has(message)) {
       reported.add(message);
       report(new Error(message));
+      raise(coreNotification("board_option_failed", "error", message, { option }));
     }
     return [message];
   }
@@ -4190,19 +4244,20 @@ function createMounts(options) {
         if (Object.hasOwn(store.board().options, id2)) return [];
         const def = own(store.options.registered(), id2);
         if (def === void 0) {
-          return failure(`The board option "${id2}", which ${by} requires, is defined by no package loaded.`);
+          return failure(id2, `The board option "${id2}", which ${by} requires, is defined by no package loaded.`);
         }
         let value2;
         try {
           value2 = await resolveDefault(id2, def);
         } catch (error) {
-          return failure(`The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
+          return failure(id2, `The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
         }
         if (replaced.aborted || Object.hasOwn(store.board().options, id2)) return [];
         try {
           await commands.run("blockr.core-set_option", { id: id2, value: value2 }, CORE);
         } catch (error) {
           return failure(
+            id2,
             `The default of the board option "${id2}", which ${by} requires, did not go onto the board: ${errorMessage(error)}`
           );
         }
@@ -4241,12 +4296,12 @@ function createMounts(options) {
         try {
           value2 = await resolveDefault(id2, def);
         } catch (error) {
-          failure(`The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
+          failure(id2, `The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
           return [];
         }
         const unfit = compile(`the board option "${id2}"`, def.schema)(value2);
         if (unfit.length > 0) {
-          failure(`The default of the board option "${id2}", which ${by} requires, ${unfit.join(" ")}`);
+          failure(id2, `The default of the board option "${id2}", which ${by} requires, ${unfit.join(" ")}`);
           return [];
         }
         return [[id2, value2]];
@@ -4336,17 +4391,18 @@ function createMounts(options) {
       if (ended()) return;
       showError(el, errorMessage(error));
       report(error);
+      raise(coreNotification("module_failed", "error", errorMessage(error), { block, package: pkg }));
     }
     return end;
   }
   return {
     mountBlock,
     mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit },
+      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit, raise },
       el,
       block
     ),
-    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions }, el, option),
+    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions, raise, optionPackage }, el, option),
     addOptions,
     keepOptions
   };
@@ -7355,7 +7411,9 @@ function runPlugins(deps) {
     try {
       returned = def.start?.({ core: deps.core(), plugin: id2, signal: controller.signal });
     } catch (error) {
-      report(new Error(`The start of the plugin class "${id2}" failed: ${errorMessage(error)}`, { cause: error }));
+      const why = new Error(`The start of the plugin class "${id2}" failed: ${errorMessage(error)}`, { cause: error });
+      report(why);
+      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { plugin: id2, package: packageFromId(id2) }));
       return;
     }
     if (typeof returned !== "function") return;
@@ -7388,6 +7446,9 @@ function runPlugins(deps) {
       if (ended()) return;
       showError(el, errorMessage(error));
       report(error);
+      deps.raise(
+        coreNotification("module_failed", "error", errorMessage(error), { plugin, package: packageFromId(plugin) })
+      );
     }
     void (async () => {
       const kept = keepOptions(def.options ?? [], `the plugin class "${plugin}"`, (failures2) => {
@@ -7491,7 +7552,10 @@ async function evaluateReads2(deps, what, blocks, signal) {
 
 // srcts/core/core.ts
 function createCore(parts) {
-  const { store, commands, scheduler, loader, blockrOptions } = parts;
+  const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const { raise } = notifications;
+  notifications.follow(scheduler);
+  const optionPackage = (id2) => own(parts.options, id2)?.package;
   const listeners = /* @__PURE__ */ new Set();
   parts.signal?.addEventListener(
     "abort",
@@ -7518,6 +7582,8 @@ function createCore(parts) {
     loader,
     core: () => api,
     renderers: parts.renderers,
+    raise,
+    optionPackage,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
     emit(event) {
@@ -7535,6 +7601,7 @@ function createCore(parts) {
     keepOptions: (ids2, by, failed2) => mounts.keepOptions(ids2, by, failed2),
     core: () => api,
     plugins: parts.plugins,
+    raise,
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const api = {
@@ -7563,7 +7630,7 @@ function createCore(parts) {
     },
     lock: parts.lock,
     outputEvents,
-    notifications: createNotifications(parts.signal),
+    notifications: notifications.api,
     focus: createFocus(store, parts.signal),
     request: (plugin, name3, args = {}, opts = {}) => pluginRequest({ plugins, scheduler }, plugin, name3, args, opts),
     module: (id2) => loader.module(id2),
@@ -7588,46 +7655,27 @@ function createCore(parts) {
       if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
     }
   });
+  const failing = /* @__PURE__ */ new Map();
   function changed(id2, value2) {
     const def = own(store.options.registered(), id2);
     if (def?.onChange === void 0) return;
+    let failure;
     try {
       def.onChange(value2, api);
     } catch (error) {
       report(error);
+      failure = raise(
+        coreNotification("on_change_failed", "error", `The onChange of the board option "${id2}" failed: ${errorMessage(error)}`, {
+          option: id2,
+          package: optionPackage(id2)
+        })
+      );
     }
+    failing.get(id2)?.();
+    if (failure === void 0) failing.delete(id2);
+    else failing.set(id2, failure);
   }
   return { api, plugins };
-}
-var SEVERITIES = ["message", "warning", "error"];
-function createNotifications(signal) {
-  const listeners = /* @__PURE__ */ new Set();
-  signal?.addEventListener(
-    "abort",
-    () => {
-      listeners.clear();
-    },
-    { once: true }
-  );
-  return {
-    notify(note) {
-      const given = note;
-      if (!isObject(given) || typeof given.message !== "string" || !SEVERITIES.includes(given.severity)) {
-        throw new TypeError('A note holds a message, as a string, and a severity, "message", "warning" or "error".');
-      }
-      const sent2 = Object.freeze({ message: given.message, severity: given.severity });
-      announceTo(listeners, sent2);
-    },
-    subscribe(fn) {
-      const wrapped = (note) => {
-        fn(note);
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    }
-  };
 }
 function createFocus(store, signal) {
   let focused = null;
@@ -8545,6 +8593,217 @@ function migrationOf(exports, module, pkg) {
   return migrate2;
 }
 
+// srcts/core/notifications.ts
+var SEVERITIES = ["message", "warning", "error"];
+var PHASES = {
+  expr: true,
+  inputs: true,
+  block_eval: true,
+  result_summary: true,
+  output: true,
+  request: true,
+  status: true
+};
+var NONE2 = Object.freeze([]);
+var nothing = () => void 0;
+function createNotifications(store, signal) {
+  const held = /* @__PURE__ */ new Map();
+  const raised = /* @__PURE__ */ new Map();
+  const ofStatus = /* @__PURE__ */ new Map();
+  const listeners = /* @__PURE__ */ new Set();
+  let all = NONE2;
+  let plugins = 0;
+  let ended = false;
+  const stops = [];
+  function publish() {
+    all = Object.freeze([...held.values()]);
+    announceTo(listeners, all);
+  }
+  function holds(block) {
+    return store.hasBoard() && Object.hasOwn(store.board().blocks, block);
+  }
+  const offStore = store.subscribe((change) => {
+    if ("opened" in change) return;
+    const gone = change.delta.blocks?.rm ?? [];
+    if (gone.length === 0) return;
+    let moved = false;
+    for (const [id2, notification] of held) {
+      if (notification.block === void 0 || !gone.includes(notification.block)) continue;
+      held.delete(id2);
+      raised.delete(id2);
+      moved = true;
+    }
+    for (const block of gone) ofStatus.delete(block);
+    if (moved) publish();
+  });
+  stops.push(offStore);
+  function end() {
+    if (ended) return;
+    ended = true;
+    for (const stop of stops) stop();
+    const had = held.size > 0;
+    held.clear();
+    raised.clear();
+    ofStatus.clear();
+    if (had) publish();
+    listeners.clear();
+  }
+  if (signal?.aborted === true) end();
+  else if (signal !== void 0) onAbort(signal, end);
+  function fromStatus(block, status) {
+    const next = /* @__PURE__ */ new Map();
+    if (status !== void 0 && holds(block)) {
+      for (const condition of status.conditions) {
+        const id2 = JSON.stringify(["status", block, condition.severity, condition.class, condition.message]);
+        if (!next.has(id2)) next.set(id2, ofCondition(id2, block, condition));
+      }
+    }
+    let moved = false;
+    for (const id2 of ofStatus.get(block) ?? []) {
+      if (!next.has(id2) && held.delete(id2)) moved = true;
+    }
+    for (const [id2, notification] of next) {
+      const had = held.get(id2);
+      if (had !== void 0 && jsonEqual(had, notification)) continue;
+      held.set(id2, notification);
+      moved = true;
+    }
+    if (next.size === 0) ofStatus.delete(block);
+    else ofStatus.set(block, [...next.keys()]);
+    return moved;
+  }
+  const raise = (given) => {
+    if (ended || given.block !== void 0 && !holds(given.block)) return nothing;
+    const id2 = JSON.stringify([
+      "core",
+      given.severity,
+      given.class,
+      given.message,
+      given.origin,
+      given.phase ?? null,
+      given.block ?? null,
+      given.option ?? null,
+      given.plugin ?? null,
+      given.package ?? null
+    ]);
+    const token = {};
+    const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
+    tokens.add(token);
+    raised.set(id2, tokens);
+    if (!held.has(id2)) {
+      held.set(id2, frozen(id2, given));
+      publish();
+    }
+    return () => {
+      const holding = raised.get(id2);
+      if (holding?.delete(token) !== true || holding.size > 0) return;
+      raised.delete(id2);
+      if (held.delete(id2)) publish();
+    };
+  };
+  return {
+    api: {
+      notify(notification) {
+        const given = checked2(notification);
+        if (ended) return nothing;
+        if (given.block !== void 0 && !holds(given.block)) {
+          throw new Error(`The board holds no block ${JSON.stringify(given.block)} for a notification to concern.`);
+        }
+        const id2 = `plugin-${String(++plugins)}`;
+        held.set(id2, frozen(id2, given));
+        publish();
+        let withdrawn = false;
+        return () => {
+          if (withdrawn) return;
+          withdrawn = true;
+          if (held.delete(id2)) publish();
+        };
+      },
+      get: () => all,
+      subscribe(fn) {
+        const wrapped = (notifications) => {
+          fn(notifications);
+        };
+        listeners.add(wrapped);
+        return () => {
+          listeners.delete(wrapped);
+        };
+      }
+    },
+    raise,
+    follow(scheduler) {
+      if (ended) return;
+      const heard = (blocks) => {
+        let moved = false;
+        for (const block of blocks) {
+          if (fromStatus(block, scheduler.status(block))) moved = true;
+        }
+        if (moved) publish();
+      };
+      stops.push(scheduler.subscribe(heard));
+      if (store.hasBoard()) heard(Object.keys(store.board().blocks));
+    }
+  };
+}
+function ofCondition(id2, block, condition) {
+  return frozen(id2, {
+    severity: condition.severity,
+    class: condition.class,
+    message: condition.message,
+    origin: writtenByCore(condition) ? "core" : "r",
+    ...condition.phase === void 0 ? {} : { phase: condition.phase },
+    block
+  });
+}
+function frozen(id2, given) {
+  return Object.freeze({
+    id: id2,
+    severity: given.severity,
+    class: Object.freeze([...given.class]),
+    message: given.message,
+    origin: given.origin,
+    ...given.phase === void 0 ? {} : { phase: given.phase },
+    ...given.block === void 0 ? {} : { block: given.block },
+    ...given.option === void 0 ? {} : { option: given.option },
+    ...given.plugin === void 0 ? {} : { plugin: given.plugin },
+    ...given.package === void 0 ? {} : { package: given.package }
+  });
+}
+function checked2(notification) {
+  const given = notification;
+  if (!isObject(given)) {
+    throw new TypeError(`A notification is an object, not ${JSON.stringify(given)}.`);
+  }
+  if (!SEVERITIES.includes(given.severity)) {
+    throw new TypeError(
+      `The severity of a notification is "message", "warning" or "error", not ${JSON.stringify(given.severity)}.`
+    );
+  }
+  const { class: cls } = given;
+  if (!Array.isArray(cls) || cls.length === 0 || !cls.every((item) => typeof item === "string" && item !== "")) {
+    throw new TypeError(`The class of a notification is a non-empty array of strings, not ${JSON.stringify(cls)}.`);
+  }
+  if (typeof given.message !== "string") {
+    throw new TypeError(`The message of a notification is a string, not ${JSON.stringify(given.message)}.`);
+  }
+  if (typeof given.origin !== "string" || given.origin === "") {
+    throw new TypeError(
+      `The origin of a notification is a non-empty string, as the id of the class of the plugin that raises it, not ${JSON.stringify(given.origin)}.`
+    );
+  }
+  const { phase } = given;
+  if (phase !== void 0 && !(typeof phase === "string" && Object.hasOwn(PHASES, phase))) {
+    throw new TypeError(`The phase of a notification is one of the protocol's, not ${JSON.stringify(phase)}.`);
+  }
+  for (const member of ["block", "option", "plugin", "package"]) {
+    const value2 = given[member];
+    if (value2 !== void 0 && (typeof value2 !== "string" || value2 === "")) {
+      throw new TypeError(`The ${member} that a notification concerns is named by a non-empty string, not ${JSON.stringify(value2)}.`);
+    }
+  }
+  return notification;
+}
+
 // srcts/core/start.ts
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start(options) {
@@ -8557,6 +8816,7 @@ function start(options) {
   let latest;
   const loaded = /* @__PURE__ */ new Map();
   let changed = [];
+  let reloading;
   let running2;
   const holdsBoard = () => running2?.store.hasBoard() === true;
   let restarting;
@@ -8617,11 +8877,8 @@ function start(options) {
       return;
     }
     changed = changedPackages(loaded, hello);
-    if (changed.length > 0) {
-      (options.reload ?? askReload)(changed);
-    } else {
-      adopt(hello);
-    }
+    askReload(running2?.notifications.raise);
+    if (changed.length === 0) adopt(hello);
     if (restarting !== void 0) {
       const waiting2 = restarting;
       restarting = void 0;
@@ -8641,6 +8898,11 @@ function start(options) {
     const waiting2 = restarting;
     restarting = void 0;
     waiting2?.reject(why);
+  }
+  function askReload(raise) {
+    const before = reloading;
+    reloading = changed.length > 0 && raise !== void 0 ? raise(reloadNotification(changed)) : void 0;
+    before?.();
   }
   function halt(error) {
     end(error);
@@ -8669,8 +8931,11 @@ function start(options) {
       blockrOptions.read("rand_id")
     ]);
     const store = createStore({ hello: reply, signal, migration: (id2) => migrations.get(id2) });
+    const notifications = createNotifications(store, signal);
+    const { raise } = notifications;
+    askReload(raise);
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
-    await register(reply, store, commands, signal);
+    await register(reply, store, commands, signal, raise);
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -8694,22 +8959,32 @@ function start(options) {
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
+      options: reply.options,
+      notifications,
       signal,
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
-    running2 = { store, scheduler, core, controller };
+    running2 = { store, scheduler, core, notifications, controller };
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = alone ? void 0 : await named2(reply, store, core, signal);
-      await migrations.prepare(instead ?? reply.board, reply.block_registry);
+      const instead = alone ? void 0 : await named2(reply, store, core, signal, raise);
+      await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
       if (instead === void 0) {
         dropped = await store.open(reply);
       } else {
         try {
-          dropped = await store.open(instead);
+          dropped = await store.open(instead.text);
         } catch (error) {
           report(error);
+          raise(
+            coreNotification(
+              "board_open_failed",
+              "error",
+              `The board that the storage plugin "${instead.plugin}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
+              { package: packageFromId(instead.plugin) }
+            )
+          );
           await migrations.prepare(reply.board, reply.block_registry);
           dropped = await store.open(reply);
         }
@@ -8726,8 +9001,16 @@ function start(options) {
           report(again);
           throw failure;
         }
+        raise(
+          coreNotification(
+            "board_open_failed",
+            "error",
+            `The board did not open, so core opened the board before it again: ${failure.message}`
+          )
+        );
       }
     }
+    if (dropped.length > 0) raise(droppedNotification(dropped));
     if (alone) {
       try {
         options.frontEnds?.card?.(core, signal);
@@ -8746,25 +9029,40 @@ function start(options) {
       } finally {
         scheduler.start();
       }
-      if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     }
     await plugins.start();
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
-  async function register(reply, store, commands, signal) {
+  async function register(reply, store, commands, signal, raise) {
+    const failed2 = (error, concerns) => {
+      report(error);
+      if (!signal.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
+    };
     const [defs, opts] = await Promise.all([
-      Promise.all(Object.entries(reply.plugins).map(([id2, entry]) => listed(entry, packageFromId(id2)))),
-      Promise.all(Object.values(reply.options).map((entry) => listed(entry, entry.package)))
+      Promise.all(
+        Object.entries(reply.plugins).map(
+          ([id2, entry]) => listed(entry, packageFromId(id2), (error) => {
+            failed2(error, { plugin: id2, package: packageFromId(id2) });
+          })
+        )
+      ),
+      Promise.all(
+        Object.entries(reply.options).map(
+          ([id2, entry]) => listed(entry, entry.package, (error) => {
+            failed2(error, { option: id2, package: entry.package });
+          })
+        )
+      )
     ]);
     if (signal.aborted) return;
-    Object.keys(reply.options).forEach((id2, i2) => {
+    Object.entries(reply.options).forEach(([id2, entry], i2) => {
       const def = opts[i2];
       if (def === void 0) return;
       try {
         store.options.register({ ...def, id: id2 });
       } catch (error) {
-        report(error);
+        failed2(error, { option: id2, package: entry.package });
       }
     });
     Object.keys(reply.plugins).forEach((id2, i2) => {
@@ -8775,7 +9073,7 @@ function start(options) {
         cls = { ...def, id: id2 };
         store.plugins.register(cls);
       } catch (error) {
-        report(error);
+        failed2(error, { plugin: id2, package: packageFromId(id2) });
         return;
       }
       for (const command2 of cls.commands ?? []) {
@@ -8787,40 +9085,54 @@ function start(options) {
       }
     });
   }
-  async function listed(source, pkg) {
+  async function listed(source, pkg, failed2) {
     try {
       const at = source.css === void 0 ? { module: source.module } : { module: source.module, css: source.css };
       return listedDefault(await loader.load(at, pkg), source.module, pkg);
     } catch (error) {
-      report(error);
+      failed2(error);
       return void 0;
     }
   }
-  async function named2(reply, store, core, signal) {
+  async function named2(reply, store, core, signal, raise) {
     if (reply.lock.load) return void 0;
     const classes = store.plugins.registered();
     const plugin = Object.keys(reply.plugins).find((id2) => own(classes, id2)?.storage !== void 0);
     const storage = plugin === void 0 ? void 0 : own(classes, plugin)?.storage;
     if (plugin === void 0 || storage?.load === void 0) return void 0;
+    const refuse = (error) => {
+      report(error);
+      raise(coreNotification("board_open_failed", "error", error.message, { package: packageFromId(plugin) }));
+    };
     let text;
     try {
       text = await storage.load({ core, plugin, signal });
     } catch (error) {
-      report(new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, { cause: error }));
+      refuse(
+        new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
+          cause: error
+        })
+      );
       return void 0;
     }
     if (text === void 0) return void 0;
     if (typeof text !== "string") {
-      report(new Error(`The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`));
+      refuse(
+        new Error(
+          `The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`
+        )
+      );
       return void 0;
     }
     try {
       JSON.parse(text);
     } catch (error) {
-      report(new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
+      refuse(
+        new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`)
+      );
       return void 0;
     }
-    return text;
+    return { text, plugin };
   }
   let queue = Promise.resolve();
   function reopen(given, of) {
@@ -8888,21 +9200,22 @@ function changedPackages(loaded, reply) {
     return before === void 0 || before === now ? [] : [{ package: pkg, loaded: before, now }];
   });
 }
-function askReload(changed) {
-  report(
-    new Error(
-      `R now runs ${changed.map((c2) => `${c2.package} ${c2.now}`).join(", ")}, where the page loaded ${changed.map((c2) => `${c2.package} ${c2.loaded}`).join(", ")}. Reload the page.`
-    )
+function reloadNotification(changed) {
+  const versions = changed.map((c2) => `${c2.package} ${c2.loaded} to ${c2.now}`).join(", ");
+  return coreNotification(
+    "page_reload_needed",
+    "warning",
+    `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`
   );
 }
-function droppedNote(dropped) {
+function droppedNotification(dropped) {
   const lines = dropped.map((item) => {
     if ("option" in item) return `- board option "${item.option}"`;
     if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
     if ("plugin" in item) return `- plugin "${item.plugin}"`;
     return `- package ${item.package} ${item.version}`;
   });
-  return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
+  return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
 }
 function listedDefault(exports, module, pkg) {
   const def = moduleExports(exports, module, pkg).default;
@@ -9194,34 +9507,11 @@ function startPage(options) {
       }
     },
     ...options.alone === true ? { alone: true } : {},
-    reload(changed) {
-      reloadBanner(changed);
-    },
     fail(error) {
       showError(el, error.message);
       report(error);
     }
   });
-}
-function reloadBanner(changed) {
-  const id2 = "blockr-core-reload";
-  document.getElementById(id2)?.remove();
-  const banner = document.createElement("div");
-  banner.id = id2;
-  banner.setAttribute("role", "alert");
-  banner.className = "bc:fixed bc:inset-x-0 bc:top-0 bc:z-50 bc:flex bc:items-center bc:gap-3 bc:border-b bc:border-border-default bc:bg-bg-raised bc:p-3 bc:font-sans bc:text-sm bc:text-gray-900 bc:dark:text-gray-100";
-  const text = document.createElement("span");
-  const versions = changed.map((c2) => `${c2.package} ${c2.loaded} to ${c2.now}`).join(", ");
-  text.textContent = `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`;
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "bc:rounded-md bc:border bc:border-border-default bc:px-2 bc:py-1";
-  button.textContent = "Reload";
-  button.addEventListener("click", () => {
-    location.reload();
-  });
-  banner.append(text, button);
-  document.body.append(banner);
 }
 export {
   SessionEndedError,

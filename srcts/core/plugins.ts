@@ -22,7 +22,9 @@
 // Where a board option that a class names does not go onto the board, as where
 // its default fails, nothing that requires it draws or runs: the element of the
 // frontend or of the plugin's UI shows why, and core calls no `start` of the
-// plugin, which it reports.
+// plugin, which it reports. A `start` that throws and a `ui` that fails in
+// render() each raise a notification that concerns the plugin, with its
+// class's package, which holds until the next board opens.
 // A frontend places each plugin whose class has a `ui` with mountPlugin(),
 // which calls the `ui` with the element that the frontend gives, as
 // mountBlock() mounts a block's UI.
@@ -36,7 +38,8 @@ import { inRole } from "../store/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Plugin, PluginModule } from "../types/core-api.ts";
-import { errorMessage, own, report } from "../util/index.ts";
+import { coreNotification, errorMessage, own, packageFromId, report } from "../util/index.ts";
+import type { Raise } from "../util/index.ts";
 
 // What the render() of the `ui` of a plugin's class gets.
 export type PluginArgs = Parameters<PluginModule["render"]>[0];
@@ -76,6 +79,8 @@ export interface RunningDeps {
   readonly core: () => CoreApi;
   // The app's plugins, from R's reply to `hello`, by the ids of their classes.
   readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
+  // Raises a notification of the board (./notifications.ts).
+  readonly raise: Raise;
   // Aborts as the next board opens, which ends what core runs for the plugins.
   readonly signal?: AbortSignal;
 }
@@ -197,7 +202,9 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     try {
       returned = def.start?.({ core: deps.core(), plugin: id, signal: controller.signal });
     } catch (error) {
-      report(new Error(`The start of the plugin class "${id}" failed: ${errorMessage(error)}`, { cause: error }));
+      const why = new Error(`The start of the plugin class "${id}" failed: ${errorMessage(error)}`, { cause: error });
+      report(why);
+      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { plugin: id, package: packageFromId(id) }));
       return;
     }
     if (typeof returned !== "function") return;
@@ -239,6 +246,9 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
       if (ended()) return;
       showError(el, errorMessage(error));
       report(error);
+      deps.raise(
+        coreNotification("module_failed", "error", errorMessage(error), { plugin, package: packageFromId(plugin) }),
+      );
     }
 
     void (async () => {

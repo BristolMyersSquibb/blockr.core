@@ -216,7 +216,7 @@ export default merge;
 // with the `ui` that draws the plugin of the class, by the name that the app
 // gives it, and the storage, which gives the controls that a frontend draws
 // and names a board to open as the page starts, as a package writes it.
-const notesModule = `import type { PluginClass, PluginModule, StorageControl } from "@blockr/core";
+const notesModule = `import type { Notification, PluginClass, PluginModule, StorageControl } from "@blockr/core";
 
 export const api = 1;
 
@@ -233,9 +233,15 @@ const notes: PluginModule = {
     const offFocus = core.focus.subscribe((block) => {
       el.dataset.focus = block ?? "";
     });
-    signal.addEventListener("abort", () => {
-      core.notifications.notify({ message: "Notes closed.", severity: "message" });
-    });
+    const opened: Omit<Notification, "id"> = {
+      severity: "message",
+      class: ["notes_opened"],
+      message: "Notes opened.",
+      origin: plugin,
+      plugin,
+    };
+    const withdraw = core.notifications.notify(opened);
+    signal.addEventListener("abort", withdraw);
     const off = core.store.subscribe(draw);
     return () => {
       off();
@@ -260,8 +266,8 @@ export default {
     load: ({ core }) => Promise.resolve(core.lock.load ? undefined : '{"format": 1}'),
   },
   start: ({ core, signal }) => {
-    const off = core.notifications.subscribe((note) => {
-      core.focus.set(note.severity === "error" ? null : core.focus.get());
+    const off = core.notifications.subscribe((all) => {
+      core.focus.set(all.some((n) => n.severity === "error") ? null : core.focus.get());
     });
     signal.addEventListener("abort", off);
   },

@@ -315,7 +315,7 @@
   As a board opens, core adds to it the board options that the classes of the app's plugins name in `options`, core's basic frontend's among them, each with its default where the board lacks it, so that the store no longer writes `show_conditions` and `dark_mode` into every board.
   Where such a board option does not go onto the board, nothing that requires it draws or runs: the element of the frontend or of the plugin's UI shows why, and core calls no `start` of the plugin and reports why.
   The `plugins` of `CoreApi` gain `appPlugins()`, the app's plugins whose classes are registered, by the IDs of their classes, each with its class's name, `pluginClass()`, the class of one of them, and `storage()`, the storage of the app's storage plugin, or `undefined` where the app runs none.
-  Beside them, `CoreApi` gains `notifications`, which hands each note that a plugin sends to the frontend, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
+  Beside them, `CoreApi` gains `notifications`, which hold the notifications of the board, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
   The `CoreApi` for tests runs the app's plugins as the page does, and serves a module that a test gives by its id, such as a plugin's UI (#506, #558).
 * A storage plugin describes its storage controls, and every frontend draws them with its own components.
   The `storage` of a storage plugin's class holds `controls()`, which gives the controls in order, and `subscribe()`, which calls back whenever they change, in place of `save()` and `open()`.
@@ -327,7 +327,7 @@
   It shows the UI of each plugin whose class has a `ui` in a section of its own, beside the board on a wide page and above it on a narrow one.
   The user collapses or expands each plugin's section, and each stack's group of cards.
   A card gives its block focus as the user clicks into it or moves the keyboard's focus into it.
-  Beside the edits that the store refused, the frontend shows the notes that plugins send, in the color of their severity, and the note that core sends as a board opens, which names what the store dropped.
+  Beside the edits that the store refused, the frontend shows the notifications that plugins raise, in the color of their severity, and the one in which core names what the store dropped as a board opened.
   On a locked board, the toolbar keeps the board options and the storage controls (#507, #558, #567).
 * Core's Edit board plugin, which `new_edit_board_plugin()` makes, of class `c("edit_board_plugin", "plugin")`, adds, changes and removes blocks, links and stacks under every frontend, as the plugins `manage_blocks`, `manage_links` and `manage_stacks` did until now.
   It keeps no state, and an app runs it by default, since `available_plugins()` lists it.
@@ -453,6 +453,18 @@
   The block registration roclet writes the id of each class into `blocks.yml`, which it reads off the class's constructor.
   The `register_package_blocks()` function is gone, and core's `.onLoad()` registers no block class, so a block package drops its call of `register_package_blocks()` from its `.onLoad()`.
   Core reads the files of another package, such as its `blocks.yml`, its modules and its JSON Schemas, with `pkg_file()`, which now goes through the package's own `system.file()` and takes a package's name as well as an environment, so that it finds them for a package that `pkgload::load_all()` loaded too (#498, #560).
+* The `notifications` of `CoreApi` hold every notification of the open board, in the order they came, until each is withdrawn: one for each condition of each block's status, those that core raises where it fails at something that the user asked for or that the board needs, and those that plugins raise.
+  A frontend reads them through `get()`, which returns the same array until one comes or goes, and follows them through `subscribe()`, so that one raised before the frontend draws still reaches it.
+  A `Notification` has an id, a severity, a class, a message and an origin, `"r"`, `"core"` or the id of a plugin's class, and names what it concerns: a block, a board option, a plugin or a package, or none of these for the board.
+  A plugin raises one with `notify()`, which returns what withdraws it, and which refuses one whose members are of the wrong kind or that concerns a block that the board does not hold.
+  Core withdraws every notification that concerns a block as the block leaves the board, and every one as the next board opens.
+  The `Note` type is gone (#539).
+* Core raises a notification where a module cannot draw, a block's UI, a renderer, a board option's UI or a plugin's UI, where a module that the reply to `hello` names fails to load or the store refuses its default export, where a board option does not go onto the board, an `onChange` throws or a plugin's `start` throws, where the board that the storage plugin names or a later board fails to open, and where the store dropped something as the board opened.
+  Each has a class of its own, as `module_failed`, followed by `blockr_error`, `error` and `condition`, or by `blockr_warning`, `warning` and `condition`, and core still logs each failure.
+  Where R cannot make a block's output, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives (#539).
+* Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the class `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
+  Core's basic frontend shows above the board the notifications that concern no block and those that plugins raise, until core withdraws one or the user dismisses it, and offers to reload the page with `page_reload_needed`.
+  The Edit board plugin raises a notification of the class `edit_refused` for each of its edits that the store or the command registry refuses (#539).
 
 # blockr.core 0.1.4
 

@@ -1,8 +1,8 @@
 // The app's plugins on the CoreApi for tests: which run and of which class, as
 // R's reply to hello names them, each from the module of its class, the
 // storage whose controls a frontend draws, mounting a plugin's UI where a
-// frontend places it, and what a frontend offers other plugins, the notes they
-// send and which block has focus.
+// frontend places it, and what a frontend offers other plugins, the
+// notifications they raise and which block has focus.
 
 import { describe, expect, test } from "vitest";
 // The modules of core's own plugin classes, which the build bundles on their
@@ -19,7 +19,7 @@ import { classModule, listedModules, pluginUi } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
-import type { CoreApi, Note } from "../types/core-api.ts";
+import type { CoreApi, Notification } from "../types/core-api.ts";
 
 // The classes of core's own plugins, which the app of the fixture hello runs.
 const BASIC = "blockr.core-basic_frontend_plugin";
@@ -306,30 +306,90 @@ describe("mounting a plugin's UI", () => {
 });
 
 describe("what a frontend offers other plugins", () => {
-  test("hands each note that a plugin sends to every subscriber, refuses what is no note, and hands on nothing once the next board opens", async () => {
+  test("holds each notification that a plugin raises until it withdraws it, hands every subscriber those that hold, and holds none once the next board opens", async () => {
     const s = await stubCore();
-    const heard: Note[] = [];
     const { core } = s;
-    core.notifications.subscribe((note) => heard.push(note));
-    const off = core.notifications.subscribe((note) => heard.push(note));
+    const heard: (readonly Notification[])[] = [];
+    core.notifications.subscribe((all) => heard.push(all));
+    const off = core.notifications.subscribe((all) => heard.push(all));
+    const before = core.notifications.get();
 
-    core.notifications.notify({ message: "Saved.", severity: "message" });
+    const saved = core.notifications.notify({
+      severity: "message",
+      class: ["saved"],
+      message: "Saved.",
+      origin: "blockr.test-session_plugin",
+      plugin: "blockr.test-session_plugin",
+    });
     off();
-    core.notifications.notify({ message: "Not saved.", severity: "error" });
-    expect(heard).toEqual([
-      { message: "Saved.", severity: "message" },
-      { message: "Saved.", severity: "message" },
-      { message: "Not saved.", severity: "error" },
+    core.notifications.notify({
+      severity: "error",
+      class: ["share_failed", "error"],
+      message: "Not shared.",
+      origin: "blockr.test-session_plugin",
+      block: "b",
+      package: "blockr.test",
+    });
+    const all = core.notifications.get();
+    expect(all).toHaveLength(before.length + 2);
+    expect(all.slice(before.length)).toEqual([
+      {
+        id: expect.any(String) as string,
+        severity: "message",
+        class: ["saved"],
+        message: "Saved.",
+        origin: "blockr.test-session_plugin",
+        plugin: "blockr.test-session_plugin",
+      },
+      {
+        id: expect.any(String) as string,
+        severity: "error",
+        class: ["share_failed", "error"],
+        message: "Not shared.",
+        origin: "blockr.test-session_plugin",
+        block: "b",
+        package: "blockr.test",
+      },
     ]);
-    expect(Object.isFrozen(heard[0])).toBe(true);
+    expect(heard.map((notifications) => notifications.length)).toEqual([before.length + 1, before.length + 1, before.length + 2]);
+    expect(Object.isFrozen(all)).toBe(true);
+    expect(Object.isFrozen(all.at(-1))).toBe(true);
+    expect(core.notifications.get()).toBe(all);
 
-    expect(() => {
-      core.notifications.notify({ message: "Loud", severity: "fatal" } as unknown as Note);
-    }).toThrow('A note holds a message, as a string, and a severity, "message", "warning" or "error".');
+    saved();
+    saved();
+    expect(core.notifications.get().map((n) => n.message).slice(before.length)).toEqual(["Not shared."]);
+    expect(heard).toHaveLength(4);
 
     await reopen(s);
-    core.notifications.notify({ message: "Late.", severity: "warning" });
-    expect(heard).toHaveLength(3);
+    expect(heard.at(-1)).toEqual([]);
+    expect(s.core.notifications.get().some((n) => n.origin === "blockr.test-session_plugin")).toBe(false);
+    // The board before ends with its notifications, so a plugin raises none
+    // there.
+    const late = core.notifications.notify({ severity: "warning", class: ["late"], message: "Late.", origin: "blockr.test-session_plugin" });
+    late();
+    expect(core.notifications.get()).toEqual([]);
+    s.stop();
+  });
+
+  test("refuses a notification whose members are of the wrong kind, or that concerns a block that the board does not hold", async () => {
+    const s = await stubCore();
+    const { notifications } = s.core;
+    const base = { severity: "message", class: ["saved"], message: "Saved.", origin: "blockr.test-session_plugin" } as const;
+    const refused = (given: unknown): (() => void) => () => {
+      notifications.notify(given as Omit<Notification, "id">);
+    };
+    expect(refused({ ...base, severity: "fatal" })).toThrow(
+      'The severity of a notification is "message", "warning" or "error", not "fatal".',
+    );
+    expect(refused({ ...base, class: [] })).toThrow("The class of a notification is a non-empty array of strings, not [].");
+    expect(refused({ ...base, class: "saved" })).toThrow('The class of a notification is a non-empty array of strings, not "saved".');
+    expect(refused({ ...base, message: 1 })).toThrow("The message of a notification is a string, not 1.");
+    expect(refused({ ...base, origin: "" })).toThrow('The origin of a notification is a non-empty string, as the id of the class of the plugin that raises it, not "".');
+    expect(refused({ ...base, phase: "later" })).toThrow('The phase of a notification is one of the protocol\'s, not "later".');
+    expect(refused({ ...base, option: 3 })).toThrow("The option that a notification concerns is named by a non-empty string, not 3.");
+    expect(refused({ ...base, block: "nowhere" })).toThrow('The board holds no block "nowhere" for a notification to concern.');
+    expect(refused("Saved.")).toThrow('A notification is an object, not "Saved.".');
     s.stop();
   });
 
