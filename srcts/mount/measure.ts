@@ -58,13 +58,13 @@ export function domMeasure(): Measure {
       }
 
       // A theme switches through the attributes of the page's root element,
-      // as the board option dark_mode sets data-bs-theme.
+      // as the board option dark_mode sets data-bc-theme.
       const themed = new MutationObserver(() => {
         fn();
       });
       themed.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-bs-theme", "class", "style"],
+        attributeFilter: ["data-bc-theme", "class", "style"],
       });
       stops.push(() => {
         themed.disconnect();

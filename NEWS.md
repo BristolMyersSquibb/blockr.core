@@ -229,7 +229,9 @@
   Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   Where no blockr option sets it, `show_conditions` now shows messages too, not only warnings and errors, so that a card shows why a block is invalid (#572).
-  The board option `dark_mode` switches the page's theme in the attribute `data-bs-theme` of its root element, which Bootstrap reads too, and `n_rows` takes one row at least.
+  The board option `dark_mode` switches the page's theme in `data-bc-theme`, an attribute of core's own on the page's root element, rather than in Bootstrap's `data-bs-theme` (#589).
+  A package that styles the dark theme keys off the same attribute.
+  The board option `n_rows` takes one row at least.
   A board option's definition in the client holds its UI module and what a new value does on the page, and the host of a renderer gives it the board option values that its output was asked with (#439, #571).
 * Core's built-in blocks have their UIs, one module each, written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   The most rows that the head block's number input takes come from the request `n_max`, and the merge block's columns to join by from the request `shared`, while the modules of the static, fixed and row-bind blocks draw nothing.
