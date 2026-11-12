@@ -335,9 +335,13 @@
   The form that changes a link into a variadic block also takes the link's position among the block's links.
   The block takes its links in that order.
   A new position moves the link with core's command `blockr.core-move_link`, which keeps the link's ID and its ends.
+  The form that changes a link into a block that is not variadic, such as a merge block, offers every input of the block.
+  Where another link feeds the input that the user picks, the form says so, and saving swaps the inputs of the two links in one step.
+  Core's command `blockr.core-change_link` swaps them where the link keeps its block.
+  Until now, the store refused that change, since an input takes one link.
   Each edit is one of core's commands, so that undo takes back each one, and the plugin tells the user through a notification why the store or the command registry refused one.
   Under the board lock, it draws no control and lists the board's links and stacks alone.
-  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block (#565, #573).
+  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block (#565, #573, #584).
 * Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
   It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
   The error names the module and its package, each board option that the module leaves out, and the requests that read it.

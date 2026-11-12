@@ -17,7 +17,10 @@
 // - Neither end where the link would close a cycle, such as a link from a
 //   block into a block upstream of it, nor a link from a block into itself.
 // - Where the target's inputs are fixed, one that no other link feeds, which
-//   the user picks where there are several.
+//   the user picks where there are several. The edit offers every input of
+//   the block that the link goes to, since change_link swaps the inputs of
+//   the link and of the link that feeds the input picked. The form says so
+//   below the input.
 // - Where the target is variadic, a name for the input, which the user may
 //   give, as `b2` in `rbind(a, b2 = b)`, or leave empty for an input without
 //   a name. A name that another link into the block gives already does not
@@ -25,10 +28,10 @@
 //   table shows as each link's place among the block's links.
 // Under the board lock, it lists the links alone.
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { flushSync } from "react-dom";
-import { freeInputs } from "../../commands/index.ts";
+import { freeInputs, linkFeeding } from "../../commands/index.ts";
 import { createGraph } from "../../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../../picker/index.ts";
 import { styles } from "../../styles/index.ts";
@@ -223,6 +226,7 @@ function LinkForm({
   const [place, setPlace] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
+  const hintId = useId();
 
   // The blocks that the form offers, with the links of the board but the one
   // that the form changes, which is about to move.
@@ -243,7 +247,13 @@ function LinkForm({
 
   const free = target === undefined ? [] : (freeInputs(others, registry, target) ?? []);
   const variadic = isVariadic(free);
-  const chosen = variadic ? undefined : input !== undefined && free.includes(input) ? input : free[0];
+  // Where the form changes a link and keeps its block, every input of the
+  // block, and otherwise the free inputs.
+  const offered = !variadic && editing !== undefined && target === editing.link.to ? classInputs(board, registry, target) : free;
+  const chosen = variadic ? undefined : input !== undefined && offered.includes(input) ? input : free[0];
+  // What the form says below the input where another link feeds the one
+  // picked, so that saving swaps the inputs of the two links.
+  const hint = editing !== undefined && target === editing.link.to && chosen !== undefined ? swapHint(board, registry, editing, chosen) : undefined;
   const taken = target === undefined ? [] : namesInto(board, target, except);
   // Where the form changes a link into a variadic block, the block's other
   // links and the place that the link falls in where nothing moves it, which
@@ -370,23 +380,31 @@ function LinkForm({
           )}
         </div>
       ) : (
-        <label className={styles.field}>
-          <span className={styles.label}>Input</span>
-          <select
-            className={styles.box}
-            value={chosen}
-            disabled={free.length < 2}
-            onChange={(event) => {
-              setInput(event.target.value);
-            }}
-          >
-            {free.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className={styles.field}>
+          <label className={styles.field}>
+            <span className={styles.label}>Input</span>
+            <select
+              className={styles.box}
+              value={chosen}
+              disabled={offered.length < 2}
+              aria-describedby={hint === undefined ? undefined : hintId}
+              onChange={(event) => {
+                setInput(event.target.value);
+              }}
+            >
+              {offered.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          {hint === undefined ? null : (
+            <p id={hintId} className={styles.hint}>
+              {hint}
+            </p>
+          )}
+        </div>
       )}
       {editing === undefined && Object.keys(board.blocks).length < 2 ? (
         <p className={styles.hint}>A link joins two blocks, so the board needs two blocks first.</p>
@@ -429,9 +447,31 @@ function takesLink(board: Pick<Board, "blocks" | "links">, registry: Registry, i
   return (freeInputs(board, registry, id)?.length ?? 0) > 0;
 }
 
-function isVariadicBlock(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): boolean {
+// The inputs of the block's class, in their order, or none where the board
+// or the block registry lacks it.
+function classInputs(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): readonly string[] {
   const block = own(board.blocks, id);
-  return block !== undefined && (own(registry, block.registry_id)?.inputs.includes("...") ?? false);
+  return (block === undefined ? undefined : own(registry, block.registry_id)?.inputs) ?? [];
+}
+
+// What the form that changes a link says where another link into the same
+// block feeds the input picked: which link that is, and the input that it
+// takes once the user saves. It is undefined where no other link feeds the
+// input.
+function swapHint(
+  board: Board,
+  registry: Registry,
+  editing: { readonly id: LinkId; readonly link: Link },
+  input: string,
+): string | undefined {
+  const other = linkFeeding(board, registry, editing.link.to, input, editing.id);
+  const from = other === undefined ? undefined : own(board.links, other)?.from;
+  if (from === undefined) return undefined;
+  return `The link from "${blockName(board, from)}" feeds "${input}". Saving gives that link "${editing.link.input}", so the two links swap their inputs.`;
+}
+
+function isVariadicBlock(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): boolean {
+  return classInputs(board, registry, id).includes("...");
 }
 
 // The board's variadic blocks.
