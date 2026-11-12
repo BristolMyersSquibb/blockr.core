@@ -794,11 +794,10 @@ function StatusLine({
   open,
   toggle
 }) {
-  if (status.status === "waiting") {
-    return /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
-  }
+  const conditions = statusConditions(status);
+  const said = status.status === "ready" ? status.summary : reason(status)?.message ?? null;
   const pills = SEVERITIES.filter((severity) => severities.includes(severity)).flatMap((severity) => {
-    const n = status.conditions.filter((condition) => condition.severity === severity).length;
+    const n = conditions.filter((condition) => condition.severity === severity).length;
     if (n === 0) return [];
     const mark = MARKS[severity];
     return [
@@ -822,7 +821,7 @@ function StatusLine({
     ];
   });
   return /* @__PURE__ */ jsxs5("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
-    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: status.summary }) : null,
+    said === null ? null : /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: said }),
     pills
   ] });
 }
@@ -872,8 +871,14 @@ function useShown(status) {
   return now ?? kept;
 }
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+function reason(status) {
+  if (status.status === "waiting") return status.conditions[0];
+  if (status.status === "invalid") return status.conditions.find((condition) => condition.severity === "error");
+  return void 0;
+}
 function statusConditions(status) {
-  return status.status === "waiting" ? [] : status.conditions;
+  const why = reason(status);
+  return why === void 0 ? status.conditions : status.conditions.filter((condition) => condition !== why);
 }
 
 // srcts/card/mounted.tsx

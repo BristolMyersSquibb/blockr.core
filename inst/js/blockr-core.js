@@ -2067,8 +2067,8 @@ function blockStatuses(input2) {
     if (revision === void 0) continue;
     const outcome = input2.outcomes.get(id2);
     const running2 = input2.running.has(id2);
-    const reason = why(id2);
-    const now = reason !== void 0 ? waiting(reason, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
+    const reason2 = why(id2);
+    const now = reason2 !== void 0 ? waiting(reason2, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
     const before = input2.before.get(id2);
     if (before !== void 0 && sameStatus(before, now)) {
       statuses.set(id2, before);
@@ -9086,11 +9086,10 @@ function StatusLine({
   open,
   toggle
 }) {
-  if (status.status === "waiting") {
-    return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
-  }
+  const conditions = statusConditions(status);
+  const said = status.status === "ready" ? status.summary : reason(status)?.message ?? null;
   const pills = SEVERITIES3.filter((severity) => severities.includes(severity)).flatMap((severity) => {
-    const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
+    const n2 = conditions.filter((condition) => condition.severity === severity).length;
     if (n2 === 0) return [];
     const mark = MARKS[severity];
     return [
@@ -9114,7 +9113,7 @@ function StatusLine({
     ];
   });
   return /* @__PURE__ */ jsxs("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
-    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.summary }) : null,
+    said === null ? null : /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: said }),
     pills
   ] });
 }
@@ -9164,8 +9163,14 @@ function useShown(status) {
   return now ?? kept;
 }
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+function reason(status) {
+  if (status.status === "waiting") return status.conditions[0];
+  if (status.status === "invalid") return status.conditions.find((condition) => condition.severity === "error");
+  return void 0;
+}
 function statusConditions(status) {
-  return status.status === "waiting" ? [] : status.conditions;
+  const why = reason(status);
+  return why === void 0 ? status.conditions : status.conditions.filter((condition) => condition !== why);
 }
 
 // srcts/card/mounted.tsx

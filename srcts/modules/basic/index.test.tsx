@@ -348,6 +348,37 @@ describe("a card", () => {
     expect(output("Merge").className).toContain("bc:flex-1");
   });
 
+  test("shows why an invalid block cannot run in muted text in its footer, whatever show_conditions names, and no pill of the errors", async () => {
+    const { el, core } = await drawn({
+      evaluate: (request) =>
+        request.block === "c"
+          ? {
+              status: "invalid",
+              conditions: [
+                {
+                  severity: "error",
+                  class: ["blockr_invalid", "blockr_error", "rlang_error", "error", "condition"],
+                  phase: "expr",
+                  message: "Choose at least one column to join by.",
+                },
+              ],
+            }
+          : undefined,
+    });
+
+    const merge = card(el, "Merge");
+    expect(badge(merge)).toBe("invalid");
+    expect(line(merge)).toEqual(["Choose at least one column to join by."]);
+    expect(find(merge, "footer span > span").className).toContain("bc:text-text-muted");
+    expect(find(merge, "footer").querySelector("button")).toBeNull();
+    expect(banners(merge)).toEqual([]);
+
+    await step(() => {
+      core.store.apply({ options: { set: { show_conditions: ["message"] } } });
+    });
+    expect(line(card(el, "Merge"))).toEqual(["Choose at least one column to join by."]);
+  });
+
   test("renames and removes its block from its menu, through core's commands", async () => {
     const { el, board } = await drawn();
 

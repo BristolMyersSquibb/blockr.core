@@ -4,11 +4,16 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve).
 //
 // - The footer is one centred line of the block's status: a ready block's
-//   summary, or why a waiting block waits, and a pill for each severity of the
-//   conditions of R's reply that the card shows.
+//   summary, or why a waiting block waits or an invalid block cannot run, and
+//   a pill for each severity of the other conditions of R's reply that the
+//   card shows.
+//   Why an invalid block cannot run is the message of the error that stopped
+//   R, which for a new upload block is "Upload a file."
+//   The footer writes it in muted text rather than as an error, since a state
+//   that cannot run is no failure.
 //   The pill of the errors reads "error", and those of the warnings and the
 //   messages count them, as "2 warnings".
-//   The footer writes out no message of R's, which may be of any length.
+//   The footer writes out no other message of R's, which may be of any length.
 // - The banners are those of the conditions whose pills are open, in the
 //   order R raised them: each condition in full, in the colour of its
 //   severity.
@@ -128,7 +133,8 @@ const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: stri
 };
 
 // The line of the footer for a status that has one: a ready block's summary,
-// or why a waiting block waits, and a pill for each severity given of the
+// or why a waiting block waits or an invalid block cannot run, whatever
+// severities the card shows, and a pill for each severity given of the other
 // conditions of R's reply.
 // The pill of the errors reads "error", and those of the warnings and the
 // messages count them.
@@ -145,12 +151,11 @@ function StatusLine({
   open: ReadonlySet<Severity>;
   toggle: (severity: Severity) => void;
 }): ReactElement | null {
-  if (status.status === "waiting") {
-    return <span className="bc:text-text-muted">{status.conditions[0]?.message}</span>;
-  }
+  const conditions = statusConditions(status);
+  const said = status.status === "ready" ? status.summary : (reason(status)?.message ?? null);
 
   const pills = SEVERITIES.filter((severity) => severities.includes(severity)).flatMap((severity) => {
-    const n = status.conditions.filter((condition) => condition.severity === severity).length;
+    const n = conditions.filter((condition) => condition.severity === severity).length;
     if (n === 0) return [];
     const mark = MARKS[severity];
     return [
@@ -172,7 +177,7 @@ function StatusLine({
 
   return (
     <span className="bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2">
-      {status.status === "ready" && status.summary !== null ? <span className="bc:text-text-muted">{status.summary}</span> : null}
+      {said === null ? null : <span className="bc:text-text-muted">{said}</span>}
       {pills}
     </span>
   );
@@ -243,8 +248,19 @@ function useShown(status: BlockStatus | undefined): BlockStatus | undefined {
 // their pill names no more of them than their severity.
 const OPEN_AT_START: ReadonlySet<Severity> = new Set<Severity>(["error"]);
 
-// The conditions that the footer opens to, in the order R raised them: those
-// of R's reply, which a waiting block has none of.
+// The condition that says why the block cannot run, which the footer's line
+// shows: for a waiting block, the one that the scheduler writes, and for an
+// invalid block, the error that stopped R, of which its reply holds one.
+function reason(status: BlockStatus): Condition | undefined {
+  if (status.status === "waiting") return status.conditions[0];
+  if (status.status === "invalid") return status.conditions.find((condition) => condition.severity === "error");
+  return undefined;
+}
+
+// The conditions that the pills count and the banners show, in the order R
+// raised them: those of the status, but for the one that says why the block
+// cannot run, which the line shows instead.
 function statusConditions(status: BlockStatus): readonly Condition[] {
-  return status.status === "waiting" ? [] : status.conditions;
+  const why = reason(status);
+  return why === undefined ? status.conditions : status.conditions.filter((condition) => condition !== why);
 }
