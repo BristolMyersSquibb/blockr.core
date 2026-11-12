@@ -147,6 +147,9 @@ offers nothing.
 A row whose package is not available, or whose class its package does not
 list, stops the app, naming the row, and so does a package that lists two
 constructors whose classes give one registry id.
+A package whose \code{inst/registry/blocks.yml} holds anything that R cannot read
+stops \code{available_blocks()}, and every app that offers the package's classes,
+with each fault of each entry (see \code{\link[=block_registration_roclet]{block_registration_roclet()}}).
 
 Each app holds a block registry of its own, which \code{serve()} builds as it is
 called, and which the app's sessions read alone.

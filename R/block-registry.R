@@ -49,6 +49,9 @@ block_registry <- new.env()
 #' A row whose package is not available, or whose class its package does not
 #' list, stops the app, naming the row, and so does a package that lists two
 #' constructors whose classes give one registry id.
+#' A package whose `inst/registry/blocks.yml` holds anything that R cannot read
+#' stops `available_blocks()`, and every app that offers the package's classes,
+#' with each fault of each entry (see [block_registration_roclet()]).
 #'
 #' Each app holds a block registry of its own, which `serve()` builds as it is
 #' called, and which the app's sessions read alone.
@@ -576,6 +579,7 @@ package_block_rows <- function(package) {
 # The block classes that a package lists in its `inst/registry/blocks.yml`,
 # which the roclet writes from its `@block` tags, by constructor, each with the
 # id of its class, or none where it ships no such file.
+# A file that R cannot read stops the app (see `check_yaml_blocks()`).
 package_yaml_blocks <- function(package) {
 
   file <- package_file("registry/blocks.yml", package)
@@ -584,7 +588,153 @@ package_yaml_blocks <- function(package) {
     return(list())
   }
 
-  coal(yaml::read_yaml(file), list(), fail_all = FALSE)
+  entries <- tryCatch(
+    yaml::read_yaml(file),
+    error = function(e) {
+      blockr_abort(
+        "The `inst/registry/blocks.yml` of package {package} holds no YAML: ",
+        "{conditionMessage(e)}",
+        class = c("package_blocks_yaml_invalid", "package_blocks_invalid")
+      )
+    }
+  )
+
+  entries <- coal(entries, list(), fail_all = FALSE)
+
+  check_yaml_blocks(entries, package)
+
+  entries
+}
+
+# A package's `inst/registry/blocks.yml` maps each of its block constructors,
+# by name, to the registry metadata of the class that the constructor makes, as
+# the block registration roclet writes it.
+# Each entry holds the class's `id`, `name`, `description` and `category`, each
+# a string, and may hold its `icon`, `details`, `link` and `guidance`, each a
+# string, its `keywords`, as strings, its `arguments`, as a mapping of each
+# argument to its arg spec, and its `examples`, as a list of mappings.
+# A file that holds anything else stops the app, with each fault of each entry.
+check_yaml_blocks <- function(entries, package) {
+
+  if (!is_yaml_mapping(entries)) {
+    blockr_abort(
+      "The `inst/registry/blocks.yml` of package {package} is expected to ",
+      "map each block constructor to the registry metadata of its class, as ",
+      "the block registration roclet writes it.",
+      class = c("package_blocks_yaml_invalid", "package_blocks_invalid")
+    )
+  }
+
+  faults <- unlst(Map(yaml_block_faults, entries, names(entries)))
+
+  if (!length(faults)) {
+    return(invisible())
+  }
+
+  no_id <- lgl_ply(
+    entries,
+    function(x) is_yaml_mapping(x) && is.null(x[["id"]])
+  )
+
+  hint <- if (any(no_id)) {
+    paste(
+      "",
+      "The block registration roclet of this version of blockr.core writes",
+      "the `id` of each class, which older versions leave out, so rebuilding",
+      "the package's documentation, as `devtools::document()` does, adds it."
+    )
+  } else {
+    ""
+  }
+
+  faults <- paste(faults, collapse = " ")
+
+  blockr_abort(
+    "The `inst/registry/blocks.yml` of package {package} holds registry ",
+    "metadata that R cannot read. {faults} Each entry needs `id`, `name`, ",
+    "`description` and `category`, each a string, as the block registration ",
+    "roclet writes them.",
+    hint,
+    class = c("package_blocks_entry_invalid", "package_blocks_invalid")
+  )
+}
+
+# The faults of the entry for the block constructor `ctor` in a package's
+# `inst/registry/blocks.yml`, each as a sentence, where a field given as `null`
+# counts as left out.
+yaml_block_faults <- function(entry, ctor) {
+
+  fault <- function(...) paste0("Its entry for ", ctor, " ", ..., ".")
+
+  if (!is_yaml_mapping(entry)) {
+    return(fault("is not a mapping"))
+  }
+
+  entry <- Filter(not_null, entry)
+  given <- names(entry)
+
+  lacks <- setdiff(c("id", "name", "description", "category"), given)
+
+  strings <- intersect(
+    c("id", "name", "description", "category", "icon", "details", "link",
+      "guidance"),
+    given
+  )
+  strings <- strings[!lgl_ply(entry[strings], is_nonempty_string)]
+
+  id <- entry[["id"]]
+  keywords <- entry[["keywords"]]
+  args <- entry[["arguments"]]
+  examples <- entry[["examples"]]
+
+  c(
+    if (length(lacks)) {
+      fault("lacks ", paste_enum(lacks))
+    },
+    if (length(strings)) {
+      fault(
+        "gives ", paste_enum(strings), " as ",
+        if (length(strings) > 1L) "values other than" else "a value other than",
+        " a non-empty string"
+      )
+    },
+    if (is_nonempty_string(id) && grepl("-", id, fixed = TRUE)) {
+      fault(
+        "gives the `id` ", id, " with a `-`, which no block class id may hold"
+      )
+    },
+    if (not_null(keywords) && !(is.character(keywords) && !anyNA(keywords))) {
+      fault("gives `keywords` that are not strings")
+    },
+    if (not_null(args) && !is_yaml_mapping(args, nested = TRUE)) {
+      fault("gives `arguments` that do not map each argument to its arg spec")
+    } else if (not_null(args) && !all(lgl_ply(args, is_yaml_arg_spec))) {
+      fault(
+        "gives an arg spec whose `description` is not a string, or whose ",
+        "`type` is not a mapping, for ",
+        paste_enum(names(args)[!lgl_ply(args, is_yaml_arg_spec)])
+      )
+    },
+    if (not_null(examples) &&
+          !(is.list(examples) && all(lgl_ply(examples, is_yaml_mapping)))) {
+      fault("gives `examples` that are not a list of mappings")
+    }
+  )
+}
+
+# Whether YAML gave an arg spec whose `description`, where it has one, is a
+# string, and whose `type`, where it has one, is a mapping.
+is_yaml_arg_spec <- function(x) {
+  (is.null(x[["description"]]) || is_string(x[["description"]])) &&
+    (is.null(x[["type"]]) || is_yaml_mapping(x[["type"]]))
+}
+
+# Whether YAML gave `x` as a mapping, a named list, and with `nested`, one
+# whose every value is a mapping too.
+is_yaml_mapping <- function(x, nested = FALSE) {
+
+  is.list(x) && (!length(x) || not_null(names(x))) &&
+    (!nested || all(lgl_ply(x, is_yaml_mapping)))
 }
 
 # The block registry of an app, which `serve()` builds as it starts the app,

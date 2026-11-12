@@ -398,6 +398,7 @@
   The `available_blocks()` function gives these classes as a data frame, with the class's package in `package` and its id in `id`, in place of the block registry's entries.
   A script narrows them with plain R, as `subset(available_blocks(), package != "blockr.ggplot")`, or gives the path of a YAML file that lists packages and, for each, the ids of the classes to offer.
   As `serve()` is called, R loads the packages of these classes and builds the app's own block registry from them, and a class that no available package lists stops the app.
+  A package whose `blocks.yml` holds an entry that R cannot read, such as one without the `id` that older roclets leave out, stops `available_blocks()` and every app that offers its classes, with each fault of each entry.
   The app's block registry also holds the classes that the app script registers with `register_block()`, in place of a row's class of the same registry id, and the classes of the board's blocks that it lacks.
   The app's sessions read it alone, so a later `serve()` or `register_block()` in the same process changes no app built before.
   The blockr option `core_blocks` is gone, since `blocks` narrows core's classes too.

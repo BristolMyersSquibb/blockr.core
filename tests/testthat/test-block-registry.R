@@ -510,6 +510,108 @@ test_that("an app's block registry reads each offered package's file once", {
   expect_identical(read, "blockr.core")
 })
 
+test_that("a package's blocks.yml that R cannot read stops the app", {
+
+  file <- file.path(local_load_all_package(), "inst", "registry", "blocks.yml")
+  probe <- data.frame(package = "regprobe", id = "probe_block")
+
+  # As the roclet of an older blockr.core writes it, without ids
+  writeLines(
+    c("new_probe_block:", "  name: Probe", "  description: Probes",
+      "  category: input"),
+    file
+  )
+
+  msg <- paste0(
+    "The `inst/registry/blocks.yml` of package regprobe holds registry ",
+    "metadata that R cannot read. Its entry for new_probe_block lacks `id`. ",
+    "Each entry needs `id`, `name`, `description` and `category`, each a ",
+    "string, as the block registration roclet writes them. The block ",
+    "registration roclet of this version of blockr.core writes the `id` of ",
+    "each class, which older versions leave out, so rebuilding the package's ",
+    "documentation, as `devtools::document()` does, adds it."
+  )
+
+  expect_error(
+    available_blocks(),
+    msg,
+    fixed = TRUE,
+    class = "package_blocks_entry_invalid"
+  )
+  expect_error(
+    app_block_registry(probe),
+    msg,
+    fixed = TRUE,
+    class = "package_blocks_invalid"
+  )
+
+  # As a file written by hand might, with each fault of each entry
+  writeLines(
+    c("new_probe_block:", "  id: probe-block", "  name: 1",
+      "  description: Probes", "  keywords: [1, 2]", "  arguments:",
+      "    rows: ten", "  examples: [3]", "new_other_block: other"),
+    file
+  )
+
+  err <- expect_error(
+    available_blocks(),
+    class = "package_blocks_entry_invalid"
+  )
+
+  faults <- c(
+    "Its entry for new_probe_block lacks `category`.",
+    paste(
+      "Its entry for new_probe_block gives `name` as a value other than a",
+      "non-empty string."
+    ),
+    paste(
+      "Its entry for new_probe_block gives the `id` probe-block with a `-`,",
+      "which no block class id may hold."
+    ),
+    "Its entry for new_probe_block gives `keywords` that are not strings.",
+    paste(
+      "Its entry for new_probe_block gives `arguments` that do not map each",
+      "argument to its arg spec."
+    ),
+    paste(
+      "Its entry for new_probe_block gives `examples` that are not a list of",
+      "mappings."
+    ),
+    "Its entry for new_other_block is not a mapping."
+  )
+
+  for (fault in faults) {
+    expect_match(conditionMessage(err), fault, fixed = TRUE)
+  }
+
+  # Every entry here gives an id
+  expect_no_match(conditionMessage(err), "devtools::document()", fixed = TRUE)
+
+  writeLines(
+    c("new_probe_block:", "  id: probe_block", "  name: Probe",
+      "  description: Probes", "  category: input", "  arguments:",
+      "    rows:", "      description: 1", "      type: integer"),
+    file
+  )
+
+  expect_error(
+    available_blocks(),
+    paste(
+      "Its entry for new_probe_block gives an arg spec whose `description` is",
+      "not a string, or whose `type` is not a mapping, for `rows`."
+    ),
+    fixed = TRUE,
+    class = "package_blocks_entry_invalid"
+  )
+
+  # A file that holds no YAML, and one that maps no constructors
+  for (lines in list("new_probe_block: [", "- new_probe_block")) {
+    writeLines(lines, file)
+    expect_error(available_blocks(), class = "package_blocks_yaml_invalid")
+    expect_error(app_block_registry(probe), class = "package_blocks_invalid")
+  }
+})
+
 test_that("YAML examples of an array type are lists", {
 
   arr <- list(type = "array", items = list(type = "string"))

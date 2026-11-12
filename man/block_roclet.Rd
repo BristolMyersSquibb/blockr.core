@@ -58,8 +58,20 @@ argument). Optional; supersedes the per-argument \verb{[example]} assembly.}
 \item{\verb{@blockCtor <name>}}{Constructor name override. Optional: the
 documented object otherwise supplies the name.}
 }
-Multi-argument worked \code{examples} (whole-block configurations, as opposed to a
-per-argument \verb{[example]}) remain out of the tags' scope; a block needing
-those registers via \code{\link[=register_block]{register_block()}} directly.
+}
+
+\section{The file}{
+
+The roclet writes \code{inst/registry/blocks.yml} as a mapping of each block
+constructor, by name, to the registry metadata of the class that it makes:
+the class's \code{id}, \code{name}, \code{description} and \code{category}, each a string, and,
+where the tags give them, its \code{icon}, \code{details}, \code{link} and \code{guidance}, each
+a string, its \code{keywords}, a list of strings, its \code{arguments}, a mapping of
+each argument to its arg spec, with \code{description}, \code{example} and \code{type}, and
+its \code{examples}, a list of mappings.
+A package that writes the file by hand gives the same fields.
+R reads the file as \code{\link[=available_blocks]{available_blocks()}} lists the package's classes and as
+\code{\link[=serve]{serve()}} registers them, and stops on a file that holds anything else, with
+each fault of each entry.
 }
 

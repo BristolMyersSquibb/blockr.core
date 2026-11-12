@@ -46,9 +46,19 @@
 #'   \item{`@blockCtor <name>`}{Constructor name override. Optional: the
 #'     documented object otherwise supplies the name.}
 #' }
-#' Multi-argument worked `examples` (whole-block configurations, as opposed to a
-#' per-argument `[example]`) remain out of the tags' scope; a block needing
-#' those registers via [register_block()] directly.
+#'
+#' @section The file:
+#' The roclet writes `inst/registry/blocks.yml` as a mapping of each block
+#' constructor, by name, to the registry metadata of the class that it makes:
+#' the class's `id`, `name`, `description` and `category`, each a string, and,
+#' where the tags give them, its `icon`, `details`, `link` and `guidance`, each
+#' a string, its `keywords`, a list of strings, its `arguments`, a mapping of
+#' each argument to its arg spec, with `description`, `example` and `type`, and
+#' its `examples`, a list of mappings.
+#' A package that writes the file by hand gives the same fields.
+#' R reads the file as [available_blocks()] lists the package's classes and as
+#' [serve()] registers them, and stops on a file that holds anything else, with
+#' each fault of each entry.
 #'
 #' @return `block_registration_roclet()` returns a roclet object.
 #'
