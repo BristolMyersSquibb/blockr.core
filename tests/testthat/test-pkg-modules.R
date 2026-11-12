@@ -247,49 +247,41 @@ test_that("two packages that list one board option stop the app", {
   expect_named(packages_options("blockr.one"), "grid_gap")
 })
 
-test_that("an app has the board options of the packages that it uses", {
-
-  local_empty_declarations()
+test_that("a reply names the board options of every loaded package", {
 
   local_listing(
     "blockr.test",
     list(options = list(grid_gap = list(module = "js/grid-gap.js")))
   )
+  local_board_option_version("grid_gap", 2L)
+
+  # The version of each comes from its method of `board_option_version()`
+  expect_identical(
+    loaded_options()[["grid_gap"]],
+    list(
+      package = "blockr.test",
+      module = test_module("js/grid-gap.js"),
+      version = 2L
+    )
+  )
+
+  # Core's own are among them
+  core <- c("n_rows", "show_conditions", "dark_mode")
+
+  expect_true(all(core %in% names(loaded_options())))
+
+  # A package that offers no block class or plugin to the app, such as one
+  # whose board option the requests of another package's blocks read
   local_listing(
     "blockr.other",
     list(options = list(zoom = list(module = "js/zoom.js")))
   )
-  local_board_option_version("grid_gap", 2L)
+  local_versions(blockr.test = "0.1.0", blockr.other = "0.2.0")
 
-  # An app that uses neither package, whose block classes and plugins come
-  # from elsewhere
-  expect_length(app_options(), 0L)
+  reply <- loaded_reply()
 
-  # One that runs a plugin of blockr.test, which gives grid_gap the version
-  # its method of `board_option_version()` gives
-  plugins <- list(`blockr.test-grid_plugin` = list(name = "Grid"))
-
-  expect_identical(
-    app_options(block_registry, plugins),
-    list(
-      grid_gap = list(
-        package = "blockr.test",
-        module = test_module("js/grid-gap.js"),
-        version = 2L
-      )
-    )
-  )
-
-  # One whose block registry holds a class of blockr.other
-  registry <- new.env(parent = emptyenv())
-  registry[["blockr.other-zoom_block"]] <- structure(
-    list(package = "blockr.other"),
-    class = "registry_entry"
-  )
-
-  local_mocked_bindings(registry_entries = function(registry) as.list(registry))
-
-  expect_named(app_options(registry), "zoom")
+  expect_identical(reply$options[["zoom"]]$package, "blockr.other")
+  expect_true(all(c("blockr.test", "blockr.other") %in% names(reply$packages)))
 })
 
 test_that("R reads the schema that a module ships beside it", {

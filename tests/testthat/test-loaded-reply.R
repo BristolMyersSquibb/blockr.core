@@ -192,7 +192,7 @@ test_that("R says where it serves what packages list", {
   expect_match(grid$module, url("grid.js"))
   expect_match(grid$css, url("grid.css"))
 
-  # The module of each board option of the packages that the app uses
+  # The module of each board option that a loaded package lists
   gap <- reply$options[["grid_gap"]]
 
   expect_named(gap, c("package", "module", "version"))

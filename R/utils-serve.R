@@ -364,9 +364,9 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 
   lock <- lock_board(board, data, registry)
 
-  # The board options of the packages that the app uses, which every reply to
-  # `hello` names, so that two packages that list one stop the app here.
-  app_options(registry, plugins)
+  # The board options of the loaded packages, which every reply to `hello`
+  # names, so that two packages that list one stop the app here.
+  loaded_options()
 
   shiny::shinyApp(
     ui = function(req) serve_page(alone),

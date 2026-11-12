@@ -115,8 +115,8 @@
   Beside the entries come the versions of the packages, the modules that the
   loaded packages offer each other, the app's plugins, each with its class's
   name and version and where R serves its class's module, the board options
-  of the packages that the app uses, each with its package, its module and
-  the version of its shape, and the renderers that the app names for board
+  that the loaded packages list, each with its package, its module and the
+  version of its shape, and the renderers that the app names for board
   options (#560).
   R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file

@@ -92,8 +92,8 @@ export interface HelloReply {
   // is empty for core's basic frontend, which takes none, and for a block that
   // `serve()` serves alone, which has no frontend.
   frontend: Record<string, Json>;
-  // The board options that core and the packages that the app uses list in
-  // R, each under its id.
+  // The board options that the packages loaded in R list, core's among them,
+  // each under its id.
   options: Record<OptionId, OptionEntry>;
   // The renderers that the app names for board options, by the renderer's id.
   renderers: Record<string, Renderer>;

@@ -5,8 +5,8 @@
 # `plugins`, each under the ID of its class with the class's name and version,
 # and where R serves the class's module, as `app_plugins()` gives them, what
 # the app's frontend reads of the arguments of `serve()`, `frontend`, as
-# `frontend_reply()` writes it, the board options of the packages that the app
-# uses, each with where R serves its module and the version of its shape, the
+# `frontend_reply()` writes it, the board options that the loaded packages
+# list, each with where R serves its module and the version of its shape, the
 # renderers that the app names for board options, and the versions of the
 # packages that all of these come from.
 # R loads no package for it: `serve()` loaded the packages of the block
@@ -21,7 +21,7 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
 
   entries <- registry_entries(registry)
   modules <- offered_modules()
-  options <- app_options(registry, plugins)
+  options <- loaded_options()
   renderers <- option_renderers()
 
   coercions <- output_coercions()

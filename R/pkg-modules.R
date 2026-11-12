@@ -73,9 +73,9 @@
 #' what reads it, with a classed error that names the package and each fault.
 #'
 #' R tells the client, in its reply to `hello`, where it serves the module of
-#' the class of each plugin that the app runs, of each board option that the
-#' packages that the app uses list and of each module that a loaded package
-#' offers others, with the versions of the packages they come from.
+#' the class of each plugin that the app runs, of each board option that a
+#' loaded package lists and of each module that a loaded package offers
+#' others, with the versions of the packages they come from.
 #' It names where it serves a renderer's module in each output that the
 #' renderer draws (see [new_renderer()]).
 #' It serves a module, and the stylesheet beside it, under the package's name,
@@ -296,27 +296,18 @@ packages_options <- function(pkgs) {
   joined_by_id(listed)
 }
 
-# The board options of the packages that an app uses, by ID, each with where R
+# The board options that the loaded packages list, by ID, each with where R
 # serves its module and the version of its shape, as R names them in its reply
-# to `hello`. Those packages are core, the packages of the block classes in the
-# app's block registry, `registry`, and the packages of the classes of the
-# app's plugins, `plugins`, by the IDs of their classes, as `app_plugins()`
-# gives them.
+# to `hello`. R reads them from every loaded package, as it does the modules
+# that packages offer each other, so that a reply names a board option that a
+# block's request reads, of a package whose block classes and plugins the app
+# offers none of, and the board options of a package that a block's code loads
+# while the app runs reach the replies that follow.
 # R asks each board option's package for its version through its method of
 # `board_option_version()`.
-app_options <- function(registry = block_registry, plugins = list()) {
+loaded_options <- function(pkgs = loaded_listing_packages()) {
 
-  entries <- registry_entries(registry)
-
-  pkgs <- unique(
-    c(
-      "blockr.core",
-      unlst(lst_xtr(entries, "package")),
-      id_package(names(plugins))
-    )
-  )
-
-  options <- packages_options(intersect(pkgs, loaded_listing_packages()))
+  options <- packages_options(pkgs)
 
   Map(
     function(x, id) c(x, list(version = option_version(id))),
