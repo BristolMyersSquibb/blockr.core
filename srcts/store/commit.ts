@@ -238,7 +238,9 @@ interface Part<T, M> {
 
 interface Collection<T, M> {
   readonly next: Readonly<Record<string, T>>;
-  readonly inverse: Part<T, M>;
+  // The inverse of the part, with the moves that put back the entries that
+  // `before` moved.
+  readonly inverse: Part<T, M> & { readonly before?: Readonly<Record<string, string | null>> };
   readonly places: Readonly<Record<string, string | null>>;
   // Added or changed.
   readonly changed: readonly string[];
@@ -246,19 +248,27 @@ interface Collection<T, M> {
   readonly touched: readonly string[];
 }
 
-// A collection's part of a delta, applied with `rm` before `add` and `mod`
-// last. An entry that `places` or `before` names a successor for goes before
-// it, and every other entry added goes last. Where `before` names an entry that
-// the delta removes, the entry added takes its place, as `before` is read
-// against the collection as it was before the delta. A `mod` that changes
-// nothing, as its empty inverse says, leaves the entry as it is.
+// A collection's part of a delta, applied with `rm` first, then the moves of
+// the entries that `before` names and the collection holds, then `add`, and
+// `mod` last.
+// An entry that `places` or `before` names a successor for goes before it,
+// and one that `before` names null for goes last, as does every other entry
+// added. Where `before` names an entry that the delta removes, the entry takes
+// its place.
+// Each move keeps the entry that followed the moved entry, or null where it
+// was last. The inverse moves each entry back before that one, the last move
+// first. The inverse applies in the same order as a delta: its moves come
+// after it removes what the delta added, and before it adds back what the
+// delta removed. So every entry gets back its place.
+// A move to where the entry is, and a `mod` that changes nothing, as its empty
+// inverse says, leave the entry as it is.
 function collection<T, M extends object>(
   name: (id: string) => string,
   current: Readonly<Record<string, T>>,
   part: Part<T, M> | undefined,
   modify: (old: T, mod: M, id: string) => { value: T; inverse: M },
   places: Readonly<Record<string, string | null>> | undefined,
-  before: Readonly<Record<string, string>> | undefined,
+  before: Readonly<Record<string, string | null>> | undefined,
   failures: string[],
 ): Collection<T, M> {
   if (part === undefined) {
@@ -284,6 +294,33 @@ function collection<T, M extends object>(
     .filter((id) => !removed.has(id))
     .map((id) => [id, current[id] as T]);
 
+  // The entry that `before` puts an entry before: the one named, the one that
+  // followed it where the delta removes it, or null for the last place.
+  const successorOf = (named: string | null): string | null =>
+    named === null ? null : removed.has(named) ? (own(readdPlaces, named) ?? null) : named;
+
+  const moves: [string, string | null][] = [];
+  for (const [id, named] of Object.entries(before ?? {})) {
+    if (Object.hasOwn(part.add ?? {}, id)) continue;
+    const at = kept.findIndex(([other]) => other === id);
+    const entry = kept[at];
+    if (entry === undefined) {
+      failures.push(`The board holds no ${name(id)} to move.`);
+      continue;
+    }
+    const to = successorOf(named);
+    const was = kept[at + 1]?.[0] ?? null;
+    if (to === was || to === id) continue;
+    if (to !== null && !kept.some(([other]) => other === to)) {
+      failures.push(`The board holds no ${name(to)} for ${name(id)} to go before.`);
+      continue;
+    }
+    kept.splice(at, 1);
+    if (to === null) kept.push(entry);
+    else kept.splice(kept.findIndex(([other]) => other === to), 0, entry);
+    moves.unshift([id, was]);
+  }
+
   const added: string[] = [];
   for (const [id, value] of Object.entries(part.add ?? {})) {
     if (kept.some(([other]) => other === id)) {
@@ -292,11 +329,7 @@ function collection<T, M extends object>(
     }
     const named = own(before ?? {}, id);
     const successor =
-      named === undefined
-        ? (own(places ?? {}, id) ?? null)
-        : removed.has(named)
-          ? (own(readdPlaces, named) ?? null)
-          : named;
+      named === undefined ? (own(places ?? {}, id) ?? null) : successorOf(named);
     const at =
       successor === null ? -1 : kept.findIndex(([other]) => other === successor);
     if (at < 0 && successor !== null && named !== undefined) {
@@ -332,6 +365,7 @@ function collection<T, M extends object>(
       ...(added.length === 0 ? {} : { rm: added }),
       ...(removed.size === 0 ? {} : { add: readd }),
       ...(Object.keys(remod).length === 0 ? {} : { mod: remod }),
+      ...(moves.length === 0 ? {} : { before: Object.fromEntries(moves) }),
     },
     places: readdPlaces,
     changed: [...new Set([...added, ...modded])],

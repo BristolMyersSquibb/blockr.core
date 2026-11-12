@@ -3,7 +3,7 @@ import { flushSync as flushSync3 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState8 } from "react";
+import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect3, useRef as useRef4, useState as useState8 } from "react";
 
 // srcts/ui/combobox.tsx
 import { useId, useLayoutEffect as useLayoutEffect2, useMemo, useRef as useRef2, useState as useState2 } from "react";
@@ -1001,7 +1001,7 @@ function BlockRow({ core, id: id2, block, className }) {
 }
 
 // srcts/modules/edit-board/links.tsx
-import { useState as useState6 } from "react";
+import { useRef as useRef3, useState as useState6 } from "react";
 import { flushSync as flushSync2 } from "react-dom";
 import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 function LinksSection({ core, board, locked: locked2 }) {
@@ -1054,7 +1054,7 @@ function LinkRow({
   return /* @__PURE__ */ jsxs6("tr", { "aria-label": label, className: table.row, children: [
     /* @__PURE__ */ jsx7("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx7(BlockLabel, { board, id: link.from }) }),
     /* @__PURE__ */ jsx7("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx7(BlockLabel, { board, id: link.to }) }),
-    /* @__PURE__ */ jsx7("td", { className: `${table.cell} bc:break-words`, children: variadic ? /* @__PURE__ */ jsx7(VariadicInput, { board, id: id2, link }) : /* @__PURE__ */ jsx7("span", { className: "bc:font-mono bc:text-xs", children: link.input }) }),
+    /* @__PURE__ */ jsx7("td", { className: `${table.cell} bc:break-words`, children: variadic ? /* @__PURE__ */ jsx7(VariadicInput, { core, board, id: id2, link, locked: locked2 }) : /* @__PURE__ */ jsx7("span", { className: "bc:font-mono bc:text-xs", children: link.input }) }),
     locked2 ? null : /* @__PURE__ */ jsxs6("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
       /* @__PURE__ */ jsx7(
         "button",
@@ -1088,14 +1088,73 @@ function BlockLabel({ board, id: id2 }) {
     /* @__PURE__ */ jsx7("span", { className: "bc:font-mono bc:text-xs bc:text-text-muted bc:break-all", children: id2 })
   ] });
 }
-function VariadicInput({ board, id: id2, link }) {
-  const place = createGraph(board).linksInto(link.to).indexOf(id2) + 1;
+function VariadicInput({
+  core,
+  board,
+  id: id2,
+  link,
+  locked: locked2
+}) {
+  const into = createGraph(board).linksInto(link.to);
+  const at = into.indexOf(id2);
   return /* @__PURE__ */ jsxs6("span", { className: "bc:grid", children: [
     link.input === "" ? /* @__PURE__ */ jsx7("span", { className: "bc:text-text-muted", children: "No name" }) : /* @__PURE__ */ jsx7("span", { className: "bc:font-mono bc:text-xs", children: link.input }),
-    /* @__PURE__ */ jsxs6("span", { className: "bc:text-xs bc:text-text-muted", children: [
-      "Position ",
-      place
+    /* @__PURE__ */ jsxs6("span", { className: "bc:flex bc:items-center bc:gap-1 bc:text-xs bc:text-text-muted", children: [
+      /* @__PURE__ */ jsxs6("span", { children: [
+        "Position ",
+        at + 1
+      ] }),
+      locked2 ? null : /* @__PURE__ */ jsx7(MoveButtons, { core, board, id: id2, link, into, at })
     ] })
+  ] });
+}
+function MoveButtons({
+  core,
+  board,
+  id: id2,
+  link,
+  into,
+  at
+}) {
+  const up = useRef3(null);
+  const down = useRef3(null);
+  const previous = into[at - 1];
+  const next = into[at + 1];
+  const after = into[at + 2];
+  const label = `the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`;
+  function move(event, before, other) {
+    const pressed = event.currentTarget;
+    void runCommand(core, "blockr.core-move_link", { id: id2, ...before === void 0 ? {} : { before } }).then((ran) => {
+      if (ran && !pressed.isConnected) other.current?.focus();
+    });
+  }
+  return /* @__PURE__ */ jsxs6(Fragment2, { children: [
+    previous === void 0 ? null : /* @__PURE__ */ jsx7(
+      "button",
+      {
+        type: "button",
+        ref: up,
+        className: `${classes.quiet} bc:px-1`,
+        "aria-label": `Move ${label} up`,
+        onClick: (event) => {
+          move(event, previous, down);
+        },
+        children: /* @__PURE__ */ jsx7("span", { "aria-hidden": "true", children: "\u2191" })
+      }
+    ),
+    next === void 0 ? null : /* @__PURE__ */ jsx7(
+      "button",
+      {
+        type: "button",
+        ref: down,
+        className: `${classes.quiet} bc:px-1`,
+        "aria-label": `Move ${label} down`,
+        onClick: (event) => {
+          move(event, after, up);
+        },
+        children: /* @__PURE__ */ jsx7("span", { "aria-hidden": "true", children: "\u2193" })
+      }
+    )
   ] });
 }
 function LinkForm({
@@ -1586,8 +1645,8 @@ var table = {
 };
 function useRowEditing() {
   const [editing, setEditing] = useState8(false);
-  const closed = useRef3(false);
-  const button = useRef3(null);
+  const closed = useRef4(false);
+  const button = useRef4(null);
   useLayoutEffect3(() => {
     if (editing || !closed.current) return;
     closed.current = false;

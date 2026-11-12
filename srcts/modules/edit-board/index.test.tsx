@@ -349,10 +349,64 @@ describe("the links", () => {
     await click(button(add(), "Add link"));
     expect(Object.values(board().links)).toContainEqual({ from: "a", to: "e", input: "" });
 
+    // Each place shows with the buttons that move the link up and down, but
+    // for the first's Move up and the last's Move down.
     const into = [...section(el, "Links").querySelectorAll("tbody tr")]
       .filter((tr) => tr.getAttribute("aria-label")?.endsWith("→ Bind") === true)
       .map((tr) => tr.querySelectorAll("td")[2]?.textContent);
-    expect(into).toEqual(["No namePosition 1", "No namePosition 2", "plottedPosition 3", "No namePosition 4"]);
+    expect(into).toEqual(["No namePosition 1↓", "No namePosition 2↑↓", "plottedPosition 3↑↓", "No namePosition 4↑"]);
+  });
+
+  test("into a variadic block, move up and down among the block's links, keeping their IDs and their ends, each move a step that undo takes back", async () => {
+    const { el, core, board } = await mounted();
+    const links = section(el, "Links");
+    const moves = (): string[] =>
+      [...links.querySelectorAll("button")].map((b) => b.getAttribute("aria-label") ?? "").filter((label) => label.startsWith("Move"));
+    const into = (): string[] => Object.keys(board().links).filter((id) => board().links[id]?.to === "e");
+    const ends = board().links.be;
+
+    // The links into Bind, Head's and then Wide sepals', each with the button
+    // that moves it to the other's place. A block of fixed inputs gets none.
+    expect(moves()).toEqual(["Move the link from Head to Bind down", "Move the link from Wide sepals to Bind up"]);
+
+    await click(button(links, "Move the link from Head to Bind down"));
+    expect(into()).toEqual(["de", "be"]);
+    expect(board().links.be).toBe(ends);
+    expect(rows(el, "Links").filter((name) => name.endsWith("→ Bind"))).toEqual(["Wide sepals → Bind", "Head → Bind"]);
+    expect(texts(row(links, "Head → Bind"), "td")[2]).toBe("No namePosition 2↑");
+
+    await click(button(links, "Move the link from Head to Bind up"));
+    expect(into()).toEqual(["be", "de"]);
+
+    await step(() => {
+      core.store.undo();
+    });
+    expect(into()).toEqual(["de", "be"]);
+    await step(() => {
+      core.store.undo();
+    });
+    expect(into()).toEqual(["be", "de"]);
+    expect(core.store.canUndo()).toBe(false);
+  });
+
+  test("into a variadic block, keep the focus at the row they move, on the button that the user pressed, or on the other one where a move takes that one away", async () => {
+    const { el, core, board } = await mounted();
+    const links = section(el, "Links");
+    await act(() => core.commands.run("blockr.core-add_link", { from: "f", to: "e", id: "fe" }));
+    const into = (): string[] => Object.keys(board().links).filter((id) => board().links[id]?.to === "e");
+
+    // From the first place to the second, the link keeps its Move down.
+    const down = button(links, "Move the link from Head to Bind down");
+    down.focus();
+    await click(down);
+    expect(into()).toEqual(["de", "be", "fe"]);
+    expect(document.activeElement).toBe(button(links, "Move the link from Head to Bind down"));
+
+    // To the last place, the link loses its Move down, and the focus goes to
+    // its Move up.
+    await click(button(links, "Move the link from Head to Bind down"));
+    expect(into()).toEqual(["de", "fe", "be"]);
+    expect(document.activeElement).toBe(button(links, "Move the link from Head to Bind up"));
   });
 
   test("are changed in their row once the user saves the edit, which Cancel and Escape leave as it was, the focus back on the row's Edit button", async () => {

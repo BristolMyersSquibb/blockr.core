@@ -6,6 +6,9 @@
 //   shows a page of rows at a time. A row's Edit button turns the row into a
 //   form that changes the link with change_link once the user saves it, and
 //   its Remove button removes the link with remove_link.
+// - In the row of a link into a variadic block, buttons that move the link up
+//   and down among the block's links with move_link, keeping its id and its
+//   ends. The block's first link has no Move up, and its last no Move down.
 // The form and the edit offer only links that the store takes:
 // - As a link's target, a block with an input that no other link feeds, or a
 //   variadic block, which takes any number of links. A block without inputs
@@ -21,8 +24,8 @@
 //   table shows as each link's place among the block's links.
 // Under the board lock, it lists the links alone.
 
-import { useState } from "react";
-import type { ReactElement, SubmitEvent } from "react";
+import { useRef, useState } from "react";
+import type { MouseEvent, ReactElement, RefObject, SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { freeInputs } from "../../commands/index.ts";
 import { createGraph } from "../../graph/index.ts";
@@ -139,7 +142,11 @@ function LinkRow({
         <BlockLabel board={board} id={link.to} />
       </td>
       <td className={`${table.cell} bc:break-words`}>
-        {variadic ? <VariadicInput board={board} id={id} link={link} /> : <span className="bc:font-mono bc:text-xs">{link.input}</span>}
+        {variadic ? (
+          <VariadicInput core={core} board={board} id={id} link={link} locked={locked} />
+        ) : (
+          <span className="bc:font-mono bc:text-xs">{link.input}</span>
+        )}
       </td>
       {locked ? null : (
         <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
@@ -179,14 +186,99 @@ function BlockLabel({ board, id }: { board: Board; id: BlockId }): ReactElement 
 }
 
 // The input of a link into a variadic block: its name, if any, and its place
-// among the block's links, in which the block takes them.
-function VariadicInput({ board, id, link }: { board: Board; id: LinkId; link: Link }): ReactElement {
-  const place = createGraph(board).linksInto(link.to).indexOf(id) + 1;
+// among the block's links, in which the block takes them, with the buttons
+// that move the link up and down among them, but under the board lock.
+function VariadicInput({
+  core,
+  board,
+  id,
+  link,
+  locked,
+}: {
+  core: CoreApi;
+  board: Board;
+  id: LinkId;
+  link: Link;
+  locked: boolean;
+}): ReactElement {
+  const into = createGraph(board).linksInto(link.to);
+  const at = into.indexOf(id);
   return (
     <span className="bc:grid">
       {link.input === "" ? <span className="bc:text-text-muted">No name</span> : <span className="bc:font-mono bc:text-xs">{link.input}</span>}
-      <span className="bc:text-xs bc:text-text-muted">Position {place}</span>
+      <span className="bc:flex bc:items-center bc:gap-1 bc:text-xs bc:text-text-muted">
+        <span>Position {at + 1}</span>
+        {locked ? null : <MoveButtons core={core} board={board} id={id} link={link} into={into} at={at} />}
+      </span>
     </span>
+  );
+}
+
+// The buttons that move the link `id` up and down among the links into its
+// block, `into`, where it is at the index `at`, with move_link. Move up puts
+// it before the link before it, and Move down before the link after the next
+// one, or last where the next one is the block's last link.
+// A move that takes the link to the first or the last place takes away the
+// button that the user pressed. The focus then goes to the row's other one,
+// so that the keyboard stays at the row.
+function MoveButtons({
+  core,
+  board,
+  id,
+  link,
+  into,
+  at,
+}: {
+  core: CoreApi;
+  board: Board;
+  id: LinkId;
+  link: Link;
+  into: readonly LinkId[];
+  at: number;
+}): ReactElement {
+  const up = useRef<HTMLButtonElement | null>(null);
+  const down = useRef<HTMLButtonElement | null>(null);
+  const previous = into[at - 1];
+  const next = into[at + 1];
+  const after = into[at + 2];
+  const label = `the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`;
+
+  function move(event: MouseEvent<HTMLButtonElement>, before: LinkId | undefined, other: RefObject<HTMLButtonElement | null>): void {
+    const pressed = event.currentTarget;
+    void runCommand(core, "blockr.core-move_link", { id, ...(before === undefined ? {} : { before }) }).then((ran) => {
+      if (ran && !pressed.isConnected) other.current?.focus();
+    });
+  }
+
+  return (
+    <>
+      {previous === undefined ? null : (
+        <button
+          type="button"
+          ref={up}
+          className={`${classes.quiet} bc:px-1`}
+          aria-label={`Move ${label} up`}
+          onClick={(event) => {
+            move(event, previous, down);
+          }}
+        >
+          <span aria-hidden="true">↑</span>
+        </button>
+      )}
+      {next === undefined ? null : (
+        <button
+          type="button"
+          ref={down}
+          className={`${classes.quiet} bc:px-1`}
+          aria-label={`Move ${label} down`}
+          onClick={(event) => {
+            move(event, after, up);
+          }}
+        >
+          <span aria-hidden="true">↓</span>
+        </button>
+      )}
+    </>
   );
 }
 

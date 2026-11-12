@@ -84,6 +84,7 @@ describe("registering", () => {
       "blockr.core-insert_block",
       "blockr.core-add_link",
       "blockr.core-change_link",
+      "blockr.core-move_link",
       "blockr.core-remove_link",
       "blockr.core-add_stack",
       "blockr.core-change_stack",

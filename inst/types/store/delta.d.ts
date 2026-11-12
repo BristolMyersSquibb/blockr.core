@@ -11,7 +11,7 @@ export interface Delta {
         readonly add?: Readonly<Record<LinkId, Link>>;
         readonly mod?: Readonly<Record<LinkId, Partial<Link>>>;
         readonly rm?: readonly LinkId[];
-        readonly before?: Readonly<Record<LinkId, LinkId>>;
+        readonly before?: Readonly<Record<LinkId, LinkId | null>>;
     };
     readonly stacks?: {
         readonly add?: Readonly<Record<StackId, Stack>>;
