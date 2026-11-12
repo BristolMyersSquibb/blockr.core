@@ -522,23 +522,25 @@ test_that("an app offers the classes that a package registers as it loads", {
   )
 })
 
-test_that("an app's block registry reads each offered package's file once", {
+test_that("an app's block registry reads the listings of its packages", {
 
   local_load_all_package()
 
   rows <- core_block_rows()
   read <- character()
-  yaml_blocks <- package_yaml_blocks
+  listing <- package_listing
 
   local_mocked_bindings(
-    package_yaml_blocks = function(package) {
-      read <<- c(read, package)
-      yaml_blocks(package)
-    }
+    package_listing = function(pkg) {
+      read <<- c(read, pkg)
+      listing(pkg)
+    },
+    read_blocks_yml = function(pkg) stop("R reads no blocks.yml here")
   )
 
-  # As R registers the package's classes, and no file of a package that the
-  # app does not offer, such as regprobe
+  # As R registers the package's classes, and no listing of a package that the
+  # app does not offer, such as regprobe, while each package read its
+  # blocks.yml as it loaded
   app_block_registry(rows)
   expect_identical(read, "blockr.core")
 
@@ -550,26 +552,33 @@ test_that("an app's block registry reads each offered package's file once", {
   expect_identical(read, "blockr.core")
 })
 
-test_that("a package's blocks.yml that R cannot read stops the app", {
+test_that("a listing of block classes that R cannot read stops the app", {
 
-  file <- file.path(local_load_all_package(), "inst", "registry", "blocks.yml")
-  probe <- data.frame(package = "regprobe", id = "probe_block")
+  probe <- data.frame(package = "blockr.probe", id = "probe_block")
 
-  # As the roclet of an older blockr.core writes it, without ids
-  writeLines(
-    c("new_probe_block:", "  name: Probe", "  description: Probes",
-      "  category: input"),
-    file
+  # As the roclet of an older blockr.core writes them, without ids
+  local_listing(
+    "blockr.probe",
+    list(
+      blocks = list(
+        new_probe_block = list(
+          name = "Probe",
+          description = "Probes",
+          category = "input"
+        )
+      )
+    )
   )
 
   msg <- paste0(
-    "The `inst/registry/blocks.yml` of package regprobe holds registry ",
-    "metadata that R cannot read. Its entry for new_probe_block lacks `id`. ",
-    "Each entry needs `id`, `name`, `description` and `category`, each a ",
-    "string, as the block registration roclet writes them. The block ",
-    "registration roclet of this version of blockr.core writes the `id` of ",
-    "each class, which older versions leave out, so rebuilding the package's ",
-    "documentation, as `devtools::document()` does, adds it."
+    "Package blockr.probe lists block classes in its `._BLOCKR_MODULES_` ",
+    "with registry metadata that R cannot read. Its entry for ",
+    "new_probe_block lacks `id`. Each entry needs `id`, `name`, ",
+    "`description` and `category`, each a string, as the block registration ",
+    "roclet writes them. The block registration roclet of this version of ",
+    "blockr.core writes the `id` of each class, which older versions leave ",
+    "out, so rebuilding the package's documentation, as ",
+    "`devtools::document()` does, adds it."
   )
 
   expect_error(
@@ -582,16 +591,24 @@ test_that("a package's blocks.yml that R cannot read stops the app", {
     app_block_registry(probe),
     msg,
     fixed = TRUE,
-    class = "package_blocks_invalid"
+    class = "package_listing_invalid"
   )
 
-  # As a file written by hand might, with each fault of each entry, while
-  # register_block() checks the other fields as for any class
-  writeLines(
-    c("new_probe_block:", "  id: probe_block", "  name: 1",
-      "  description: Probes", "  keywords: [1, 2]",
-      "new_other_block: other"),
-    file
+  # As a listing written by hand might give them, with each fault of each
+  # entry, while register_block() checks the other fields as for any class
+  local_listing(
+    "blockr.probe",
+    list(
+      blocks = list(
+        new_probe_block = list(
+          id = "probe_block",
+          name = 1L,
+          description = "Probes",
+          keywords = list(1L, 2L)
+        ),
+        new_other_block = "other"
+      )
+    )
   )
 
   err <- expect_error(
@@ -605,7 +622,7 @@ test_that("a package's blocks.yml that R cannot read stops the app", {
       "Its entry for new_probe_block gives `name` as a value other than a",
       "non-empty string."
     ),
-    "Its entry for new_other_block is not a mapping."
+    "Its entry for new_other_block is no named list."
   )
 
   for (fault in faults) {
@@ -614,25 +631,41 @@ test_that("a package's blocks.yml that R cannot read stops the app", {
 
   expect_no_match(conditionMessage(err), "keywords", fixed = TRUE)
 
-  # Every entry here that is a mapping gives an id
+  # Every entry here that is a named list gives an id
   expect_no_match(conditionMessage(err), "devtools::document()", fixed = TRUE)
 
-  # A file that holds no YAML, and one that maps no constructors
-  for (lines in list("new_probe_block: [", "- new_probe_block")) {
-    writeLines(lines, file)
-    expect_error(available_blocks(), class = "package_blocks_yaml_invalid")
-    expect_error(app_block_registry(probe), class = "package_blocks_invalid")
-  }
+  # Block classes that are no list by constructor
+  local_listing("blockr.probe", list(blocks = list("new_probe_block")))
+
+  expect_error(available_blocks(), class = "package_blocks_invalid")
+  expect_error(app_block_registry(probe), class = "package_listing_invalid")
 })
 
-test_that("YAML examples of an array type are lists", {
+test_that("a package's blocks.yml that holds no YAML stops its load", {
+
+  file <- file.path(local_load_all_package(), "inst", "registry", "blocks.yml")
+
+  writeLines("new_probe_block: [", file)
+
+  expect_error(
+    read_blocks_yml("regprobe"),
+    "The `inst/registry/blocks.yml` of package regprobe holds no YAML",
+    fixed = TRUE,
+    class = "package_blocks_yaml_invalid"
+  )
+
+  # A package that ships no such file lists no block classes
+  expect_identical(read_blocks_yml("utils"), list())
+})
+
+test_that("listed examples of an array type are lists", {
 
   arr <- list(type = "array", items = list(type = "string"))
 
-  expect_identical(yaml_arg_example("a", arr), list("a"))
-  expect_identical(yaml_arg_example(c("a", "b"), arr), list("a", "b"))
-  expect_identical(yaml_arg_example(list("a"), arr), list("a"))
-  expect_null(yaml_arg_example(NULL, arr))
-  expect_identical(yaml_arg_example("a", list(type = "string")), "a")
-  expect_identical(yaml_arg_example("a", NULL), "a")
+  expect_identical(listed_arg_example("a", arr), list("a"))
+  expect_identical(listed_arg_example(c("a", "b"), arr), list("a", "b"))
+  expect_identical(listed_arg_example(list("a"), arr), list("a"))
+  expect_null(listed_arg_example(NULL, arr))
+  expect_identical(listed_arg_example("a", list(type = "string")), "a")
+  expect_identical(listed_arg_example("a", NULL), "a")
 })

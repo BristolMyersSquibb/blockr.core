@@ -176,9 +176,9 @@ A package writes them in the tags it registers the class with (see "Registration
 A class gives the version of its state's shape in `version`, a whole number from 1.
 A package raises it whenever it changes that shape, such as by renaming a state arg.
 A saved board records with each block the version of its state.
-As the client opens a board saved at an older version, it migrates the state in JS, with the migration that the package registers for the class in its startup module.
+As the client opens a board saved at an older version, it migrates the state in JS, with the migration that the class's UI module exports as `migrate`, a function of the state and the version that the board records, which the client imports before it opens the board.
 The client refuses a board that holds a state that the class's schema refuses once migrated.
-So a package that changes the shape registers a migration as well, or the boards saved before no longer open.
+So a package that changes the shape exports a migration as well, or the boards saved before no longer open.
 No migration runs in R, since the UI owns the shape.
 
 ## The block expression
@@ -710,19 +710,25 @@ new_head_block <- block_constructor(head_block)
 ```
 
 With `blockr.core::block_registration_roclet` in the `Roxygen` field of its `DESCRIPTION`, `devtools::document()` writes the tags into `inst/registry/blocks.yml`, with the id of each class, which it reads off the constructor.
-Loading the package registers none of them.
-Once the package is installed, `available_blocks()` lists its classes, and an app offers them, as it offers every available class unless its script narrows them through `serve()`'s `blocks`, as in `serve(new_board(), blocks = subset(available_blocks(), package != "blockr.ggplot"))`.
-The package's `.onLoad()` calls `trace_block_classes()` alone, which lets covr count the lines of the functions that the classes hold (see "Testing" below):
+The package lists its classes for core in the object that it exports, `._BLOCKR_MODULES_`, an environment that its `.onLoad()` fills from that file with `read_blocks_yml()`.
+Loading the package registers none of the classes.
+R finds the package by that export, once it is installed, without loading it.
+Then `available_blocks()` lists its classes, and an app offers them, as it offers every available class unless its script narrows them through `serve()`'s `blocks`, as in `serve(new_board(), blocks = subset(available_blocks(), package != "blockr.ggplot"))`.
+The package's `.onLoad()` also calls `trace_block_classes()`, which lets covr count the lines of the functions that the classes hold (see "Testing" below):
 
 ```r
+#' @export
+._BLOCKR_MODULES_ <- new.env(parent = emptyenv())
+
 .onLoad <- function(libname, pkgname) {
+  ._BLOCKR_MODULES_$blocks <- blockr.core::read_blocks_yml(pkgname)
   trace_block_classes(pkgname)
 }
 ```
-See `?block_registration_roclet` for every tag.
+See `?block_registration_roclet` for every tag, and `?read_blocks_yml` for the rest of what a package lists there, its plugin classes, board options and the modules it offers others.
 
-A package that does without the roclet can write `inst/registry/blocks.yml` itself, with the fields that `?block_registration_roclet` describes.
-It can also register its classes with `register_block()` in its `.onLoad()`, in which case `available_blocks()` lists them, and an app offers them as it offers the classes of a file, once the package is loaded.
+A package that does without the roclet can write `inst/registry/blocks.yml` itself, with the fields that `?block_registration_roclet` describes, or give its classes' entries in `._BLOCKR_MODULES_` directly.
+It can also register its classes with `register_block()` in its `.onLoad()`, in which case `available_blocks()` lists them, and an app offers them as it offers the classes that a package lists, once the package is loaded.
 
 A package builds its classes while R installs it, as R sources its files.
 A class that names a function of its own package, such as a request, finds that function only once R has sourced the file that defines it.

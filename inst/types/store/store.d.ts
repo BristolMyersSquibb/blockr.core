@@ -26,7 +26,6 @@ export interface Store {
     canUndo(origin?: Origin): boolean;
     canRedo(origin?: Origin): boolean;
     readonly plugins: Plugins;
-    registerMigration(registryId: RegistryId, fn: Migration): () => void;
     readonly options: Options;
     blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
     packages(): Readonly<Record<string, string>>;
@@ -39,5 +38,6 @@ export interface Store {
 export interface StoreOptions {
     readonly hello?: HelloReply;
     readonly signal?: AbortSignal;
+    readonly migration?: (registryId: RegistryId) => Migration | undefined;
 }
 export declare function createStore(options?: StoreOptions): Store;

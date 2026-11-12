@@ -1,197 +1,382 @@
-declared_startup_modules <- new.env()
-
-declared_startup_modules$entries <- list()
-
-declared_modules <- new.env()
-
-#' Modules a package declares
+#' What a package lists for core
 #'
-#' Besides its block classes (see [register_block()]), a package declares in
-#' R, from its `.onLoad()`, the modules of its client that R serves: its
-#' startup module, at most one, with
-#' `register_startup_module()`, for what has to run before anything mounts,
-#' such as registering its plugin classes and the board options it ships, and
-#' the modules it offers other packages, each with
-#' `register_module()` under a name that gives it the ID `{pkg}-{name}`, as a
-#' registry id is, by which `host.module()` and `CoreApi.module()` reach it in
-#' the client.
-#' Each is made by [js_module()], whose package is the one that
-#' declares it, so that a module made outside a package is declared by none,
-#' and the stylesheet and JSON Schema beside a module need no declaration.
-#' Declaring a package's startup module, or a module under the same ID, again
-#' replaces it, as when a package is loaded again.
+#' A package lists what it offers core in one object that it exports,
+#' `._BLOCKR_MODULES_`: its block classes, its plugin classes, its board
+#' options and the modules that it offers other packages' UIs.
+#' R finds the packages that export it, the available packages, without
+#' loading any: the installed packages whose `Meta/nsInfo.rds` lists the object
+#' among their exports, and the loaded packages that export it, among them
+#' those that `pkgload::load_all()` loaded, which sit in no library.
+#' It checks no package's dependencies, since only a blockr package exports the
+#' object.
+#' R reads an object only from a loaded namespace, so it loads each available
+#' package as it reads the package's object, as [available_blocks()] and
+#' [available_plugins()] do as an app starts.
 #'
-#' The module that a plugin class names, such as the UI that every frontend
-#' places for the class's plugin, is such a module, which the class names by
-#' its ID in JavaScript (see [new_plugin()]).
-#' Core declares its basic frontend the same way, as `blockr.core-basic`,
-#' which draws the board, and the UI of its Edit board plugin as
-#' `blockr.core-edit_board`.
+#' The object is a list, or an environment that the package's `.onLoad()`
+#' fills, of up to four parts, each a list:
 #'
-#' Next to its startup module, a package puts a JSON Schema for each plugin
-#' class and each board option that it registers, in a file of its own, as a
-#' block class's UI module ships the schema of the block's state next to it.
-#' The schema of the state of the plugins of the class `{pkg}-{id}` goes in
-#' `{id}.schema.json`, named by the id of the class, and that of the value of
-#' the board option `{id}` in `{id}_option.schema.json`, named by the class in
-#' R of the board option, on which [board_option_version()] dispatches.
-#' So blockr.dag might put the schema of the class `blockr.dag-dag_plugin` in
-#' `dag_plugin.schema.json`, and that of a board option `grid_gap` in
-#' `grid_gap_option.schema.json`.
-#' R finds the schema of a plugin's state next to the startup module of the
-#' package that its class's ID names, and the schema of a board option's value
-#' next to that of any package.
-#' R shapes the board that an app script builds by them, as it does by core's
-#' schema of the board (see [blockr_ser()]), so that a value of length one stays
-#' an array where a schema has one.
-#' R reads nothing else out of them.
-#' Core puts the schemas of its own board options next to its runtime in the
-#' same way, as `n_rows_option.schema.json`.
+#' * Its block classes, in `blocks`: each block constructor by name, with the
+#'   registry metadata of the class that it makes, as the block registration
+#'   roclet writes them into the package's `inst/registry/blocks.yml`, from
+#'   which `read_blocks_yml()` reads them (see [block_registration_roclet()]).
+#' * Its plugin classes, in `plugins`: each plugin constructor by name, with
+#'   the `id` of the class of the plugins that it makes, the class's `name`,
+#'   the human-readable form of its id, and the class's `module` (see
+#'   [new_plugin()]).
+#' * Its board options, in `options`: each board option by its ID, with its
+#'   `module` (see [new_board_option()]).
+#' * The modules that it offers other packages' UIs, in `modules`: each by a
+#'   name that gives it the ID `{pkg}-{name}`, as a registry id is, by which
+#'   `host.module()` and `CoreApi.module()` reach it in the client.
 #'
-#' R keeps the startup modules in the order in which packages declare them,
-#' which is the order in which their namespaces load, since R runs the
-#' `.onLoad()` of the packages a namespace imports before its own, so that a
-#' package's comes after those of the packages its NAMESPACE imports, and the
-#' client initializes them one at a time in that order. A package relies on
-#' the order only for the packages its NAMESPACE imports, since R loads a
-#' package that its DESCRIPTION alone names only once something asks for it,
-#' and declaring a startup module again keeps its place.
+#' A module is given by its path in the package's `inst/`, as [js_module()]
+#' takes it, so that `"js/dag.js"` is the file that the package installs as
+#' `js/dag.js`.
+#' A plugin class's module has the class's `PluginClass` without its id as its
+#' default export, and a board option's module the board option's `Option`
+#' without its ID, each beside the major of core's JS API that it was built
+#' against.
+#' The client registers each under its ID, a plugin class's as `{pkg}-{id}`.
+#' The JSON Schema of the state of the plugins of a plugin class, or of the
+#' value of a board option, sits beside its module, as `dag.schema.json` beside
+#' `dag.js`, as a block class's UI module ships the schema of the block's state
+#' beside it.
+#' R writes the state of the plugins and the values of the board options of the
+#' board that an app script builds by it, so that a value of length one stays
+#' an array where a schema has one (see [blockr_ser()]).
+#' It reads nothing else out of them.
 #'
-#' R tells the client where it serves each module that a package declares, those
-#' of plugin classes included, in its reply to `hello`, with the versions of the
-#' packages they come from, and where it serves a renderer's module in each
-#' output that the renderer draws (see [new_renderer()]). It serves a module,
-#' and the stylesheet beside it, under the package's name, at the module's path
-#' in the package, with a hash of the file's content in the URL, so that no
-#' browser runs a changed file from its cache. It serves only the files it
-#' names, and nothing else of the package.
+#' A package may define the object in its code, as a list, or export an empty
+#' environment and fill it from its `.onLoad()`, as core does.
+#' Core reads its block classes there from its `inst/registry/blocks.yml`, with
+#' `read_blocks_yml()`, as in this sketch of a package with a block class and a
+#' plugin class:
 #'
-#' @param module The module, made by [js_module()]
-#' @param name The name part of the module's ID
+#' ```r
+#' ._BLOCKR_MODULES_ <- new.env(parent = emptyenv())
+#'
+#' .onLoad <- function(libname, pkgname) {
+#'   ._BLOCKR_MODULES_$blocks <- blockr.core::read_blocks_yml(pkgname)
+#'   ._BLOCKR_MODULES_$plugins <- list(
+#'     new_dag_plugin = list(
+#'       id = "dag_plugin",
+#'       name = "DAG",
+#'       module = "js/dag.js"
+#'     )
+#'   )
+#' }
+#' ```
+#'
+#' R checks no part against the constructors that it names, since a stale part
+#' is a defect of the package's build, while a part that R cannot read stops
+#' what reads it, with a classed error that names the package and each fault.
+#'
+#' R tells the client, in its reply to `hello`, where it serves the module of
+#' the class of each plugin that the app runs, of each board option that a
+#' loaded package lists and of each module that a loaded package offers
+#' others, with the versions of the packages they come from.
+#' It names where it serves a renderer's module in each output that the
+#' renderer draws (see [new_renderer()]).
+#' It serves a module, and the stylesheet beside it, under the package's name,
+#' at the module's path in the package, with a hash of the file's content in
+#' the URL, so that no browser runs a changed file from its cache.
+#' It serves only the files it names, and nothing else of the package.
+#'
+#' @param pkg The name of the package
 #'
 #' @examples
-#' \dontrun{
-#' # In the `.onLoad()` of a package such as blockr.dplyr
-#' register_startup_module(js_module("js/startup.js"))
-#' register_module("filter", js_module("js/filter.js"))
+#' names(read_blocks_yml("blockr.core"))
 #'
-#' # In the `.onLoad()` of blockr.dock, the module of its frontend
-#' register_module("dock", js_module("js/dock.js"))
-#' }
-#'
-#' @return Both `register_startup_module()` and `register_module()` return the
-#' module's entry invisibly, a list holding the declaring `package` and the
-#' `module`, and for `register_module()` the module's `id` and `name` too.
+#' @return The function `read_blocks_yml()` returns the block classes that the
+#' package lists in its `inst/registry/blocks.yml`, a list by constructor,
+#' which is empty where the package ships no such file.
 #'
 #' @export
-register_startup_module <- function(module) {
+read_blocks_yml <- function(pkg) {
 
-  if (!is_js_module(module)) {
-    blockr_abort(
-      "A startup module is expected to be made by `js_module()`.",
-      class = "startup_module_invalid"
-    )
+  file <- package_file("registry/blocks.yml", pkg)
+
+  if (!nzchar(file)) {
+    return(list())
   }
 
-  package <- check_declaring_package(
-    module[["package"]],
-    "startup module",
-    "startup_module_invalid"
+  entries <- tryCatch(
+    yaml::read_yaml(file),
+    error = function(e) {
+      blockr_abort(
+        "The `inst/registry/blocks.yml` of package {pkg} holds no YAML: ",
+        "{conditionMessage(e)}",
+        class = c(
+          "package_blocks_yaml_invalid",
+          "package_blocks_invalid",
+          "package_listing_invalid"
+        )
+      )
+    }
   )
 
-  entry <- list(package = package, module = module)
-
-  declared_startup_modules$entries[[package]] <- entry
-
-  invisible(entry)
+  coal(entries, list(), fail_all = FALSE)
 }
 
-#' @rdname register_startup_module
+#' @rdname read_blocks_yml
+#' @format NULL
+#' @usage NULL
 #' @export
-register_module <- function(name, module) {
+._BLOCKR_MODULES_ <- new.env(parent = emptyenv()) # nolint: object_name_linter.
 
-  if (!is_js_module(module)) {
+listing_name <- "._BLOCKR_MODULES_"
+
+listing_parts <- c("blocks", "plugins", "options", "modules")
+
+# The available packages, by name, in order: the installed packages whose
+# `Meta/nsInfo.rds` lists `._BLOCKR_MODULES_` among their exports, which R
+# reads without loading any package, and the loaded packages that export it,
+# among them those that `pkgload::load_all()` loaded, which sit in no library.
+available_packages <- function() {
+
+  installed <- unlst(lapply(.libPaths(), listing_exporters))
+  loaded <- Filter(exports_listing, loadedNamespaces())
+
+  sort(unique(c(installed, loaded)))
+}
+
+# The packages of the library `lib` whose `Meta/nsInfo.rds`, which
+# `loadNamespace()` reads, lists `._BLOCKR_MODULES_` among their exports.
+listing_exporters <- function(lib) {
+
+  pkgs <- list.files(lib)
+  files <- file.path(lib, pkgs, "Meta", "nsInfo.rds")
+  keep <- file.exists(files)
+
+  pkgs[keep][lgl_ply(files[keep], records_listing_export)]
+}
+
+records_listing_export <- function(file) {
+  exports <- tryCatch(readRDS(file)[["exports"]], error = function(e) NULL)
+  listing_name %in% exports
+}
+
+exports_listing <- function(pkg) {
+  listing_name %in% getNamespaceExports(pkg)
+}
+
+# The loaded packages that export `._BLOCKR_MODULES_`, by name, in order.
+loaded_listing_packages <- function() {
+  sort(Filter(exports_listing, loadedNamespaces()))
+}
+
+# What package `pkg` lists in its `._BLOCKR_MODULES_`, which R reads once it
+# has loaded the package: the object's four parts by name, each a list, which
+# is empty where the object leaves it out. R ignores any other part, which a
+# later version of core may read.
+# A package that exports no such object lists nothing, as one that registers
+# its block classes in the block registry of the process as it loads.
+package_listing <- function(pkg) {
+
+  loadNamespace(pkg)
+
+  obj <- listing_object(pkg)
+
+  if (is.environment(obj)) {
+    obj <- as.list(obj, all.names = TRUE)
+  }
+
+  obj <- coal(obj, list(), fail_all = FALSE)
+
+  if (!is.list(obj) || is.object(obj) || !has_unique_names(obj)) {
     blockr_abort(
-      "A module a package offers is expected to be made by `js_module()`.",
-      class = "module_invalid"
+      "Package {pkg} exports `._BLOCKR_MODULES_` as neither a list nor an ",
+      "environment of its parts by name.",
+      class = "package_listing_invalid"
     )
   }
 
-  id <- declared_id(name, module[["package"]], "module", "module_invalid")
+  lapply(
+    set_names(nm = listing_parts),
+    function(part) coal(obj[[part]], list(), fail_all = FALSE)
+  )
+}
 
-  entry <- list(
-    id = id,
-    name = name,
-    package = module[["package"]],
-    module = module
+# The `._BLOCKR_MODULES_` that the loaded package `pkg` exports, or `NULL`
+# where it exports none.
+listing_object <- function(pkg) {
+  if (exports_listing(pkg)) getExportedValue(pkg, listing_name)
+}
+
+# The modules that package `pkg` offers other packages' UIs, by ID,
+# `{pkg}-{name}`, each as `js_module()` makes it.
+listed_modules <- function(pkg, listing = package_listing(pkg)) {
+
+  entries <- listing[["modules"]]
+
+  faults <- if (!is_named_list(entries)) {
+    "They are no list of module paths by name."
+  } else {
+    unlst(
+      Map(
+        function(path, name) {
+          if (!is_nonempty_string(path)) {
+            paste0("Its module ", name, " is no path, a non-empty string.")
+          }
+        },
+        entries,
+        names(entries)
+      )
+    )
+  }
+
+  check_listing_part(
+    faults,
+    pkg,
+    "the modules that it offers others",
+    "modules"
   )
 
-  assign(id, entry, envir = declared_modules)
+  if (!length(entries)) {
+    return(list())
+  }
 
-  invisible(entry)
+  set_names(
+    lapply(entries, js_module, package = pkg),
+    paste0(pkg, "-", names(entries))
+  )
 }
 
-startup_modules <- function() {
-  unname(declared_startup_modules$entries)
+# The modules that the loaded packages offer other packages' UIs, by ID, as
+# R names them in its reply to `hello`.
+offered_modules <- function(pkgs = loaded_listing_packages()) {
+  joined_by_id(lapply(pkgs, listed_modules))
 }
 
-list_modules <- function() {
-  ls(envir = declared_modules)
+# The board options that package `pkg` lists, by ID, each with its package and
+# its module, as `js_module()` makes it.
+listed_options <- function(pkg, listing = package_listing(pkg)) {
+
+  entries <- listing[["options"]]
+
+  faults <- if (!is_named_list(entries)) {
+    "They are no list of board options by ID, each with its `module`."
+  } else {
+    unlst(Map(listing_entry_faults, entries, names(entries), list("module")))
+  }
+
+  check_listing_part(faults, pkg, "board options", "options")
+
+  lapply(
+    entries,
+    function(x) {
+      list(package = pkg, module = js_module(x[["module"]], package = pkg))
+    }
+  )
 }
 
-get_module <- function(id) {
-  get_declared(id, declared_modules, "module", "module_missing")
-}
+# The board options that the packages `pkgs` list, by ID. Two packages that
+# list one ID stop the app, naming both, since the client defines one board
+# option for each ID.
+packages_options <- function(pkgs) {
 
-# The ID `{pkg}-{name}` of what a package declares, as a registry id is,
-# such as a module or a renderer, whose name has to be a non-empty string.
-declared_id <- function(name, package, what, class) {
+  listed <- lapply(set_names(nm = pkgs), listed_options)
 
-  check_declaring_package(package, what, class)
+  ids <- unlst(lapply(listed, names))
+  twice <- unique(ids[duplicated(ids)])
 
-  if (!is_nonempty_string(name)) {
+  if (length(twice)) {
+
+    owners <- pkgs[lgl_ply(listed, function(x) twice[1L] %in% names(x))]
+
     blockr_abort(
-      "The name of a {what} of package {package} is expected to be a ",
-      "non-empty string.",
-      class = class
+      "{qty(twice)}The board option{?s} {twice} {?is/are} listed by more than ",
+      "one package, {twice[1L]} by ", paste_enum(owners, quotes = ""),
+      ", where the client defines one board option for each ID.",
+      class = "package_options_conflict"
     )
   }
 
-  paste0(package, "-", name)
+  joined_by_id(listed)
 }
 
-get_declared <- function(id, env, what, class) {
+# The board options that the loaded packages list, by ID, each with where R
+# serves its module and the version of its shape, as R names them in its reply
+# to `hello`. R reads them from every loaded package, as it does the modules
+# that packages offer each other, so that a reply names a board option that a
+# block's request reads, of a package whose block classes and plugins the app
+# offers none of, and the board options of a package that a block's code loads
+# while the app runs reach the replies that follow.
+# R asks each board option's package for its version through its method of
+# `board_option_version()`.
+loaded_options <- function(pkgs = loaded_listing_packages()) {
 
-  res <- get0(id, envir = env, inherits = FALSE)
+  options <- packages_options(pkgs)
 
-  if (is.null(res)) {
-    blockr_abort("No {what} is declared as {id}.", class = class)
+  Map(
+    function(x, id) c(x, list(version = option_version(id))),
+    options,
+    names(options)
+  )
+}
+
+# The board options that the available packages list, by ID.
+available_options <- function() {
+  packages_options(available_packages())
+}
+
+# The lists by ID that `x` holds, joined into one list by ID.
+joined_by_id <- function(x) {
+  coal(unlst(unname(x), use_names = TRUE), list(), fail_all = FALSE)
+}
+
+# Stops on the faults that R found in the part `part` of the listing of package
+# `pkg`, which lists `what` there, each fault a sentence.
+check_listing_part <- function(faults, pkg, what, part) {
+
+  if (!length(faults)) {
+    return(invisible())
   }
 
-  res
+  faults <- paste(faults, collapse = " ")
+
+  blockr_abort(
+    "Package {pkg} lists {what} in its `._BLOCKR_MODULES_` that R cannot ",
+    "read. {faults}",
+    class = c(paste0("package_", part, "_invalid"), "package_listing_invalid")
+  )
 }
 
-check_declaring_package <- function(package, what, class) {
+# The faults of an entry of a part of a package's listing, under the key `key`,
+# each as a sentence: an entry that is no named list, that lacks one of
+# `fields` or gives one as anything but a non-empty string, where a field given
+# as `NULL` counts as left out.
+listing_entry_faults <- function(entry, key, fields) {
 
-  if (!is_nonempty_string(package)) {
-    blockr_abort(
-      "A {what} is declared by a package, from its `.onLoad()`.",
-      class = class
-    )
+  fault <- function(...) paste0("Its entry for ", key, " ", ..., ".")
+
+  if (!is_named_list(entry)) {
+    return(fault("is no named list"))
   }
 
-  invisible(package)
-}
+  lacks <- fields[lgl_ply(fields, function(x) is.null(entry[[x]]))]
+  given <- setdiff(fields, lacks)
+  strings <- given[!lgl_ply(entry[given], is_nonempty_string)]
 
-# Core's runtime and the startup module of each package that R has loaded, in
-# R's order, next to which core puts the JSON Schemas of its board options and
-# a package those of its plugin classes and board options, by which R writes
-# the board an app script built.
-schema_modules <- function() {
   c(
-    list(list(package = "blockr.core", module = core_runtime())),
-    startup_modules()
+    if (length(lacks)) {
+      fault("lacks ", paste_enum(lacks))
+    },
+    if (length(strings)) {
+      fault(
+        "gives ", paste_enum(strings), " as ",
+        if (length(strings) > 1L) "values other than" else "a value other than",
+        " a non-empty string"
+      )
+    }
   )
+}
+
+# Whether `x` is a list by name, each name a non-empty string of its own, as
+# YAML gives a mapping, where an empty list counts as one.
+is_named_list <- function(x) {
+  is.list(x) && !is.object(x) && has_unique_names(x)
 }
 
 core_runtime <- function() {
@@ -199,48 +384,28 @@ core_runtime <- function() {
 }
 
 # The JSON Schema of the state of the plugins of the class with the ID `id`,
-# `{pkg}-{id}`, in `{id}.schema.json` next to the startup module of the package
-# `{pkg}`, or `NULL` where there is none.
-plugin_class_schema <- function(id) {
-
-  for (entry in schema_modules()) {
-    if (identical(entry[["package"]], id_package(id))) {
-      return(schema_beside(entry[["module"]], id_class(id)))
-    }
-  }
-
-  NULL
+# `{pkg}-{id}`, beside the module that the class's package lists for it, or
+# `NULL` where none lists the class or its module ships none.
+plugin_class_schema <- function(id, classes = available_plugin_classes()) {
+  module_schema(classes[[id]][["module"]])
 }
 
-# The JSON Schema of the value of the board option with the ID `id`, in
-# `{id}_option.schema.json` next to core's runtime or a startup module, the
-# first that R finds in R's order, or `NULL` where there is none.
-# R looks next to each, since a board option's ID names no package.
-board_option_schema <- function(id) {
-
-  for (entry in schema_modules()) {
-
-    schema <- schema_beside(entry[["module"]], paste0(id, "_option"))
-
-    if (not_null(schema)) {
-      return(schema)
-    }
-  }
-
-  NULL
+# The JSON Schema of the value of the board option with the ID `id`, beside the
+# module that the package that lists the board option gives it, or `NULL`
+# where no available package lists it or its module ships none.
+board_option_schema <- function(id, options = available_options()) {
+  module_schema(options[[id]][["module"]])
 }
 
-# The JSON Schema in `{class}.schema.json` next to a module, decoded, or `NULL`
-# where there is none.
-schema_beside <- function(module, class) {
+# The JSON Schema that a module ships beside it, as `dag.schema.json` beside
+# `dag.js`, decoded, or `NULL` for no module or where it ships none.
+module_schema <- function(module) {
 
-  dir <- dirname(module_path(module))
-  name <- paste0(class, ".schema.json")
+  if (is.null(module)) {
+    return(NULL)
+  }
 
-  file <- package_file(
-    if (identical(dir, ".")) name else file.path(dir, name),
-    module[["package"]]
-  )
+  file <- module_file(module, ".schema.json")
 
   if (nzchar(file)) decode_schema(file)
 }

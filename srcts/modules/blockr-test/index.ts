@@ -35,7 +35,8 @@ export interface BlockrTestCore {
 // and which is undefined while core starts.
 export function blockrTest(core: () => BlockrTestCore | undefined): BlockrTest {
   // The CoreApi of the board that is open, once its store holds the board.
-  // The store holds none while the startup modules initialize.
+  // The store holds none while core registers what packages list and the
+  // storage plugin names a board to open.
   const open = (): BlockrTestCore | undefined => {
     const now = core();
     return now?.store.hasBoard() === true ? now : undefined;

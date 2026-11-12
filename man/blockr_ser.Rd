@@ -108,11 +108,9 @@ and an empty collection an object.
 A block's state is written by the schema that its class's UI ships (see
 \code{\link[=register_block]{register_block()}}), and bare where it ships none.
 The state of each plugin and the value of each board option are written by
-the schema that a package puts next to its startup module in a file of its
-own, named by the id of the plugin's class or by the class in R of the board
-option, as \code{dag_plugin.schema.json} or \code{n_rows_option.schema.json}, and core
-next to its runtime for its own board options (see
-\code{\link[=register_startup_module]{register_startup_module()}}).
+the schema that the package that lists the plugin's class or the board
+option ships beside the module that it lists for it, as \code{dag.schema.json}
+beside \code{dag.js} (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}).
 Each is written bare where no package gives one.
 
 A board that the format cannot hold fails as it is written, and so as the

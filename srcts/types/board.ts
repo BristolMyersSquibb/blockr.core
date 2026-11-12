@@ -13,9 +13,9 @@ export type StackId = string;
 export type OptionId = string;
 
 // A plugin class's id, `{pkg}-{id}`, such as "blockr.dag-dag_plugin", which
-// names the package that registers the class from its startup module. An app
-// runs at most one plugin of each class, so the id of its class identifies a
-// plugin.
+// names the package that lists the class in R, with the module whose default
+// export the class is. An app runs at most one plugin of each class, so the id
+// of its class identifies a plugin.
 export type PluginClassId = string;
 
 // A block class's id in the block registry, `{pkg}-{name}`, such as

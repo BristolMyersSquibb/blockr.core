@@ -11,7 +11,7 @@ import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
-import { coreOptions, hello } from "../testing/store.ts";
+import { coreOptions, hello, noCore } from "../testing/store.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
@@ -86,7 +86,7 @@ async function setup(
     },
     stylesheet: () => Promise.resolve(),
   });
-  const mounts = createMounts({ store, commands, scheduler, loader, renderers: () => renderers, signal });
+  const mounts = createMounts({ core: noCore, store, commands, scheduler, loader, renderers: () => renderers, signal });
   return {
     r,
     store,

@@ -8,9 +8,11 @@ import { fileURLToPath } from "node:url";
 import type { Fixture, HelloReply } from "../protocol/index.ts";
 import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
-import type { PluginClassId } from "../types/board.ts";
+import type { OptionId, PluginClassId } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
+import { packageFromId } from "../util/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -26,6 +28,11 @@ export const hello = reply("hello") as HelloReply;
 // The UI module of a board option that a test never mounts, which draws
 // nothing.
 export const noUi: OptionModule = { render: () => undefined };
+
+// What a test of the mounts gives them as CoreApi, which a board option's
+// default that is a function gets: nothing, for a default that reads none of
+// it.
+export const noCore = (): CoreApi => ({}) as CoreApi;
 
 // Core's board options, as the fixtures' boards hold their values, and
 // dark_mode, which core's basic frontend requires too, with the light theme as
@@ -84,12 +91,45 @@ export interface GivenPlugin {
   readonly state?: Json;
 }
 
+// Where R serves the module of the plugin class with the id given, as the
+// reply of withPlugins() names it, as "blockr.dag/blockr.dag-dag_plugin.js".
+export function pluginUrl(cls: PluginClassId): string {
+  return `${packageFromId(cls) ?? "app"}/${cls}.js`;
+}
+
+// Where R serves the module of the board option with the id given, which the
+// package given lists, as the reply of withOptions() names it, as
+// "blockr.test/zoom.js".
+export function optionUrl(id: OptionId, pkg = "blockr.test"): string {
+  return `${pkg}/${id}.js`;
+}
+
+// R's reply to `hello`, that of the fixture hello unless given, that names the
+// board options given too, each with its module, which the package given lists,
+// and the version given of its shape, 1 for one that the versions leave out.
+export function withOptions(
+  ids: readonly OptionId[],
+  replied: HelloReply = hello,
+  versions: Readonly<Record<OptionId, number>> = {},
+  pkg = "blockr.test",
+): HelloReply {
+  return {
+    ...replied,
+    options: {
+      ...replied.options,
+      ...Object.fromEntries(
+        ids.map((id) => [id, { package: pkg, module: optionUrl(id, pkg), version: versions[id] ?? 1 }]),
+      ),
+    },
+  };
+}
+
 // R's reply to `hello`, that of the fixture hello unless given, whose app runs
 // the plugins given too, after its own, each under the id of its class, with
 // an opening board that holds the state given of each, as an app script's
 // board would, and with the versions given of their classes, which the
 // reply's plugins carry and the board records, 1 for a class that they leave
-// out.
+// out. R serves the module of each class at pluginUrl().
 export function withPlugins(
   plugins: Readonly<Record<PluginClassId, GivenPlugin>>,
   replied: HelloReply = hello,
@@ -103,7 +143,9 @@ export function withPlugins(
     ...replied,
     plugins: {
       ...replied.plugins,
-      ...Object.fromEntries(Object.entries(plugins).map(([cls, given]) => [cls, { name: given.name, version: version(cls) }])),
+      ...Object.fromEntries(
+        Object.entries(plugins).map(([cls, given]) => [cls, { name: given.name, version: version(cls), module: pluginUrl(cls) }]),
+      ),
     },
     board: {
       ...replied.board,

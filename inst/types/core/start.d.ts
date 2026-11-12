@@ -1,19 +1,17 @@
-import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
+import type { LoaderOptions, Measure } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
-import type { Option } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { CoreApi } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 export type Front = {
-    readonly id: string;
-    readonly source: Source | undefined;
+    readonly frontend: FrontendModule;
     readonly plugin: PluginClassId;
     readonly args: Readonly<Record<string, Json>>;
 } | {
     readonly none: string;
 };
 export interface FrontEnds {
-    prepare(front: Front, loader: Loader, signal: AbortSignal): Promise<void>;
+    prepare(front: Front, signal: AbortSignal): void;
     render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
     card?(core: CoreApi, signal: AbortSignal): void;
 }
@@ -25,7 +23,6 @@ export interface Changed {
 export interface StartOptions {
     readonly transport: Transport;
     readonly loader?: Omit<LoaderOptions, "modules" | "changed">;
-    readonly options: (core: Pick<CoreApi, "blockrOption">) => readonly Option[];
     readonly frontEnds?: FrontEnds;
     readonly alone?: boolean;
     readonly measure?: Measure;

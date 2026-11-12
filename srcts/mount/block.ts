@@ -34,6 +34,7 @@ import { unevaluated } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Option, Store } from "../store/index.ts";
 import type { Block, BlockId, OptionId } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
 import type {
   BlockContext,
   BlockHost,
@@ -101,6 +102,9 @@ export interface MountsOptions {
   readonly measure?: Measure;
   // Ends every mount as it aborts, as another board opens.
   readonly signal?: AbortSignal;
+  // The CoreApi that a board option's default gets, where it is a function,
+  // as one that reads a blockr option.
+  readonly core: () => CoreApi;
 }
 
 // The origin of what core changes on the board itself, such as the board
@@ -148,7 +152,8 @@ export function createMounts(options: MountsOptions): Mounts {
     const pending = resolving.get(id);
     if (pending !== undefined) return pending;
     const given = def.default;
-    const started = typeof given === "function" ? Promise.resolve().then(given) : Promise.resolve(given);
+    const started =
+      typeof given === "function" ? Promise.resolve().then(() => given(options.core())) : Promise.resolve(given);
     resolving.set(id, started);
     const settled = (): void => {
       if (resolving.get(id) === started) resolving.delete(id);

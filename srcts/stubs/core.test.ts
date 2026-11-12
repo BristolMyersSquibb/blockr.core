@@ -1,12 +1,13 @@
 // The CoreApi for tests: core's own store, command registry and scheduler on
 // the board of the fixture hello, with R played from the protocol's fixtures,
-// as a frontend, a plugin or a startup module would use it.
+// as a frontend or a plugin would use it.
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
 import type { Option } from "../store/index.ts";
 import { find } from "../testing/inputs.ts";
-import { withPlugins } from "../testing/store.ts";
+import { classModule, optionModule } from "../testing/plugins.ts";
+import { withOptions, withPlugins } from "../testing/store.ts";
 // React's act() environment, for the UIs of core's board options.
 import "../testing/react.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -96,20 +97,11 @@ describe("the CoreApi for tests", () => {
   });
 
   test("answers a plugin's requests with what the test gives, and reads the blockr options that R holds", async () => {
-    // The app runs the plugin of blockr.code, whose startup module registers
-    // its class.
+    // The app runs the plugin of blockr.code, whose class's module the test
+    // gives by the class's id.
     const { core } = await stubCore({
       hello: withPlugins({ "blockr.code-code_plugin": { name: "Code" } }),
-      startup: {
-        "blockr.code": {
-          api: 1,
-          default: {
-            initialize({ core: given }: { core: CoreApi }) {
-              given.plugins.register({ id: "blockr.code-code_plugin" });
-            },
-          },
-        },
-      },
+      modules: { "blockr.code-code_plugin": classModule() },
       blockrOptions: { n_rows: 25 },
       answer: (request) =>
         request.kind === "request" && request.type === "plugin" && request.name === "script" ? ["a <- 1"] : undefined,
@@ -135,11 +127,9 @@ describe("the CoreApi for tests", () => {
     expect(find(el, "input", HTMLInputElement).value).toBe("50");
   });
 
-  test("initializes the startup modules given before the board opens, and calls a board option's onChange", async () => {
+  test("registers the board options that the reply names before the board opens, and calls a board option's onChange", async () => {
     const changes: Json[] = [];
-    let seen: CoreApi | undefined;
-    const zoom: Option = {
-      id: "zoom",
+    const zoom: Omit<Option, "id"> = {
       label: "Zoom",
       category: "View options",
       schema: { type: "number" },
@@ -150,21 +140,11 @@ describe("the CoreApi for tests", () => {
       },
     };
     const { core } = await stubCore({
-      startup: {
-        "blockr.test": {
-          api: 1,
-          default: {
-            initialize({ core: given }: { core: CoreApi }) {
-              seen = given;
-              expect(given.store.hasBoard()).toBe(false);
-              given.options.register(zoom);
-            },
-          },
-        },
-      },
+      hello: withOptions(["zoom"]),
+      modules: { zoom: optionModule(zoom) },
     });
 
-    expect(seen).toBe(core);
+    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode", "zoom"]);
     // As the board opened, with the default, which core added to the board.
     expect(changes).toEqual([1]);
     expect(core.store.board().options.zoom).toBe(1);
@@ -173,7 +153,7 @@ describe("the CoreApi for tests", () => {
     expect(changes).toEqual([1, 2]);
   });
 
-  test("runs the app's plugins, of the classes that a startup module of the test registers, and draws the board with the app's frontend, given by its module's id", async () => {
+  test("runs the app's plugins, of the classes whose modules the test gives, and draws the board with the app's frontend", async () => {
     const el = document.createElement("div");
     const events: string[] = [];
     const started = ({ plugin }: { plugin: string }): undefined => {
@@ -190,35 +170,26 @@ describe("the CoreApi for tests", () => {
         },
         { ...HELLO, plugins: rest },
       ),
-      startup: {
-        "blockr.test": {
-          api: 1,
-          default: {
-            initialize({ core }: { core: CoreApi }) {
-              core.plugins.register({ id: "blockr.test-grid_plugin", frontend: "blockr.test-grid", start: started });
-              core.plugins.register({ id: "blockr.test-notes_plugin", ui: "blockr.test-notes", start: started });
-            },
-          },
-        },
-      },
       modules: {
-        "blockr.test-grid": {
-          api: 1,
-          default: {
+        "blockr.test-grid_plugin": classModule({
+          frontend: {
             render({ el: at, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: string }) {
               events.push(`${plugin} draws`);
               core.mountPlugin(at.appendChild(document.createElement("section")), "blockr.test-notes_plugin");
+              return undefined;
             },
           },
-        },
-        "blockr.test-notes": {
-          api: 1,
-          default: {
+          start: started,
+        }),
+        "blockr.test-notes_plugin": classModule({
+          ui: {
             render({ el: at, plugin }: { el: HTMLElement; plugin: string }) {
               at.textContent = `The panel of ${plugin}`;
+              return undefined;
             },
           },
-        },
+          start: started,
+        }),
       },
     });
     await s.settled();
@@ -236,20 +207,23 @@ describe("the CoreApi for tests", () => {
     const el = document.createElement("div");
     const table = renderer();
     const events: unknown[] = [];
+    // The test gives a frontend of its own in place of core's basic frontend,
+    // by the id of the class of the app's plugin that it replaces.
     const { core, settled } = await stubCore({
       el,
       modules: {
         [TABLE]: table.exports,
-        "blockr.core-basic": {
-          api: 1,
-          default: {
+        "blockr.core-basic_frontend_plugin": classModule({
+          options: ["show_conditions", "dark_mode"],
+          frontend: {
             render({ el: at, core: given }: { el: HTMLElement; core: CoreApi }) {
               at.textContent = given.store.board().name;
               given.scheduler.demand("frontend", ["b"]);
               given.mountOutput(document.createElement("div"), "b");
+              return undefined;
             },
           },
-        },
+        }),
       },
     });
     core.outputEvents.subscribe((event) => events.push(event));

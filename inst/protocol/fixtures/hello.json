@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderer of its outputs, where each module is served, the app's plugins, core's basic frontend and its storage plugin, each under the id of its class with its class's name and version, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  "description": "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderer of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   "client": [
     {
       "id": "1",
@@ -314,23 +314,47 @@
             }
           }
         },
-        "startup_modules": [],
         "modules": {
-          "blockr.core-basic": {
-            "module": "blockr.core/basic.js?v=0f3d8e21",
-            "css": "blockr.core/basic.css?v=6a9b2c4e"
-          },
-          "blockr.core-edit_board": {
-            "module": "blockr.core/edit-board.js?v=5c1e7a39"
+          "blockr.core-controls": {
+            "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
           }
         },
         "plugins": {
-          "blockr.core-basic_frontend_plugin": { "name": "Basic frontend", "version": 1 },
-          "blockr.core-file_storage_plugin": { "name": "File storage", "version": 1 },
-          "blockr.core-edit_board_plugin": { "name": "Edit board", "version": 1 }
+          "blockr.core-basic_frontend_plugin": {
+            "name": "Basic frontend",
+            "version": 1,
+            "module": "blockr.core/basic.js?v=0f3d8e21",
+            "css": "blockr.core/basic.css?v=6a9b2c4e"
+          },
+          "blockr.core-file_storage_plugin": {
+            "name": "File storage",
+            "version": 1,
+            "module": "blockr.core/file-storage.js?v=8e1f0b2d"
+          },
+          "blockr.core-edit_board_plugin": {
+            "name": "Edit board",
+            "version": 1,
+            "module": "blockr.core/edit-board.js?v=5c1e7a39"
+          }
         },
         "frontend": {},
-        "option_versions": {},
+        "options": {
+          "n_rows": {
+            "package": "blockr.core",
+            "module": "blockr.core/n-rows-option.js?v=2b9c7e14",
+            "version": 1
+          },
+          "show_conditions": {
+            "package": "blockr.core",
+            "module": "blockr.core/show-conditions-option.js?v=6f3a8d05",
+            "version": 1
+          },
+          "dark_mode": {
+            "package": "blockr.core",
+            "module": "blockr.core/dark-mode-option.js?v=a47e2c19",
+            "version": 1
+          }
+        },
         "renderers": {},
         "lock": { "board": false, "load": false },
         "board": {

@@ -519,26 +519,21 @@ proto_hello_reply <- function(block_registry, lock, ...,
   )
 }
 
-# What the reply to `hello` of a core app says of the modules that R serves,
-# among them core's basic frontend, which draws the board, and the UI of its
-# Edit board plugin, of the app's plugins, core's own three, and of what the
+# What the reply to `hello` of a core app says of the modules that R serves:
+# the module that core offers other packages' UIs, its inputs, the app's
+# plugins, core's own three, each with the module of its class, what the
 # frontend reads of the arguments of `serve()`, nothing for core's basic
-# frontend.
+# frontend, and core's board options, each with its module.
 proto_served <- function() {
   obj(
-    startup_modules = list(),
     modules = obj(
-      `blockr.core-basic` = obj(
-        module = proto_js("basic.js", "0f3d8e21"),
-        css = proto_js("basic.css", "6a9b2c4e")
-      ),
-      `blockr.core-edit_board` = obj(
-        module = proto_js("edit-board.js", "5c1e7a39")
+      `blockr.core-controls` = obj(
+        module = proto_js("blockr-core-controls.js", "4d2a6c91")
       )
     ),
     plugins = proto_core_plugins(),
     frontend = obj(),
-    option_versions = obj(),
+    options = proto_core_options(),
     renderers = obj()
   )
 }
@@ -546,21 +541,41 @@ proto_served <- function() {
 # The app's plugins of a core app whose script names none, as the reply to
 # `hello` gives them: core's basic frontend, its storage plugin and its Edit
 # board plugin, each under the id of its class, with its class's name and
-# version.
+# version and where R serves the module of its class.
 proto_core_plugins <- function() {
   obj(
     `blockr.core-basic_frontend_plugin` = obj(
       name = "Basic frontend",
-      version = 1L
+      version = 1L,
+      module = proto_js("basic.js", "0f3d8e21"),
+      css = proto_js("basic.css", "6a9b2c4e")
     ),
     `blockr.core-file_storage_plugin` = obj(
       name = "File storage",
-      version = 1L
+      version = 1L,
+      module = proto_js("file-storage.js", "8e1f0b2d")
     ),
     `blockr.core-edit_board_plugin` = obj(
       name = "Edit board",
-      version = 1L
+      version = 1L,
+      module = proto_js("edit-board.js", "5c1e7a39")
     )
+  )
+}
+
+# Core's board options, as the reply to `hello` of every app gives them, since
+# every app uses core: each under its ID, with the package that lists it,
+# where R serves its module and the version of its shape.
+proto_core_options <- function() {
+
+  option <- function(file, hash) {
+    obj(package = "blockr.core", module = proto_js(file, hash), version = 1L)
+  }
+
+  obj(
+    n_rows = option("n-rows-option.js", "2b9c7e14"),
+    show_conditions = option("show-conditions-option.js", "6f3a8d05"),
+    dark_mode = option("dark-mode-option.js", "a47e2c19")
   )
 }
 
@@ -1120,11 +1135,12 @@ proto_output <- function(x) {
 }
 
 # What R tells the client about the packages it has loaded, for the package
-# blockr.test, which no library holds: it declares, from its `.onLoad()`, a
-# startup module, two modules that it offers others and two renderers, one for
-# table outputs and one for the board option dark_mode, and it lists its
-# plugin class grid_plugin, a frontend, whose state it gives version 2 and
-# which takes a title from `serve()`.
+# blockr.test, which no library holds: it lists, in its `._BLOCKR_MODULES_`,
+# a module that it offers others, its board option grid_gap and its plugin
+# class grid_plugin, a frontend, each with its module, and it gives the state
+# of grid_plugin and the value of grid_gap version 2, its frontend takes a
+# title from `serve()`, and it makes two renderers, one for table outputs and
+# one for the board option dark_mode.
 # Beside it, a script defines two block classes, one whose module ships a
 # stylesheet and the schema of its state, and one whose module ships neither.
 # The helper writes the files of all of them, so that their content, and so the
@@ -1134,7 +1150,7 @@ declared_files <- function() {
   list(
     `blockr.test/js/grid.js` = "export const api = 1; // grid\n",
     `blockr.test/js/grid.css` = ".bt-grid { display: grid; }\n",
-    `blockr.test/js/startup.js` = "export const api = 1; // startup\n",
+    `blockr.test/js/grid-gap.js` = "export const api = 1; // grid_gap\n",
     `blockr.test/js/picker.js` = "export const api = 1; // picker\n",
     `blockr.test/js/table.js` = "export const api = 1; // table\n",
     `blockr.test/js/dark.js` = "export const api = 1; // dark\n",
@@ -1165,28 +1181,24 @@ write_declared_files <- function(dir) {
   invisible(dir)
 }
 
-# Empties the block registry and what packages declare, which core fills as it
-# loads, until `frame` ends, and removes then the resource paths that serving a
-# file added.
+# Empties the block registry, which core fills as it loads, and what core
+# lists in its `._BLOCKR_MODULES_` until `frame` ends, and removes then the
+# resource paths that serving a file added.
 local_empty_declarations <- function(frame = parent.frame()) {
 
-  envs <- list(block_registry, declared_startup_modules, declared_modules)
-
-  saved <- lapply(envs, as.list, all.names = TRUE)
+  saved <- as.list(block_registry, all.names = TRUE)
   paths <- names(shiny::resourcePaths())
 
-  for (env in envs) {
-    rm(list = ls(env, all.names = TRUE), envir = env)
-  }
+  rm(list = ls(block_registry, all.names = TRUE), envir = block_registry)
 
-  declared_startup_modules$entries <- list()
+  # Linting skips the call of local_empty_core_listing(), a helper of another
+  # file, which lintr does not see.
+  local_empty_core_listing(frame) # nolint: object_usage_linter.
 
   withr::defer(
     {
-      for (i in seq_along(envs)) {
-        rm(list = ls(envs[[i]], all.names = TRUE), envir = envs[[i]])
-        list2env(saved[[i]], envir = envs[[i]])
-      }
+      rm(list = ls(block_registry, all.names = TRUE), envir = block_registry)
+      list2env(saved, envir = block_registry)
 
       for (prefix in setdiff(names(shiny::resourcePaths()), paths)) {
         shiny::removeResourcePath(prefix)
@@ -1198,8 +1210,8 @@ local_empty_declarations <- function(frame = parent.frame()) {
   invisible()
 }
 
-# Has the package blockr.test of the files that `dir` holds declare what it
-# declares from its `.onLoad()`, at the version 0.1.0, until `frame` ends.
+# Has the package blockr.test of the files that `dir` holds list what it lists
+# in its `._BLOCKR_MODULES_`, at the version 0.1.0, until `frame` ends.
 local_declared_package <- function(dir, frame = parent.frame()) {
 
   installed <- package_file
@@ -1228,19 +1240,23 @@ local_declared_package <- function(dir, frame = parent.frame()) {
     .env = frame
   )
 
-  module <- function(path) js_module(path, package = "blockr.test")
+  # Linting skips the calls of local_listing(), local_plugin_classes() and
+  # plugin_ctor(), helpers of other files, which lintr does not see.
+  local_listing( # nolint: object_usage_linter.
+    "blockr.test",
+    list(
+      modules = list(picker = "js/picker.js"),
+      options = list(grid_gap = list(module = "js/grid-gap.js"))
+    ),
+    frame = frame
+  )
 
-  register_module("grid", module("js/grid.js"))
-  register_startup_module(module("js/startup.js"))
-  register_module("picker", module("js/picker.js"))
-
-  # Linting skips the calls of local_plugin_classes() and plugin_ctor(),
-  # helpers of another file, which lintr does not see.
   local_plugin_classes( # nolint: object_usage_linter.
     Grid = plugin_ctor( # nolint: object_usage_linter.
       function(columns = 2L) NULL,
       c("grid_plugin", "frontend_plugin")
     ),
+    modules = list(Grid = "js/grid.js"),
     frame = frame
   )
 
@@ -1362,10 +1378,10 @@ register_script_blocks <- function(dir) {
 
 # What R tells the client about the packages it has loaded, in its reply to
 # `hello`, for an app whose script loaded blockr.test beside its own block
-# classes, with nothing of core's, and runs the plugins of every class that
-# an available package lists: core's storage plugin and blockr.test's
-# frontend, in place of core's basic frontend, which reads the arguments that
-# the script passes `serve()` in `...`.
+# classes, with nothing of core's, as if core listed nothing, and runs the
+# plugins of every class that an available package lists: blockr.test's
+# frontend, which reads the arguments that the script passes `serve()` in
+# `...`.
 declared_fields <- function(...) {
 
   dir <- withr::local_tempdir()

@@ -30,18 +30,13 @@ export interface HelloReply {
     capabilities: Capability[];
     packages: Record<string, string>;
     block_registry: Record<RegistryId, RegistryEntry>;
-    startup_modules: {
-        package: string;
-        module: string;
-        css?: string;
-    }[];
     modules: Record<string, {
         module: string;
         css?: string;
     }>;
     plugins: Record<PluginClassId, PluginEntry>;
     frontend: Record<string, Json>;
-    option_versions: Record<OptionId, number>;
+    options: Record<OptionId, OptionEntry>;
     renderers: Record<string, Renderer>;
     lock: Lock;
     board: JsonBoard;
@@ -49,6 +44,14 @@ export interface HelloReply {
 }
 export interface PluginEntry {
     name: string;
+    version: number;
+    module: string;
+    css?: string;
+}
+export interface OptionEntry {
+    package: string;
+    module: string;
+    css?: string;
     version: number;
 }
 export interface Renderer {

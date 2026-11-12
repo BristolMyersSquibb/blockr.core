@@ -86,8 +86,10 @@ options holds, by ID.
 A board option is an option that the user sees and changes while the app
 runs, such as \code{n_rows}, the rows of a table output's page. The package that
 ships a board option defines it in the client, with its label, category,
-schema, UI and default. A board holds only its value, under its ID, once
-something sets one: the app script or, while the app runs, a command.
+schema, UI and default, in a module of its own, which it lists with the
+board option's ID in its \code{._BLOCKR_MODULES_} (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}). A
+board holds only its value, under its ID, once something sets one: the app
+script or, while the app runs, a command.
 }
 \details{
 In R, a board option is its ID and the value that a script gives it, which
@@ -103,7 +105,7 @@ shows, and \code{dark_mode}, which switches between the light and the dark theme
 Core's basic frontend requires \code{show_conditions} and \code{dark_mode}.
 So the client gives every board that lacks a value of either one its
 default as the board opens.
-Their schemas ship beside core's runtime, and R writes the value that a
+Their schemas ship beside their modules, and R writes the value that a
 script gives by them (see \code{\link[=blockr_ser]{blockr_ser()}}).
 
 Each of core's board options takes its default from the blockr option of

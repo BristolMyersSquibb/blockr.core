@@ -3,6 +3,7 @@ import type { Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
+import type { CoreApi } from "../types/core-api.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
 import type { OutputEvent } from "./output.ts";
@@ -25,5 +26,6 @@ export interface MountsOptions {
     readonly emit?: (event: OutputEvent) => void;
     readonly measure?: Measure;
     readonly signal?: AbortSignal;
+    readonly core: () => CoreApi;
 }
 export declare function createMounts(options: MountsOptions): Mounts;

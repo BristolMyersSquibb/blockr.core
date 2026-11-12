@@ -1781,30 +1781,32 @@ function inView(el, view) {
 import { jsx as jsx14 } from "react/jsx-runtime";
 var api = 1;
 var basic_default = {
-  render({ el, core }) {
-    const doc = el.ownerDocument;
-    const shown = demandShown(core, doc.defaultView ?? window);
-    const notices = createNotices();
-    const unnotify = core.notifications.subscribe((note) => {
-      notices.add(note);
-    });
-    const front = { core, notices, inView: shown };
-    const root = createRoot(el);
-    flushSync2(() => {
-      root.render(/* @__PURE__ */ jsx14(BasicBoard, { front }));
-    });
-    shown.measure();
-    const unbind = bindShortcuts(doc, core, (error) => {
-      notices.failed(error);
-    });
-    return () => {
-      unbind();
-      unnotify();
-      shown.release();
-      root.unmount();
-    };
-  }
+  options: ["show_conditions", "dark_mode"],
+  frontend: { render }
 };
+function render({ el, core }) {
+  const doc = el.ownerDocument;
+  const shown = demandShown(core, doc.defaultView ?? window);
+  const notices = createNotices();
+  const unnotify = core.notifications.subscribe((note) => {
+    notices.add(note);
+  });
+  const front = { core, notices, inView: shown };
+  const root = createRoot(el);
+  flushSync2(() => {
+    root.render(/* @__PURE__ */ jsx14(BasicBoard, { front }));
+  });
+  shown.measure();
+  const unbind = bindShortcuts(doc, core, (error) => {
+    notices.failed(error);
+  });
+  return () => {
+    unbind();
+    unnotify();
+    shown.release();
+    root.unmount();
+  };
+}
 export {
   api,
   basic_default as default

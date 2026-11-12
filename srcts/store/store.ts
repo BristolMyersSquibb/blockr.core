@@ -113,8 +113,6 @@ export interface Store {
 
   // The plugin classes packages define, by id.
   readonly plugins: Plugins;
-  // A block class's one migration of its state, by its registry id.
-  registerMigration(registryId: RegistryId, fn: Migration): () => void;
   // The board options packages define, by id.
   readonly options: Options;
   // The block registry's entries that the store opened the board with, and
@@ -140,6 +138,11 @@ export interface StoreOptions {
   // store drops its subscribers and refuses every change from then on, so that
   // nothing changes or follows the board before.
   readonly signal?: AbortSignal;
+  // A block class's one migration of its state, by its registry id, which the
+  // store reads as it opens or checks a board, and which core takes from the
+  // class's UI module before then (../core/migrations.ts). A class without one
+  // keeps the state that a board holds.
+  readonly migration?: (registryId: RegistryId) => Migration | undefined;
 }
 
 // Why an ended store refuses a change.
@@ -164,7 +167,7 @@ interface Applied {
 }
 
 export function createStore(options: StoreOptions = {}): Store {
-  const registrations = createRegistrations();
+  const registrations = createRegistrations(options.migration);
 
   const board = signal<Board | undefined>(undefined);
   // The last reply to `hello`, whose block registry, versions and opening board
@@ -518,7 +521,7 @@ export function createStore(options: StoreOptions = {}): Store {
     const options = Object.fromEntries(
       Object.entries(next.options).map(([id, value]) => [
         id,
-        { value, version: own(hello?.option_versions ?? {}, id) ?? 1 },
+        { value, version: own(hello?.options ?? {}, id)?.version ?? 1 },
       ]),
     );
     const { id, name, links, stacks, plugins } = next;
@@ -573,7 +576,6 @@ export function createStore(options: StoreOptions = {}): Store {
     canUndo: (origin = "user") => steps(origin).undo.length > 0,
     canRedo: (origin = "user") => steps(origin).redo.length > 0,
     plugins: registrations.plugins,
-    registerMigration: (registryId, fn) => registrations.registerMigration(registryId, fn),
     options: registrations.options,
     jsonBoard,
     save,

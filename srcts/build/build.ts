@@ -21,8 +21,9 @@
 // - A JSON board, JsonBoard in srcts/types/board.ts, gets its JSON Schema in
 //   inst/board, by which R writes the board an app script built.
 // - The schema of each of core's board options, in srcts/options/schemas.ts,
-//   goes next to core's runtime, into <id>_option.schema.json,
-//   by which R writes the value of one that an app script gives.
+//   goes beside the board option's module, srcts/modules/<name>-option, into
+//   <name>-option.schema.json, where <name> is the board option's id with
+//   dashes, by which R writes the value of one that an app script gives.
 // - A block class's UI module whose folder holds a state.ts
 //   ships the JSON Schema of the block's state beside it,
 //   as <name>.schema.json, from the type State that the file exports.
@@ -296,8 +297,8 @@ export function schemaFile(type: string): string {
 
 // Writes the JSON Schema of each output type in srcts/types/outputs.ts into
 // inst/outputs, and removes the schema of a type that is gone, then the schema
-// of a JSON board, those beside core's runtime and those of the block states
-// beside the modules.
+// of a JSON board, those of the board options' values and those of the block
+// states beside the modules.
 // A schema leaves out no property that a later version may add,
 // since both sides of the wire protocol skip properties they do not know,
 // but for a block's state, which holds its class's state args alone.
@@ -305,7 +306,7 @@ export async function schemas(root: string): Promise<string[]> {
   return [
     ...(await outputSchemas(root)),
     ...(await boardSchema(root)),
-    ...(await runtimeSchemas(root)),
+    ...(await optionSchemas(root)),
     ...(await stateSchemas(root)),
   ].sort();
 }
@@ -361,16 +362,17 @@ async function boardSchema(root: string): Promise<string[]> {
   return [relative(root, file)];
 }
 
-// The JSON Schemas next to core's runtime, of what core defines of a board:
-// the value of each of its board options, in a file of its own named by the
-// board option's class in R, as n_rows_option.schema.json,
-// as a package puts those of its board options and of its plugin classes'
-// state next to its startup module.
-async function runtimeSchemas(root: string): Promise<string[]> {
+// The JSON Schema of the value of each of core's board options, beside the
+// board option's module, in a file named by the module, as
+// n-rows-option.schema.json beside n-rows-option.js for n_rows, as a package
+// puts the schemas of its board options and of its plugin classes' state beside
+// their modules. R writes the value of a board option that an app script gives
+// by it.
+async function optionSchemas(root: string): Promise<string[]> {
   const source = join(root, "srcts", "options", "schemas.ts");
   if (!existsSync(source)) return [];
 
-  const { optionSchemas } = (await import(pathToFileURL(source).href)) as {
+  const { optionSchemas: schemas } = (await import(pathToFileURL(source).href)) as {
     optionSchemas: Readonly<Record<string, unknown>>;
   };
   const out = join(root, "inst", "js");
@@ -379,13 +381,19 @@ async function runtimeSchemas(root: string): Promise<string[]> {
 
   const written: string[] = [];
 
-  for (const [id, schema] of Object.entries(optionSchemas)) {
-    const file = join(out, `${id}_option.schema.json`);
+  for (const [id, schema] of Object.entries(schemas)) {
+    const file = join(out, `${optionModuleName(id)}.schema.json`);
     await writeJson(file, schema);
     written.push(relative(root, file));
   }
 
   return written;
+}
+
+// The name of the module of core's board option with the id given, as
+// n-rows-option for n_rows, which core lists in R with the board option.
+function optionModuleName(id: string): string {
+  return `${id.replaceAll("_", "-")}-option`;
 }
 
 // The JSON Schema of the block's state that each block class's UI module

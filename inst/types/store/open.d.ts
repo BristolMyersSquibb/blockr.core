@@ -17,7 +17,7 @@ export type Dropped = {
 };
 export declare function parse(text: string): unknown;
 export declare function checkJsonBoard(json: unknown): JsonBoard;
-export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "packages" | "block_registry" | "plugins" | "option_versions">, registrations: Registrations): {
+export declare function openJsonBoard(json: JsonBoard, reply: Pick<HelloReply, "packages" | "block_registry" | "plugins" | "options">, registrations: Registrations): {
     board: Board;
     dropped: Dropped[];
 };

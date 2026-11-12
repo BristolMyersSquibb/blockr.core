@@ -88,7 +88,7 @@
 #' A single block is served alone, with fixed data and no board around it, so
 #' that its developer can try it out.
 #' Its app offers no block classes, so that its block registry holds the
-#' block's class alone, and R reads no package's `blocks.yml` for it.
+#' block's class alone, and R reads no package's listing for it.
 #' The page shows the block in a card of its own: its name, its UI, its output
 #' and a line of its status.
 #' R keeps the data for the process, and binds each entry to the block's input
@@ -363,6 +363,10 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
   force(board)
 
   lock <- lock_board(board, data, registry)
+
+  # The board options of the loaded packages, which every reply to `hello`
+  # names, so that two packages that list one stop the app here.
+  loaded_options()
 
   shiny::shinyApp(
     ui = function(req) serve_page(alone),

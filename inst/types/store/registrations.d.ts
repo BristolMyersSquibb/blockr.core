@@ -1,5 +1,6 @@
+import type { Command } from "../commands/index.ts";
 import type { Block, Board, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
-import type { CoreApi } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, PluginModule } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { Validate } from "../util/index.ts";
@@ -13,9 +14,10 @@ export interface PluginClass {
     };
     update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
     migrate?(state: Json, version: number): Json;
-    readonly ui?: string;
-    readonly frontend?: string;
+    readonly ui?: PluginModule;
+    readonly frontend?: FrontendModule;
     readonly storage?: Storage;
+    readonly commands?: readonly Command<Json, unknown>[];
     start?(args: {
         readonly core: CoreApi;
         readonly plugin: PluginClassId;
@@ -27,6 +29,11 @@ export interface Storage {
         readonly core: CoreApi;
     }): readonly StorageControl[];
     subscribe?(listener: () => void): () => void;
+    load?(args: {
+        readonly core: CoreApi;
+        readonly plugin: PluginClassId;
+        readonly signal: AbortSignal;
+    }): Promise<string | undefined>;
 }
 export type StorageControl = Hints & ({
     readonly kind: "button";
@@ -59,7 +66,7 @@ export interface Option {
     readonly label: string;
     readonly category: string;
     readonly schema: JsonSchema;
-    readonly default: Json | (() => Promise<Json>);
+    readonly default: Json | ((core: CoreApi) => Promise<Json>);
     readonly ui: OptionModule;
     onChange?(value: Json, core: CoreApi): void;
     migrate?(value: Json, version: number): Json;
@@ -76,10 +83,9 @@ export interface Checked<T> {
 export interface Registrations {
     readonly plugins: Plugins;
     readonly options: Options;
-    registerMigration(registryId: RegistryId, fn: Migration): () => void;
     plugin(id: PluginClassId): Checked<PluginClass> | undefined;
     option(id: OptionId): Checked<Option> | undefined;
     migration(registryId: RegistryId): Migration | undefined;
 }
-export declare function createRegistrations(): Registrations;
+export declare function createRegistrations(migration?: (registryId: RegistryId) => Migration | undefined): Registrations;
 export declare function isPluginClassId(id: string): boolean;

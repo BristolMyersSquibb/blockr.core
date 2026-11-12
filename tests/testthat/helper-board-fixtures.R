@@ -104,19 +104,27 @@ plugin_ctor <- function(fun, class, package = "blockr.test") {
 # they list already, until `frame` ends, each by its name, as
 # `local_plugin_classes(Notes = new_notes_plugin)`, with the constructor that
 # makes its plugins, made by `plugin_ctor()`, which gives its package and its
-# id.
-local_plugin_classes <- function(..., frame = parent.frame()) {
+# id. Each class's module is the file of `modules` under its name, as
+# `modules = list(Notes = "js/notes.js")`, or `js/{id}.js` in its package.
+local_plugin_classes <- function(..., modules = list(),
+                                 frame = parent.frame()) {
 
   given <- list(...)
 
   classes <- Map(
     function(ctor, name) {
       id <- plugin_class_id(ctor())
+      path <- coal(
+        modules[[name]],
+        paste0("js/", id_class(id), ".js"),
+        fail_all = FALSE
+      )
       list(
         package = id_package(id),
         id = id_class(id),
         name = name,
-        constructor = ctor
+        constructor = ctor,
+        module = js_module(path, package = id_package(id))
       )
     },
     given,
@@ -186,31 +194,30 @@ fixture_plugins <- list(
   tools = plugin_ctor(function() NULL, "tools_plugin")
 )
 
-# What the package blockr.test of the fixtures declares from its `.onLoad()`:
-# the module blockr.test-grid, the UI of its frontend, and a startup module,
-# beside which the package ships the schema of the state of its plugin class
-# notes_plugin, in notes_plugin.schema.json, its files here in the fixtures'
-# blockr.test/, as it would install them, at the version 0.1.0.
-# The package lists its plugin classes, "Grid", "Notes" and "Tools", and its
-# method of `plugin_version()` gives the class notes_plugin version 2.
-# The block registry and what packages declare are restored once `frame` ends,
-# so that the classes that serving a fixture registers go too.
+# What the package blockr.test of the fixtures lists in its
+# `._BLOCKR_MODULES_`: its plugin classes, "Grid", "Notes" and "Tools", each
+# with its module, beside which the package ships the schema of the state of
+# its plugin class notes_plugin, in notes.schema.json beside notes.js, its
+# files here in the fixtures' blockr.test/, as it would install them, at the
+# version 0.1.0.
+# Its method of `plugin_version()` gives the class notes_plugin version 2.
+# The block registry is restored once `frame` ends, so that the classes that
+# serving a fixture registers go too.
 local_fixture_package <- function(frame = parent.frame()) {
 
-  envs <- list(block_registry, declared_modules, declared_startup_modules)
-  saved <- lapply(envs, as.list, all.names = TRUE)
+  saved <- as.list(block_registry, all.names = TRUE)
 
   withr::defer(
-    for (i in seq_along(envs)) {
-      rm(list = ls(envs[[i]], all.names = TRUE), envir = envs[[i]])
-      list2env(saved[[i]], envir = envs[[i]])
+    {
+      rm(list = ls(block_registry, all.names = TRUE), envir = block_registry)
+      list2env(saved, envir = block_registry)
     },
     envir = frame
   )
 
-  register_module("grid", js_module("js/grid.js", package = "blockr.test"))
-
-  register_startup_module(js_module("js/startup.js", package = "blockr.test"))
+  # Linting skips the call of local_listing(), a helper of another file, which
+  # lintr does not see.
+  local_listing("blockr.test", frame = frame) # nolint: object_usage_linter.
 
   local_plugin_version("notes_plugin", 2L, frame = frame)
 
@@ -218,6 +225,11 @@ local_fixture_package <- function(frame = parent.frame()) {
     Grid = fixture_plugins$grid,
     Notes = fixture_plugins$notes,
     Tools = fixture_plugins$tools,
+    modules = list(
+      Grid = "js/grid.js",
+      Notes = "js/notes.js",
+      Tools = "js/tools.js"
+    ),
     frame = frame
   )
 
@@ -299,9 +311,10 @@ board_fixture_values <- function() {
         "the id of its class. The plugin of the class blockr.test-grid_plugin",
         "is a frontend, and the plugin of the class blockr.test-notes_plugin",
         "holds two notes. The package ships the schema of the state of its",
-        "notes class beside its startup module, in a file named by the id of",
-        "the class, here blockr.test/js/notes_plugin.schema.json. By that",
-        "schema, R writes the notes as an array, and the blocks of each note",
+        "notes class beside the module that it lists for the class, here",
+        "blockr.test/js/notes.schema.json beside blockr.test/js/notes.js.",
+        "By that schema, R writes the notes as an array, and the blocks of",
+        "each note",
         "as an array, the empty one included. It writes the state of the grid",
         "plugin, whose class the package gives no schema, bare. The list of",
         "the board's plugins holds a third, of the class",

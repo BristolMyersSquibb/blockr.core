@@ -1,9 +1,10 @@
 import type { Option } from "../store/index.ts";
+import type { OptionId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
-export declare function coreOptions(core: BlockrOptions): Option[];
-export declare function nRows(core: BlockrOptions): Option;
-export declare function showConditions(core: BlockrOptions): Option;
-export declare function darkMode(core: BlockrOptions): Option;
+export declare const nRows: Omit<Option, "id">;
+export declare const showConditions: Omit<Option, "id">;
+export declare const darkMode: Omit<Option, "id">;
+export declare const coreOptions: Readonly<Record<OptionId, Omit<Option, "id">>>;
 export declare function setTheme(theme: Json): void;

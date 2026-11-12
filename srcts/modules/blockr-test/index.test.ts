@@ -45,7 +45,7 @@ describe("blockrTest", () => {
     expect(blockrTest(() => undefined).board()).toBeNull();
     expect(blockrTest(() => undefined).statuses()).toEqual({});
 
-    // The store holds no board while the startup modules initialize.
+    // The store holds no board while core starts, before the board opens.
     const starting = blockrTest(() => ({
       store: {
         hasBoard: () => false,
