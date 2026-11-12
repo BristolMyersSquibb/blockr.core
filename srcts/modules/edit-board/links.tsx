@@ -6,6 +6,10 @@
 //   shows a page of rows at a time. A row's Edit button turns the row into a
 //   form that changes the link with change_link once the user saves it, and
 //   its Remove button removes the link with remove_link.
+//   For a link into a variadic block, the form takes the link's place among
+//   the block's links too. Another place moves the link with move_link,
+//   which keeps its id and its ends, once change_link has changed the rest.
+//   Undo takes back each command that changed the link as a step of its own.
 // The form and the edit offer only links that the store takes:
 // - As a link's target, a block with an input that no other link feeds, or a
 //   variadic block, which takes any number of links. A block without inputs
@@ -193,7 +197,9 @@ function VariadicInput({ board, id, link }: { board: Board; id: LinkId; link: Li
 type Errors = Partial<Record<"from" | "to" | "input", string>>;
 
 // The form that adds a link, or that changes the link given, which offers
-// only links that the store takes (above).
+// only links that the store takes (above). Where it changes a link into a
+// variadic block, it offers the link's place among the block's links as
+// well.
 function LinkForm({
   core,
   board,
@@ -213,6 +219,8 @@ function LinkForm({
   const [to, setTo] = useState<BlockId | undefined>(editing?.link.to);
   const [input, setInput] = useState<string | undefined>(editing?.link.input);
   const [name, setName] = useState(editing !== undefined && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  // The place among the links into a variadic target that the user picks.
+  const [place, setPlace] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
 
@@ -237,6 +245,11 @@ function LinkForm({
   const variadic = isVariadic(free);
   const chosen = variadic ? undefined : input !== undefined && free.includes(input) ? input : free[0];
   const taken = target === undefined ? [] : namesInto(board, target, except);
+  // Where the form changes a link into a variadic block, the block's other
+  // links and the place that the link falls in where nothing moves it, which
+  // the form offers until the user picks another.
+  const among = editing === undefined || target === undefined || !variadic ? undefined : placeAmong(board, editing.id, target);
+  const position = among === undefined ? undefined : place !== undefined && place <= among.others.length + 1 ? place : among.place;
 
   function check(): Errors {
     return {
@@ -260,10 +273,14 @@ function LinkForm({
     const linkInput = variadic ? name.trim() : chosen;
     const args: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
     setBusy(true);
-    const ran =
+    let ran =
       editing === undefined
         ? await runCommand(core, "blockr.core-add_link", args)
         : await runCommand(core, "blockr.core-change_link", { id: editing.id, ...args });
+    if (ran && editing !== undefined && among !== undefined && position !== undefined && position !== among.place) {
+      const before = placeAmong(core.store.board(), editing.id, target).others[position - 1];
+      ran = await runCommand(core, "blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) });
+    }
     setBusy(false);
     if (!ran) return;
     if (editing === undefined) {
@@ -311,25 +328,47 @@ function LinkForm({
           onChange={(value) => {
             setTo(value);
             setInput(undefined);
+            setPlace(undefined);
             setErrors((now) => without(without(now, "to"), "input"));
           }}
         />
       </div>
       {target === undefined ? null : variadic ? (
-        <TextField
-          label="Input name"
-          value={name}
-          hint={`Optional. The block "${blockName(board, target)}" takes any number of links, each by its name or, where it has none, by its position.`}
-          error={errors.input}
-          identifier
-          onChange={(value) => {
-            setName(value);
-            setErrors((now) => without(now, "input"));
-          }}
-          onLeave={() => {
-            setErrors((now) => ({ ...now, ...optional("input", inputNameError(name, taken)) }));
-          }}
-        />
+        <div className={among === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>
+          <TextField
+            label="Input name"
+            value={name}
+            hint={`Optional. The block "${blockName(board, target)}" takes any number of links, each by its name or, where it has none, by its position.`}
+            error={errors.input}
+            identifier
+            onChange={(value) => {
+              setName(value);
+              setErrors((now) => without(now, "input"));
+            }}
+            onLeave={() => {
+              setErrors((now) => ({ ...now, ...optional("input", inputNameError(name, taken)) }));
+            }}
+          />
+          {among === undefined ? null : (
+            <label className={styles.field}>
+              <span className={styles.label}>Position</span>
+              <select
+                className={styles.box}
+                value={position}
+                disabled={among.others.length === 0}
+                onChange={(event) => {
+                  setPlace(Number(event.target.value));
+                }}
+              >
+                {Array.from({ length: among.others.length + 1 }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
       ) : (
         <label className={styles.field}>
           <span className={styles.label}>Input</span>
@@ -398,6 +437,14 @@ function isVariadicBlock(board: Pick<Board, "blocks">, registry: Registry, id: B
 // The board's variadic blocks.
 function variadicBlocks(board: Pick<Board, "blocks">, registry: Registry): ReadonlySet<BlockId> {
   return new Set(Object.keys(board.blocks).filter((id) => isVariadicBlock(board, registry, id)));
+}
+
+// The links into block `to` but the link `id`, in their order on the board,
+// and the place, from 1, that the link takes among them where it goes to the
+// block and keeps its place on the board.
+function placeAmong(board: Pick<Board, "links">, id: LinkId, to: BlockId): { others: LinkId[]; place: number } {
+  const ids = Object.keys(board.links).filter((other) => other === id || own(board.links, other)?.to === to);
+  return { others: ids.filter((other) => other !== id), place: ids.indexOf(id) + 1 };
 }
 
 // The board without the link given, as one that a form is about to change.

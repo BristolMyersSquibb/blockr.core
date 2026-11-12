@@ -66,6 +66,8 @@ export function lockFailures(before: Board, inverse: Delta): string[] {
     refuse("change", one, several, Object.keys(part?.mod ?? {}));
     refuse("remove", one, several, Object.keys(part?.add ?? {}));
   }
+  // What the inverse moves back, the delta moved.
+  refuse("move", "link", "links", Object.keys(inverse.links?.before ?? {}));
 
   if (inverse.name !== undefined) failures.push("The board lock refuses to rename the board.");
 

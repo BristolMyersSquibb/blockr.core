@@ -1112,6 +1112,7 @@ function LinkForm({
   const [to, setTo] = useState6(editing?.link.to);
   const [input2, setInput] = useState6(editing?.link.input);
   const [name2, setName] = useState6(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  const [place, setPlace] = useState6(void 0);
   const [errors, setErrors] = useState6({});
   const [busy, setBusy] = useState6(false);
   const others = withoutLink(board, except);
@@ -1127,6 +1128,8 @@ function LinkForm({
   const variadic = isVariadic(free);
   const chosen = variadic ? void 0 : input2 !== void 0 && free.includes(input2) ? input2 : free[0];
   const taken = target2 === void 0 ? [] : namesInto(board, target2, except);
+  const among = editing === void 0 || target2 === void 0 || !variadic ? void 0 : placeAmong(board, editing.id, target2);
+  const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
   function check2() {
     return {
       ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
@@ -1148,7 +1151,11 @@ function LinkForm({
     const linkInput = variadic ? name2.trim() : chosen;
     const args = { from: source, to: target2, ...linkInput === void 0 ? {} : { input: linkInput } };
     setBusy(true);
-    const ran = editing === void 0 ? await runCommand(core, "blockr.core-add_link", args) : await runCommand(core, "blockr.core-change_link", { id: editing.id, ...args });
+    let ran = editing === void 0 ? await runCommand(core, "blockr.core-add_link", args) : await runCommand(core, "blockr.core-change_link", { id: editing.id, ...args });
+    if (ran && editing !== void 0 && among !== void 0 && position !== void 0 && position !== among.place) {
+      const before = placeAmong(core.store.board(), editing.id, target2).others[position - 1];
+      ran = await runCommand(core, "blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
+    }
     setBusy(false);
     if (!ran) return;
     if (editing === void 0) {
@@ -1201,28 +1208,46 @@ function LinkForm({
               onChange: (value2) => {
                 setTo(value2);
                 setInput(void 0);
+                setPlace(void 0);
                 setErrors((now) => without2(without2(now, "to"), "input"));
               }
             }
           )
         ] }),
-        target2 === void 0 ? null : variadic ? /* @__PURE__ */ jsx7(
-          TextField,
-          {
-            label: "Input name",
-            value: name2,
-            hint: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
-            error: errors.input,
-            identifier: true,
-            onChange: (value2) => {
-              setName(value2);
-              setErrors((now) => without2(now, "input"));
-            },
-            onLeave: () => {
-              setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name2, taken)) }));
+        target2 === void 0 ? null : variadic ? /* @__PURE__ */ jsxs6("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx7(
+            TextField,
+            {
+              label: "Input name",
+              value: name2,
+              hint: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
+              error: errors.input,
+              identifier: true,
+              onChange: (value2) => {
+                setName(value2);
+                setErrors((now) => without2(now, "input"));
+              },
+              onLeave: () => {
+                setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name2, taken)) }));
+              }
             }
-          }
-        ) : /* @__PURE__ */ jsxs6("label", { className: styles.field, children: [
+          ),
+          among === void 0 ? null : /* @__PURE__ */ jsxs6("label", { className: styles.field, children: [
+            /* @__PURE__ */ jsx7("span", { className: styles.label, children: "Position" }),
+            /* @__PURE__ */ jsx7(
+              "select",
+              {
+                className: styles.box,
+                value: position,
+                disabled: among.others.length === 0,
+                onChange: (event) => {
+                  setPlace(Number(event.target.value));
+                },
+                children: Array.from({ length: among.others.length + 1 }, (_, i) => i + 1).map((n) => /* @__PURE__ */ jsx7("option", { value: n, children: n }, n))
+              }
+            )
+          ] })
+        ] }) : /* @__PURE__ */ jsxs6("label", { className: styles.field, children: [
           /* @__PURE__ */ jsx7("span", { className: styles.label, children: "Input" }),
           /* @__PURE__ */ jsx7(
             "select",
@@ -1275,6 +1300,10 @@ function isVariadicBlock(board, registry, id2) {
 }
 function variadicBlocks(board, registry) {
   return new Set(Object.keys(board.blocks).filter((id2) => isVariadicBlock(board, registry, id2)));
+}
+function placeAmong(board, id2, to) {
+  const ids = Object.keys(board.links).filter((other) => other === id2 || own(board.links, other)?.to === to);
+  return { others: ids.filter((other) => other !== id2), place: ids.indexOf(id2) + 1 };
 }
 function withoutLink(board, id2) {
   if (id2 === void 0 || !Object.hasOwn(board.links, id2)) return board;

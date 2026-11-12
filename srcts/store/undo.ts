@@ -11,8 +11,11 @@ import { applyPatch, segmentsFromPath } from "./patch.ts";
 // The part of a delta that still applies to the board: without the removal
 // or change of what is gone, the addition of what is there already,
 // the links and the places in stacks of blocks that are gone,
+// the moves of links that are gone,
 // and the patches that no longer find their path,
 // as one that changes what another origin removed.
+// A link moves last where the link that it went before is gone, as an entry
+// that undo adds back goes last where the entry that followed it is gone.
 // A patch at an array's index changes whatever the array holds there now.
 export function fit(delta: Delta, board: Board): Delta {
   const blocks = collection(board.blocks, delta.blocks);
@@ -25,8 +28,13 @@ export function fit(delta: Delta, board: Board): Delta {
   const links = collection(board.links, delta.links, (link) =>
     (link.from === undefined || holds(link.from)) && (link.to === undefined || holds(link.to)),
   );
+  const held = (id: string) => Object.hasOwn(board.links, id) && !(links.rm ?? []).includes(id);
   const before = Object.fromEntries(
-    Object.entries(delta.links?.before ?? {}).filter(([id]) => Object.hasOwn(links.add ?? {}, id)),
+    Object.entries(delta.links?.before ?? {}).flatMap(([id, named]): [string, string | null][] => {
+      if (Object.hasOwn(links.add ?? {}, id)) return [[id, named]];
+      if (!held(id)) return [];
+      return [[id, named !== null && Object.hasOwn(board.links, named) ? named : null]];
+    }),
   );
 
   const stacks = collection(board.stacks, delta.stacks);

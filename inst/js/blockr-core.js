@@ -6209,6 +6209,28 @@ function collection(name3, current2, part, modify, places, before, failures) {
     readdPlaces[id2] = after.find((other) => !removed.has(other)) ?? null;
   }
   const kept = order.filter((id2) => !removed.has(id2)).map((id2) => [id2, current2[id2]]);
+  const successorOf = (named2) => named2 === null ? null : removed.has(named2) ? own(readdPlaces, named2) ?? null : named2;
+  const moves = [];
+  for (const [id2, named2] of Object.entries(before ?? {})) {
+    if (Object.hasOwn(part.add ?? {}, id2)) continue;
+    const at = kept.findIndex(([other]) => other === id2);
+    const entry = kept[at];
+    if (entry === void 0) {
+      failures.push(`The board holds no ${name3(id2)} to move.`);
+      continue;
+    }
+    const to = successorOf(named2);
+    const was = kept[at + 1]?.[0] ?? null;
+    if (to === was || to === id2) continue;
+    if (to !== null && !kept.some(([other]) => other === to)) {
+      failures.push(`The board holds no ${name3(to)} for ${name3(id2)} to go before.`);
+      continue;
+    }
+    kept.splice(at, 1);
+    if (to === null) kept.push(entry);
+    else kept.splice(kept.findIndex(([other]) => other === to), 0, entry);
+    moves.unshift([id2, was]);
+  }
   const added = [];
   for (const [id2, value2] of Object.entries(part.add ?? {})) {
     if (kept.some(([other]) => other === id2)) {
@@ -6216,7 +6238,7 @@ function collection(name3, current2, part, modify, places, before, failures) {
       continue;
     }
     const named2 = own(before ?? {}, id2);
-    const successor = named2 === void 0 ? own(places ?? {}, id2) ?? null : removed.has(named2) ? own(readdPlaces, named2) ?? null : named2;
+    const successor = named2 === void 0 ? own(places ?? {}, id2) ?? null : successorOf(named2);
     const at = successor === null ? -1 : kept.findIndex(([other]) => other === successor);
     if (at < 0 && successor !== null && named2 !== void 0) {
       failures.push(
@@ -6248,7 +6270,8 @@ function collection(name3, current2, part, modify, places, before, failures) {
     inverse: {
       ...added.length === 0 ? {} : { rm: added },
       ...removed.size === 0 ? {} : { add: readd },
-      ...Object.keys(remod).length === 0 ? {} : { mod: remod }
+      ...Object.keys(remod).length === 0 ? {} : { mod: remod },
+      ...moves.length === 0 ? {} : { before: Object.fromEntries(moves) }
     },
     places: readdPlaces,
     changed: [.../* @__PURE__ */ new Set([...added, ...modded])],
@@ -6491,6 +6514,7 @@ function lockFailures(before, inverse) {
     refuse("change", one2, several, Object.keys(part?.mod ?? {}));
     refuse("remove", one2, several, Object.keys(part?.add ?? {}));
   }
+  refuse("move", "link", "links", Object.keys(inverse.links?.before ?? {}));
   if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
   return failures;
 }
@@ -6508,8 +6532,13 @@ function fit(delta, board) {
     delta.links,
     (link) => (link.from === void 0 || holds(link.from)) && (link.to === void 0 || holds(link.to))
   );
+  const held = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
-    Object.entries(delta.links?.before ?? {}).filter(([id2]) => Object.hasOwn(links.add ?? {}, id2))
+    Object.entries(delta.links?.before ?? {}).flatMap(([id2, named2]) => {
+      if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named2]];
+      if (!held(id2)) return [];
+      return [[id2, named2 !== null && Object.hasOwn(board.links, named2) ? named2 : null]];
+    })
   );
   const stacks = collection2(board.stacks, delta.stacks);
   const placed = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds) };
@@ -8072,6 +8101,46 @@ function coreCommands(store, options = {}) {
       }
     }),
     command({
+      id: "blockr.core-move_link",
+      label: "Move link",
+      description: "Moves a link among the links into the block that it goes to, keeping its id and its ends. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from. A block that is not variadic takes each input by its name, so the command refuses a link into one.",
+      args: object(
+        {
+          id: linkId,
+          before: {
+            ...linkId,
+            description: "The link into the same block that the link goes before. Where it is left out, the link goes last among the links into its block."
+          }
+        },
+        ["id"]
+      ),
+      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      run(board2, { id: id2, before }) {
+        const link = own(board2.links, id2);
+        if (link === void 0) return [];
+        const block = own(board2.blocks, link.to);
+        if (block !== void 0 && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
+          throw refusal(this.id, [
+            `The block "${link.to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The command "blockr.core-change_link" changes the input that a link feeds.`
+          ]);
+        }
+        if (before === void 0) {
+          const place = lastPlace(board2, link.to, id2);
+          return place === void 0 ? [] : { links: { before: { [id2]: place } } };
+        }
+        if (before === id2) {
+          throw refusal(this.id, [`The link "${id2}" cannot go before itself.`]);
+        }
+        const next = own(board2.links, before);
+        if (next !== void 0 && next.to !== link.to) {
+          throw refusal(this.id, [
+            `The link "${id2}" goes into block "${link.to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${link.to}".`
+          ]);
+        }
+        return { links: { before: { [id2]: before } } };
+      }
+    }),
+    command({
       id: "blockr.core-remove_link",
       label: "Remove link",
       description: "Removes a link.",
@@ -8211,6 +8280,12 @@ function defaultBlockName(registryId2) {
   const pkg = packageFromId(registryId2);
   const name3 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
   return sentenceCase(name3.replace(/_block$/, ""));
+}
+function lastPlace(board, to, id2) {
+  const others = Object.keys(board.links).filter((other) => other !== id2);
+  const last = others.filter((other) => own(board.links, other)?.to === to).at(-1);
+  if (last === void 0) return void 0;
+  return others[others.indexOf(last) + 1] ?? null;
 }
 function leave(board, id2, blocks) {
   const moving = new Set(blocks);

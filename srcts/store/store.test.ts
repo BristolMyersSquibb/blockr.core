@@ -1649,6 +1649,97 @@ describe("applying a delta", () => {
     }).toThrow('The board holds no link "zz" for link "ce" to go before.');
   });
 
+  test("moves a link that the board holds before the one that `before` names, keeping its id and its ends, and undo puts it back", async () => {
+    const store = await opened();
+    const board = store.board();
+    const order = Object.keys(board.links);
+    const seen = changes(store);
+
+    store.apply({ links: { before: { de: "be" } } });
+    expect(Object.keys(store.board().links)).toEqual(["ab", "ac", "bc", "ad", "de", "be", "keen_finch"]);
+    expect(store.board().links.de).toBe(board.links.de);
+    expect(seen).toEqual([{ delta: { links: { before: { de: "be" } } }, origin: "user" }]);
+
+    store.undo();
+    expect(store.board()).toEqual(board);
+    expect(Object.keys(store.board().links)).toEqual(order);
+
+    store.redo();
+    expect(Object.keys(store.board().links)).toEqual(["ab", "ac", "bc", "ad", "de", "be", "keen_finch"]);
+  });
+
+  test("moves a link last for null, and makes no step of a move to where the link is", async () => {
+    const store = await opened();
+    const order = Object.keys(store.board().links);
+
+    store.apply({ links: { before: { ab: null } } });
+    expect(Object.keys(store.board().links)).toEqual([...order.slice(1), "ab"]);
+    store.undo();
+    expect(Object.keys(store.board().links)).toEqual(order);
+    expect(store.canUndo()).toBe(false);
+
+    const board = store.board();
+    store.apply({ links: { before: { be: "de", keen_finch: null } } });
+    expect(store.board()).toBe(board);
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("moves links in the order that `before` names them, and one undo puts each back", async () => {
+    const store = await opened();
+    const order = Object.keys(store.board().links);
+
+    store.apply({ links: { before: { keen_finch: "ab", ab: null, de: "keen_finch" } } });
+    expect(Object.keys(store.board().links)).toEqual(["de", "keen_finch", "ac", "bc", "ad", "be", "ab"]);
+
+    store.undo();
+    expect(Object.keys(store.board().links)).toEqual(order);
+  });
+
+  test("moves links after the delta's removals and before its additions, so that undo puts every link back in its place", async () => {
+    const store = await opened();
+    const board = store.board();
+
+    store.apply({
+      links: {
+        rm: ["bc"],
+        before: { ad: null, keen_finch: "be" },
+        add: { ce: { from: "c", to: "e", input: "" } },
+      },
+    });
+    expect(Object.keys(store.board().links)).toEqual(["ab", "ac", "keen_finch", "be", "de", "ad", "ce"]);
+
+    store.undo();
+    expect(store.board()).toEqual(board);
+    expect(Object.keys(store.board().links)).toEqual(Object.keys(board.links));
+  });
+
+  test("moves a link into the place of the link that `before` names, where the same delta removes that link", async () => {
+    const store = await opened();
+    const order = Object.keys(store.board().links);
+
+    store.apply({ links: { rm: ["be"], before: { keen_finch: "be" } } });
+    expect(Object.keys(store.board().links)).toEqual(["ab", "ac", "bc", "ad", "keen_finch", "de"]);
+
+    store.undo();
+    expect(Object.keys(store.board().links)).toEqual(order);
+  });
+
+  test("refuses to move a link that the board lacks, or before one that it lacks", async () => {
+    const store = await opened();
+    const board = store.board();
+
+    expect(() => {
+      store.apply({ links: { before: { zz: "ab" } } });
+    }).toThrow('The board holds no link "zz" to move.');
+    expect(() => {
+      store.apply({ links: { rm: ["ab"], before: { ab: "ac" } } });
+    }).toThrow('The board holds no link "ab" to move.');
+    expect(() => {
+      store.apply({ links: { before: { ab: "zz" } } });
+    }).toThrow('The board holds no link "zz" for link "ab" to go before.');
+    expect(store.board()).toBe(board);
+  });
+
   test("throws when a subscriber applies a delta", async () => {
     const store = await opened();
     let caught: unknown;
@@ -1792,6 +1883,7 @@ describe("the locks", () => {
     ["adding a link", { links: { add: { fe: { from: "f", to: "e", input: "" } } } }, 'The board lock refuses to add link "fe".'],
     ["changing a link", { links: { mod: { ad: { from: "b" } } } }, 'The board lock refuses to change link "ad".'],
     ["removing a link", { links: { rm: ["ab"] } }, 'The board lock refuses to remove link "ab".'],
+    ["moving a link", { links: { before: { de: "be" } } }, 'The board lock refuses to move link "de".'],
     [
       "adding a stack",
       { stacks: { add: { s2: { name: "More", blocks: ["c"], color: null } } } },
@@ -2216,6 +2308,22 @@ describe("undo", () => {
     expect(store.canUndo()).toBe(false);
 
     store.redo();
+    expect(store.board()).toBe(board);
+  });
+
+  test("moves a link back last where the link that it went before is gone since, and does nothing where the link is gone", async () => {
+    const store = await opened();
+    store.apply({ links: { before: { ac: "ab" } } });
+    store.apply({ links: { rm: ["bc"] } }, "assistant");
+
+    store.undo();
+    expect(Object.keys(store.board().links)).toEqual(["ab", "ad", "be", "de", "keen_finch", "ac"]);
+
+    store.apply({ links: { before: { de: "be" } } });
+    store.apply({ links: { rm: ["de"] } }, "assistant");
+    const board = store.board();
+
+    store.undo();
     expect(store.board()).toBe(board);
   });
 

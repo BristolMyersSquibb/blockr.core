@@ -1,11 +1,11 @@
 // Core's commands, which cover what core's plugins of today and the dock's
 // actions did: adding, removing and renaming a block, setting and unsetting its
 // state args, setting its lock, appending, prepending and inserting one on a
-// link, adding, changing and removing links, adding, changing, renaming and
-// removing stacks, renaming the board and setting a board option, and setting
-// a plugin's state, while the app's opening board sets which plugins a board
-// holds. A block that a command adds starts with a lock of null, which follows
-// the board lock.
+// link, adding, changing, moving and removing links, adding, changing,
+// renaming and removing stacks, renaming the board and setting a board option,
+// and setting a plugin's state, while the app's opening board sets which
+// plugins a board holds. A block that a command adds starts with a lock of
+// null, which follows the board lock.
 // Besides core's command for any plugin's state, a plugin class's package
 // registers commands of its own for what its plugins keep.
 //
@@ -397,6 +397,48 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
         return { links: { mod: { [args.id]: { from: args.from ?? link.from, to, input } } } };
       },
     }),
+    command<{ readonly id: LinkId; readonly before?: LinkId }>({
+      id: "blockr.core-move_link",
+      label: "Move link",
+      description:
+        "Moves a link among the links into the block that it goes to, keeping its id and its ends. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from. A block that is not variadic takes each input by its name, so the command refuses a link into one.",
+      args: object(
+        {
+          id: schemas.linkId,
+          before: {
+            ...schemas.linkId,
+            description:
+              "The link into the same block that the link goes before. Where it is left out, the link goes last among the links into its block.",
+          },
+        },
+        ["id"],
+      ),
+      enabled: (board, { id }) => Object.hasOwn(board.links, id),
+      run(board, { id, before }) {
+        const link = own(board.links, id);
+        if (link === undefined) return [];
+        const block = own(board.blocks, link.to);
+        if (block !== undefined && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
+          throw refusal(this.id, [
+            `The block "${link.to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The command "blockr.core-change_link" changes the input that a link feeds.`,
+          ]);
+        }
+        if (before === undefined) {
+          const place = lastPlace(board, link.to, id);
+          return place === undefined ? [] : { links: { before: { [id]: place } } };
+        }
+        if (before === id) {
+          throw refusal(this.id, [`The link "${id}" cannot go before itself.`]);
+        }
+        const next = own(board.links, before);
+        if (next !== undefined && next.to !== link.to) {
+          throw refusal(this.id, [
+            `The link "${id}" goes into block "${link.to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${link.to}".`,
+          ]);
+        }
+        return { links: { before: { [id]: before } } };
+      },
+    }),
     command<{ readonly id: LinkId }>({
       id: "blockr.core-remove_link",
       label: "Remove link",
@@ -571,6 +613,17 @@ export function defaultBlockName(registryId: RegistryId): string {
   const pkg = packageFromId(registryId);
   const name = pkg === null ? registryId : registryId.slice(pkg.length + 1);
   return sentenceCase(name.replace(/_block$/, ""));
+}
+
+// Where the link `id` goes to be the last of the links into block `to`: before
+// the link that follows the block's last other link on the board, or null
+// where none follows it. So the link moves no further on the board than it
+// has to. It is undefined where no other link goes into the block.
+function lastPlace(board: Pick<Board, "links">, to: BlockId, id: LinkId): LinkId | null | undefined {
+  const others = Object.keys(board.links).filter((other) => other !== id);
+  const last = others.filter((other) => own(board.links, other)?.to === to).at(-1);
+  if (last === undefined) return undefined;
+  return others[others.indexOf(last) + 1] ?? null;
 }
 
 // The changes that take the blocks out of every stack but `id`, since a block

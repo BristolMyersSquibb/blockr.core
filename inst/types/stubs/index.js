@@ -6300,6 +6300,28 @@ function collection(name2, current2, part, modify, places, before, failures) {
     readdPlaces[id2] = after.find((other) => !removed.has(other)) ?? null;
   }
   const kept = order.filter((id2) => !removed.has(id2)).map((id2) => [id2, current2[id2]]);
+  const successorOf = (named2) => named2 === null ? null : removed.has(named2) ? own(readdPlaces, named2) ?? null : named2;
+  const moves = [];
+  for (const [id2, named2] of Object.entries(before ?? {})) {
+    if (Object.hasOwn(part.add ?? {}, id2)) continue;
+    const at = kept.findIndex(([other]) => other === id2);
+    const entry = kept[at];
+    if (entry === void 0) {
+      failures.push(`The board holds no ${name2(id2)} to move.`);
+      continue;
+    }
+    const to = successorOf(named2);
+    const was = kept[at + 1]?.[0] ?? null;
+    if (to === was || to === id2) continue;
+    if (to !== null && !kept.some(([other]) => other === to)) {
+      failures.push(`The board holds no ${name2(to)} for ${name2(id2)} to go before.`);
+      continue;
+    }
+    kept.splice(at, 1);
+    if (to === null) kept.push(entry);
+    else kept.splice(kept.findIndex(([other]) => other === to), 0, entry);
+    moves.unshift([id2, was]);
+  }
   const added = [];
   for (const [id2, value2] of Object.entries(part.add ?? {})) {
     if (kept.some(([other]) => other === id2)) {
@@ -6307,7 +6329,7 @@ function collection(name2, current2, part, modify, places, before, failures) {
       continue;
     }
     const named2 = own(before ?? {}, id2);
-    const successor = named2 === void 0 ? own(places ?? {}, id2) ?? null : removed.has(named2) ? own(readdPlaces, named2) ?? null : named2;
+    const successor = named2 === void 0 ? own(places ?? {}, id2) ?? null : successorOf(named2);
     const at = successor === null ? -1 : kept.findIndex(([other]) => other === successor);
     if (at < 0 && successor !== null && named2 !== void 0) {
       failures.push(
@@ -6339,7 +6361,8 @@ function collection(name2, current2, part, modify, places, before, failures) {
     inverse: {
       ...added.length === 0 ? {} : { rm: added },
       ...removed.size === 0 ? {} : { add: readd },
-      ...Object.keys(remod).length === 0 ? {} : { mod: remod }
+      ...Object.keys(remod).length === 0 ? {} : { mod: remod },
+      ...moves.length === 0 ? {} : { before: Object.fromEntries(moves) }
     },
     places: readdPlaces,
     changed: [.../* @__PURE__ */ new Set([...added, ...modded])],
@@ -6582,6 +6605,7 @@ function lockFailures(before, inverse) {
     refuse("change", one2, several, Object.keys(part?.mod ?? {}));
     refuse("remove", one2, several, Object.keys(part?.add ?? {}));
   }
+  refuse("move", "link", "links", Object.keys(inverse.links?.before ?? {}));
   if (inverse.name !== void 0) failures.push("The board lock refuses to rename the board.");
   return failures;
 }
@@ -6599,8 +6623,13 @@ function fit(delta, board) {
     delta.links,
     (link) => (link.from === void 0 || holds(link.from)) && (link.to === void 0 || holds(link.to))
   );
+  const held2 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
-    Object.entries(delta.links?.before ?? {}).filter(([id2]) => Object.hasOwn(links.add ?? {}, id2))
+    Object.entries(delta.links?.before ?? {}).flatMap(([id2, named2]) => {
+      if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named2]];
+      if (!held2(id2)) return [];
+      return [[id2, named2 !== null && Object.hasOwn(board.links, named2) ? named2 : null]];
+    })
   );
   const stacks = collection2(board.stacks, delta.stacks);
   const placed2 = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds) };
@@ -8163,6 +8192,46 @@ function coreCommands(store, options = {}) {
       }
     }),
     command({
+      id: "blockr.core-move_link",
+      label: "Move link",
+      description: "Moves a link among the links into the block that it goes to, keeping its id and its ends. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from. A block that is not variadic takes each input by its name, so the command refuses a link into one.",
+      args: object(
+        {
+          id: linkId,
+          before: {
+            ...linkId,
+            description: "The link into the same block that the link goes before. Where it is left out, the link goes last among the links into its block."
+          }
+        },
+        ["id"]
+      ),
+      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      run(board2, { id: id2, before }) {
+        const link = own(board2.links, id2);
+        if (link === void 0) return [];
+        const block = own(board2.blocks, link.to);
+        if (block !== void 0 && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
+          throw refusal(this.id, [
+            `The block "${link.to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The command "blockr.core-change_link" changes the input that a link feeds.`
+          ]);
+        }
+        if (before === void 0) {
+          const place = lastPlace(board2, link.to, id2);
+          return place === void 0 ? [] : { links: { before: { [id2]: place } } };
+        }
+        if (before === id2) {
+          throw refusal(this.id, [`The link "${id2}" cannot go before itself.`]);
+        }
+        const next = own(board2.links, before);
+        if (next !== void 0 && next.to !== link.to) {
+          throw refusal(this.id, [
+            `The link "${id2}" goes into block "${link.to}" and the link "${before}" into block "${next.to}", so the args have to name a link into block "${link.to}".`
+          ]);
+        }
+        return { links: { before: { [id2]: before } } };
+      }
+    }),
+    command({
       id: "blockr.core-remove_link",
       label: "Remove link",
       description: "Removes a link.",
@@ -8302,6 +8371,12 @@ function defaultBlockName(registryId2) {
   const pkg = packageFromId(registryId2);
   const name2 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
   return sentenceCase(name2.replace(/_block$/, ""));
+}
+function lastPlace(board, to, id2) {
+  const others = Object.keys(board.links).filter((other) => other !== id2);
+  const last = others.filter((other) => own(board.links, other)?.to === to).at(-1);
+  if (last === void 0) return void 0;
+  return others[others.indexOf(last) + 1] ?? null;
 }
 function leave(board, id2, blocks) {
   const moving = new Set(blocks);
@@ -10933,6 +11008,7 @@ function LinkForm({
   const [to, setTo] = useState12(editing?.link.to);
   const [input2, setInput] = useState12(editing?.link.input);
   const [name2, setName] = useState12(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  const [place, setPlace] = useState12(void 0);
   const [errors, setErrors] = useState12({});
   const [busy, setBusy] = useState12(false);
   const others = withoutLink(board, except);
@@ -10948,6 +11024,8 @@ function LinkForm({
   const variadic2 = isVariadic(free);
   const chosen = variadic2 ? void 0 : input2 !== void 0 && free.includes(input2) ? input2 : free[0];
   const taken = target2 === void 0 ? [] : namesInto(board, target2, except);
+  const among = editing === void 0 || target2 === void 0 || !variadic2 ? void 0 : placeAmong(board, editing.id, target2);
+  const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
   function check2() {
     return {
       ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
@@ -10969,7 +11047,11 @@ function LinkForm({
     const linkInput = variadic2 ? name2.trim() : chosen;
     const args = { from: source, to: target2, ...linkInput === void 0 ? {} : { input: linkInput } };
     setBusy(true);
-    const ran = editing === void 0 ? await runCommand2(core, "blockr.core-add_link", args) : await runCommand2(core, "blockr.core-change_link", { id: editing.id, ...args });
+    let ran = editing === void 0 ? await runCommand2(core, "blockr.core-add_link", args) : await runCommand2(core, "blockr.core-change_link", { id: editing.id, ...args });
+    if (ran && editing !== void 0 && among !== void 0 && position !== void 0 && position !== among.place) {
+      const before = placeAmong(core.store.board(), editing.id, target2).others[position - 1];
+      ran = await runCommand2(core, "blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
+    }
     setBusy(false);
     if (!ran) return;
     if (editing === void 0) {
@@ -11022,28 +11104,46 @@ function LinkForm({
               onChange: (value2) => {
                 setTo(value2);
                 setInput(void 0);
+                setPlace(void 0);
                 setErrors((now) => without3(without3(now, "to"), "input"));
               }
             }
           )
         ] }),
-        target2 === void 0 ? null : variadic2 ? /* @__PURE__ */ jsx16(
-          TextField,
-          {
-            label: "Input name",
-            value: name2,
-            hint: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
-            error: errors.input,
-            identifier: true,
-            onChange: (value2) => {
-              setName(value2);
-              setErrors((now) => without3(now, "input"));
-            },
-            onLeave: () => {
-              setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name2, taken)) }));
+        target2 === void 0 ? null : variadic2 ? /* @__PURE__ */ jsxs13("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx16(
+            TextField,
+            {
+              label: "Input name",
+              value: name2,
+              hint: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
+              error: errors.input,
+              identifier: true,
+              onChange: (value2) => {
+                setName(value2);
+                setErrors((now) => without3(now, "input"));
+              },
+              onLeave: () => {
+                setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name2, taken)) }));
+              }
             }
-          }
-        ) : /* @__PURE__ */ jsxs13("label", { className: styles.field, children: [
+          ),
+          among === void 0 ? null : /* @__PURE__ */ jsxs13("label", { className: styles.field, children: [
+            /* @__PURE__ */ jsx16("span", { className: styles.label, children: "Position" }),
+            /* @__PURE__ */ jsx16(
+              "select",
+              {
+                className: styles.box,
+                value: position,
+                disabled: among.others.length === 0,
+                onChange: (event) => {
+                  setPlace(Number(event.target.value));
+                },
+                children: Array.from({ length: among.others.length + 1 }, (_2, i2) => i2 + 1).map((n2) => /* @__PURE__ */ jsx16("option", { value: n2, children: n2 }, n2))
+              }
+            )
+          ] })
+        ] }) : /* @__PURE__ */ jsxs13("label", { className: styles.field, children: [
           /* @__PURE__ */ jsx16("span", { className: styles.label, children: "Input" }),
           /* @__PURE__ */ jsx16(
             "select",
@@ -11096,6 +11196,10 @@ function isVariadicBlock(board, registry, id2) {
 }
 function variadicBlocks(board, registry) {
   return new Set(Object.keys(board.blocks).filter((id2) => isVariadicBlock(board, registry, id2)));
+}
+function placeAmong(board, id2, to) {
+  const ids2 = Object.keys(board.links).filter((other) => other === id2 || own(board.links, other)?.to === to);
+  return { others: ids2.filter((other) => other !== id2), place: ids2.indexOf(id2) + 1 };
 }
 function withoutLink(board, id2) {
   if (id2 === void 0 || !Object.hasOwn(board.links, id2)) return board;
