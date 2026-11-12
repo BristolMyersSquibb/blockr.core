@@ -398,15 +398,23 @@ describe("links", () => {
     await commands.run("blockr.core-move_link", { id: "be" });
     expect(Object.keys(store.board().links)).toEqual(["ab", "ac", "bc", "ad", "de", "be", "keen_finch"]);
 
-    // The only link into its block, and the last, stay where they are.
+    // The last link into its block, and the only one, stay where they are.
     const board = store.board();
-    await commands.run("blockr.core-move_link", { id: "ab" });
     await commands.run("blockr.core-move_link", { id: "be" });
     expect(store.board()).toBe(board);
+    await commands.run("blockr.core-remove_link", { id: "de" });
+    const alone = store.board();
+    await commands.run("blockr.core-move_link", { id: "be" });
+    expect(store.board()).toBe(alone);
   });
 
-  test("move_link refuses a link into another block and the link itself, and is not enabled for a link that the board lacks", async () => {
+  test("move_link refuses a link into a block that is not variadic, a link into another block and the link itself, and is not enabled for a link that the board lacks", async () => {
     const { commands } = await setup();
+
+    // The merge block c takes its links by their inputs, x and y.
+    await expect(commands.run("blockr.core-move_link", { id: "bc", before: "ac" })).rejects.toThrow(
+      'The block "c" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The command "blockr.core-change_link" changes the input that a link feeds.',
+    );
 
     await expect(commands.run("blockr.core-move_link", { id: "de", before: "ad" })).rejects.toThrow(
       'The link "de" goes into block "e" and the link "ad" into block "d", so the args have to name a link into block "e".',

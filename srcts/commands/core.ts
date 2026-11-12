@@ -401,7 +401,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       id: "blockr.core-move_link",
       label: "Move link",
       description:
-        "Moves a link among the links into the block that it goes to, keeping its id and its ends. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from.",
+        "Moves a link among the links into the block that it goes to, keeping its id and its ends. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from. A block that is not variadic takes each input by its name, so the command refuses a link into one.",
       args: object(
         {
           id: schemas.linkId,
@@ -417,6 +417,12 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       run(board, { id, before }) {
         const link = own(board.links, id);
         if (link === undefined) return [];
+        const block = own(board.blocks, link.to);
+        if (block !== undefined && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
+          throw refusal(this.id, [
+            `The block "${link.to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The command "blockr.core-change_link" changes the input that a link feeds.`,
+          ]);
+        }
         if (before === undefined) {
           const place = lastPlace(board, link.to, id);
           return place === undefined ? [] : { links: { before: { [id]: place } } };

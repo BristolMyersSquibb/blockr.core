@@ -8322,7 +8322,7 @@ function coreCommands(store, options = {}) {
     command({
       id: "blockr.core-move_link",
       label: "Move link",
-      description: "Moves a link among the links into the block that it goes to, keeping its id and its ends. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from.",
+      description: "Moves a link among the links into the block that it goes to, keeping its id and its ends. A variadic block takes its links in their order on the board, so an rbind block binds first the rows of the block that its first link comes from. A block that is not variadic takes each input by its name, so the command refuses a link into one.",
       args: object(
         {
           id: linkId,
@@ -8337,6 +8337,12 @@ function coreCommands(store, options = {}) {
       run(board2, { id: id2, before }) {
         const link = own(board2.links, id2);
         if (link === void 0) return [];
+        const block = own(board2.blocks, link.to);
+        if (block !== void 0 && !registryEntry(this.id, block.registry_id).inputs.includes("...")) {
+          throw refusal(this.id, [
+            `The block "${link.to}" is not variadic and takes each input by its name, so the order of its links changes nothing that it computes. The command "blockr.core-change_link" changes the input that a link feeds.`
+          ]);
+        }
         if (before === void 0) {
           const place = lastPlace(board2, link.to, id2);
           return place === void 0 ? [] : { links: { before: { [id2]: place } } };
