@@ -132,11 +132,11 @@ const noted: PluginClass = {
   },
 };
 
-// A storage plugin's class, which saves boards to a store of its own.
+// A storage plugin's class, whose controls save boards to a store of its own.
 function storage(id: string): PluginClass {
   return {
     id,
-    storage: { save: () => Promise.resolve(), open: () => Promise.resolve(null) },
+    storage: { controls: () => [] },
   };
 }
 
@@ -2424,7 +2424,10 @@ describe("registering", () => {
     expect(() => register({ id, ui: "" })).toThrow(`The plugin class "${id}" has a ui that is no module's id.`);
     expect(() => register({ id, frontend: 1 })).toThrow(`The plugin class "${id}" has a frontend that is no module's id.`);
     expect(() => register({ id, storage: { save: () => undefined } })).toThrow(
-      `The plugin class "${id}" has a storage without save() and open() functions.`,
+      `The plugin class "${id}" has a storage without a controls() function.`,
+    );
+    expect(() => register({ id, storage: { controls: () => [], subscribe: true } })).toThrow(
+      `The plugin class "${id}" has a storage whose subscribe is no function.`,
     );
     expect(() => register({ id, options: "n_rows" })).toThrow(
       `The plugin class "${id}" requires board options that are no array of their ids.`,

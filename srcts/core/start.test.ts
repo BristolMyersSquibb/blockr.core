@@ -1198,7 +1198,7 @@ describe("the frontend and the plugins", () => {
     const storing: PluginClass = {
       id: "blockr.test-store_plugin",
       options: ["zoom"],
-      storage: { save: () => Promise.resolve(), open: () => Promise.resolve(null) },
+      storage: { controls: () => [] },
     };
     const s = await started(
       { [STARTUP]: registering([storing], [zoom]), [BASIC]: frontEnd().exports },
@@ -1230,6 +1230,33 @@ describe("a later session", () => {
     s.r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
     await tick();
     expect(changes).toEqual([[{ package: "blockr.core", loaded: "0.2.0", now: "0.2.1" }]]);
+  });
+
+  test("that names a package at another version asks the user to reload the page in a banner, on the background that core's theme gives what floats over the board", async () => {
+    const r = playedR();
+    const basic = frontEnd();
+    const started = startPage({
+      el: document.createElement("div"),
+      transport: r.transport,
+      loader: {
+        importer: (url) =>
+          url === BASIC ? Promise.resolve(basic.exports) : Promise.reject(new TypeError(`No module at ${url}.`)),
+        stylesheet: () => Promise.resolve(),
+      },
+      measure: { info: () => null, watch: () => () => undefined },
+    });
+    r.session();
+    await tick();
+    r.options();
+    await started.ready;
+
+    r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
+    await tick();
+    const banner = document.getElementById("blockr-core-reload");
+    banner?.remove();
+    expect(banner?.textContent).toContain("(blockr.core 0.2.0 to 0.2.1)");
+    // Its backgrounds in the page's theme and under the dark theme.
+    expect(banner?.className.split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name))).toEqual(["bc:bg-bg-raised"]);
   });
 
   test("where R speaks another major of the protocol stops the page, sending R nothing more and saying what to do", async () => {

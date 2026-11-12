@@ -9,11 +9,12 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
-import type { PluginClass } from "../../store/index.ts";
-import { labelled, optionOf, optionsOf } from "../../testing/combobox.ts";
+import type { PluginClass, StorageControl } from "../../store/index.ts";
+import { labelled, listOf, optionOf, optionsOf } from "../../testing/combobox.ts";
 import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
 import { pluginUi, registering } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
+import { reports } from "../../testing/reports.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
 import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
@@ -54,12 +55,17 @@ interface Drawn {
   stop: () => void;
 }
 
+// What stops each page that a test drew, which runs as the test ends, so that
+// no page of an earlier test hears the keys that a later test presses.
+const stops: (() => void)[] = [];
+
 // The board of the fixture hello, or of the reply given, drawn by the basic
 // frontend once R has evaluated what it demands.
 async function drawn(options: StubCoreOptions = {}): Promise<Drawn> {
   const el = document.createElement("div");
   document.body.append(el);
   const stubbed = await act(() => stubCore({ el, ...options, modules: { ...MODULES, ...options.modules } }));
+  stops.push(stubbed.stop);
   const settled = () => act(() => stubbed.settled());
   await settled();
   return {
@@ -180,6 +186,9 @@ function savedAs(core: CoreApi, edit: (json: JsonBoard) => JsonBoard): string {
 const renamed = (name: string) => (json: JsonBoard): JsonBoard => ({ ...json, board: { ...json.board, name } });
 
 afterEach(() => {
+  act(() => {
+    for (const stop of stops.splice(0)) stop();
+  });
   document.body.replaceChildren();
   vi.restoreAllMocks();
 });
@@ -475,6 +484,35 @@ describe("a card's block before", () => {
   });
 });
 
+describe("what floats over the board", () => {
+  // The backgrounds that an element draws in the page's theme and under the
+  // dark theme, those of its hover and of a dialog's backdrop aside.
+  const backgrounds = (el: Element): string[] => el.className.split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
+
+  test("is drawn on the background that core's theme gives it: a card's menu, the dialogs and the list of a searchable dropdown", async () => {
+    const { el, settled } = await drawn();
+
+    await click(find(card(el, "Head"), 'button[aria-label="Actions of Head"]'));
+    expect(backgrounds(find(card(el, "Head"), '[role="menu"]'))).toEqual(["bc:bg-bg-raised"]);
+
+    await click(button(card(el, "Head"), "Add block after"));
+    expect(backgrounds(dialog(el))).toEqual(["bc:bg-bg-raised"]);
+    const classes = labelled(dialog(el), "Block class");
+    await step(() => {
+      classes.click();
+    });
+    const list = listOf(classes);
+    expect(list).not.toBeNull();
+    expect(list === null ? [] : backgrounds(list)).toEqual(["bc:bg-bg-raised"]);
+    await click(button(dialog(el), "Close"));
+
+    await click(button(el, "Options"));
+    await settled();
+    expect(find(dialog(el), "h2").textContent).toBe("Board options");
+    expect(backgrounds(dialog(el))).toEqual(["bc:bg-bg-raised"]);
+  });
+});
+
 describe("the toolbar", () => {
   test("draws no control for adding a block or for links and stacks, which the Edit board plugin edits in a section of its own", async () => {
     const { el } = await drawn();
@@ -564,54 +602,264 @@ describe("the toolbar", () => {
     expect(notices(page.el)).toEqual([["error", expect.stringContaining("The store refused to open the board")]]);
   });
 
-  test("saves and opens through the app's storage plugin, and says why it failed", async () => {
-    const saves: string[] = [];
-    let picked: string | null = null;
-    let down = false;
-    const session: PluginClass = {
-      id: "blockr.test-session_plugin",
-      storage: {
-        save(board) {
-          if (down) return Promise.reject(new Error("Connect is down."));
-          saves.push(board);
-          return Promise.resolve();
-        },
-        open: () => (down ? Promise.reject(new Error("Connect is down.")) : Promise.resolve(picked)),
+  test("draws no storage control where the app runs no storage plugin", async () => {
+    const page = await drawn({ hello: withoutPlugins(HELLO, FILE_STORAGE) });
+
+    expect(page.core.plugins.storage()).toBeUndefined();
+    expect(buttons(toolbar(page.el))).toEqual(["Options", "Undo", "Redo"]);
+  });
+});
+
+// The class of a storage plugin whose controls the test sets, which calls back
+// through subscribe() whenever the test changes them, with what the test gives
+// core for an app that runs it in place of core's own storage plugin.
+function storagePlugin(controls: () => readonly StorageControl[]) {
+  let current = controls;
+  const listeners = new Set<() => void>();
+  const cls: PluginClass = {
+    id: "blockr.test-session_plugin",
+    storage: {
+      controls: () => current(),
+      subscribe(listener) {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
       },
-    };
-    // An app whose storage plugin takes the place of core's own.
-    const page = await drawn(withClasses([session], plugin(session, "Session"), withoutPlugins(HELLO, FILE_STORAGE)));
-    // The plugin's class has no ui, so the page shows no section for it.
-    expect(texts(find(page.el, 'aside[aria-label="Plugins"]'), "summary")).toEqual(["Edit board"]);
+    },
+  };
+  return {
+    options: withClasses([cls], plugin(cls, "Session"), withoutPlugins(HELLO, FILE_STORAGE)),
+    set(next: () => readonly StorageControl[]): void {
+      current = next;
+      for (const listener of [...listeners]) listener();
+    },
+    listening: () => listeners.size,
+  };
+}
 
-    await click(button(page.el, "Save"));
-    expect(saves).toEqual([page.core.store.save()]);
+// The text of each part of the toolbar, in order.
+const parts = (el: HTMLElement): string[] => [...toolbar(el).children].map((part) => part.textContent.trim());
 
-    // Where the storage gives no board, none opens.
-    await click(button(page.el, "Open"));
-    await page.settled();
-    expect(page.board().name).toBe("Iris review");
+// The runs of storage buttons, by their ids, and what records the run of one.
+function running() {
+  const runs: string[] = [];
+  return {
+    runs,
+    ran: (id: string) => (): Promise<void> => {
+      runs.push(id);
+      return Promise.resolve();
+    },
+  };
+}
 
-    picked = savedAs(page.core, renamed("Opened"));
-    await click(button(page.el, "Open"));
-    await page.settled();
-    expect(page.board().name).toBe("Opened");
+describe("the storage controls", () => {
+  test("show at the end of the toolbar in the plugin's order, each kind in its own look, those that ask for the end of the bar last", async () => {
+    const { ran } = running();
+    const storage = storagePlugin(() => [
+      { kind: "status", id: "user", text: "NS", tooltip: "Signed in as Nina", placement: "end" },
+      { kind: "button", id: "save", label: "Save", tooltip: "Save to Connect", shortcut: "Mod+S", run: ran("save") },
+      { kind: "menu", id: "versions", label: "Versions", items: [] },
+      { kind: "status", id: "saved", text: "Saved" },
+      { kind: "button", id: "share", label: "Share", disabled: true, run: ran("share") },
+      // A hint that the frontend does not know draws as if it were not there.
+      { kind: "button", id: "help", label: "Help", placement: "start" as "end", run: ran("help") },
+    ]);
+    const { el } = await drawn(storage.options);
 
-    down = true;
-    await click(button(page.el, "Save"));
-    await click(button(page.el, "Open"));
-    await page.settled();
-    expect(notices(page.el)).toEqual([
+    expect(parts(el)).toEqual(["Options", "Undo", "Redo", "Save", "Versions▾", "Saved", "Share", "Help", "NS"]);
+    // A button looks like the toolbar's own, and is greyed out while it is
+    // disabled.
+    const save = button(toolbar(el), "Save");
+    expect(save.className).toBe(button(toolbar(el), "Options").className);
+    expect(save.title).toBe("Save to Connect");
+    expect(save.getAttribute("aria-keyshortcuts")).toBe("Control+S Meta+S");
+    expect(button(toolbar(el), "Share").disabled).toBe(true);
+    // A menu is a button that opens it, and a status is text.
+    expect(find(toolbar(el), 'button[aria-haspopup="menu"]').getAttribute("aria-expanded")).toBe("false");
+    const statuses = [...toolbar(el).querySelectorAll('[role="status"]')];
+    expect(statuses.map((status) => [status.tagName, status.textContent, status.getAttribute("title")])).toEqual([
+      ["SPAN", "Saved", null],
+      ["SPAN", "NS", "Signed in as Nina"],
+    ]);
+  });
+
+  test("open a menu of what it holds, a menu inside it as a group under its label, and close it as one of its buttons runs", async () => {
+    const { runs, ran } = running();
+    const storage = storagePlugin(() => [
+      {
+        kind: "menu",
+        id: "versions",
+        label: "Versions",
+        items: [
+          { kind: "button", id: "restore", label: "Restore", run: ran("restore") },
+          // The frontend ignores hints inside a menu.
+          { kind: "status", id: "latest", text: "Version 3", tooltip: "Saved at noon", placement: "end" },
+          {
+            kind: "menu",
+            id: "older",
+            label: "Older",
+            items: [{ kind: "button", id: "v1", label: "Version 1", tooltip: "Saved in May", run: ran("v1") }],
+          },
+        ],
+      },
+    ]);
+    const { el } = await drawn(storage.options);
+    const opener = find(toolbar(el), 'button[aria-haspopup="menu"]');
+    const list = () => el.querySelector<HTMLElement>('ul[role="menu"][aria-label="Versions"]');
+
+    await click(opener);
+    expect(opener.getAttribute("aria-expanded")).toBe("true");
+    const shown = list();
+    if (shown === null) throw new Error("The menu did not open.");
+    expect(texts(shown, ":scope > li")).toEqual(["Restore", "Version 3", "OlderVersion 1"]);
+    expect(find(shown, ":scope > li:nth-child(2)").title).toBe("Saved at noon");
+    const older = find(shown, '[role="group"][aria-label="Older"]');
+    expect(texts(older, 'button[role="menuitem"]')).toEqual(["Version 1"]);
+    expect(button(older, "Version 1").title).toBe("Saved in May");
+
+    await click(button(older, "Version 1"));
+    expect(runs).toEqual(["v1"]);
+    expect(list()).toBeNull();
+
+    // It closes on Escape too.
+    await click(opener);
+    await step(() => {
+      press(document.body, "Escape");
+    });
+    expect(list()).toBeNull();
+    expect(runs).toEqual(["v1"]);
+  });
+
+  test("show again whenever the plugin's subscribe() calls back, and as the board changes, until the frontend ends", async () => {
+    const storage = storagePlugin(() => [{ kind: "status", id: "saved", text: "Unsaved" }]);
+    const page = await drawn(storage.options);
+    expect(parts(page.el).at(-1)).toBe("Unsaved");
+    expect(storage.listening()).toBe(1);
+
+    await step(() => {
+      storage.set(() => [
+        { kind: "status", id: "saved", text: "Saved" },
+        { kind: "button", id: "share", label: "Share", run: () => Promise.resolve() },
+      ]);
+    });
+    expect(parts(page.el).slice(-2)).toEqual(["Saved", "Share"]);
+
+    // The controls read the board, as a status may show the board's name.
+    storage.set(() => [{ kind: "status", id: "saved", text: `Unsaved ${page.board().name}` }]);
+    await act(() => page.core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
+    expect(parts(page.el).at(-1)).toBe("Unsaved Sepals");
+
+    page.stop();
+    expect(storage.listening()).toBe(0);
+  });
+
+  test("bind the shortcut of each button, those in menus too, but not of a disabled one, nor in a text field, and leave undo its keys", async () => {
+    const { runs, ran } = running();
+    const storage = storagePlugin(() => [
+      { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: ran("save") },
+      {
+        kind: "menu",
+        id: "more",
+        label: "More",
+        items: [{ kind: "button", id: "publish", label: "Publish", shortcut: "Mod+Shift+P", run: ran("publish") }],
+      },
+      { kind: "button", id: "lock", label: "Lock", shortcut: "Mod+L", disabled: true, run: ran("lock") },
+      { kind: "button", id: "back", label: "Back", shortcut: "Mod+Z", run: ran("back") },
+      { kind: "button", id: "odd", label: "Odd", shortcut: "Hyper+O", run: ran("odd") },
+    ]);
+    const { el, core, board } = await drawn(storage.options);
+    await act(() => core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
+
+    const save = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true, cancelable: true });
+    await step(() => {
+      document.body.dispatchEvent(save);
+      press(document.body, "s", { metaKey: true });
+      press(document.body, "P", { metaKey: true, shiftKey: true });
+      press(document.body, "p", { metaKey: true });
+      press(document.body, "l", { ctrlKey: true });
+      press(document.body, "o", { ctrlKey: true });
+      // Holding the keys down runs the button once.
+      press(document.body, "s", { ctrlKey: true, repeat: true });
+    });
+    // The page saves rather than the browser.
+    expect(save.defaultPrevented).toBe(true);
+    expect(runs).toEqual(["save", "save", "publish"]);
+
+    // Undo comes first.
+    await step(() => {
+      press(document.body, "z", { ctrlKey: true });
+    });
+    expect(board().name).toBe("Iris review");
+    expect(runs).toEqual(["save", "save", "publish"]);
+
+    const field = document.createElement("input");
+    el.append(field);
+    await step(() => {
+      press(field, "s", { ctrlKey: true });
+    });
+    expect(runs).toEqual(["save", "save", "publish"]);
+  });
+
+  test("tell the user why a button failed, run by a click or by its shortcut", async () => {
+    const storage = storagePlugin(() => [
+      { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: () => Promise.reject(new Error("Connect is down.")) },
+    ]);
+    const { el } = await drawn(storage.options);
+
+    await click(button(toolbar(el), "Save"));
+    await step(() => {
+      press(document.body, "s", { ctrlKey: true });
+    });
+    expect(notices(el)).toEqual([
       ["error", "Connect is down."],
       ["error", "Connect is down."],
     ]);
   });
 
-  test("draws no control for saving the board or opening another where the app runs no storage plugin", async () => {
-    const page = await drawn({ hello: withoutPlugins(HELLO, FILE_STORAGE) });
+  test("draw the first of the controls of one list that share an id, and a warning in their place where controls() fails, of which the page hears once", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { runs, ran } = running();
+    const storage = storagePlugin(() => [
+      { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: ran("save") },
+      { kind: "button", id: "save", label: "Save again", shortcut: "Mod+E", run: ran("again") },
+      { kind: "menu", id: "more", label: "More", items: [{ kind: "status", id: "a", text: "A" }, { kind: "status", id: "a", text: "B" }] },
+    ]);
+    const reported = reports();
+    let errors: unknown[];
+    try {
+      const page = await drawn(storage.options);
+      expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Save", "More▾"]);
+      await click(find(toolbar(page.el), 'button[aria-haspopup="menu"]'));
+      expect(texts(find(page.el, 'ul[role="menu"]'), ":scope > li")).toEqual(["A"]);
+      await step(() => {
+        press(document.body, "e", { ctrlKey: true });
+      });
+      expect(runs).toEqual([]);
 
-    expect(page.core.plugins.storage()).toBeUndefined();
-    expect(buttons(toolbar(page.el))).toEqual(["Options", "Undo", "Redo"]);
+      await step(() => {
+        storage.set(() => {
+          throw new Error("No session.");
+        });
+      });
+      const warning = find(toolbar(page.el), '[role="alert"]');
+      expect(warning.textContent).toBe("Storage failed");
+      expect(warning.title).toBe("The storage controls failed: No session.");
+      expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Storage failed"]);
+      // It draws again with the same failure, which the page has heard of.
+      await act(() => page.core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
+      await step(() => {
+        press(document.body, "s", { ctrlKey: true });
+      });
+      expect(runs).toEqual([]);
+    } finally {
+      reported.restore();
+      errors = reported.errors();
+    }
+    expect(errors.filter((error) => error instanceof Error).map((error) => error.message)).toEqual([
+      'Storage controls of one list share the ids "save" and "a", so only the first of each draws.',
+      "The storage controls failed: No session.",
+    ]);
   });
 });
 

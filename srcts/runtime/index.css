@@ -13,9 +13,9 @@
  * - The colors of core's UIs are variables of the theme by what each is for,
  *   named after blockr.ui's design tokens, as `--bc-color-border-default`
  *   after `--blockr-color-border-default`. Their defaults follow the text
- *   around the element that core draws in, or take the theme's red and blue,
- *   so that core suits a light and a dark frontend alike, and a frontend or
- *   a UI kit sets them to restyle core.
+ *   around the element that core draws in, or take the theme's red and blue
+ *   or the page's background, so that core suits a light and a dark frontend
+ *   alike, and a frontend or a UI kit sets them to restyle core.
  * - The face of core's UIs is the theme's sans, `--bc-font-sans`, as that of
  *   their code is its mono, `--bc-font-mono`, rather than the face of the
  *   element they sit in, since core counts on no stylesheet of the page to
@@ -25,7 +25,7 @@
  * - Utilities sit outside any cascade layer, since a page's other CSS, such as
  *   Bootstrap's, sits outside one too and would win over them otherwise, as its
  *   `label { display: inline-block; }` would over `bc:block`.
- * - The dark variant, as in `bc:dark:bg-gray-900`, applies under the dark
+ * - The dark variant, as in `bc:dark:text-gray-100`, applies under the dark
  *   theme that the board option dark_mode switches the page to, in the
  *   attribute data-bs-theme of its root element, which Bootstrap and
  *   blockr.ui's design tokens read too.
@@ -64,4 +64,23 @@
   --color-border-accent: var(--bc-color-blue-500);
   --color-bg-accent: var(--bc-color-blue-600);
   --color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
+  --color-bg-raised: Canvas;
+}
+
+/*
+ * What floats over the board, such as a menu or a dialog, covers what lies
+ * below it, so its background, bg-raised, is opaque.
+ * Its default is the page's background, the system color Canvas,
+ * which the browser draws in the page's theme.
+ * Under the dark theme, it mixes in 10% of the text.
+ * A menu is then lighter than the card it opens over,
+ * whose background lays 5% of the text over the page.
+ * The rule sits in the theme's layer, as the theme's variables do,
+ * so that a frontend or a UI kit that sets the variable outside a layer
+ * wins over it.
+ */
+@layer theme {
+  :root[data-bs-theme="dark"] {
+    --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
+  }
 }

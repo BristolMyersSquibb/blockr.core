@@ -121,6 +121,16 @@
       --bc-color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
     }
   }
+
+  :root, :host, :root[data-bs-theme="dark"] {
+    --bc-color-bg-raised: Canvas;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root[data-bs-theme="dark"] {
+      --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
+    }
+  }
 }
 
 .bc\:sr-only {
@@ -543,6 +553,10 @@
   background-color: var(--bc-color-bg-accent);
 }
 
+.bc\:bg-bg-raised {
+  background-color: var(--bc-color-bg-raised);
+}
+
 .bc\:bg-bg-subtle {
   background-color: var(--bc-color-bg-subtle);
 }
@@ -573,10 +587,6 @@
 
 .bc\:bg-transparent {
   background-color: #0000;
-}
-
-.bc\:bg-white {
-  background-color: var(--bc-color-white);
 }
 
 .bc\:p-0 {
@@ -637,6 +647,10 @@
 
 .bc\:py-2 {
   padding-block: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:pt-1 {
+  padding-top: var(--bc-spacing);
 }
 
 .bc\:pt-2 {
@@ -763,10 +777,6 @@
 
 .bc\:whitespace-pre-wrap {
   white-space: pre-wrap;
-}
-
-.bc\:text-black {
-  color: var(--bc-color-black);
 }
 
 .bc\:text-blue-600 {
@@ -967,10 +977,6 @@
   .bc\:md\:overflow-auto {
     overflow: auto;
   }
-}
-
-.bc\:dark\:bg-gray-900:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {
-  background-color: var(--bc-color-gray-900);
 }
 
 .bc\:dark\:text-blue-400:where([data-bs-theme="dark"], [data-bs-theme="dark"] *) {

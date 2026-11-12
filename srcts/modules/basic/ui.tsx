@@ -7,7 +7,7 @@
 // on to neither a button nor a dialog, so each piece sets them itself.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { classes } from "../../ui/index.ts";
 
 // A modal dialog, open while it is drawn, which closes on Escape, on its
@@ -59,12 +59,16 @@ export interface MenuItem {
   readonly disabled?: boolean;
 }
 
-// A button that opens a list of actions, which closes as one is picked, on
-// Escape and on a click elsewhere.
-export function Menu({ label, items }: { label: string; items: readonly MenuItem[] }): ReactElement {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+// The classes of a menu's list, which opens below its button, and of the
+// actions in it.
+export const menuClasses = {
+  list: `${classes.surface} bc:absolute bc:right-0 bc:z-20 bc:m-0 bc:mt-1 bc:grid bc:min-w-44 bc:list-none bc:gap-0.5 bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:shadow-lg`,
+  item: "bc:w-full bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+} as const;
 
+// Closes an open menu on Escape and on a click outside the element of the
+// ref, which holds the menu and its button.
+export function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, setOpen: (open: boolean) => void): void {
   useEffect(() => {
     if (!open) return;
     const doc = ref.current?.ownerDocument ?? document;
@@ -80,7 +84,15 @@ export function Menu({ label, items }: { label: string; items: readonly MenuItem
       doc.removeEventListener("pointerdown", away);
       doc.removeEventListener("keydown", escape);
     };
-  }, [open]);
+  }, [ref, open, setOpen]);
+}
+
+// A button that opens a list of actions, which closes as one is picked, on
+// Escape and on a click elsewhere.
+export function Menu({ label, items }: { label: string; items: readonly MenuItem[] }): ReactElement {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(ref, open, setOpen);
 
   return (
     <div ref={ref} className="bc:relative">
@@ -99,18 +111,14 @@ export function Menu({ label, items }: { label: string; items: readonly MenuItem
         </span>
       </button>
       {open ? (
-        <ul
-          role="menu"
-          aria-label={label}
-          className={`${classes.surface} bc:absolute bc:right-0 bc:z-20 bc:m-0 bc:mt-1 bc:grid bc:min-w-44 bc:list-none bc:gap-0.5 bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:shadow-lg`}
-        >
+        <ul role="menu" aria-label={label} className={menuClasses.list}>
           {items.map((item) => (
             <li key={item.label} role="none">
               <button
                 type="button"
                 role="menuitem"
                 disabled={item.disabled}
-                className="bc:w-full bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50"
+                className={menuClasses.item}
                 onClick={() => {
                   setOpen(false);
                   item.onSelect();

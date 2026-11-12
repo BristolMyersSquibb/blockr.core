@@ -71,7 +71,8 @@ export interface PluginClass {
   // A frontend's: the module that draws the page, by its id, as
   // "blockr.dock-dock", which core calls with the page's element.
   readonly frontend?: string;
-  // A storage plugin's: what every frontend's save and open controls call.
+  // A storage plugin's: the storage controls that every frontend draws, which
+  // save boards and open them.
   readonly storage?: Storage;
   // What runs while the plugin runs on the open board, until the signal
   // aborts, which it does as the next board opens. Core calls it once the
@@ -80,12 +81,69 @@ export interface PluginClass {
   start?(args: { readonly core: CoreApi; readonly plugin: PluginClassId; readonly signal: AbortSignal }): (() => void) | undefined;
 }
 
-// What a storage plugin saves boards and opens them through.
+// What a storage plugin gives every frontend, as Storage has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#storage):
+// its storage controls, which each frontend draws with its own components, so
+// that they look like the rest of that frontend, whichever package gives the
+// plugin.
+// The controls save and open boards themselves. A control hands the text that
+// core.store.save() writes to where the plugin keeps boards, and opens the
+// text of a board with core.store.open().
+// The controls leave out what a lock fixes, such as opening another board
+// under the load lock, since controls() reads core.lock.
 export interface Storage {
-  // Saves the JSON board's text, as the store's save() writes it.
-  save(board: string): Promise<void>;
-  // The text of the board that the user picks, or null where they pick none.
-  open(): Promise<string | null>;
+  // The storage controls, in the order in which a frontend draws them. A
+  // frontend calls it with its CoreApi as it draws, and again whenever
+  // subscribe() calls back.
+  controls(args: { readonly core: CoreApi }): readonly StorageControl[];
+  // Calls the listener whenever controls() would give something else, such as
+  // another save status, until the cleanup that it returns runs.
+  subscribe?(listener: () => void): () => void;
+}
+
+// A storage control: a button, a menu or a status, which a frontend draws each
+// in its own look.
+// Its id names it within its list, the controls() or the items of a menu, and
+// a frontend may place a control of the top list by its id apart from the
+// rest.
+export type StorageControl = Hints &
+  (
+    | {
+        readonly kind: "button";
+        readonly id: string;
+        readonly label: string;
+        readonly tooltip?: string;
+        // Written as a command's shortcut is, such as "Mod+S", which a frontend
+        // binds, for a button inside a menu too.
+        readonly shortcut?: string;
+        readonly disabled?: boolean;
+        // What the button does. A frontend shows why it rejected as a
+        // notification.
+        run(): Promise<void>;
+      }
+    | {
+        readonly kind: "menu";
+        readonly id: string;
+        readonly label: string;
+        // What opens from it: buttons, statuses and further menus.
+        readonly items: readonly StorageControl[];
+      }
+    | {
+        readonly kind: "status";
+        readonly id: string;
+        // Text that runs nothing, such as "Saved".
+        readonly text: string;
+        readonly tooltip?: string;
+      }
+  );
+
+// What a storage control asks of the frontend. A frontend honors a hint where
+// it can, and otherwise draws the control as if the hint were not there, as it
+// does with a hint that it does not know. It reads the hints of the controls
+// on its bar alone, and ignores those inside a menu.
+export interface Hints {
+  // Asks for the end of the frontend's bar, after the frontend's own parts.
+  readonly placement?: "end";
 }
 
 // The plugin classes that packages define, by id.
@@ -209,11 +267,13 @@ export function createRegistrations(): Registrations {
       }
     }
     const storage = given.storage;
-    if (
-      storage !== undefined &&
-      (!isObject(storage) || typeof storage.save !== "function" || typeof storage.open !== "function")
-    ) {
-      throw new Error(`The plugin class "${id}" has a storage without save() and open() functions.`);
+    if (storage !== undefined) {
+      if (!isObject(storage) || typeof storage.controls !== "function") {
+        throw new Error(`The plugin class "${id}" has a storage without a controls() function.`);
+      }
+      if (storage.subscribe !== undefined && typeof storage.subscribe !== "function") {
+        throw new Error(`The plugin class "${id}" has a storage whose subscribe is no function.`);
+      }
     }
     if (
       given.options !== undefined &&
