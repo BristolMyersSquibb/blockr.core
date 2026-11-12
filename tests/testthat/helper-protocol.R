@@ -197,7 +197,7 @@ protocol_r_values <- function() {
             protocol = protocol_version(),
             capabilities = I(c("cancel", "progress"))
           ),
-          declared_fields(),
+          declared_fields(title = "Trials"),
           obj(lock = proto_lock(), board = proto_declared_board())
         )
       )
@@ -269,9 +269,10 @@ protocol_r_values <- function() {
           status = "invalid",
           conditions = list(
             proto_condition(
-              "error",
-              c("evalError", "missingArgError", "error", "condition"),
-              "argument \"by\" is missing, with no default",
+              "message",
+              c("blockr_invalid", "blockr_error", "rlang_error", "error",
+                "condition"),
+              "Choose at least one column to join by.",
               phase = "expr"
             )
           )
@@ -520,8 +521,9 @@ proto_hello_reply <- function(block_registry, lock, ...,
 
 # What the reply to `hello` of a core app says of the modules that R serves:
 # the module that core offers other packages' UIs, its inputs, the app's
-# plugins, core's own three, each with the module of its class, and core's
-# board options, each with its module.
+# plugins, core's own three, each with the module of its class, what the
+# frontend reads of the arguments of `serve()`, nothing for core's basic
+# frontend, and core's board options, each with its module.
 proto_served <- function() {
   obj(
     modules = obj(
@@ -530,6 +532,7 @@ proto_served <- function() {
       )
     ),
     plugins = proto_core_plugins(),
+    frontend = obj(),
     options = proto_core_options(),
     renderers = obj()
   )
@@ -1135,8 +1138,9 @@ proto_output <- function(x) {
 # blockr.test, which no library holds: it lists, in its `._BLOCKR_MODULES_`,
 # a module that it offers others, its board option grid_gap and its plugin
 # class grid_plugin, a frontend, each with its module, and it gives the state
-# of grid_plugin and the value of grid_gap version 2, and makes two
-# renderers, one for table outputs and one for the board option dark_mode.
+# of grid_plugin and the value of grid_gap version 2, its frontend takes a
+# title from `serve()`, and it makes two renderers, one for table outputs and
+# one for the board option dark_mode.
 # Beside it, a script defines two block classes, one whose module ships a
 # stylesheet and the schema of its state, and one whose module ships neither.
 # The helper writes the files of all of them, so that their content, and so the
@@ -1257,14 +1261,22 @@ local_declared_package <- function(dir, frame = parent.frame()) {
   )
 
   # The methods, from blockr.test's namespace, of `plugin_version()`, by which
-  # blockr.test gives the state of its plugin class grid_plugin version 2, and
-  # of `board_option_version()`, by which it gives its board option grid_gap
-  # version 2
+  # blockr.test gives the state of its plugin class grid_plugin version 2, of
+  # `board_option_version()`, by which it gives its board option grid_gap
+  # version 2, and of `frontend_args()`, by which its frontend takes a title
+  # from `serve()`, "Grid" where the script passes none, and refuses any other
+  # argument
   ns <- list2env(list(.packageName = "blockr.test"))
 
   methods <- list(
     plugin_version.grid_plugin = function(x, ...) 2L,
-    board_option_version.grid_gap_option = function(x, ...) 2L
+    board_option_version.grid_gap_option = function(x, ...) 2L,
+    frontend_args.grid_plugin = function(x, ..., title = "Grid") {
+      if (...length()) {
+        stop("The Grid frontend takes no argument of `serve()` but `title`.")
+      }
+      list(title = title)
+    }
   )
 
   for (name in names(methods)) {
@@ -1368,8 +1380,9 @@ register_script_blocks <- function(dir) {
 # `hello`, for an app whose script loaded blockr.test beside its own block
 # classes, with nothing of core's, as if core listed nothing, and runs the
 # plugins of every class that an available package lists: blockr.test's
-# frontend.
-declared_fields <- function() {
+# frontend, which reads the arguments that the script passes `serve()` in
+# `...`.
+declared_fields <- function(...) {
 
   dir <- withr::local_tempdir()
   write_declared_files(dir)
@@ -1393,5 +1406,10 @@ declared_fields <- function() {
     )
   )
 
-  loaded_reply(plugins = app_plugins(available_plugins()))
+  plugins <- app_plugins(available_plugins())
+
+  loaded_reply(
+    plugins = plugins,
+    frontend = frontend_reply(..., plugins = plugins)
+  )
 }

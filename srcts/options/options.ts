@@ -13,9 +13,11 @@
 // CoreApi.blockrOption(), so that a deployment still sets the default, and
 // takes a fallback only where nothing sets the blockr option. The fallbacks
 // are today's, but for n_rows, whose page holds 10 rows where today's holds
-// 50. Core calls the function only where something needs the board option and
-// the board lacks its value, as a mounted renderer or an onChange() does, so
-// that nothing is read before then.
+// 50, and for show_conditions, which names every severity where today's names
+// warnings and errors, so that a frontend shows why a block is invalid, which
+// R reports as a message. Core calls the function only where something needs
+// the board option and the board lacks its value, as a mounted renderer or an
+// onChange() does, so that nothing is read before then.
 // Each default reads a string, as an environment variable gives, as the
 // number or the logical that it holds, and where R holds a value that the
 // board option's schema then refuses, the default fails, naming the value as
@@ -60,7 +62,7 @@ export const showConditions: Omit<Option, "id"> = {
   // variable gives it.
   default: async (core: BlockrOptions) => {
     const value = await core.blockrOption("show_conditions");
-    if (value === undefined) return ["warning", "error"];
+    if (value === undefined) return SEVERITIES;
     return checked("show_conditions", takesSeverities, value, typeof value === "string" ? [value] : value);
   },
   ui: checklistUi("Message types to display", SEVERITIES),
@@ -100,8 +102,9 @@ export const coreOptions: Readonly<Record<OptionId, Omit<Option, "id">>> = {
 
 // Switches the page to a theme, "light" or "dark", in the attribute
 // data-bs-theme of its root element. Bootstrap and blockr.ui's design tokens
-// read that attribute, as bslib's dark mode switch sets it today, and so does
-// core's dark variant, as in `bc:dark:bg-gray-900`.
+// read that attribute, as bslib's dark mode switch sets it today, and so do
+// core's dark variant, as in `bc:dark:text-gray-100`, and the dark default of
+// bg-raised in core's theme.
 export function setTheme(theme: Json): void {
   document.documentElement.setAttribute("data-bs-theme", theme === "dark" ? "dark" : "light");
 }

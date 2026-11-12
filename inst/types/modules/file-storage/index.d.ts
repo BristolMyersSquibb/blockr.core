@@ -1,8 +1,5 @@
 export declare const api = 1;
 declare const _default: {
-    storage: {
-        save: (board: string) => Promise<void>;
-        open: () => Promise<string | null>;
-    };
+    storage: import("../../index.ts").Storage;
 };
 export default _default;

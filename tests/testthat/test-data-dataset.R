@@ -18,7 +18,7 @@ test_that("a dataset block names its dataset in its package", {
   res <- evaluate_block(dataset_block, list(package = "datasets"))
 
   expect_identical(res[["status"]], "invalid")
-  expect_match(res[["conditions"]][[1L]][["message"]], "dataset")
+  expect_identical(res[["conditions"]][[1L]][["message"]], "Choose a dataset.")
 
   res <- evaluate_block(dataset_block,
                         list(dataset = "BOD", package = "datasets"))

@@ -35,6 +35,7 @@ export interface HelloReply {
         css?: string;
     }>;
     plugins: Record<PluginClassId, PluginEntry>;
+    frontend: Record<string, Json>;
     options: Record<OptionId, OptionEntry>;
     renderers: Record<string, Renderer>;
     lock: Lock;

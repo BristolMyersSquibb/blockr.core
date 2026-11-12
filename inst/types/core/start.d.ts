@@ -1,10 +1,12 @@
 import type { LoaderOptions, Measure } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { CoreApi, PluginModule } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 export type Front = {
-    readonly frontend: PluginModule;
+    readonly frontend: FrontendModule;
     readonly plugin: PluginClassId;
+    readonly args: Readonly<Record<string, Json>>;
 } | {
     readonly none: string;
 };

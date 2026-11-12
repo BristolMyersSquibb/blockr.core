@@ -167,6 +167,21 @@ test("names the colors of core's UIs as variables of its theme, which follow the
   expect(css).toMatch(/--bc-color-red-600: oklch\(/);
 });
 
+test("draws what floats over the board on the page's background, which the dark theme lightens, as a variable of its theme", async () => {
+  await write({ "test.css": `@import "${core}";\n@source inline("bc:bg-bg-raised");\n` });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  expect(css).toMatch(/^\.bc\\:bg-bg-raised(, [^{]+)? \{\n {2}background-color: var\(--bc-color-bg-raised\);/m);
+  // Both of its defaults sit in the theme's layer, so that a frontend that sets
+  // the variable outside a layer wins over them.
+  const start = css.indexOf("@layer theme {");
+  const theme = css.slice(start, css.indexOf("\n}\n", start));
+  expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-bg-raised: Canvas;/);
+  expect(theme).toMatch(/:root\[data-bs-theme="dark"\] \{[^}]*--bc-color-bg-raised: color-mix\(in oklab, Canvas, currentColor 10%\);/);
+  expect(css.replace(theme, "")).not.toContain("--bc-color-bg-raised:");
+});
+
 test("takes the face of core's UIs from the theme's sans, which a frontend sets", async () => {
   await write({ "test.css": `@import "${core}";\n@source inline("bc:font-sans");\n` });
 

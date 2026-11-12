@@ -17,6 +17,8 @@
 #' its message and the phase that raised it: `inputs`, `expr`, which covers
 #' interpolation, `block_eval` or `result_summary`. Warnings and messages are
 #' recorded rather than signaled.
+#' The error that makes a block `invalid` is recorded with the severity
+#' `message`, since the status already says that the state cannot run.
 #'
 #' The `block_eval()` generic runs the block expression, `expr`, in `env`,
 #' where each upstream block's result is bound to its id, dispatching on the
@@ -363,20 +365,30 @@ phase_failed <- function(x) {
 }
 
 phase_status <- function(x) {
-
-  cnd <- x[["error"]]
-
-  if (inherits(cnd, "blockr_invalid") ||
-        (identical(x[["phase"]], "expr") && is_missing_arg_error(cnd))) {
-    return("invalid")
-  }
-
-  "error"
+  if (is_invalid_error(x[["error"]], x[["phase"]])) "invalid" else "error"
 }
 
+# Whether an error that a phase of an evaluation raised makes the block invalid
+# rather than failed: a `blockr_invalid()` that `expr` or a `block_eval()`
+# method signals, or R's error for an unset arg that the body of `expr` uses or
+# interpolation fills in.
+is_invalid_error <- function(cnd, phase) {
+
+  if (identical(phase, "expr")) {
+    return(inherits(cnd, "blockr_invalid") || is_missing_arg_error(cnd))
+  }
+
+  identical(phase, "block_eval") && inherits(cnd, "blockr_invalid")
+}
+
+# The record of a condition that a reply carries. The error that makes a block
+# invalid is recorded as a message, since the block's status already says that
+# its state cannot run.
 condition_record <- function(cnd, phase) {
 
-  severity <- if (inherits(cnd, "error")) {
+  severity <- if (is_invalid_error(cnd, phase)) {
+    "message"
+  } else if (inherits(cnd, "error")) {
     "error"
   } else if (inherits(cnd, "warning")) {
     "warning"

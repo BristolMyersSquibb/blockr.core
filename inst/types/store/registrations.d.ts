@@ -1,6 +1,6 @@
 import type { Command } from "../commands/index.ts";
 import type { Block, Board, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
-import type { CoreApi, PluginModule } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, PluginModule } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { Validate } from "../util/index.ts";
@@ -15,7 +15,7 @@ export interface PluginClass {
     update?(delta: Delta, board: Board, plugin: PluginClassId): readonly Patch[];
     migrate?(state: Json, version: number): Json;
     readonly ui?: PluginModule;
-    readonly frontend?: PluginModule;
+    readonly frontend?: FrontendModule;
     readonly storage?: Storage;
     readonly commands?: readonly Command<Json, unknown>[];
     start?(args: {
@@ -25,13 +25,37 @@ export interface PluginClass {
     }): (() => void) | undefined;
 }
 export interface Storage {
-    save(board: string): Promise<void>;
-    open(): Promise<string | null>;
+    controls(args: {
+        readonly core: CoreApi;
+    }): readonly StorageControl[];
+    subscribe?(listener: () => void): () => void;
     load?(args: {
         readonly core: CoreApi;
         readonly plugin: PluginClassId;
         readonly signal: AbortSignal;
     }): Promise<string | undefined>;
+}
+export type StorageControl = Hints & ({
+    readonly kind: "button";
+    readonly id: string;
+    readonly label: string;
+    readonly tooltip?: string;
+    readonly shortcut?: string;
+    readonly disabled?: boolean;
+    run(): Promise<void>;
+} | {
+    readonly kind: "menu";
+    readonly id: string;
+    readonly label: string;
+    readonly items: readonly StorageControl[];
+} | {
+    readonly kind: "status";
+    readonly id: string;
+    readonly text: string;
+    readonly tooltip?: string;
+});
+export interface Hints {
+    readonly placement?: "end";
 }
 export interface Plugins {
     register(def: PluginClass): () => void;

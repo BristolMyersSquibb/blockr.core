@@ -1,5 +1,5 @@
 {
-  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, as a JSON board, with the ids that it drew for the block and for the board, which it names after its id, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone. A block that serve() serves alone runs no plugin, so the reply names none, while it names core's board options, as every reply does, since every app uses core.",
+  "description": "The handshake of an app that serves a block alone, as serve(new_head_block(), data = list(data = iris)) does. R replies with a board of the one block, as a JSON board, with the ids that it drew for the block and for the board, which it names after its id, and binds the block's input data to the data it was given itself, which bound names, so that the client counts the input as linked and names it in a recipe by the input alone. A block that serve() serves alone runs no plugin, so the reply names none, and it has no frontend, so frontend holds nothing, while it names core's board options, as every reply does, since every app uses core.",
   "client": [
     {
       "id": "1",
@@ -68,6 +68,7 @@
           }
         },
         "plugins": {},
+        "frontend": {},
         "options": {
           "n_rows": {
             "package": "blockr.core",

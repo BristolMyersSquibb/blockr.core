@@ -9,8 +9,8 @@ test_that("R tells the client what it loaded in the properties of its reply", {
 
   expect_named(
     reply,
-    c("packages", "block_registry", "modules", "plugins", "options",
-      "renderers")
+    c("packages", "block_registry", "modules", "plugins", "frontend",
+      "options", "renderers")
   )
   expect_identical(
     json(reply$packages),
@@ -231,6 +231,16 @@ test_that("R gives the app's plugins with their classes' names and versions", {
 
   expect_identical(reply$packages$blockr.one, "1.2.0")
   expect_false("plugin_versions" %in% names(reply))
+})
+
+test_that("R gives what the app's frontend reads beside the app's plugins", {
+
+  # The frontend of blockr.test reads the title "Grid" where the script passes
+  # serve() none
+  expect_identical(json(declared_fields()$frontend), "{\"title\":\"Grid\"}")
+
+  # Core's basic frontend reads nothing, and so does a block served alone
+  expect_identical(json(loaded_reply()$frontend), "{}")
 })
 
 test_that("R gives the version of each board option of the app's packages", {

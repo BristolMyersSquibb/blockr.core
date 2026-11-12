@@ -1,0 +1,470 @@
+---
+title: "4. Migration notes for app scripts"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{4. Migration notes for app scripts}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  render = function(x, ...) {
+    if (inherits(x, "shiny.appobj")) invisible() else knitr::knit_print(x, ...)
+  }
+)
+```
+
+```{r setup}
+library(blockr.core)
+```
+
+An app script builds a board with the constructors of blockr.core and serves it with `serve()`.
+Version 0.2 of blockr.core moves the board from R to the browser.
+The browser holds the board and makes every change to it, and R evaluates the blocks.
+Most of a script stays as it is, but some functions and arguments of version 0.1 are gone, and some take other values.
+
+These notes list each change that a script for blockr.core 0.1 needs to run on blockr.core 0.2.
+They are written so that an AI can apply them to a script.
+Each section names what a script calls in version 0.1, says what takes its place, and shows the code of both versions.
+A function of version 0.1 that is gone has no alias, so a script that still calls it stops with R's error that the function cannot be found.
+An argument that is gone stops the call as an unused argument.
+A script that calls other blockr packages follows their migration notes too, such as those of blockr.dock for a dock board.
+
+## The board's ID and name
+
+In version 0.1, `serve()` takes the board's ID, and the `board_name` board option holds the board's name.
+In version 0.2, the board holds both, and `new_board()` takes them as `id` and `name`:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+serve(
+  new_board(
+    blocks = c(a = new_dataset_block("iris")),
+    options = new_board_name_option("Iris")
+  ),
+  "my_board"
+)
+```
+
+```{r}
+# blockr.core 0.2
+serve(
+  new_board(
+    blocks = c(a = new_dataset_block("iris")),
+    id = "my_board",
+    name = "Iris"
+  )
+)
+```
+
+The `serve()` of version 0.2 refuses an ID.
+A script that passes `id = "my_board"` gets an error that says that `new_board()` takes the ID.
+A script that passes the ID second and unnamed, as above, gets an error about an unnamed argument.
+A board without an ID gets one drawn at random, such as `calm_heron`, and a board without a name is named after its ID, as "Calm heron".
+
+## The app's plugins
+
+In version 0.1, `serve()` takes the app's plugins as a function, which `custom_plugins()` makes from the plugins that it adds to core's defaults or swaps in for them.
+In version 0.2, `serve()` takes them in `plugins` as rows of a data frame, a row for each plugin class, with the class's package in `package` and its id in `id`.
+They default to `available_plugins()`, a row for each plugin class that an available package lists.
+An available package is a blockr package that is installed, or that `pkgload::load_all()` loaded.
+So an app runs a plugin of each class that its packages offer, without the script naming any:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+serve(new_board(), plugins = custom_plugins(manage_project()))
+```
+
+```{r}
+# blockr.core 0.2
+serve(new_board())
+```
+
+Wherever blockr.session is installed, its storage plugin takes the place of core's.
+Core's storage plugin saves a board as a download and opens an upload.
+A script narrows the rows with plain R.
+This one keeps core's storage plugin where blockr.session is installed:
+
+```{r}
+# blockr.core 0.2
+serve(
+  new_board(),
+  plugins = subset(available_plugins(), package != "blockr.session")
+)
+```
+
+Rows that a script passes replace the default.
+So they hold a frontend, since `serve()` refuses rows that hold none.
+Where the app should save boards as files and open them, the rows hold core's storage plugin.
+Where the user should add blocks and edit links and stacks, they hold core's Edit board plugin.
+Core's basic frontend runs only where no other row is a frontend, and core's storage plugin only where no other row is a storage plugin.
+A locked app may leave out the Edit board plugin:
+
+```{r}
+# blockr.core 0.2
+serve(
+  new_board(),
+  plugins = subset(available_plugins(), id != "edit_board_plugin")
+)
+```
+
+Each plugin that a script of version 0.1 passes has this place in version 0.2:
+
+| Version 0.1 | Version 0.2 |
+|---|---|
+| `preserve_board()` | Core's storage plugin, `file_storage_plugin`, whose Save and Open save a board as a download and open an upload. It runs unless another storage plugin does. |
+| `manage_blocks()`, `manage_links()` and `manage_stacks()` | Core's Edit board plugin, `edit_board_plugin`, which adds, renames and removes blocks, and adds, changes and removes links and stacks. It runs by default. |
+| `generate_code()` | The plugin of blockr.code, which runs by default where blockr.code is installed. |
+| `edit_block()` and `edit_stack()` | The frontend, which draws each block's card and each stack, and changes them through core's commands. |
+| `notify_user()` | The frontend, which shows every notification. |
+| `ctrl_block()` | Nothing, since every block is open to external control through core's commands. |
+| The `generate_flat_code()` of blockr.code | The plugin of blockr.code, as for `generate_code()`. |
+| The `manage_project()` of blockr.session | The storage plugin of blockr.session, which runs by default where blockr.session is installed. |
+| The `ai_ctrl_block()` of blockr.ai | Nothing, since the assistant of blockr.assistant takes its place. |
+
+Gone with these are `custom_plugins()`, the container `plugins()`, `as_plugins()` and `blockr_app_plugins()`.
+
+In version 0.1, `new_board()` takes a `class`, and components through its `...`, with which a package such as blockr.dock builds a board of a class of its own.
+In version 0.2, every board is of class `board`, and what a package adds to a board is the state of one of its plugins.
+So `new_board()` takes neither `class` nor `...`, nor the `ctor` and `pkg` of version 0.1.
+
+A board gives only the state of its plugins.
+The board's constructor takes that state in `plugins`, as a list of plugins that the constructors of their packages make.
+The board holds nothing for a plugin that keeps no state, such as core's three.
+Each of the app's plugins runs on every board that the app opens, with the state that the board holds for it, or with its class's default state where the board holds none.
+The function `serve()` refuses a board with a plugin of a class that the app does not run, naming the class, since the board would open without that plugin's state.
+
+A plugin class comes from a package, which lists it in its `._BLOCKR_MODULES_` with the module that defines it in the browser.
+So a script that defined a plugin of its own with the `new_plugin()` of version 0.1 moves the plugin into a package.
+
+## The block classes that an app offers
+
+In version 0.1, an app offers every block class in the block registry, which each package fills as it loads, and the blockr option `core_blocks` narrows core's own.
+In version 0.2, `serve()` takes the block classes that the app offers in `blocks`, as rows of a data frame, with the package of each class in `package` and its id in `id`.
+They default to `available_blocks()`, a row for each block class that an available package lists.
+So the blockr option `core_blocks` goes, and a script narrows the rows with plain R:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+options(blockr.core_blocks = c("dataset_block", "head_block"))
+serve(new_board())
+```
+
+```{r}
+# blockr.core 0.2
+serve(
+  new_board(),
+  blocks = subset(
+    available_blocks(),
+    package != "blockr.core" | id %in% c("dataset_block", "head_block")
+  )
+)
+```
+
+A script of version 0.1 that hides classes with `unregister_blocks()` narrows the rows in the same way.
+In version 0.2, that call hides nothing from an app.
+Core registers no class as it loads, and the registry ids of its classes name the package, as `blockr.core-subset_block`.
+Each app builds a block registry of its own from its rows instead:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+unregister_blocks(c("subset_block", "merge_block", "rbind_block"))
+serve(new_board())
+```
+
+```{r}
+# blockr.core 0.2
+hidden <- c("subset_block", "merge_block", "rbind_block")
+
+serve(
+  new_board(),
+  blocks = subset(
+    available_blocks(),
+    package != "blockr.core" | !id %in% hidden
+  )
+)
+```
+
+The function `available_blocks()` gives a data frame in version 0.2, where it gave the entries of the block registry by registry id.
+So a script that picked entries by their `package` attribute picks rows by `package` and `id`:
+
+```{r}
+available_blocks()
+```
+
+A script may give the path of a YAML file in place of rows.
+The file lists packages, and for each package the ids of the classes to offer, or all of them where it lists none:
+
+```yaml
+- blockr.core:
+  - dataset_block
+  - head_block
+- blockr.dplyr
+```
+
+```{r, eval = FALSE}
+# blockr.core 0.2
+serve(new_board(), blocks = "blocks.yml")
+```
+
+A block on the board that the script builds runs even where the app does not offer the block's class.
+The block runs under the registry id that its class gives, so a board saved from that app opens in an app that offers the class.
+
+## Board options
+
+In version 0.1, a board holds every board option, those of `default_board_options()` unless its script gives others.
+Each constructor of a board option computes its default from a blockr option.
+In version 0.2, a board holds a value only for a board option that someone set: a script, a file or the user.
+Every other board option takes its default in the browser, wherever something on the page requires it.
+So a script gives a board option only to set a value other than its default, and `default_board_options()` is gone.
+
+The constructor of a board option takes the board option's value alone, and computes and checks nothing.
+So a script drops every other argument, such as `category` or `label`:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+new_board(options = new_n_rows_option(value = 25, label = "Rows"))
+```
+
+```{r}
+# blockr.core 0.2
+new_board(options = new_n_rows_option(25))
+```
+
+Several values go in a list, as `new_board(options = list(new_n_rows_option(25), new_dark_mode_option("dark")))` gives them.
+Each value takes the shape that the board option's schema in the browser gives, since R converts nothing.
+So `new_dark_mode_option()` takes `"dark"` or `"light"`, where version 0.1 also took `TRUE` and `FALSE`.
+The browser refuses a board that holds a value that its schema refuses, naming the board option.
+
+Five board options of version 0.1 are gone, with their constructors:
+
+| Version 0.1 | Version 0.2 |
+|---|---|
+| `new_board_name_option()` | The `name` of `new_board()` (above) |
+| `new_thematic_option()` | Nothing, since plots follow the board's theme |
+| `new_page_size_option()` | The `n_rows` board option, which gives the rows of a table output's page |
+| `new_filter_rows_option()` | Nothing, since a table output has no search |
+| `new_llm_model_option()` | The assistant of blockr.assistant, whose migration notes say how |
+
+In version 0.1, `serve()` also takes board options, through `custom_options()`.
+In version 0.2, it refuses `options`, with an error that names `new_board()`, which takes the values instead.
+Gone with it are `custom_options()` and `blockr_app_options()`.
+
+## Blockr options
+
+A blockr option that gives a board option its default still does, as the R option `blockr.n_rows` or the environment variable `BLOCKR_N_ROWS` does for the `n_rows` board option.
+The board option's definition in the browser reads the blockr option when it first needs the default.
+So the default reaches every board that holds no value for the board option, a saved board among them, since a board saves only the values that someone set.
+Core reads three such blockr options: `n_rows`, `show_conditions` and `dark_mode`.
+
+The fallback of `n_rows` is 10 rows in version 0.2, where it was 50, so that a table fits its card.
+A script that wants 50 rows sets `options(blockr.n_rows = 50)`.
+
+Core no longer reads these blockr options of version 0.1, so a script drops them:
+
+| Blockr option | Version 0.2 |
+|---|---|
+| `core_blocks` | The rows of `blocks` (above) |
+| `page_size`, `filter_rows` and `thematic` | Nothing, since their board options are gone |
+| `chat_function` | Nothing in core, since it went with the `llm_model` board option |
+| `tabular_display` | The blockr option `renderers`, as `options(blockr.renderers = list(table_output = blockr.ui::table_preview()))` draws tables with the preview of blockr.ui |
+| `background_construction_delay` | Nothing, since the browser schedules evaluation |
+| `deser_on_error` | Nothing, since a conversion turns a file of version 0.1 into a JSON board (below) |
+
+## The board lock
+
+The blockr option `locked` locks the board, as in version 0.1.
+In version 0.1, a reader of a locked board can still change the inputs of every block.
+In version 0.2, the board lock also fixes the state of each block, unless the block's own lock says otherwise.
+So a script that leaves a block open to readers gives the block `locked = FALSE`:
+
+```{r}
+# blockr.core 0.2, with options(blockr.locked = TRUE)
+serve(
+  new_board(
+    blocks = c(
+      a = new_dataset_block("iris", locked = FALSE),
+      b = new_head_block()
+    ),
+    links = list(from = "a", to = "b")
+  )
+)
+```
+
+Here a reader picks another dataset in block `a`, while block `b` stays as the script built it.
+The help page `?locked-board` describes the three locks.
+One of them is new: the load lock, the blockr option `lock_load`, fixes the app to its opening board.
+
+## Blocks, links and stacks
+
+The static block holds an R expression in version 0.2, given as a string, where it held a data frame.
+R evaluates the expression for the block's result.
+The code exported for the board holds the expression, so it reproduces the data:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+new_static_block(iris)
+new_static_block(safetyData::adam_adsl)
+```
+
+```{r}
+# blockr.core 0.2
+new_static_block("datasets::iris")
+new_static_block("safetyData::adam_adsl")
+```
+
+The expression names the package of the data, as `datasets::iris` does, since a block expression sees base R alone unless the blockr option `attach_default_packages` is set.
+A script that read its data from a file gives the call that reads it, as `new_static_block("utils::read.csv(\"visits.csv\")")` does.
+A script that still gives a data frame gets an error that asks for an expression.
+
+A block constructor of version 0.2 takes the block's state, its `block_name` and its `locked`, and nothing else.
+So an argument that the constructor does not know stops the call as an unused argument, where version 0.1 passed it on.
+In the same way, `new_link()` and `new_stack()` take neither `...` nor `class`, nor the `ctor` and `pkg` of version 0.1, so that a link and a stack hold core's properties alone.
+A stack takes a `color` of its own, as `new_stack(c("a", "b"), "Inputs", color = "#1f77b4")` gives it.
+
+## Block classes that a script defines
+
+A block class that a script defines with `new_block()`, or with one of its specializations such as `new_transform_block()`, is ported to `new_block_class()`.
+The section [Porting a block from `new_block()`](create-block.html#porting-a-block-from-new_block) of the guide for block class authors gives each step.
+
+The class's registry id is the id that `new_block_class()` takes, alone, since a class that a script defines records no package.
+That id holds no `-`, since a registry id splits at its first `-`.
+The function `register_block()` takes the constructor that `block_constructor()` makes, and no longer the name of a constructor.
+It takes neither `uid` nor `package` nor `classes`:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+register_block(
+  ctor = new_identity_block,
+  name = "Identity",
+  description = "Returns its input",
+  uid = "identity_block"
+)
+```
+
+```{r}
+# blockr.core 0.2
+new_identity_block <- block_constructor(
+  new_block_class(
+    "identity_block",
+    inputs = "data",
+    expr = function() bbquote(.(data)),
+    ui = js_module("identity-block.js")
+  )
+)
+
+register_block(
+  new_identity_block,
+  name = "Identity",
+  description = "Returns its input"
+)
+```
+
+```{r, include = FALSE}
+unregister_blocks("identity_block")
+```
+
+## A board built from another board
+
+Nothing changes a board in R in version 0.2, since the browser makes every change.
+So the setters and modifiers of board objects are gone: `board_blocks<-`, `board_links<-`, `board_stacks<-`, `board_options<-`, `block_name<-`, `stack_blocks<-` and `stack_name<-`, and `rm_blocks()`, `modify_board_links()`, `modify_board_stacks()`, `update_link()`, `update_stack()`, `add_block_to_stack()`, `remove_block_from_stack()`, `clear_board()` and `set_board_option_value()`.
+A script that derives a board from another builds the new board from the other's parts, which the accessors give.
+Both examples below start from this board:
+
+```{r}
+board <- new_board(
+  blocks = c(
+    a = new_dataset_block("BOD"),
+    b = new_dataset_block("ChickWeight"),
+    c = new_merge_block("Time")
+  ),
+  links = c(
+    ac = new_link("a", "c", "x"),
+    bc = new_link("b", "c", "y")
+  ),
+  stacks = list(ab = c("a", "b"))
+)
+```
+
+Version 0.1 removes block `b` with `rm_blocks()`, once its links are gone:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+lnks <- board_links(board)
+board_links(board) <- lnks[lnks$from != "b" & lnks$to != "b"]
+board <- rm_blocks(board, "b")
+```
+
+Version 0.2 builds a board without it.
+The links and stacks of the new board leave out the block too:
+
+```{r}
+# blockr.core 0.2
+keep <- setdiff(names(board_blocks(board)), "b")
+lnks <- board_links(board)
+
+stks <- lapply(
+  board_stacks(board),
+  function(stk) {
+    new_stack(
+      intersect(stack_blocks(stk), keep),
+      stack_name(stk),
+      stack_color(stk)
+    )
+  }
+)
+
+board <- new_board(
+  blocks = board_blocks(board)[keep],
+  links = lnks[lnks$from %in% keep & lnks$to %in% keep],
+  stacks = stks,
+  options = board_options(board),
+  plugins = board_plugins(board),
+  name = "Without b"
+)
+```
+
+A script adds a block or a link the same way, with `c()`, as `c(board_blocks(board), d = new_head_block())` adds a head block `d`.
+
+## Boards that version 0.1 saved
+
+A board that version 0.1 saved opens in version 0.2 once a conversion has turned the file into a JSON board.
+The package blockr.convert does that conversion, so that core holds no code that reads the files of version 0.1.
+Its function `convert_file()` reads such a file and writes the JSON board, which `serve()` serves by its path, as version 0.1 served the file:
+
+```{r, eval = FALSE}
+# blockr.core 0.2
+blockr.convert::convert_file("board-0.1.json", out = "board.json")
+serve("board.json")
+```
+
+The function `serve()` refuses a file that version 0.1 saved, with an error that says that a conversion turns it into a JSON board first.
+The storage plugin of blockr.session needs no such step: it converts each record that blockr.session stored in version 0.1 as it opens the record.
+R no longer reads a saved board, since the browser opens every board.
+So a script that read a file into R with `blockr_deser()` converts the file and serves its path instead, and `blockr_deser()`, `restore_board()` and `serialize_board()` are gone from core.
+
+## A block served alone
+
+The function `serve()` still serves a single block with fixed data, for the block's developer.
+It no longer takes `id`.
+Each entry of `data` needs a name, that of the block's input that it binds to, or any name for a block with a variadic input, such as the rbind block:
+
+```{r, eval = FALSE}
+# blockr.core 0.1
+serve(new_head_block(), id = "head", data = list(data = iris))
+serve(new_rbind_block(), data = list(iris, iris))
+```
+
+```{r}
+# blockr.core 0.2
+serve(new_head_block(), data = list(data = iris))
+serve(new_rbind_block(), data = list(a = iris, b = iris))
+```
+
+## A board inside a larger Shiny app
+
+Version 0.1 embeds a board in a larger Shiny app through `board_ui()` and `board_server()`.
+Nothing takes their place in version 0.2, where the board runs in the browser and `serve()` serves it as an app of its own.

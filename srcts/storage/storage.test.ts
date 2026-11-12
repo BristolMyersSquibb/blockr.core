@@ -1,19 +1,16 @@
-// Core's own storage plugin, which saves a board as a file that the browser
-// downloads and opens a file that the user picks, with the browser's download
-// and file picker played by the test.
+// Core's own storage plugin, whose buttons save a board as a file that the
+// browser downloads and open a file that the user picks, on the CoreApi for
+// tests, with the browser's download and file picker played by the test.
 
 import { afterEach, describe, expect, test, vi } from "vitest";
+import type { StorageControl } from "../store/index.ts";
+import { HELLO, stubCore } from "../stubs/index.ts";
 import { picking } from "../testing/inputs.ts";
 import { coreStorage, fileName } from "./index.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-// The board's file as the store writes it, of a board whose id is given.
-function text(id: string): string {
-  return `${JSON.stringify({ format: 1, packages: {}, board: { id, name: "Cars" } }, null, 2)}\n`;
-}
 
 // The downloads that the browser starts, by their name, with what each holds.
 function downloads() {
@@ -31,6 +28,13 @@ function downloads() {
   return started;
 }
 
+// The button of the id given among the controls.
+function button(controls: readonly StorageControl[], id: string): Extract<StorageControl, { kind: "button" }> {
+  const found = controls.find((control) => control.id === id);
+  if (found?.kind !== "button") throw new Error(`Found no button ${id}.`);
+  return found;
+}
+
 describe("the board's file", () => {
   test("is named by the board's id and the local time it was saved, as today's", () => {
     expect(fileName({ id: "brisk_otter" }, new Date(2026, 10, 6, 14, 3, 9))).toBe("brisk_otter_2026-11-06_14-03-09.json");
@@ -38,33 +42,74 @@ describe("the board's file", () => {
 });
 
 describe("core's own storage plugin", () => {
-  test("saves the board's text as a download, named by the board's id, or as a board's where the text holds none", async () => {
-    const started = downloads();
-    const storage = coreStorage();
+  test("gives two buttons, Save and Open, and leaves Open out under the load lock alone", async () => {
+    const open = await stubCore();
+    // Neither button has a tooltip, a shortcut or a hint.
+    const given = coreStorage().controls({ core: open.core });
+    expect(given.map((control) => Object.keys(control))).toEqual([
+      ["kind", "id", "label", "run"],
+      ["kind", "id", "label", "run"],
+    ]);
+    expect(given).toMatchObject([
+      { kind: "button", id: "save", label: "Save" },
+      { kind: "button", id: "open", label: "Open" },
+    ]);
+    open.stop();
 
-    await storage.save(text("brisk_otter"));
-    await storage.save("not a board");
+    const ids = async (lock: { board: boolean; load: boolean }): Promise<string[]> => {
+      const s = await stubCore({ hello: { ...HELLO, lock } });
+      const given = coreStorage().controls({ core: s.core }).map((control) => control.id);
+      s.stop();
+      return given;
+    };
+    expect(await ids({ board: true, load: false })).toEqual(["save", "open"]);
+    expect(await ids({ board: false, load: true })).toEqual(["save"]);
+  });
+
+  test("saves the board as a download of the store's text, named by the board's id and the time", async () => {
+    const { core, stop } = await stubCore();
+    const started = downloads();
+
+    await button(coreStorage().controls({ core }), "save").run();
 
     expect(started.map((download) => download.name)).toEqual([
       expect.stringMatching(/^brisk_otter_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/),
-      expect.stringMatching(/^board_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/),
     ]);
-    expect(await started[0]?.blob.text()).toBe(text("brisk_otter"));
+    expect(await started[0]?.blob.text()).toBe(core.store.save());
     expect(started[0]?.blob.type).toBe("application/json");
+    stop();
   });
 
-  test("opens the text of the file that the user picks, or null where the user picks none, and leaves no picker on the page", async () => {
-    const storage = coreStorage();
+  test("opens the board in the file that the user picks, opens none where the user picks none, and leaves no picker on the page", async () => {
+    const s = await stubCore();
+    const open = button(coreStorage().controls({ core: s.core }), "open");
     const picker = { accept: ".json,application/json", connected: true };
 
-    const picked = picking(new File([text("amber_tapir")], "amber_tapir.json", { type: "application/json" }));
-    await expect(storage.open()).resolves.toBe(text("amber_tapir"));
-    expect(picked).toEqual([picker]);
+    const cancelled = picking(undefined);
+    await open.run();
+    expect(cancelled).toEqual([picker]);
+    expect(s.core.store.board().name).toBe("Iris review");
 
     vi.restoreAllMocks();
-    const cancelled = picking(undefined);
-    await expect(storage.open()).resolves.toBeNull();
-    expect(cancelled).toEqual([picker]);
+    const text = JSON.stringify({ ...HELLO.board, board: { ...HELLO.board.board, name: "Opened" } });
+    const picked = picking(new File([text], "opened.json", { type: "application/json" }));
+    await open.run();
+    await s.settled();
+    expect(picked).toEqual([picker]);
+    // Core starts again for the board, with a CoreApi of its own.
+    expect(s.core.store.board().name).toBe("Opened");
     expect(document.querySelectorAll('input[type="file"]')).toHaveLength(0);
+    s.stop();
+  });
+
+  test("rejects with why the store refused the board in the file that the user picks, which leaves the board open", async () => {
+    const s = await stubCore();
+    picking(new File(["{}"], "board.json"));
+
+    await expect(button(coreStorage().controls({ core: s.core }), "open").run()).rejects.toThrow(
+      "The store refused to open the board",
+    );
+    expect(s.core.store.board().name).toBe("Iris review");
+    s.stop();
   });
 });

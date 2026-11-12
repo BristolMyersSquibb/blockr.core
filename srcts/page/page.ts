@@ -61,6 +61,8 @@ export function startPage(options: PageOptions): Started {
 // loaded, and offers to reload the page, which then loads the code that R
 // serves, rather than load a second copy beside the first. The page carries on
 // meanwhile, since a reload loses the board unless it is saved.
+// The banner floats over the board, as a menu or a dialog does, so it takes
+// their background from core's theme, bg-raised, and the page's text colour.
 function reloadBanner(changed: readonly Changed[]): void {
   const id = "blockr-core-reload";
   document.getElementById(id)?.remove();
@@ -68,7 +70,7 @@ function reloadBanner(changed: readonly Changed[]): void {
   banner.id = id;
   banner.setAttribute("role", "alert");
   banner.className =
-    "bc:fixed bc:inset-x-0 bc:top-0 bc:z-50 bc:flex bc:items-center bc:gap-3 bc:border-b bc:border-border-default bc:bg-white bc:p-3 bc:font-sans bc:text-sm bc:text-black";
+    "bc:fixed bc:inset-x-0 bc:top-0 bc:z-50 bc:flex bc:items-center bc:gap-3 bc:border-b bc:border-border-default bc:bg-bg-raised bc:p-3 bc:font-sans bc:text-sm bc:text-gray-900 bc:dark:text-gray-100";
   const text = document.createElement("span");
   const versions = changed.map((c) => `${c.package} ${c.loaded} to ${c.now}`).join(", ");
   text.textContent = `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`;

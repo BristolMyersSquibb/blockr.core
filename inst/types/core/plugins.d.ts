@@ -2,10 +2,10 @@ import type { Mounts } from "../mount/index.ts";
 import type { PluginEntry } from "../protocol/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { CoreApi, Plugin, PluginModule } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, Plugin, PluginModule } from "../types/core-api.ts";
 export type PluginArgs = Parameters<PluginModule["render"]>[0];
 export interface Frontend {
-    readonly frontend: PluginModule;
+    readonly frontend: FrontendModule;
     readonly plugin: PluginClassId;
     readonly added: Promise<readonly string[]>;
 }

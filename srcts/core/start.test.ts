@@ -18,7 +18,7 @@ import { hello, optionUrl, pluginUrl, reply, withOptions, withoutPlugins, withPl
 import type { GivenPlugin } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
 import type { JsonBoard, PluginClassId } from "../types/board.ts";
-import type { CoreApi, PluginModule } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, PluginModule } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { own } from "../util/index.ts";
 import { pageFrontEnds, start } from "./index.ts";
@@ -48,7 +48,7 @@ const CORE: Readonly<Record<string, unknown>> = {
 
 // The class of core's basic frontend with the frontend given, as its module
 // exports it, with the board options that the class requires.
-function basicModule(frontend: PluginModule) {
+function basicModule(frontend: FrontendModule) {
   return classModule({ options: ["show_conditions", "dark_mode"], frontend });
 }
 
@@ -211,8 +211,7 @@ const SESSION = "blockr.session-session_plugin";
 function session(load: Storage["load"]) {
   const loads: { core: CoreApi; plugin: string; open: boolean }[] = [];
   const storage: Storage = {
-    save: () => Promise.resolve(),
-    open: () => Promise.resolve(null),
+    controls: () => [],
     ...(load === undefined
       ? {}
       : {
@@ -1114,7 +1113,45 @@ describe("the frontend and the plugins", () => {
     const empty = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } };
     await started({ [BASIC]: basicModule(basic.frontend) }, empty);
 
-    expect(basic.seen).toEqual([[BASIC_FRONTEND, ["warning", "error"], "light"]]);
+    expect(basic.seen).toEqual([[BASIC_FRONTEND, ["message", "warning", "error"], "light"]]);
+  });
+
+  test("calls the frontend's render() with what R's reply to hello holds in frontend, in args, for every board that opens", async () => {
+    // A frontend that keeps the args that each render() gets.
+    const keeping = () => {
+      const seen: Readonly<Record<string, Json>>[] = [];
+      const frontend: FrontendModule = {
+        render({ args }) {
+          seen.push(args);
+          return undefined;
+        },
+      };
+      return { seen, frontend };
+    };
+
+    // Core's basic frontend takes no argument of serve(), so it gets none in a
+    // core app.
+    const basic = keeping();
+    await started({ [BASIC]: basicModule(basic.frontend) }, hello);
+    expect(basic.seen).toEqual([{}]);
+
+    // An app whose frontend takes a title from serve().
+    const front = keeping();
+    const frontend: PluginClass = { id: GRID, frontend: front.frontend };
+    const reply: HelloReply = {
+      ...replied({ [GRID]: { name: "Grid" } }, undefined, [BASIC_FRONTEND]),
+      frontend: { title: "Trials" },
+    };
+    const s = await started(listed([frontend]), reply);
+    expect(front.seen).toEqual([{ title: "Trials" }]);
+
+    // A board that opens later, whatever it holds, gets the same, from R's
+    // reply to the hello with which core starts again.
+    const opening = s.core.store.open(JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Next" } }));
+    await tick();
+    s.r.answer(reply);
+    await opening;
+    expect(front.seen).toEqual([{ title: "Trials" }, { title: "Trials" }]);
   });
 
   test("shows why in the page's element in place of the board where the app runs no frontend", async () => {
@@ -1269,7 +1306,7 @@ describe("the frontend and the plugins", () => {
     const storing: PluginClass = {
       id: "blockr.test-store_plugin",
       options: ["zoom"],
-      storage: { save: () => Promise.resolve(), open: () => Promise.resolve(null) },
+      storage: { controls: () => [] },
     };
     const s = await started(
       { ...listed([storing]), [BASIC]: frontEnd().exports },
@@ -1301,6 +1338,33 @@ describe("a later session", () => {
     s.r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
     await tick();
     expect(changes).toEqual([[{ package: "blockr.core", loaded: "0.2.0", now: "0.2.1" }]]);
+  });
+
+  test("that names a package at another version asks the user to reload the page in a banner, on the background that core's theme gives what floats over the board", async () => {
+    const r = playedR();
+    const basic = frontEnd();
+    const started = startPage({
+      el: document.createElement("div"),
+      transport: r.transport,
+      loader: {
+        importer: (url) =>
+          url === BASIC ? Promise.resolve(basic.exports) : Promise.reject(new TypeError(`No module at ${url}.`)),
+        stylesheet: () => Promise.resolve(),
+      },
+      measure: { info: () => null, watch: () => () => undefined },
+    });
+    r.session();
+    await tick();
+    r.options();
+    await started.ready;
+
+    r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
+    await tick();
+    const banner = document.getElementById("blockr-core-reload");
+    banner?.remove();
+    expect(banner?.textContent).toContain("(blockr.core 0.2.0 to 0.2.1)");
+    // Its backgrounds in the page's theme and under the dark theme.
+    expect(banner?.className.split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name))).toEqual(["bc:bg-bg-raised"]);
   });
 
   test("where R speaks another major of the protocol stops the page, sending R nothing more and saying what to do", async () => {

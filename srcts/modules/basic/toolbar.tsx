@@ -1,21 +1,37 @@
 // The toolbar of core's basic frontend. It shows the board's name, which the
 // user renames, and the controls for the board: setting the board options,
-// undo and redo, and saving the board and opening another. Adding a block and
-// editing links and stacks are the Edit board plugin's, which the frontend
-// shows beside the board.
-// It saves and opens through the storage that core.plugins.storage() gives,
-// that of the app's storage plugin, such as core's own, which saves a download
-// and opens an upload, and draws neither control where the app runs none.
+// undo and redo, and at its end the storage controls of the app's storage
+// plugin, such as Save and Open of core's own, which save a download and open
+// an upload. Adding a block and editing links and stacks are the Edit board
+// plugin's, which the frontend shows beside the board.
 // Under the board lock, it draws no control for what the lock fixes, so that
-// the board options, undo, redo, saving and opening stay. Under
-// the load lock, it draws no control for opening a board, since the store
-// opens no other board there.
+// the board options, undo, redo and the storage controls stay. The storage
+// controls leave out what a lock fixes themselves, as core's own leave out
+// Open under the load lock, since the store opens no other board there.
+//
+// The toolbar draws the storage controls that core.plugins.storage() gives
+// (./storage.ts), and none where the app runs no storage plugin, each kind in
+// its own look:
+// - A button is one of the toolbar's buttons, greyed out while it is disabled.
+// - A menu is a button that opens a list of what the menu holds. A menu in
+//   that list shows as a group of its items under its label.
+// - A status is text in the muted colour.
+// A control's tooltip shows as the browser's tooltip.
+// The toolbar draws the controls again whenever the storage's subscribe()
+// calls back, and as the board changes. Where a button's run() rejects, the
+// frontend tells the user why, as it does for an edit that the store refused.
 
-import { useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import type { ReactElement } from "react";
+import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import { classes, NameField, useHistory } from "../../ui/index.ts";
+import { report } from "../../util/index.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
+import { ariaShortcuts } from "./shortcuts.ts";
+import { drawnControls, runButton } from "./storage.ts";
+import type { Button } from "./storage.ts";
+import { menuClasses, useDismiss } from "./ui.tsx";
 
 export interface ToolbarProps {
   readonly board: Board;
@@ -29,34 +45,11 @@ export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState(false);
   const locked = core.lock.board;
-  const storage = core.plugins.storage();
-  const opens = !core.lock.load && storage !== undefined;
 
   function step(back: boolean): void {
     try {
       if (back) core.store.undo();
       else core.store.redo();
-    } catch (error) {
-      notices.failed(error);
-    }
-  }
-
-  async function save(): Promise<void> {
-    try {
-      await storage?.save(core.store.save());
-    } catch (error) {
-      notices.failed(error);
-    }
-  }
-
-  // Asks the storage for a board as the user clicks, since a browser shows
-  // its file picker only then, and opens what the user picks. A frontend that
-  // starts again draws the board that opens, and core sends it the note of
-  // what the store dropped, so what open() resolves with goes unread here.
-  async function open(): Promise<void> {
-    try {
-      const text = (await storage?.open()) ?? null;
-      if (text !== null) await core.store.open(text);
     } catch (error) {
       notices.failed(error);
     }
@@ -122,29 +115,167 @@ export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
         >
           Redo
         </button>
-        {storage === undefined ? null : (
-          <button
-            type="button"
-            className={classes.button}
-            onClick={() => {
-              void save();
-            }}
-          >
-            Save
-          </button>
-        )}
-        {opens ? (
-          <button
-            type="button"
-            className={classes.button}
-            onClick={() => {
-              void open();
-            }}
-          >
-            Open
-          </button>
-        ) : null}
+        <StorageControls />
       </div>
     </header>
+  );
+}
+
+// The storage controls, or a warning in their place where controls() failed,
+// which tells why in its tooltip.
+function StorageControls(): ReactElement | null {
+  const { core } = useFrontEnd();
+  const storage = core.plugins.storage();
+  const [, redraw] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (storage?.subscribe === undefined) return undefined;
+    try {
+      return storage.subscribe(redraw);
+    } catch (error) {
+      report(error);
+      return undefined;
+    }
+  }, [storage]);
+
+  const drawn = drawnControls(core);
+  // The page hears of each problem once, rather than as each drawing finds it
+  // again.
+  const problem = drawn?.problem;
+  useEffect(() => {
+    if (problem !== undefined) report(new Error(problem));
+  }, [problem]);
+
+  if (drawn === undefined) return null;
+  if (drawn.failed) {
+    return (
+      <span role="alert" title={problem} className="bc:font-sans bc:text-sm bc:text-text-danger">
+        Storage failed
+      </span>
+    );
+  }
+  return (
+    <>
+      {drawn.controls.map((control) => (
+        <Control key={control.id} control={control} />
+      ))}
+    </>
+  );
+}
+
+function Control({ control }: { control: StorageControl }): ReactElement {
+  switch (control.kind) {
+    case "button":
+      return <StorageButton button={control} className={classes.button} />;
+    case "menu":
+      return <StorageMenu label={control.label} items={control.items} />;
+    case "status":
+      return (
+        <span role="status" title={control.tooltip} className="bc:font-sans bc:text-sm bc:text-text-muted">
+          {control.text}
+        </span>
+      );
+  }
+}
+
+// A button, which runs as the user clicks it, after `before`, as a menu closes
+// as one of its buttons runs.
+function StorageButton({
+  button,
+  className,
+  role,
+  before,
+}: {
+  button: Button;
+  className: string;
+  role?: "menuitem";
+  before?: () => void;
+}): ReactElement {
+  const { notices } = useFrontEnd();
+  return (
+    <button
+      type="button"
+      role={role}
+      className={className}
+      disabled={button.disabled}
+      title={button.tooltip}
+      aria-keyshortcuts={ariaShortcuts(button.shortcut)}
+      onClick={() => {
+        before?.();
+        void runButton(button, notices.failed);
+      }}
+    >
+      {button.label}
+    </button>
+  );
+}
+
+// A menu, a button that opens a list of what it holds, which closes as one of
+// its buttons runs, on Escape and on a click elsewhere.
+function StorageMenu({ label, items }: { label: string; items: readonly StorageControl[] }): ReactElement {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(ref, open, setOpen);
+  return (
+    <div ref={ref} className="bc:relative">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={classes.button}
+        onClick={() => {
+          setOpen(!open);
+        }}
+      >
+        {label}
+        <span aria-hidden="true">▾</span>
+      </button>
+      {open ? (
+        <ul role="menu" aria-label={label} className={menuClasses.list}>
+          <MenuItems
+            items={items}
+            close={() => {
+              setOpen(false);
+            }}
+          />
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+// What a menu holds, a menu among it as a group of its items under its label.
+function MenuItems({ items, close }: { items: readonly StorageControl[]; close: () => void }): ReactElement {
+  return (
+    <>
+      {items.map((item) => {
+        switch (item.kind) {
+          case "button":
+            return (
+              <li key={item.id} role="none">
+                <StorageButton button={item} className={menuClasses.item} role="menuitem" before={close} />
+              </li>
+            );
+          case "menu":
+            return (
+              <li key={item.id} role="none">
+                <div role="group" aria-label={item.label}>
+                  <span aria-hidden="true" className="bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted">
+                    {item.label}
+                  </span>
+                  <ul role="none" className="bc:m-0 bc:grid bc:list-none bc:gap-0.5 bc:p-0 bc:pl-2">
+                    <MenuItems items={item.items} close={close} />
+                  </ul>
+                </div>
+              </li>
+            );
+          case "status":
+            return (
+              <li key={item.id} role="none" title={item.tooltip} className="bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-muted">
+                {item.text}
+              </li>
+            );
+        }
+      })}
+    </>
   );
 }

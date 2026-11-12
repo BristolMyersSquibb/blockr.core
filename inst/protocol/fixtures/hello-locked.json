@@ -129,6 +129,7 @@
             "module": "blockr.core/edit-board.js?v=5c1e7a39"
           }
         },
+        "frontend": {},
         "options": {
           "n_rows": {
             "package": "blockr.core",

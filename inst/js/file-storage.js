@@ -2,23 +2,38 @@
 function asError(error) {
   return error instanceof Error ? error : new Error(String(error));
 }
-function isObject(x) {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
-}
 
 // srcts/storage/storage.ts
-function coreStorage(doc = document) {
+function coreStorage(doc) {
   return {
-    save(board) {
-      try {
-        download(board, fileName({ id: boardIdFromText(board) }), doc);
-        return Promise.resolve();
-      } catch (error) {
-        return Promise.reject(asError(error));
-      }
-    },
-    open: () => pickFile(doc)
+    controls({ core }) {
+      const save = {
+        kind: "button",
+        id: "save",
+        label: "Save",
+        run: () => saveBoard(core, doc ?? document)
+      };
+      const open = {
+        kind: "button",
+        id: "open",
+        label: "Open",
+        run: () => openBoard(core, doc ?? document)
+      };
+      return core.lock.load ? [save] : [save, open];
+    }
   };
+}
+function saveBoard(core, doc) {
+  try {
+    download(core.store.save(), fileName(core.store.board()), doc);
+    return Promise.resolve();
+  } catch (error) {
+    return Promise.reject(asError(error));
+  }
+}
+async function openBoard(core, doc) {
+  const text = await pickFile(doc);
+  if (text !== null) await core.store.open(text);
 }
 function fileName(board, now = /* @__PURE__ */ new Date()) {
   const two = (n) => String(n).padStart(2, "0");
@@ -67,24 +82,11 @@ function pickFile(doc = document) {
     input.click();
   });
 }
-function boardIdFromText(text) {
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    return "board";
-  }
-  const board = isObject(json) ? json.board : void 0;
-  return isObject(board) && typeof board.id === "string" && board.id !== "" ? board.id : "board";
-}
 
 // srcts/modules/file-storage/index.ts
 var api = 1;
 var file_storage_default = {
-  storage: {
-    save: (board) => coreStorage().save(board),
-    open: () => coreStorage().open()
-  }
+  storage: coreStorage()
 };
 export {
   api,

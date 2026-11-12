@@ -3,18 +3,21 @@
 # `registry`, each with the renderer of its class's outputs, where R serves the
 # modules that the loaded packages offer each other, the app's plugins,
 # `plugins`, each under the ID of its class with the class's name and version,
-# and where R serves the class's module, as `app_plugins()` gives them, the
-# board options of the packages that the app uses, each with where R serves its
-# module and the version of its shape, the renderers that the app names for
-# board options, and the versions of the packages that all of these come from.
+# and where R serves the class's module, as `app_plugins()` gives them, what
+# the app's frontend reads of the arguments of `serve()`, `frontend`, as
+# `frontend_reply()` writes it, the board options of the packages that the app
+# uses, each with where R serves its module and the version of its shape, the
+# renderers that the app names for board options, and the versions of the
+# packages that all of these come from.
 # R loads no package for it: `serve()` loaded the packages of the block
 # classes that the app offers and of the plugins that it runs, and the app's
 # script the others, and loading them registered their methods.
 # These are the properties `packages`, `block_registry`, `modules`, `plugins`,
-# `options` and `renderers` of inst/protocol/README.md, as R values that
-# `encode_message()` writes as the reply's JSON.
+# `frontend`, `options` and `renderers` of inst/protocol/README.md, as R values
+# that `encode_message()` writes as the reply's JSON.
 # Building them builds no block.
-loaded_reply <- function(registry = block_registry, plugins = list()) {
+loaded_reply <- function(registry = block_registry, plugins = list(),
+                         frontend = as_json_object(list())) {
 
   entries <- registry_entries(registry)
   modules <- offered_modules()
@@ -42,6 +45,7 @@ loaded_reply <- function(registry = block_registry, plugins = list()) {
     block_registry = as_json_object(Map(registry_entry_reply, entries, drawn)),
     modules = as_json_object(lapply(modules, served_module)),
     plugins = as_json_object(lapply(plugins, plugin_entry_reply)),
+    frontend = frontend,
     options = as_json_object(lapply(options, option_entry_reply)),
     renderers = as_json_object(lapply(renderers, option_renderer_reply))
   )

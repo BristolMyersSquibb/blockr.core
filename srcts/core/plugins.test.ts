@@ -1,8 +1,8 @@
 // The app's plugins on the CoreApi for tests: which run and of which class, as
 // R's reply to hello names them, each from the module of its class, the
-// storage that a frontend's save and open controls call, mounting a plugin's
-// UI where a frontend places it, and what a frontend offers other plugins, the
-// notes they send and which block has focus.
+// storage whose controls a frontend draws, mounting a plugin's UI where a
+// frontend places it, and what a frontend offers other plugins, the notes they
+// send and which block has focus.
 
 import { describe, expect, test } from "vitest";
 // The modules of core's own plugin classes, which the build bundles on their
@@ -28,7 +28,7 @@ const EDIT = "blockr.core-edit_board_plugin";
 
 const saving: PluginClass = {
   id: "blockr.test-session_plugin",
-  storage: { save: () => Promise.resolve(), open: () => Promise.resolve(null) },
+  storage: { controls: () => [] },
 };
 const zoom: Option = {
   id: "zoom",
@@ -183,12 +183,12 @@ describe("the plugins that run", () => {
     s.stop();
   });
 
-  test("give their storage to a frontend's save and open controls: the app's storage plugin's, or none where the app runs none", async () => {
-    // Core's own storage plugin, which saves a download and opens an upload,
-    // where the app runs no other.
+  test("give a frontend the storage whose controls it draws: the app's storage plugin's, or none where the app runs none", async () => {
+    // Core's own storage plugin, whose buttons save a download and open an
+    // upload, where the app runs no other.
     const t = await stubCore();
     const own = t.core.plugins.storage();
-    expect(Object.keys(own ?? {})).toEqual(["save", "open"]);
+    expect(own?.controls({ core: t.core }).map((control) => control.id)).toEqual(["save", "open"]);
     expect(t.core.plugins.storage()).toBe(own);
     expect(Object.keys(t.core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT]);
     t.stop();

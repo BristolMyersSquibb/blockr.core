@@ -12,6 +12,18 @@ function own(record, key) {
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
+function report(error) {
+  queueMicrotask(() => {
+    throw error;
+  });
+}
+function listing(items) {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items.at(-1) ?? ""}`;
+}
+function quoted(items) {
+  return listing(items.map((item) => `"${item}"`));
+}
 function packageFromId(id2) {
   const at = id2.indexOf("-");
   if (at < 0) return null;
@@ -133,8 +145,9 @@ var classes = {
   // The board's page, which draws no background of its own, so that the
   // page's, which the browser draws in the page's theme, shows to its edges.
   page: "bc:text-gray-900 bc:dark:text-gray-100",
-  // What sits over the board, as a dialog or a menu does.
-  surface: "bc:bg-white bc:text-gray-900 bc:dark:bg-gray-900 bc:dark:text-gray-100",
+  // What sits over the board, as a dialog or a menu does,
+  // on the background that core's theme gives it, bg-raised.
+  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
   card: "bc:bg-bg-subtle",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
@@ -968,9 +981,11 @@ function Dialog({
     }
   );
 }
-function Menu({ label, items }) {
-  const [open, setOpen] = useState7(false);
-  const ref = useRef4(null);
+var menuClasses = {
+  list: `${classes.surface} bc:absolute bc:right-0 bc:z-20 bc:m-0 bc:mt-1 bc:grid bc:min-w-44 bc:list-none bc:gap-0.5 bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:shadow-lg`,
+  item: "bc:w-full bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50"
+};
+function useDismiss(ref, open, setOpen) {
   useEffect(() => {
     if (!open) return;
     const doc = ref.current?.ownerDocument ?? document;
@@ -986,7 +1001,12 @@ function Menu({ label, items }) {
       doc.removeEventListener("pointerdown", away);
       doc.removeEventListener("keydown", escape);
     };
-  }, [open]);
+  }, [ref, open, setOpen]);
+}
+function Menu({ label, items }) {
+  const [open, setOpen] = useState7(false);
+  const ref = useRef4(null);
+  useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs6("div", { ref, className: "bc:relative", children: [
     /* @__PURE__ */ jsx8(
       "button",
@@ -1002,28 +1022,20 @@ function Menu({ label, items }) {
         children: /* @__PURE__ */ jsx8("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" })
       }
     ),
-    open ? /* @__PURE__ */ jsx8(
-      "ul",
+    open ? /* @__PURE__ */ jsx8("ul", { role: "menu", "aria-label": label, className: menuClasses.list, children: items.map((item) => /* @__PURE__ */ jsx8("li", { role: "none", children: /* @__PURE__ */ jsx8(
+      "button",
       {
-        role: "menu",
-        "aria-label": label,
-        className: `${classes.surface} bc:absolute bc:right-0 bc:z-20 bc:m-0 bc:mt-1 bc:grid bc:min-w-44 bc:list-none bc:gap-0.5 bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:shadow-lg`,
-        children: items.map((item) => /* @__PURE__ */ jsx8("li", { role: "none", children: /* @__PURE__ */ jsx8(
-          "button",
-          {
-            type: "button",
-            role: "menuitem",
-            disabled: item.disabled,
-            className: "bc:w-full bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
-            onClick: () => {
-              setOpen(false);
-              item.onSelect();
-            },
-            children: item.label
-          }
-        ) }, item.label))
+        type: "button",
+        role: "menuitem",
+        disabled: item.disabled,
+        className: menuClasses.item,
+        onClick: () => {
+          setOpen(false);
+          item.onSelect();
+        },
+        children: item.label
       }
-    ) : null
+    ) }, item.label)) }) : null
   ] });
 }
 
@@ -1297,35 +1309,134 @@ function PluginSection({ id: id2, plugin }) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useState as useState9 } from "react";
-import { jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
+import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState9 } from "react";
+
+// srcts/modules/basic/storage.ts
+var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
+function drawnControls(core) {
+  const storage = core.plugins.storage();
+  if (storage === void 0) return void 0;
+  try {
+    const twice = /* @__PURE__ */ new Set();
+    const controls = distinct(storage.controls({ core }), twice);
+    return {
+      controls: [...controls.filter((c) => c.placement !== "end"), ...controls.filter((c) => c.placement === "end")],
+      failed: false,
+      ...twice.size === 0 ? {} : { problem: `Storage controls of one list share the ids ${quoted([...twice])}, so only the first of each draws.` }
+    };
+  } catch (error) {
+    return { controls: [], failed: true, problem: `The storage controls failed: ${errorMessage(error)}` };
+  }
+}
+function buttonsOf(controls) {
+  return controls.flatMap((control) => {
+    if (control.kind === "button") return [control];
+    if (control.kind === "menu") return buttonsOf(control.items);
+    return [];
+  });
+}
+async function runButton(button, failed) {
+  try {
+    await button.run();
+  } catch (error) {
+    failed(error);
+  }
+}
+function distinct(list, twice) {
+  const seen = /* @__PURE__ */ new Set();
+  const kept = [];
+  for (const control of list) {
+    if (!KINDS.has(control.kind)) continue;
+    if (seen.has(control.id)) {
+      twice.add(control.id);
+      continue;
+    }
+    seen.add(control.id);
+    kept.push(control.kind === "menu" ? { ...control, items: distinct(control.items, twice) } : control);
+  }
+  return kept;
+}
+
+// srcts/modules/basic/shortcuts.ts
+function bindShortcuts(doc, core, failed) {
+  function onKey(event) {
+    if (event.defaultPrevented || editable(event.target)) return;
+    const step = undoOrRedo(event);
+    if (step !== void 0) {
+      event.preventDefault();
+      try {
+        if (step === "undo") core.store.undo();
+        else core.store.redo();
+      } catch (error) {
+        failed(error);
+      }
+      return;
+    }
+    const button = buttonsOf(drawnControls(core)?.controls ?? []).find(
+      (b) => b.disabled !== true && b.shortcut !== void 0 && matchesShortcut(b.shortcut, event)
+    );
+    if (button === void 0) return;
+    event.preventDefault();
+    if (!event.repeat) void runButton(button, failed);
+  }
+  doc.addEventListener("keydown", onKey);
+  return () => {
+    doc.removeEventListener("keydown", onKey);
+  };
+}
+function matchesShortcut(text, event) {
+  const shortcut = readShortcut(text);
+  const key = event.key;
+  if (shortcut === void 0 || typeof key !== "string" || key.toLowerCase() !== shortcut.key.toLowerCase()) {
+    return false;
+  }
+  if (event.altKey !== shortcut.alt || event.shiftKey !== shortcut.shift) return false;
+  if (shortcut.mod) return event.ctrlKey || event.metaKey;
+  return event.ctrlKey === shortcut.ctrl && event.metaKey === shortcut.meta;
+}
+function ariaShortcuts(text) {
+  const shortcut = text === void 0 ? void 0 : readShortcut(text);
+  if (shortcut === void 0) return void 0;
+  const rest = [...shortcut.alt ? ["Alt"] : [], ...shortcut.shift ? ["Shift"] : [], shortcut.key];
+  const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
+  return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
+}
+var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
+function readShortcut(text) {
+  const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
+  const key = text.slice(at + 1);
+  const names = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
+  if (key === "" || new Set(names).size < names.length || !names.every((name2) => MODIFIERS.includes(name2))) {
+    return void 0;
+  }
+  const has = (name2) => names.includes(name2);
+  if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
+  return { key, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
+}
+function undoOrRedo(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
+  const key = event.key.toLowerCase();
+  if (key === "z") return event.shiftKey ? "redo" : "undo";
+  if (key === "y" && !event.shiftKey) return "redo";
+  return void 0;
+}
+function editable(target2) {
+  if (!(target2 instanceof HTMLElement)) return false;
+  return target2.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target2.tagName);
+}
+
+// srcts/modules/basic/toolbar.tsx
+import { Fragment as Fragment2, jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
 function Toolbar({ board, showOptions }) {
   const front = useFrontEnd();
   const { core, notices } = front;
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState9(false);
   const locked2 = core.lock.board;
-  const storage = core.plugins.storage();
-  const opens = !core.lock.load && storage !== void 0;
   function step(back) {
     try {
       if (back) core.store.undo();
       else core.store.redo();
-    } catch (error) {
-      notices.failed(error);
-    }
-  }
-  async function save() {
-    try {
-      await storage?.save(core.store.save());
-    } catch (error) {
-      notices.failed(error);
-    }
-  }
-  async function open() {
-    try {
-      const text = await storage?.open() ?? null;
-      if (text !== null) await core.store.open(text);
     } catch (error) {
       notices.failed(error);
     }
@@ -1394,30 +1505,114 @@ function Toolbar({ board, showOptions }) {
           children: "Redo"
         }
       ),
-      storage === void 0 ? null : /* @__PURE__ */ jsx12(
-        "button",
-        {
-          type: "button",
-          className: classes.button,
-          onClick: () => {
-            void save();
-          },
-          children: "Save"
-        }
-      ),
-      opens ? /* @__PURE__ */ jsx12(
-        "button",
-        {
-          type: "button",
-          className: classes.button,
-          onClick: () => {
-            void open();
-          },
-          children: "Open"
-        }
-      ) : null
+      /* @__PURE__ */ jsx12(StorageControls, {})
     ] })
   ] });
+}
+function StorageControls() {
+  const { core } = useFrontEnd();
+  const storage = core.plugins.storage();
+  const [, redraw] = useReducer((n) => n + 1, 0);
+  useEffect2(() => {
+    if (storage?.subscribe === void 0) return void 0;
+    try {
+      return storage.subscribe(redraw);
+    } catch (error) {
+      report(error);
+      return void 0;
+    }
+  }, [storage]);
+  const drawn = drawnControls(core);
+  const problem = drawn?.problem;
+  useEffect2(() => {
+    if (problem !== void 0) report(new Error(problem));
+  }, [problem]);
+  if (drawn === void 0) return null;
+  if (drawn.failed) {
+    return /* @__PURE__ */ jsx12("span", { role: "alert", title: problem, className: "bc:font-sans bc:text-sm bc:text-text-danger", children: "Storage failed" });
+  }
+  return /* @__PURE__ */ jsx12(Fragment2, { children: drawn.controls.map((control) => /* @__PURE__ */ jsx12(Control, { control }, control.id)) });
+}
+function Control({ control }) {
+  switch (control.kind) {
+    case "button":
+      return /* @__PURE__ */ jsx12(StorageButton, { button: control, className: classes.button });
+    case "menu":
+      return /* @__PURE__ */ jsx12(StorageMenu, { label: control.label, items: control.items });
+    case "status":
+      return /* @__PURE__ */ jsx12("span", { role: "status", title: control.tooltip, className: "bc:font-sans bc:text-sm bc:text-text-muted", children: control.text });
+  }
+}
+function StorageButton({
+  button,
+  className,
+  role,
+  before
+}) {
+  const { notices } = useFrontEnd();
+  return /* @__PURE__ */ jsx12(
+    "button",
+    {
+      type: "button",
+      role,
+      className,
+      disabled: button.disabled,
+      title: button.tooltip,
+      "aria-keyshortcuts": ariaShortcuts(button.shortcut),
+      onClick: () => {
+        before?.();
+        void runButton(button, notices.failed);
+      },
+      children: button.label
+    }
+  );
+}
+function StorageMenu({ label, items }) {
+  const [open, setOpen] = useState9(false);
+  const ref = useRef6(null);
+  useDismiss(ref, open, setOpen);
+  return /* @__PURE__ */ jsxs10("div", { ref, className: "bc:relative", children: [
+    /* @__PURE__ */ jsxs10(
+      "button",
+      {
+        type: "button",
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
+        className: classes.button,
+        onClick: () => {
+          setOpen(!open);
+        },
+        children: [
+          label,
+          /* @__PURE__ */ jsx12("span", { "aria-hidden": "true", children: "\u25BE" })
+        ]
+      }
+    ),
+    open ? /* @__PURE__ */ jsx12("ul", { role: "menu", "aria-label": label, className: menuClasses.list, children: /* @__PURE__ */ jsx12(
+      MenuItems,
+      {
+        items,
+        close: () => {
+          setOpen(false);
+        }
+      }
+    ) }) : null
+  ] });
+}
+function MenuItems({ items, close }) {
+  return /* @__PURE__ */ jsx12(Fragment2, { children: items.map((item) => {
+    switch (item.kind) {
+      case "button":
+        return /* @__PURE__ */ jsx12("li", { role: "none", children: /* @__PURE__ */ jsx12(StorageButton, { button: item, className: menuClasses.item, role: "menuitem", before: close }) }, item.id);
+      case "menu":
+        return /* @__PURE__ */ jsx12("li", { role: "none", children: /* @__PURE__ */ jsxs10("div", { role: "group", "aria-label": item.label, children: [
+          /* @__PURE__ */ jsx12("span", { "aria-hidden": "true", className: "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted", children: item.label }),
+          /* @__PURE__ */ jsx12("ul", { role: "none", className: "bc:m-0 bc:grid bc:list-none bc:gap-0.5 bc:p-0 bc:pl-2", children: /* @__PURE__ */ jsx12(MenuItems, { items: item.items, close }) })
+        ] }) }, item.id);
+      case "status":
+        return /* @__PURE__ */ jsx12("li", { role: "none", title: item.tooltip, className: "bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-muted", children: item.text }, item.id);
+    }
+  }) });
 }
 
 // srcts/modules/basic/board.tsx
@@ -1580,36 +1775,6 @@ function demandShown(core, view = window) {
 function inView(el, view) {
   const rect = el.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < view.innerHeight && rect.left < view.innerWidth;
-}
-
-// srcts/modules/basic/shortcuts.ts
-function bindShortcuts(doc, core, refused) {
-  function onKey(event) {
-    const step = undoOrRedo(event);
-    if (step === void 0 || event.defaultPrevented || editable(event.target)) return;
-    event.preventDefault();
-    try {
-      if (step === "undo") core.store.undo();
-      else core.store.redo();
-    } catch (error) {
-      refused(error);
-    }
-  }
-  doc.addEventListener("keydown", onKey);
-  return () => {
-    doc.removeEventListener("keydown", onKey);
-  };
-}
-function undoOrRedo(event) {
-  if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
-  const key = event.key.toLowerCase();
-  if (key === "z") return event.shiftKey ? "redo" : "undo";
-  if (key === "y" && !event.shiftKey) return "redo";
-  return void 0;
-}
-function editable(target2) {
-  if (!(target2 instanceof HTMLElement)) return false;
-  return target2.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target2.tagName);
 }
 
 // srcts/modules/basic/index.tsx

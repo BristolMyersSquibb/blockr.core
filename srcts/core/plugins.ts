@@ -35,16 +35,16 @@ import type { PluginEntry } from "../protocol/index.ts";
 import { inRole } from "../store/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, Plugin, PluginModule } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, Plugin, PluginModule } from "../types/core-api.ts";
 import { errorMessage, own, report } from "../util/index.ts";
 
-// What the render() of a plugin's `ui` or `frontend` gets.
+// What the render() of the `ui` of a plugin's class gets.
 export type PluginArgs = Parameters<PluginModule["render"]>[0];
 
 // The frontend that draws the open board.
 export interface Frontend {
   // What draws the page, its class's `frontend`.
-  readonly frontend: PluginModule;
+  readonly frontend: FrontendModule;
   // The id of its class, which names the plugin that it is.
   readonly plugin: PluginClassId;
   // Resolves with why board options that it requires did not go onto the

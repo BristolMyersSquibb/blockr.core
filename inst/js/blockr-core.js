@@ -6820,11 +6820,16 @@ function createRegistrations(migration = () => void 0) {
       }
     }
     const storage = given.storage;
-    if (storage !== void 0 && (!isObject(storage) || typeof storage.save !== "function" || typeof storage.open !== "function")) {
-      throw new Error(`The plugin class "${id2}" has a storage without save() and open() functions.`);
-    }
-    if (isObject(storage) && storage.load !== void 0 && typeof storage.load !== "function") {
-      throw new Error(`The plugin class "${id2}" has a storage whose load is no function.`);
+    if (storage !== void 0) {
+      if (!isObject(storage) || typeof storage.controls !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage without a controls() function.`);
+      }
+      if (storage.subscribe !== void 0 && typeof storage.subscribe !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage whose subscribe is no function.`);
+      }
+      if (storage.load !== void 0 && typeof storage.load !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage whose load is no function.`);
+      }
     }
     if (given.commands !== void 0 && !Array.isArray(given.commands)) {
       throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
@@ -7689,7 +7694,13 @@ function pageFrontEnds(el) {
       };
       drawn2 = current2;
       try {
-        const rendered = await prepared.frontend.render({ el, core, plugin: prepared.plugin, signal: controller.signal });
+        const rendered = await prepared.frontend.render({
+          el,
+          core,
+          plugin: prepared.plugin,
+          signal: controller.signal,
+          args: prepared.args
+        });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current2.cleanup = rendered;
@@ -8651,7 +8662,7 @@ function start(options) {
     } else {
       const front = plugins.frontend();
       options.frontEnds?.prepare(
-        front === void 0 ? { none: noFrontend(reply, core) } : { frontend: front.frontend, plugin: front.plugin },
+        front === void 0 ? { none: noFrontend(reply, core) } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
         signal
       );
       const failures = await (front?.added ?? []);
@@ -9123,7 +9134,7 @@ function reloadBanner(changed) {
   const banner = document.createElement("div");
   banner.id = id2;
   banner.setAttribute("role", "alert");
-  banner.className = "bc:fixed bc:inset-x-0 bc:top-0 bc:z-50 bc:flex bc:items-center bc:gap-3 bc:border-b bc:border-border-default bc:bg-white bc:p-3 bc:font-sans bc:text-sm bc:text-black";
+  banner.className = "bc:fixed bc:inset-x-0 bc:top-0 bc:z-50 bc:flex bc:items-center bc:gap-3 bc:border-b bc:border-border-default bc:bg-bg-raised bc:p-3 bc:font-sans bc:text-sm bc:text-gray-900 bc:dark:text-gray-100";
   const text = document.createElement("span");
   const versions = changed.map((c2) => `${c2.package} ${c2.loaded} to ${c2.now}`).join(", ");
   text.textContent = `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`;

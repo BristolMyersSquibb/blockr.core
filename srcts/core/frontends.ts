@@ -9,10 +9,11 @@
 //   element shows why in place of the board.
 // - Once the board options that the frontend requires are on the board, core
 //   calls the frontend's render() with the element, CoreApi, the id of the
-//   frontend's class and a signal, which aborts as the next board opens, since
-//   core starts again for that board. Where a board option that the frontend
-//   requires did not go onto the board, the element shows why in place of the
-//   frontend.
+//   frontend's class, a signal, which aborts as the next board opens, since
+//   core starts again for that board, and `args`, what the frontend reads of
+//   the arguments that `serve()` hands it, which R's reply to `hello` holds in
+//   `frontend`. Where a board option that the frontend requires did not go
+//   onto the board, the element shows why in place of the frontend.
 // - As the signal aborts, core runs the cleanup that render() returned, and the
 //   element says that the board is loading until the next frontend draws.
 // A frontend releases what it holds as its signal aborts, as a module does as
@@ -21,7 +22,8 @@
 
 import { attempt, showError } from "../mount/index.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { PluginModule } from "../types/core-api.ts";
+import type { FrontendModule } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 import { errorMessage, report } from "../util/index.ts";
 import type { FrontEnds } from "./start.ts";
 
@@ -45,7 +47,10 @@ export function loadingNote(): HTMLElement {
 export function pageFrontEnds(el: HTMLElement): FrontEnds {
   let drawn: Drawn | undefined;
   // The frontend that prepare() took, or why the app runs none.
-  let next: { frontend: PluginModule; plugin: PluginClassId } | { none: string } | undefined;
+  let next:
+    | { frontend: FrontendModule; plugin: PluginClassId; args: Readonly<Record<string, Json>> }
+    | { none: string }
+    | undefined;
 
   function end(): void {
     const current = drawn;
@@ -92,7 +97,13 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       };
       drawn = current;
       try {
-        const rendered = await prepared.frontend.render({ el, core, plugin: prepared.plugin, signal: controller.signal });
+        const rendered = await prepared.frontend.render({
+          el,
+          core,
+          plugin: prepared.plugin,
+          signal: controller.signal,
+          args: prepared.args,
+        });
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current.cleanup = rendered;
