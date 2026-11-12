@@ -20,9 +20,9 @@
 # cannot read it as today's packages write one, since no migration runs in R.
 # R decodes the board as it decodes what the client sends,
 # so that a locked block's state reads as the state that a request carries.
-# For each block, by id, it holds the block registry's entry of the block's
-# class, the upstream ids that its data inputs bind, by input, as
-# `interpolate()` takes them, and its lock.
+# For each block, by id, it holds the entry of the block's class in the app's
+# block registry, `registry`, the upstream ids that its data inputs bind, by
+# input, as `interpolate()` takes them, and its lock.
 # For a locked block, it holds the block's state too, and what
 # `build_block_expr()` built from it: the block expression, or the
 # `blockr_invalid()` of a state that cannot run, which R replies with to every
@@ -32,7 +32,7 @@
 # operator to fix the board.
 # The names of `data` are the inputs that R binds itself for a block that
 # `serve()` serves alone.
-lock_board <- function(board, data = list()) {
+lock_board <- function(board, data = list(), registry = block_registry) {
 
   if (!(board_lock_on() && load_lock_on())) {
     return(NULL)
@@ -42,14 +42,14 @@ lock_board <- function(board, data = list()) {
   read <- decode_message(json)[["board"]]
 
   blocks <- read[["blocks"]]
-  check_lockable_blocks(blocks)
+  check_lockable_blocks(blocks, registry)
 
   lock <- lapply(
     set_names(nm = names(blocks)),
     function(id) {
 
       blk <- blocks[[id]]
-      entry <- get_registry_entry(blk[["registry_id"]])
+      entry <- get_registry_entry(blk[["registry_id"]], registry)
       cls <- entry[["block_class"]]
 
       inputs <- class_inputs(cls)
@@ -118,11 +118,12 @@ check_locked_expressions <- function(lock) {
 }
 
 # Refuses blocks that R cannot read as today's packages write them:
-# a block whose class the block registry lacks, and a block whose state is
-# recorded at another version than its class gives, naming each.
-check_lockable_blocks <- function(blocks) {
+# a block whose class the app's block registry, `registry`, lacks, and a block
+# whose state is recorded at another version than its class gives, naming
+# each.
+check_lockable_blocks <- function(blocks, registry) {
 
-  known <- list_blocks()
+  known <- ls(envir = registry)
   failures <- character()
 
   for (id in names(blocks)) {
@@ -141,7 +142,8 @@ check_lockable_blocks <- function(blocks) {
       next
     }
 
-    version <- get_registry_entry(registry_id)[["block_class"]][["version"]]
+    entry <- get_registry_entry(registry_id, registry)
+    version <- entry[["block_class"]][["version"]]
 
     if (!is_number(blk[["version"]]) || blk[["version"]] != version) {
       failures <- c(
@@ -214,7 +216,7 @@ lock_evaluation <- function(ev, req) {
     return(lock_opening(ev$lock, block, recipe))
   }
 
-  entry <- get_registry_entry(recipe[["registry_id"]])
+  entry <- get_registry_entry(recipe[["registry_id"]], ev$registry)
   inputs <- bind_inputs(
     recipe[["inputs"]],
     list(),

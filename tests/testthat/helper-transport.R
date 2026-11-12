@@ -190,6 +190,12 @@ served_replies <- function(app, ..., session = transport_session()) {
   replies
 }
 
+# The block registry of an app that serve() returned, which serve() built for
+# the app and hands to the evaluator of each of its sessions.
+served_registry <- function(app) {
+  environment(app$serverFuncSource())[["registry"]]
+}
+
 # Runs the server function of an app that serve() returned as
 # `served_replies()` does, and gives what the app exports for end-to-end tests
 # once R has answered the messages, by name, as Shiny gives it in test mode.

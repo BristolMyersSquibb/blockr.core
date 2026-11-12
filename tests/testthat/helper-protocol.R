@@ -1376,5 +1376,5 @@ declared_fields <- function() {
     )
   )
 
-  loaded_reply(app_plugins(available_plugins()))
+  loaded_reply(plugins = app_plugins(available_plugins()))
 }

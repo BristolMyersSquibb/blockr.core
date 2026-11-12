@@ -1,22 +1,22 @@
 # What R tells the client about the packages it has loaded, in its reply to
-# `hello`, for neither side to edit: the block registry's entries, each with
-# the renderer of its class's outputs, where R serves the startup modules and
-# the modules that packages offer each other, the app's plugins, `plugins`,
-# each under the ID of its class with the class's name and version, as
-# `app_plugins()` gives them, the versions of the board options that packages
-# give them, the renderers that the app names for board options, and the
-# versions of the packages that all of these come from.
-# R loads no package for it: the app's script has loaded them, and loading
-# them filled the block registry, declared their modules and registered their
-# methods.
+# `hello`, for neither side to edit: the entries of the app's block registry,
+# `registry`, each with the renderer of its class's outputs, where R serves the
+# startup modules and the modules that packages offer each other, the app's
+# plugins, `plugins`, each under the ID of its class with the class's name and
+# version, as `app_plugins()` gives them, the versions of the board options
+# that packages give them, the renderers that the app names for board options,
+# and the versions of the packages that all of these come from.
+# R loads no package for it: `serve()` loaded the packages of the block
+# classes that the app offers, and the app's script the others, and loading
+# them declared their modules and registered their methods.
 # These are the properties `packages`, `block_registry`, `startup_modules`,
 # `modules`, `plugins`, `option_versions` and `renderers` of
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
 # reply's JSON.
 # Building them builds no block.
-loaded_reply <- function(plugins = list()) {
+loaded_reply <- function(registry = block_registry, plugins = list()) {
 
-  entries <- available_blocks()
+  entries <- registry_entries(registry)
   startup <- startup_modules()
   modules <- lapply(set_names(nm = list_modules()), get_module)
   renderers <- option_renderers()
@@ -24,7 +24,8 @@ loaded_reply <- function(plugins = list()) {
   coercions <- output_coercions()
   drawn <- lapply(entries, entry_renderer, coercions)
 
-  packages <- c(
+  # The packages that the reply's parts come from, whose versions it names
+  sources <- c(
     unlst(
       lapply(
         list(entries, startup, modules, renderers, drawn),
@@ -37,7 +38,7 @@ loaded_reply <- function(plugins = list()) {
   )
 
   list(
-    packages = package_versions(packages),
+    packages = package_versions(sources),
     block_registry = as_json_object(Map(registry_entry_reply, entries, drawn)),
     startup_modules = unname(lapply(startup, startup_module_reply)),
     modules = as_json_object(lapply(modules, declared_module_reply)),
