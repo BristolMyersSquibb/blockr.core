@@ -33,8 +33,9 @@ var classes = {
   // The board's page, which draws no background of its own, so that the
   // page's, which the browser draws in the page's theme, shows to its edges.
   page: "bc:text-gray-900 bc:dark:text-gray-100",
-  // What sits over the board, as a dialog or a menu does.
-  surface: "bc:bg-white bc:text-gray-900 bc:dark:bg-gray-900 bc:dark:text-gray-100",
+  // What sits over the board, as a dialog or a menu does,
+  // on the background that core's theme gives it, bg-raised.
+  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
   card: "bc:bg-bg-subtle",
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"

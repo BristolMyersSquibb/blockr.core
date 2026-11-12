@@ -223,9 +223,11 @@
   The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.
   The page that R serves resolves those imports through an import map, to the files that the package ships, so that a module's bundle holds none of React or of core's code, and every module runs the one copy of each that the blockr.core it runs on ships (#495).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a frontend sets them.
+  What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
+  Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   The board option `dark_mode` switches the page's theme in the attribute `data-bs-theme` of its root element, which Bootstrap reads too, and `n_rows` takes one row at least.
-  A board option's definition in the client holds its UI module and what a new value does on the page, and the host of a renderer gives it the board option values that its output was asked with (#439).
+  A board option's definition in the client holds its UI module and what a new value does on the page, and the host of a renderer gives it the board option values that its output was asked with (#439, #571).
 * Core's built-in blocks have their UIs, one module each, written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   The most rows that the head block's number input takes come from the request `n_max`, and the merge block's columns to join by from the request `shared`, while the modules of the static, fixed and row-bind blocks draw nothing.
   Each module ships the JSON Schema of its block's state beside it, which the build writes from the module's type of the state.

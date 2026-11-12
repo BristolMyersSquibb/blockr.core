@@ -10,7 +10,7 @@ import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
-import { labelled, optionOf, optionsOf } from "../../testing/combobox.ts";
+import { labelled, listOf, optionOf, optionsOf } from "../../testing/combobox.ts";
 import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
 import { pluginUi, registering } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
@@ -481,6 +481,35 @@ describe("a card's block before", () => {
     expect(dialog(el).textContent).toContain('Every input of "Merge" takes a link already.');
     expect(button(dialog(el), "Add block").disabled).toBe(true);
     expect(added(board())).toEqual([]);
+  });
+});
+
+describe("what floats over the board", () => {
+  // The backgrounds that an element draws in the page's theme and under the
+  // dark theme, those of its hover and of a dialog's backdrop aside.
+  const backgrounds = (el: Element): string[] => el.className.split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
+
+  test("is drawn on the background that core's theme gives it: a card's menu, the dialogs and the list of a searchable dropdown", async () => {
+    const { el, settled } = await drawn();
+
+    await click(find(card(el, "Head"), 'button[aria-label="Actions of Head"]'));
+    expect(backgrounds(find(card(el, "Head"), '[role="menu"]'))).toEqual(["bc:bg-bg-raised"]);
+
+    await click(button(card(el, "Head"), "Add block after"));
+    expect(backgrounds(dialog(el))).toEqual(["bc:bg-bg-raised"]);
+    const classes = labelled(dialog(el), "Block class");
+    await step(() => {
+      classes.click();
+    });
+    const list = listOf(classes);
+    expect(list).not.toBeNull();
+    expect(list === null ? [] : backgrounds(list)).toEqual(["bc:bg-bg-raised"]);
+    await click(button(dialog(el), "Close"));
+
+    await click(button(el, "Options"));
+    await settled();
+    expect(find(dialog(el), "h2").textContent).toBe("Board options");
+    expect(backgrounds(dialog(el))).toEqual(["bc:bg-bg-raised"]);
   });
 });
 
