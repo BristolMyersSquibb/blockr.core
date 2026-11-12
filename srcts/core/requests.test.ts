@@ -3,10 +3,11 @@
 // a scheduler whose evaluations and replies the test gives.
 
 import { describe, expect, test } from "vitest";
-import type { Plugin, Reply } from "../protocol/index.ts";
+import type { Reply } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import { READY } from "../stubs/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
+import type { Plugin } from "../types/core-api.ts";
 import { RequestError } from "../mount/index.ts";
 import { pluginRequest } from "./index.ts";
 
@@ -18,9 +19,9 @@ const DOCUMENT = "blockr.md-md_plugin";
 
 // The app's plugins that run: blockr.code's, and blockr.md's document, by the
 // ids of their classes.
-const RUNNING: Readonly<Record<PluginClassId, Plugin>> = {
-  [CODE]: { name: "Code", version: 1 },
-  [DOCUMENT]: { name: "Document", version: 1 },
+const APP_PLUGINS: Readonly<Record<PluginClassId, Plugin>> = {
+  [CODE]: { name: "Code" },
+  [DOCUMENT]: { name: "Document" },
 };
 
 // The plugins above, which run, and a scheduler that holds the blocks a and b
@@ -45,7 +46,7 @@ function setup(replies: Reply[], statuses: Record<BlockId, BlockStatus> = { a: R
       return Promise.resolve({ reply, body: null });
     },
   };
-  const plugins = { running: () => RUNNING };
+  const plugins = { appPlugins: () => APP_PLUGINS };
   return { deps: { plugins, scheduler }, sent, options, evaluated };
 }
 

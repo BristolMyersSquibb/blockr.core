@@ -31,12 +31,12 @@
 
 import { attempt, ModuleError, mountableModule, onAbort, REPLACED, showError } from "../mount/index.ts";
 import type { Loader, Mounts } from "../mount/index.ts";
-import type { Plugin } from "../protocol/index.ts";
+import type { PluginEntry } from "../protocol/index.ts";
 import { coreStorage } from "../storage/index.ts";
 import { inRole } from "../store/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, PluginModule } from "../types/core-api.ts";
+import type { CoreApi, Plugin, PluginModule } from "../types/core-api.ts";
 import { errorMessage, own, packageFromId, report } from "../util/index.ts";
 
 // The classes of core's own plugins, which core registers as it starts, before
@@ -81,7 +81,7 @@ export interface Frontend {
 // CoreApi that reach them, and what starts them, which core calls as the board
 // opens.
 export interface RunningPlugins {
-  running(): Readonly<Record<PluginClassId, Plugin>>;
+  appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
   pluginClass(plugin: PluginClassId): PluginClass;
   storage(): Storage | undefined;
   mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
@@ -101,7 +101,7 @@ export interface RunningDeps {
   // returns.
   readonly core: () => CoreApi;
   // The app's plugins, from R's reply to `hello`, by the ids of their classes.
-  readonly plugins: Readonly<Record<PluginClassId, Plugin>>;
+  readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
   // Aborts as the next board opens, which ends what core runs for the plugins.
   readonly signal?: AbortSignal;
 }
@@ -131,7 +131,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
   }
 
   function opened(): void {
-    for (const id of Object.keys(running())) {
+    for (const id of Object.keys(appPlugins())) {
       const def = registeredClass(id);
       if (def?.options !== undefined) added.set(id, keep(def.options, `the plugin class "${id}"`));
     }
@@ -145,41 +145,43 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     for (const stop of stops.splice(0)) stop();
   });
 
-  // The plugins that run, as running() last gave them, with the classes that
-  // it gave them from.
+  // The plugins that run, as appPlugins() last gave them, with the classes
+  // that it gave them from.
   let memo:
     | {
         readonly classes: Readonly<Record<PluginClassId, PluginClass>>;
-        readonly running: Readonly<Record<PluginClassId, Plugin>>;
+        readonly plugins: Readonly<Record<PluginClassId, Plugin>>;
       }
     | undefined;
 
-  // The app's plugins whose classes a package registers, which run once the
-  // store has opened a board, since every package registers its classes
-  // before.
-  function running(): Readonly<Record<PluginClassId, Plugin>> {
+  // The app's plugins whose classes a package registers, each with its name
+  // alone, which run once the store has opened a board, since every package
+  // registers its classes before.
+  function appPlugins(): Readonly<Record<PluginClassId, Plugin>> {
     if (!store.hasBoard()) return NONE;
     const classes = store.plugins.registered();
     if (memo?.classes !== classes) {
-      const kept = Object.entries(deps.plugins).filter(([id]) => Object.hasOwn(classes, id));
-      memo = { classes, running: Object.freeze(Object.fromEntries(kept)) };
+      const registered = Object.entries(deps.plugins).flatMap(([id, { name }]) =>
+        Object.hasOwn(classes, id) ? [[id, Object.freeze({ name })] as const] : [],
+      );
+      memo = { classes, plugins: Object.freeze(Object.fromEntries(registered)) };
     }
-    return memo.running;
+    return memo.plugins;
   }
 
   function pluginClass(plugin: PluginClassId): PluginClass {
-    const def = Object.hasOwn(running(), plugin) ? registeredClass(plugin) : undefined;
+    const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : undefined;
     if (def === undefined) throw new Error(`The app runs no plugin "${plugin}" on the open board.`);
     return def;
   }
 
   function storage(): Storage | undefined {
-    const [id] = inRole(running(), registeredClass, "storage");
+    const [id] = inRole(appPlugins(), registeredClass, "storage");
     return id === undefined ? undefined : pluginClass(id).storage;
   }
 
   function frontend(): Frontend | undefined {
-    const [id] = inRole(running(), registeredClass, "frontend");
+    const [id] = inRole(appPlugins(), registeredClass, "frontend");
     const module = id === undefined ? undefined : pluginClass(id).frontend;
     if (id === undefined || module === undefined) return undefined;
     return { module, plugin: id, added: added.get(id) ?? NOTHING_FAILED };
@@ -189,7 +191,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
   async function start(): Promise<void> {
     if (started) return;
     started = true;
-    const starting = Object.keys(running()).flatMap((id) => {
+    const starting = Object.keys(appPlugins()).flatMap((id) => {
       const def = registeredClass(id);
       return def?.start === undefined ? [] : [{ id, def }];
     });
@@ -307,5 +309,5 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     return end;
   }
 
-  return { running, pluginClass, storage, mountPlugin, frontend, start };
+  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start };
 }

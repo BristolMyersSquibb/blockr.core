@@ -465,7 +465,7 @@ describe("starting the page", () => {
       "blockr.notes-todo_plugin": { text: "Call back" },
       "blockr.notes-done_plugin": { text: "" },
     });
-    expect(Object.keys(core.plugins.running())).toEqual([
+    expect(Object.keys(core.plugins.appPlugins())).toEqual([
       BASIC_FRONTEND,
       FILE_STORAGE,
       "blockr.notes-todo_plugin",
@@ -1384,7 +1384,7 @@ describe("a block that serve() serves alone", () => {
     expect(s.imported).toEqual(["blockr.session/startup.js?v=1"]);
     // R names no plugin for a block served alone, so none runs, core's own
     // included, though core registers their classes.
-    expect(core.plugins.running()).toEqual({});
+    expect(core.plugins.appPlugins()).toEqual({});
     expect(core.plugins.storage()).toBeUndefined();
 
     // The scheduler sends what the card demands, naming the input that R binds

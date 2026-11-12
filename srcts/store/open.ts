@@ -40,7 +40,7 @@ import { check } from "./check.ts";
 import { commit } from "./commit.ts";
 import { StoreError } from "./error.ts";
 import { expand } from "./expand.ts";
-import { appPlugins, droppedPlugins, keptPlugins } from "./plugins.ts";
+import { droppedPlugins, keptPlugins, pluginsWithDefaults } from "./plugins.ts";
 import type { Registrations } from "./registrations.ts";
 
 // The highest format of a JSON board that this client reads and writes.
@@ -316,7 +316,7 @@ export function openJsonBoard(
   const options: Dropped[] = unclaimed.map((id) => ({ option: id }));
 
   const kept = remove({ ...migrated, options: without(migrated.options, unclaimed) }, gone, registrations);
-  const board: Board = { ...kept, plugins: appPlugins(kept.plugins, reply.plugins, registeredClass) };
+  const board: Board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
 
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);

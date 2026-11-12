@@ -87,7 +87,7 @@ export interface HelloReply {
   // The app's plugins, which run on every board that the app opens, each
   // under the id of its class, in the order of the rows that `serve()` takes,
   // and none for a block that `serve()` serves alone.
-  plugins: Record<PluginClassId, Plugin>;
+  plugins: Record<PluginClassId, PluginEntry>;
   // The version of the shape of each board option's value that a loaded
   // package gives one through its method of R's `board_option_version()`, by
   // the board option's id. A board option that it lacks is at version 1.
@@ -109,7 +109,7 @@ export interface HelloReply {
 // the name of its class, which titles its panel, as "Document", and the
 // version of its class's state, which the class's method of R's
 // `plugin_version()` gives, 1 for a class without one.
-export interface Plugin {
+export interface PluginEntry {
   name: string;
   version: number;
 }

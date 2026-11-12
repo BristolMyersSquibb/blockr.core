@@ -53,7 +53,7 @@ export type {
   Rendered,
   State,
 } from "./types/hosts.ts";
-export type { BlockRegistry, CoreApi, Note, OutputEvents, PluginModule, RequestOpts } from "./types/core-api.ts";
+export type { BlockRegistry, CoreApi, Note, OutputEvents, Plugin, PluginModule, RequestOpts } from "./types/core-api.ts";
 export type {
   Change,
   Delta,
@@ -71,5 +71,5 @@ export type {
 } from "./store/index.ts";
 export type { Command, CommandError, Commands } from "./commands/index.ts";
 export type { BlockStatus, Demand, Scheduler, Status } from "./scheduler/index.ts";
-export type { Condition, Lock, OutputInfo, Phase, Plugin } from "./protocol/index.ts";
+export type { Condition, Lock, OutputInfo, Phase } from "./protocol/index.ts";
 export type { ModuleError, RequestError } from "./mount/index.ts";

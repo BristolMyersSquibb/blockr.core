@@ -1,6 +1,6 @@
 import type { Commands } from "../commands/index.ts";
 import type { Loader, Measure } from "../mount/index.ts";
-import type { Lock, Plugin, Renderer } from "../protocol/index.ts";
+import type { Lock, PluginEntry, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
@@ -15,7 +15,7 @@ export interface CoreParts {
     readonly blockrOptions: BlockrOptions;
     readonly lock: Lock;
     readonly renderers: () => Readonly<Record<string, Renderer>>;
-    readonly plugins: Readonly<Record<PluginClassId, Plugin>>;
+    readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
     readonly measure?: Measure;
     readonly signal?: AbortSignal;
 }

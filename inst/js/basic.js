@@ -945,7 +945,7 @@ function byCategory(entries) {
 import { useCallback as useCallback6 } from "react";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 function placed(core) {
-  return Object.entries(core.plugins.running()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
+  return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
 }
 function Plugins() {
   const { core } = useFrontEnd();

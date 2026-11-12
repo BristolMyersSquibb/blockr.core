@@ -24,7 +24,7 @@
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
-import type { Lock, Plugin, Renderer } from "../protocol/index.ts";
+import type { Lock, PluginEntry, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
@@ -51,7 +51,7 @@ export interface CoreParts {
   readonly renderers: () => Readonly<Record<string, Renderer>>;
   // The app's plugins, which run on the board, from the reply to `hello` that
   // core starts with for it, by the ids of their classes.
-  readonly plugins: Readonly<Record<PluginClassId, Plugin>>;
+  readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
   // Ends what CoreApi runs as it aborts, as another board opens: every mount,
@@ -141,7 +141,7 @@ export function createCore(parts: CoreParts): Core {
     },
     plugins: {
       register: (def) => store.plugins.register(def),
-      running: () => plugins.running(),
+      appPlugins: () => plugins.appPlugins(),
       pluginClass: (plugin) => plugins.pluginClass(plugin),
       storage: () => plugins.storage(),
     },

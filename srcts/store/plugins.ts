@@ -3,7 +3,7 @@
 // the id of its class: which of them is a frontend or a storage plugin, and the
 // state that the board holds for each of them as it opens.
 
-import type { Plugin } from "../protocol/index.ts";
+import type { PluginEntry } from "../protocol/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import { frozenCopy, own } from "../util/index.ts";
@@ -28,7 +28,7 @@ export function inRole(
 // class a package registers and has `state`.
 export function keptPlugins(
   board: Readonly<Record<PluginClassId, unknown>>,
-  app: Readonly<Record<PluginClassId, Plugin>>,
+  app: Readonly<Record<PluginClassId, PluginEntry>>,
   registeredClass: (id: PluginClassId) => PluginClass | undefined,
 ): Record<PluginClassId, Json> {
   return Object.fromEntries(
@@ -45,7 +45,7 @@ export function keptPlugins(
 // whose class keeps none goes too, unnamed, since the plugin runs all the same.
 export function droppedPlugins(
   board: Readonly<Record<PluginClassId, unknown>>,
-  app: Readonly<Record<PluginClassId, Plugin>>,
+  app: Readonly<Record<PluginClassId, PluginEntry>>,
   registeredClass: (id: PluginClassId) => PluginClass | undefined,
 ): PluginClassId[] {
   return Object.keys(board).filter((id) => !Object.hasOwn(app, id) || registeredClass(id) === undefined);
@@ -55,9 +55,9 @@ export function droppedPlugins(
 // their classes, in the order of the app's plugins: for each of the app's
 // plugins whose class a package registers and has `state`, the state that the
 // board keeps of it, and else its class's default state.
-export function appPlugins(
+export function pluginsWithDefaults(
   kept: Readonly<Record<PluginClassId, Json>>,
-  app: Readonly<Record<PluginClassId, Plugin>>,
+  app: Readonly<Record<PluginClassId, PluginEntry>>,
   registeredClass: (id: PluginClassId) => PluginClass | undefined,
 ): Record<PluginClassId, Json> {
   const plugins: Record<PluginClassId, Json> = {};

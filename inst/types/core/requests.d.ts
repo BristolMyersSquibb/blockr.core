@@ -4,7 +4,7 @@ import type { RequestOpts } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RunningPlugins } from "./plugins.ts";
 export interface PluginRequestDeps {
-    readonly plugins: Pick<RunningPlugins, "running">;
+    readonly plugins: Pick<RunningPlugins, "appPlugins">;
     readonly scheduler: Pick<Scheduler, "evaluate" | "request" | "status">;
 }
 export declare function pluginRequest(deps: PluginRequestDeps, plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>>, opts: RequestOpts): Promise<Json | Blob>;

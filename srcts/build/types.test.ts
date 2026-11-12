@@ -222,10 +222,10 @@ export const api = 1;
 const notes: PluginModule = {
   render({ el, core, plugin, signal }) {
     const draw = (): void => {
-      el.textContent = core.plugins.running()[plugin]?.name ?? "";
+      el.textContent = core.plugins.appPlugins()[plugin]?.name ?? "";
     };
     draw();
-    const others = Object.keys(core.plugins.running()).filter(
+    const others = Object.keys(core.plugins.appPlugins()).filter(
       (id) => id !== plugin && core.plugins.pluginClass(id).ui !== undefined,
     );
     const ends = others.map((id) => core.mountPlugin(el.appendChild(document.createElement("section")), id));

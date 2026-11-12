@@ -39,14 +39,14 @@ export interface HelloReply {
         module: string;
         css?: string;
     }>;
-    plugins: Record<PluginClassId, Plugin>;
+    plugins: Record<PluginClassId, PluginEntry>;
     option_versions: Record<OptionId, number>;
     renderers: Record<string, Renderer>;
     lock: Lock;
     board: JsonBoard;
     bound?: string[];
 }
-export interface Plugin {
+export interface PluginEntry {
     name: string;
     version: number;
 }

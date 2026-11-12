@@ -8,7 +8,7 @@
 // module of a plugin, which gets CoreApi.
 
 import type { Commands } from "../commands/index.ts";
-import type { Lock, Plugin } from "../protocol/index.ts";
+import type { Lock } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, OptionId, PluginClassId, RegistryId } from "./board.ts";
@@ -46,7 +46,7 @@ export interface CoreApi {
     // classes, each with its class's name, as R's reply to `hello` names
     // them. It returns the same object until the registered classes change,
     // and an empty one while no board is open.
-    running(): Readonly<Record<PluginClassId, Plugin>>;
+    appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
     // The definition of the class of a plugin that runs. It throws for a
     // plugin that the app does not run.
     pluginClass(plugin: PluginClassId): PluginClass;
@@ -108,6 +108,12 @@ export interface CoreApi {
   // the cleanup that the call returns runs. It throws for a plugin that the
   // app does not run, or whose class has no `ui`.
   mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
+}
+
+// One of the app's plugins, as appPlugins() gives it under the id of its
+// class: the name of its class, which titles its panel, as "Document".
+export interface Plugin {
+  readonly name: string;
 }
 
 // A note that a plugin sends, which the frontend draws.

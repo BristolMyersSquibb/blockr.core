@@ -6737,7 +6737,7 @@ function keptPlugins(board, app, registeredClass) {
 function droppedPlugins(board, app, registeredClass) {
   return Object.keys(board).filter((id2) => !Object.hasOwn(app, id2) || registeredClass(id2) === void 0);
 }
-function appPlugins(kept, app, registeredClass) {
+function pluginsWithDefaults(kept, app, registeredClass) {
   const plugins = {};
   for (const id2 of Object.keys(app)) {
     const state2 = registeredClass(id2)?.state;
@@ -6922,7 +6922,7 @@ function openJsonBoard(json, reply, registrations) {
   const unclaimed = Object.keys(migrated2.options).filter((id2) => registrations.option(id2) === void 0);
   const options = unclaimed.map((id2) => ({ option: id2 }));
   const kept = remove({ ...migrated2, options: without(migrated2.options, unclaimed) }, gone, registrations);
-  const board = { ...kept, plugins: appPlugins(kept.plugins, reply.plugins, registeredClass) };
+  const board = { ...kept, plugins: pluginsWithDefaults(kept.plugins, reply.plugins, registeredClass) };
   const failures = check(board, reply.block_registry, registrations);
   if (failures.length > 0) throw new StoreError(refused, failures);
   const packages = Object.entries(json.packages).filter(([pkg]) => own(reply.packages, pkg) === void 0).map(([pkg, version]) => ({ package: pkg, version }));
@@ -7432,7 +7432,7 @@ function runPlugins(deps) {
     return kept.added;
   }
   function opened() {
-    for (const id2 of Object.keys(running2())) {
+    for (const id2 of Object.keys(appPlugins())) {
       const def = registeredClass(id2);
       if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${id2}"`));
     }
@@ -7445,26 +7445,28 @@ function runPlugins(deps) {
     for (const stop of stops.splice(0)) stop();
   });
   let memo;
-  function running2() {
+  function appPlugins() {
     if (!store.hasBoard()) return NONE;
     const classes = store.plugins.registered();
     if (memo?.classes !== classes) {
-      const kept = Object.entries(deps.plugins).filter(([id2]) => Object.hasOwn(classes, id2));
-      memo = { classes, running: Object.freeze(Object.fromEntries(kept)) };
+      const registered = Object.entries(deps.plugins).flatMap(
+        ([id2, { name: name2 }]) => Object.hasOwn(classes, id2) ? [[id2, Object.freeze({ name: name2 })]] : []
+      );
+      memo = { classes, plugins: Object.freeze(Object.fromEntries(registered)) };
     }
-    return memo.running;
+    return memo.plugins;
   }
   function pluginClass(plugin) {
-    const def = Object.hasOwn(running2(), plugin) ? registeredClass(plugin) : void 0;
+    const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : void 0;
     if (def === void 0) throw new Error(`The app runs no plugin "${plugin}" on the open board.`);
     return def;
   }
   function storage() {
-    const [id2] = inRole(running2(), registeredClass, "storage");
+    const [id2] = inRole(appPlugins(), registeredClass, "storage");
     return id2 === void 0 ? void 0 : pluginClass(id2).storage;
   }
   function frontend() {
-    const [id2] = inRole(running2(), registeredClass, "frontend");
+    const [id2] = inRole(appPlugins(), registeredClass, "frontend");
     const module = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
     if (id2 === void 0 || module === void 0) return void 0;
     return { module, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
@@ -7473,7 +7475,7 @@ function runPlugins(deps) {
   async function start2() {
     if (started) return;
     started = true;
-    const starting = Object.keys(running2()).flatMap((id2) => {
+    const starting = Object.keys(appPlugins()).flatMap((id2) => {
       const def = registeredClass(id2);
       return def?.start === void 0 ? [] : [{ id: id2, def }];
     });
@@ -7570,7 +7572,7 @@ function runPlugins(deps) {
     })();
     return end;
   }
-  return { running: running2, pluginClass, storage, mountPlugin, frontend, start: start2 };
+  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start: start2 };
 }
 
 // srcts/core/requests.ts
@@ -7579,7 +7581,7 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
   if (typeof plugin !== "string" || plugin === "") {
     throw new TypeError("A plugin's request names the plugin by the id of its class, a non-empty string.");
   }
-  if (!Object.hasOwn(deps.plugins.running(), plugin)) {
+  if (!Object.hasOwn(deps.plugins.appPlugins(), plugin)) {
     throw new Error(`The app runs no plugin "${plugin}" on the open board, so its request did not go to R.`);
   }
   if (typeof name2 !== "string" || name2 === "") {
@@ -7713,7 +7715,7 @@ function createCore(parts) {
     },
     plugins: {
       register: (def) => store.plugins.register(def),
-      running: () => plugins.running(),
+      appPlugins: () => plugins.appPlugins(),
       pluginClass: (plugin) => plugins.pluginClass(plugin),
       storage: () => plugins.storage()
     },
@@ -8940,7 +8942,7 @@ function helloError(reply) {
   return void 0;
 }
 function noFrontend(reply, core) {
-  const missing2 = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.running(), id2));
+  const missing2 = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
   const why = missing2.length === 0 ? "none of the app's plugins is a frontend" : `no package registered the ${missing2.length === 1 ? "class" : "classes"} of the app's ${missing2.length === 1 ? "plugin" : "plugins"} ${quoted(missing2)}`;
   return `The app runs no frontend that draws the board, since ${why}.`;
 }

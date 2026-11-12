@@ -27,7 +27,7 @@ import type { RunningPlugins } from "./plugins.ts";
 const ATTEMPTS = 3;
 
 export interface PluginRequestDeps {
-  readonly plugins: Pick<RunningPlugins, "running">;
+  readonly plugins: Pick<RunningPlugins, "appPlugins">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "request" | "status">;
 }
 
@@ -44,7 +44,7 @@ export async function pluginRequest(
   if (typeof plugin !== "string" || plugin === "") {
     throw new TypeError("A plugin's request names the plugin by the id of its class, a non-empty string.");
   }
-  if (!Object.hasOwn(deps.plugins.running(), plugin)) {
+  if (!Object.hasOwn(deps.plugins.appPlugins(), plugin)) {
     throw new Error(`The app runs no plugin "${plugin}" on the open board, so its request did not go to R.`);
   }
   if (typeof name !== "string" || name === "") {

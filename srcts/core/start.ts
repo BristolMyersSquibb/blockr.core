@@ -595,7 +595,7 @@ function helloError(reply: Reply): Error | undefined {
 // Why the app runs no frontend, which the page shows in place of the board: no
 // plugin that the reply names is a frontend whose class a package registered.
 function noFrontend(reply: HelloReply, core: CoreApi): string {
-  const missing = Object.keys(reply.plugins).filter((id) => !Object.hasOwn(core.plugins.running(), id));
+  const missing = Object.keys(reply.plugins).filter((id) => !Object.hasOwn(core.plugins.appPlugins(), id));
   const why =
     missing.length === 0
       ? "none of the app's plugins is a frontend"

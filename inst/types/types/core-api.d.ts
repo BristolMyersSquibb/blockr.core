@@ -1,5 +1,5 @@
 import type { Commands } from "../commands/index.ts";
-import type { Lock, Plugin } from "../protocol/index.ts";
+import type { Lock } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, OptionId, PluginClassId, RegistryId } from "./board.ts";
@@ -16,7 +16,7 @@ export interface CoreApi {
     };
     readonly plugins: {
         register(def: PluginClass): () => void;
-        running(): Readonly<Record<PluginClassId, Plugin>>;
+        appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
         pluginClass(plugin: PluginClassId): PluginClass;
         storage(): Storage | undefined;
     };
@@ -38,6 +38,9 @@ export interface CoreApi {
     mountOutput(el: HTMLElement, block: BlockId): () => void;
     mountOption(el: HTMLElement, option: OptionId): () => void;
     mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
+}
+export interface Plugin {
+    readonly name: string;
 }
 export interface Note {
     readonly message: string;

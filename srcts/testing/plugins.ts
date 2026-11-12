@@ -33,7 +33,7 @@ export function pluginUi() {
       default: {
         render(args: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }) {
           renders.push(args);
-          args.el.textContent = args.core.plugins.running()[args.plugin]?.name ?? "";
+          args.el.textContent = args.core.plugins.appPlugins()[args.plugin]?.name ?? "";
           return () => {
             cleanups++;
           };
