@@ -60,9 +60,9 @@ serve(
 )
 ```
 
-The `serve()` of version 0.2 refuses an ID.
-A script that passes `id = "my_board"` gets an error that says that `new_board()` takes the ID.
-A script that passes the ID second and unnamed, as above, gets an error about an unnamed argument.
+The `serve()` of version 0.2 takes no ID.
+It hands every argument that it does not take itself to the app's frontend, which refuses those that it does not know.
+So a script that passes `id = "my_board"`, or passes the ID second and unnamed as above, gets an error that names the app's frontend.
 A board without an ID gets one drawn at random, such as `calm_heron`, and a board without a name is named after its ID, as "Calm heron".
 
 ## The app's plugins
@@ -250,7 +250,7 @@ Five board options of version 0.1 are gone, with their constructors:
 | `new_llm_model_option()` | The assistant of blockr.assistant, whose migration notes say how |
 
 In version 0.1, `serve()` also takes board options, through `custom_options()`.
-In version 0.2, it refuses `options`, with an error that names `new_board()`, which takes the values instead.
+In version 0.2, it takes no `options`, and `new_board()` takes the values instead.
 Gone with it are `custom_options()` and `blockr_app_options()`.
 
 ## Blockr options

@@ -44,11 +44,8 @@
 #' naming the class.
 #' A block that `serve()` serves alone runs no plugin.
 #'
-#' The methods for a board and for a path refuse an unnamed argument, and
-#' `id`, `options` and `loader`, which `serve()` took before blockr.core 0.2.0,
-#' with an error that says where each went.
-#' The methods hand every other argument in `...` to the app's frontend, by
-#' name, as the dock takes the items of its bar in `navbar`.
+#' The methods for a board and for a path hand every argument in `...` to the
+#' app's frontend, as the dock takes the items of its bar in `navbar`.
 #' As `serve()` is called, R hands them to the method of [frontend_args()] for
 #' the class of the app's frontend.
 #' The method refuses each argument that the frontend does not know, naming
@@ -116,8 +113,8 @@
 #'
 #' @param x A board, the path of a JSON board, or a block
 #' @param ... For a board or the path of a JSON board, the arguments of the
-#'   app's frontend, by name, which R hands to the method of [frontend_args()]
-#'   for the frontend's class.
+#'   app's frontend, which R hands to the method of [frontend_args()] for the
+#'   frontend's class.
 #'   For a block, its data where `data` is empty.
 #'   R ignores it otherwise, with a warning.
 #' @param blocks The block classes that the app offers, as rows with the
@@ -160,7 +157,6 @@ serve <- function(x, ...) {
 #' @export
 serve.board <- function(x, ..., blocks = available_blocks(),
                         plugins = available_plugins()) {
-  check_board_args(substitute(list(...)), "a board")
   plugins <- app_plugins(plugins)
   check_board_plugins(x, plugins)
   registry <- app_block_registry(blocks, x)
@@ -177,7 +173,6 @@ serve.board <- function(x, ..., blocks = available_blocks(),
 #' @export
 serve.character <- function(x, ..., blocks = available_blocks(),
                             plugins = available_plugins()) {
-  check_board_args(substitute(list(...)), "the path of a JSON board")
   plugins <- app_plugins(plugins)
   registry <- app_block_registry(blocks)
   frontend <- frontend_reply(..., plugins = plugins)
@@ -467,49 +462,6 @@ page_script <- function(runtime, alone = FALSE, test = NULL) {
         "window.blockrTest = blockrTest(() => started.core());\n"
       )
     }
-  )
-}
-
-# Refuses three arguments that the methods of `serve()` for a board and for
-# the path of a JSON board took before blockr.core 0.2.0, `id`, `options` and
-# `loader`, and any unnamed argument. The methods hand every other argument in
-# `...` to the app's frontend, by name.
-# A script written for blockr.core 0.1 passed the board's ID unnamed, as in
-# `serve(board, "my_id")`.
-# The arguments come as the call `list(...)`, unevaluated, so that one that
-# names something gone, such as `local_loader()`, fails here too.
-# The error says where each of them went.
-check_board_args <- function(args, what) {
-
-  nms <- dots_names(args)
-
-  moved <- c(
-    id = "A board holds its ID, which `new_board()` takes as `id`.",
-    options = paste(
-      "A board holds the values of its board options, which `new_board()`",
-      "takes as `options`."
-    ),
-    loader = "The client opens and saves boards itself, with no loader."
-  )
-
-  refused <- nms[!nzchar(nms) | nms %in% names(moved)]
-
-  if (!length(refused)) {
-    return(invisible())
-  }
-
-  went <- c(
-    moved[intersect(names(moved), refused)],
-    if (!all(nzchar(refused))) {
-      "R hands every other argument to the app's frontend, by name."
-    }
-  )
-
-  blockr_abort(
-    "For {what}, `serve()` takes no `id`, `options` or `loader`, and no ",
-    "unnamed argument. It was given {arg_labels(refused)}. ",
-    paste(went, collapse = " "),
-    class = "serve_args_invalid"
   )
 }
 

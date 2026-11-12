@@ -138,8 +138,8 @@ The app's frontend may take arguments of \code{\link[=serve]{serve()}}, as the d
 items of its bar in \code{navbar}, through its class's method of
 \code{frontend_args()}.
 As \code{serve()} is called, R calls the method on the plugin that the
-frontend's constructor makes, with the arguments in the \code{...} of \code{serve()}
-that \code{serve()} does not refuse itself.
+frontend's constructor makes, with every argument in the \code{...} of
+\code{serve()}.
 The method takes the arguments that the frontend knows and refuses the
 rest, naming the frontend.
 It returns what the frontend reads of them, as a list by name.

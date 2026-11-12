@@ -72,8 +72,8 @@
 #' items of its bar in `navbar`, through its class's method of
 #' `frontend_args()`.
 #' As `serve()` is called, R calls the method on the plugin that the
-#' frontend's constructor makes, with the arguments in the `...` of `serve()`
-#' that `serve()` does not refuse itself.
+#' frontend's constructor makes, with every argument in the `...` of
+#' `serve()`.
 #' The method takes the arguments that the frontend knows and refuses the
 #' rest, naming the frontend.
 #' It returns what the frontend reads of them, as a list by name.
