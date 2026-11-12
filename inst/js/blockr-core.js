@@ -8078,7 +8078,7 @@ function coreCommands(store, options = {}) {
     command({
       id: "blockr.core-change_link",
       label: "Change link",
-      description: "Changes the block a link comes from, the block it goes to or the input it feeds, keeping its id.",
+      description: "Changes the block a link comes from, the block it goes to or the input it feeds, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y.",
       args: object(
         {
           id: linkId,
@@ -8086,7 +8086,7 @@ function coreCommands(store, options = {}) {
           to: { ...blockId, description: "The block that takes the result." },
           input: {
             ...input,
-            description: "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic."
+            description: "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic. Where the link keeps its block, an input that another link feeds swaps the inputs of the two links."
           }
         },
         ["id"]
@@ -8097,7 +8097,9 @@ function coreCommands(store, options = {}) {
         if (link === void 0) return [];
         const to = args.to ?? link.to;
         const input2 = args.input === void 0 && to === link.to ? link.input : linkInput(this.id, board2, to, args.input, args.id);
-        return { links: { mod: { [args.id]: { from: args.from ?? link.from, to, input: input2 } } } };
+        const changed = { [args.id]: { from: args.from ?? link.from, to, input: input2 } };
+        const other = to === link.to ? linkFeeding(board2, store.blockRegistry(), to, input2, args.id) : void 0;
+        return { links: { mod: other === void 0 ? changed : { ...changed, [other]: { input: link.input } } } };
       }
     }),
     command({
@@ -8275,6 +8277,12 @@ function freeInputs(board, registry, to, except) {
     Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
   );
   return inputs.filter((input2) => !fed.has(input2));
+}
+function linkFeeding(board, registry, to, input2, except) {
+  const block = own(board.blocks, to);
+  const inputs = block === void 0 ? void 0 : own(registry, block.registry_id)?.inputs;
+  if (inputs === void 0 || inputs.includes("...")) return void 0;
+  return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
 }
 function defaultBlockName(registryId2) {
   const pkg = packageFromId(registryId2);

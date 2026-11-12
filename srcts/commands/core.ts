@@ -371,7 +371,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       id: "blockr.core-change_link",
       label: "Change link",
       description:
-        "Changes the block a link comes from, the block it goes to or the input it feeds, keeping its id.",
+        "Changes the block a link comes from, the block it goes to or the input it feeds, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y.",
       args: object(
         {
           id: schemas.linkId,
@@ -380,7 +380,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
           input: {
             ...schemas.input,
             description:
-              "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic.",
+              "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic. Where the link keeps its block, an input that another link feeds swaps the inputs of the two links.",
           },
         },
         ["id"],
@@ -394,7 +394,13 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
           args.input === undefined && to === link.to
             ? link.input
             : linkInput(this.id, board, to, args.input, args.id);
-        return { links: { mod: { [args.id]: { from: args.from ?? link.from, to, input } } } };
+        const changed = { [args.id]: { from: args.from ?? link.from, to, input } };
+        // Where another link into the block feeds the input, that link takes
+        // the link's old input in the same delta. The store checks the board
+        // that the delta leaves, so it takes the swap, and one undo takes it
+        // back.
+        const other = to === link.to ? linkFeeding(board, store.blockRegistry(), to, input, args.id) : undefined;
+        return { links: { mod: other === undefined ? changed : { ...changed, [other]: { input: link.input } } } };
       },
     }),
     command<{ readonly id: LinkId; readonly before?: LinkId }>({
@@ -605,6 +611,25 @@ export function freeInputs(
       .map(([, link]) => link.input),
   );
   return inputs.filter((input) => !fed.has(input));
+}
+
+// The link into block `to` that feeds the input given, other than the link
+// `except`. By it, change_link finds the link to swap inputs with, and a
+// frontend the link that a change would swap with. It is undefined where no
+// other link feeds the input. It is undefined for a variadic block as well,
+// since its links give their inputs names, or none, rather than feed the
+// inputs of its class.
+export function linkFeeding(
+  board: Pick<Board, "blocks" | "links">,
+  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  to: BlockId,
+  input: string,
+  except?: LinkId,
+): LinkId | undefined {
+  const block = own(board.blocks, to);
+  const inputs = block === undefined ? undefined : own(registry, block.registry_id)?.inputs;
+  if (inputs === undefined || inputs.includes("...")) return undefined;
+  return Object.entries(board.links).find(([id, link]) => id !== except && link.to === to && link.input === input)?.[0];
 }
 
 // The name of a new block, made as R makes one from its class, from the name
