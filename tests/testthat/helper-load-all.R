@@ -1,14 +1,15 @@
 # Loads the package regprobe with `pkgload::load_all()`, from a temporary
 # directory, until `frame` ends.
 # The package defines the block class probe_block, and lists it in its
-# `inst/registry/blocks.yml`.
+# `inst/registry/blocks.yml`, or with `registers`, ships no such file and
+# registers the class in the block registry of the process as it loads.
 # Beside it, it ships the class's module, a JSON Schema and the types of its
 # JS, each among the files of its `inst/`, which R installs at the package's
 # top, while `load_all()` leaves them under `inst/`.
 # So base R's `system.file()` finds none of them, since it looks in the
 # package's source directory.
 # Gives the package's source directory.
-local_load_all_package <- function(frame = parent.frame()) {
+local_load_all_package <- function(frame = parent.frame(), registers = FALSE) {
 
   testthat::skip_if_not_installed("pkgload")
 
@@ -45,6 +46,21 @@ local_load_all_package <- function(frame = parent.frame()) {
     `inst/schemas/probe.json` = "{\"type\": \"object\"}",
     `inst/types/package.json` = "{\"name\": \"@blockr/regprobe\"}"
   )
+
+  if (registers) {
+    files[["inst/registry/blocks.yml"]] <- NULL
+    files[["R/zzz.R"]] <- c(
+      ".onLoad <- function(libname, pkgname) {",
+      "  blockr.core::register_block(",
+      "    new_probe_block, \"Probe\", \"Probes the registry\", \"input\"",
+      "  )",
+      "}"
+    )
+    withr::defer(
+      unregister_blocks(intersect(list_blocks(), "regprobe-probe_block")),
+      envir = frame
+    )
+  }
 
   for (path in names(files)) {
     file <- file.path(pkg, path)

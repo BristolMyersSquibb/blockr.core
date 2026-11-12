@@ -8,8 +8,7 @@
 #' The app's server function hands what the client sends to the evaluator of
 #' the session, which evaluates the blocks.
 #'
-#' Which block classes an app offers is the app's choice, never a board's, and
-#' loading a package registers no block class.
+#' Which block classes an app offers is the app's choice, never a board's.
 #' Each method takes them in `blocks`, which defaults to every block class of
 #' every available package, as [available_blocks()] gives them.
 #' A script narrows them with plain R, as
@@ -18,7 +17,8 @@
 #' (see [register_block()]).
 #' As `serve()` is called, R loads the packages of these classes and builds the
 #' app's own block registry from them, from the classes that the app script
-#' registered (see [register_block()]) and from the board (below).
+#' defined and registered itself (see [register_block()]) and from the board
+#' (below).
 #' The app's sessions read that registry alone, so a later `serve()` or
 #' `register_block()` changes no app that `serve()` built before.
 #' A class that no available package lists stops the app, naming it.

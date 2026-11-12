@@ -21,15 +21,15 @@ block_registry <- new.env()
 #' The `registry_id_from_block()` function reads the registry id from a
 #' block's class, whether or not the block registry holds the class.
 #'
-#' Which block classes an app offers is the app's choice, and loading a package
-#' registers none.
+#' Which block classes an app offers is the app's choice.
 #' Each method of [serve()] takes them in `blocks`, which defaults to
 #' `available_blocks()`: a data frame with a row for each block class of each
 #' available package, with the class's package in `package` and its id in
 #' `id`.
 #' A package is available where it is installed and depends on blockr.core, or
 #' where `pkgload::load_all()` loaded it, and it lists block classes in its
-#' `inst/registry/blocks.yml`, which the [block_registration_roclet()] writes.
+#' `inst/registry/blocks.yml`, which the [block_registration_roclet()] writes,
+#' or where the block registry of the process holds a class of it (below).
 #' Reading the files loads no package.
 #' A script narrows the rows with plain R, as
 #' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
@@ -56,12 +56,17 @@ block_registry <- new.env()
 #' Each app holds a block registry of its own, which `serve()` builds as it is
 #' called, and which the app's sessions read alone.
 #' R loads the packages of the rows and registers their classes in it.
-#' An app script registers the block classes that it defines itself in the
-#' block registry of the R process, with `register_block()` or
-#' `register_blocks()`.
-#' Every app that the script serves after that holds them, whatever its
-#' `blocks`, and a class that the script registers under the registry id of a
-#' row's class takes that class's place.
+#' The block registry of the R process holds the classes that
+#' `register_block()` and `register_blocks()` register.
+#' A package that writes no `inst/registry/blocks.yml` registers its own
+#' classes there as it loads, and an app script may register a package's class
+#' there in place of the one that the package lists.
+#' Each class of a package that the process registry holds is a row of
+#' `available_blocks()`, as a class that a package lists is, and an app offers
+#' it where its rows hold it, from the process registry.
+#' A class that an app script defines itself records no package, so no row
+#' names it, and every app that the script serves after registering it holds
+#' it.
 #' So a later `serve()` or `register_block()` changes no app that `serve()`
 #' built before.
 #'
@@ -513,10 +518,31 @@ available_blocks <- function() {
 
   rows <- lapply(available_block_packages(), package_block_rows)
 
-  res <- do.call(rbind, c(list(block_rows()), rows))
+  res <- unique(
+    do.call(rbind, c(list(block_rows()), rows, list(registered_block_rows())))
+  )
   rownames(res) <- NULL
 
   res
+}
+
+# The block classes of packages that the block registry of the process holds,
+# as rows of `available_blocks()`.
+registered_block_rows <- function() {
+
+  entries <- Filter(function(x) not_null(x[["package"]]), registry_entries())
+
+  block_rows(
+    package = chr_xtr(entries, "package"),
+    id = chr_ply(entries, function(x) x[["block_class"]][["id"]])
+  )
+}
+
+# The entries of the block registry of the process, by registry id, whose
+# classes record `package`, or for `NULL`, those of the classes that an app
+# script defined itself, which record none.
+process_entries <- function(package = NULL) {
+  Filter(function(x) identical(x[["package"]], package), registry_entries())
 }
 
 # Block classes as `available_blocks()` gives them, one row each, with the
@@ -740,9 +766,8 @@ is_yaml_mapping <- function(x, nested = FALSE) {
 # The block registry of an app, which `serve()` builds as it starts the app,
 # and which the app's sessions read alone.
 # It holds the block classes that the app offers, as `blocks` gives them, whose
-# packages R loads, the classes that the app script registered in the block
-# registry of the process, each in place of a row's class of the same registry
-# id, and the classes of the blocks on `board` that it lacks (see
+# packages R loads, the classes that the app script defined and registered
+# itself, and the classes of the blocks on `board` that it lacks (see
 # `register_board_classes()`).
 # Building it reads the `blocks.yml` of each package that the app offers once,
 # as it registers the package's classes, and no other package's.
@@ -753,10 +778,10 @@ app_block_registry <- function(blocks = available_blocks(), board = NULL) {
 
   for (pkg in names(offered)) {
     loadNamespace(pkg)
-    register_yaml_blocks(pkg, registry, offered[[pkg]])
+    register_offered_classes(pkg, registry, offered[[pkg]])
   }
 
-  list2env(as.list(block_registry, all.names = TRUE), registry)
+  list2env(process_entries(), registry)
 
   if (not_null(board)) {
     register_board_classes(board, registry)
@@ -873,7 +898,10 @@ yaml_block_class_item <- function(x) {
 
 check_block_class_packages <- function(packages) {
 
-  missing <- setdiff(packages, available_block_packages())
+  missing <- setdiff(
+    packages,
+    c(available_block_packages(), registered_block_rows()[["package"]])
+  )
 
   if (length(missing)) {
     blockr_abort(
@@ -882,6 +910,26 @@ check_block_class_packages <- function(packages) {
       class = "block_classes_unavailable"
     )
   }
+
+  invisible()
+}
+
+# Registers in `registry` the block classes of `package` that an app offers,
+# those whose ids `ids` gives, or all of them for `NULL`: each from the block
+# registry of the process where that holds it, in place of the entry of the
+# package's `inst/registry/blocks.yml`, and from the file otherwise.
+register_offered_classes <- function(package, registry, ids = NULL) {
+
+  held <- process_entries(package)
+  held_ids <- chr_ply(held, function(x) x[["block_class"]][["id"]])
+
+  if (not_null(ids)) {
+    held <- held[held_ids %in% ids]
+    ids <- setdiff(ids, held_ids)
+  }
+
+  register_yaml_blocks(package, registry, ids)
+  list2env(held, registry)
 
   invisible()
 }

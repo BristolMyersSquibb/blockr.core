@@ -120,15 +120,15 @@ while changing a class's id changes it.
 The \code{registry_id_from_block()} function reads the registry id from a
 block's class, whether or not the block registry holds the class.
 
-Which block classes an app offers is the app's choice, and loading a package
-registers none.
+Which block classes an app offers is the app's choice.
 Each method of \code{\link[=serve]{serve()}} takes them in \code{blocks}, which defaults to
 \code{available_blocks()}: a data frame with a row for each block class of each
 available package, with the class's package in \code{package} and its id in
 \code{id}.
 A package is available where it is installed and depends on blockr.core, or
 where \code{pkgload::load_all()} loaded it, and it lists block classes in its
-\code{inst/registry/blocks.yml}, which the \code{\link[=block_registration_roclet]{block_registration_roclet()}} writes.
+\code{inst/registry/blocks.yml}, which the \code{\link[=block_registration_roclet]{block_registration_roclet()}} writes,
+or where the block registry of the process holds a class of it (below).
 Reading the files loads no package.
 A script narrows the rows with plain R, as
 \code{subset(available_blocks(), package != "blockr.ggplot")} offers every class
@@ -154,12 +154,17 @@ with each fault of each entry (see \code{\link[=block_registration_roclet]{block
 Each app holds a block registry of its own, which \code{serve()} builds as it is
 called, and which the app's sessions read alone.
 R loads the packages of the rows and registers their classes in it.
-An app script registers the block classes that it defines itself in the
-block registry of the R process, with \code{register_block()} or
-\code{register_blocks()}.
-Every app that the script serves after that holds them, whatever its
-\code{blocks}, and a class that the script registers under the registry id of a
-row's class takes that class's place.
+The block registry of the R process holds the classes that
+\code{register_block()} and \code{register_blocks()} register.
+A package that writes no \code{inst/registry/blocks.yml} registers its own
+classes there as it loads, and an app script may register a package's class
+there in place of the one that the package lists.
+Each class of a package that the process registry holds is a row of
+\code{available_blocks()}, as a class that a package lists is, and an app offers
+it where its rows hold it, from the process registry.
+A class that an app script defines itself records no package, so no row
+names it, and every app that the script serves after registering it holds
+it.
 So a later \code{serve()} or \code{register_block()} changes no app that \code{serve()}
 built before.
 

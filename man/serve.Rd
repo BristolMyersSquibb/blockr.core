@@ -40,8 +40,7 @@ The app's server function hands what the client sends to the evaluator of
 the session, which evaluates the blocks.
 }
 \details{
-Which block classes an app offers is the app's choice, never a board's, and
-loading a package registers no block class.
+Which block classes an app offers is the app's choice, never a board's.
 Each method takes them in \code{blocks}, which defaults to every block class of
 every available package, as \code{\link[=available_blocks]{available_blocks()}} gives them.
 A script narrows them with plain R, as
@@ -50,7 +49,8 @@ but those of blockr.ggplot, or gives the path of a YAML file that lists them
 (see \code{\link[=register_block]{register_block()}}).
 As \code{serve()} is called, R loads the packages of these classes and builds the
 app's own block registry from them, from the classes that the app script
-registered (see \code{\link[=register_block]{register_block()}}) and from the board (below).
+defined and registered itself (see \code{\link[=register_block]{register_block()}}) and from the board
+(below).
 The app's sessions read that registry alone, so a later \code{serve()} or
 \code{register_block()} changes no app that \code{serve()} built before.
 A class that no available package lists stops the app, naming it.

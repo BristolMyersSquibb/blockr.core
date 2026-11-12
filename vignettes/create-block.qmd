@@ -718,6 +718,9 @@ The package's `.onLoad()` calls `trace_block_classes()` alone, which lets covr c
 ```
 See `?block_registration_roclet` for every tag.
 
+A package that does without the roclet can write `inst/registry/blocks.yml` itself, with the fields that `?block_registration_roclet` describes.
+It can also register its classes with `register_block()` in its `.onLoad()`, in which case `available_blocks()` lists them, and an app offers them as it offers the classes of a file, once the package is loaded.
+
 A package builds its classes while R installs it, as R sources its files.
 A class that names a function of its own package, such as a request, finds that function only once R has sourced the file that defines it.
 An `@include` tag, from which roxygen writes the `Collate` field, makes R source that file first.

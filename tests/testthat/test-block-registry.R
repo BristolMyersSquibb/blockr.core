@@ -391,6 +391,16 @@ test_that("an app offers the block classes that `blocks` gives", {
     get_registry_entry("blockr.core-head_block")
   )
 
+  # Only where the rows hold that class, as for a class that its package lists,
+  # and the class stays one row of `available_blocks()`
+  expect_false(
+    "blockr.core-head_block" %in%
+      ls(app_block_registry(rows[rows[["id"]] != "head_block", ]))
+  )
+
+  head <- data.frame(package = "blockr.core", id = "head_block")
+  expect_identical(nrow(merge(available_blocks(), head)), 1L)
+
   unregister_blocks("blockr.core-head_block")
 
   # A YAML file lists packages, each with the ids of its classes to offer, or
@@ -479,6 +489,39 @@ test_that("an app offers the classes of a package that load_all() loads", {
   expect_identical(
     get_registry_entry("regprobe-probe_block", app_block_registry(probe))$name,
     "Probe"
+  )
+})
+
+test_that("an app offers the classes that a package registers as it loads", {
+
+  local_declared(block_registry)
+  local_load_all_package(registers = TRUE)
+
+  probe <- data.frame(package = "regprobe", id = "probe_block")
+
+  # The package ships no file, so the block registry of the process alone
+  # makes its class a row of `available_blocks()`
+  expect_true("regprobe-probe_block" %in% list_blocks())
+  expect_identical(nrow(merge(available_blocks(), probe)), 1L)
+
+  # An app offers it where its rows hold it, as a class that a file lists
+  expect_identical(
+    get_registry_entry("regprobe-probe_block", app_block_registry(probe))$name,
+    "Probe"
+  )
+  expect_false(
+    "regprobe-probe_block" %in% ls(app_block_registry(core_block_rows()))
+  )
+
+  file <- withr::local_tempfile(fileext = ".yml")
+  writeLines("- regprobe", file)
+
+  expect_true("regprobe-probe_block" %in% ls(app_block_registry(file)))
+
+  # An id that neither a file nor the process registry holds
+  expect_error(
+    app_block_registry(data.frame(package = "regprobe", id = "no_block")),
+    class = "block_classes_unknown"
   )
 })
 
