@@ -110,8 +110,9 @@ export function darkMode(core: BlockrOptions): Option {
 
 // Switches the page to a theme, "light" or "dark", in the attribute
 // data-bs-theme of its root element. Bootstrap and blockr.ui's design tokens
-// read that attribute, as bslib's dark mode switch sets it today, and so does
-// core's dark variant, as in `bc:dark:bg-gray-900`.
+// read that attribute, as bslib's dark mode switch sets it today, and so do
+// core's dark variant, as in `bc:dark:text-gray-100`, and the dark default of
+// bg-raised in core's theme.
 export function setTheme(theme: Json): void {
   document.documentElement.setAttribute("data-bs-theme", theme === "dark" ? "dark" : "light");
 }
