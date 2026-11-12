@@ -73,7 +73,7 @@ describe("core's board options", () => {
     const { core, asked } = blockr();
 
     expect(await resolveDefault(nRows(core))).toBe(10);
-    expect(await resolveDefault(showConditions(core))).toEqual(["warning", "error"]);
+    expect(await resolveDefault(showConditions(core))).toEqual(["message", "warning", "error"]);
     expect(await resolveDefault(darkMode(core))).toBe("light");
     expect(asked).toEqual(["n_rows", "show_conditions", "dark_mode"]);
 

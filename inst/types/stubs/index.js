@@ -9396,7 +9396,7 @@ function nRows(core) {
 var SEVERITIES2 = ["message", "warning", "error"];
 function showConditions(core) {
   const schema = optionSchemas.show_conditions;
-  const fallback = ["warning", "error"];
+  const fallback = SEVERITIES2;
   return {
     id: "show_conditions",
     label: "Message types to display",
