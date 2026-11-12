@@ -1,7 +1,7 @@
 // Starting core's client on the page that R serves: core starts over the Shiny
-// transport, registers its own board options with their UIs, and draws each
-// board that opens with its frontend in the page's element, as srcts/core
-// starts it. Core draws a block that serve() serves alone in its card instead
+// transport, registers the plugin classes and board options that R's reply
+// names, core's own among them, and draws each board that opens with its
+// frontend in the page's element, as srcts/core starts it. Core draws a block that serve() serves alone in its card instead
 // (./card.tsx).
 // While core starts, as the page starts and as another board opens, the
 // element says that the board is loading, as today's page waits for the board
@@ -11,7 +11,6 @@
 
 import { showError } from "../mount/index.ts";
 import type { LoaderOptions, Measure } from "../mount/index.ts";
-import { coreOptions } from "../options/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import { shinyTransport } from "../transport/index.ts";
 import { report } from "../util/index.ts";
@@ -41,7 +40,6 @@ export function startPage(options: PageOptions): Started {
     transport: options.transport ?? shinyTransport(),
     ...(options.loader === undefined ? {} : { loader: options.loader }),
     ...(options.measure === undefined ? {} : { measure: options.measure }),
-    options: coreOptions,
     frontEnds: {
       ...pageFrontEnds(el),
       card(core, signal) {

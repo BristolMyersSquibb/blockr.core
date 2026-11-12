@@ -15,7 +15,7 @@ import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
-import { coreOptions, hello, noUi } from "../testing/store.ts";
+import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import type { BlockContext, BlockHost, BlockModule } from "../types/hosts.ts";
 import type { RegistryEntry } from "../types/registry.ts";
@@ -139,7 +139,7 @@ async function setup(
     const commands = createCommands(store, { signal });
     const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
     scheduler.start();
-    const mounts = createMounts({ store, commands, scheduler, loader, signal });
+    const mounts = createMounts({ core: noCore, store, commands, scheduler, loader, signal });
     return {
       r,
       store,
@@ -791,7 +791,7 @@ describe("a mount", () => {
     for (const option of coreOptions) store.options.register(option);
     await store.open(hello);
     const scheduler = createScheduler({ store, client: r.client });
-    const mounts = createMounts({
+    const mounts = createMounts({ core: noCore,
       store,
       commands: createCommands(store),
       scheduler,

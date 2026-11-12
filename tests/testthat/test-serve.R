@@ -229,12 +229,11 @@ test_that("serve() registers the class of a block that it serves alone", {
   expect_identical(ls(registry), "blockr.core-static_block")
   expect_false("blockr.core-static_block" %in% list_blocks())
 
-  # R reads no package's file for it, so a file that R cannot read stops none
-  # of these apps
-  file <- file.path(local_load_all_package(), "inst", "registry", "blocks.yml")
-  writeLines("new_probe_block: [", file)
+  # R reads no package's listing for it, so a listing that R cannot read stops
+  # none of these apps
+  local_listing("blockr.probe", list(blocks = list("new_probe_block")))
 
-  expect_error(available_blocks(), class = "package_blocks_yaml_invalid")
+  expect_error(available_blocks(), class = "package_blocks_invalid")
   expect_no_error(serve(new_static_block("datasets::BOD")))
 
   # A block takes no `blocks`, which it reads as data for an input of that name
@@ -483,11 +482,22 @@ test_that("serve() sends the app's plugins in its reply to hello", {
     )
   )
 
+  # The name and version of each plugin's class, beside where R serves the
+  # class's module
+  named <- function(plugins) {
+    lapply(plugins, function(x) x[c("name", "version")])
+  }
+
   # By default, the app runs every plugin class that an available package
   # lists, core's Edit board plugin among them
   reply <- served_replies(serve(served_board()), hello_message())[[1L]]
 
-  expect_identical(reply$plugins, core)
+  expect_match(
+    reply$plugins[["blockr.core-basic_frontend_plugin"]]$module,
+    "^blockr.core/js/basic.js\\?v=[0-9a-f]{8}$"
+  )
+
+  expect_identical(named(reply$plugins), core)
   expect_false("plugin_versions" %in% names(reply))
 
   # Rows that narrow them leave out what they do not name, as an app without
@@ -496,17 +506,17 @@ test_that("serve() sends the app's plugins in its reply to hello", {
   reply <- served_replies(serve(served_board(), plugins = rows),
                           hello_message())[[1L]]
 
-  expect_identical(reply$plugins, core[-2L])
+  expect_identical(named(reply$plugins), core[-2L])
 
   # So does the path of a JSON board
   path <- withr::local_tempfile(fileext = ".json")
   writeLines(unclass(encode_message(proto_served_file())), path)
 
   reply <- served_replies(serve(path), hello_message())[[1L]]
-  expect_identical(reply$plugins, core)
+  expect_identical(named(reply$plugins), core)
 
   reply <- served_replies(serve(path, plugins = rows), hello_message())[[1L]]
-  expect_identical(reply$plugins, core[-2L])
+  expect_identical(named(reply$plugins), core[-2L])
 
   # A block that serve() serves alone runs no plugin
   reply <- served_replies(

@@ -283,12 +283,12 @@ new_demo_block <- function() NULL
   )
 })
 
-test_that("YAML arguments become an arg_specs collection, examples included", {
+test_that("listed arguments become arg specs, examples included", {
 
-  expect_null(yaml_block_arguments(list()))
-  expect_null(yaml_block_arguments(list(arguments = list())))
+  expect_null(listed_block_arguments(list()))
+  expect_null(listed_block_arguments(list(arguments = list())))
 
-  spec <- yaml_block_arguments(
+  spec <- listed_block_arguments(
     list(
       arguments = list(
         x = list(
@@ -305,7 +305,7 @@ test_that("YAML arguments become an arg_specs collection, examples included", {
   expect_identical(arg_spec_example(spec[["x"]]), "e")
   expect_identical(arg_spec_type(spec[["x"]]), list(type = "integer"))
 
-  desc_only <- yaml_block_arguments(
+  desc_only <- listed_block_arguments(
     list(arguments = list(x = list(description = "d")))
   )
 
@@ -314,11 +314,11 @@ test_that("YAML arguments become an arg_specs collection, examples included", {
   expect_null(arg_spec_type(desc_only[["x"]]))
 })
 
-test_that("a package that ships no YAML registry registers no block class", {
+test_that("a package that lists no block classes registers none", {
 
   registry <- new.env()
 
-  expect_invisible(register_yaml_blocks("utils", registry))
+  expect_invisible(register_listed_blocks("utils", registry))
   expect_length(ls(registry), 0L)
 })
 

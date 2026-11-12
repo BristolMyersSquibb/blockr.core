@@ -12,9 +12,10 @@ export interface Mountable<A> {
   render(args: A): Rendered;
 }
 
-// What a module exports, as a module that core mounts, or a ModuleError that
-// says why it is none.
-export function mountableModule<A>(exports: unknown, module: string, pkg: string | null): Mountable<A> {
+// What a module exports, where it declares the major of core's JS API that
+// core speaks, as `export const api = 1`, or a ModuleError that says why it
+// declares none.
+export function moduleExports(exports: unknown, module: string, pkg: string | null): Readonly<Record<string, unknown>> {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
   }
@@ -25,7 +26,13 @@ export function mountableModule<A>(exports: unknown, module: string, pkg: string
       `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`,
     );
   }
-  const mod = exports.default;
+  return exports;
+}
+
+// What a module exports, as a module that core mounts, or a ModuleError that
+// says why it is none.
+export function mountableModule<A>(exports: unknown, module: string, pkg: string | null): Mountable<A> {
+  const mod = moduleExports(exports, module, pkg).default;
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new ModuleError(module, pkg, "has no default export with a render() function.");
   }

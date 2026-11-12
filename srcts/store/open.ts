@@ -182,7 +182,7 @@ function unversioned(board: JsonBoard["board"]): Board {
 function migrate(
   board: Board,
   json: JsonBoard["board"],
-  reply: Pick<HelloReply, "block_registry" | "plugins" | "option_versions">,
+  reply: Pick<HelloReply, "block_registry" | "plugins" | "options">,
   registrations: Registrations,
 ): Board {
   const failures = new Set<string>();
@@ -238,7 +238,7 @@ function migrate(
       const def = registrations.option(id)?.def;
       if (def === undefined) return [id, value];
       const from = own(json.options, id)?.version;
-      const to = own(reply.option_versions, id) ?? 1;
+      const to = own(reply.options, id)?.version ?? 1;
       if (from === undefined || from === to) return [id, value];
       if (from > to) {
         failures.add(
@@ -290,7 +290,7 @@ function migratedValue(what: string, fn: () => unknown): Json {
 // since a default may have to wait (../core/plugins.ts).
 export function openJsonBoard(
   json: JsonBoard,
-  reply: Pick<HelloReply, "packages" | "block_registry" | "plugins" | "option_versions">,
+  reply: Pick<HelloReply, "packages" | "block_registry" | "plugins" | "options">,
   registrations: Registrations,
 ): { board: Board; dropped: Dropped[] } {
   const registeredClass = (id: string) => registrations.plugin(id)?.def;

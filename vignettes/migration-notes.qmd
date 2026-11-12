@@ -137,7 +137,7 @@ The board holds nothing for a plugin that keeps no state, such as core's three.
 Each of the app's plugins runs on every board that the app opens, with the state that the board holds for it, or with its class's default state where the board holds none.
 The function `serve()` refuses a board with a plugin of a class that the app does not run, naming the class, since the board would open without that plugin's state.
 
-A plugin class comes from a package, whose startup module defines it in the browser.
+A plugin class comes from a package, which lists it in its `._BLOCKR_MODULES_` with the module that defines it in the browser.
 So a script that defined a plugin of its own with the `new_plugin()` of version 0.1 moves the plugin into a package.
 
 ## The block classes that an app offers

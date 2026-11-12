@@ -1,27 +1,27 @@
 # What R tells the client about the packages it has loaded, in its reply to
 # `hello`, for neither side to edit: the entries of the app's block registry,
 # `registry`, each with the renderer of its class's outputs, where R serves the
-# startup modules and the modules that packages offer each other, the app's
-# plugins, `plugins`, each under the ID of its class with the class's name and
-# version, as `app_plugins()` gives them, what the app's frontend reads of the
-# arguments of `serve()`, `frontend`, as `frontend_reply()` writes it, the
-# versions of the board options that packages give them, the renderers that
-# the app names for board options, and the versions of the packages that all
-# of these come from.
+# modules that the loaded packages offer each other, the app's plugins,
+# `plugins`, each under the ID of its class with the class's name and version,
+# and where R serves the class's module, as `app_plugins()` gives them, what
+# the app's frontend reads of the arguments of `serve()`, `frontend`, as
+# `frontend_reply()` writes it, the board options that the loaded packages
+# list, each with where R serves its module and the version of its shape, the
+# renderers that the app names for board options, and the versions of the
+# packages that all of these come from.
 # R loads no package for it: `serve()` loaded the packages of the block
-# classes that the app offers, and the app's script the others, and loading
-# them declared their modules and registered their methods.
-# These are the properties `packages`, `block_registry`, `startup_modules`,
-# `modules`, `plugins`, `frontend`, `option_versions` and `renderers` of
-# inst/protocol/README.md, as R values that `encode_message()` writes as the
-# reply's JSON.
+# classes that the app offers and of the plugins that it runs, and the app's
+# script the others, and loading them registered their methods.
+# These are the properties `packages`, `block_registry`, `modules`, `plugins`,
+# `frontend`, `options` and `renderers` of inst/protocol/README.md, as R values
+# that `encode_message()` writes as the reply's JSON.
 # Building them builds no block.
 loaded_reply <- function(registry = block_registry, plugins = list(),
                          frontend = as_json_object(list())) {
 
   entries <- registry_entries(registry)
-  startup <- startup_modules()
-  modules <- lapply(set_names(nm = list_modules()), get_module)
+  modules <- offered_modules()
+  options <- loaded_options()
   renderers <- option_renderers()
 
   coercions <- output_coercions()
@@ -31,7 +31,7 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
   sources <- c(
     unlst(
       lapply(
-        list(entries, startup, modules, renderers, drawn),
+        list(entries, modules, options, renderers, drawn),
         lst_xtr,
         "package"
       ),
@@ -43,11 +43,10 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
   list(
     packages = package_versions(sources),
     block_registry = as_json_object(Map(registry_entry_reply, entries, drawn)),
-    startup_modules = unname(lapply(startup, startup_module_reply)),
-    modules = as_json_object(lapply(modules, declared_module_reply)),
-    plugins = as_json_object(plugins),
+    modules = as_json_object(lapply(modules, served_module)),
+    plugins = as_json_object(lapply(plugins, plugin_entry_reply)),
     frontend = frontend,
-    option_versions = option_versions(),
+    options = as_json_object(lapply(options, option_entry_reply)),
     renderers = as_json_object(lapply(renderers, option_renderer_reply))
   )
 }
@@ -210,13 +209,25 @@ request_entry_reply <- function(x) {
   )
 }
 
-# Where R serves a module that a package offers others, such as a frontend.
-declared_module_reply <- function(x) {
-  served_module(x[["module"]])
+# One of the app's plugins as the client gets it, the `PluginEntry` of
+# srcts/protocol/messages.ts: its class's name and version, and where R serves
+# the class's module.
+plugin_entry_reply <- function(x) {
+  c(
+    list(name = x[["name"]], version = x[["version"]]),
+    served_module(x[["module"]])
+  )
 }
 
-startup_module_reply <- function(x) {
-  c(list(package = x[["package"]]), served_module(x[["module"]]))
+# A board option as the client gets it, the `OptionEntry` of
+# srcts/protocol/messages.ts: the package that lists it, where R serves its
+# module, and the version of its shape.
+option_entry_reply <- function(x) {
+  c(
+    list(package = x[["package"]]),
+    served_module(x[["module"]]),
+    list(version = x[["version"]])
+  )
 }
 
 # A renderer that the app names for a board option, with where R serves its

@@ -105,14 +105,14 @@ function entry(id: string, inputs: readonly string[]): RegistryEntry {
 const classes: readonly PluginClass[] = [
   {
     id: "blockr.test-grid_plugin",
-    frontend: "blockr.test-grid",
+    frontend: { render: () => undefined },
     state: { schema: { type: "object" }, default: { columns: 1 } },
   },
   {
     id: "blockr.test-notes_plugin",
     state: {
       schema: JSON.parse(
-        readFileSync(join(fixtures, "blockr.test", "js", "notes_plugin.schema.json"), "utf8"),
+        readFileSync(join(fixtures, "blockr.test", "js", "notes.schema.json"), "utf8"),
       ) as JsonSchema,
       default: { notes: [] },
     },
@@ -168,7 +168,10 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
     plugins: {
       ...hello.plugins,
       ...Object.fromEntries(
-        Object.keys(json.board.plugins).map((id) => [id, { name: classNames[id] ?? id, version: json.board.versions[id] ?? 1 }]),
+        Object.keys(json.board.plugins).map((id) => [
+          id,
+          { name: classNames[id] ?? id, version: json.board.versions[id] ?? 1, module: `blockr.test/${id}.js` },
+        ]),
       ),
     },
     block_registry: {

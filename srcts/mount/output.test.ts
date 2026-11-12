@@ -14,7 +14,7 @@ import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
-import { coreOptions, hello, noUi } from "../testing/store.ts";
+import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
@@ -145,7 +145,7 @@ async function setup(
     const commands = createCommands(store, { signal });
     const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
     scheduler.start();
-    const mounts = createMounts({
+    const mounts = createMounts({ core: noCore,
       store,
       commands,
       scheduler,

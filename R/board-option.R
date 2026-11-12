@@ -96,8 +96,9 @@ has_board_option_value <- function(x) {
 #' A board option without such a method is at version 1.
 #' The package raises the version as it changes that shape, so that the client
 #' migrates the values that a JSON board holds of an older version.
-#' R sends the version of each board option that a method gives one in its
-#' reply to `hello`, and writes each value of a board with its version (see
+#' R sends the version of each board option that core and the packages that
+#' the app uses list in their `._BLOCKR_MODULES_` in its reply to `hello` (see
+#' [read_blocks_yml()]), and writes each value of a board with its version (see
 #' [blockr_ser()]).
 #'
 #' @param x Board option
@@ -134,22 +135,6 @@ option_version <- function(id) {
   }
 
   version
-}
-
-# The version of each board option that a method of `board_option_version()`
-# gives one, by ID, as R sends them in its reply to `hello`.
-option_versions <- function() {
-
-  methods <- utils::.S3methods(
-    "board_option_version",
-    envir = asNamespace("blockr.core")
-  )
-
-  classes <- sub("^board_option_version[.]", "", as.character(methods))
-  classes <- grep("_option$", setdiff(classes, "board_option"), value = TRUE)
-  ids <- sub("_option$", "", classes)
-
-  as_json_object(set_names(lapply(ids, option_version), ids))
 }
 
 #' @export

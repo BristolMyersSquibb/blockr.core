@@ -1900,8 +1900,8 @@ function topological(blocks, sources, targets) {
       if (count === 0) order.push(next);
     }
   }
-  const placed = new Set(order);
-  return [...order, ...blocks.filter((id2) => !placed.has(id2))];
+  const placed2 = new Set(order);
+  return [...order, ...blocks.filter((id2) => !placed2.has(id2))];
 }
 function findCycle(board, targets) {
   const done = /* @__PURE__ */ new Set();
@@ -3428,7 +3428,7 @@ function domMeasure() {
       });
       themed.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-bs-theme", "class", "style"]
+        attributeFilter: ["data-bc-theme", "class", "style"]
       });
       stops.push(() => {
         themed.disconnect();
@@ -3635,7 +3635,7 @@ async function evaluateReads(deps, block, entry, name2, names, signal) {
 }
 
 // srcts/mount/shared.ts
-function mountableModule(exports, module, pkg) {
+function moduleExports(exports, module, pkg) {
   if (!isObject(exports) || typeof exports.api !== "number") {
     throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
   }
@@ -3646,7 +3646,10 @@ function mountableModule(exports, module, pkg) {
       `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`
     );
   }
-  const mod = exports.default;
+  return exports;
+}
+function mountableModule(exports, module, pkg) {
+  const mod = moduleExports(exports, module, pkg).default;
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new ModuleError(module, pkg, "has no default export with a render() function.");
   }
@@ -4258,12 +4261,12 @@ function mountOutput(deps, el, block) {
       body: () => held2?.body ?? null,
       params: () => held2?.asked.params ?? EMPTY,
       options() {
-        let memo = named3;
-        if (memo === void 0 || memo.for !== held2) {
-          memo = { for: held2, values: optionsFor(prepared, held2?.asked) };
-          named3 = memo;
+        let memo2 = named3;
+        if (memo2 === void 0 || memo2.for !== held2) {
+          memo2 = { for: held2, values: optionsFor(prepared, held2?.asked) };
+          named3 = memo2;
         }
-        return memo.values;
+        return memo2.values;
       },
       loading: () => asking !== void 0,
       error: () => error,
@@ -4393,7 +4396,7 @@ function createMounts(options) {
     const pending = resolving.get(id2);
     if (pending !== void 0) return pending;
     const given = def.default;
-    const started = typeof given === "function" ? Promise.resolve().then(given) : Promise.resolve(given);
+    const started = typeof given === "function" ? Promise.resolve().then(() => given(options.core())) : Promise.resolve(given);
     resolving.set(id2, started);
     const settled2 = () => {
       if (resolving.get(id2) === started) resolving.delete(id2);
@@ -4723,9 +4726,9 @@ async function mount(exports, host, el = document.createElement("div")) {
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new Error("The module has no default export with a render() function.");
   }
-  const render = mod.render;
+  const render2 = mod.render;
   const controller = new AbortController();
-  const cleanup = await render.call(mod, { el, host, signal: controller.signal });
+  const cleanup = await render2.call(mod, { el, host, signal: controller.signal });
   return {
     el,
     signal: controller.signal,
@@ -4800,86 +4803,6 @@ async function requestBlockrOptions(client, names) {
     }
     return reply.values;
   }
-}
-
-// srcts/storage/storage.ts
-function coreStorage(doc) {
-  return {
-    controls({ core }) {
-      const save = {
-        kind: "button",
-        id: "save",
-        label: "Save",
-        run: () => saveBoard(core, doc ?? document)
-      };
-      const open = {
-        kind: "button",
-        id: "open",
-        label: "Open",
-        run: () => openBoard(core, doc ?? document)
-      };
-      return core.lock.load ? [save] : [save, open];
-    }
-  };
-}
-function saveBoard(core, doc) {
-  try {
-    download(core.store.save(), fileName(core.store.board()), doc);
-    return Promise.resolve();
-  } catch (error) {
-    return Promise.reject(asError(error));
-  }
-}
-async function openBoard(core, doc) {
-  const text = await pickFile(doc);
-  if (text !== null) await core.store.open(text);
-}
-function fileName(board, now = /* @__PURE__ */ new Date()) {
-  const two = (n2) => String(n2).padStart(2, "0");
-  const date2 = `${String(now.getFullYear())}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
-  const time2 = `${two(now.getHours())}-${two(now.getMinutes())}-${two(now.getSeconds())}`;
-  return `${board.id}_${date2}_${time2}.json`;
-}
-function download(text, name2, doc = document) {
-  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-  const link = doc.createElement("a");
-  link.href = url;
-  link.download = name2;
-  link.hidden = true;
-  doc.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 0);
-}
-function pickFile(doc = document) {
-  return new Promise((resolve, reject) => {
-    const input2 = doc.createElement("input");
-    input2.type = "file";
-    input2.accept = ".json,application/json";
-    input2.hidden = true;
-    input2.addEventListener(
-      "change",
-      () => {
-        const file = input2.files?.[0];
-        input2.remove();
-        if (file === void 0) resolve(null);
-        else file.text().then(resolve, reject);
-      },
-      { once: true }
-    );
-    input2.addEventListener(
-      "cancel",
-      () => {
-        input2.remove();
-        resolve(null);
-      },
-      { once: true }
-    );
-    doc.body.append(input2);
-    input2.click();
-  });
 }
 
 // srcts/store/words.ts
@@ -6318,7 +6241,7 @@ function commit(board, delta, places = {}) {
     }
   };
 }
-function patch(board, patches2, placed, failures) {
+function patch(board, patches2, placed2, failures) {
   let next = board;
   const inverse = [];
   const places = {};
@@ -6336,7 +6259,7 @@ function patch(board, patches2, placed, failures) {
       failures.push(`${name2}, ${given.op} at "${given.path}", ${misplaced2}.`);
       continue;
     }
-    const place = given.op === "add" ? own(placed, given.path) : void 0;
+    const place = given.op === "add" ? own(placed2, given.path) : void 0;
     const applied = applyPatch(next, given, segments, place);
     if ("failure" in applied) {
       failures.push(`${name2}, ${given.op} at "${given.path}", ${applied.failure}.`);
@@ -6591,20 +6514,20 @@ function expandCore(delta, board) {
   const incident = Object.entries(board.links).filter(([id2, link]) => (gone.has(link.from) || gone.has(link.to)) && !linksRm.includes(id2)).map(([id2]) => id2);
   const stacksRm = delta.stacks?.rm ?? [];
   const stacksMod = delta.stacks?.mod ?? {};
-  const placed = {};
+  const placed2 = {};
   for (const [id2, stack] of Object.entries(board.stacks)) {
     if (stacksRm.includes(id2)) continue;
     const mod = own(stacksMod, id2);
     const blocks = mod?.blocks ?? stack.blocks;
     if (blocks.some((block) => gone.has(block))) {
-      placed[id2] = { ...mod, blocks: blocks.filter((block) => !gone.has(block)) };
+      placed2[id2] = { ...mod, blocks: blocks.filter((block) => !gone.has(block)) };
     }
   }
-  if (incident.length === 0 && Object.keys(placed).length === 0) return delta;
+  if (incident.length === 0 && Object.keys(placed2).length === 0) return delta;
   return {
     ...delta,
     ...incident.length === 0 ? {} : { links: { ...delta.links, rm: [...linksRm, ...incident] } },
-    ...Object.keys(placed).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed } } }
+    ...Object.keys(placed2).length === 0 ? {} : { stacks: { ...delta.stacks, mod: { ...stacksMod, ...placed2 } } }
   };
 }
 function misplaced(id2, patches2) {
@@ -6709,14 +6632,14 @@ function fit(delta, board) {
     })
   );
   const stacks = collection2(board.stacks, delta.stacks);
-  const placed = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds) };
+  const placed2 = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds) };
   return prune({
     blocks,
     links: { ...links, ...Object.keys(before).length === 0 ? {} : { before } },
     stacks: {
       ...stacks.rm === void 0 ? {} : { rm: stacks.rm },
-      ...stacks.add === void 0 ? {} : { add: Object.fromEntries(Object.entries(stacks.add).map(([id2, s2]) => [id2, placed(s2)])) },
-      ...stacks.mod === void 0 ? {} : { mod: Object.fromEntries(Object.entries(stacks.mod).map(([id2, s2]) => [id2, placed(s2)])) }
+      ...stacks.add === void 0 ? {} : { add: Object.fromEntries(Object.entries(stacks.add).map(([id2, s2]) => [id2, placed2(s2)])) },
+      ...stacks.mod === void 0 ? {} : { mod: Object.fromEntries(Object.entries(stacks.mod).map(([id2, s2]) => [id2, placed2(s2)])) }
     },
     ...delta.options === void 0 ? {} : { options: delta.options },
     ...delta.name === void 0 ? {} : { name: delta.name },
@@ -6907,7 +6830,7 @@ function migrate(board, json, reply, registrations) {
       const def = registrations.option(id2)?.def;
       if (def === void 0) return [id2, value2];
       const from = own(json.options, id2)?.version;
-      const to = own(reply.option_versions, id2) ?? 1;
+      const to = own(reply.options, id2)?.version ?? 1;
       if (from === void 0 || from === to) return [id2, value2];
       if (from > to) {
         failures.add(
@@ -6975,15 +6898,14 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-function createRegistrations() {
-  const classes = a(/* @__PURE__ */ new Map());
+function createRegistrations(migration = () => void 0) {
+  const classes2 = a(/* @__PURE__ */ new Map());
   const options = a([]);
-  const migrations = a(/* @__PURE__ */ new Map());
   const optionIndex = O(
     () => new Map(options.value.map((option) => [option.def.id, option]))
   );
   const classDefs = O(
-    () => Object.fromEntries([...classes.value].map(([id2, cls]) => [id2, cls.def]))
+    () => Object.fromEntries([...classes2.value].map(([id2, cls]) => [id2, cls.def]))
   );
   const optionDefs = O(
     () => Object.fromEntries(options.value.map((option) => [option.def.id, option.def]))
@@ -7002,7 +6924,7 @@ function createRegistrations() {
         `The plugin class id ${JSON.stringify(id2)} is not named as R names a plugin class, "{pkg}-{name}_plugin".`
       );
     }
-    if (classes.value.has(id2)) {
+    if (classes2.value.has(id2)) {
       throw new Error(`The plugin class "${id2}" is registered already.`);
     }
     const given = def;
@@ -7012,8 +6934,9 @@ function createRegistrations() {
       }
     }
     for (const member of ["ui", "frontend"]) {
-      if (given[member] !== void 0 && (typeof given[member] !== "string" || given[member] === "")) {
-        throw new Error(`The plugin class "${id2}" has a ${member} that is no module's id.`);
+      const drawn2 = given[member];
+      if (drawn2 !== void 0 && (!isObject(drawn2) || typeof drawn2.render !== "function")) {
+        throw new Error(`The plugin class "${id2}" has a ${member} without a render() function.`);
       }
     }
     const storage = given.storage;
@@ -7024,6 +6947,12 @@ function createRegistrations() {
       if (storage.subscribe !== void 0 && typeof storage.subscribe !== "function") {
         throw new Error(`The plugin class "${id2}" has a storage whose subscribe is no function.`);
       }
+      if (storage.load !== void 0 && typeof storage.load !== "function") {
+        throw new Error(`The plugin class "${id2}" has a storage whose load is no function.`);
+      }
+    }
+    if (given.commands !== void 0 && !Array.isArray(given.commands)) {
+      throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
     }
     if (given.options !== void 0 && (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))) {
       throw new Error(`The plugin class "${id2}" requires board options that are no array of their ids.`);
@@ -7039,12 +6968,12 @@ function createRegistrations() {
       checkInitial(what, validate2, state2.default, "default");
     }
     const item = { def, validate: validate2 };
-    classes.value = new Map([...classes.value, [id2, item]]);
+    classes2.value = new Map([...classes2.value, [id2, item]]);
     return () => {
-      if (classes.value.get(id2) !== item) return;
-      const rest = new Map(classes.value);
+      if (classes2.value.get(id2) !== item) return;
+      const rest = new Map(classes2.value);
       rest.delete(id2);
-      classes.value = rest;
+      classes2.value = rest;
     };
   }
   return {
@@ -7081,21 +7010,9 @@ function createRegistrations() {
       },
       registered: () => optionDefs.value
     },
-    registerMigration(registryId2, fn) {
-      if (migrations.value.has(registryId2)) {
-        throw new Error(`The block class "${registryId2}" has a migration registered already.`);
-      }
-      migrations.value = new Map([...migrations.value, [registryId2, fn]]);
-      return () => {
-        if (migrations.value.get(registryId2) !== fn) return;
-        const rest = new Map(migrations.value);
-        rest.delete(registryId2);
-        migrations.value = rest;
-      };
-    },
-    plugin: (id2) => classes.value.get(id2),
+    plugin: (id2) => classes2.value.get(id2),
     option: (id2) => optionIndex.value.get(id2),
-    migration: (registryId2) => migrations.value.get(registryId2)
+    migration
   };
 }
 function isPluginClassId(id2) {
@@ -7106,7 +7023,7 @@ function isPluginClassId(id2) {
 // srcts/store/store.ts
 var ENDED = "Another board opened in a new store, so this store changes its board no more.";
 function createStore(options = {}) {
-  const registrations = createRegistrations();
+  const registrations = createRegistrations(options.migration);
   const board = a(void 0);
   let hello = options.hello;
   const registry = a(options.hello?.block_registry ?? {});
@@ -7344,9 +7261,9 @@ function createStore(options = {}) {
     if (next === void 0) {
       throw new Error("The store holds no board until it opens one.");
     }
-    const classes = Object.keys(next.plugins);
+    const classes2 = Object.keys(next.plugins);
     const owned = /* @__PURE__ */ new Set([
-      ...classes.flatMap((cls) => packageFromId(cls) ?? []),
+      ...classes2.flatMap((cls) => packageFromId(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? [])
     ]);
     const recorded = Object.fromEntries(
@@ -7356,7 +7273,7 @@ function createStore(options = {}) {
       })
     );
     const versions = Object.fromEntries(
-      classes.map((cls) => [cls, own(hello?.plugins ?? {}, cls)?.version ?? 1])
+      classes2.map((cls) => [cls, own(hello?.plugins ?? {}, cls)?.version ?? 1])
     );
     const blocks = Object.fromEntries(
       Object.entries(next.blocks).map(([id3, block]) => [
@@ -7373,7 +7290,7 @@ function createStore(options = {}) {
     const options2 = Object.fromEntries(
       Object.entries(next.options).map(([id3, value2]) => [
         id3,
-        { value: value2, version: own(hello?.option_versions ?? {}, id3) ?? 1 }
+        { value: value2, version: own(hello?.options ?? {}, id3)?.version ?? 1 }
       ])
     );
     const { id: id2, name: name2, links, stacks, plugins } = next;
@@ -7425,7 +7342,6 @@ function createStore(options = {}) {
     canUndo: (origin = "user") => steps(origin).undo.length > 0,
     canRedo: (origin = "user") => steps(origin).redo.length > 0,
     plugins: registrations.plugins,
-    registerMigration: (registryId2, fn) => registrations.registerMigration(registryId2, fn),
     options: registrations.options,
     jsonBoard,
     save,
@@ -7443,27 +7359,10 @@ function settled(fn) {
 }
 
 // srcts/core/plugins.ts
-function corePluginClasses() {
-  return [
-    {
-      id: "blockr.core-basic_frontend_plugin",
-      frontend: "blockr.core-basic",
-      options: ["show_conditions", "dark_mode"]
-    },
-    {
-      id: "blockr.core-file_storage_plugin",
-      storage: coreStorage()
-    },
-    {
-      id: "blockr.core-edit_board_plugin",
-      ui: "blockr.core-edit_board"
-    }
-  ];
-}
 var NONE = Object.freeze({});
 var NOTHING_FAILED = Promise.resolve([]);
 function runPlugins(deps) {
-  const { store, loader, keepOptions } = deps;
+  const { store, keepOptions } = deps;
   const replaced = deps.signal ?? new AbortController().signal;
   const registeredClass = (id2) => own(store.plugins.registered(), id2);
   const added = /* @__PURE__ */ new Map();
@@ -7487,17 +7386,17 @@ function runPlugins(deps) {
     offStore();
     for (const stop of stops.splice(0)) stop();
   });
-  let memo;
+  let memo2;
   function appPlugins() {
     if (!store.hasBoard()) return NONE;
-    const classes = store.plugins.registered();
-    if (memo?.classes !== classes) {
+    const classes2 = store.plugins.registered();
+    if (memo2?.classes !== classes2) {
       const registered = Object.entries(deps.plugins).flatMap(
-        ([id2, { name: name2 }]) => Object.hasOwn(classes, id2) ? [[id2, Object.freeze({ name: name2 })]] : []
+        ([id2, { name: name2 }]) => Object.hasOwn(classes2, id2) ? [[id2, Object.freeze({ name: name2 })]] : []
       );
-      memo = { classes, plugins: Object.freeze(Object.fromEntries(registered)) };
+      memo2 = { classes: classes2, plugins: Object.freeze(Object.fromEntries(registered)) };
     }
-    return memo.plugins;
+    return memo2.plugins;
   }
   function pluginClass(plugin) {
     const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : void 0;
@@ -7510,9 +7409,9 @@ function runPlugins(deps) {
   }
   function frontend() {
     const [id2] = inRole(appPlugins(), registeredClass, "frontend");
-    const module = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
-    if (id2 === void 0 || module === void 0) return void 0;
-    return { module, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
+    const drawn2 = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
+    if (id2 === void 0 || drawn2 === void 0) return void 0;
+    return { frontend: drawn2, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
   }
   let started = false;
   async function start2() {
@@ -7562,7 +7461,6 @@ function runPlugins(deps) {
     if (ui === void 0) {
       throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
     }
-    const pkg = packageFromId(ui);
     const controller = new AbortController();
     const { signal } = controller;
     const ended = () => signal.aborted;
@@ -7583,14 +7481,6 @@ function runPlugins(deps) {
       report(error);
     }
     void (async () => {
-      let mod;
-      try {
-        mod = mountableModule(await loader.module(ui), ui, pkg);
-      } catch (error) {
-        fail(error);
-        return;
-      }
-      if (ended()) return;
       const kept = keepOptions(def.options ?? [], `the plugin class "${plugin}"`, (failures2) => {
         if (ended()) return;
         end();
@@ -7605,12 +7495,12 @@ function runPlugins(deps) {
         return;
       }
       try {
-        const rendered = await mod.render({ el, core: deps.core(), plugin, signal });
+        const rendered = await ui.render({ el, core: deps.core(), plugin, signal });
         if (typeof rendered !== "function") return;
         if (ended()) attempt(rendered);
         else cleanup = rendered;
       } catch (error) {
-        fail(new ModuleError(ui, pkg, `failed in render(): ${errorMessage(error)}`, { cause: error }));
+        fail(new Error(`The ui of the plugin class "${plugin}" failed in render(): ${errorMessage(error)}`, { cause: error }));
       }
     })();
     return end;
@@ -7717,6 +7607,7 @@ function createCore(parts) {
     commands,
     scheduler,
     loader,
+    core: () => api,
     renderers: parts.renderers,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
@@ -7732,7 +7623,6 @@ function createCore(parts) {
   });
   const plugins = runPlugins({
     store,
-    loader,
     keepOptions: (ids2, by, failed3) => mounts.keepOptions(ids2, by, failed3),
     core: () => api,
     plugins: parts.plugins,
@@ -7890,29 +7780,10 @@ function pageFrontEnds(el) {
     el.replaceChildren(loadingNote());
   }
   return {
-    async prepare(front, loader, signal) {
-      if ("none" in front) {
-        if (signal.aborted) return;
-        end();
-        next = front;
-        return;
-      }
-      let prepared;
-      const { id: id2, source, plugin, args } = front;
-      const pkg = packageFromId(id2);
-      if (source === void 0) {
-        prepared = { id: id2, module: id2, plugin, args, error: new Error(`R serves no module ${id2}, the frontend that draws the board.`) };
-      } else {
-        try {
-          const mod = mountableModule(await loader.load(source, pkg), source.module, pkg);
-          prepared = { id: id2, module: source.module, plugin, args, render: mod.render.bind(mod) };
-        } catch (error) {
-          prepared = { id: id2, module: source.module, plugin, args, error };
-        }
-      }
+    prepare(front, signal) {
       if (signal.aborted) return;
       end();
-      next = prepared;
+      next = front;
     },
     async render(core, signal, failures) {
       if (signal.aborted) return;
@@ -7929,11 +7800,6 @@ function pageFrontEnds(el) {
         showError(el, failures.join("\n"));
         return;
       }
-      if (prepared.render === void 0) {
-        showError(el, `The frontend ${prepared.id} cannot draw the board: ${errorMessage(prepared.error)}`);
-        report(prepared.error);
-        return;
-      }
       const controller = new AbortController();
       const ending = () => {
         if (drawn2 === current2) end();
@@ -7948,7 +7814,7 @@ function pageFrontEnds(el) {
       };
       drawn2 = current2;
       try {
-        const rendered = await prepared.render({
+        const rendered = await prepared.frontend.render({
           el,
           core,
           plugin: prepared.plugin,
@@ -7960,7 +7826,7 @@ function pageFrontEnds(el) {
         else current2.cleanup = rendered;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const why = new ModuleError(prepared.module, packageFromId(prepared.id), `failed in render(): ${errorMessage(error)}`, {
+        const why = new Error(`The frontend of the plugin class "${prepared.plugin}" failed in render(): ${errorMessage(error)}`, {
           cause: error
         });
         showError(el, why.message);
@@ -8716,6 +8582,60 @@ function attempt2(command2, fn) {
   }
 }
 
+// srcts/core/migrations.ts
+function createMigrations(loader) {
+  const known = /* @__PURE__ */ new Map();
+  async function load(registryId2, module) {
+    const pkg = packageFromId(registryId2);
+    let migration;
+    try {
+      migration = migrationOf(await loader.load({ module }, pkg), module, pkg);
+    } catch (error) {
+      report(error);
+    }
+    known.set(registryId2, { module, migration });
+  }
+  return {
+    get: (registryId2) => known.get(registryId2)?.migration,
+    async prepare(board, registry) {
+      const needed = /* @__PURE__ */ new Map();
+      for (const block of olderBlocks(board, registry)) {
+        const entry = own(registry, block);
+        if (entry === void 0 || known.get(block)?.module === entry.module) continue;
+        needed.set(block, entry.module);
+      }
+      await Promise.all([...needed].map(([registryId2, module]) => load(registryId2, module)));
+    }
+  };
+}
+function olderBlocks(given, registry) {
+  let json = given;
+  if (typeof given === "string") {
+    try {
+      json = JSON.parse(given);
+    } catch {
+      return /* @__PURE__ */ new Set();
+    }
+  }
+  const blocks = isObject(json) && isObject(json.board) ? json.board.blocks : void 0;
+  const older = /* @__PURE__ */ new Set();
+  if (!isObject(blocks)) return older;
+  for (const block of Object.values(blocks)) {
+    if (!isObject(block) || typeof block.registry_id !== "string" || typeof block.version !== "number") continue;
+    const version = own(registry, block.registry_id)?.version;
+    if (version !== void 0 && block.version < version) older.add(block.registry_id);
+  }
+  return older;
+}
+function migrationOf(exports, module, pkg) {
+  const { migrate: migrate2 } = moduleExports(exports, module, pkg);
+  if (migrate2 === void 0) return void 0;
+  if (typeof migrate2 !== "function") {
+    throw new ModuleError(module, pkg, "exports a migrate that is no function.");
+  }
+  return migrate2;
+}
+
 // srcts/core/start.ts
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start(options) {
@@ -8749,6 +8669,7 @@ function start(options) {
     modules: () => latest?.modules ?? {},
     changed: (pkg) => changed.find((c2) => c2.package === pkg)
   });
+  const migrations = createMigrations(loader);
   function heard(reply) {
     if (page.signal.aborted) return;
     const error = helloError(reply);
@@ -8838,12 +8759,9 @@ function start(options) {
       blockrOptions.read("gate_visibility"),
       blockrOptions.read("rand_id")
     ]);
-    const store = createStore({ hello: reply, signal });
-    for (const def of corePluginClasses()) store.plugins.register(def);
+    const store = createStore({ hello: reply, signal, migration: (id2) => migrations.get(id2) });
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
-    for (const option of options.options({ blockrOption: (name2) => blockrOptions.read(name2) })) {
-      store.options.register(option);
-    }
+    await register(reply, store, commands, signal);
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -8871,11 +8789,11 @@ function start(options) {
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
     running2 = { store, scheduler, core, controller };
-    const named2 = await initialize(reply, core, signal, later === void 0);
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = alone ? void 0 : chosen(reply, named2);
+      const instead = alone ? void 0 : await named2(reply, store, core, signal);
+      await migrations.prepare(instead ?? reply.board, reply.block_registry);
       if (instead === void 0) {
         dropped = await store.open(reply);
       } else {
@@ -8883,11 +8801,13 @@ function start(options) {
           dropped = await store.open(instead);
         } catch (error) {
           report(error);
+          await migrations.prepare(reply.board, reply.block_registry);
           dropped = await store.open(reply);
         }
       }
     } else {
       try {
+        await migrations.prepare(later.text, reply.block_registry);
         dropped = await store.open(later.text);
       } catch (error) {
         failure = asError(error);
@@ -8907,19 +8827,11 @@ function start(options) {
       }
     } else {
       const front = plugins.frontend();
-      const [failures] = await Promise.all([
-        front?.added ?? [],
-        options.frontEnds?.prepare(
-          front === void 0 ? { none: noFrontend(reply, core) } : {
-            id: front.module,
-            source: own(latest?.modules ?? {}, front.module),
-            plugin: front.plugin,
-            args: reply.frontend
-          },
-          loader,
-          signal
-        )
-      ]);
+      options.frontEnds?.prepare(
+        front === void 0 ? { none: noFrontend(reply, core) } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
+        signal
+      );
+      const failures = await (front?.added ?? []);
       try {
         await options.frontEnds?.render(core, signal, failures);
       } finally {
@@ -8931,61 +8843,75 @@ function start(options) {
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
-  async function initialize(reply, core, signal, naming) {
-    const named2 = [];
-    for (const entry of reply.startup_modules) {
-      if (signal.aborted) break;
+  async function register(reply, store, commands, signal) {
+    const [defs, opts] = await Promise.all([
+      Promise.all(Object.entries(reply.plugins).map(([id2, entry]) => listed(entry, packageFromId(id2)))),
+      Promise.all(Object.values(reply.options).map((entry) => listed(entry, entry.package)))
+    ]);
+    if (signal.aborted) return;
+    Object.keys(reply.options).forEach((id2, i2) => {
+      const def = opts[i2];
+      if (def === void 0) return;
       try {
-        const source = entry.css === void 0 ? { module: entry.module } : { module: entry.module, css: entry.css };
-        const mod = asStartupModule(await loader.load(source, entry.package), entry.module, entry.package);
-        let result;
-        try {
-          result = await mod.initialize({ core, signal });
-        } catch (error) {
-          throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${errorMessage(error)}`, { cause: error });
-        }
-        if (typeof result === "string") {
-          if (naming) {
-            named2.push({ package: entry.package, text: result });
-          } else {
-            report(
-              new Error(
-                `The startup module of ${entry.package} named a board to open as another board opened, which core ignores, since only a startup module that runs as the page starts names one.`
-              )
-            );
-          }
-        } else if (result !== void 0) {
-          throw new ModuleError(entry.module, entry.package, "resolved initialize() with something other than the text of a JSON board.");
-        }
+        store.options.register({ ...def, id: id2 });
       } catch (error) {
         report(error);
       }
-    }
-    return named2;
+    });
+    Object.keys(reply.plugins).forEach((id2, i2) => {
+      const def = defs[i2];
+      if (def === void 0) return;
+      let cls;
+      try {
+        cls = { ...def, id: id2 };
+        store.plugins.register(cls);
+      } catch (error) {
+        report(error);
+        return;
+      }
+      for (const command2 of cls.commands ?? []) {
+        try {
+          commands.register(command2);
+        } catch (error) {
+          report(new Error(`A command of the plugin class "${id2}" is refused: ${errorMessage(error)}`, { cause: error }));
+        }
+      }
+    });
   }
-  function chosen(reply, named2) {
-    const [only, ...more] = named2;
-    if (only === void 0) return void 0;
-    const packages = quoted(named2.map((entry) => entry.package));
-    if (more.length > 0) {
-      report(new Error(`The startup modules of ${packages} each named a board to open, so core opens the board that R sent.`));
+  async function listed(source, pkg) {
+    try {
+      const at = source.css === void 0 ? { module: source.module } : { module: source.module, css: source.css };
+      return listedDefault(await loader.load(at, pkg), source.module, pkg);
+    } catch (error) {
+      report(error);
       return void 0;
     }
-    if (reply.lock.load) {
-      report(
-        new Error(
-          `The load lock is on, so core opens the board that R sent rather than the one that ${only.package} named.`
-        )
-      );
+  }
+  async function named2(reply, store, core, signal) {
+    if (reply.lock.load) return void 0;
+    const classes2 = store.plugins.registered();
+    const plugin = Object.keys(reply.plugins).find((id2) => own(classes2, id2)?.storage !== void 0);
+    const storage = plugin === void 0 ? void 0 : own(classes2, plugin)?.storage;
+    if (plugin === void 0 || storage?.load === void 0) return void 0;
+    let text;
+    try {
+      text = await storage.load({ core, plugin, signal });
+    } catch (error) {
+      report(new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, { cause: error }));
+      return void 0;
+    }
+    if (text === void 0) return void 0;
+    if (typeof text !== "string") {
+      report(new Error(`The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`));
       return void 0;
     }
     try {
-      JSON.parse(only.text);
+      JSON.parse(text);
     } catch (error) {
-      report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
+      report(new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
       return void 0;
     }
-    return only.text;
+    return text;
   }
   let queue = Promise.resolve();
   function reopen(given, of) {
@@ -9003,6 +8929,7 @@ function start(options) {
       throw new StoreError(refused2, ["The store holds no board yet, so it opens none in place of it."]);
     }
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
+    await migrations.prepare(text, current2.store.blockRegistry());
     await current2.store.check(text);
     const before = current2.store.save();
     of.abort();
@@ -9035,7 +8962,7 @@ function start(options) {
   };
 }
 function helloError(reply) {
-  if (reply.status !== "ok" || !("startup_modules" in reply)) {
+  if (reply.status !== "ok" || !("block_registry" in reply)) {
     const said = "conditions" in reply ? reply.conditions.map((c2) => c2.message).join(" ") : "";
     return new Error(`R replied ${reply.status} to the client's hello. ${said}`.trim());
   }
@@ -9043,7 +8970,7 @@ function helloError(reply) {
 }
 function noFrontend(reply, core) {
   const missing2 = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
-  const why = missing2.length === 0 ? "none of the app's plugins is a frontend" : `no package registered the ${missing2.length === 1 ? "class" : "classes"} of the app's ${missing2.length === 1 ? "plugin" : "plugins"} ${quoted(missing2)}`;
+  const why = missing2.length === 0 ? "none of the app's plugins is a frontend" : `core registered no class of the app's ${missing2.length === 1 ? "plugin" : "plugins"} ${quoted(missing2)}`;
   return `The app runs no frontend that draws the board, since ${why}.`;
 }
 function changedPackages(loaded, reply) {
@@ -9068,23 +8995,2640 @@ function droppedNote(dropped) {
   });
   return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
 }
-function asStartupModule(exports, module, pkg) {
-  if (!isObject(exports) || typeof exports.api !== "number") {
-    throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
+function listedDefault(exports, module, pkg) {
+  const def = moduleExports(exports, module, pkg).default;
+  if (!isObject(def)) {
+    throw new ModuleError(module, pkg, "has no default export, an object.");
   }
-  if (exports.api !== API) {
-    throw new ModuleError(
-      module,
-      pkg,
-      `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`
-    );
-  }
-  const mod = exports.default;
-  if (!isObject(mod) || typeof mod.initialize !== "function") {
-    throw new ModuleError(module, pkg, "has no default export with an initialize() function.");
-  }
-  return mod;
+  return def;
 }
+
+// srcts/modules/basic/index.tsx
+import { flushSync as flushSync2 } from "react-dom";
+import { createRoot } from "react-dom/client";
+
+// srcts/modules/basic/board.tsx
+import { useCallback as useCallback7, useMemo as useMemo3, useState as useState10 } from "react";
+
+// srcts/picker/picker.tsx
+import { useMemo as useMemo2, useState as useState4 } from "react";
+import { flushSync } from "react-dom";
+
+// srcts/styles/styles.ts
+var styles = {
+  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
+  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
+  label: "bc:text-sm bc:font-medium",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
+  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
+  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
+  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
+  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
+  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+};
+
+// srcts/ui/combobox.tsx
+import { useId, useLayoutEffect as useLayoutEffect2, useMemo, useRef as useRef2, useState as useState2 } from "react";
+
+// srcts/ui/ui.tsx
+import { useLayoutEffect, useRef, useState } from "react";
+import { jsx } from "react/jsx-runtime";
+var classes = {
+  button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
+  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle",
+  // The board's page, which draws no background of its own, so that the
+  // page's, which the browser draws in the page's theme, shows to its edges.
+  page: "bc:text-gray-900 bc:dark:text-gray-100",
+  // What sits over the board, as a dialog or a menu does,
+  // on the background that core's theme gives it, bg-raised.
+  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
+  card: "bc:bg-bg-subtle",
+  heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
+  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
+};
+function NameField({
+  label,
+  name: name2,
+  onSubmit,
+  onDone
+}) {
+  const [text, setText] = useState(name2);
+  const ref = useRef(null);
+  const done = useRef(false);
+  useLayoutEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+  function finish(submit) {
+    if (done.current) return;
+    done.current = true;
+    const trimmed = text.trim();
+    if (submit && trimmed !== "" && trimmed !== name2) onSubmit(trimmed);
+    onDone();
+  }
+  return /* @__PURE__ */ jsx(
+    "input",
+    {
+      ref,
+      type: "text",
+      "aria-label": label,
+      value: text,
+      spellCheck: false,
+      className: `${styles.box} bc:min-w-40`,
+      onChange: (event) => {
+        setText(event.target.value);
+      },
+      onKeyDown: (event) => {
+        if (event.key === "Enter" && !event.nativeEvent.isComposing) finish(true);
+        else if (event.key === "Escape") finish(false);
+      },
+      onBlur: () => {
+        finish(true);
+      }
+    }
+  );
+}
+
+// srcts/ui/combobox.tsx
+import { jsx as jsx2, jsxs } from "react/jsx-runtime";
+function Combobox(props) {
+  const { value: value2, onChange } = props;
+  return /* @__PURE__ */ jsx2(Field, { ...props, picked: value2 === void 0 ? [] : [value2], pick: onChange, multiple: false });
+}
+function MultiCombobox(props) {
+  const { values: values2, onChange } = props;
+  return /* @__PURE__ */ jsx2(
+    Field,
+    {
+      ...props,
+      picked: values2,
+      pick: (value2) => {
+        onChange([...values2, value2]);
+      },
+      unpick: (value2) => {
+        onChange(values2.filter((v2) => v2 !== value2));
+      },
+      multiple: true
+    }
+  );
+}
+function Field({
+  label,
+  options,
+  hint,
+  error,
+  placeholder,
+  empty: empty2 = "No option matches.",
+  autofocus = false,
+  picked,
+  pick: pick2,
+  unpick,
+  multiple
+}) {
+  const id2 = useId();
+  const listId = `${id2}-list`;
+  const noteId = `${id2}-note`;
+  const input2 = useRef2(null);
+  const list = useRef2(null);
+  const byValue = useMemo(() => new Map(options.map((option) => [option.value, option])), [options]);
+  const single = multiple ? void 0 : byValue.get(picked[0] ?? "");
+  const [open, setOpen] = useState2(false);
+  const [query, setQuery] = useState2("");
+  const [active, setActive] = useState2(void 0);
+  const shown2 = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const taken = new Set(multiple ? picked : []);
+    return options.filter(
+      (option) => !taken.has(option.value) && (needle === "" || [option.label, option.detail ?? "", option.group ?? "", option.badge ?? "", ...option.keywords ?? []].some(
+        (text2) => text2.toLowerCase().includes(needle)
+      ))
+    );
+  }, [options, query, picked, multiple]);
+  const pickable = shown2.filter((option) => option.disabled !== true);
+  const marked = active !== void 0 && pickable.some((option) => option.value === active) ? active : pickable[0]?.value;
+  useLayoutEffect2(() => {
+    if (!open || marked === void 0) return;
+    list.current?.ownerDocument.getElementById(optionId2(listId, marked))?.scrollIntoView({ block: "nearest" });
+  }, [open, marked, listId]);
+  function show() {
+    if (!open) {
+      setOpen(true);
+      setActive(multiple ? void 0 : single?.value);
+    }
+  }
+  function close() {
+    setOpen(false);
+    setQuery("");
+    setActive(void 0);
+  }
+  function choose(option) {
+    if (option.disabled === true) return;
+    pick2(option.value);
+    if (multiple) {
+      setQuery("");
+      setActive(void 0);
+      input2.current?.focus();
+    } else {
+      close();
+    }
+  }
+  function move(by) {
+    if (!open) {
+      show();
+      return;
+    }
+    if (pickable.length === 0) return;
+    const at = pickable.findIndex((option) => option.value === marked);
+    const next = pickable[(at + by + pickable.length) % pickable.length];
+    setActive(next?.value);
+  }
+  function onKeyDown(event) {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      move(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      move(-1);
+    } else if (event.key === "Enter" && open) {
+      event.preventDefault();
+      const option = byValue.get(marked ?? "");
+      if (option !== void 0) choose(option);
+    } else if (event.key === "Escape" && open) {
+      event.preventDefault();
+      close();
+    } else if (event.key === "Backspace" && multiple && query === "" && picked.length > 0) {
+      const last = picked[picked.length - 1];
+      if (last !== void 0) unpick?.(last);
+    }
+  }
+  const groups = groupsOf(shown2);
+  const note = error ?? hint;
+  const text = open ? query : multiple ? "" : single?.label ?? "";
+  return /* @__PURE__ */ jsxs("div", { className: styles.field, children: [
+    /* @__PURE__ */ jsx2("label", { htmlFor: id2, className: styles.label, children: label }),
+    multiple && picked.length > 0 ? /* @__PURE__ */ jsx2("ul", { "aria-label": `${label}, picked`, className: "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0", children: picked.map((value2) => {
+      const option = byValue.get(value2);
+      const name2 = option?.label ?? value2;
+      return /* @__PURE__ */ jsxs(
+        "li",
+        {
+          className: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:text-xs",
+          children: [
+            /* @__PURE__ */ jsx2("span", { children: name2 }),
+            /* @__PURE__ */ jsx2(
+              "button",
+              {
+                type: "button",
+                className: `${classes.quiet} bc:rounded-full bc:px-1`,
+                "aria-label": `Remove ${name2}`,
+                onClick: () => {
+                  unpick?.(value2);
+                  input2.current?.focus();
+                },
+                children: /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\xD7" })
+              }
+            )
+          ]
+        },
+        value2
+      );
+    }) }) : null,
+    /* @__PURE__ */ jsxs("div", { className: "bc:relative bc:grid", children: [
+      /* @__PURE__ */ jsx2(
+        "input",
+        {
+          ref: input2,
+          id: id2,
+          type: "text",
+          role: "combobox",
+          autoComplete: "off",
+          spellCheck: false,
+          "aria-autocomplete": "list",
+          "aria-expanded": open,
+          "aria-controls": listId,
+          "aria-activedescendant": open && marked !== void 0 ? optionId2(listId, marked) : void 0,
+          "aria-invalid": error === void 0 ? void 0 : true,
+          "aria-describedby": note === void 0 ? void 0 : noteId,
+          "data-autofocus": autofocus || void 0,
+          className: `${styles.box} bc:pr-8`,
+          value: text,
+          placeholder,
+          onChange: (event) => {
+            setQuery(event.target.value);
+            setActive(void 0);
+            setOpen(true);
+          },
+          onClick: show,
+          onKeyDown,
+          onBlur: close
+        }
+      ),
+      /* @__PURE__ */ jsx2(
+        "button",
+        {
+          type: "button",
+          tabIndex: -1,
+          "aria-label": open ? `Close the options of ${label}` : `Show the options of ${label}`,
+          className: "bc:absolute bc:inset-y-0 bc:right-0 bc:flex bc:w-8 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:text-text-muted",
+          onMouseDown: (event) => {
+            event.preventDefault();
+          },
+          onClick: () => {
+            if (open) close();
+            else {
+              show();
+              input2.current?.focus();
+            }
+          },
+          children: /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\u25BE" })
+        }
+      ),
+      open ? /* @__PURE__ */ jsxs(
+        "ul",
+        {
+          ref: list,
+          id: listId,
+          role: "listbox",
+          "aria-label": label,
+          "aria-multiselectable": multiple || void 0,
+          className: `${classes.surface} bc:absolute bc:inset-x-0 bc:top-full bc:z-30 bc:m-0 bc:mt-1 bc:max-h-72 bc:list-none bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:shadow-lg`,
+          children: [
+            shown2.length === 0 ? /* @__PURE__ */ jsx2("li", { className: `${styles.hint} bc:px-2 bc:py-1`, children: empty2 }) : null,
+            groups.map(
+              ([group, members]) => group === void 0 ? members.map((option) => /* @__PURE__ */ jsx2(Option, { option, id: optionId2(listId, option.value), marked: option.value === marked, picked: picked.includes(option.value), choose }, option.value)) : /* @__PURE__ */ jsxs("li", { role: "presentation", children: [
+                /* @__PURE__ */ jsx2(
+                  "div",
+                  {
+                    id: groupId(listId, group),
+                    className: "bc:px-2 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted",
+                    children: group
+                  }
+                ),
+                /* @__PURE__ */ jsx2("ul", { role: "group", "aria-labelledby": groupId(listId, group), className: "bc:m-0 bc:list-none bc:p-0", children: members.map((option) => /* @__PURE__ */ jsx2(Option, { option, id: optionId2(listId, option.value), marked: option.value === marked, picked: picked.includes(option.value), choose }, option.value)) })
+              ] }, group)
+            )
+          ]
+        }
+      ) : null
+    ] }),
+    note === void 0 ? null : /* @__PURE__ */ jsx2("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
+  ] });
+}
+function Option({
+  option,
+  id: id2,
+  marked,
+  picked,
+  choose
+}) {
+  return /* @__PURE__ */ jsxs(
+    "li",
+    {
+      id: id2,
+      role: "option",
+      "data-value": option.value,
+      "aria-selected": picked,
+      "aria-disabled": option.disabled === true || void 0,
+      className: `bc:grid bc:cursor-pointer bc:gap-0.5 bc:rounded bc:px-2 bc:py-1 bc:text-sm ${marked ? "bc:bg-bg-subtle bc:outline bc:outline-1 bc:outline-border-accent" : ""} ${option.disabled === true ? "bc:cursor-default bc:opacity-50" : ""}`,
+      onMouseDown: (event) => {
+        event.preventDefault();
+      },
+      onClick: () => {
+        choose(option);
+      },
+      children: [
+        /* @__PURE__ */ jsxs("span", { className: "bc:flex bc:items-baseline bc:gap-2", children: [
+          /* @__PURE__ */ jsxs("span", { className: `bc:min-w-0 bc:flex-1 ${picked ? "bc:font-semibold" : "bc:font-medium"}`, children: [
+            picked ? /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\u2713 " }) : null,
+            option.label
+          ] }),
+          option.badge === void 0 ? null : /* @__PURE__ */ jsx2("span", { className: "bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:font-normal bc:text-text-muted", children: option.badge })
+        ] }),
+        option.detail === void 0 || option.detail === "" ? null : /* @__PURE__ */ jsx2("span", { className: "bc:text-xs bc:text-text-muted", children: option.detail })
+      ]
+    }
+  );
+}
+function groupsOf(options) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const option of options) groups.set(option.group, [...groups.get(option.group) ?? [], option]);
+  const loose = groups.get(void 0);
+  groups.delete(void 0);
+  return [...loose === void 0 ? [] : [[void 0, loose]], ...groups];
+}
+function optionId2(list, value2) {
+  return `${list}-option-${safe(value2)}`;
+}
+function groupId(list, group) {
+  return `${list}-group-${safe(group)}`;
+}
+function safe(text) {
+  return text.replace(/[^A-Za-z0-9_-]/g, (c2) => `_${c2.charCodeAt(0).toString(16)}`);
+}
+
+// srcts/ui/fields.tsx
+import { useId as useId2 } from "react";
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+function TextField({
+  label,
+  value: value2,
+  hint,
+  error,
+  placeholder,
+  identifier = false,
+  onChange,
+  onLeave
+}) {
+  const id2 = useId2();
+  const noteId = `${id2}-note`;
+  const note = error ?? hint;
+  return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
+    /* @__PURE__ */ jsx3("label", { htmlFor: id2, className: styles.label, children: label }),
+    /* @__PURE__ */ jsx3(
+      "input",
+      {
+        id: id2,
+        type: "text",
+        className: styles.box,
+        value: value2,
+        placeholder,
+        spellCheck: identifier ? false : void 0,
+        autoCapitalize: identifier ? "none" : void 0,
+        autoCorrect: identifier ? "off" : void 0,
+        autoComplete: "off",
+        "aria-invalid": error === void 0 ? void 0 : true,
+        "aria-describedby": note === void 0 ? void 0 : noteId,
+        onChange: (event) => {
+          onChange(event.target.value);
+        },
+        onBlur: onLeave
+      }
+    ),
+    note === void 0 ? null : /* @__PURE__ */ jsx3("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
+  ] });
+}
+
+// srcts/ui/hooks.ts
+import { useCallback, useSyncExternalStore } from "react";
+function useBoard(core) {
+  const subscribe = useStore(core);
+  return useSyncExternalStore(subscribe, () => core.store.board());
+}
+function useHistory(core) {
+  const subscribe = useStore(core);
+  const canUndo = useSyncExternalStore(subscribe, () => core.store.canUndo());
+  const canRedo = useSyncExternalStore(subscribe, () => core.store.canRedo());
+  return { canUndo, canRedo };
+}
+function useStore(core) {
+  return useCallback(
+    (notify) => core.store.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+}
+
+// srcts/ui/table.tsx
+import { useState as useState3 } from "react";
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+var PAGE_SIZE = 10;
+function useTableView(rows, text, size = PAGE_SIZE) {
+  const [query, setQueryState] = useState3("");
+  const [page, setPage] = useState3(0);
+  const needle = query.trim().toLowerCase();
+  const matching = needle === "" ? rows : rows.filter((row) => text(row).toLowerCase().includes(needle));
+  const pages = Math.max(1, Math.ceil(matching.length / size));
+  const shown2 = Math.min(page, pages - 1);
+  const first = shown2 * size;
+  return {
+    rows: matching.slice(first, first + size),
+    query,
+    setQuery: (next) => {
+      setQueryState(next);
+      setPage(0);
+    },
+    page: shown2,
+    pages,
+    setPage,
+    found: matching.length,
+    first
+  };
+}
+function TableSearch({ label, view }) {
+  return /* @__PURE__ */ jsx4("search", { children: /* @__PURE__ */ jsxs3("label", { className: styles.field, children: [
+    /* @__PURE__ */ jsx4("span", { className: styles.label, children: label }),
+    /* @__PURE__ */ jsx4(
+      "input",
+      {
+        type: "search",
+        spellCheck: false,
+        autoComplete: "off",
+        className: styles.box,
+        value: view.query,
+        onChange: (event) => {
+          view.setQuery(event.target.value);
+        }
+      }
+    )
+  ] }) });
+}
+function Pager({ label, view }) {
+  const { page, pages, found, first, rows } = view;
+  if (pages < 2) return null;
+  return /* @__PURE__ */ jsxs3("nav", { "aria-label": label, className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted", children: [
+    /* @__PURE__ */ jsxs3("span", { "aria-live": "polite", children: [
+      "Rows ",
+      first + 1,
+      "\u2013",
+      first + rows.length,
+      " of ",
+      found
+    ] }),
+    /* @__PURE__ */ jsxs3("span", { className: "bc:flex bc:gap-1", children: [
+      /* @__PURE__ */ jsx4(
+        "button",
+        {
+          type: "button",
+          className: classes.button,
+          disabled: page === 0,
+          onClick: () => {
+            view.setPage(page - 1);
+          },
+          children: "Previous"
+        }
+      ),
+      /* @__PURE__ */ jsx4(
+        "button",
+        {
+          type: "button",
+          className: classes.button,
+          disabled: page >= pages - 1,
+          onClick: () => {
+            view.setPage(page + 1);
+          },
+          children: "Next"
+        }
+      )
+    ] })
+  ] });
+}
+
+// srcts/picker/picker.tsx
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
+  const board = useBoard(core);
+  const registry = core.blockRegistry();
+  const [picked, setPicked] = useState4(void 0);
+  const [input2, setInput] = useState4(void 0);
+  const [inputName, setInputName] = useState4("");
+  const [id2, setId] = useState4("");
+  const [name2, setName] = useState4("");
+  const [errors, setErrors] = useState4({});
+  const [busy, setBusy] = useState4(false);
+  const entries = useMemo2(
+    () => Object.values(registry).filter((entry2) => mode.kind !== "after" || entry2.inputs.length > 0),
+    [registry, mode.kind]
+  );
+  const options = useMemo2(() => entries.map(classOption).sort(byGroupAndLabel), [entries]);
+  const entry = picked === void 0 ? void 0 : own(registry, picked);
+  const link = linkChoice(mode, board, registry, entry);
+  const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
+  function check2() {
+    return {
+      ...entry === void 0 ? { registry: "Pick the class of the new block." } : {},
+      ...optional("id", blockIdError(id2, board)),
+      ...link.kind === "name" ? optional("input", inputNameError(inputName, link.taken)) : {}
+    };
+  }
+  async function submit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const found = check2();
+    flushSync(() => {
+      setErrors(found);
+    });
+    if (Object.keys(found).length > 0 || entry === void 0 || busy) {
+      focusFirstInvalid(form);
+      return;
+    }
+    const args = {
+      registry_id: entry.id,
+      ...filled("id", id2),
+      ...filled("name", name2),
+      ...chosen === void 0 ? {} : { input: chosen },
+      ...link.kind === "name" ? filled("input", inputName) : {}
+    };
+    setBusy(true);
+    const ran = mode.kind === "after" ? await run("blockr.core-append_block", { ...args, from: mode.from }) : mode.kind === "before" ? await run("blockr.core-prepend_block", { ...args, to: mode.to }) : await run("blockr.core-add_block", args);
+    setBusy(false);
+    if (!ran) return;
+    setPicked(void 0);
+    setInput(void 0);
+    setInputName("");
+    setId("");
+    setName("");
+    setErrors({});
+    onAdded?.();
+  }
+  return /* @__PURE__ */ jsxs4(
+    "form",
+    {
+      "aria-label": "Add block",
+      noValidate: true,
+      className: "bc:grid bc:gap-3",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      children: [
+        /* @__PURE__ */ jsx5(
+          Combobox,
+          {
+            label: "Block class",
+            autofocus,
+            options,
+            value: picked,
+            placeholder: options.length === 0 ? "No block class to pick" : "Search by name, description or keyword",
+            empty: "No block class matches.",
+            error: errors.registry,
+            hint: entry?.description === "" ? void 0 : entry?.description,
+            onChange: (value2) => {
+              setPicked(value2);
+              if (mode.kind === "after") setInput(void 0);
+              setErrors((now) => without3(now, "registry"));
+            }
+          }
+        ),
+        link.kind === "pick" ? /* @__PURE__ */ jsxs4("label", { className: styles.field, children: [
+          /* @__PURE__ */ jsx5("span", { className: styles.label, children: link.label }),
+          /* @__PURE__ */ jsx5(
+            "select",
+            {
+              className: styles.box,
+              value: chosen,
+              onChange: (event) => {
+                setInput(event.target.value);
+              },
+              children: link.inputs.map((option) => /* @__PURE__ */ jsx5("option", { value: option, children: option }, option))
+            }
+          )
+        ] }) : null,
+        link.kind === "name" ? /* @__PURE__ */ jsx5(
+          TextField,
+          {
+            label: link.label,
+            value: inputName,
+            hint: "Optional. Leave it empty for an input without a name, which the block takes in the order of its links.",
+            error: errors.input,
+            onChange: (value2) => {
+              setInputName(value2);
+              setErrors((now) => without3(now, "input"));
+            },
+            onLeave: () => {
+              setErrors((now) => ({ ...now, ...optional("input", inputNameError(inputName, link.taken)) }));
+            }
+          }
+        ) : null,
+        link.kind === "none" && mode.kind === "before" ? /* @__PURE__ */ jsx5("p", { className: styles.alert, children: link.why }) : null,
+        /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx5(
+            TextField,
+            {
+              label: "ID",
+              value: id2,
+              hint: "Optional. Made up where left empty.",
+              error: errors.id,
+              identifier: true,
+              onChange: (value2) => {
+                setId(value2);
+                setErrors((now) => without3(now, "id"));
+              },
+              onLeave: () => {
+                setErrors((now) => ({ ...now, ...optional("id", blockIdError(id2, board)) }));
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx5(
+            TextField,
+            {
+              label: "Name",
+              value: name2,
+              placeholder: entry === void 0 ? void 0 : defaultBlockName(entry.id),
+              hint: "Optional. The class's name where left empty.",
+              onChange: setName
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsx5("div", { children: /* @__PURE__ */ jsx5("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "none" && mode.kind === "before", children: "Add block" }) })
+      ]
+    }
+  );
+}
+function linkChoice(mode, board, registry, entry) {
+  if (mode.kind === "before") {
+    const target2 = own(board.blocks, mode.to);
+    const free = freeInputs(board, registry, mode.to) ?? [];
+    const of = `of "${target2?.name ?? mode.to}"`;
+    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
+    if (free.length === 0) return { kind: "none", why: `Every input ${of} takes a link already.` };
+    return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
+  }
+  if (mode.kind === "after" && entry !== void 0) {
+    if (entry.inputs.includes("...")) return { kind: "name", label: `Input name of the new ${entry.name}`, taken: [] };
+    if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
+  }
+  return { kind: "none" };
+}
+function namesInto(board, to, except) {
+  return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
+}
+function inputNameError(value2, taken) {
+  const trimmed = value2.trim();
+  if (trimmed === "") return void 0;
+  if (taken.includes(trimmed)) return `Another link gives the input the name "${trimmed}" already.`;
+  return void 0;
+}
+function isVariadic(free) {
+  return free.length === 1 && free[0] === "";
+}
+function classOption(entry) {
+  const pkg = packageFromId(entry.id);
+  return {
+    value: entry.id,
+    label: entry.name,
+    detail: entry.description,
+    ...pkg === null ? {} : { badge: pkg },
+    group: entry.category === "" ? UNCATEGORIZED : entry.category,
+    keywords: [...entry.keywords, entry.id]
+  };
+}
+var UNCATEGORIZED = "uncategorized";
+function byGroupAndLabel(a2, b2) {
+  const last = (option) => option.group?.toLowerCase() === UNCATEGORIZED ? 1 : 0;
+  return last(a2) - last(b2) || (a2.group ?? "").localeCompare(b2.group ?? "") || a2.label.localeCompare(b2.label);
+}
+function filled(arg, value2) {
+  const trimmed = value2.trim();
+  return trimmed === "" ? {} : { [arg]: trimmed };
+}
+function optional(key, error) {
+  return error === void 0 ? {} : { [key]: error };
+}
+function focusFirstInvalid(form) {
+  form.querySelector('[aria-invalid="true"]')?.focus();
+}
+function blockIdError(value2, board) {
+  return idError(value2, "block", (id2) => own(board.blocks, id2) !== void 0);
+}
+function idError(value2, what, taken) {
+  const id2 = value2.trim();
+  if (id2 === "") return void 0;
+  if (/^\d+$/.test(id2)) return `An ID needs a character other than a digit, such as "${what}_${id2}".`;
+  if (taken(id2)) return `The board holds a ${what} "${id2}" already.`;
+  return void 0;
+}
+function without3(errors, key) {
+  return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key));
+}
+
+// srcts/modules/basic/card.tsx
+import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5, useRef as useRef5, useState as useState8 } from "react";
+
+// srcts/card/footer.tsx
+import { useCallback as useCallback2, useId as useId3, useState as useState5 } from "react";
+import { Fragment, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+var SEVERITIES2 = ["error", "warning", "message"];
+function useFooter(status, severities = SEVERITIES2) {
+  const shown2 = useShown(status);
+  const [open, setOpen] = useState5(OPEN_AT_START);
+  const panel = useId3();
+  const toggle = useCallback2((severity) => {
+    setOpen((was) => {
+      const next = new Set(was);
+      if (!next.delete(severity)) next.add(severity);
+      return next;
+    });
+  }, []);
+  return { status, shown: shown2, severities, open, toggle, panel };
+}
+function Footer({ status, shown: shown2, severities, open, toggle, panel }) {
+  const settled2 = status !== void 0 && status === shown2 && !status.running;
+  return /* @__PURE__ */ jsx6(
+    "footer",
+    {
+      "aria-busy": status?.running === true,
+      "data-status": shown2?.status,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+      children: shown2 === void 0 ? null : /* @__PURE__ */ jsx6(StatusLine, { status: shown2, severities, panel, open, toggle })
+    }
+  );
+}
+function Banners({ shown: shown2, severities, open, panel }) {
+  const listed = shown2 === void 0 ? [] : statusConditions(shown2).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+  if (listed.length === 0) return null;
+  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx6(Banner, { condition }, i2)) });
+}
+var MARKS = {
+  error: {
+    label: "Error",
+    noun: "error",
+    text: "bc:text-text-danger",
+    tint: "bc:bg-red-500/10",
+    border: "bc:border-border-danger"
+  },
+  warning: {
+    label: "Warning",
+    noun: "warning",
+    text: "bc:text-text-warning",
+    tint: "bc:bg-amber-500/10",
+    border: "bc:border-amber-500"
+  },
+  message: {
+    label: "Message",
+    noun: "message",
+    text: "bc:text-blue-600 bc:dark:text-blue-400",
+    tint: "bc:bg-blue-500/10",
+    border: "bc:border-border-accent"
+  }
+};
+function StatusLine({
+  status,
+  severities,
+  panel,
+  open,
+  toggle
+}) {
+  if (status.status === "waiting") {
+    return /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
+  }
+  const pills = SEVERITIES2.filter((severity) => severities.includes(severity)).flatMap((severity) => {
+    const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
+    if (n2 === 0) return [];
+    const mark = MARKS[severity];
+    return [
+      /* @__PURE__ */ jsxs5(
+        "button",
+        {
+          type: "button",
+          "aria-expanded": open.has(severity),
+          "aria-controls": panel,
+          onClick: () => {
+            toggle(severity);
+          },
+          className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+          children: [
+            /* @__PURE__ */ jsx6(SeverityIcon, { severity }),
+            severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
+          ]
+        },
+        severity
+      )
+    ];
+  });
+  return /* @__PURE__ */ jsxs5("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
+    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: status.summary }) : null,
+    pills
+  ] });
+}
+function Banner({ condition }) {
+  const mark = MARKS[condition.severity];
+  return /* @__PURE__ */ jsxs5(
+    "li",
+    {
+      "data-severity": condition.severity,
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(SeverityIcon, { severity: condition.severity }) }),
+        /* @__PURE__ */ jsxs5("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
+          /* @__PURE__ */ jsx6("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
+          /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
+        ] })
+      ]
+    }
+  );
+}
+function SeverityIcon({ severity }) {
+  return /* @__PURE__ */ jsx6(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      className: "bc:size-3 bc:shrink-0",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.6,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      children: severity === "warning" ? /* @__PURE__ */ jsxs5(Fragment, { children: [
+        /* @__PURE__ */ jsx6("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx6("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+      ] }) : /* @__PURE__ */ jsxs5(Fragment, { children: [
+        /* @__PURE__ */ jsx6("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx6("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+      ] })
+    }
+  );
+}
+function useShown(status) {
+  const [kept, setKept] = useState5(void 0);
+  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
+  if (now !== void 0 && now !== kept) setKept(now);
+  return now ?? kept;
+}
+var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+function statusConditions(status) {
+  return status.status === "waiting" ? [] : status.conditions;
+}
+
+// srcts/card/mounted.tsx
+import { useLayoutEffect as useLayoutEffect3, useRef as useRef3 } from "react";
+import { jsx as jsx7 } from "react/jsx-runtime";
+function Mounted({
+  mount: mount2,
+  label,
+  className,
+  data
+}) {
+  const ref = useRef3(null);
+  useLayoutEffect3(() => {
+    const el = ref.current;
+    if (el === null) return;
+    const cleanup = mount2(el);
+    return () => {
+      queueMicrotask(cleanup);
+    };
+  }, [mount2]);
+  return /* @__PURE__ */ jsx7("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
+}
+
+// srcts/card/status.ts
+import { useCallback as useCallback3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
+function useStatus(core, block) {
+  const subscribe = useCallback3(
+    (notify) => core.scheduler.subscribe((changed) => {
+      if (changed.includes(block)) notify();
+    }),
+    [core, block]
+  );
+  return useSyncExternalStore2(subscribe, () => core.scheduler.status(block));
+}
+function useSized(status) {
+  const ready = status?.status === "ready";
+  const [sized, setSized] = useState6(ready);
+  if (ready && !sized) setSized(true);
+  return sized || ready;
+}
+
+// srcts/modules/basic/context.ts
+import { createContext, useContext } from "react";
+var FrontEndContext = createContext(null);
+function useFrontEnd() {
+  const given = useContext(FrontEndContext);
+  if (given === null) throw new Error("A component of the basic frontend is drawn outside of it.");
+  return given;
+}
+function runCommand(front, id2, args) {
+  return front.core.commands.run(id2, args).then(
+    () => true,
+    (error) => {
+      front.notices.failed(error);
+      return false;
+    }
+  );
+}
+
+// srcts/modules/basic/ui.tsx
+import { useEffect, useLayoutEffect as useLayoutEffect4, useRef as useRef4, useState as useState7 } from "react";
+import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
+function Dialog({
+  title,
+  onClose,
+  children
+}) {
+  const ref = useRef4(null);
+  useLayoutEffect4(() => {
+    const dialog = ref.current;
+    if (dialog === null) return;
+    if (!dialog.open) dialog.showModal();
+    dialog.querySelector("[data-autofocus]")?.focus();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, []);
+  return /* @__PURE__ */ jsx8(
+    "dialog",
+    {
+      ref,
+      "aria-label": title,
+      onClose,
+      className: `${classes.surface} bc:w-full bc:max-w-xl bc:rounded-lg bc:border bc:border-border-default bc:p-4 bc:font-sans bc:shadow-xl bc:backdrop:bg-black/40`,
+      children: /* @__PURE__ */ jsxs6("div", { className: "bc:grid bc:gap-3", children: [
+        /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
+          /* @__PURE__ */ jsx8("h2", { className: classes.heading, children: title }),
+          /* @__PURE__ */ jsx8("button", { type: "button", className: classes.button, onClick: onClose, children: "Close" })
+        ] }),
+        children
+      ] })
+    }
+  );
+}
+var menuClasses = {
+  list: `${classes.surface} bc:absolute bc:right-0 bc:z-20 bc:m-0 bc:mt-1 bc:grid bc:min-w-44 bc:list-none bc:gap-0.5 bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:shadow-lg`,
+  item: "bc:w-full bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50"
+};
+function useDismiss(ref, open, setOpen) {
+  useEffect(() => {
+    if (!open) return;
+    const doc = ref.current?.ownerDocument ?? document;
+    const away = (event) => {
+      if (!(event.target instanceof Node && ref.current?.contains(event.target) === true)) setOpen(false);
+    };
+    const escape = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    doc.addEventListener("pointerdown", away);
+    doc.addEventListener("keydown", escape);
+    return () => {
+      doc.removeEventListener("pointerdown", away);
+      doc.removeEventListener("keydown", escape);
+    };
+  }, [ref, open, setOpen]);
+}
+function Menu({ label, items }) {
+  const [open, setOpen] = useState7(false);
+  const ref = useRef4(null);
+  useDismiss(ref, open, setOpen);
+  return /* @__PURE__ */ jsxs6("div", { ref, className: "bc:relative", children: [
+    /* @__PURE__ */ jsx8(
+      "button",
+      {
+        type: "button",
+        "aria-label": label,
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
+        className: classes.quiet,
+        onClick: () => {
+          setOpen(!open);
+        },
+        children: /* @__PURE__ */ jsx8("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" })
+      }
+    ),
+    open ? /* @__PURE__ */ jsx8("ul", { role: "menu", "aria-label": label, className: menuClasses.list, children: items.map((item) => /* @__PURE__ */ jsx8("li", { role: "none", children: /* @__PURE__ */ jsx8(
+      "button",
+      {
+        type: "button",
+        role: "menuitem",
+        disabled: item.disabled,
+        className: menuClasses.item,
+        onClick: () => {
+          setOpen(false);
+          item.onSelect();
+        },
+        children: item.label
+      }
+    ) }, item.label)) }) : null
+  ] });
+}
+
+// srcts/modules/basic/card.tsx
+import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
+var BlockCard = memo(function BlockCard2({
+  id: id2,
+  block,
+  severities,
+  prependable,
+  add
+}) {
+  const front = useFrontEnd();
+  const { core, inView: inView2 } = front;
+  const status = useStatus(core, id2);
+  const footer = useFooter(status, severities);
+  const sized = useSized(status);
+  const [renaming, setRenaming] = useState8(false);
+  const ref = useRef5(null);
+  useLayoutEffect5(() => {
+    const el = ref.current;
+    return el === null ? void 0 : inView2.watch(id2, el);
+  }, [inView2, id2]);
+  const mountUi = useCallback4((el) => core.mountBlock(el, id2), [core, id2]);
+  const mountOutput2 = useCallback4((el) => core.mountOutput(el, id2), [core, id2]);
+  const focus = useCallback4(() => {
+    if (core.focus.get() !== id2) core.focus.set(id2);
+  }, [core, id2]);
+  const locked2 = core.lock.board;
+  const inputs = !core.store.locked(id2);
+  const entry = own(core.blockRegistry(), block.registry_id);
+  const ready = status?.status === "ready";
+  return /* @__PURE__ */ jsxs7(
+    "article",
+    {
+      ref,
+      "aria-label": block.name,
+      className: `${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:p-3`,
+      onPointerDown: focus,
+      onFocus: focus,
+      children: [
+        /* @__PURE__ */ jsxs7("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
+          renaming ? /* @__PURE__ */ jsx9(
+            NameField,
+            {
+              label: "Block name",
+              name: block.name,
+              onSubmit: (name2) => {
+                void runCommand(front, "blockr.core-rename_block", { id: id2, name: name2 });
+              },
+              onDone: () => {
+                setRenaming(false);
+              }
+            }
+          ) : /* @__PURE__ */ jsx9("h3", { className: classes.heading, children: block.name }),
+          /* @__PURE__ */ jsx9("span", { className: "bc:text-xs bc:text-text-muted", children: entry?.name ?? block.registry_id }),
+          /* @__PURE__ */ jsx9(StatusBadge, { status }),
+          locked2 ? null : /* @__PURE__ */ jsx9("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx9(
+            Menu,
+            {
+              label: `Actions of ${block.name}`,
+              items: [
+                {
+                  label: "Rename",
+                  onSelect: () => {
+                    setRenaming(true);
+                  }
+                },
+                {
+                  label: "Add block before",
+                  disabled: !prependable,
+                  onSelect: () => {
+                    add({ kind: "before", to: id2 });
+                  }
+                },
+                {
+                  label: "Add block after",
+                  onSelect: () => {
+                    add({ kind: "after", from: id2 });
+                  }
+                },
+                {
+                  label: "Remove",
+                  onSelect: () => {
+                    void runCommand(front, "blockr.core-remove_block", { id: id2 });
+                  }
+                }
+              ]
+            }
+          ) })
+        ] }),
+        inputs ? /* @__PURE__ */ jsx9(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsxs7(
+          "div",
+          {
+            className: `bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            children: [
+              /* @__PURE__ */ jsx9(
+                Mounted,
+                {
+                  mount: mountOutput2,
+                  label: "Output",
+                  data: { "data-ready": String(ready) },
+                  className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
+                }
+              ),
+              /* @__PURE__ */ jsx9(Footer, { ...footer })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsx9(Banners, { ...footer })
+      ]
+    }
+  );
+});
+function StackGroup({ stack, children }) {
+  const color2 = stack.color ?? void 0;
+  return /* @__PURE__ */ jsx9(
+    "section",
+    {
+      "aria-label": stack.name,
+      className: "bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3",
+      style: color2 === void 0 ? void 0 : { borderColor: color2 },
+      children: /* @__PURE__ */ jsxs7("details", { open: true, children: [
+        /* @__PURE__ */ jsx9("summary", { className: `${classes.heading} bc:cursor-pointer`, children: stack.name }),
+        /* @__PURE__ */ jsx9("div", { className: "bc:mt-3 bc:grid bc:gap-3", children })
+      ] })
+    }
+  );
+}
+var TONES = {
+  ready: "bc:text-text-success",
+  failed: "bc:text-text-danger",
+  invalid: "bc:text-text-warning",
+  waiting: "bc:text-text-warning",
+  stale: "bc:text-text-muted",
+  unevaluated: "bc:text-text-muted"
+};
+function StatusBadge({ status }) {
+  if (status === void 0) return null;
+  return /* @__PURE__ */ jsxs7(
+    "span",
+    {
+      "data-status": status.status,
+      "aria-busy": status.running,
+      className: `bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:px-2 bc:py-0.5 bc:text-xs ${TONES[status.status]}`,
+      children: [
+        /* @__PURE__ */ jsx9("span", { "aria-hidden": "true", className: `bc:size-2 bc:rounded-full bc:bg-current ${status.running ? "bc:animate-pulse" : ""}` }),
+        status.running ? `${status.status}, running` : status.status
+      ]
+    }
+  );
+}
+
+// srcts/modules/basic/layout.ts
+function layoutItems(board) {
+  const stackByBlock = /* @__PURE__ */ new Map();
+  for (const [id2, stack] of Object.entries(board.stacks)) {
+    for (const block of stack.blocks) stackByBlock.set(block, id2);
+  }
+  const items = [];
+  const placed2 = /* @__PURE__ */ new Set();
+  for (const block of Object.keys(board.blocks)) {
+    const stack = stackByBlock.get(block);
+    if (stack === void 0) {
+      items.push({ block });
+    } else if (!placed2.has(stack)) {
+      placed2.add(stack);
+      items.push({ stack, blocks: stackBlocks(board, stack) });
+    }
+  }
+  for (const stack of Object.keys(board.stacks)) {
+    if (!placed2.has(stack)) items.push({ stack, blocks: [] });
+  }
+  return items;
+}
+function stackBlocks(board, stack) {
+  return (board.stacks[stack]?.blocks ?? []).filter((block) => Object.hasOwn(board.blocks, block));
+}
+
+// srcts/modules/basic/notices.ts
+import { useSyncExternalStore as useSyncExternalStore3 } from "react";
+function createNotices() {
+  let notices = [];
+  let last = 0;
+  const listeners = /* @__PURE__ */ new Set();
+  function set(next) {
+    notices = next;
+    for (const fn of [...listeners]) fn();
+  }
+  function add(note) {
+    set([...notices, { id: ++last, text: note.message, severity: note.severity }]);
+  }
+  return {
+    list: () => notices,
+    failed(error) {
+      add({ message: errorMessage(error), severity: "error" });
+    },
+    add,
+    dismiss(id2) {
+      if (notices.some((notice) => notice.id === id2)) set(notices.filter((notice) => notice.id !== id2));
+    },
+    subscribe(fn) {
+      const wrapped = () => {
+        fn();
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
+}
+function useNotices(notices) {
+  return useSyncExternalStore3(notices.subscribe, notices.list);
+}
+
+// srcts/modules/basic/options.tsx
+import { useCallback as useCallback5 } from "react";
+import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
+function OptionsDialog({ onClose }) {
+  const { core } = useFrontEnd();
+  const board = useBoard(core);
+  const registered = core.options.registered();
+  const categories = /* @__PURE__ */ new Map();
+  for (const id2 of Object.keys(board.options)) {
+    const def = Object.hasOwn(registered, id2) ? registered[id2] : void 0;
+    if (def === void 0) continue;
+    categories.set(def.category, [...categories.get(def.category) ?? [], id2]);
+  }
+  return /* @__PURE__ */ jsxs8(Dialog, { title: "Board options", onClose, children: [
+    categories.size === 0 ? /* @__PURE__ */ jsx10("p", { className: styles.hint, children: "The board holds no board options." }) : null,
+    [...categories].map(([category, ids2]) => /* @__PURE__ */ jsxs8("section", { "aria-label": category, className: "bc:grid bc:gap-2", children: [
+      /* @__PURE__ */ jsx10("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
+      ids2.map((id2) => /* @__PURE__ */ jsx10(OptionUi, { id: id2 }, id2))
+    ] }, category))
+  ] });
+}
+function OptionUi({ id: id2 }) {
+  const { core } = useFrontEnd();
+  const mount2 = useCallback5((el) => core.mountOption(el, id2), [core, id2]);
+  return /* @__PURE__ */ jsx10(Mounted, { mount: mount2 });
+}
+
+// srcts/modules/basic/plugins.tsx
+import { useCallback as useCallback6 } from "react";
+import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
+function placed(core) {
+  return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
+}
+function Plugins() {
+  const { core } = useFrontEnd();
+  const shown2 = placed(core);
+  if (shown2.length === 0) return null;
+  return /* @__PURE__ */ jsx11(
+    "aside",
+    {
+      "aria-label": "Plugins",
+      className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
+      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx11(PluginSection, { id: id2, plugin }, id2))
+    }
+  );
+}
+function PluginSection({ id: id2, plugin }) {
+  const { core } = useFrontEnd();
+  const mount2 = useCallback6((el) => core.mountPlugin(el, id2), [core, id2]);
+  return /* @__PURE__ */ jsxs9("details", { open: true, className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`, children: [
+    /* @__PURE__ */ jsx11("summary", { className: `${classes.heading} bc:cursor-pointer`, children: plugin.name }),
+    /* @__PURE__ */ jsx11(Mounted, { mount: mount2, className: "bc:mt-3 bc:min-w-0" })
+  ] });
+}
+
+// srcts/modules/basic/toolbar.tsx
+import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState9 } from "react";
+
+// srcts/modules/basic/storage.ts
+var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
+function drawnControls(core) {
+  const storage = core.plugins.storage();
+  if (storage === void 0) return void 0;
+  try {
+    const twice = /* @__PURE__ */ new Set();
+    const controls = distinct(storage.controls({ core }), twice);
+    return {
+      controls: [...controls.filter((c2) => c2.placement !== "end"), ...controls.filter((c2) => c2.placement === "end")],
+      failed: false,
+      ...twice.size === 0 ? {} : { problem: `Storage controls of one list share the ids ${quoted([...twice])}, so only the first of each draws.` }
+    };
+  } catch (error) {
+    return { controls: [], failed: true, problem: `The storage controls failed: ${errorMessage(error)}` };
+  }
+}
+function buttonsOf(controls) {
+  return controls.flatMap((control) => {
+    if (control.kind === "button") return [control];
+    if (control.kind === "menu") return buttonsOf(control.items);
+    return [];
+  });
+}
+async function runButton(button, failed3) {
+  try {
+    await button.run();
+  } catch (error) {
+    failed3(error);
+  }
+}
+function distinct(list, twice) {
+  const seen = /* @__PURE__ */ new Set();
+  const kept = [];
+  for (const control of list) {
+    if (!KINDS.has(control.kind)) continue;
+    if (seen.has(control.id)) {
+      twice.add(control.id);
+      continue;
+    }
+    seen.add(control.id);
+    kept.push(control.kind === "menu" ? { ...control, items: distinct(control.items, twice) } : control);
+  }
+  return kept;
+}
+
+// srcts/modules/basic/shortcuts.ts
+function bindShortcuts(doc, core, failed3) {
+  function onKey(event) {
+    if (event.defaultPrevented || editable(event.target)) return;
+    const step2 = undoOrRedo(event);
+    if (step2 !== void 0) {
+      event.preventDefault();
+      try {
+        if (step2 === "undo") core.store.undo();
+        else core.store.redo();
+      } catch (error) {
+        failed3(error);
+      }
+      return;
+    }
+    const button = buttonsOf(drawnControls(core)?.controls ?? []).find(
+      (b2) => b2.disabled !== true && b2.shortcut !== void 0 && matchesShortcut(b2.shortcut, event)
+    );
+    if (button === void 0) return;
+    event.preventDefault();
+    if (!event.repeat) void runButton(button, failed3);
+  }
+  doc.addEventListener("keydown", onKey);
+  return () => {
+    doc.removeEventListener("keydown", onKey);
+  };
+}
+function matchesShortcut(text, event) {
+  const shortcut = readShortcut(text);
+  const key = event.key;
+  if (shortcut === void 0 || typeof key !== "string" || key.toLowerCase() !== shortcut.key.toLowerCase()) {
+    return false;
+  }
+  if (event.altKey !== shortcut.alt || event.shiftKey !== shortcut.shift) return false;
+  if (shortcut.mod) return event.ctrlKey || event.metaKey;
+  return event.ctrlKey === shortcut.ctrl && event.metaKey === shortcut.meta;
+}
+function ariaShortcuts(text) {
+  const shortcut = text === void 0 ? void 0 : readShortcut(text);
+  if (shortcut === void 0) return void 0;
+  const rest = [...shortcut.alt ? ["Alt"] : [], ...shortcut.shift ? ["Shift"] : [], shortcut.key];
+  const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
+  return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
+}
+var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
+function readShortcut(text) {
+  const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
+  const key = text.slice(at + 1);
+  const names = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
+  if (key === "" || new Set(names).size < names.length || !names.every((name2) => MODIFIERS.includes(name2))) {
+    return void 0;
+  }
+  const has = (name2) => names.includes(name2);
+  if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
+  return { key, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
+}
+function undoOrRedo(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
+  const key = event.key.toLowerCase();
+  if (key === "z") return event.shiftKey ? "redo" : "undo";
+  if (key === "y" && !event.shiftKey) return "redo";
+  return void 0;
+}
+function editable(target2) {
+  if (!(target2 instanceof HTMLElement)) return false;
+  return target2.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target2.tagName);
+}
+
+// srcts/modules/basic/toolbar.tsx
+import { Fragment as Fragment2, jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
+function Toolbar({ board, showOptions }) {
+  const front = useFrontEnd();
+  const { core, notices } = front;
+  const { canUndo, canRedo } = useHistory(core);
+  const [renaming, setRenaming] = useState9(false);
+  const locked2 = core.lock.board;
+  function step2(back) {
+    try {
+      if (back) core.store.undo();
+      else core.store.redo();
+    } catch (error) {
+      notices.failed(error);
+    }
+  }
+  return /* @__PURE__ */ jsxs10("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border-default bc:pb-3", children: [
+    renaming ? /* @__PURE__ */ jsx12(
+      NameField,
+      {
+        label: "Board name",
+        name: board.name,
+        onSubmit: (name2) => {
+          void runCommand(front, "blockr.core-rename_board", { name: name2 });
+        },
+        onDone: () => {
+          setRenaming(false);
+        }
+      }
+    ) : /* @__PURE__ */ jsx12("h1", { className: "bc:m-0 bc:font-sans bc:text-lg bc:font-semibold", children: board.name }),
+    locked2 || renaming ? null : /* @__PURE__ */ jsx12(
+      "button",
+      {
+        type: "button",
+        className: classes.quiet,
+        "aria-label": "Rename board",
+        onClick: () => {
+          setRenaming(true);
+        },
+        children: "Rename"
+      }
+    ),
+    /* @__PURE__ */ jsxs10("div", { role: "toolbar", "aria-label": "Board", className: "bc:ml-auto bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
+      /* @__PURE__ */ jsx12(
+        "button",
+        {
+          type: "button",
+          className: classes.button,
+          onClick: () => {
+            showOptions();
+          },
+          children: "Options"
+        }
+      ),
+      /* @__PURE__ */ jsx12(
+        "button",
+        {
+          type: "button",
+          className: classes.button,
+          disabled: !canUndo,
+          "aria-keyshortcuts": "Control+Z Meta+Z",
+          onClick: () => {
+            step2(true);
+          },
+          children: "Undo"
+        }
+      ),
+      /* @__PURE__ */ jsx12(
+        "button",
+        {
+          type: "button",
+          className: classes.button,
+          disabled: !canRedo,
+          "aria-keyshortcuts": "Control+Shift+Z Meta+Shift+Z Control+Y",
+          onClick: () => {
+            step2(false);
+          },
+          children: "Redo"
+        }
+      ),
+      /* @__PURE__ */ jsx12(StorageControls, {})
+    ] })
+  ] });
+}
+function StorageControls() {
+  const { core } = useFrontEnd();
+  const storage = core.plugins.storage();
+  const [, redraw] = useReducer((n2) => n2 + 1, 0);
+  useEffect2(() => {
+    if (storage?.subscribe === void 0) return void 0;
+    try {
+      return storage.subscribe(redraw);
+    } catch (error) {
+      report(error);
+      return void 0;
+    }
+  }, [storage]);
+  const drawn2 = drawnControls(core);
+  const problem = drawn2?.problem;
+  useEffect2(() => {
+    if (problem !== void 0) report(new Error(problem));
+  }, [problem]);
+  if (drawn2 === void 0) return null;
+  if (drawn2.failed) {
+    return /* @__PURE__ */ jsx12("span", { role: "alert", title: problem, className: "bc:font-sans bc:text-sm bc:text-text-danger", children: "Storage failed" });
+  }
+  return /* @__PURE__ */ jsx12(Fragment2, { children: drawn2.controls.map((control) => /* @__PURE__ */ jsx12(Control, { control }, control.id)) });
+}
+function Control({ control }) {
+  switch (control.kind) {
+    case "button":
+      return /* @__PURE__ */ jsx12(StorageButton, { button: control, className: classes.button });
+    case "menu":
+      return /* @__PURE__ */ jsx12(StorageMenu, { label: control.label, items: control.items });
+    case "status":
+      return /* @__PURE__ */ jsx12("span", { role: "status", title: control.tooltip, className: "bc:font-sans bc:text-sm bc:text-text-muted", children: control.text });
+  }
+}
+function StorageButton({
+  button,
+  className,
+  role,
+  before
+}) {
+  const { notices } = useFrontEnd();
+  return /* @__PURE__ */ jsx12(
+    "button",
+    {
+      type: "button",
+      role,
+      className,
+      disabled: button.disabled,
+      title: button.tooltip,
+      "aria-keyshortcuts": ariaShortcuts(button.shortcut),
+      onClick: () => {
+        before?.();
+        void runButton(button, notices.failed);
+      },
+      children: button.label
+    }
+  );
+}
+function StorageMenu({ label, items }) {
+  const [open, setOpen] = useState9(false);
+  const ref = useRef6(null);
+  useDismiss(ref, open, setOpen);
+  return /* @__PURE__ */ jsxs10("div", { ref, className: "bc:relative", children: [
+    /* @__PURE__ */ jsxs10(
+      "button",
+      {
+        type: "button",
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
+        className: classes.button,
+        onClick: () => {
+          setOpen(!open);
+        },
+        children: [
+          label,
+          /* @__PURE__ */ jsx12("span", { "aria-hidden": "true", children: "\u25BE" })
+        ]
+      }
+    ),
+    open ? /* @__PURE__ */ jsx12("ul", { role: "menu", "aria-label": label, className: menuClasses.list, children: /* @__PURE__ */ jsx12(
+      MenuItems,
+      {
+        items,
+        close: () => {
+          setOpen(false);
+        }
+      }
+    ) }) : null
+  ] });
+}
+function MenuItems({ items, close }) {
+  return /* @__PURE__ */ jsx12(Fragment2, { children: items.map((item) => {
+    switch (item.kind) {
+      case "button":
+        return /* @__PURE__ */ jsx12("li", { role: "none", children: /* @__PURE__ */ jsx12(StorageButton, { button: item, className: menuClasses.item, role: "menuitem", before: close }) }, item.id);
+      case "menu":
+        return /* @__PURE__ */ jsx12("li", { role: "none", children: /* @__PURE__ */ jsxs10("div", { role: "group", "aria-label": item.label, children: [
+          /* @__PURE__ */ jsx12("span", { "aria-hidden": "true", className: "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted", children: item.label }),
+          /* @__PURE__ */ jsx12("ul", { role: "none", className: "bc:m-0 bc:grid bc:list-none bc:gap-0.5 bc:p-0 bc:pl-2", children: /* @__PURE__ */ jsx12(MenuItems, { items: item.items, close }) })
+        ] }) }, item.id);
+      case "status":
+        return /* @__PURE__ */ jsx12("li", { role: "none", title: item.tooltip, className: "bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-muted", children: item.text }, item.id);
+    }
+  }) });
+}
+
+// srcts/modules/basic/board.tsx
+import { jsx as jsx13, jsxs as jsxs11 } from "react/jsx-runtime";
+function BasicBoard({ front }) {
+  return /* @__PURE__ */ jsx13(FrontEndContext, { value: front, children: /* @__PURE__ */ jsx13(Page, {}) });
+}
+function Page() {
+  const { core } = useFrontEnd();
+  const board = useBoard(core);
+  const items = useMemo3(() => layoutItems(board), [board]);
+  const shown2 = board.options.show_conditions;
+  const severities = useMemo3(() => asSeverities(shown2), [shown2]);
+  const [dialog, setDialog] = useState10(null);
+  const add = useCallback7((mode) => {
+    setDialog({ kind: "add", mode });
+  }, []);
+  const close = useCallback7(() => {
+    setDialog(null);
+  }, []);
+  const card = (id2) => {
+    const block = board.blocks[id2];
+    if (block === void 0) return null;
+    return /* @__PURE__ */ jsx13(
+      BlockCard,
+      {
+        id: id2,
+        block,
+        severities,
+        prependable: (freeInputs(board, core.blockRegistry(), id2)?.length ?? 0) > 0,
+        add
+      },
+      `block-${id2}`
+    );
+  };
+  return /* @__PURE__ */ jsxs11("div", { className: `${classes.page} bc:flex bc:min-h-full bc:flex-col bc:gap-4 bc:p-4 bc:font-sans`, children: [
+    /* @__PURE__ */ jsx13(
+      Toolbar,
+      {
+        board,
+        showOptions: () => {
+          setDialog({ kind: "options" });
+        }
+      }
+    ),
+    /* @__PURE__ */ jsx13(Notices, {}),
+    /* @__PURE__ */ jsxs11("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
+      /* @__PURE__ */ jsx13(Plugins, {}),
+      /* @__PURE__ */ jsxs11("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
+        items.length === 0 ? /* @__PURE__ */ jsx13("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
+        items.map((item) => {
+          if ("block" in item) return card(item.block);
+          const stack = board.stacks[item.stack];
+          if (stack === void 0) return null;
+          return /* @__PURE__ */ jsx13(StackGroup, { stack, children: item.blocks.length === 0 ? /* @__PURE__ */ jsx13("p", { className: styles.hint, children: "The stack holds no blocks." }) : item.blocks.map(card) }, `stack-${item.stack}`);
+        })
+      ] })
+    ] }),
+    dialog?.kind === "add" ? /* @__PURE__ */ jsx13(AddBlockDialog, { mode: dialog.mode, onClose: close }) : null,
+    dialog?.kind === "options" ? /* @__PURE__ */ jsx13(OptionsDialog, { onClose: close }) : null
+  ] });
+}
+function AddBlockDialog({ mode, onClose }) {
+  const front = useFrontEnd();
+  const board = useBoard(front.core);
+  const target2 = mode.kind === "add" ? void 0 : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
+  const title = target2 === void 0 ? "Add block" : `Add block ${mode.kind} "${target2.name}"`;
+  const run = useCallback7((command2, args) => runCommand(front, command2, args), [front]);
+  return /* @__PURE__ */ jsx13(Dialog, { title, onClose, children: /* @__PURE__ */ jsx13(BlockPicker, { core: front.core, mode, run, onAdded: onClose, autofocus: true }) });
+}
+var NOTICE_TONES = {
+  error: "bc:border-border-danger bc:text-text-danger",
+  warning: "bc:border-border-warning bc:text-text-warning",
+  message: "bc:border-border-default bc:text-text-default"
+};
+function Notices() {
+  const { notices } = useFrontEnd();
+  const list = useNotices(notices);
+  if (list.length === 0) return null;
+  return /* @__PURE__ */ jsx13("ul", { "aria-label": "Notices", className: classes.list, children: list.map((notice) => /* @__PURE__ */ jsxs11(
+    "li",
+    {
+      role: notice.severity === "message" ? "status" : "alert",
+      "data-severity": notice.severity,
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${NOTICE_TONES[notice.severity]}`,
+      children: [
+        /* @__PURE__ */ jsx13("span", { className: "bc:flex-1 bc:whitespace-pre-wrap", children: notice.text }),
+        /* @__PURE__ */ jsx13(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            onClick: () => {
+              notices.dismiss(notice.id);
+            },
+            children: "Dismiss"
+          }
+        )
+      ]
+    },
+    notice.id
+  )) });
+}
+function asSeverities(value2) {
+  if (Array.isArray(value2) && value2.every(isSeverity)) return value2;
+  throw new TypeError(
+    `The board option show_conditions is ${JSON.stringify(value2)}, where the board takes an array of "message", "warning" and "error".`
+  );
+}
+function isSeverity(value2) {
+  return value2 === "error" || value2 === "warning" || value2 === "message";
+}
+
+// srcts/modules/basic/demand.ts
+var OWNER = "blockr.core-basic";
+var SHOWN = 1;
+var IN_VIEW = 2;
+function demandShown(core, view = window) {
+  const every = core.scheduler.demand(OWNER, (board) => Object.keys(board.blocks), { priority: SHOWN });
+  const near = core.scheduler.demand(OWNER, [], { priority: IN_VIEW });
+  const watched = /* @__PURE__ */ new Map();
+  const seen = /* @__PURE__ */ new Set();
+  let released = false;
+  function update() {
+    if (released) return;
+    near.set([...new Set([...seen].flatMap((el) => watched.get(el) ?? []))]);
+  }
+  const Observer = view.IntersectionObserver;
+  const observer = Observer === void 0 ? void 0 : new Observer((entries) => {
+    for (const entry of entries) {
+      if (!watched.has(entry.target)) continue;
+      if (entry.isIntersecting) seen.add(entry.target);
+      else seen.delete(entry.target);
+    }
+    update();
+  });
+  return {
+    watch(block, el) {
+      watched.set(el, block);
+      observer?.observe(el);
+      return () => {
+        observer?.unobserve(el);
+        watched.delete(el);
+        if (seen.delete(el)) update();
+      };
+    },
+    measure() {
+      seen.clear();
+      for (const el of watched.keys()) if (inView(el, view)) seen.add(el);
+      update();
+    },
+    release() {
+      released = true;
+      observer?.disconnect();
+      every.release();
+      near.release();
+    }
+  };
+}
+function inView(el, view) {
+  const rect = el.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < view.innerHeight && rect.left < view.innerWidth;
+}
+
+// srcts/modules/basic/index.tsx
+import { jsx as jsx14 } from "react/jsx-runtime";
+var basic_default = {
+  options: ["show_conditions", "dark_mode"],
+  frontend: { render }
+};
+function render({ el, core }) {
+  const doc = el.ownerDocument;
+  const shown2 = demandShown(core, doc.defaultView ?? window);
+  const notices = createNotices();
+  const unnotify = core.notifications.subscribe((note) => {
+    notices.add(note);
+  });
+  const front = { core, notices, inView: shown2 };
+  const root = createRoot(el);
+  flushSync2(() => {
+    root.render(/* @__PURE__ */ jsx14(BasicBoard, { front }));
+  });
+  shown2.measure();
+  const unbind = bindShortcuts(doc, core, (error) => {
+    notices.failed(error);
+  });
+  return () => {
+    unbind();
+    unnotify();
+    shown2.release();
+    root.unmount();
+  };
+}
+
+// srcts/modules/edit-board/index.tsx
+import { flushSync as flushSync4 } from "react-dom";
+import { createRoot as createRoot2 } from "react-dom/client";
+
+// srcts/modules/edit-board/board.tsx
+import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect6, useRef as useRef7, useState as useState14 } from "react";
+
+// srcts/modules/edit-board/blocks.tsx
+import { useCallback as useCallback8, useState as useState11 } from "react";
+
+// srcts/modules/edit-board/run.ts
+function runCommand2(core, id2, args) {
+  return core.commands.run(id2, args).then(
+    () => true,
+    (error) => {
+      core.notifications.notify({ message: errorMessage(error), severity: "error" });
+      return false;
+    }
+  );
+}
+
+// srcts/modules/edit-board/blocks.tsx
+import { Fragment as Fragment3, jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
+var ADD = { kind: "add" };
+function BlocksSection({ core, board }) {
+  const run = useCallback8((command2, args) => runCommand2(core, command2, args), [core]);
+  const registry = core.blockRegistry();
+  const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
+  const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
+  const count = Object.keys(board.blocks).length;
+  return /* @__PURE__ */ jsxs12(Section, { title: "Blocks", count, children: [
+    /* @__PURE__ */ jsx15(Part, { title: "Add a block", children: /* @__PURE__ */ jsx15(BlockPicker, { core, mode: ADD, run }) }),
+    /* @__PURE__ */ jsx15(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx15("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs12(Fragment3, { children: [
+      /* @__PURE__ */ jsx15(TableSearch, { label: "Search blocks", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx15("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsxs12("table", { className: table.table, children: [
+        /* @__PURE__ */ jsx15("caption", { className: "bc:sr-only", children: "The board's blocks" }),
+        /* @__PURE__ */ jsx15("thead", { children: /* @__PURE__ */ jsxs12("tr", { children: [
+          /* @__PURE__ */ jsx15("th", { scope: "col", className: table.head, children: "Name" }),
+          /* @__PURE__ */ jsx15("th", { scope: "col", className: table.head, children: "ID" }),
+          /* @__PURE__ */ jsx15("th", { scope: "col", className: table.head, children: "Class" }),
+          /* @__PURE__ */ jsx15("th", { scope: "col", className: `${table.head} bc:w-28`, children: /* @__PURE__ */ jsx15("span", { className: "bc:sr-only", children: "Actions" }) })
+        ] }) }),
+        /* @__PURE__ */ jsx15("tbody", { children: view.rows.map(([id2, block]) => /* @__PURE__ */ jsx15(BlockRow, { core, id: id2, block, className: className(block) }, id2)) })
+      ] }),
+      /* @__PURE__ */ jsx15(Pager, { label: "Pages of blocks", view })
+    ] }) })
+  ] });
+}
+function BlockRow({ core, id: id2, block, className }) {
+  const [renaming, setRenaming] = useState11(false);
+  return /* @__PURE__ */ jsxs12("tr", { "aria-label": block.name, className: table.row, children: [
+    /* @__PURE__ */ jsx15("td", { className: table.cell, children: renaming ? /* @__PURE__ */ jsx15(
+      NameField,
+      {
+        label: "Block name",
+        name: block.name,
+        onSubmit: (name2) => {
+          void runCommand2(core, "blockr.core-rename_block", { id: id2, name: name2 });
+        },
+        onDone: () => {
+          setRenaming(false);
+        }
+      }
+    ) : /* @__PURE__ */ jsx15("span", { className: "bc:font-medium bc:break-words", children: block.name }) }),
+    /* @__PURE__ */ jsx15("td", { className: `${table.cell} bc:font-mono bc:text-xs bc:break-all`, children: id2 }),
+    /* @__PURE__ */ jsx15("td", { className: `${table.cell} bc:text-text-muted`, children: className }),
+    /* @__PURE__ */ jsxs12("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+      renaming ? null : /* @__PURE__ */ jsx15(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Rename the block ${block.name}`,
+          onClick: () => {
+            setRenaming(true);
+          },
+          children: "Rename"
+        }
+      ),
+      /* @__PURE__ */ jsx15(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Remove the block ${block.name}`,
+          onClick: () => {
+            void runCommand2(core, "blockr.core-remove_block", { id: id2 });
+          },
+          children: "Remove"
+        }
+      )
+    ] })
+  ] });
+}
+
+// srcts/modules/edit-board/links.tsx
+import { useState as useState12 } from "react";
+import { flushSync as flushSync3 } from "react-dom";
+import { Fragment as Fragment4, jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
+function LinksSection({ core, board, locked: locked2 }) {
+  const links = Object.entries(board.links);
+  const view = useTableView(
+    links,
+    ([, link]) => [blockName(board, link.from), link.from, blockName(board, link.to), link.to, link.input].join(" ")
+  );
+  const variadic2 = variadicBlocks(board, core.blockRegistry());
+  return /* @__PURE__ */ jsxs13(Section, { title: "Links", count: links.length, children: [
+    locked2 ? null : /* @__PURE__ */ jsx16(Part, { title: "Add a link", children: /* @__PURE__ */ jsx16(LinkForm, { core, board, submitLabel: "Add link" }) }),
+    /* @__PURE__ */ jsx16(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx16("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs13(Fragment4, { children: [
+      /* @__PURE__ */ jsx16(TableSearch, { label: "Search links", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx16("p", { className: styles.hint, children: "No link matches the search." }) : /* @__PURE__ */ jsxs13("table", { className: table.table, children: [
+        /* @__PURE__ */ jsx16("caption", { className: "bc:sr-only", children: "The board's links" }),
+        /* @__PURE__ */ jsx16("thead", { children: /* @__PURE__ */ jsxs13("tr", { children: [
+          /* @__PURE__ */ jsx16("th", { scope: "col", className: table.head, children: "From" }),
+          /* @__PURE__ */ jsx16("th", { scope: "col", className: table.head, children: "To" }),
+          /* @__PURE__ */ jsx16("th", { scope: "col", className: table.head, children: "Input" }),
+          locked2 ? null : /* @__PURE__ */ jsx16("th", { scope: "col", className: `${table.head} bc:w-24`, children: /* @__PURE__ */ jsx16("span", { className: "bc:sr-only", children: "Actions" }) })
+        ] }) }),
+        /* @__PURE__ */ jsx16("tbody", { children: view.rows.map(([id2, link]) => /* @__PURE__ */ jsx16(LinkRow, { core, board, id: id2, link, variadic: variadic2.has(link.to), locked: locked2 }, id2)) })
+      ] }),
+      /* @__PURE__ */ jsx16(Pager, { label: "Pages of links", view })
+    ] }) })
+  ] });
+}
+function LinkRow({
+  core,
+  board,
+  id: id2,
+  link,
+  variadic: variadic2,
+  locked: locked2
+}) {
+  const { editing, open, close, button } = useRowEditing();
+  const label = `${blockName(board, link.from)} \u2192 ${blockName(board, link.to)}`;
+  if (editing) {
+    return /* @__PURE__ */ jsx16("tr", { "aria-label": label, className: table.row, children: /* @__PURE__ */ jsx16("td", { colSpan: 4, className: `${table.cell} bc:py-2`, children: /* @__PURE__ */ jsx16(
+      LinkForm,
+      {
+        core,
+        board,
+        editing: { id: id2, link },
+        submitLabel: "Save",
+        onDone: close
+      }
+    ) }) });
+  }
+  return /* @__PURE__ */ jsxs13("tr", { "aria-label": label, className: table.row, children: [
+    /* @__PURE__ */ jsx16("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx16(BlockLabel, { board, id: link.from }) }),
+    /* @__PURE__ */ jsx16("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx16(BlockLabel, { board, id: link.to }) }),
+    /* @__PURE__ */ jsx16("td", { className: `${table.cell} bc:break-words`, children: variadic2 ? /* @__PURE__ */ jsx16(VariadicInput, { board, id: id2, link }) : /* @__PURE__ */ jsx16("span", { className: "bc:font-mono bc:text-xs", children: link.input }) }),
+    locked2 ? null : /* @__PURE__ */ jsxs13("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+      /* @__PURE__ */ jsx16(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
+          ref: button,
+          onClick: open,
+          children: "Edit"
+        }
+      ),
+      /* @__PURE__ */ jsx16(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
+          onClick: () => {
+            void runCommand2(core, "blockr.core-remove_link", { id: id2 });
+          },
+          children: "Remove"
+        }
+      )
+    ] })
+  ] });
+}
+function BlockLabel({ board, id: id2 }) {
+  return /* @__PURE__ */ jsxs13("span", { className: "bc:grid", children: [
+    /* @__PURE__ */ jsx16("span", { children: blockName(board, id2) }),
+    /* @__PURE__ */ jsx16("span", { className: "bc:font-mono bc:text-xs bc:text-text-muted bc:break-all", children: id2 })
+  ] });
+}
+function VariadicInput({ board, id: id2, link }) {
+  const place = createGraph(board).linksInto(link.to).indexOf(id2) + 1;
+  return /* @__PURE__ */ jsxs13("span", { className: "bc:grid", children: [
+    link.input === "" ? /* @__PURE__ */ jsx16("span", { className: "bc:text-text-muted", children: "No name" }) : /* @__PURE__ */ jsx16("span", { className: "bc:font-mono bc:text-xs", children: link.input }),
+    /* @__PURE__ */ jsxs13("span", { className: "bc:text-xs bc:text-text-muted", children: [
+      "Position ",
+      place
+    ] })
+  ] });
+}
+function LinkForm({
+  core,
+  board,
+  editing,
+  submitLabel,
+  onDone
+}) {
+  const registry = core.blockRegistry();
+  const except = editing?.id;
+  const [from, setFrom] = useState12(editing?.link.from);
+  const [to, setTo] = useState12(editing?.link.to);
+  const [input2, setInput] = useState12(editing?.link.input);
+  const [name2, setName] = useState12(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  const [place, setPlace] = useState12(void 0);
+  const [errors, setErrors] = useState12({});
+  const [busy, setBusy] = useState12(false);
+  const others = withoutLink(board, except);
+  const graph = createGraph(others);
+  const held2 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
+  const source = held2(from) ? from : void 0;
+  const target2 = held2(to) ? to : void 0;
+  const upstream = source === void 0 ? /* @__PURE__ */ new Set() : graph.withUpstream([source]);
+  const downstream = target2 === void 0 ? /* @__PURE__ */ new Set() : graph.withDownstream([target2]);
+  const fromOptions = Object.entries(board.blocks).filter(([id2]) => !downstream.has(id2)).map(([id2]) => blockOption(board, registry, id2));
+  const toOptions = Object.entries(board.blocks).filter(([id2]) => !upstream.has(id2) && takesLink(others, registry, id2)).map(([id2]) => blockOption(board, registry, id2));
+  const free = target2 === void 0 ? [] : freeInputs(others, registry, target2) ?? [];
+  const variadic2 = isVariadic(free);
+  const chosen = variadic2 ? void 0 : input2 !== void 0 && free.includes(input2) ? input2 : free[0];
+  const taken = target2 === void 0 ? [] : namesInto(board, target2, except);
+  const among = editing === void 0 || target2 === void 0 || !variadic2 ? void 0 : placeAmong(board, editing.id, target2);
+  const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
+  function check2() {
+    return {
+      ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
+      ...target2 === void 0 ? { to: "Pick the block that the link goes to." } : {},
+      ...variadic2 ? optional2("input", inputNameError(name2, taken)) : {}
+    };
+  }
+  async function submit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const found = check2();
+    flushSync3(() => {
+      setErrors(found);
+    });
+    if (Object.keys(found).length > 0 || source === void 0 || target2 === void 0 || busy) {
+      focusFirstInvalid(form);
+      return;
+    }
+    const linkInput = variadic2 ? name2.trim() : chosen;
+    const args = { from: source, to: target2, ...linkInput === void 0 ? {} : { input: linkInput } };
+    setBusy(true);
+    let ran = editing === void 0 ? await runCommand2(core, "blockr.core-add_link", args) : await runCommand2(core, "blockr.core-change_link", { id: editing.id, ...args });
+    if (ran && editing !== void 0 && among !== void 0 && position !== void 0 && position !== among.place) {
+      const before = placeAmong(core.store.board(), editing.id, target2).others[position - 1];
+      ran = await runCommand2(core, "blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
+    }
+    setBusy(false);
+    if (!ran) return;
+    if (editing === void 0) {
+      setTo(void 0);
+      setInput(void 0);
+      setName("");
+      setErrors({});
+    }
+    onDone?.();
+  }
+  return /* @__PURE__ */ jsxs13(
+    "form",
+    {
+      "aria-label": editing === void 0 ? "Add link" : "Change link",
+      noValidate: true,
+      className: "bc:grid bc:gap-3",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      onKeyDown: (event) => {
+        if (event.key === "Escape" && editing !== void 0 && !event.defaultPrevented) onDone?.();
+      },
+      children: [
+        /* @__PURE__ */ jsxs13("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx16(
+            Combobox,
+            {
+              label: "From",
+              options: fromOptions,
+              value: source,
+              placeholder: "Search blocks",
+              empty: "No block matches.",
+              error: errors.from,
+              onChange: (value2) => {
+                setFrom(value2);
+                setErrors((now) => without3(now, "from"));
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx16(
+            Combobox,
+            {
+              label: "To",
+              options: toOptions,
+              value: target2,
+              placeholder: "Search blocks",
+              empty: "No block that takes a link matches.",
+              error: errors.to,
+              hint: toOptions.length === 0 ? "No block takes a link from this block." : void 0,
+              onChange: (value2) => {
+                setTo(value2);
+                setInput(void 0);
+                setPlace(void 0);
+                setErrors((now) => without3(without3(now, "to"), "input"));
+              }
+            }
+          )
+        ] }),
+        target2 === void 0 ? null : variadic2 ? /* @__PURE__ */ jsxs13("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx16(
+            TextField,
+            {
+              label: "Input name",
+              value: name2,
+              hint: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
+              error: errors.input,
+              identifier: true,
+              onChange: (value2) => {
+                setName(value2);
+                setErrors((now) => without3(now, "input"));
+              },
+              onLeave: () => {
+                setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name2, taken)) }));
+              }
+            }
+          ),
+          among === void 0 ? null : /* @__PURE__ */ jsxs13("label", { className: styles.field, children: [
+            /* @__PURE__ */ jsx16("span", { className: styles.label, children: "Position" }),
+            /* @__PURE__ */ jsx16(
+              "select",
+              {
+                className: styles.box,
+                value: position,
+                disabled: among.others.length === 0,
+                onChange: (event) => {
+                  setPlace(Number(event.target.value));
+                },
+                children: Array.from({ length: among.others.length + 1 }, (_2, i2) => i2 + 1).map((n2) => /* @__PURE__ */ jsx16("option", { value: n2, children: n2 }, n2))
+              }
+            )
+          ] })
+        ] }) : /* @__PURE__ */ jsxs13("label", { className: styles.field, children: [
+          /* @__PURE__ */ jsx16("span", { className: styles.label, children: "Input" }),
+          /* @__PURE__ */ jsx16(
+            "select",
+            {
+              className: styles.box,
+              value: chosen,
+              disabled: free.length < 2,
+              onChange: (event) => {
+                setInput(event.target.value);
+              },
+              children: free.map((option) => /* @__PURE__ */ jsx16("option", { value: option, children: option }, option))
+            }
+          )
+        ] }),
+        editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx16("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
+        /* @__PURE__ */ jsxs13("div", { className: "bc:flex bc:gap-2", children: [
+          /* @__PURE__ */ jsx16("button", { type: "submit", className: classes.primary, disabled: busy, children: submitLabel }),
+          editing === void 0 ? null : /* @__PURE__ */ jsx16(
+            "button",
+            {
+              type: "button",
+              className: classes.button,
+              onClick: () => {
+                onDone?.();
+              },
+              children: "Cancel"
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+function blockOption(board, registry, id2) {
+  const block = own(board.blocks, id2);
+  const cls = block === void 0 ? void 0 : own(registry, block.registry_id)?.name ?? block.registry_id;
+  return {
+    value: id2,
+    label: block?.name ?? id2,
+    detail: cls === void 0 ? id2 : `${id2} \xB7 ${cls}`,
+    keywords: [id2]
+  };
+}
+function takesLink(board, registry, id2) {
+  return (freeInputs(board, registry, id2)?.length ?? 0) > 0;
+}
+function isVariadicBlock(board, registry, id2) {
+  const block = own(board.blocks, id2);
+  return block !== void 0 && (own(registry, block.registry_id)?.inputs.includes("...") ?? false);
+}
+function variadicBlocks(board, registry) {
+  return new Set(Object.keys(board.blocks).filter((id2) => isVariadicBlock(board, registry, id2)));
+}
+function placeAmong(board, id2, to) {
+  const ids2 = Object.keys(board.links).filter((other) => other === id2 || own(board.links, other)?.to === to);
+  return { others: ids2.filter((other) => other !== id2), place: ids2.indexOf(id2) + 1 };
+}
+function withoutLink(board, id2) {
+  if (id2 === void 0 || !Object.hasOwn(board.links, id2)) return board;
+  const links = Object.fromEntries(Object.entries(board.links).filter(([other]) => other !== id2));
+  return { ...board, links };
+}
+function optional2(key, error) {
+  return error === void 0 ? {} : { [key]: error };
+}
+function blockName(board, block) {
+  return own(board.blocks, block)?.name ?? block;
+}
+
+// srcts/modules/edit-board/stacks.tsx
+import { useId as useId4, useState as useState13 } from "react";
+import { Fragment as Fragment5, jsx as jsx17, jsxs as jsxs14 } from "react/jsx-runtime";
+var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
+function suggestedColor(stacks) {
+  const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
+  return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
+}
+function suggestedName(stacks) {
+  const names = new Set(stacks.map((stack) => stack.name));
+  let n2 = 1;
+  while (names.has(`Stack ${String(n2)}`)) n2++;
+  return `Stack ${String(n2)}`;
+}
+function StacksSection({ core, board, locked: locked2 }) {
+  const stacks = Object.entries(board.stacks);
+  const view = useTableView(stacks, ([id2, stack]) => [stack.name, id2, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
+  return /* @__PURE__ */ jsxs14(Section, { title: "Stacks", count: stacks.length, children: [
+    locked2 ? null : /* @__PURE__ */ jsx17(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx17(StackForm, { core, board, submitLabel: "Add stack" }) }),
+    /* @__PURE__ */ jsx17(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs14(Fragment5, { children: [
+      /* @__PURE__ */ jsx17(TableSearch, { label: "Search stacks", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsxs14("table", { className: table.table, children: [
+        /* @__PURE__ */ jsx17("caption", { className: "bc:sr-only", children: "The board's stacks" }),
+        /* @__PURE__ */ jsx17("thead", { children: /* @__PURE__ */ jsxs14("tr", { children: [
+          /* @__PURE__ */ jsx17("th", { scope: "col", className: table.head, children: "Name" }),
+          /* @__PURE__ */ jsx17("th", { scope: "col", className: table.head, children: "Blocks" }),
+          locked2 ? null : /* @__PURE__ */ jsx17("th", { scope: "col", className: `${table.head} bc:w-24`, children: /* @__PURE__ */ jsx17("span", { className: "bc:sr-only", children: "Actions" }) })
+        ] }) }),
+        /* @__PURE__ */ jsx17("tbody", { children: view.rows.map(([id2, stack]) => /* @__PURE__ */ jsx17(StackRow, { core, board, id: id2, stack, locked: locked2 }, id2)) })
+      ] }),
+      /* @__PURE__ */ jsx17(Pager, { label: "Pages of stacks", view })
+    ] }) })
+  ] });
+}
+function StackRow({
+  core,
+  board,
+  id: id2,
+  stack,
+  locked: locked2
+}) {
+  const { editing, open, close, button } = useRowEditing();
+  if (editing) {
+    return /* @__PURE__ */ jsx17("tr", { "aria-label": stack.name, className: table.row, children: /* @__PURE__ */ jsx17("td", { colSpan: 3, className: `${table.cell} bc:py-2`, children: /* @__PURE__ */ jsx17(
+      StackForm,
+      {
+        core,
+        board,
+        editing: { id: id2, stack },
+        submitLabel: "Save",
+        onDone: close
+      }
+    ) }) });
+  }
+  return /* @__PURE__ */ jsxs14("tr", { "aria-label": stack.name, className: table.row, children: [
+    /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsxs14("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
+      /* @__PURE__ */ jsx17(Swatch, { color: stack.color }),
+      /* @__PURE__ */ jsx17("span", { className: "bc:font-medium", children: stack.name })
+    ] }) }),
+    /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx17(StackBlocks, { board, blocks: stack.blocks }) }),
+    locked2 ? null : /* @__PURE__ */ jsxs14("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+      /* @__PURE__ */ jsx17(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Edit the stack ${stack.name}`,
+          ref: button,
+          onClick: open,
+          children: "Edit"
+        }
+      ),
+      /* @__PURE__ */ jsx17(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Remove the stack ${stack.name}`,
+          onClick: () => {
+            void runCommand2(core, "blockr.core-remove_stack", { id: id2 });
+          },
+          children: "Remove"
+        }
+      )
+    ] })
+  ] });
+}
+var SHOWN_BLOCKS = 6;
+function StackBlocks({ board, blocks }) {
+  if (blocks.length === 0) return /* @__PURE__ */ jsx17("span", { className: "bc:text-text-muted", children: "No blocks" });
+  const rest = blocks.length - SHOWN_BLOCKS;
+  return /* @__PURE__ */ jsxs14("ul", { "aria-label": "Blocks", className: "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0", children: [
+    blocks.slice(0, SHOWN_BLOCKS).map((block) => /* @__PURE__ */ jsxs14("li", { className: "bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs", children: [
+      blockName(board, block),
+      " ",
+      /* @__PURE__ */ jsx17("span", { className: "bc:font-mono bc:text-text-muted", children: block })
+    ] }, block)),
+    rest > 0 ? /* @__PURE__ */ jsxs14("li", { className: "bc:px-1 bc:text-xs bc:text-text-muted", children: [
+      "and ",
+      rest,
+      " more"
+    ] }) : null
+  ] });
+}
+function Swatch({ color: color2 }) {
+  return /* @__PURE__ */ jsx17(
+    "span",
+    {
+      "aria-hidden": "true",
+      className: "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default",
+      style: color2 === null ? void 0 : { backgroundColor: color2 }
+    }
+  );
+}
+function StackForm({
+  core,
+  board,
+  editing,
+  submitLabel,
+  onDone
+}) {
+  const registry = core.blockRegistry();
+  const stacks = Object.values(board.stacks);
+  const [name2, setName] = useState13(editing?.stack.name ?? "");
+  const [color2, setColor] = useState13(editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
+  const [blocks, setBlocks] = useState13(editing?.stack.blocks ?? []);
+  const [busy, setBusy] = useState13(false);
+  const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
+  const holder = /* @__PURE__ */ new Map();
+  for (const [id2, stack] of Object.entries(board.stacks)) {
+    if (id2 === editing?.id) continue;
+    for (const block of stack.blocks) holder.set(block, stack.name);
+  }
+  const options = Object.keys(board.blocks).map((id2) => {
+    const option = blockOption(board, registry, id2);
+    const other = holder.get(id2);
+    return other === void 0 ? { ...option, group: "In no stack" } : { ...option, group: "In another stack", detail: `${option.detail ?? id2} \xB7 leaves the stack ${other}` };
+  }).sort((a2, b2) => a2.group === b2.group ? 0 : a2.group === "In no stack" ? -1 : 1);
+  const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
+  async function submit(event) {
+    event.preventDefault();
+    if (busy) return;
+    const trimmed = name2.trim();
+    setBusy(true);
+    let ran;
+    if (editing === void 0) {
+      const args = { blocks: kept, color: color2, name: trimmed === "" ? fallbackName : trimmed };
+      ran = await runCommand2(core, "blockr.core-add_stack", args);
+    } else {
+      const { id: id2, stack } = editing;
+      const renamed = trimmed !== "" && trimmed !== stack.name;
+      const changed = {
+        ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
+        ...color2 === stack.color ? {} : { color: color2 }
+      };
+      ran = !renamed || await runCommand2(core, "blockr.core-rename_stack", { id: id2, name: trimmed });
+      if (ran && Object.keys(changed).length > 0) ran = await runCommand2(core, "blockr.core-change_stack", { id: id2, ...changed });
+    }
+    setBusy(false);
+    if (!ran) return;
+    if (editing === void 0) {
+      setName("");
+      setColor(suggestedColor(Object.values(core.store.board().stacks)));
+      setBlocks([]);
+    }
+    onDone?.();
+  }
+  return /* @__PURE__ */ jsxs14(
+    "form",
+    {
+      "aria-label": editing === void 0 ? "Add stack" : "Change stack",
+      noValidate: true,
+      className: "bc:grid bc:gap-3",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      onKeyDown: (event) => {
+        if (event.key === "Escape" && editing !== void 0 && !event.defaultPrevented) onDone?.();
+      },
+      children: [
+        /* @__PURE__ */ jsxs14("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx17(
+            TextField,
+            {
+              label: "Name",
+              value: name2,
+              placeholder: fallbackName,
+              hint: editing === void 0 ? `Optional. "${fallbackName}" where left empty.` : void 0,
+              onChange: setName
+            }
+          ),
+          /* @__PURE__ */ jsx17(ColorField, { color: color2, onChange: setColor })
+        ] }),
+        /* @__PURE__ */ jsx17(
+          MultiCombobox,
+          {
+            label: "Blocks",
+            options,
+            values: kept,
+            placeholder: "Search blocks to add",
+            empty: "No other block matches.",
+            hint: "A block sits in one stack at most.",
+            onChange: setBlocks
+          }
+        ),
+        /* @__PURE__ */ jsxs14("div", { className: "bc:flex bc:gap-2", children: [
+          /* @__PURE__ */ jsx17("button", { type: "submit", className: classes.primary, disabled: busy, children: submitLabel }),
+          editing === void 0 ? null : /* @__PURE__ */ jsx17(
+            "button",
+            {
+              type: "button",
+              className: classes.button,
+              onClick: () => {
+                onDone?.();
+              },
+              children: "Cancel"
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+function ColorField({ color: color2, onChange }) {
+  const id2 = useId4();
+  const [last, setLast] = useState13(color2 ?? PALETTE[0]);
+  return /* @__PURE__ */ jsxs14("fieldset", { className: styles.fieldset, children: [
+    /* @__PURE__ */ jsx17("legend", { className: styles.legend, children: "Colour" }),
+    /* @__PURE__ */ jsxs14("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
+      /* @__PURE__ */ jsxs14("label", { className: styles.check, children: [
+        /* @__PURE__ */ jsx17(
+          "input",
+          {
+            type: "checkbox",
+            className: styles.checkbox,
+            checked: color2 !== null,
+            onChange: (event) => {
+              onChange(event.target.checked ? last : null);
+            }
+          }
+        ),
+        "A colour of its own"
+      ] }),
+      /* @__PURE__ */ jsx17(
+        "input",
+        {
+          id: id2,
+          type: "color",
+          "aria-label": "The stack's colour",
+          disabled: color2 === null,
+          value: color2 ?? last,
+          className: "bc:h-7 bc:w-10 bc:cursor-pointer bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:p-0.5 bc:disabled:cursor-default bc:disabled:opacity-50",
+          onChange: (event) => {
+            setLast(event.target.value);
+            onChange(event.target.value);
+          }
+        }
+      )
+    ] })
+  ] });
+}
+function sameBlocks(a2, b2) {
+  return a2.length === b2.length && a2.every((block, i2) => block === b2[i2]);
+}
+
+// srcts/modules/edit-board/board.tsx
+import { jsx as jsx18, jsxs as jsxs15 } from "react/jsx-runtime";
+function EditBoard({ core }) {
+  const board = useBoard(core);
+  const locked2 = core.lock.board;
+  return /* @__PURE__ */ jsxs15("div", { className: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default", children: [
+    locked2 ? null : /* @__PURE__ */ jsx18(BlocksSection, { core, board }),
+    /* @__PURE__ */ jsx18(LinksSection, { core, board, locked: locked2 }),
+    /* @__PURE__ */ jsx18(StacksSection, { core, board, locked: locked2 })
+  ] });
+}
+function Section({ title, count, children }) {
+  return /* @__PURE__ */ jsx18("section", { "aria-label": title, className: "bc:rounded-md bc:border bc:border-border-default", children: /* @__PURE__ */ jsxs15("details", { open: true, className: "bc:group", children: [
+    /* @__PURE__ */ jsxs15("summary", { className: "bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:px-3 bc:py-2 bc:font-sans bc:text-sm bc:font-semibold", children: [
+      /* @__PURE__ */ jsx18("h3", { className: "bc:m-0 bc:text-sm bc:font-semibold", children: title }),
+      /* @__PURE__ */ jsx18("span", { className: "bc:rounded-full bc:border bc:border-border-default bc:px-1.5 bc:text-xs bc:font-normal bc:text-text-muted", children: count })
+    ] }),
+    /* @__PURE__ */ jsx18("div", { className: "bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3", children })
+  ] }) });
+}
+function Part({ title, children }) {
+  return /* @__PURE__ */ jsxs15("div", { role: "group", "aria-label": title, className: "bc:grid bc:gap-2", children: [
+    /* @__PURE__ */ jsx18("h4", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: title }),
+    children
+  ] });
+}
+var table = {
+  table: "bc:w-full bc:table-fixed bc:border-collapse bc:text-sm",
+  head: "bc:border-b bc:border-border-default bc:px-1 bc:py-1 bc:text-left bc:text-xs bc:font-semibold bc:text-text-muted",
+  row: "bc:border-b bc:border-border-default bc:align-top",
+  cell: "bc:px-1 bc:py-1.5"
+};
+function useRowEditing() {
+  const [editing, setEditing] = useState14(false);
+  const closed = useRef7(false);
+  const button = useRef7(null);
+  useLayoutEffect6(() => {
+    if (editing || !closed.current) return;
+    closed.current = false;
+    button.current?.focus();
+  }, [editing]);
+  const open = useCallback9(() => {
+    setEditing(true);
+  }, []);
+  const close = useCallback9(() => {
+    closed.current = true;
+    setEditing(false);
+  }, []);
+  return { editing, open, close, button };
+}
+
+// srcts/modules/edit-board/index.tsx
+import { jsx as jsx19 } from "react/jsx-runtime";
+var edit_board_default = {
+  ui: {
+    render({ el, core }) {
+      const root = createRoot2(el);
+      flushSync4(() => {
+        root.render(/* @__PURE__ */ jsx19(EditBoard, { core }));
+      });
+      return () => {
+        root.unmount();
+      };
+    }
+  }
+};
+
+// srcts/storage/storage.ts
+function coreStorage(doc) {
+  return {
+    controls({ core }) {
+      const save = {
+        kind: "button",
+        id: "save",
+        label: "Save",
+        run: () => saveBoard(core, doc ?? document)
+      };
+      const open = {
+        kind: "button",
+        id: "open",
+        label: "Open",
+        run: () => openBoard(core, doc ?? document)
+      };
+      return core.lock.load ? [save] : [save, open];
+    }
+  };
+}
+function saveBoard(core, doc) {
+  try {
+    download(core.store.save(), fileName(core.store.board()), doc);
+    return Promise.resolve();
+  } catch (error) {
+    return Promise.reject(asError(error));
+  }
+}
+async function openBoard(core, doc) {
+  const text = await pickFile(doc);
+  if (text !== null) await core.store.open(text);
+}
+function fileName(board, now = /* @__PURE__ */ new Date()) {
+  const two = (n2) => String(n2).padStart(2, "0");
+  const date2 = `${String(now.getFullYear())}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+  const time2 = `${two(now.getHours())}-${two(now.getMinutes())}-${two(now.getSeconds())}`;
+  return `${board.id}_${date2}_${time2}.json`;
+}
+function download(text, name2, doc = document) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const link = doc.createElement("a");
+  link.href = url;
+  link.download = name2;
+  link.hidden = true;
+  doc.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 0);
+}
+function pickFile(doc = document) {
+  return new Promise((resolve, reject) => {
+    const input2 = doc.createElement("input");
+    input2.type = "file";
+    input2.accept = ".json,application/json";
+    input2.hidden = true;
+    input2.addEventListener(
+      "change",
+      () => {
+        const file = input2.files?.[0];
+        input2.remove();
+        if (file === void 0) resolve(null);
+        else file.text().then(resolve, reject);
+      },
+      { once: true }
+    );
+    input2.addEventListener(
+      "cancel",
+      () => {
+        input2.remove();
+        resolve(null);
+      },
+      { once: true }
+    );
+    doc.body.append(input2);
+    input2.click();
+  });
+}
+
+// srcts/modules/file-storage/index.ts
+var file_storage_default = {
+  storage: coreStorage()
+};
 
 // srcts/options/schemas.ts
 var optionSchemas = {
@@ -9108,7 +11652,7 @@ var optionSchemas = {
 };
 
 // srcts/inputs/inputs.tsx
-import { useState } from "react";
+import { useState as useState15 } from "react";
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
@@ -9214,26 +11758,11 @@ function strings(value2) {
   return Array.isArray(value2) ? value2.filter((x2) => typeof x2 === "string") : [];
 }
 
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
-  label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
-  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
-};
-
 // srcts/inputs/inputs.tsx
-import { Fragment, jsx, jsxs } from "react/jsx-runtime";
-function Field({ label, children }) {
-  return /* @__PURE__ */ jsxs("label", { className: styles.field, children: [
-    /* @__PURE__ */ jsx("span", { className: styles.label, children: label }),
+import { Fragment as Fragment6, jsx as jsx20, jsxs as jsxs16 } from "react/jsx-runtime";
+function Field2({ label, children }) {
+  return /* @__PURE__ */ jsxs16("label", { className: styles.field, children: [
+    /* @__PURE__ */ jsx20("span", { className: styles.label, children: label }),
     children
   ] });
 }
@@ -9271,8 +11800,8 @@ function NumberInput({
     if (value2 === void 0) typed(null);
   };
   const checked3 = read(shown2);
-  return /* @__PURE__ */ jsxs(Fragment, { children: [
-    /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsxs16(Fragment6, { children: [
+    /* @__PURE__ */ jsx20(Field2, { label, children: /* @__PURE__ */ jsx20(
       "input",
       {
         type: "number",
@@ -9293,7 +11822,7 @@ function NumberInput({
         onBlur: settle2
       }
     ) }),
-    /* @__PURE__ */ jsx(Refusal, { error: checked3.reason ?? bound.error })
+    /* @__PURE__ */ jsx20(Refusal, { error: checked3.reason ?? bound.error })
   ] });
 }
 function Select({
@@ -9308,8 +11837,8 @@ function Select({
   const lacked = current2 !== void 0 && !known.some((choice) => choice.value === current2);
   const invalid = lacked && choices !== void 0 && !outdated;
   const shown2 = lacked ? [...known, { value: current2, label: invalid ? missing(current2) : current2 }] : known;
-  return /* @__PURE__ */ jsxs(Fragment, { children: [
-    /* @__PURE__ */ jsx(Field, { label, children: /* @__PURE__ */ jsxs(
+  return /* @__PURE__ */ jsxs16(Fragment6, { children: [
+    /* @__PURE__ */ jsx20(Field2, { label, children: /* @__PURE__ */ jsxs16(
       "select",
       {
         className: styles.box,
@@ -9319,12 +11848,12 @@ function Select({
           void bound.commit(event.target.value);
         },
         children: [
-          current2 === void 0 && /* @__PURE__ */ jsx("option", { value: "", disabled: true, children: placeholder }),
-          shown2.map((choice) => /* @__PURE__ */ jsx("option", { value: choice.value, children: choice.label }, choice.value))
+          current2 === void 0 && /* @__PURE__ */ jsx20("option", { value: "", disabled: true, children: placeholder }),
+          shown2.map((choice) => /* @__PURE__ */ jsx20("option", { value: choice.value, children: choice.label }, choice.value))
         ]
       }
     ) }),
-    /* @__PURE__ */ jsx(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
 function Checklist({
@@ -9345,13 +11874,13 @@ function Checklist({
       ordered ? [...known.filter((choice) => next.includes(choice)), ...next.filter((other) => !known.includes(other))] : next
     );
   };
-  return /* @__PURE__ */ jsxs("fieldset", { className: styles.fieldset, children: [
-    /* @__PURE__ */ jsx("legend", { className: styles.legend, children: legend }),
-    /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
+  return /* @__PURE__ */ jsxs16("fieldset", { className: styles.fieldset, children: [
+    /* @__PURE__ */ jsx20("legend", { className: styles.legend, children: legend }),
+    /* @__PURE__ */ jsxs16("div", { className: styles.list, children: [
       shown2.map((value2) => {
         const invalid = choices !== void 0 && !outdated && !known.includes(value2);
-        return /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
-          /* @__PURE__ */ jsx(
+        return /* @__PURE__ */ jsxs16("label", { className: styles.check, children: [
+          /* @__PURE__ */ jsx20(
             "input",
             {
               type: "checkbox",
@@ -9367,20 +11896,20 @@ function Checklist({
           invalid ? missing(value2) : value2
         ] }, value2);
       }),
-      choices !== void 0 && empty2 !== void 0 && shown2.length === 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: empty2 })
+      choices !== void 0 && empty2 !== void 0 && shown2.length === 0 && /* @__PURE__ */ jsx20("p", { className: styles.hint, children: empty2 })
     ] }),
-    /* @__PURE__ */ jsx(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
 function missing(value2) {
   return `${value2} (not available)`;
 }
 function Refusal({ error }) {
-  return error === null ? null : /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error });
+  return error === null ? null : /* @__PURE__ */ jsx20("p", { role: "alert", className: styles.alert, children: error });
 }
 function useTyped(bound) {
-  const [text, setText] = useState(null);
-  const [seen, setSeen] = useState(bound.value);
+  const [text, setText] = useState15(null);
+  const [seen, setSeen] = useState15(bound.value);
   if (!Object.is(seen, bound.value)) {
     setSeen(bound.value);
     setText(null);
@@ -9389,13 +11918,13 @@ function useTyped(bound) {
 }
 
 // srcts/react/hooks.ts
-import { useCallback, useLayoutEffect, useMemo, useRef, useState as useState2, useSyncExternalStore } from "react";
+import { useCallback as useCallback10, useLayoutEffect as useLayoutEffect7, useMemo as useMemo4, useRef as useRef8, useState as useState16, useSyncExternalStore as useSyncExternalStore4 } from "react";
 function useValue(host, key) {
   const name2 = key ?? ("option" in host ? host.option : "");
-  const [value2, setValue] = useState2(() => held(host, name2));
-  const [error, setError] = useState2(null);
-  const binding = useRef(null);
-  useLayoutEffect(() => {
+  const [value2, setValue] = useState16(() => held(host, name2));
+  const [error, setError] = useState16(null);
+  const binding = useRef8(null);
+  useLayoutEffect7(() => {
     const bound = bind2(host, name2, setValue, {
       settled: (refused2) => {
         setError(refused2 === null ? null : errorMessage(refused2));
@@ -9407,7 +11936,7 @@ function useValue(host, key) {
       bound.release();
     };
   }, [host, name2]);
-  return useMemo(
+  return useMemo4(
     () => ({
       value: value2,
       error,
@@ -9429,16 +11958,16 @@ function held(host, key) {
 
 // srcts/react/module.tsx
 import { Component } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
-import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+import { flushSync as flushSync5 } from "react-dom";
+import { createRoot as createRoot3 } from "react-dom/client";
+import { jsx as jsx21, jsxs as jsxs17 } from "react/jsx-runtime";
 function reactModule(Draw, options = {}) {
   return {
     ...options.options === void 0 ? {} : { options: options.options },
     render({ el, host, signal }) {
-      const root = createRoot(el);
-      flushSync(() => {
-        root.render(/* @__PURE__ */ jsx2(Draw, { host, signal }));
+      const root = createRoot3(el);
+      flushSync5(() => {
+        root.render(/* @__PURE__ */ jsx21(Draw, { host, signal }));
       });
       return () => {
         root.unmount();
@@ -9448,103 +11977,104 @@ function reactModule(Draw, options = {}) {
 }
 
 // srcts/options/ui.tsx
-import { jsx as jsx3 } from "react/jsx-runtime";
+import { jsx as jsx22 } from "react/jsx-runtime";
 function numberUi(label, min) {
   function NumberUi({ host }) {
-    return /* @__PURE__ */ jsx3(NumberInput, { bound: useValue(host), label, min });
+    return /* @__PURE__ */ jsx22(NumberInput, { bound: useValue(host), label, min });
   }
   return reactModule(NumberUi);
 }
 function checklistUi(legend, choices) {
   function ChecklistUi({ host }) {
-    return /* @__PURE__ */ jsx3(Checklist, { bound: useValue(host), legend, choices, ordered: true });
+    return /* @__PURE__ */ jsx22(Checklist, { bound: useValue(host), legend, choices, ordered: true });
   }
   return reactModule(ChecklistUi);
 }
 function selectUi(label, placeholder, choices) {
   function SelectUi({ host }) {
-    return /* @__PURE__ */ jsx3(Select, { bound: useValue(host), label, placeholder, choices });
+    return /* @__PURE__ */ jsx22(Select, { bound: useValue(host), label, placeholder, choices });
   }
   return reactModule(SelectUi);
 }
 
 // srcts/options/options.ts
-function coreOptions(core) {
-  return [nRows(core), showConditions(core), darkMode(core)];
-}
-function nRows(core) {
-  const schema = optionSchemas.n_rows;
-  const fallback = 10;
-  return {
-    id: "n_rows",
-    label: "Preview rows",
-    category: "Table options",
-    schema,
-    // A string reads as the number that it holds.
-    default: async () => {
-      const value2 = await core.blockrOption("n_rows");
-      if (value2 === void 0) return fallback;
-      return checked2("n_rows", schema, value2, typeof value2 === "string" ? asNumber(value2) : value2);
-    },
-    ui: numberUi("Preview rows", schema.minimum)
-  };
-}
-var SEVERITIES2 = ["message", "warning", "error"];
-function showConditions(core) {
-  const schema = optionSchemas.show_conditions;
-  const fallback = SEVERITIES2;
-  return {
-    id: "show_conditions",
-    label: "Message types to display",
-    category: "Board options",
-    schema,
-    // R writes a blockr option of one severity as a string, as an
-    // environment variable gives it.
-    default: async () => {
-      const value2 = await core.blockrOption("show_conditions");
-      if (value2 === void 0) return fallback;
-      return checked2("show_conditions", schema, value2, typeof value2 === "string" ? [value2] : value2);
-    },
-    ui: checklistUi("Message types to display", SEVERITIES2)
-  };
-}
-function darkMode(core) {
-  const schema = optionSchemas.dark_mode;
-  return {
-    id: "dark_mode",
-    label: "Light/dark mode",
-    category: "Theme options",
-    schema,
-    default: async () => {
-      const value2 = await core.blockrOption("dark_mode");
-      if (value2 === void 0) return preferredTheme();
-      const logical = typeof value2 === "string" ? asLogical(value2) : value2;
-      if (typeof logical === "boolean") return logical ? "dark" : "light";
-      return checked2("dark_mode", schema, value2);
-    },
-    ui: selectUi("Light/dark mode", "Choose a mode", [
-      { value: "light", label: "Light" },
-      { value: "dark", label: "Dark" }
-    ]),
-    onChange(value2) {
-      setTheme(value2);
-    }
-  };
-}
+var nRows = {
+  label: "Preview rows",
+  category: "Table options",
+  schema: optionSchemas.n_rows,
+  // A string reads as the number that it holds.
+  default: async (core) => {
+    const value2 = await core.blockrOption("n_rows");
+    if (value2 === void 0) return 10;
+    return checked2("n_rows", takesRows, value2, typeof value2 === "string" ? asNumber(value2) : value2);
+  },
+  ui: numberUi("Preview rows", optionSchemas.n_rows.minimum)
+};
+var SEVERITIES3 = ["message", "warning", "error"];
+var showConditions = {
+  label: "Message types to display",
+  category: "Board options",
+  schema: optionSchemas.show_conditions,
+  // R writes a blockr option of one severity as a string, as an environment
+  // variable gives it.
+  default: async (core) => {
+    const value2 = await core.blockrOption("show_conditions");
+    if (value2 === void 0) return SEVERITIES3;
+    return checked2("show_conditions", takesSeverities, value2, typeof value2 === "string" ? [value2] : value2);
+  },
+  ui: checklistUi("Message types to display", SEVERITIES3)
+};
+var darkMode = {
+  label: "Light/dark mode",
+  category: "Theme options",
+  schema: optionSchemas.dark_mode,
+  default: async (core) => {
+    const value2 = await core.blockrOption("dark_mode");
+    if (value2 === void 0) return preferredTheme();
+    const logical = typeof value2 === "string" ? asLogical(value2) : value2;
+    if (typeof logical === "boolean") return logical ? "dark" : "light";
+    return checked2("dark_mode", takesTheme, value2);
+  },
+  ui: selectUi("Light/dark mode", "Choose a mode", [
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" }
+  ]),
+  onChange(value2) {
+    setTheme(value2);
+  }
+};
+var coreOptions = {
+  n_rows: nRows,
+  show_conditions: showConditions,
+  dark_mode: darkMode
+};
 function setTheme(theme) {
-  document.documentElement.setAttribute("data-bs-theme", theme === "dark" ? "dark" : "light");
+  document.documentElement.setAttribute("data-bc-theme", theme === "dark" ? "dark" : "light");
 }
 function preferredTheme() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
-function checked2(id2, schema, sent2, value2 = sent2) {
-  if (compile(`the board option "${id2}"`, schema)(value2).length === 0) return value2;
+function checked2(id2, takes, sent2, value2 = sent2) {
+  if (takes(value2)) return value2;
   throw new TypeError(`The blockr option ${id2} is ${JSON.stringify(sent2)}, which the board option ${id2} does not take.`);
+}
+function takesRows(value2) {
+  return typeof value2 === "number" && Number.isInteger(value2) && value2 >= optionSchemas.n_rows.minimum;
+}
+function takesSeverities(value2) {
+  const allowed = optionSchemas.show_conditions.items.enum;
+  if (!Array.isArray(value2)) return false;
+  const given = value2;
+  return given.every((x2) => allowed.includes(x2)) && new Set(given).size === given.length;
+}
+function takesTheme(value2) {
+  const allowed = optionSchemas.dark_mode.enum;
+  return allowed.includes(value2);
 }
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderer of its outputs, where each module is served, the app's plugins, core's basic frontend and its storage plugin, each under the id of its class with its class's name and version, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderer of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -9859,23 +12389,47 @@ var hello_default = {
             }
           }
         },
-        startup_modules: [],
         modules: {
-          "blockr.core-basic": {
-            module: "blockr.core/basic.js?v=0f3d8e21",
-            css: "blockr.core/basic.css?v=6a9b2c4e"
-          },
-          "blockr.core-edit_board": {
-            module: "blockr.core/edit-board.js?v=5c1e7a39"
+          "blockr.core-controls": {
+            module: "blockr.core/blockr-core-controls.js?v=4d2a6c91"
           }
         },
         plugins: {
-          "blockr.core-basic_frontend_plugin": { name: "Basic frontend", version: 1 },
-          "blockr.core-file_storage_plugin": { name: "File storage", version: 1 },
-          "blockr.core-edit_board_plugin": { name: "Edit board", version: 1 }
+          "blockr.core-basic_frontend_plugin": {
+            name: "Basic frontend",
+            version: 1,
+            module: "blockr.core/basic.js?v=0f3d8e21",
+            css: "blockr.core/basic.css?v=6a9b2c4e"
+          },
+          "blockr.core-file_storage_plugin": {
+            name: "File storage",
+            version: 1,
+            module: "blockr.core/file-storage.js?v=8e1f0b2d"
+          },
+          "blockr.core-edit_board_plugin": {
+            name: "Edit board",
+            version: 1,
+            module: "blockr.core/edit-board.js?v=5c1e7a39"
+          }
         },
         frontend: {},
-        option_versions: {},
+        options: {
+          n_rows: {
+            package: "blockr.core",
+            module: "blockr.core/n-rows-option.js?v=2b9c7e14",
+            version: 1
+          },
+          show_conditions: {
+            package: "blockr.core",
+            module: "blockr.core/show-conditions-option.js?v=6f3a8d05",
+            version: 1
+          },
+          dark_mode: {
+            package: "blockr.core",
+            module: "blockr.core/dark-mode-option.js?v=a47e2c19",
+            version: 1
+          }
+        },
         renderers: {},
         lock: { board: false, load: false },
         board: {
@@ -10373,6 +12927,11 @@ var SAMPLES = {
   "blockr.core-text_output": text_output_default,
   "blockr.core-plot_output": plot_output_default
 };
+var CORE_CLASSES = {
+  "blockr.core-basic_frontend_plugin": { api: 1, default: basic_default },
+  "blockr.core-file_storage_plugin": { api: 1, default: file_storage_default },
+  "blockr.core-edit_board_plugin": { api: 1, default: edit_board_default }
+};
 var INFO = Object.freeze({
   width: 640,
   height: 400,
@@ -10383,35 +12942,39 @@ var INFO = Object.freeze({
   font: "sans-serif"
 });
 async function stubCore(options = {}) {
-  const startup = options.startup ?? {};
   const base = options.hello ?? HELLO;
-  const offered = Object.keys(options.modules ?? {}).filter((id2) => isModuleId(id2) && !Object.hasOwn(base.modules, id2));
+  const given = options.modules ?? {};
+  const offered = Object.keys(given).filter(
+    (id2) => isModuleId(id2) && !Object.hasOwn(base.modules, id2) && !Object.hasOwn(base.plugins, id2) && !Object.hasOwn(base.options, id2)
+  );
   const hello = {
     ...base,
-    packages: { ...base.packages, ...Object.fromEntries(Object.keys(startup).map((pkg) => [pkg, "1.0.0"])) },
-    startup_modules: [
-      ...base.startup_modules,
-      ...Object.keys(startup).map((pkg) => ({ package: pkg, module: startupUrl(pkg) }))
-    ],
     modules: { ...base.modules, ...Object.fromEntries(offered.map((id2) => [id2, { module: moduleUrl(id2) }])) }
   };
-  const modules = {
-    ...options.modules,
-    ...Object.fromEntries(Object.entries(startup).map(([pkg, exports]) => [startupUrl(pkg), exports]))
+  const named2 = (url) => {
+    if (Object.hasOwn(given, url)) return given[url];
+    const ids2 = [
+      ...Object.entries(hello.plugins).filter(([, entry]) => entry.module === url).map(([id3]) => id3),
+      ...Object.entries(hello.options).filter(([, entry]) => entry.module === url).map(([id3]) => id3),
+      ...Object.entries(hello.modules).filter(([, source]) => source.module === url).map(([id3]) => id3)
+    ];
+    const id2 = ids2.find((key) => Object.hasOwn(given, key));
+    if (id2 !== void 0) return given[id2];
+    const own2 = ids2.find((key) => Object.hasOwn(CORE_CLASSES, key) || Object.hasOwn(coreOptions, key));
+    if (own2 === void 0) return void 0;
+    return Object.hasOwn(CORE_CLASSES, own2) ? CORE_CLASSES[own2] : { api: 1, default: coreOptions[own2] };
   };
   const r2 = fixtureR(hello, options);
   const started = start({
     transport: r2.transport,
     loader: {
       importer(url) {
-        if (Object.hasOwn(modules, url)) return Promise.resolve(modules[url]);
-        const id2 = Object.entries(hello.modules).find(([, source]) => source.module === url)?.[0];
-        if (id2 !== void 0 && Object.hasOwn(modules, id2)) return Promise.resolve(modules[id2]);
+        const exports = named2(url);
+        if (exports !== void 0) return Promise.resolve(exports);
         return Promise.reject(new TypeError(`The test gives no module ${url}.`));
       },
       stylesheet: () => Promise.resolve()
     },
-    options: coreOptions,
     ...options.el === void 0 ? {} : { frontEnds: pageFrontEnds(options.el) },
     measure: options.measure ?? { info: () => INFO, watch: () => () => void 0 }
   });
@@ -10432,9 +12995,6 @@ async function stubCore(options = {}) {
       started.stop();
     }
   };
-}
-function startupUrl(pkg) {
-  return `${pkg}/startup.js`;
 }
 function moduleUrl(id2) {
   return `${packageFromId(id2) ?? "app"}/${id2}.js`;

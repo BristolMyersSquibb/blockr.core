@@ -1,5 +1,6 @@
-// Core's Edit board plugin, blockr.core-edit_board, the `ui` of the plugin
-// class blockr.core-edit_board_plugin, as The Edit board plugin has it
+// Core's Edit board plugin, the module of the plugin class
+// blockr.core-edit_board_plugin, whose default export is the class without its
+// id, with the plugin's `ui`, as The Edit board plugin has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15).
 // An app runs it unless its rows leave it out, and every frontend places it as
 // it places any plugin whose class has a `ui`, where core mounts it with
@@ -15,19 +16,22 @@
 
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import type { PluginClass } from "../../store/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { EditBoard } from "./board.tsx";
 
 export const api = 1;
 
 export default {
-  render({ el, core }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }): () => void {
-    const root = createRoot(el);
-    flushSync(() => {
-      root.render(<EditBoard core={core} />);
-    });
-    return () => {
-      root.unmount();
-    };
+  ui: {
+    render({ el, core }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }): () => void {
+      const root = createRoot(el);
+      flushSync(() => {
+        root.render(<EditBoard core={core} />);
+      });
+      return () => {
+        root.unmount();
+      };
+    },
   },
-};
+} satisfies Omit<PluginClass, "id">;

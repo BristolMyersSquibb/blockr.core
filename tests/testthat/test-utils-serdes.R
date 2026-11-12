@@ -305,7 +305,7 @@ test_that("the board holds the board options the script gives, by schema", {
     )
   )
 
-  # Core puts the schema of each of its board options next to its runtime
+  # Core puts the schema of each of its board options beside its module
   for (id in c("n_rows", "show_conditions", "dark_mode")) {
     expect_type(board_option_schema(id), "list")
   }
@@ -314,8 +314,6 @@ test_that("the board holds the board options the script gives, by schema", {
 })
 
 test_that("a plugin's state is written by the schema of its class", {
-
-  local_declared(declared_startup_modules)
 
   dir <- withr::local_tempdir()
   dir.create(file.path(dir, "js"))
@@ -343,12 +341,12 @@ test_that("a plugin's state is written by the schema of its class", {
         "pinned": { "type": "string" }
       }
     }',
-    file.path(dir, "js", "notes_plugin.schema.json")
+    file.path(dir, "js", "notes.schema.json")
   )
 
   writeLines(
     '{ "type": "array", "items": { "type": "string" } }',
-    file.path(dir, "js", "tags_option.schema.json")
+    file.path(dir, "js", "tags.schema.json")
   )
 
   # The files of blockr.test, and none of core's
@@ -359,7 +357,6 @@ test_that("a plugin's state is written by the schema of its class", {
     }
   )
 
-  register_startup_module(test_module("js/startup.js"))
   local_board_option_version("tags", 2L)
   local_versions(blockr.test = "0.1.0")
 
@@ -368,6 +365,18 @@ test_that("a plugin's state is written by the schema of its class", {
     "notes_plugin"
   )
   grid <- plugin_ctor(function(cols = "a") NULL, "grid_plugin")
+
+  # The package lists the classes and the board option, each with the module
+  # beside which it ships the schema, but for the grid's, which has none
+  local_listing(
+    "blockr.test",
+    list(options = list(tags = list(module = "js/tags.js")))
+  )
+  local_plugin_classes(
+    Notes = notes,
+    Grid = grid,
+    modules = list(Notes = "js/notes.js", Grid = "js/grid.js")
+  )
 
   board <- new_board(
     options = new_board_option("tags", "draft"),
@@ -443,9 +452,7 @@ test_that("a plugin's state is written by the schema of its class", {
   expect_false("blockr.test" %in% names(res$packages))
 })
 
-test_that("R finds a class's schema next to its package's startup module", {
-
-  local_declared(declared_startup_modules)
+test_that("R finds a schema beside the module that a package lists", {
 
   dirs <- list(
     blockr.one = withr::local_tempdir(),
@@ -458,12 +465,12 @@ test_that("R finds a class's schema next to its package's startup module", {
 
   writeLines(
     '{ "properties": { "views": { "type": "array" } } }',
-    file.path(dirs$blockr.one, "js", "views_plugin.schema.json")
+    file.path(dirs$blockr.one, "js", "views.schema.json")
   )
 
   writeLines(
     '{ "type": "array" }',
-    file.path(dirs$blockr.two, "js", "tags_option.schema.json")
+    file.path(dirs$blockr.two, "js", "tags.schema.json")
   )
 
   local_mocked_bindings(
@@ -473,9 +480,6 @@ test_that("R finds a class's schema next to its package's startup module", {
       if (nzchar(path) && file.exists(path)) path else ""
     }
   )
-
-  register_startup_module(test_module("js/startup.js", "blockr.one"))
-  register_startup_module(test_module("js/startup.js", "blockr.two"))
 
   local_versions(blockr.one = "0.1.0", blockr.three = "0.1.0")
 
@@ -490,6 +494,18 @@ test_that("R finds a class's schema next to its package's startup module", {
     function(views = "main") NULL,
     "views_plugin",
     "blockr.three"
+  )
+
+  local_plugin_classes(
+    Views = views,
+    Other = other,
+    modules = list(Views = "js/views.js", Other = "js/views.js")
+  )
+
+  # The board option of blockr.two, which names no package in its ID
+  local_listing(
+    "blockr.two",
+    list(options = list(tags = list(module = "js/tags.js")))
   )
 
   board <- new_board(
@@ -508,8 +524,8 @@ test_that("R finds a class's schema next to its package's startup module", {
     read_json_strictly('{ "views": "main" }')
   )
 
-  # A board option's ID names no package, so its schema is the one next to
-  # any startup module
+  # A board option's ID names no package, so its schema is the one beside the
+  # module of the package that lists it
   expect_identical(
     res$options,
     read_json_strictly('{ "tags": { "value": ["draft"], "version": 1 } }')
