@@ -33,12 +33,6 @@ A function of version 0.1 that is gone has no alias, so a script that still call
 An argument that is gone stops the call as an unused argument.
 A script that calls other blockr packages follows their migration notes too, such as those of blockr.dock for a dock board.
 
-The arguments of `serve()` change the most:
-
-```{r, echo = FALSE}
-include_mermaid("serve-args")
-```
-
 ## The board's ID and name
 
 In version 0.1, `serve()` takes the board's ID, and the `board_name` board option holds the board's name.
