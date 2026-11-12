@@ -404,7 +404,7 @@
   So core's static and fixed blocks have the ids `blockr.core-static_block` and `blockr.core-fixed_block`, where they had `static_block` and `fixed_block`.
   A class from outside a package replaces another class that the script registered under its id, so that a script that redefines a class after it registered it runs the new definition, and a board with blocks of two such classes of one id fails (#559).
 * Which block classes an app offers is the app's choice.
-  The methods of `serve()` for a board and for a path take them in `blocks`, which defaults to `available_blocks()`, every block class of every available package: one that is installed and depends on blockr.core, or that `pkgload::load_all()` loaded, and that lists block classes in its `inst/registry/blocks.yml`.
+  The methods of `serve()` for a board and for a path take them in `blocks`, which defaults to `available_blocks()`, every block class of every available package: one that is installed, or that `pkgload::load_all()` loaded, and that lists block classes in its `inst/registry/blocks.yml`.
   A block that `serve()` serves alone offers none, and its app's block registry holds the block's class alone.
   The `available_blocks()` function gives these classes as a data frame, with the class's package in `package` and its id in `id`, in place of the block registry's entries.
   A script narrows them with plain R, as `subset(available_blocks(), package != "blockr.ggplot")`, or gives the path of a YAML file that lists packages and, for each, the ids of the classes to offer.
@@ -415,7 +415,6 @@
   The app's sessions read it alone, so a later `serve()` or `register_block()` in the same process changes no app built before.
   The blockr option `core_blocks` is gone, since `blocks` narrows core's classes too.
   The block registration roclet writes the id of each class into `blocks.yml`, which it reads off the class's constructor.
-  R sends the startup modules and modules of the packages that the app uses alone in its reply to `hello`: core, those of the block classes in the app's block registry and those of the app's plugins.
   The `register_package_blocks()` function is gone, and core's `.onLoad()` registers no block class, so a block package drops its call of `register_package_blocks()` from its `.onLoad()`.
   Core reads the files of another package, such as its `blocks.yml`, its modules and its JSON Schemas, through the package's own `system.file()`, so that it finds them for a package that `pkgload::load_all()` loaded too (#498).
 

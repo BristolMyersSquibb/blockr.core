@@ -80,13 +80,6 @@ board with a plugin of a class that the app does not run stops the app too,
 naming the class.
 A block that \code{serve()} serves alone runs no plugin.
 
-The packages that the app uses are core, those of the block classes in the
-app's block registry, whether the app offers them or R registers them from
-the board, and those of the app's plugins.
-R tells the client of the startup modules and the modules of these
-packages alone, whatever a block's code loads later, in the order in which
-the packages declared them (see \code{\link[=register_startup_module]{register_startup_module()}}).
-
 For a board, R writes the board's JSON once, as \code{serve()} is called, and
 sends it to the client as each session starts.
 So a board that R cannot write as JSON fails as the script runs (see

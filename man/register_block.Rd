@@ -126,10 +126,10 @@ which defaults to \code{available_blocks()}: a data frame with a row for each
 block class of each available package, with the class's package in
 \code{package} and its id in \code{id}.
 A block that \code{serve()} serves alone offers none.
-A package is available where it is installed and depends on blockr.core, or
-where \code{pkgload::load_all()} loaded it, and it lists block classes in its
-\code{inst/registry/blocks.yml}, which the \code{\link[=block_registration_roclet]{block_registration_roclet()}} writes,
-or where the block registry of the process holds a class of it (below).
+A package is available where it is installed or \code{pkgload::load_all()}
+loaded it, and it lists block classes in its \code{inst/registry/blocks.yml},
+which the \code{\link[=block_registration_roclet]{block_registration_roclet()}} writes, or where the block registry
+of the process holds a class of it (below).
 Reading the files loads no package.
 A script narrows the rows with plain R, as
 \code{subset(available_blocks(), package != "blockr.ggplot")} offers every class

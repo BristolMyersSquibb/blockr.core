@@ -71,12 +71,10 @@ the order only for the packages its NAMESPACE imports, since R loads a
 package that its DESCRIPTION alone names only once something asks for it,
 and declaring a startup module again keeps its place.
 
-R tells the client where it serves each module that a package the app
-uses declares (see \code{\link[=serve]{serve()}}), those of plugin classes included, in its
-reply to \code{hello}, with the versions of the packages they come from, and
-where it serves a renderer's module in each output that the renderer draws
-(see \code{\link[=new_renderer]{new_renderer()}}).
-It serves a module,
+R tells the client where it serves each module that a package declares, those
+of plugin classes included, in its reply to \code{hello}, with the versions of the
+packages they come from, and where it serves a renderer's module in each
+output that the renderer draws (see \code{\link[=new_renderer]{new_renderer()}}). It serves a module,
 and the stylesheet beside it, under the package's name, at the module's path
 in the package, with a hash of the file's content in the URL, so that no
 browser runs a changed file from its cache. It serves only the files it

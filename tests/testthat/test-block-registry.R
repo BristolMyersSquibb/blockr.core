@@ -317,9 +317,6 @@ test_that("available_blocks() lists the classes of the available packages", {
       "head_block", "merge_block", "rbind_block", "scatter_block",
       "subset_block", "upload_block")
   )
-
-  # Every available package depends on core
-  expect_true(all(lgl_ply(unique(rows[["package"]]), depends_on_core)))
 })
 
 test_that("an app offers the block classes that `blocks` gives", {

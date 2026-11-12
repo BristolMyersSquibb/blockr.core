@@ -44,13 +44,6 @@
 #' naming the class.
 #' A block that `serve()` serves alone runs no plugin.
 #'
-#' The packages that the app uses are core, those of the block classes in the
-#' app's block registry, whether the app offers them or R registers them from
-#' the board, and those of the app's plugins.
-#' R tells the client of the startup modules and the modules of these
-#' packages alone, whatever a block's code loads later, in the order in which
-#' the packages declared them (see [register_startup_module()]).
-#'
 #' For a board, R writes the board's JSON once, as `serve()` is called, and
 #' sends it to the client as each session starts.
 #' So a board that R cannot write as JSON fails as the script runs (see
@@ -195,22 +188,6 @@ serve.block <- function(x, ..., data = list()) {
   serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
 }
 
-# The packages that an app uses: core, those of the block classes in the
-# app's block registry, `registry`, and those of the classes of the app's
-# plugins, `plugins`, as `app_plugins()` gives them.
-used_packages <- function(registry, plugins = list()) {
-
-  classes <- lapply(registry_entries(registry), function(x) x[["block_class"]])
-
-  unique(
-    c(
-      "blockr.core",
-      unlst(lapply(classes, `[[`, "package")),
-      id_package(names(plugins))
-    )
-  )
-}
-
 # Refuses a board that the script builds with a plugin of a class that the app
 # does not run, since the client would drop its state, naming the class of
 # each such plugin. The app's plugins are given by the IDs of their classes.
@@ -292,9 +269,7 @@ check_outside_classes <- function(classes) {
 # The app that `serve()` returns, for the opening board given as JSON, and
 # for a block that `serve()` serves alone, with the data that R binds to the
 # block's inputs.
-# Each session's evaluator reads the app's block registry, `registry`, alone,
-# and tells the client of what the packages that the app uses declare, those
-# of its block classes and of its plugins.
+# Each session's evaluator reads the app's block registry, `registry`, alone.
 # The app's plugins, `plugins`, which `app_plugins()` gives, go to the
 # evaluator of every session, which sends them in its reply to `hello`.
 # R writes or reads the opening board here, as `serve()` is called, rather than
@@ -315,14 +290,13 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 
   force(board)
 
-  packages <- used_packages(registry, plugins)
   lock <- lock_board(board, data, registry)
 
   shiny::shinyApp(
     ui = function(req) serve_page(alone),
     server = function(input, output, session) {
 
-      ev <- new_evaluator(board, data, lock, packages, registry, plugins)
+      ev <- new_evaluator(board, data, lock, registry, plugins)
 
       shiny::exportTestValues(result = latest_results(ev, alone))
 

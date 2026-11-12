@@ -91,9 +91,8 @@ hard_dependencies <- function(desc) {
   seen
 }
 
-# The packages that a package names in its Depends and Imports, that of its
-# loaded namespace, as `pkgload::load_all()` loads one from its source, or else
-# as installed, none for a package that is neither.
+# The packages that an installed package names in its Depends and Imports,
+# none for a package that is not installed.
 installed_dependencies <- function(pkg) {
 
   fields <- suppressWarnings(

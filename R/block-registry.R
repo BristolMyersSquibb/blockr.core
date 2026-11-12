@@ -27,10 +27,10 @@ block_registry <- new.env()
 #' block class of each available package, with the class's package in
 #' `package` and its id in `id`.
 #' A block that `serve()` serves alone offers none.
-#' A package is available where it is installed and depends on blockr.core, or
-#' where `pkgload::load_all()` loaded it, and it lists block classes in its
-#' `inst/registry/blocks.yml`, which the [block_registration_roclet()] writes,
-#' or where the block registry of the process holds a class of it (below).
+#' A package is available where it is installed or `pkgload::load_all()`
+#' loaded it, and it lists block classes in its `inst/registry/blocks.yml`,
+#' which the [block_registration_roclet()] writes, or where the block registry
+#' of the process holds a class of it (below).
 #' Reading the files loads no package.
 #' A script narrows the rows with plain R, as
 #' `subset(available_blocks(), package != "blockr.ggplot")` offers every class
@@ -565,9 +565,8 @@ registry_entries <- function(registry = block_registry) {
 }
 
 # The packages whose block classes an app may offer, by name: those that ship
-# a `registry/blocks.yml` and depend on blockr.core, core itself among them,
-# whether installed or loaded by `pkgload::load_all()`, which puts a package in
-# no library.
+# a `registry/blocks.yml`, core itself among them, whether installed or loaded
+# by `pkgload::load_all()`, which puts a package in no library.
 # A package whose file lists no block class gives `available_blocks()` no row.
 available_block_packages <- function() {
 
@@ -581,15 +580,14 @@ available_block_packages <- function() {
     )
   )
 
-  dev <- Filter(is_dev_namespace, loadedNamespaces())
-  pkgs <- unique(c(installed, dev))
+  dev <- Filter(
+    function(pkg) {
+      is_dev_namespace(pkg) && nzchar(package_file("registry/blocks.yml", pkg))
+    },
+    loadedNamespaces()
+  )
 
-  sort(pkgs[lgl_ply(pkgs, depends_on_core)])
-}
-
-depends_on_core <- function(pkg) {
-  identical(pkg, "blockr.core") ||
-    "blockr.core" %in% installed_dependencies(pkg)
+  sort(unique(c(installed, dev)))
 }
 
 # The block classes that a package lists, as rows of `available_blocks()`.

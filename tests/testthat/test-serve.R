@@ -179,39 +179,6 @@ test_that("an app's sessions read the block registry that serve() built", {
   expect_identical(replies[[2L]]$status, "ok")
 })
 
-test_that("the app's sessions tell of what the packages it uses declare", {
-
-  dir <- withr::local_tempdir()
-  write_declared_files(dir)
-
-  local_empty_declarations()
-  local_declared_package(dir)
-
-  # An app whose block classes and plugins are all core's tells of nothing of
-  # blockr.test's, which its script loaded
-  core <- subset(available_plugins(), package == "blockr.core")
-
-  reply <- served_replies(
-    serve(served_board(), plugins = core),
-    hello_message()
-  )[[1L]]
-
-  expect_length(reply$startup_modules, 0L)
-  expect_length(reply$modules, 0L)
-  expect_contains(names(reply$block_registry), "blockr.core-head_block")
-
-  # A plugin of blockr.test's that the app runs, as its frontend is by
-  # default, makes the app use blockr.test
-  reply <- served_replies(serve(served_board()), hello_message())[[1L]]
-
-  expect_identical(
-    chr_xtr(reply$startup_modules, "package"),
-    "blockr.test"
-  )
-  expect_named(reply$modules, c("blockr.test-grid", "blockr.test-picker"))
-  expect_contains(names(reply$plugins), "blockr.test-grid_plugin")
-})
-
 test_that("blocks and plugins read their rows alike, and plugins no file", {
 
   # A YAML file of block classes gives rows in its order, with the id `NA` for

@@ -13,8 +13,7 @@
 local_evaluator <- function(board = list(blocks = list()), data = list(),
                             lock = lock_board(board, data),
                             plugins = default_app_plugins(data),
-                            hello = TRUE, packages = "blockr.core",
-                            frame = parent.frame()) {
+                            hello = TRUE, frame = parent.frame()) {
 
   session <- new.env()
   session$sent <- list()
@@ -40,7 +39,6 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
     board = board,
     data = data,
     lock = lock,
-    packages = packages,
     plugins = plugins
   )
 

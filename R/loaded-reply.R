@@ -1,34 +1,24 @@
-# What R tells the client about the packages that the app uses, in its
-# reply to `hello`, for neither side to edit: the block registry's entries,
-# each with the renderer of its class's outputs, where R serves the startup
-# modules and the modules that packages offer each other, the app's plugins,
-# `plugins`, each under the ID of its class with the class's name and version,
-# as `app_plugins()` gives them, the versions of the board options that
-# packages give them, the renderers that the app names for board options, and
-# the versions of the packages that all of these come from.
-# R loads no package for it.
-# As the app started, `serve()` filled the block registry with the block
-# classes that the app offers, beside those of the app script and of its board,
-# and loaded their packages, which the app uses, with core and the packages of
-# its plugins, in `packages`.
-# Loading the packages declared their modules, and what another package
-# declares, such as one that a block's code loads, stays out.
+# What R tells the client about the packages it has loaded, in its reply to
+# `hello`, for neither side to edit: the entries of the app's block registry,
+# `registry`, each with the renderer of its class's outputs, where R serves the
+# startup modules and the modules that packages offer each other, the app's
+# plugins, `plugins`, each under the ID of its class with the class's name and
+# version, as `app_plugins()` gives them, the versions of the board options
+# that packages give them, the renderers that the app names for board options,
+# and the versions of the packages that all of these come from.
+# R loads no package for it: `serve()` loaded the packages of the block
+# classes that the app offers, and the app's script the others, and loading
+# them declared their modules and registered their methods.
 # These are the properties `packages`, `block_registry`, `startup_modules`,
 # `modules`, `plugins`, `option_versions` and `renderers` of
 # inst/protocol/README.md, as R values that `encode_message()` writes as the
 # reply's JSON.
 # Building them builds no block.
-loaded_reply <- function(packages = "blockr.core", registry = block_registry,
-                         plugins = list()) {
-
-  used <- function(x) isTRUE(x[["package"]] %in% packages)
+loaded_reply <- function(registry = block_registry, plugins = list()) {
 
   entries <- registry_entries(registry)
-  startup <- Filter(used, startup_modules())
-  modules <- Filter(
-    used,
-    lapply(set_names(nm = list_modules()), get_module)
-  )
+  startup <- startup_modules()
+  modules <- lapply(set_names(nm = list_modules()), get_module)
   renderers <- option_renderers()
 
   coercions <- output_coercions()

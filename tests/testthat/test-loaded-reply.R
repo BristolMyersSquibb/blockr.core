@@ -327,18 +327,11 @@ test_that("R keeps the startup modules in the order packages declare them", {
     register_startup_module(js_module("js/startup.js", package = pkg))
   }
 
-  # Those of the packages that the app uses, in the order in which they
-  # declared them
-  reply <- loaded_reply(c("blockr.dag", "blockr.dock", "blockr.ui"))
+  reply <- loaded_reply()
 
   expect_identical(
     chr_xtr(reply$startup_modules, "package"),
     c("blockr.ui", "blockr.dock", "blockr.dag")
-  )
-  expect_identical(
-    chr_xtr(loaded_reply(c("blockr.dag", "blockr.ui"))$startup_modules,
-            "package"),
-    c("blockr.ui", "blockr.dag")
   )
   expect_identical(
     json(reply$packages),
@@ -347,38 +340,6 @@ test_that("R keeps the startup modules in the order packages declare them", {
       "\"blockr.dock\":\"1.0.0\",\"blockr.ui\":\"1.0.0\"}"
     )
   )
-})
-
-test_that("R reads the DESCRIPTION of a package that load_all() loaded", {
-
-  # In its source
-  local_load_all_package()
-
-  expect_identical(installed_dependencies("regprobe"), "blockr.core")
-  expect_identical(installed_dependencies("blockr.absent"), character())
-})
-
-test_that("R tells the client of what the packages it uses declare alone", {
-
-  dir <- withr::local_tempdir()
-  write_declared_files(dir)
-
-  local_empty_declarations()
-  local_declared_package(dir)
-
-  used <- loaded_reply(c("blockr.core", "blockr.test"))
-
-  expect_identical(chr_xtr(used$startup_modules, "package"), "blockr.test")
-  expect_named(used$modules, c("blockr.test-grid", "blockr.test-picker"))
-  expect_identical(json(used$option_versions), "{\"grid_gap\":2}")
-
-  # What a package that the app does not use declares and registers stays
-  # out, such as that of a package that a block's code loads
-  alone <- loaded_reply()
-
-  expect_length(alone$startup_modules, 0L)
-  expect_identical(json(alone$modules), "{}")
-  expect_false("blockr.test" %in% names(alone$packages))
 })
 
 test_that("building what R tells the client builds no block", {
