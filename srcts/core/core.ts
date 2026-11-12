@@ -1,11 +1,10 @@
-// CoreApi, what core gives a frontend, a plugin and a startup module, as
-// Drawing the board has it
+// CoreApi, what core gives a frontend and a plugin, as Drawing the board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-core-gives-plugins).
 // Core makes one for each board that opens, on the store, the command registry
-// and the scheduler that it creates for that board, and hands it to each
-// startup module's initialize(), to the render() of the frontend and of every
-// plugin's UI, and to every plugin class's start (./start.ts, ./plugins.ts).
-// It ends with them, as the next board opens.
+// and the scheduler that it creates for that board, and hands it to the load()
+// of the app's storage plugin as the page starts, to the render() of the
+// frontend and of every plugin's UI, and to every plugin class's start
+// (./start.ts, ./plugins.ts). It ends with them, as the next board opens.
 //
 // Beside what it hands out, it calls the onChange() of each board option whose
 // value changes, as the board opens or a delta sets it, so that a new value of
@@ -95,6 +94,7 @@ export function createCore(parts: CoreParts): Core {
     commands,
     scheduler,
     loader,
+    core: () => api,
     renderers: parts.renderers,
     ...(parts.measure === undefined ? {} : { measure: parts.measure }),
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
@@ -114,7 +114,6 @@ export function createCore(parts: CoreParts): Core {
   // order as it opens, before the board options that have an onChange().
   const plugins = runPlugins({
     store,
-    loader,
     keepOptions: (ids, by, failed) => mounts.keepOptions(ids, by, failed),
     core: () => api,
     plugins: parts.plugins,

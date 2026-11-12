@@ -21,19 +21,18 @@
 #'
 #' The id of a plugin's class in full is `{pkg}-{id}`, as
 #' `blockr.dag-dag_plugin`, where the package is the one that the constructor
-#' lives in, since that package defines the class in JavaScript, where its
-#' startup module registers the class under that id (see
-#' [register_startup_module()]).
+#' lives in, since that package defines the class in JavaScript, in a module of
+#' its own, whose default export the client registers under that id.
 #' So an app script defines no plugin class, and `new_plugin()` raises an error
 #' where the constructor that calls it lives outside a package.
-#' A package lists each of its plugin classes with its id, its constructor and
-#' its name, the human-readable form of its id, such as "Document" for
-#' `md_plugin`, which titles the plugin's panel.
+#' A package lists each of its plugin classes in its `._BLOCKR_MODULES_`, by
+#' its constructor, with its id, its name, the human-readable form of its id,
+#' such as "Document" for `md_plugin`, which titles the plugin's panel, and its
+#' module (see [read_blocks_yml()]).
 #' The function `available_plugins()` gives the plugin classes that the
 #' available packages list, as a data frame with a row for each class, with
 #' its package in `package` and its id in `id`, which identify the class.
 #' The rest of a class, such as its name, stays with its package's listing.
-#' Until other packages list their own, it gives core's classes alone.
 #'
 #' Core defines two plugin classes beside `plugin`, since every page relies on
 #' what each does: `frontend_plugin`, the class of a plugin that draws the page,
@@ -338,32 +337,87 @@ available_plugins <- function() {
 }
 
 # The plugin classes that the available packages list, by the full ID of each
-# class, `{pkg}-{id}`, each with its package, its id, its name and its
-# constructor.
-# Until other packages list their own, core lists its own classes alone.
+# class, `{pkg}-{id}`, each with its package, its id, its name, its
+# constructor and its module.
 available_plugin_classes <- function() {
+  joined_by_id(lapply(available_packages(), listed_plugin_classes))
+}
 
-  core <- list(
-    list(
-      id = "basic_frontend_plugin",
-      name = "Basic frontend",
-      constructor = new_basic_frontend_plugin
-    ),
-    list(
-      id = "file_storage_plugin",
-      name = "File storage",
-      constructor = new_file_storage_plugin
-    ),
-    list(
-      id = "edit_board_plugin",
-      name = "Edit board",
-      constructor = new_edit_board_plugin
+# The plugin classes that package `pkg` lists in the `plugins` of its
+# `._BLOCKR_MODULES_`, by the full ID of each class, `{pkg}-{id}`, each with
+# its package, its id, its name, its constructor, which R looks up by its name
+# in the package's namespace, and its module, as `js_module()` makes it.
+listed_plugin_classes <- function(pkg, listing = package_listing(pkg)) {
+
+  entries <- listing[["plugins"]]
+
+  faults <- if (!is_named_list(entries)) {
+    paste(
+      "They are no list of plugin constructors by name, each with the `id`,",
+      "`name` and `module` of its class."
     )
+  } else {
+    plugin_listing_faults(entries)
+  }
+
+  check_listing_part(faults, pkg, "plugin classes", "plugins")
+
+  if (!length(entries)) {
+    return(list())
+  }
+
+  classes <- Map(
+    function(entry, ctor) {
+      list(
+        package = pkg,
+        id = entry[["id"]],
+        name = entry[["name"]],
+        constructor = get(ctor, envir = asNamespace(pkg), mode = "function"),
+        module = js_module(entry[["module"]], package = pkg)
+      )
+    },
+    entries,
+    names(entries)
   )
 
-  classes <- lapply(core, function(x) c(list(package = "blockr.core"), x))
+  set_names(classes, paste0(pkg, "-", chr_xtr(entries, "id")))
+}
 
-  set_names(classes, paste0("blockr.core-", chr_xtr(core, "id")))
+# The faults of the plugin classes that a package lists, each as a sentence:
+# an entry that gives no `id`, `name` and `module` as strings, an id that is
+# not named as `{name}_plugin`, and two constructors that list one id.
+plugin_listing_faults <- function(entries) {
+
+  fields <- c("id", "name", "module")
+
+  faults <- unlst(
+    Map(listing_entry_faults, entries, names(entries), list(fields))
+  )
+
+  if (length(faults)) {
+    return(faults)
+  }
+
+  ids <- chr_xtr(entries, "id")
+  named <- lgl_ply(ids, is_plugin_id)
+
+  twice <- unique(ids[duplicated(ids)])
+
+  c(
+    if (!all(named)) {
+      paste0(
+        "Its entry for ", names(entries)[!named], " gives the id ",
+        ids[!named], ", which is not named as `{name}_plugin`, or is one of ",
+        "core's classes that others extend."
+      )
+    },
+    if (length(twice)) {
+      paste0(
+        "Its constructors ", paste_enum(names(entries)[ids %in% twice]),
+        " list one id, ", twice[1L], "."
+      )
+    }
+  )
 }
 
 # The plugin that the constructor of the plugin class with the ID `id`,
@@ -431,7 +485,7 @@ plugin_class_requests <- function(id, available = available_plugin_classes()) {
 
 # The app's plugins, which run on every board that the app opens, from the
 # rows that `serve()` takes in `plugins`, by the ID of each plugin's class, in
-# the order of the rows: each with its class's name and version.
+# the order of the rows: each with its class's name, version and module.
 # R reads the rows and refuses them where they name a class that no available
 # package lists, or a class twice. It tells a frontend and a storage plugin by
 # the R class of the plugin that the class's constructor makes.
@@ -510,7 +564,8 @@ app_plugins <- function(rows, available = available_plugin_classes()) {
     function(id) {
       list(
         name = available[[id]][["name"]],
-        version = checked_plugin_version(plugins[[id]])
+        version = checked_plugin_version(plugins[[id]]),
+        module = available[[id]][["module"]]
       )
     }
   )

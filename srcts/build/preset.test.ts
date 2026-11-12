@@ -12,7 +12,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost, stubOutputHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { mountReact } from "../testing/react.ts";
@@ -155,9 +155,13 @@ test("React's entry points, as core ships them, read one React", async () => {
   react.startTransition(() => {
     view.render(react.createElement(Counter));
   });
-  await new Promise((done) => setTimeout(done, 50));
 
-  expect(el.textContent).toBe("42");
+  // React draws a transition in a later task. On a busy machine, drawing can
+  // take longer than a fixed wait. So the test retries its check for up to a
+  // second.
+  await vi.waitFor(() => {
+    expect(el.textContent).toBe("42");
+  });
   view.unmount();
 });
 

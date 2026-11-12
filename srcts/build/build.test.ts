@@ -178,7 +178,7 @@ test("draws what floats over the board on the page's background, which the dark 
   const start = css.indexOf("@layer theme {");
   const theme = css.slice(start, css.indexOf("\n}\n", start));
   expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-bg-raised: Canvas;/);
-  expect(theme).toMatch(/:root\[data-bs-theme="dark"\] \{[^}]*--bc-color-bg-raised: color-mix\(in oklab, Canvas, currentColor 10%\);/);
+  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-bg-raised: color-mix\(in oklab, Canvas, currentColor 10%\);/);
   expect(css.replace(theme, "")).not.toContain("--bc-color-bg-raised:");
 });
 
@@ -329,7 +329,7 @@ test("writes the schema of a JSON board, and removes any other in inst/board", a
   });
 }, 60_000);
 
-test("writes the schemas of core's board options next to its runtime", async () => {
+test("writes the schemas of core's board options beside their modules", async () => {
   await write({
     "srcts/options/schemas.ts": [
       "export const optionSchemas = {",
@@ -340,17 +340,18 @@ test("writes the schemas of core's board options next to its runtime", async () 
     ].join("\n"),
   });
 
-  // Each in a file of its own, named by the board option's class in R
+  // Each in a file of its own, beside the board option's module, which core
+  // names by the board option's id
   expect(await schemas(root)).toEqual([
-    "inst/js/n_rows_option.schema.json",
-    "inst/js/show_conditions_option.schema.json",
+    "inst/js/n-rows-option.schema.json",
+    "inst/js/show-conditions-option.schema.json",
   ]);
 
   const read = async (name: string) =>
     JSON.parse(await readFile(join(root, "inst", "js", name), "utf8")) as unknown;
 
-  expect(await read("n_rows_option.schema.json")).toEqual({ type: "integer", minimum: 0 });
-  expect(await read("show_conditions_option.schema.json")).toEqual({
+  expect(await read("n-rows-option.schema.json")).toEqual({ type: "integer", minimum: 0 });
+  expect(await read("show-conditions-option.schema.json")).toEqual({
     type: "array",
     items: { enum: ["error"] },
   });

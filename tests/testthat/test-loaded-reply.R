@@ -9,8 +9,8 @@ test_that("R tells the client what it loaded in the properties of its reply", {
 
   expect_named(
     reply,
-    c("packages", "block_registry", "startup_modules", "modules", "plugins",
-      "frontend", "option_versions", "renderers")
+    c("packages", "block_registry", "modules", "plugins", "frontend",
+      "options", "renderers")
   )
   expect_identical(
     json(reply$packages),
@@ -171,7 +171,7 @@ test_that("a request says what it reads, and whether volatile or an action", {
   )
 })
 
-test_that("R says where it serves what packages declare", {
+test_that("R says where it serves what packages list", {
 
   reply <- declared_fields()
 
@@ -179,40 +179,54 @@ test_that("R says where it serves what packages declare", {
     paste0("^blockr.test/js/", file, "\\?v=[0-9a-f]{8}$")
   }
 
-  expect_length(reply$startup_modules, 1L)
-  expect_named(reply$startup_modules[[1L]], c("package", "module"))
-  expect_identical(reply$startup_modules[[1L]]$package, "blockr.test")
-  expect_match(reply$startup_modules[[1L]]$module, url("startup.js"))
-
-  # The module that the package's plugin class names is a module like any
-  # other
-  expect_named(reply$modules, c("blockr.test-grid", "blockr.test-picker"))
-  expect_named(reply$modules[["blockr.test-grid"]], c("module", "css"))
-  expect_match(reply$modules[["blockr.test-grid"]]$module, url("grid.js"))
-  expect_match(reply$modules[["blockr.test-grid"]]$css, url("grid.css"))
+  # The modules that the package offers others, by ID
+  expect_named(reply$modules, "blockr.test-picker")
+  expect_named(reply$modules[["blockr.test-picker"]], "module")
   expect_match(reply$modules[["blockr.test-picker"]]$module, url("picker.js"))
+
+  # The module of the class of each of the app's plugins, with the stylesheet
+  # beside it
+  grid <- reply$plugins[["blockr.test-grid_plugin"]]
+
+  expect_named(grid, c("name", "version", "module", "css"))
+  expect_match(grid$module, url("grid.js"))
+  expect_match(grid$css, url("grid.css"))
+
+  # The module of each board option that a loaded package lists
+  gap <- reply$options[["grid_gap"]]
+
+  expect_named(gap, c("package", "module", "version"))
+  expect_identical(gap$package, "blockr.test")
+  expect_match(gap$module, url("grid-gap.js"))
 })
 
 test_that("R gives the app's plugins with their classes' names and versions", {
 
-  expect_identical(
+  expect_match(
     json(declared_fields()$plugins),
     paste0(
-      "{\"blockr.core-file_storage_plugin\":",
-      "{\"name\":\"File storage\",\"version\":1},",
-      "\"blockr.core-edit_board_plugin\":",
-      "{\"name\":\"Edit board\",\"version\":1},",
-      "\"blockr.test-grid_plugin\":{\"name\":\"Grid\",\"version\":2}}"
+      "^\\{\"blockr.test-grid_plugin\":",
+      "\\{\"name\":\"Grid\",\"version\":2,\"module\":"
     )
   )
   expect_identical(json(loaded_reply()$plugins), "{}")
 
   # The package that the id of each plugin's class names is among those of
-  # the reply
+  # the reply, where R serves its class's module at a URL that serves nothing,
+  # which it logs as a warning
   local_versions(blockr.one = "1.2.0")
+  withr::local_options(blockr.log_level = "error")
+  reset_logging()
+  withr::defer(reset_logging())
 
   reply <- loaded_reply(
-    plugins = list(`blockr.one-dag_plugin` = list(name = "DAG", version = 3L))
+    plugins = list(
+      `blockr.one-dag_plugin` = list(
+        name = "DAG",
+        version = 3L,
+        module = js_module("js/dag.js", package = "blockr.one")
+      )
+    )
   )
 
   expect_identical(reply$packages$blockr.one, "1.2.0")
@@ -229,15 +243,33 @@ test_that("R gives what the app's frontend reads beside the app's plugins", {
   expect_identical(json(loaded_reply()$frontend), "{}")
 })
 
-test_that("R gives the version of each board option that a package versions", {
+test_that("R gives the version of each board option of the app's packages", {
 
-  expect_identical(json(declared_fields()$option_versions), "{\"grid_gap\":2}")
-  expect_identical(json(option_versions()), "{}")
+  expect_identical(
+    lst_xtr(declared_fields()$options, "version"),
+    list(grid_gap = 2L)
+  )
+
+  # Core's board options, which every app uses, at version 1, since core gives
+  # them no method of `board_option_version()`
+  expect_identical(
+    lst_xtr(loaded_reply()$options, "version"),
+    list(n_rows = 1L, show_conditions = 1L, dark_mode = 1L)
+  )
 
   # A method that gives no version fails as R builds the reply
+  local_listing(
+    "blockr.test",
+    list(options = list(bad_gap = list(module = "js/bad-gap.js")))
+  )
   local_board_option_version("bad_gap", 0L)
 
-  expect_error(option_versions(), class = "board_option_version_invalid")
+  plugins <- list(`blockr.test-grid_plugin` = list(name = "Grid"))
+
+  expect_error(
+    loaded_reply(plugins = plugins),
+    class = "board_option_version_invalid"
+  )
 })
 
 test_that("an entry names the renderer of its class's outputs", {
@@ -321,7 +353,7 @@ test_that("R names the renderers that the app names for board options", {
   expect_identical(json(loaded_reply()$renderers), "{}")
 })
 
-test_that("R keeps the startup modules in the order packages declare them", {
+test_that("R names the modules that every loaded package offers", {
 
   dir <- withr::local_tempdir()
   local_empty_declarations()
@@ -333,17 +365,20 @@ test_that("R keeps the startup modules in the order packages declare them", {
     pkg_version = function(pkg = parent.frame()) package_version("1.0.0")
   )
 
+  dir.create(file.path(dir, "js"))
+
   for (pkg in c("blockr.ui", "blockr.dock", "blockr.dag")) {
-    dir.create(file.path(dir, "js"), showWarnings = FALSE)
-    writeBin(charToRaw(pkg), file.path(dir, "js", "startup.js"))
-    register_startup_module(js_module("js/startup.js", package = pkg))
+    writeBin(charToRaw(pkg), file.path(dir, "js", paste0(pkg, ".js")))
+    local_listing(pkg, list(modules = list(kit = paste0("js/", pkg, ".js"))))
   }
 
   reply <- loaded_reply()
 
-  expect_identical(
-    chr_xtr(reply$startup_modules, "package"),
-    c("blockr.ui", "blockr.dock", "blockr.dag")
+  # By ID, the packages in order of their names, with no order of their
+  # DESCRIPTION files
+  expect_named(
+    reply$modules,
+    c("blockr.dag-kit", "blockr.dock-kit", "blockr.ui-kit")
   )
   expect_identical(
     json(reply$packages),

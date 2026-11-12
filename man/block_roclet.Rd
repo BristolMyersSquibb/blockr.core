@@ -13,8 +13,10 @@ block_registration_roclet()
 \description{
 A custom roxygen2 roclet that turns block registration metadata, declared as
 tags on block constructors, into a YAML registry (\code{inst/registry/blocks.yml})
-that \code{\link[=available_blocks]{available_blocks()}} reads, as \code{\link[=serve]{serve()}} starts an app (see
-\code{\link[=register_block]{register_block()}}). Each entry gives the id of the class that its
+that the package's \code{.onLoad()} reads into the \code{blocks} of its
+\code{._BLOCKR_MODULES_} with \code{\link[=read_blocks_yml]{read_blocks_yml()}}, from which
+\code{\link[=available_blocks]{available_blocks()}} lists the package's classes, as \code{\link[=serve]{serve()}} starts an app
+(see \code{\link[=register_block]{register_block()}}). Each entry gives the id of the class that its
 constructor makes, which the roclet reads off the loaded package, since
 nothing ties a class's id to its constructor's name (see
 \code{\link[=new_block_class]{new_block_class()}}). It runs alongside the
@@ -69,10 +71,11 @@ where the tags give them, its \code{icon}, \code{details}, \code{link} and \code
 a string, its \code{keywords}, a list of strings, its \code{arguments}, a mapping of
 each argument to its arg spec, with \code{description}, \code{example} and \code{type}, and
 its \code{examples}, a list of mappings.
-A package that writes the file by hand gives the same fields.
-R reads the file as \code{\link[=available_blocks]{available_blocks()}} lists the package's classes and as
-\code{\link[=serve]{serve()}} registers them, and stops on an entry that lacks one of the first
-four or gives it as anything but a string, with each such fault, while it
-checks the others as \code{\link[=register_block]{register_block()}} does.
+A package that writes the file by hand, or lists its block classes in its
+\code{._BLOCKR_MODULES_} without one, gives the same fields.
+R reads the listing as \code{\link[=available_blocks]{available_blocks()}} lists the package's classes and
+as \code{\link[=serve]{serve()}} registers them, and stops on an entry that lacks one of the
+first four or gives it as anything but a string, with each such fault, while
+it checks the others as \code{\link[=register_block]{register_block()}} does.
 }
 

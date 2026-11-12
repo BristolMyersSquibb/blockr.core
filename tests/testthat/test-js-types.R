@@ -113,3 +113,33 @@ test_that("npm installs the types of all packages at once, as copies", {
     expect_identical(Sys.readlink(installed), "")
   }
 })
+
+test_that("install_js_types() copies the types afresh at each call", {
+
+  skip_on_cran()
+  skip_on_os("windows")
+  skip_if_not(nzchar(Sys.which("npm")), "npm is not installed")
+
+  src <- withr::local_tempdir()
+  dirs <- c(first = write_types(src, "first"))
+
+  dir <- withr::local_tempdir()
+  write_description(dir, "Imports: blockr.core")
+  writeLines('{ "name": "blockr.test", "private": true }',
+             file.path(dir, "package.json"))
+
+  local_mocked_bindings(js_types_dirs = function(pkgs) dirs)
+
+  install_js_types(dir)
+
+  # The types change, as an update of the package that ships them does
+  writeLines("export const updated = true;",
+             file.path(dirs[["first"]], "index.d.ts"))
+
+  install_js_types(dir)
+
+  expect_identical(
+    readLines(file.path(dir, "node_modules", "@blockr", "first", "index.d.ts")),
+    "export const updated = true;"
+  )
+})

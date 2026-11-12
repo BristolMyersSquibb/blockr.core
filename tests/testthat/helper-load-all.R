@@ -1,8 +1,10 @@
 # Loads the package regprobe with `pkgload::load_all()`, from a temporary
 # directory, until `frame` ends.
-# The package defines the block class probe_block, and lists it in its
-# `inst/registry/blocks.yml`, or with `registers`, ships no such file and
-# registers the class in the block registry of the process as it loads.
+# The package defines the block class probe_block, and lists it in the
+# `._BLOCKR_MODULES_` that it exports, which its `.onLoad()` fills from its
+# `inst/registry/blocks.yml`, or with `registers`, ships no such file, exports
+# no such object and registers the class in the block registry of the process
+# as it loads.
 # Beside it, it ships the class's module, a JSON Schema and the types of its
 # JS, each among the files of its `inst/`, which R installs at the package's
 # top, while `load_all()` leaves them under `inst/`.
@@ -25,7 +27,14 @@ local_load_all_package <- function(frame = parent.frame(), registers = FALSE) {
       "Encoding: UTF-8",
       "Imports: blockr.core"
     ),
-    NAMESPACE = "export(new_probe_block)",
+    NAMESPACE = c("export(._BLOCKR_MODULES_)", "export(new_probe_block)"),
+    `R/listing.R` = c(
+      "._BLOCKR_MODULES_ <- new.env(parent = emptyenv())",
+      "",
+      ".onLoad <- function(libname, pkgname) {",
+      "  ._BLOCKR_MODULES_$blocks <- blockr.core::read_blocks_yml(pkgname)",
+      "}"
+    ),
     `R/probe.R` = c(
       "probe_block <- blockr.core::new_block_class(",
       "  \"probe_block\",",
@@ -49,6 +58,8 @@ local_load_all_package <- function(frame = parent.frame(), registers = FALSE) {
 
   if (registers) {
     files[["inst/registry/blocks.yml"]] <- NULL
+    files[["R/listing.R"]] <- NULL
+    files[["NAMESPACE"]] <- "export(new_probe_block)"
     files[["R/zzz.R"]] <- c(
       ".onLoad <- function(libname, pkgname) {",
       "  blockr.core::register_block(",

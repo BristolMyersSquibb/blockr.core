@@ -24,57 +24,27 @@
 // frontend or of the plugin's UI shows why, and core calls no `start` of the
 // plugin, which it reports.
 // A frontend places each plugin whose class has a `ui` with mountPlugin(),
-// which mounts the module in the element that the frontend gives, as
+// which calls the `ui` with the element that the frontend gives, as
 // mountBlock() mounts a block's UI.
 // No change adds a plugin to the open board or removes one, so what core runs
 // for the plugins ends only as the next board opens.
 
-import { attempt, ModuleError, mountableModule, onAbort, REPLACED, showError } from "../mount/index.ts";
-import type { Loader, Mounts } from "../mount/index.ts";
+import { attempt, onAbort, REPLACED, showError } from "../mount/index.ts";
+import type { Mounts } from "../mount/index.ts";
 import type { PluginEntry } from "../protocol/index.ts";
-import { coreStorage } from "../storage/index.ts";
 import { inRole } from "../store/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, Plugin, PluginModule } from "../types/core-api.ts";
-import { errorMessage, own, packageFromId, report } from "../util/index.ts";
+import type { CoreApi, FrontendModule, Plugin, PluginModule } from "../types/core-api.ts";
+import { errorMessage, own, report } from "../util/index.ts";
 
-// The classes of core's own plugins, which core registers as it starts, before
-// any startup module runs, under the ids that R lists them by:
-// - Its basic frontend, whose module draws the page and which requires the
-//   severities of the conditions that its cards show and the theme that it
-//   draws in.
-// - Its storage plugin, whose buttons save a board as a download and open an
-//   upload. They reach for the page's document only as they run.
-// - Its Edit board plugin, whose `ui` adds, changes and removes blocks, links
-//   and stacks, and which every frontend places as it places any plugin whose
-//   class has a `ui` (../modules/edit-board).
-// None keeps state, so the board holds nothing for any of them.
-export function corePluginClasses(): readonly PluginClass[] {
-  return [
-    {
-      id: "blockr.core-basic_frontend_plugin",
-      frontend: "blockr.core-basic",
-      options: ["show_conditions", "dark_mode"],
-    },
-    {
-      id: "blockr.core-file_storage_plugin",
-      storage: coreStorage(),
-    },
-    {
-      id: "blockr.core-edit_board_plugin",
-      ui: "blockr.core-edit_board",
-    },
-  ];
-}
-
-// What the render() of the `ui` module of a plugin's class gets.
+// What the render() of the `ui` of a plugin's class gets.
 export type PluginArgs = Parameters<PluginModule["render"]>[0];
 
 // The frontend that draws the open board.
 export interface Frontend {
-  // The id of its module, its class's `frontend`.
-  readonly module: string;
+  // What draws the page, its class's `frontend`.
+  readonly frontend: FrontendModule;
   // The id of its class, which names the plugin that it is.
   readonly plugin: PluginClassId;
   // Resolves with why board options that it requires did not go onto the
@@ -100,7 +70,6 @@ export interface RunningPlugins {
 
 export interface RunningDeps {
   readonly store: Store;
-  readonly loader: Loader;
   readonly keepOptions: Mounts["keepOptions"];
   // The CoreApi that the plugins get, which core makes with what runPlugins()
   // returns.
@@ -115,7 +84,7 @@ const NONE: Readonly<Record<PluginClassId, Plugin>> = Object.freeze({});
 const NOTHING_FAILED: Promise<readonly string[]> = Promise.resolve([]);
 
 export function runPlugins(deps: RunningDeps): RunningPlugins {
-  const { store, loader, keepOptions } = deps;
+  const { store, keepOptions } = deps;
   const replaced = deps.signal ?? new AbortController().signal;
 
   const registeredClass = (id: PluginClassId): PluginClass | undefined => own(store.plugins.registered(), id);
@@ -187,9 +156,9 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
 
   function frontend(): Frontend | undefined {
     const [id] = inRole(appPlugins(), registeredClass, "frontend");
-    const module = id === undefined ? undefined : pluginClass(id).frontend;
-    if (id === undefined || module === undefined) return undefined;
-    return { module, plugin: id, added: added.get(id) ?? NOTHING_FAILED };
+    const drawn = id === undefined ? undefined : pluginClass(id).frontend;
+    if (id === undefined || drawn === undefined) return undefined;
+    return { frontend: drawn, plugin: id, added: added.get(id) ?? NOTHING_FAILED };
   }
 
   let started = false;
@@ -244,16 +213,14 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     if (ui === undefined) {
       throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
     }
-    const pkg = packageFromId(ui);
 
     // The mount ends as its signal aborts, which may happen whenever the
-    // loading below awaits.
+    // waiting below awaits.
     const controller = new AbortController();
     const { signal } = controller;
     const ended = (): boolean => signal.aborted;
     let cleanup: (() => void) | undefined;
-    // Stops keeping the class's board options on the board, once the module
-    // has loaded.
+    // Stops keeping the class's board options on the board.
     let stopKeeping: (() => void) | undefined;
 
     const end = (): void => {
@@ -275,18 +242,9 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     }
 
     void (async () => {
-      let mod: PluginModule;
-      try {
-        mod = mountableModule<PluginArgs>(await loader.module(ui), ui, pkg);
-      } catch (error) {
-        fail(error);
-        return;
-      }
-      if (ended()) return;
-
       // Where a board option that the class names does not go onto the board,
-      // the element shows why in place of the module, which core has
-      // reported. A module that has drawn ends then.
+      // the element shows why in place of the ui, which core has reported. A
+      // ui that has drawn ends then.
       const kept = keepOptions(def.options ?? [], `the plugin class "${plugin}"`, (failures) => {
         if (ended()) return;
         end();
@@ -302,12 +260,12 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
       }
 
       try {
-        const rendered = await mod.render({ el, core: deps.core(), plugin, signal });
+        const rendered = await ui.render({ el, core: deps.core(), plugin, signal });
         if (typeof rendered !== "function") return;
         if (ended()) attempt(rendered);
         else cleanup = rendered;
       } catch (error) {
-        fail(new ModuleError(ui, pkg, `failed in render(): ${errorMessage(error)}`, { cause: error }));
+        fail(new Error(`The ui of the plugin class "${plugin}" failed in render(): ${errorMessage(error)}`, { cause: error }));
       }
     })();
 

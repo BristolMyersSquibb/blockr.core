@@ -1,12 +1,15 @@
-// What packages register with the store, from their startup modules, before
-// it opens a board: plugin classes, board options and the migrations of their
-// block classes' states.
+// What core registers with the store before it opens a board: the plugin
+// classes of the app's plugins and the board options of the packages that the
+// app uses, each from the module that its package lists in R, whose default
+// export core registers under the id that R names.
 // A plugin class is registered under its id, `{pkg}-{id}`, as R names the
 // class.
-// A plugin class, a board option id or a block class's migration registered
-// twice fails.
+// A plugin class or a board option id registered twice fails.
+// The migrations of block classes' states come from the classes' UI modules,
+// which core imports as a board that needs them opens (../core/migrations.ts).
 
 import { computed, signal } from "@preact/signals-core";
+import type { Command } from "../commands/index.ts";
 import type {
   Block,
   Board,
@@ -14,16 +17,17 @@ import type {
   PluginClassId,
   RegistryId,
 } from "../types/board.ts";
-import type { CoreApi } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, PluginModule } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { compile, isObject, packageFromId } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 
-// A plugin class, which the package that ships it defines in JS under the
-// class's id, as R names the class, so that the definition and R's class meet
-// at the id.
+// A plugin class, which the package that ships it defines in JS, in a module
+// whose default export is the class without its id, and which core registers
+// under the class's id, as R names the class, so that the definition and R's
+// class meet at the id.
 // A class sets any mix of its members, or none of `ui`, `frontend` and
 // `storage`, as a plugin without a place on the screen does.
 // The store reads `state`, `update` and `migrate`, and core tells a frontend
@@ -65,15 +69,19 @@ export interface PluginClass {
   // The store calls it as it opens a board whose recorded version of the class
   // is below R's, with that version.
   migrate?(state: Json, version: number): Json;
-  // The module that every frontend places for the class's plugin, through
-  // CoreApi's mountPlugin(), by the module's id, as "blockr.dag-dag".
-  readonly ui?: string;
-  // A frontend's: the module that draws the page, by its id, as
-  // "blockr.dock-dock", which core calls with the page's element.
-  readonly frontend?: string;
+  // What every frontend places for the class's plugin, through CoreApi's
+  // mountPlugin(), which core calls with the element that the frontend gives.
+  readonly ui?: PluginModule;
+  // A frontend's: what draws the page, which core calls with the page's
+  // element and what the frontend reads of the arguments of `serve()`.
+  readonly frontend?: FrontendModule;
   // A storage plugin's: the storage controls that every frontend draws, which
-  // save boards and open them.
+  // save boards and open them, and what names a board to open as the page
+  // starts.
   readonly storage?: Storage;
+  // The commands that change the state of the class's plugin, which core
+  // registers as it registers the class.
+  readonly commands?: readonly Command<Json, unknown>[];
   // What runs while the plugin runs on the open board, until the signal
   // aborts, which it does as the next board opens. Core calls it once the
   // frontend has drawn the board, with the id of the class, which names the
@@ -99,6 +107,12 @@ export interface Storage {
   // Calls the listener whenever controls() would give something else, such as
   // another save status, until the cleanup that it returns runs.
   subscribe?(listener: () => void): () => void;
+  // The text of a board to open in place of the one that R sent, such as the
+  // board that the page's URL names for session management, or undefined for
+  // R's. Core calls it once, as the page starts, with CoreApi, the id of the
+  // plugin's class and a signal that aborts as the page stops, and not under
+  // the load lock, which fixes the app to the board that R sent.
+  load?(args: { readonly core: CoreApi; readonly plugin: PluginClassId; readonly signal: AbortSignal }): Promise<string | undefined>;
 }
 
 // A storage control: a button, a menu or a status, which a frontend draws each
@@ -161,7 +175,10 @@ export interface Option {
   readonly label: string;
   readonly category: string;
   readonly schema: JsonSchema;
-  readonly default: Json | (() => Promise<Json>);
+  // A value, or a function that core calls with CoreApi where something needs
+  // the board option and the board lacks its value, such as one that reads a
+  // blockr option.
+  readonly default: Json | ((core: CoreApi) => Promise<Json>);
   // Its UI module, which core mounts with an OptionHost where the app names no
   // renderer for the board option.
   readonly ui: OptionModule;
@@ -188,9 +205,9 @@ export interface Options {
 // holds it, from the version of the class's state that the block records to
 // the one that the class's entry in the block registry gives, which R's
 // `new_block_class()` takes.
-// A package's startup module registers it under the class's registry id, and
-// the store calls it as it opens a board, for each block of the class whose
-// version is below the class's, with that version.
+// The class's UI module exports it as `migrate`, and the store calls it as it
+// opens a board, for each block of the class whose version is below the
+// class's, with that version.
 // A migration converts what older versions of its class wrote into today's
 // shape, so that a board saved and opened again comes back as it was.
 // What a board reads where nothing set a value comes from
@@ -207,7 +224,6 @@ export interface Checked<T> {
 export interface Registrations {
   readonly plugins: Plugins;
   readonly options: Options;
-  registerMigration(registryId: RegistryId, fn: Migration): () => void;
   // A plugin class with the validator of its state's schema, which allows any
   // state where the class gives none.
   plugin(id: PluginClassId): Checked<PluginClass> | undefined;
@@ -215,10 +231,14 @@ export interface Registrations {
   migration(registryId: RegistryId): Migration | undefined;
 }
 
-export function createRegistrations(): Registrations {
+// The migrations of block classes' states, by registry id, which the store
+// reads as it opens a board, and which core gives it from the classes' UI
+// modules. There are none unless given.
+export function createRegistrations(
+  migration: (registryId: RegistryId) => Migration | undefined = () => undefined,
+): Registrations {
   const classes = signal<ReadonlyMap<PluginClassId, Checked<PluginClass>>>(new Map());
   const options = signal<readonly Checked<Option>[]>([]);
-  const migrations = signal<ReadonlyMap<RegistryId, Migration>>(new Map());
 
   const optionIndex = computed(
     () => new Map(options.value.map((option) => [option.def.id, option])),
@@ -262,8 +282,9 @@ export function createRegistrations(): Registrations {
       }
     }
     for (const member of ["ui", "frontend"]) {
-      if (given[member] !== undefined && (typeof given[member] !== "string" || given[member] === "")) {
-        throw new Error(`The plugin class "${id}" has a ${member} that is no module's id.`);
+      const drawn = given[member];
+      if (drawn !== undefined && (!isObject(drawn) || typeof drawn.render !== "function")) {
+        throw new Error(`The plugin class "${id}" has a ${member} without a render() function.`);
       }
     }
     const storage = given.storage;
@@ -274,6 +295,12 @@ export function createRegistrations(): Registrations {
       if (storage.subscribe !== undefined && typeof storage.subscribe !== "function") {
         throw new Error(`The plugin class "${id}" has a storage whose subscribe is no function.`);
       }
+      if (storage.load !== undefined && typeof storage.load !== "function") {
+        throw new Error(`The plugin class "${id}" has a storage whose load is no function.`);
+      }
+    }
+    if (given.commands !== undefined && !Array.isArray(given.commands)) {
+      throw new Error(`The plugin class "${id}" gives commands that are no array.`);
     }
     if (
       given.options !== undefined &&
@@ -339,21 +366,9 @@ export function createRegistrations(): Registrations {
       },
       registered: () => optionDefs.value,
     },
-    registerMigration(registryId, fn) {
-      if (migrations.value.has(registryId)) {
-        throw new Error(`The block class "${registryId}" has a migration registered already.`);
-      }
-      migrations.value = new Map([...migrations.value, [registryId, fn]]);
-      return () => {
-        if (migrations.value.get(registryId) !== fn) return;
-        const rest = new Map(migrations.value);
-        rest.delete(registryId);
-        migrations.value = rest;
-      };
-    },
     plugin: (id) => classes.value.get(id),
     option: (id) => optionIndex.value.get(id),
-    migration: (registryId) => migrations.value.get(registryId),
+    migration,
   };
 }
 

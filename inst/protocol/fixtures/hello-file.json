@@ -107,23 +107,47 @@
             }
           }
         },
-        "startup_modules": [],
         "modules": {
-          "blockr.core-basic": {
-            "module": "blockr.core/basic.js?v=0f3d8e21",
-            "css": "blockr.core/basic.css?v=6a9b2c4e"
-          },
-          "blockr.core-edit_board": {
-            "module": "blockr.core/edit-board.js?v=5c1e7a39"
+          "blockr.core-controls": {
+            "module": "blockr.core/blockr-core-controls.js?v=4d2a6c91"
           }
         },
         "plugins": {
-          "blockr.core-basic_frontend_plugin": { "name": "Basic frontend", "version": 1 },
-          "blockr.core-file_storage_plugin": { "name": "File storage", "version": 1 },
-          "blockr.core-edit_board_plugin": { "name": "Edit board", "version": 1 }
+          "blockr.core-basic_frontend_plugin": {
+            "name": "Basic frontend",
+            "version": 1,
+            "module": "blockr.core/basic.js?v=0f3d8e21",
+            "css": "blockr.core/basic.css?v=6a9b2c4e"
+          },
+          "blockr.core-file_storage_plugin": {
+            "name": "File storage",
+            "version": 1,
+            "module": "blockr.core/file-storage.js?v=8e1f0b2d"
+          },
+          "blockr.core-edit_board_plugin": {
+            "name": "Edit board",
+            "version": 1,
+            "module": "blockr.core/edit-board.js?v=5c1e7a39"
+          }
         },
         "frontend": {},
-        "option_versions": {},
+        "options": {
+          "n_rows": {
+            "package": "blockr.core",
+            "module": "blockr.core/n-rows-option.js?v=2b9c7e14",
+            "version": 1
+          },
+          "show_conditions": {
+            "package": "blockr.core",
+            "module": "blockr.core/show-conditions-option.js?v=6f3a8d05",
+            "version": 1
+          },
+          "dark_mode": {
+            "package": "blockr.core",
+            "module": "blockr.core/dark-mode-option.js?v=a47e2c19",
+            "version": 1
+          }
+        },
         "renderers": {},
         "lock": { "board": false, "load": false },
         "board": {

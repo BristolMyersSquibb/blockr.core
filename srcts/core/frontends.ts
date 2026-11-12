@@ -1,11 +1,12 @@
 // Drawing frontends in the page's element, as core draws each board that it
 // opens with the app's frontend
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board):
-// - Once the store has opened a board, core imports the module of the app's
-//   frontend: the `frontend` of the class of the app's plugin that is one,
-//   core's basic frontend among them. Where the app runs no frontend, as where
-//   no package registers the class of the frontend that R names, the element
-//   shows why in place of the board.
+// - Once the store has opened a board, core takes the app's frontend: the
+//   `frontend` of the class of the app's plugin that is one, core's basic
+//   frontend among them, from the module of the class that core imported as
+//   it registered the class. Where the app runs no frontend, as where the
+//   module of the class of the frontend that R names failed to load, the
+//   element shows why in place of the board.
 // - Once the board options that the frontend requires are on the board, core
 //   calls the frontend's render() with the element, CoreApi, the id of the
 //   frontend's class, a signal, which aborts as the next board opens, since
@@ -19,12 +20,11 @@
 // core unmounts it. Core ends what the frontend mounted with the same abort,
 // and drops the rest of what it ran for the board.
 
-import { attempt, ModuleError, mountableModule, showError } from "../mount/index.ts";
+import { attempt, showError } from "../mount/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { FrontendModule } from "../types/core-api.ts";
-import type { Rendered } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { errorMessage, packageFromId, report } from "../util/index.ts";
+import { errorMessage, report } from "../util/index.ts";
 import type { FrontEnds } from "./start.ts";
 
 interface Drawn {
@@ -46,16 +46,9 @@ export function loadingNote(): HTMLElement {
 // The frontends of the page, drawn in the element.
 export function pageFrontEnds(el: HTMLElement): FrontEnds {
   let drawn: Drawn | undefined;
-  // The frontend that prepare() imported, or why the app runs none.
+  // The frontend that prepare() took, or why the app runs none.
   let next:
-    | {
-        id: string;
-        module: string;
-        plugin: PluginClassId;
-        args: Readonly<Record<string, Json>>;
-        render?: (args: Parameters<FrontendModule["render"]>[0]) => Rendered;
-        error?: unknown;
-      }
+    | { frontend: FrontendModule; plugin: PluginClassId; args: Readonly<Record<string, Json>> }
     | { none: string }
     | undefined;
 
@@ -70,29 +63,10 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
   }
 
   return {
-    async prepare(front, loader, signal) {
-      if ("none" in front) {
-        if (signal.aborted) return;
-        end();
-        next = front;
-        return;
-      }
-      let prepared: NonNullable<typeof next>;
-      const { id, source, plugin, args } = front;
-      const pkg = packageFromId(id);
-      if (source === undefined) {
-        prepared = { id, module: id, plugin, args, error: new Error(`R serves no module ${id}, the frontend that draws the board.`) };
-      } else {
-        try {
-          const mod = mountableModule<Parameters<FrontendModule["render"]>[0]>(await loader.load(source, pkg), source.module, pkg);
-          prepared = { id, module: source.module, plugin, args, render: mod.render.bind(mod) };
-        } catch (error) {
-          prepared = { id, module: source.module, plugin, args, error };
-        }
-      }
+    prepare(front, signal) {
       if (signal.aborted) return;
       end();
-      next = prepared;
+      next = front;
     },
     async render(core, signal, failures) {
       if (signal.aborted) return;
@@ -109,11 +83,6 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         showError(el, failures.join("\n"));
         return;
       }
-      if (prepared.render === undefined) {
-        showError(el, `The frontend ${prepared.id} cannot draw the board: ${errorMessage(prepared.error)}`);
-        report(prepared.error);
-        return;
-      }
       const controller = new AbortController();
       const ending = (): void => {
         if (drawn === current) end();
@@ -128,7 +97,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       };
       drawn = current;
       try {
-        const rendered = await prepared.render({
+        const rendered = await prepared.frontend.render({
           el,
           core,
           plugin: prepared.plugin,
@@ -140,7 +109,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         else current.cleanup = rendered;
       } catch (error) {
         if (controller.signal.aborted) return;
-        const why = new ModuleError(prepared.module, packageFromId(prepared.id), `failed in render(): ${errorMessage(error)}`, {
+        const why = new Error(`The frontend of the plugin class "${prepared.plugin}" failed in render(): ${errorMessage(error)}`, {
           cause: error,
         });
         showError(el, why.message);

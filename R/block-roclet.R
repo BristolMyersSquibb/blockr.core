@@ -2,8 +2,10 @@
 #'
 #' A custom roxygen2 roclet that turns block registration metadata, declared as
 #' tags on block constructors, into a YAML registry (`inst/registry/blocks.yml`)
-#' that [available_blocks()] reads, as [serve()] starts an app (see
-#' [register_block()]). Each entry gives the id of the class that its
+#' that the package's `.onLoad()` reads into the `blocks` of its
+#' `._BLOCKR_MODULES_` with [read_blocks_yml()], from which
+#' [available_blocks()] lists the package's classes, as [serve()] starts an app
+#' (see [register_block()]). Each entry gives the id of the class that its
 #' constructor makes, which the roclet reads off the loaded package, since
 #' nothing ties a class's id to its constructor's name (see
 #' [new_block_class()]). It runs alongside the
@@ -55,11 +57,12 @@
 #' a string, its `keywords`, a list of strings, its `arguments`, a mapping of
 #' each argument to its arg spec, with `description`, `example` and `type`, and
 #' its `examples`, a list of mappings.
-#' A package that writes the file by hand gives the same fields.
-#' R reads the file as [available_blocks()] lists the package's classes and as
-#' [serve()] registers them, and stops on an entry that lacks one of the first
-#' four or gives it as anything but a string, with each such fault, while it
-#' checks the others as [register_block()] does.
+#' A package that writes the file by hand, or lists its block classes in its
+#' `._BLOCKR_MODULES_` without one, gives the same fields.
+#' R reads the listing as [available_blocks()] lists the package's classes and
+#' as [serve()] registers them, and stops on an entry that lacks one of the
+#' first four or gives it as anything but a string, with each such fault, while
+#' it checks the others as [register_block()] does.
 #'
 #' @return `block_registration_roclet()` returns a roclet object.
 #'

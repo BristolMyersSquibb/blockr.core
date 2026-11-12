@@ -1,33 +1,39 @@
-// Starting core on a page, in the order of the startup modules, as Starting
-// the page has it
+// Starting core on a page, as Starting the page has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#starting-the-page):
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
 //    scheduler reads and for rand_id, the shape of the ids that its commands
-//    mint, and creates for the board that it opens the store, with the classes
-//    of core's own plugins, its basic frontend, its storage plugin and its Edit
-//    board plugin, the command registry with core's board options, the
-//    scheduler and CoreApi.
-// 3. It initializes the startup module of every package that R has loaded, one
-//    at a time in R's order, awaiting each initialize(). It names one that
-//    fails and carries on.
-// 4. It opens the board that R sent, or in its place the one that a startup
-//    module resolves with, unless the load lock is on or two startup modules
-//    resolve with one, where it keeps R's and names the packages. Either board
-//    runs the app's plugins, which R names in its reply, each with the state
-//    that the board holds for it.
-// 5. As the store opens the board, core adds to it the board options that the
+//    mint, and creates for the board that it opens the store and the command
+//    registry.
+// 3. It imports the module of the class of each of the app's plugins and of
+//    each board option that R's reply names, each once per page, and
+//    registers the default export of each under the id that the reply gives
+//    it, with the commands of each plugin class. It names a module that fails
+//    to load, or whose class or board option the store refuses, and carries
+//    on, so that the board opens without what that module defines.
+// 4. It creates the scheduler and CoreApi.
+// 5. Unless the load lock is on, it calls the load() of the storage of the
+//    app's storage plugin, where it has one, which may resolve with the text of
+//    a board to open in place of the one that R sent, such as the board that
+//    the page's URL names. Where it rejects, or resolves with no JSON board,
+//    core names why and keeps R's.
+// 6. It imports the UI module of each block class of which that board holds a
+//    block below the class's version, for the class's migration
+//    (./migrations.ts).
+// 7. It opens the board that R sent, or the one that load() named in its
+//    place, and either runs the app's plugins, which R names in its reply, each
+//    with the state that the board holds for it.
+// 8. As the store opens the board, core adds to it the board options that the
 //    classes of the app's plugins require (./plugins.ts).
-// 6. Once the board is open, core imports the module of the app's frontend,
-//    the plugin that runs whose class has `frontend`, such as core's basic
-//    frontend. Once the board options that the frontend requires are on the
-//    board, core calls the frontend's render(), with what R's reply holds in
-//    `frontend`, and starts the scheduler once render() has returned, so
-//    that the scheduler sends R nothing before. It then sends, through
+// 9. Once the board options that the app's frontend requires are on the
+//    board, core calls the render() of the frontend, the plugin that runs whose
+//    class has `frontend`, such as core's basic frontend, with what R's reply
+//    holds in `frontend`, and starts the scheduler once render() has returned,
+//    so that the scheduler sends R nothing before. It then sends, through
 //    `notifications`, the note that names what the store dropped, which the
 //    frontend shows. Where the app runs no frontend, the page shows why in
 //    place of the board.
-// 7. Core then calls the start of each plugin whose class has one, so that
+// 10. Core then calls the start of each plugin whose class has one, so that
 //    what the frontend first shows comes before what the plugins ask for as
 //    they start.
 //
@@ -35,37 +41,37 @@
 // frontend draws, as Data passed to serve() has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve).
 // Core then starts in the same order, with three differences:
-// - In step 4, it opens the board that R sent, whatever board a startup
-//   module resolves with.
-// - In step 5, it adds no board options for plugins, since R names no plugin
-//   for a block that serve() serves alone. The board still takes dark_mode, as
-//   every board does, since its onChange() switches the page's theme
-//   (./core.ts).
-// - In step 6, it imports no frontend, but draws the block in its card, which
-//   demands the block, and starts the scheduler once the card has mounted the
-//   block.
+// - In step 5, it calls no load(), since R names no plugin for a block that
+//   serve() serves alone, and opens the board that R sent.
+// - In step 8, it adds no board options for plugins. The board still takes
+//   dark_mode, as every board does, since its onChange() switches the page's
+//   theme (./core.ts).
+// - In step 9, it draws no frontend, but the block in its card, which demands
+//   the block, and starts the scheduler once the card has mounted the block.
 //
 // A board opened later, through the store's open() that CoreApi gives, starts
 // core again in place, as Opening a board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board):
-// 1. The store on the page checks the board as it would open it. A board that
-//    it refuses leaves the page as it was, and open() rejects with the reason.
+// 1. The store on the page checks the board as it would open it, once core
+//    has imported the UI modules of the block classes that it migrates. A
+//    board that it refuses leaves the page as it was, and open() rejects with
+//    the reason.
 // 2. One abort ends everything that core runs for the board on the page: the
-//    frontend and what it mounted, every plugin that runs, every startup
-//    module, the store with its undo history, the command registry and the
-//    plugin classes, the board options, the scheduler with its demands, which
-//    block has focus, and what core keeps of outputs and answers.
+//    frontend and what it mounted, every plugin that runs, the store with its
+//    undo history, the command registry and the plugin classes, the board
+//    options, the scheduler with its demands, which block has focus, and what
+//    core keeps of outputs and answers.
 // 3. Core sends another hello, which R takes as a fresh start of the session,
 //    so that R drops every result and request of the board before.
 // 4. Once R has answered it, core starts as the page does, from step 2 on,
-//    with the board given in place of R's. Where that board fails to open after
-//    all, core opens the board before in the new store, and open() rejects with
-//    the reason.
+//    with the board given in place of R's, which no load() replaces. Where that
+//    board fails to open after all, core opens the board before in the new
+//    store, and open() rejects with the reason.
 // Only what is fixed for the page outlives an opening: the code and
 // stylesheets that have loaded, the page's element, the transport with its
 // session, the protocol's client, the blockr options that core has read, the
-// locks, and the revisions given, so that the next scheduler gives a block id a
-// revision above any it had.
+// locks, the migrations that core imported, and the revisions given, so that
+// the next scheduler gives a block id a revision above any it had.
 //
 // Core takes a later reply to hello, as of a later session or of the hello with
 // which core starts again, in one of three ways:
@@ -84,35 +90,34 @@
 // a new revision, since the new session holds no results.
 
 import { createCommands } from "../commands/index.ts";
-import { API, createLoader, ModuleError } from "../mount/index.ts";
-import type { Loader, LoaderOptions, Measure, Source } from "../mount/index.ts";
+import type { Commands } from "../commands/index.ts";
+import { createLoader, ModuleError, moduleExports } from "../mount/index.ts";
+import type { LoaderOptions, Measure } from "../mount/index.ts";
 import { createClient, PROTOCOL_VERSION, sameMajor } from "../protocol/index.ts";
 import type { Capability, HelloReply, Reply, Transport } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
-import type { Dropped, Option, Store } from "../store/index.ts";
+import type { Dropped, Option, PluginClass, Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { CoreApi, Note } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, Note } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { asError, errorMessage, isObject, own, quoted, report } from "../util/index.ts";
+import { asError, errorMessage, isObject, own, packageFromId, quoted, report } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
-import { corePluginClasses } from "./plugins.ts";
+import { createMigrations } from "./migrations.ts";
 
 // The capabilities that core's client speaks.
 const CAPABILITIES: Capability[] = ["cancel", "interrupt", "progress"];
 
-// The frontend that draws a board that opens: the id of its module, from where
-// R serves the module, which is undefined where R serves no such module, the
-// id of the frontend's class, which names the plugin that it is, and what it
-// reads of the arguments that `serve()` hands it, which R's reply to `hello`
-// holds in `frontend`. Or, where the app runs no frontend, why, which the page
-// shows in place of the board.
+// The frontend that draws a board that opens: what draws the page, its class's
+// `frontend`, the id of the frontend's class, which names the plugin that it
+// is, and what it reads of the arguments that `serve()` hands it, which R's
+// reply to `hello` holds in `frontend`. Or, where the app runs no frontend,
+// why, which the page shows in place of the board.
 export type Front =
   | {
-      readonly id: string;
-      readonly source: Source | undefined;
+      readonly frontend: FrontendModule;
       readonly plugin: PluginClassId;
       readonly args: Readonly<Record<string, Json>>;
     }
@@ -121,18 +126,18 @@ export type Front =
 // What draws the frontends of the boards that open, which the page gives, and
 // a CoreApi for tests may leave out.
 export interface FrontEnds {
-  // Imports the module of the frontend and ends the frontend on the page, if
-  // any. Core calls it once the store has opened a board. Where the signal has
-  // aborted by the time the module has loaded, as another board opened
-  // meanwhile, it leaves the page to that board.
-  prepare(front: Front, loader: Loader, signal: AbortSignal): Promise<void>;
-  // Calls the render() of the frontend that prepare() imported, with the
-  // element, CoreApi, the id of the frontend's class, a signal and what the
-  // frontend reads of the arguments of `serve()`, and resolves once render()
-  // has returned or resolved. Where board options that the frontend requires
-  // did not go onto the board, or the app runs no frontend, it shows why in
-  // the element instead, and calls no render(). The frontend ends as the
-  // signal aborts, as the next board opens.
+  // Takes the frontend that draws the board that opens, and ends the frontend
+  // on the page, if any. Core calls it once the store has opened a board.
+  // Where the signal has aborted, as another board opened meanwhile, it leaves
+  // the page to that board.
+  prepare(front: Front, signal: AbortSignal): void;
+  // Calls the render() of the frontend that prepare() took, with the element,
+  // CoreApi, the id of the frontend's class, a signal and what the frontend
+  // reads of the arguments of `serve()`, and resolves once render() has
+  // returned or resolved. Where board options that the frontend requires did
+  // not go onto the board, or the app runs no frontend, it shows why in the
+  // element instead, and calls no render(). The frontend ends as the signal
+  // aborts, as the next board opens.
   render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
   // Draws the board's one block in its card, for a block that serve() serves
   // alone, and returns once the card has mounted the block. The card ends as
@@ -152,8 +157,6 @@ export interface StartOptions {
   // How the loader imports modules and puts stylesheets on the page, as on the
   // page unless given.
   readonly loader?: Omit<LoaderOptions, "modules" | "changed">;
-  // The board options that core registers before any startup module runs.
-  readonly options: (core: Pick<CoreApi, "blockrOption">) => readonly Option[];
   readonly frontEnds?: FrontEnds;
   // Whether the board is a block that serve() serves alone, which no frontend
   // draws, but the card that `frontEnds` gives.
@@ -245,6 +248,9 @@ export function start(options: StartOptions): Started {
     modules: () => latest?.modules ?? {},
     changed: (pkg) => changed.find((c) => c.package === pkg),
   });
+  // The migrations of block classes' states, which core imports from the
+  // classes' UI modules for the boards that need them, once per page.
+  const migrations = createMigrations(loader);
 
   function heard(reply: Reply): void {
     if (page.signal.aborted) return;
@@ -332,10 +338,12 @@ export function start(options: StartOptions): Started {
   // Starts core for one board, with what R's reply to hello holds, as the page
   // starts and as each later board opens: the store, the command registry, the
   // scheduler and CoreApi, each of which the abort of the opening's controller
-  // ends. It initializes the startup modules with that CoreApi and signal,
-  // opens the board in the store, draws it with its frontend, starts the
-  // scheduler, sends the note that names what the store dropped, then starts
-  // the app's plugins, and resolves with CoreApi and what the store dropped.
+  // ends. It registers the plugin classes and board options that the reply
+  // names, opens the board in the store, or as the page starts the one that the
+  // app's storage plugin names in its place, draws it with its frontend, starts
+  // the scheduler, sends the note that names what the store dropped, then
+  // starts the app's plugins, and resolves with CoreApi and what the store
+  // dropped.
   async function boot(reply: HelloReply, later: Later | undefined): Promise<{ core: CoreApi; dropped: Dropped[] }> {
     // The opening ends as the next board opens, or as the page stops.
     const controller = new AbortController();
@@ -365,12 +373,9 @@ export function start(options: StartOptions): Started {
       blockrOptions.read("rand_id"),
     ]);
 
-    const store: Store = createStore({ hello: reply, signal });
-    for (const def of corePluginClasses()) store.plugins.register(def);
+    const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
-    for (const option of options.options({ blockrOption: (name) => blockrOptions.read(name) })) {
-      store.options.register(option);
-    }
+    await register(reply, store, commands, signal);
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;
     const scheduler = createScheduler({
@@ -400,12 +405,11 @@ export function start(options: StartOptions): Started {
     });
     running = { store, scheduler, core, controller };
 
-    const named = await initialize(reply, core, signal, later === undefined);
-
     let dropped: Dropped[] = [];
     let failure: Error | undefined;
     if (later === undefined) {
-      const instead = alone ? undefined : chosen(reply, named);
+      const instead = alone ? undefined : await named(reply, store, core, signal);
+      await migrations.prepare(instead ?? reply.board, reply.block_registry);
       if (instead === undefined) {
         dropped = await store.open(reply);
       } else {
@@ -413,11 +417,13 @@ export function start(options: StartOptions): Started {
           dropped = await store.open(instead);
         } catch (error) {
           report(error);
+          await migrations.prepare(reply.board, reply.block_registry);
           dropped = await store.open(reply);
         }
       }
     } else {
       try {
+        await migrations.prepare(later.text, reply.block_registry);
         dropped = await store.open(later.text);
       } catch (error) {
         failure = asError(error);
@@ -437,24 +443,16 @@ export function start(options: StartOptions): Started {
         scheduler.start();
       }
     } else {
-      // The frontend that draws the board, imported while the board options
-      // that it requires go onto the board.
+      // The frontend that draws the board, once the board options that it
+      // requires are on the board.
       const front = plugins.frontend();
-      const [failures] = await Promise.all([
-        front?.added ?? [],
-        options.frontEnds?.prepare(
-          front === undefined
-            ? { none: noFrontend(reply, core) }
-            : {
-                id: front.module,
-                source: own(latest?.modules ?? {}, front.module),
-                plugin: front.plugin,
-                args: reply.frontend,
-              },
-          loader,
-          signal,
-        ),
-      ]);
+      options.frontEnds?.prepare(
+        front === undefined
+          ? { none: noFrontend(reply, core) }
+          : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
+        signal,
+      );
+      const failures = await (front?.added ?? []);
       try {
         await options.frontEnds?.render(core, signal, failures);
       } finally {
@@ -469,74 +467,93 @@ export function start(options: StartOptions): Started {
     return { core, dropped };
   }
 
-  // Initializes the startup module of each package that the reply names, one
-  // at a time in R's order, with CoreApi and the signal of the board that
-  // opens, and resolves with the boards that they name, where they may name
-  // one, as the page starts.
-  async function initialize(
-    reply: HelloReply,
-    core: CoreApi,
-    signal: AbortSignal,
-    naming: boolean,
-  ): Promise<{ package: string; text: string }[]> {
-    const named: { package: string; text: string }[] = [];
-    for (const entry of reply.startup_modules) {
-      if (signal.aborted) break;
+  // Registers in the store the class of each of the app's plugins and each
+  // board option that the reply names, from the module that R serves for it,
+  // which the loader imports once per page, and the commands of each plugin
+  // class in the command registry. It names a module that fails to load, a
+  // default export that the store refuses and a command that the registry
+  // refuses, and carries on, so that the board opens without them.
+  async function register(reply: HelloReply, store: Store, commands: Commands, signal: AbortSignal): Promise<void> {
+    const [defs, opts] = await Promise.all([
+      Promise.all(Object.entries(reply.plugins).map(([id, entry]) => listed(entry, packageFromId(id)))),
+      Promise.all(Object.values(reply.options).map((entry) => listed(entry, entry.package))),
+    ]);
+    if (signal.aborted) return;
+    Object.keys(reply.options).forEach((id, i) => {
+      const def = opts[i];
+      if (def === undefined) return;
       try {
-        const source = entry.css === undefined ? { module: entry.module } : { module: entry.module, css: entry.css };
-        const mod = asStartupModule(await loader.load(source, entry.package), entry.module, entry.package);
-        let result: unknown;
-        try {
-          result = await mod.initialize({ core, signal });
-        } catch (error) {
-          throw new ModuleError(entry.module, entry.package, `failed in initialize(): ${errorMessage(error)}`, { cause: error });
-        }
-        if (typeof result === "string") {
-          if (naming) {
-            named.push({ package: entry.package, text: result });
-          } else {
-            report(
-              new Error(
-                `The startup module of ${entry.package} named a board to open as another board opened, which core ignores, since only a startup module that runs as the page starts names one.`,
-              ),
-            );
-          }
-        } else if (result !== undefined) {
-          throw new ModuleError(entry.module, entry.package, "resolved initialize() with something other than the text of a JSON board.");
-        }
+        store.options.register({ ...(def as unknown as Option), id });
       } catch (error) {
         report(error);
       }
-    }
-    return named;
+    });
+    Object.keys(reply.plugins).forEach((id, i) => {
+      const def = defs[i];
+      if (def === undefined) return;
+      let cls: PluginClass;
+      try {
+        cls = { ...(def as unknown as PluginClass), id };
+        store.plugins.register(cls);
+      } catch (error) {
+        report(error);
+        return;
+      }
+      for (const command of cls.commands ?? []) {
+        try {
+          commands.register(command);
+        } catch (error) {
+          report(new Error(`A command of the plugin class "${id}" is refused: ${errorMessage(error)}`, { cause: error }));
+        }
+      }
+    });
   }
 
-  // The text of the board that a startup module named in place of the board
-  // that R sent, or undefined where core opens R's. The store opens it with
-  // the reply, so that it runs the app's plugins, which the reply names.
-  function chosen(reply: HelloReply, named: readonly { package: string; text: string }[]): string | undefined {
-    const [only, ...more] = named;
-    if (only === undefined) return undefined;
-    const packages = quoted(named.map((entry) => entry.package));
-    if (more.length > 0) {
-      report(new Error(`The startup modules of ${packages} each named a board to open, so core opens the board that R sent.`));
+  // The default export of the module that R serves for a plugin class or a
+  // board option, or undefined where it fails to load or exports none, which
+  // core reports.
+  async function listed(
+    source: { readonly module: string; readonly css?: string },
+    pkg: string | null,
+  ): Promise<Readonly<Record<string, unknown>> | undefined> {
+    try {
+      const at = source.css === undefined ? { module: source.module } : { module: source.module, css: source.css };
+      return listedDefault(await loader.load(at, pkg), source.module, pkg);
+    } catch (error) {
+      report(error);
       return undefined;
     }
-    if (reply.lock.load) {
-      report(
-        new Error(
-          `The load lock is on, so core opens the board that R sent rather than the one that ${only.package} named.`,
-        ),
-      );
+  }
+
+  // The text of the board that the app's storage plugin names in place of the
+  // one that R sent, as the page starts, or undefined for R's: core asks for
+  // none under the load lock, which fixes the app to R's board, and keeps R's
+  // where load() rejects or resolves with no JSON board, naming why.
+  async function named(reply: HelloReply, store: Store, core: CoreApi, signal: AbortSignal): Promise<string | undefined> {
+    if (reply.lock.load) return undefined;
+    const classes = store.plugins.registered();
+    const plugin = Object.keys(reply.plugins).find((id) => own(classes, id)?.storage !== undefined);
+    const storage = plugin === undefined ? undefined : own(classes, plugin)?.storage;
+    if (plugin === undefined || storage?.load === undefined) return undefined;
+    let text: unknown;
+    try {
+      text = await storage.load({ core, plugin, signal });
+    } catch (error) {
+      report(new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, { cause: error }));
+      return undefined;
+    }
+    if (text === undefined) return undefined;
+    if (typeof text !== "string") {
+      report(new Error(`The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`));
       return undefined;
     }
     try {
-      JSON.parse(only.text);
+      JSON.parse(text);
     } catch (error) {
-      report(new Error(`The startup module of ${only.package} named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
+      report(new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
       return undefined;
     }
-    return only.text;
+    return text;
   }
 
   // Openings run one at a time.
@@ -561,6 +578,7 @@ export function start(options: StartOptions): Started {
     }
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
 
+    await migrations.prepare(text, current.store.blockRegistry());
     await current.store.check(text);
     const before = current.store.save();
 
@@ -601,7 +619,7 @@ export function start(options: StartOptions): Started {
 // Why a reply to hello does not let core start: it is no reply that R sends
 // to hello.
 function helloError(reply: Reply): Error | undefined {
-  if (reply.status !== "ok" || !("startup_modules" in reply)) {
+  if (reply.status !== "ok" || !("block_registry" in reply)) {
     const said = "conditions" in reply ? reply.conditions.map((c) => c.message).join(" ") : "";
     return new Error(`R replied ${reply.status} to the client's hello. ${said}`.trim());
   }
@@ -609,13 +627,14 @@ function helloError(reply: Reply): Error | undefined {
 }
 
 // Why the app runs no frontend, which the page shows in place of the board: no
-// plugin that the reply names is a frontend whose class a package registered.
+// plugin that the reply names is a frontend whose class core registered from
+// the module that R names for it.
 function noFrontend(reply: HelloReply, core: CoreApi): string {
   const missing = Object.keys(reply.plugins).filter((id) => !Object.hasOwn(core.plugins.appPlugins(), id));
   const why =
     missing.length === 0
       ? "none of the app's plugins is a frontend"
-      : `no package registered the ${missing.length === 1 ? "class" : "classes"} of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
+      : `core registered no class of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
   return `The app runs no frontend that draws the board, since ${why}.`;
 }
 
@@ -650,25 +669,12 @@ function droppedNote(dropped: readonly Dropped[]): Note {
   return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
 }
 
-// What a startup module exports as its default.
-interface StartupModule {
-  initialize(args: { core: CoreApi; signal: AbortSignal }): unknown;
-}
-
-function asStartupModule(exports: unknown, module: string, pkg: string): StartupModule {
-  if (!isObject(exports) || typeof exports.api !== "number") {
-    throw new ModuleError(module, pkg, "declares no major of core's JS API, as `export const api = 1`.");
+// The default export of a module that R serves for a plugin class or a board
+// option, which declares the major of core's JS API that it was built against.
+function listedDefault(exports: unknown, module: string, pkg: string | null): Readonly<Record<string, unknown>> {
+  const def = moduleExports(exports, module, pkg).default;
+  if (!isObject(def)) {
+    throw new ModuleError(module, pkg, "has no default export, an object.");
   }
-  if (exports.api !== API) {
-    throw new ModuleError(
-      module,
-      pkg,
-      `was built against major ${String(exports.api)} of core's JS API, where core's is ${String(API)}.`,
-    );
-  }
-  const mod = exports.default;
-  if (!isObject(mod) || typeof mod.initialize !== "function") {
-    throw new ModuleError(module, pkg, "has no default export with an initialize() function.");
-  }
-  return mod as unknown as StartupModule;
+  return def;
 }

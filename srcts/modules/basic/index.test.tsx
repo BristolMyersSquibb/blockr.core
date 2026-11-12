@@ -1,8 +1,9 @@
 // Core's basic frontend on the CoreApi for tests: the board of the fixture
-// hello, drawn by the frontend as the page draws it, with R played from the
-// protocol's fixtures, every block UI and renderer a stub that names what it
-// draws, the UI of core's Edit board plugin a stub that names its plugin, the
-// plugins a test needs, and the user acting on the page.
+// hello, drawn by the frontend as the page draws it, from the module of the
+// class of core's basic frontend, with R played from the protocol's fixtures,
+// every block UI and renderer a stub that names what it draws, the ui of core's
+// Edit board plugin a stub that names its plugin, the plugins a test needs, and
+// the user acting on the page.
 
 import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -12,7 +13,7 @@ import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
 import { labelled, listOf, optionOf, optionsOf } from "../../testing/combobox.ts";
 import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
-import { pluginUi, registering } from "../../testing/plugins.ts";
+import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
 import { reports } from "../../testing/reports.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
@@ -38,9 +39,10 @@ function stub(what: string) {
 }
 
 const entries = Object.values(HELLO.block_registry);
+// The basic frontend is core's own, which the CoreApi for tests serves, while
+// core's Edit board plugin draws with a stub of its ui.
 const MODULES: Readonly<Record<string, unknown>> = {
-  "blockr.core-basic": basic,
-  "blockr.core-edit_board": pluginUi().exports,
+  "blockr.core-edit_board_plugin": classModule({ ui: pluginUi().ui }),
   ...Object.fromEntries(entries.map((entry) => [entry.module, stub("UI")])),
   ...Object.fromEntries(entries.flatMap((entry) => (entry.renderer === undefined ? [] : [[entry.renderer.module, stub("Output")]]))),
 };
@@ -168,13 +170,13 @@ const FILE_STORAGE = "blockr.core-file_storage_plugin";
 const plugin = (cls: PluginClass, name: string): Readonly<Record<PluginClassId, GivenPlugin>> => ({ [cls.id]: { name } });
 
 // What the test gives core for an app that runs the plugins given, of the
-// classes given, which blockr.test registers.
+// classes given, each the default export of its class's module.
 function withClasses(
   classes: readonly PluginClass[],
   plugins: Readonly<Record<PluginClassId, GivenPlugin>>,
   hello = HELLO,
 ): StubCoreOptions {
-  return { hello: withPlugins(plugins, hello), startup: { "blockr.test": registering(classes) } };
+  return { hello: withPlugins(plugins, hello), modules: listedModules(classes) };
 }
 
 // The text of the board that the page saves, as `edit` changes it.
@@ -538,7 +540,7 @@ describe("the toolbar", () => {
       pick(find(dialog(el), 'section[aria-label="Theme options"] select', HTMLSelectElement), "dark");
     });
     expect(board().options.dark_mode).toBe("dark");
-    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
   });
 
   test("renames the board", async () => {
@@ -864,23 +866,22 @@ describe("the storage controls", () => {
 });
 
 describe("a plugin", () => {
-  const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: "blockr.test-notes" };
-  // A class whose plugin draws with the module of the notes' class.
-  const later: PluginClass = { id: "blockr.test-later_plugin", ui: "blockr.test-notes" };
   // A class whose plugin runs from its start alone, with no place on the
   // screen.
   const bridge: PluginClass = { id: "blockr.test-bridge_plugin", start: () => undefined };
 
   test("whose class has a ui shows beside the board in a section of its own, which the user collapses without core unmounting its UI", async () => {
     const ui = pluginUi();
-    const page = await drawn({
-      ...withClasses([notes, bridge, later], {
+    const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: ui.ui };
+    // A class whose plugin draws with the ui of the notes' class.
+    const later: PluginClass = { id: "blockr.test-later_plugin", ui: ui.ui };
+    const page = await drawn(
+      withClasses([notes, bridge, later], {
         ...plugin(notes, "To do"),
         ...plugin(bridge, "Bridge"),
         ...plugin(later, "Later"),
       }),
-      modules: { "blockr.test-notes": ui.exports },
-    });
+    );
     const sections = (): HTMLDetailsElement[] => [...find(page.el, 'aside[aria-label="Plugins"]').querySelectorAll("details")];
     const shown = () => sections().map((section) => [section.querySelector("summary")?.textContent, section.open]);
     const summary = (name: string): HTMLElement => {
@@ -954,26 +955,25 @@ describe("which block has focus", () => {
 
 // R's reply to hello whose opening board the store opens without what the
 // app cannot rebuild: the package blockr.dplyr, which R did not load, a block
-// of its filter block class, the state of a plugin of the app whose class no
-// package registers, and a value of a board option that no package registers.
+// of its filter block class, the state of a plugin that the app does not run,
+// and a value of a board option that no package registers.
 function droppingHello(): HelloReply {
   const json = HELLO.board;
   const filter = { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter", locked: null };
-  return withPlugins(
-    { "blockr.gone-gone_plugin": { name: "Gone", state: {} } },
-    {
-      ...HELLO,
+  return {
+    ...HELLO,
+    board: {
+      ...json,
+      packages: { ...json.packages, "blockr.dplyr": "0.3.0" },
       board: {
-        ...json,
-        packages: { ...json.packages, "blockr.dplyr": "0.3.0" },
-        board: {
-          ...json.board,
-          blocks: { ...json.board.blocks, x: filter },
-          options: { ...json.board.options, zoom: { value: 2, version: 1 } },
-        },
+        ...json.board,
+        blocks: { ...json.board.blocks, x: filter },
+        versions: { ...json.board.versions, "blockr.gone-gone_plugin": 1 },
+        plugins: { ...json.board.plugins, "blockr.gone-gone_plugin": {} },
+        options: { ...json.board.options, zoom: { value: 2, version: 1 } },
       },
     },
-  );
+  };
 }
 
 describe("what the user learns", () => {
@@ -1088,13 +1088,9 @@ function lockedHello(lock: HelloReply["lock"]): HelloReply {
 }
 
 describe("a locked board", () => {
-  const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: "blockr.test-notes" };
-
   test("draws no control for what the board lock fixes, and the UI only of the blocks it leaves open", async () => {
-    const { el } = await drawn({
-      ...withClasses([notes], plugin(notes, "To do"), lockedHello({ board: true, load: true })),
-      modules: { "blockr.test-notes": pluginUi().exports },
-    });
+    const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: pluginUi().ui };
+    const { el } = await drawn(withClasses([notes], plugin(notes, "To do"), lockedHello({ board: true, load: true })));
 
     // The board options, the history, saving and the plugins stay, since no
     // lock fixes them, and the load lock takes opening another board.
@@ -1138,7 +1134,7 @@ describe("the cleanup that render() returns", () => {
     document.body.append(el);
     let cleanup = (): void => undefined;
     act(() => {
-      cleanup = basic.default.render({ el, core: stubbed.core, signal: new AbortController().signal });
+      cleanup = basic.default.frontend.render({ el, core: stubbed.core, signal: new AbortController().signal });
     });
     await act(() => stubbed.settled());
     expect(el.querySelectorAll("article")).toHaveLength(6);

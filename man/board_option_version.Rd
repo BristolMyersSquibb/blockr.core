@@ -26,8 +26,9 @@ followed by \verb{_option}, as \code{n_rows_option}.
 A board option without such a method is at version 1.
 The package raises the version as it changes that shape, so that the client
 migrates the values that a JSON board holds of an older version.
-R sends the version of each board option that a method gives one in its
-reply to \code{hello}, and writes each value of a board with its version (see
+R sends the version of each board option that core and the packages that
+the app uses list in their \code{._BLOCKR_MODULES_} in its reply to \code{hello} (see
+\code{\link[=read_blocks_yml]{read_blocks_yml()}}), and writes each value of a board with its version (see
 \code{\link[=blockr_ser]{blockr_ser()}}).
 }
 \examples{

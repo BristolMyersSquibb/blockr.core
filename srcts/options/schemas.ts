@@ -1,7 +1,7 @@
 // The JSON Schemas of the values of core's board options, by the board option's
 // id, which say what values each takes, with a description for a model.
-// The build writes each next to core's runtime, in a file named by the board
-// option's class in R, as inst/js/n_rows_option.schema.json,
+// The build writes each beside the board option's module, in a file named by
+// the module, as inst/js/n-rows-option.schema.json,
 // by which R writes the value of a board option that an app script gives,
 // so that show_conditions set to "error" in a script reaches the client as the
 // array its schema has.

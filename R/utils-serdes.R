@@ -56,11 +56,9 @@
 #' A block's state is written by the schema that its class's UI ships (see
 #' [register_block()]), and bare where it ships none.
 #' The state of each plugin and the value of each board option are written by
-#' the schema that a package puts next to its startup module in a file of its
-#' own, named by the id of the plugin's class or by the class in R of the board
-#' option, as `dag_plugin.schema.json` or `n_rows_option.schema.json`, and core
-#' next to its runtime for its own board options (see
-#' [register_startup_module()]).
+#' the schema that the package that lists the plugin's class or the board
+#' option ships beside the module that it lists for it, as `dag.schema.json`
+#' beside `dag.js` (see [read_blocks_yml()]).
 #' Each is written bare where no package gives one.
 #'
 #' A board that the format cannot hold fails as it is written, and so as the
@@ -308,21 +306,36 @@ unplain_kind <- function(x) {
 }
 
 # Shapes a JSON board by the schemas that give its values' shapes: the state of
-# each plugin and the value of each board option by the schemas next to the
-# startup modules of packages, each in a file named by the id of the plugin's
-# class or by the class in R of the board option, core's objects by the schema
-# of a JSON board, once each board option's value is recorded with its version,
-# and each block's state by the schema that its class's UI ships. The block
-# classes are given in `classes`, by block ID.
+# each plugin and the value of each board option by the schemas beside the
+# modules that packages list for the plugin's class and the board option, core's
+# objects by the schema of a JSON board, once each board option's value is
+# recorded with its version, and each block's state by the schema that its
+# class's UI ships. The block classes are given in `classes`, by block ID.
+# R reads the listings of the available packages only for a board that holds a
+# plugin or a board option.
 shape_json_board <- function(x, classes) {
 
-  x[["board"]][["options"]] <- shape_option_values(x[["board"]][["options"]])
+  options <- x[["board"]][["options"]]
+
+  if (length(options)) {
+    x[["board"]][["options"]] <- shape_option_values(
+      options,
+      available_options()
+    )
+  }
 
   plugins <- x[["board"]][["plugins"]]
 
-  x[["board"]][["plugins"]] <- as_json_object(
-    Map(shape_plugin_state, plugins, names(plugins))
-  )
+  if (length(plugins)) {
+    plugins <- Map(
+      shape_plugin_state,
+      plugins,
+      names(plugins),
+      list(available_plugin_classes())
+    )
+  }
+
+  x[["board"]][["plugins"]] <- as_json_object(plugins)
 
   x[["board"]][["options"]] <- versioned_options(x[["board"]][["options"]])
 
@@ -363,12 +376,12 @@ shape_block_state <- function(x, cls) {
 }
 
 # The values of board options by ID, each shaped by the schema of its board
-# option's value, if any.
-shape_option_values <- function(x) {
+# option's value, if any, among the board options listed in `options`.
+shape_option_values <- function(x, options = available_options()) {
 
   for (id in names(x)) {
 
-    schema <- board_option_schema(id)
+    schema <- board_option_schema(id, options)
 
     if (not_null(schema)) {
       x[id] <- list(shape_by_schema(x[[id]], schema))
@@ -379,10 +392,11 @@ shape_option_values <- function(x) {
 }
 
 # A plugin's state as a JSON board holds it, under the ID of the plugin's
-# class, `id`, shaped by the schema of the class's state, if any.
-shape_plugin_state <- function(x, id) {
+# class, `id`, shaped by the schema of the class's state, if any, among the
+# plugin classes listed in `classes`.
+shape_plugin_state <- function(x, id, classes = available_plugin_classes()) {
 
-  schema <- plugin_class_schema(id)
+  schema <- plugin_class_schema(id, classes)
 
   if (is.null(schema)) {
     return(x)
