@@ -13,7 +13,7 @@ merge_block <- new_block_class(
     }
   },
   expr = function(by, all_x = FALSE, all_y = FALSE) {
-    if (!length(by)) {
+    if (missing(by) || !length(by)) {
       blockr_invalid("Choose at least one column to join by.")
     }
     bbquote(merge(.(x), .(y), by = .(by), all.x = .(all_x), all.y = .(all_y)))

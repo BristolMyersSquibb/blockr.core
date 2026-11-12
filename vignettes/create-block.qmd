@@ -203,9 +203,12 @@ The function `expr` never sees the data of an input.
 A class whose block expression depends on the data says so in the expression, as `utils::head(.(data), n = min(10L, nrow(.(data))))` caps `n` at the rows it gets.
 Or its UI asks R for what a user picks from through a request, such as the columns of the input, and the user's pick goes into the state.
 
-The body of `expr` signals `blockr_invalid()` with a message for a state that is set but cannot run, such as a selection that a user emptied.
-R then runs nothing and reports the block as `invalid`.
-A body that can do without an unset arg tests it with `missing()`.
+The body of `expr` signals `blockr_invalid()` with a message for a state that cannot run, such as a selection that a user emptied.
+R then runs nothing and reports the block as `invalid`, with the message, which says what the user has to do.
+The merge block's message is "Choose at least one column to join by."
+The merge block gives that message for an unset `by` too, since R's own error for an unset arg does not say what to do.
+So its body tests `by` with `missing()` before it uses it.
+A body that can do without an unset arg tests it with `missing()` too.
 
 A block may parse a string into code, as the subset block does with what a user types.
 So a board can run any R code, and the deployment limits what the R process may do.

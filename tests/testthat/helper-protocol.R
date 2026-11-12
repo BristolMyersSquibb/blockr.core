@@ -270,8 +270,9 @@ protocol_r_values <- function() {
           conditions = list(
             proto_condition(
               "error",
-              c("evalError", "missingArgError", "error", "condition"),
-              "argument \"by\" is missing, with no default",
+              c("blockr_invalid", "blockr_error", "rlang_error", "error",
+                "condition"),
+              "Choose at least one column to join by.",
               phase = "expr"
             )
           )

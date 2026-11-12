@@ -203,7 +203,7 @@ test_that("R binds a variadic block's inputs in link order", {
   expect_fixture_replies(session, "evaluate-variadic")
 })
 
-test_that("R replies invalid where the state leaves a used arg unset", {
+test_that("R replies invalid where the state cannot run", {
 
   session <- local_evaluator()
 

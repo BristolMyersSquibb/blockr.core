@@ -1,5 +1,5 @@
 {
-  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr uses it, so R runs nothing and replies invalid, naming the arg.",
+  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr signals blockr_invalid() for it, so R runs nothing and replies invalid, with the class's message.",
   "client": [
     {
       "id": "21",
@@ -28,9 +28,9 @@
         "conditions": [
           {
             "severity": "error",
-            "class": ["evalError", "missingArgError", "error", "condition"],
+            "class": ["blockr_invalid", "blockr_error", "rlang_error", "error", "condition"],
             "phase": "expr",
-            "message": "argument \"by\" is missing, with no default"
+            "message": "Choose at least one column to join by."
           }
         ],
         "stdout": "",
