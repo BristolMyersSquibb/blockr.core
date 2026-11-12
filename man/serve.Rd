@@ -19,8 +19,8 @@ serve(x, ...)
 \item{x}{A board, the path of a JSON board, or a block}
 
 \item{...}{For a board or the path of a JSON board, the arguments of the
-app's frontend, by name, which R hands to the method of \code{\link[=frontend_args]{frontend_args()}}
-for the frontend's class.
+app's frontend, which R hands to the method of \code{\link[=frontend_args]{frontend_args()}} for the
+frontend's class.
 For a block, its data where \code{data} is empty.
 R ignores it otherwise, with a warning.}
 
@@ -83,11 +83,8 @@ board with a plugin of a class that the app does not run stops the app too,
 naming the class.
 A block that \code{serve()} serves alone runs no plugin.
 
-The methods for a board and for a path refuse an unnamed argument, and
-\code{id}, \code{options} and \code{loader}, which \code{serve()} took before blockr.core 0.2.0,
-with an error that says where each went.
-The methods hand every other argument in \code{...} to the app's frontend, by
-name, as the dock takes the items of its bar in \code{navbar}.
+The methods for a board and for a path hand every argument in \code{...} to the
+app's frontend, as the dock takes the items of its bar in \code{navbar}.
 As \code{serve()} is called, R hands them to the method of \code{\link[=frontend_args]{frontend_args()}} for
 the class of the app's frontend.
 The method refuses each argument that the frontend does not know, naming
