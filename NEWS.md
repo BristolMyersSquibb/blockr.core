@@ -43,9 +43,10 @@
   expression, `bbquote()` returns a `bquoted_expr`, whose placeholders it
   fills in with the upstream ids, and `evaluate_block()` evaluates a block
   from its class, state and upstream results through `block_eval()`. A state
-  reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg. With
-  them come `result_summary()`, `new_block_request()` and
-  `run_block_request()`, `expect_block_fixture()`, which tests a class
+  reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg,
+  and R reports why as a message. With them come `result_summary()`,
+  `new_block_request()` and `run_block_request()`,
+  `expect_block_fixture()`, which tests a class
   without Shiny, and `trace_block_classes()`, which a package calls in
   `.onLoad()` so that covr counts the code its classes hold (#421).
 * Registration reads a block class from its constructor and builds no block.
@@ -179,9 +180,10 @@
   inputs do not fit and otherwise returns `NULL`. Any other value it returns
   now fails the check too, so that a predicate that returns `FALSE` no longer
   lets every input through. Core's blocks signal classed errors there, such as
-  `head_block_inputs_invalid`. Where a user empties a selection, they signal
-  `blockr_invalid()`, a sibling of `blockr_abort()`, which replaces
-  `invalid()` and makes R report the block as `invalid` (#423).
+  `head_block_inputs_invalid`. Where a user empties a selection or has yet to
+  make one, they signal `blockr_invalid()`, a sibling of `blockr_abort()`,
+  which replaces `invalid()` and makes R report the block as `invalid`
+  (#423, #572).
 * Some built-in blocks change behavior. The static block takes an R expression
   as a string, in its argument `expression`, such as
   `new_static_block("datasets::iris")`, in place of a data frame, which its
@@ -226,6 +228,7 @@
   What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
   Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
+  Where no blockr option sets it, `show_conditions` now shows messages too, not only warnings and errors, so that a card shows why a block is invalid (#572).
   The board option `dark_mode` switches the page's theme in the attribute `data-bs-theme` of its root element, which Bootstrap reads too, and `n_rows` takes one row at least.
   A board option's definition in the client holds its UI module and what a new value does on the page, and the host of a renderer gives it the board option values that its output was asked with (#439, #571).
 * Core's built-in blocks have their UIs, one module each, written in React on core's React SDK and styled with Tailwind CSS under core's prefix.

@@ -303,16 +303,18 @@ The merge block's `by` has no default, since a user has to pick the columns to j
 new_merge_block()
 ```
 
-A body that uses an unset arg makes R run nothing and report the status `invalid`, naming the arg.
+A body that uses an unset arg makes R run nothing and report the status `invalid`, with R's error, which names the arg.
 The same holds where `bbquote()` fills in an unset arg, such as `.(by)`, and where base `bquote()` does so in the body of a function that `expr` returns.
-The merge block reads `invalid` until a user picks its columns:
+R's error, such as `argument "by" is missing, with no default`, does not tell a user what to do.
+So the merge block tests its `by` with `missing()`, and signals `blockr_invalid()` with a message that does.
+It reads `invalid` until a user picks its columns:
 
 ```{r}
 evaluate_block(merge_block, list(), list(x = "a", y = "b"),
                list(a = datasets::BOD, b = datasets::BOD))
 ```
 
-A body that can do without an unset arg tests it with `missing()`.
+A body that can do without an unset arg tests it with `missing()` too.
 This merge joins by the columns its inputs share until a user picks some:
 
 ```{r}

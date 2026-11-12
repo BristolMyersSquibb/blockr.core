@@ -1037,7 +1037,7 @@ describe("the frontend and the plugins", () => {
     const empty = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } };
     await started({ [BASIC]: basic.exports }, empty);
 
-    expect(basic.seen).toEqual([[BASIC_FRONTEND, ["warning", "error"], "light"]]);
+    expect(basic.seen).toEqual([[BASIC_FRONTEND, ["message", "warning", "error"], "light"]]);
   });
 
   test("shows why in the page's element in place of the board where the app runs no frontend", async () => {

@@ -49,7 +49,8 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
   expect_null(res$result)
   expect_length(res$conditions, 1L)
   expect_identical(res$conditions[[1L]]$phase, "expr")
-  expect_identical(res$conditions[[1L]]$severity, "error")
+  # The status already says that the state cannot run, so why is a message.
+  expect_identical(res$conditions[[1L]]$severity, "message")
   expect_match(res$conditions[[1L]]$message, "by")
 
   picky <- new_block_class(
@@ -67,6 +68,7 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
 
   expect_identical(res$status, "invalid")
   expect_identical(res$conditions[[1L]]$message, "Choose at least one column.")
+  expect_identical(res$conditions[[1L]]$severity, "message")
   expect_true("blockr_invalid" %in% res$conditions[[1L]]$class)
 
   unset_fun <- new_block_class(
@@ -280,6 +282,7 @@ test_that("a block_eval() method decides whether the expression runs", {
   expect_identical(res$status, "invalid")
   expect_identical(res$expr, quote(a))
   expect_identical(res$conditions[[1L]]$phase, "block_eval")
+  expect_identical(res$conditions[[1L]]$severity, "message")
 
   res <- evaluate_block(saver, list(auto = FALSE), list(data = "a"),
                         list(a = datasets::BOD), save = TRUE)
