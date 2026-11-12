@@ -227,26 +227,28 @@ describe("the card of a block that serve() serves alone", () => {
     expect(banners(el)).toEqual([["error", "object 'Petal' not found"]]);
   });
 
-  test("shows why a waiting block waits, and an invalid block's reason as a message", async () => {
+  test("shows why a waiting block waits and an invalid block's reason as a message, whose pill opens its banner", async () => {
     const r = played();
     const { el } = draw(r.core);
 
+    // The scheduler writes why a block waits as a message, which the footer
+    // counts in the pill of the messages, as any message, and no pill of the
+    // errors.
     await r.set({
       status: "waiting",
       evaluated: null,
       conditions: [{ ...condition("message", 'This block is waiting for its input "data" to be linked.'), phase: "status" }],
     });
-    expect(footer(el).textContent).toBe('This block is waiting for its input "data" to be linked.');
-    expect(footer(el).querySelector("button")).toBeNull();
+    expect(line(el)).toEqual(["1 message"]);
     expect(footer(el).className).not.toContain("bc:opacity-50");
     expect(banners(el)).toEqual([]);
+    await click(pill(el, "1 message"));
+    expect(banners(el)).toEqual([["message", 'This block is waiting for its input "data" to be linked.']]);
 
-    // R reports why a block is invalid as a message, whose pill opens its
-    // banner, as any message's does, and no pill of the errors.
+    // R reports why a block is invalid as a message too, which the pill shows
+    // at once, since it stays open.
     await r.set({ status: "invalid", conditions: [condition("message", "Upload a file.")] });
     expect(line(el)).toEqual(["1 message"]);
-    expect(banners(el)).toEqual([]);
-    await click(pill(el, "1 message"));
     expect(banners(el)).toEqual([["message", "Upload a file."]]);
   });
 

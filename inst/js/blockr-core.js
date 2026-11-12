@@ -9073,7 +9073,7 @@ function Footer({ status, shown: shown2, severities, open, toggle, panel }) {
   );
 }
 function Banners({ shown: shown2, severities, open, panel }) {
-  const listed = shown2 === void 0 ? [] : statusConditions(shown2).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+  const listed = shown2 === void 0 ? [] : shown2.conditions.filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
   if (listed.length === 0) return null;
   return /* @__PURE__ */ jsx2("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx2(Banner, { condition }, i2)) });
 }
@@ -9107,9 +9107,6 @@ function StatusLine({
   open,
   toggle
 }) {
-  if (status.status === "waiting") {
-    return /* @__PURE__ */ jsx2("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
-  }
   const pills = SEVERITIES3.filter((severity) => severities.includes(severity)).flatMap((severity) => {
     const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
     if (n2 === 0) return [];
@@ -9185,9 +9182,6 @@ function useShown(status) {
   return now ?? kept;
 }
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
-function statusConditions(status) {
-  return status.status === "waiting" ? [] : status.conditions;
-}
 
 // srcts/card/mounted.tsx
 import { useLayoutEffect, useRef } from "react";

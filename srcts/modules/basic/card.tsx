@@ -7,7 +7,7 @@
 // - The block's UI and its output, which core mounts.
 // - The footer, the last line of the output's box, which shows the block's
 //   status in one centred line, with a pill for each severity of the
-//   conditions of R's reply that the board option show_conditions names.
+//   block's conditions that the board option show_conditions names.
 // - The banners of the conditions whose pills are open.
 // The footer and the banners are those of srcts/card, which the card of a
 // block that serve() serves alone draws as well.

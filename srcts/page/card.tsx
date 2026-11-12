@@ -8,7 +8,7 @@
 //   open, as the store's locked() says.
 // - The block's output, as R's chosen renderer draws it, which core mounts.
 // - The footer, one centred line of the block's status, with a pill for each
-//   severity of the conditions of R's reply.
+//   severity of the block's conditions.
 // - The banners of the conditions whose pills are open.
 // The footer and the banners are those of srcts/card, which the cards of
 // core's basic frontend draw as well.

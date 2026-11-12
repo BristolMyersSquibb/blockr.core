@@ -276,7 +276,7 @@ describe("a card", () => {
     expect(banners(card(el, "Head"))).toEqual([["message", "Took the head"]]);
   });
 
-  test("greys its output out while its block is not ready, but not its footer, which shows a failed block's error and why a block waits", async () => {
+  test("greys its output out while its block is not ready, but not its footer, whose pills show a failed block's error and why a block waits", async () => {
     let fails = false;
     const { el, core, settled } = await drawn({
       evaluate: (request) =>
@@ -308,13 +308,25 @@ describe("a card", () => {
     expect(line(head)).toEqual(["error"]);
     expect(banners(head)).toEqual([["error", "No rows"]]);
 
-    // The blocks downstream of a failed block wait on it, and their footers
-    // say why, whatever show_conditions names.
+    // The blocks downstream of a failed block wait on it, and the scheduler
+    // writes why as a message. The board holds show_conditions at warnings
+    // and errors, so their footers show no pill for it, and only the badge
+    // says that they wait.
     expect(core.scheduler.status("c")?.status).toBe("waiting");
     const why = core.scheduler.status("c")?.conditions[0]?.message;
     expect(why).toMatch(/^This block is waiting for/);
     expect(badge(card(el, "Merge"))).toBe("waiting");
-    expect(find(card(el, "Merge"), "footer").textContent).toBe(why);
+    expect(line(card(el, "Merge"))).toEqual([]);
+    expect(banners(card(el, "Merge"))).toEqual([]);
+
+    // Where show_conditions names the messages, the footer counts why in the
+    // pill of the messages, whose banner says it.
+    await step(() => {
+      core.store.apply({ options: { set: { show_conditions: ["message", "error"] } } });
+    });
+    expect(line(card(el, "Merge"))).toEqual(["1 message"]);
+    await click(button(find(card(el, "Merge"), "footer"), "1 message"));
+    expect(banners(card(el, "Merge"))).toEqual([["message", why]]);
 
     // Where show_conditions leaves out the errors, the footer shows no pill
     // for the error, and no banner.
