@@ -214,6 +214,44 @@ test_that("the app's sessions tell of what the packages it uses declare", {
   expect_named(reply$option_versions, "grid_gap")
 })
 
+test_that("blocks and plugins read their rows alike, and plugins no file", {
+
+  # A YAML file of block classes gives rows in its order, with the id `NA` for
+  # all of a package's classes
+  file <- withr::local_tempfile(fileext = ".yml")
+  writeLines(
+    c("- blockr.dag", "- blockr.core:", "  - head_block", "  - glue_block"),
+    file
+  )
+
+  rows <- yaml_block_rows(file)
+
+  expect_identical(rows[["package"]], c("blockr.dag", rep("blockr.core", 2L)))
+  expect_identical(rows[["id"]], c(NA, "head_block", "glue_block"))
+
+  # Each argument's errors keep its own class and words, and only `blocks`
+  # takes the path of a YAML file
+  expect_error(
+    serve(served_board(), blocks = 1L),
+    paste(
+      "The block classes that an app offers are expected as a data frame",
+      "with the character columns `package` and `id`, as `available_blocks()`",
+      "gives, or as the path of a YAML file."
+    ),
+    fixed = TRUE,
+    class = "block_classes_invalid"
+  )
+  expect_error(
+    serve(served_board(), plugins = file),
+    paste(
+      "The plugins that an app runs are expected as a data frame with the",
+      "character columns `package` and `id`, as `available_plugins()` gives."
+    ),
+    fixed = TRUE,
+    class = "app_plugins_invalid"
+  )
+})
+
 test_that("serve() registers the class of a block that it serves alone", {
 
   local_declared(block_registry)

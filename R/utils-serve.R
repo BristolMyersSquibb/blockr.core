@@ -32,18 +32,7 @@
 #' [available_plugins()] gives them.
 #' A script narrows them with plain R, as
 #' `subset(available_plugins(), package != "blockr.session")` runs every
-#' plugin but those of blockr.session, or gives the path of a YAML file that
-#' lists packages and, for each, the ids of the plugin classes to run, all of
-#' them where it lists none:
-#'
-#' ```yaml
-#' - blockr.core:
-#'   - basic_frontend_plugin
-#' - blockr.dag
-#' ```
-#'
-#' R reads the file into the same rows, and a package that the file leaves out
-#' runs no plugin.
+#' plugin but those of blockr.session.
 #' Core's basic frontend runs only where no other row is a frontend, and core's
 #' storage plugin only where no other row is a storage plugin (see
 #' [new_plugin()]).
@@ -127,7 +116,7 @@
 #'   [available_blocks()], or as the path of a YAML file that lists them
 #' @param plugins The plugins that the app runs, as rows with the package of
 #'   each plugin's class in `package` and the class's id in `id`, such as those
-#'   of [available_plugins()], or as the path of a YAML file that lists them
+#'   of [available_plugins()]
 #'
 #' @examples
 #' if (interactive()) {
@@ -468,6 +457,32 @@ check_board_args <- function(args, what) {
     if (length(moved)) paste0(" ", paste(moved, collapse = " ")) else "",
     class = "serve_args_invalid"
   )
+}
+
+# The classes that `serve()` takes in `blocks` or in `plugins`, as the rows of
+# a data frame with the character columns `package`, for the class's package,
+# and `id`, for its id, in their order.
+# The errors name the classes as `what` gives them, such as "block classes
+# that an app offers", and the function that lists them, `listing`, are of the
+# class `class`, and with `yaml`, say that the argument takes the path of a
+# YAML file too.
+frame_class_rows <- function(x, what, listing, class, yaml = FALSE) {
+
+  valid <- is.data.frame(x) && all(c("package", "id") %in% names(x)) &&
+    is.character(x[["package"]]) && is.character(x[["id"]]) &&
+    !anyNA(x[["package"]]) && !anyNA(x[["id"]])
+
+  if (!valid) {
+    blockr_abort(
+      "The {what} are expected as a data frame with the character columns ",
+      "`package` and `id`, as `{listing}` gives",
+      if (yaml) ", or as the path of a YAML file" else "",
+      ".",
+      class = class
+    )
+  }
+
+  data.frame(package = x[["package"]], id = x[["id"]])
 }
 
 # The names of the arguments that the call `list(...)` holds, unevaluated,

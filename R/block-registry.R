@@ -793,49 +793,44 @@ app_block_registry <- function(blocks = available_blocks(), board = NULL) {
 
 # The block classes that an app offers, as `serve()` takes them in `blocks`,
 # by package: the ids of the package's classes to offer, or `NULL` for all of
-# them.
-# They come from the rows of a data frame, with the class's package in
-# `package` and its id in `id`, or from a YAML file at the path.
+# them, from the rows of a data frame (see `frame_class_rows()`) or from a YAML
+# file at the path (see `yaml_block_rows()`).
 # A package that is not available stops the app, and so does an id that its
 # package does not list, as R registers the package's classes.
 offered_block_classes <- function(blocks) {
 
-  offered <- if (is_string(blocks)) {
-    yaml_block_classes(blocks)
+  rows <- if (is_string(blocks)) {
+    yaml_block_rows(blocks)
   } else {
-    frame_block_classes(blocks)
+    frame_class_rows(
+      blocks,
+      "block classes that an app offers",
+      "available_blocks()",
+      "block_classes_invalid",
+      yaml = TRUE
+    )
   }
+
+  # A package that the rows name twice offers the classes of both rows, and
+  # all of its classes where a row's id is `NA`
+  offered <- lapply(
+    set_names(nm = unique(rows[["package"]])),
+    function(pkg) {
+      ids <- rows[["id"]][rows[["package"]] == pkg]
+      if (!anyNA(ids)) unique(ids)
+    }
+  )
 
   check_block_class_packages(names(offered))
 
   offered
 }
 
-frame_block_classes <- function(x) {
-
-  valid <- is.data.frame(x) && all(c("package", "id") %in% names(x)) &&
-    is.character(x[["package"]]) && is.character(x[["id"]]) &&
-    !anyNA(x[["package"]]) && !anyNA(x[["id"]])
-
-  if (!valid) {
-    blockr_abort(
-      "The block classes that an app offers are expected as a data frame ",
-      "with the character columns `package` and `id`, as ",
-      "`available_blocks()` gives, or as the path of a YAML file.",
-      class = "block_classes_invalid"
-    )
-  }
-
-  packages <- x[["package"]]
-
-  lapply(split(x[["id"]], factor(packages, unique(packages))), unique)
-}
-
-# The block classes that a YAML file at `path` lists, by package, as
-# `offered_block_classes()` gives them: the file lists packages, each as its
-# name, for all of its classes, or as its name with the ids of the classes to
-# offer, as the example in `?register_block` shows.
-yaml_block_classes <- function(path) {
+# The rows of a YAML file that lists packages, each as its name, for all of its
+# block classes, or as its name with the ids of the classes to offer, as the
+# example in `?register_block` shows, where a package that the file lists
+# without ids gives one row whose id is `NA`.
+yaml_block_rows <- function(path) {
 
   if (is.na(path) || !file.exists(path) || dir.exists(path)) {
     blockr_abort(
@@ -858,7 +853,7 @@ yaml_block_classes <- function(path) {
   items <- as.list(coal(items, list(), fail_all = FALSE))
 
   listed <- if (is.null(names(items))) {
-    lapply(items, yaml_block_class_item)
+    lapply(items, yaml_block_item)
   }
 
   if (!is.list(listed) || !all(lgl_ply(listed, is.list))) {
@@ -869,23 +864,26 @@ yaml_block_classes <- function(path) {
     )
   }
 
-  packages <- chr_xtr(listed, "package")
-  ids <- lapply(listed, `[[`, "ids")
-
-  # A package that the file lists twice offers the classes of both items, and
-  # all of its classes where one item lists no ids
-  lapply(
-    set_names(nm = unique(packages)),
-    function(pkg) {
-      pkg_ids <- ids[packages == pkg]
-      if (!any(lgl_ply(pkg_ids, is.null))) unique(unlst(pkg_ids))
-    }
+  do.call(
+    rbind,
+    c(
+      list(block_rows()),
+      lapply(
+        listed,
+        function(x) {
+          block_rows(
+            package = x[["package"]],
+            id = coal(x[["ids"]], NA_character_, fail_all = FALSE)
+          )
+        }
+      )
+    )
   )
 }
 
 # A package that a YAML file of block classes lists, as its name, or as its
 # name with the ids of its classes to offer, or `NULL` for anything else.
-yaml_block_class_item <- function(x) {
+yaml_block_item <- function(x) {
 
   if (is_nonempty_string(x)) {
     return(list(package = x, ids = NULL))

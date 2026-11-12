@@ -287,7 +287,7 @@
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, and calls the `update` of the class of each plugin whose state the board holds.
   The app's plugins, which R sends in its reply to `hello`, are the plugins of every board that the app opens: opening a board keeps the state that it holds for each of them, migrating it by its class's `migrate`, drops every other state and names its plugin, and gives each other plugin of the app whose class has `state` its class's default state.
   So no patch adds or removes what the board holds for a plugin, and core's command `blockr.core-set_plugin_state` changes a plugin's state (#504, #558).
-* The methods of `serve()` for a board and for the path of a JSON board take the app's plugins in `plugins`, as rows that give each plugin's class by its package in `package` and its id in `id`, or as the path of a YAML file that lists packages and, for each, the ids of the plugin classes to run.
+* The methods of `serve()` for a board and for the path of a JSON board take the app's plugins in `plugins`, as rows that give each plugin's class by its package in `package` and its id in `id`.
   They default to `available_plugins()`, the plugin classes that the available packages list, which are core's alone for now: its basic frontend, which `new_basic_frontend_plugin()` makes, and its storage plugin, which `new_file_storage_plugin()` makes.
   Core's basic frontend runs only where no other row is a frontend, and core's storage plugin only where no other row is a storage plugin.
   As `serve()` runs, R refuses rows that name a class that no available package lists, or one class twice, or that hold no frontend, two frontends or two storage plugins, and a board that holds a plugin of a class that the app does not run.
@@ -397,7 +397,7 @@
   The registry id is `{pkg}-{id}`, from that package and the class's id, or the id alone for a class that records no package, and the class's id leads the class vector of its blocks for S3 dispatch alone.
   A class's id may hold no `-`, since a registry id splits at its first `-`.
   The `register_block()` function loses `uid` and `package`, and takes the constructor itself rather than its name.
-  The `register_package_blocks()` function looks up each constructor in the package's namespace, and refuses two whose classes give one registry id.
+  As it registers a package's block classes, R looks up each constructor in the package's namespace, and refuses two whose classes give one registry id.
   The `registry_id_from_block()` function reads the id from the block's class, whether or not the block registry holds the class.
   The `blockr_ser()` function reads a block's registry id, the version of its state and the schema of its state from its class, and registers no class.
   Before it writes a board, `serve()` registers the class of each block that the app's block registry lacks, under the id that the class gives.

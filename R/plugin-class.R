@@ -435,9 +435,9 @@ app_plugins <- function(rows, available = available_plugin_classes()) {
   )
 }
 
-# The plugin classes that an app runs, as `serve()` takes them in `plugins`,
-# as rows with the class's package in `package` and its id in `id`: those of a
-# data frame, or those that a YAML file at the path lists.
+# The plugin classes that an app runs, as `serve()` takes them in `plugins`:
+# the rows of a data frame, with the class's package in `package` and its id
+# in `id`, in their order (see `frame_class_rows()`).
 # Each names a class that an available package lists, and a row that names
 # none stops the app.
 plugin_rows <- function(rows, available) {
@@ -447,13 +447,12 @@ plugin_rows <- function(rows, available) {
     id = chr_xtr(available, "id")
   )
 
-  rows <- if (is_string(rows)) {
-    yaml_plugin_rows(rows, listed)
-  } else {
-    frame_plugin_rows(rows)
-  }
-
-  rownames(rows) <- NULL
+  rows <- frame_class_rows(
+    rows,
+    "plugins that an app runs",
+    "available_plugins()",
+    "app_plugins_invalid"
+  )
 
   check_plugin_packages(rows[["package"]], listed)
 
@@ -470,96 +469,6 @@ plugin_rows <- function(rows, available) {
   }
 
   rows
-}
-
-frame_plugin_rows <- function(x) {
-
-  valid <- is.data.frame(x) && all(c("package", "id") %in% names(x)) &&
-    is.character(x[["package"]]) && is.character(x[["id"]]) &&
-    !anyNA(x[["package"]]) && !anyNA(x[["id"]])
-
-  if (!valid) {
-    blockr_abort(
-      "The plugins that an app runs are expected as a data frame with the ",
-      "character columns `package` and `id`, as `available_plugins()` gives, ",
-      "or as the path of a YAML file.",
-      class = "app_plugins_invalid"
-    )
-  }
-
-  data.frame(package = x[["package"]], id = x[["id"]])
-}
-
-# The rows of a YAML file that lists packages and, for each, the ids of the
-# plugin classes to run, or none for all that the package lists, as the
-# example in `?serve` shows.
-yaml_plugin_rows <- function(path, listed) {
-
-  if (is.na(path) || !file.exists(path) || dir.exists(path)) {
-    blockr_abort(
-      "There is no file {path} that lists the plugins of an app.",
-      class = "app_plugins_invalid"
-    )
-  }
-
-  items <- tryCatch(
-    yaml::read_yaml(path),
-    error = function(e) {
-      blockr_abort(
-        "The file {path} holds no YAML: {conditionMessage(e)}",
-        class = "app_plugins_invalid"
-      )
-    }
-  )
-
-  # A list of package names alone reads as a character vector
-  items <- as.list(coal(items, list(), fail_all = FALSE))
-
-  entries <- if (is.null(names(items))) {
-    lapply(items, yaml_plugin_item)
-  }
-
-  if (!is.list(entries) || !all(lgl_ply(entries, is.list))) {
-    blockr_abort(
-      "The file {path} is expected to list packages, each as its name or as ",
-      "its name with the ids of the plugin classes to run.",
-      class = "app_plugins_invalid"
-    )
-  }
-
-  check_plugin_packages(chr_xtr(entries, "package"), listed)
-
-  do.call(
-    rbind,
-    c(
-      list(data.frame(package = character(), id = character())),
-      lapply(
-        entries,
-        function(x) {
-          ids <- coal(
-            x[["ids"]],
-            listed[["id"]][listed[["package"]] == x[["package"]]],
-            fail_all = FALSE
-          )
-          data.frame(package = rep(x[["package"]], length(ids)), id = ids)
-        }
-      )
-    )
-  )
-}
-
-# A package that a YAML file of plugins lists, as its name, or as its name
-# with the ids of its plugin classes to run, or `NULL` for anything else.
-yaml_plugin_item <- function(x) {
-
-  if (is_nonempty_string(x)) {
-    return(list(package = x, ids = NULL))
-  }
-
-  valid <- is.list(x) && length(x) == 1L && is_nonempty_string(names(x)) &&
-    (is.null(x[[1L]]) || (is.character(x[[1L]]) && !anyNA(x[[1L]])))
-
-  if (valid) list(package = names(x), ids = x[[1L]])
 }
 
 check_plugin_packages <- function(packages, listed) {

@@ -363,54 +363,6 @@ test_that("the app's rows name classes that available packages list", {
   }
 })
 
-test_that("the app's plugins may come from a YAML file", {
-
-  local_plugin_classes(
-    Notes = plugin_ctor(function() NULL, "notes_plugin"),
-    Tools = plugin_ctor(function() NULL, "tools_plugin")
-  )
-
-  dir <- withr::local_tempdir()
-
-  yaml <- function(...) {
-    file <- tempfile(fileext = ".yml", tmpdir = dir)
-    writeLines(c(...), file)
-    file
-  }
-
-  # A package listed alone runs all of its plugin classes
-  expect_named(
-    app_plugins(yaml("- blockr.core:", "  - basic_frontend_plugin",
-                     "- blockr.test")),
-    c(
-      "blockr.core-basic_frontend_plugin",
-      "blockr.test-notes_plugin",
-      "blockr.test-tools_plugin"
-    )
-  )
-
-  expect_named(
-    app_plugins(yaml("- blockr.core")),
-    c("blockr.core-basic_frontend_plugin", "blockr.core-file_storage_plugin")
-  )
-
-  expect_error(
-    app_plugins(yaml("- blockr.dag")),
-    class = "app_plugins_unknown"
-  )
-
-  expect_error(
-    app_plugins(yaml("- blockr.core:", "  - dag_plugin")),
-    class = "app_plugins_unknown"
-  )
-
-  for (bad in list(yaml("blockr.core: [basic_frontend_plugin]"),
-                   yaml("- 1"), yaml("- [a, b]"), file.path(dir, "none.yml"),
-                   dir, yaml("- blockr.core: {a: 1}"), yaml("{"))) {
-    expect_error(app_plugins(bad), class = "app_plugins_invalid")
-  }
-})
-
 test_that("a plugin prints its class's id and its state", {
 
   notes <- plugin_ctor(

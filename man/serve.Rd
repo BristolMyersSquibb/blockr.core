@@ -27,7 +27,7 @@ class's package in \code{package} and its id in \code{id}, such as those of
 
 \item{plugins}{The plugins that the app runs, as rows with the package of
 each plugin's class in \code{package} and the class's id in \code{id}, such as those
-of \code{\link[=available_plugins]{available_plugins()}}, or as the path of a YAML file that lists them}
+of \code{\link[=available_plugins]{available_plugins()}}}
 
 \item{data}{The block's data, a list by input}
 }
@@ -68,17 +68,7 @@ They default to every plugin class that an available package lists, as
 \code{\link[=available_plugins]{available_plugins()}} gives them.
 A script narrows them with plain R, as
 \code{subset(available_plugins(), package != "blockr.session")} runs every
-plugin but those of blockr.session, or gives the path of a YAML file that
-lists packages and, for each, the ids of the plugin classes to run, all of
-them where it lists none:
-
-\if{html}{\out{<div class="sourceCode yaml">}}\preformatted{- blockr.core:
-  - basic_frontend_plugin
-- blockr.dag
-}\if{html}{\out{</div>}}
-
-R reads the file into the same rows, and a package that the file leaves out
-runs no plugin.
+plugin but those of blockr.session.
 Core's basic frontend runs only where no other row is a frontend, and core's
 storage plugin only where no other row is a storage plugin (see
 \code{\link[=new_plugin]{new_plugin()}}).
