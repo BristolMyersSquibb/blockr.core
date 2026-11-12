@@ -2,7 +2,11 @@
 #'
 #' A custom roxygen2 roclet that turns block registration metadata, declared as
 #' tags on block constructors, into a YAML registry (`inst/registry/blocks.yml`)
-#' that [register_package_blocks()] reads at load time. It runs alongside the
+#' that [available_blocks()] reads, as [serve()] starts an app (see
+#' [register_block()]). Each entry gives the id of the class that its
+#' constructor makes, which the roclet reads off the loaded package, since
+#' nothing ties a class's id to its constructor's name (see
+#' [new_block_class()]). It runs alongside the
 #' standard roclets during [roxygen2::roxygenise()] (or `devtools::document()`)
 #' for any package that lists `blockr.core::block_registration_roclet` in the
 #' `Roxygen` field of its `DESCRIPTION`.
@@ -42,9 +46,20 @@
 #'   \item{`@blockCtor <name>`}{Constructor name override. Optional: the
 #'     documented object otherwise supplies the name.}
 #' }
-#' Multi-argument worked `examples` (whole-block configurations, as opposed to a
-#' per-argument `[example]`) remain out of the tags' scope; a block needing
-#' those registers via [register_block()] directly.
+#'
+#' @section The file:
+#' The roclet writes `inst/registry/blocks.yml` as a mapping of each block
+#' constructor, by name, to the registry metadata of the class that it makes:
+#' the class's `id`, `name`, `description` and `category`, each a string, and,
+#' where the tags give them, its `icon`, `details`, `link` and `guidance`, each
+#' a string, its `keywords`, a list of strings, its `arguments`, a mapping of
+#' each argument to its arg spec, with `description`, `example` and `type`, and
+#' its `examples`, a list of mappings.
+#' A package that writes the file by hand gives the same fields.
+#' R reads the file as [available_blocks()] lists the package's classes and as
+#' [serve()] registers them, and stops on an entry that lacks one of the first
+#' four or gives it as anything but a string, with each such fault, while it
+#' checks the others as [register_block()] does.
 #'
 #' @return `block_registration_roclet()` returns a roclet object.
 #'
@@ -134,7 +149,10 @@ roclet_process.roclet_block_registration <- function(x, blocks, env,
       next
     }
 
-    entries[[block_roclet_ctor(block)]] <- block_roclet_entry(block, base_url)
+    ctor <- block_roclet_ctor(block)
+    entry <- block_roclet_entry(block, base_url)
+
+    entries[[ctor]] <- c(list(id = block_roclet_id(block, ctor, env)), entry)
   }
 
   entries
@@ -201,6 +219,26 @@ block_roclet_ctor <- function(block) {
   }
 
   name
+}
+
+# The id of the block class that a documented constructor makes, read off the
+# constructor in the loaded package, since nothing ties a class's id to its
+# constructor's name.
+block_roclet_id <- function(block, ctor, env) {
+
+  fun <- get0(ctor, envir = env, inherits = FALSE)
+
+  if (!inherits(fun, "block_constructor")) {
+    block_roclet_abort(
+      roxygen2::block_get_tag(block, "block"),
+      paste0(
+        "The object `", ctor, "` that `@block` documents is no block ",
+        "constructor made by `block_constructor()`."
+      )
+    )
+  }
+
+  constructor_class(fun)[["id"]]
 }
 
 block_roclet_entry <- function(block, base_url) {

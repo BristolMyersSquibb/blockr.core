@@ -131,9 +131,10 @@ run_block_request <- function(x, name, inputs = list(), args = list(),
 
 # The function of a block class's request, with the arguments that R binds for
 # it, so that R can resolve a request apart from running it.
-block_request_call <- function(x, name, inputs, args, options) {
+block_request_call <- function(x, name, inputs, args, options,
+                               registry = block_registry) {
 
-  cls <- as_block_class(x)
+  cls <- as_block_class(x, registry)
 
   if (!is_string(name) || is.null(cls[["requests"]][[name]])) {
     blockr_abort(
@@ -145,7 +146,7 @@ block_request_call <- function(x, name, inputs, args, options) {
   req <- cls[["requests"]][[name]]
 
   bound <- if (is_string(x)) {
-    get_registry_entry(x)[["requests"]][[name]][["options"]]
+    get_registry_entry(x, registry)[["requests"]][[name]][["options"]]
   } else {
     request_option_ids(req)
   }

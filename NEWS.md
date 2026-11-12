@@ -287,7 +287,7 @@
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, and calls the `update` of the class of each plugin whose state the board holds.
   The app's plugins, which R sends in its reply to `hello`, are the plugins of every board that the app opens: opening a board keeps the state that it holds for each of them, migrating it by its class's `migrate`, drops every other state and names its plugin, and gives each other plugin of the app whose class has `state` its class's default state.
   So no patch adds or removes what the board holds for a plugin, and core's command `blockr.core-set_plugin_state` changes a plugin's state (#504, #558).
-* The methods of `serve()` for a board and for the path of a JSON board take the app's plugins in `plugins`, as rows that give each plugin's class by its package in `package` and its id in `id`, or as the path of a YAML file that lists packages and, for each, the ids of the plugin classes to run.
+* The methods of `serve()` for a board and for the path of a JSON board take the app's plugins in `plugins`, as rows that give each plugin's class by its package in `package` and its id in `id`.
   They default to `available_plugins()`, the plugin classes that the available packages list, which are core's alone for now: its basic frontend, which `new_basic_frontend_plugin()` makes, its storage plugin, which `new_file_storage_plugin()` makes, and its Edit board plugin, which `new_edit_board_plugin()` makes.
   Core's basic frontend runs only where no other row is a frontend, and core's storage plugin only where no other row is a storage plugin.
   As `serve()` runs, R refuses rows that name a class that no available package lists, or one class twice, or that hold no frontend, two frontends or two storage plugins, and a board that holds a plugin of a class that the app does not run.
@@ -414,12 +414,26 @@
   The registry id is `{pkg}-{id}`, from that package and the class's id, or the id alone for a class that records no package, and the class's id leads the class vector of its blocks for S3 dispatch alone.
   A class's id may hold no `-`, since a registry id splits at its first `-`.
   The `register_block()` function loses `uid` and `package`, and takes the constructor itself rather than its name.
-  The `register_package_blocks()` function looks up each constructor in the package's namespace, and refuses two whose classes give one registry id.
+  As it registers a package's block classes, R looks up each constructor in the package's namespace, and refuses two whose classes give one registry id.
   The `registry_id_from_block()` function reads the id from the block's class, whether or not the block registry holds the class.
   The `blockr_ser()` function reads a block's registry id, the version of its state and the schema of its state from its class, and registers no class.
-  Before it writes a board, `serve()` registers the class of each block that the block registry lacks, under the id that the class gives.
+  Before it writes a board, `serve()` registers the class of each block that the app's block registry lacks, under the id that the class gives.
   So core's static and fixed blocks have the ids `blockr.core-static_block` and `blockr.core-fixed_block`, where they had `static_block` and `fixed_block`.
-  A class from outside a package replaces another class that the block registry holds under its id, so that a script that redefines a class and serves again runs the new definition, and a board with blocks of two such classes of one id fails (#559).
+  A class from outside a package replaces another class that the script registered under its id, so that a script that redefines a class after it registered it runs the new definition, and a board with blocks of two such classes of one id fails (#559).
+* Which block classes an app offers is the app's choice.
+  The methods of `serve()` for a board and for a path take them in `blocks`, which defaults to `available_blocks()`, every block class of every available package: one that is installed, or that `pkgload::load_all()` loaded, and that lists block classes in its `inst/registry/blocks.yml`.
+  A block that `serve()` serves alone offers none, and its app's block registry holds the block's class alone.
+  The `available_blocks()` function gives these classes as a data frame, with the class's package in `package` and its id in `id`, in place of the block registry's entries.
+  A script narrows them with plain R, as `subset(available_blocks(), package != "blockr.ggplot")`, or gives the path of a YAML file that lists packages and, for each, the ids of the classes to offer.
+  As `serve()` is called, R loads the packages of these classes and builds the app's own block registry from them, and a class that no available package lists stops the app.
+  A package whose `blocks.yml` holds an entry that R cannot read, such as one without the `id` that older roclets leave out, stops `available_blocks()` and every app that offers its classes, with each fault of each entry.
+  A package's class that the block registry of the process holds, as `register_block()` registers it, is a row of `available_blocks()` too, and an app offers it where its rows hold it, from the process registry, so that a package without a `blocks.yml` registers its classes as it loads.
+  The app's block registry also holds the classes that the app script defines and registers itself, and the classes of the board's blocks that it lacks.
+  The app's sessions read it alone, so a later `serve()` or `register_block()` in the same process changes no app built before.
+  The blockr option `core_blocks` is gone, since `blocks` narrows core's classes too.
+  The block registration roclet writes the id of each class into `blocks.yml`, which it reads off the class's constructor.
+  The `register_package_blocks()` function is gone, and core's `.onLoad()` registers no block class, so a block package drops its call of `register_package_blocks()` from its `.onLoad()`.
+  Core reads the files of another package, such as its `blocks.yml`, its modules and its JSON Schemas, with `pkg_file()`, which now goes through the package's own `system.file()` and takes a package's name as well as an environment, so that it finds them for a package that `pkgload::load_all()` loaded too (#498).
 
 # blockr.core 0.1.4
 

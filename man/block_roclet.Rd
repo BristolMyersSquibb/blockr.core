@@ -13,7 +13,11 @@ block_registration_roclet()
 \description{
 A custom roxygen2 roclet that turns block registration metadata, declared as
 tags on block constructors, into a YAML registry (\code{inst/registry/blocks.yml})
-that \code{\link[=register_package_blocks]{register_package_blocks()}} reads at load time. It runs alongside the
+that \code{\link[=available_blocks]{available_blocks()}} reads, as \code{\link[=serve]{serve()}} starts an app (see
+\code{\link[=register_block]{register_block()}}). Each entry gives the id of the class that its
+constructor makes, which the roclet reads off the loaded package, since
+nothing ties a class's id to its constructor's name (see
+\code{\link[=new_block_class]{new_block_class()}}). It runs alongside the
 standard roclets during \code{\link[roxygen2:roxygenise]{roxygen2::roxygenise()}} (or \code{devtools::document()})
 for any package that lists \code{blockr.core::block_registration_roclet} in the
 \code{Roxygen} field of its \code{DESCRIPTION}.
@@ -54,8 +58,21 @@ argument). Optional; supersedes the per-argument \verb{[example]} assembly.}
 \item{\verb{@blockCtor <name>}}{Constructor name override. Optional: the
 documented object otherwise supplies the name.}
 }
-Multi-argument worked \code{examples} (whole-block configurations, as opposed to a
-per-argument \verb{[example]}) remain out of the tags' scope; a block needing
-those registers via \code{\link[=register_block]{register_block()}} directly.
+}
+
+\section{The file}{
+
+The roclet writes \code{inst/registry/blocks.yml} as a mapping of each block
+constructor, by name, to the registry metadata of the class that it makes:
+the class's \code{id}, \code{name}, \code{description} and \code{category}, each a string, and,
+where the tags give them, its \code{icon}, \code{details}, \code{link} and \code{guidance}, each
+a string, its \code{keywords}, a list of strings, its \code{arguments}, a mapping of
+each argument to its arg spec, with \code{description}, \code{example} and \code{type}, and
+its \code{examples}, a list of mappings.
+A package that writes the file by hand gives the same fields.
+R reads the file as \code{\link[=available_blocks]{available_blocks()}} lists the package's classes and as
+\code{\link[=serve]{serve()}} registers them, and stops on an entry that lacks one of the first
+four or gives it as anything but a string, with each such fault, while it
+checks the others as \code{\link[=register_block]{register_block()}} does.
 }
 

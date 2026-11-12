@@ -681,7 +681,7 @@ A class defined outside a package, such as in an app script, names a module besi
 
 ## Registration
 
-A package registers its block classes in the __block registry__, under a __registry ID__ `{pkg}-{id}`, such as `blockr.core-head_block`.
+Each app holds the block classes that it offers in a __block registry__ of its own, under a __registry ID__ `{pkg}-{id}`, such as `blockr.core-head_block`.
 The class gives its registry ID: `{pkg}` is the package whose code calls `new_block_class()`, and `{id}` is the id that the class takes.
 So renaming a constructor leaves the registry ID as it is, while changing a class's id changes it, and boards saved before then no longer find the class.
 A class's id holds no `-`, since a registry ID splits at its first `-`.
@@ -706,18 +706,20 @@ These are the head block's:
 new_head_block <- block_constructor(head_block)
 ```
 
-With `blockr.core::block_registration_roclet` in the `Roxygen` field of its `DESCRIPTION`, `devtools::document()` writes the tags into `inst/registry/blocks.yml`.
-The package then registers every class it declares there as it loads:
+With `blockr.core::block_registration_roclet` in the `Roxygen` field of its `DESCRIPTION`, `devtools::document()` writes the tags into `inst/registry/blocks.yml`, with the id of each class, which it reads off the constructor.
+Loading the package registers none of them.
+Once the package is installed, `available_blocks()` lists its classes, and an app offers them, as it offers every available class unless its script narrows them through `serve()`'s `blocks`, as in `serve(new_board(), blocks = subset(available_blocks(), package != "blockr.ggplot"))`.
+The package's `.onLoad()` calls `trace_block_classes()` alone, which lets covr count the lines of the functions that the classes hold (see "Testing" below):
 
 ```r
 .onLoad <- function(libname, pkgname) {
-  register_package_blocks(package = pkgname)
   trace_block_classes(pkgname)
 }
 ```
-
-The call to `trace_block_classes()` lets covr count the lines of the functions that the classes hold (see "Testing" below).
 See `?block_registration_roclet` for every tag.
+
+A package that does without the roclet can write `inst/registry/blocks.yml` itself, with the fields that `?block_registration_roclet` describes.
+It can also register its classes with `register_block()` in its `.onLoad()`, in which case `available_blocks()` lists them, and an app offers them as it offers the classes of a file, once the package is loaded.
 
 A package builds its classes while R installs it, as R sources its files.
 A class that names a function of its own package, such as a request, finds that function only once R has sourced the file that defines it.
@@ -729,7 +731,7 @@ A class defined outside a package, such as in an app script, records no package,
 ```{r}
 register_block(new_head_block, "Head", "Keeps the first or last rows")
 
-available_blocks()[["head_block"]]
+registry_id_from_block(new_head_block())
 
 unregister_blocks("head_block")
 ```
