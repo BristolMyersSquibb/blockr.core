@@ -8348,7 +8348,7 @@ function coreCommands(store, options = {}) {
     command({
       id: "blockr.core-change_link",
       label: "Change link",
-      description: "Changes the block a link comes from, the block it goes to or the input it feeds, keeping its id.",
+      description: "Changes the block a link comes from, the block it goes to or the input it feeds, keeping its id. Where the link keeps its block and another link feeds the input given, that other link takes the link's old input, so that the two links swap their inputs, as the links into a merge block's x and y.",
       args: object(
         {
           id: linkId,
@@ -8356,7 +8356,7 @@ function coreCommands(store, options = {}) {
           to: { ...blockId, description: "The block that takes the result." },
           input: {
             ...input,
-            description: "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic."
+            description: "The input of the block that takes the result, which the link keeps where it is left out, unless the link goes to another block, where it may be left out only if one input of that block is free or the block is variadic. Where the link keeps its block, an input that another link feeds swaps the inputs of the two links."
           }
         },
         ["id"]
@@ -8367,7 +8367,9 @@ function coreCommands(store, options = {}) {
         if (link === void 0) return [];
         const to = args.to ?? link.to;
         const input2 = args.input === void 0 && to === link.to ? link.input : linkInput(this.id, board2, to, args.input, args.id);
-        return { links: { mod: { [args.id]: { from: args.from ?? link.from, to, input: input2 } } } };
+        const changed = { [args.id]: { from: args.from ?? link.from, to, input: input2 } };
+        const other = to === link.to ? linkFeeding(board2, store.blockRegistry(), to, input2, args.id) : void 0;
+        return { links: { mod: other === void 0 ? changed : { ...changed, [other]: { input: link.input } } } };
       }
     }),
     command({
@@ -8545,6 +8547,12 @@ function freeInputs(board, registry, to, except) {
     Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
   );
   return inputs.filter((input2) => !fed.has(input2));
+}
+function linkFeeding(board, registry, to, input2, except) {
+  const block = own(board.blocks, to);
+  const inputs = block === void 0 ? void 0 : own(registry, block.registry_id)?.inputs;
+  if (inputs === void 0 || inputs.includes("...")) return void 0;
+  return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
 }
 function defaultBlockName(registryId2) {
   const pkg = packageFromId(registryId2);
@@ -11479,7 +11487,7 @@ function BlockRow({ core, id: id2, block, className }) {
 }
 
 // srcts/modules/edit-board/links.tsx
-import { useState as useState12 } from "react";
+import { useId as useId4, useState as useState12 } from "react";
 import { flushSync as flushSync3 } from "react-dom";
 import { Fragment as Fragment4, jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
 function LinksSection({ core, board, locked: locked2 }) {
@@ -11592,6 +11600,7 @@ function LinkForm({
   const [place, setPlace] = useState12(void 0);
   const [errors, setErrors] = useState12({});
   const [busy, setBusy] = useState12(false);
+  const hintId = useId4();
   const others = withoutLink(board, except);
   const graph = createGraph(others);
   const held2 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
@@ -11603,7 +11612,9 @@ function LinkForm({
   const toOptions = Object.entries(board.blocks).filter(([id2]) => !upstream.has(id2) && takesLink(others, registry, id2)).map(([id2]) => blockOption(board, registry, id2));
   const free = target2 === void 0 ? [] : freeInputs(others, registry, target2) ?? [];
   const variadic2 = isVariadic(free);
-  const chosen = variadic2 ? void 0 : input2 !== void 0 && free.includes(input2) ? input2 : free[0];
+  const offered = !variadic2 && editing !== void 0 && target2 === editing.link.to ? classInputs(board, registry, target2) : free;
+  const chosen = variadic2 ? void 0 : input2 !== void 0 && offered.includes(input2) ? input2 : free[0];
+  const hint = editing !== void 0 && target2 === editing.link.to && chosen !== void 0 ? swapHint(board, registry, editing, chosen) : void 0;
   const taken = target2 === void 0 ? [] : namesInto(board, target2, except);
   const among = editing === void 0 || target2 === void 0 || !variadic2 ? void 0 : placeAmong(board, editing.id, target2);
   const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
@@ -11724,20 +11735,24 @@ function LinkForm({
               }
             )
           ] })
-        ] }) : /* @__PURE__ */ jsxs13("label", { className: styles.field, children: [
-          /* @__PURE__ */ jsx16("span", { className: styles.label, children: "Input" }),
-          /* @__PURE__ */ jsx16(
-            "select",
-            {
-              className: styles.box,
-              value: chosen,
-              disabled: free.length < 2,
-              onChange: (event) => {
-                setInput(event.target.value);
-              },
-              children: free.map((option) => /* @__PURE__ */ jsx16("option", { value: option, children: option }, option))
-            }
-          )
+        ] }) : /* @__PURE__ */ jsxs13("div", { className: styles.field, children: [
+          /* @__PURE__ */ jsxs13("label", { className: styles.field, children: [
+            /* @__PURE__ */ jsx16("span", { className: styles.label, children: "Input" }),
+            /* @__PURE__ */ jsx16(
+              "select",
+              {
+                className: styles.box,
+                value: chosen,
+                disabled: offered.length < 2,
+                "aria-describedby": hint === void 0 ? void 0 : hintId,
+                onChange: (event) => {
+                  setInput(event.target.value);
+                },
+                children: offered.map((option) => /* @__PURE__ */ jsx16("option", { value: option, children: option }, option))
+              }
+            )
+          ] }),
+          hint === void 0 ? null : /* @__PURE__ */ jsx16("p", { id: hintId, className: styles.hint, children: hint })
         ] }),
         editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx16("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
         /* @__PURE__ */ jsxs13("div", { className: "bc:flex bc:gap-2", children: [
@@ -11771,9 +11786,18 @@ function blockOption(board, registry, id2) {
 function takesLink(board, registry, id2) {
   return (freeInputs(board, registry, id2)?.length ?? 0) > 0;
 }
-function isVariadicBlock(board, registry, id2) {
+function classInputs(board, registry, id2) {
   const block = own(board.blocks, id2);
-  return block !== void 0 && (own(registry, block.registry_id)?.inputs.includes("...") ?? false);
+  return (block === void 0 ? void 0 : own(registry, block.registry_id)?.inputs) ?? [];
+}
+function swapHint(board, registry, editing, input2) {
+  const other = linkFeeding(board, registry, editing.link.to, input2, editing.id);
+  const from = other === void 0 ? void 0 : own(board.links, other)?.from;
+  if (from === void 0) return void 0;
+  return `The link from "${blockName(board, from)}" feeds "${input2}". Saving gives that link "${editing.link.input}", so the two links swap their inputs.`;
+}
+function isVariadicBlock(board, registry, id2) {
+  return classInputs(board, registry, id2).includes("...");
 }
 function variadicBlocks(board, registry) {
   return new Set(Object.keys(board.blocks).filter((id2) => isVariadicBlock(board, registry, id2)));
@@ -11795,7 +11819,7 @@ function blockName(board, block) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { useId as useId4, useState as useState13 } from "react";
+import { useId as useId5, useState as useState13 } from "react";
 import { Fragment as Fragment5, jsx as jsx17, jsxs as jsxs14 } from "react/jsx-runtime";
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
@@ -12018,7 +12042,7 @@ function StackForm({
   );
 }
 function ColorField({ color: color2, onChange }) {
-  const id2 = useId4();
+  const id2 = useId5();
   const [last, setLast] = useState13(color2 ?? PALETTE[0]);
   return /* @__PURE__ */ jsxs14("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx17("legend", { className: styles.legend, children: "Colour" }),

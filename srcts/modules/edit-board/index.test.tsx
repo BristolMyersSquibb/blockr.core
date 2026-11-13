@@ -366,8 +366,9 @@ describe("the links", () => {
     await click(button(links, "Edit the link from Iris to Merge"));
     const edit = (): HTMLFormElement => form(links, "Change link");
     expect([labelled(edit(), "From").value, labelled(edit(), "To").value]).toEqual(["Iris", "Merge"]);
-    // The link feeds x, while bc feeds Merge's other input.
-    expect([...select(edit(), "Input").options].map((o) => o.value)).toEqual(["x"]);
+    // The link feeds x, and the form offers Merge's other input as well, y,
+    // which bc feeds.
+    expect([...select(edit(), "Input").options].map((o) => o.value)).toEqual(["x", "y"]);
     await click(button(edit(), "Cancel"));
     expect(links.querySelector('form[aria-label="Change link"]')).toBeNull();
     expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Merge"));
@@ -388,6 +389,41 @@ describe("the links", () => {
     await click(button(edit(), "Save"));
     expect(board().links.ac).toEqual({ from: "a", to: "e", input: "left" });
     expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Bind"));
+  });
+
+  test("into a block that is not variadic, swap their inputs with the link that feeds the input that the user picks, in one step, which the form says first", async () => {
+    const { el, core, board } = await mounted();
+    const links = section(el, "Links");
+    const edit = (): HTMLFormElement => form(links, "Change link");
+
+    // The link from Iris feeds Merge's x, and the one from Head its y.
+    await click(button(links, "Edit the link from Iris to Merge"));
+    expect(note(select(edit(), "Input"))).toBeUndefined();
+    await step(() => {
+      pick(select(edit(), "Input"), "y");
+    });
+    expect(note(select(edit(), "Input"))).toBe('The link from "Head" feeds "y". Saving gives that link "x", so the two links swap their inputs.');
+    await click(button(edit(), "Save"));
+    expect([board().links.ac, board().links.bc]).toEqual([
+      { from: "a", to: "c", input: "y" },
+      { from: "b", to: "c", input: "x" },
+    ]);
+
+    await step(() => {
+      core.store.undo();
+    });
+    expect([board().links.ac, board().links.bc]).toEqual([
+      { from: "a", to: "c", input: "x" },
+      { from: "b", to: "c", input: "y" },
+    ]);
+    expect(core.store.canUndo()).toBe(false);
+
+    // Into another block, the form offers the free inputs alone, since the
+    // link's old input means nothing there.
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
+    await click(button(links, "Edit the link from Iris to Head"));
+    await chosen(edit(), "To", "Merge");
+    expect([...select(edit(), "Input").options].map((o) => o.value)).toEqual(["y"]);
   });
 
   test("into a variadic block, move to the place that the user picks in the row's edit form, keeping their IDs and their ends, as a step of its own", async () => {

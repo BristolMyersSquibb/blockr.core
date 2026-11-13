@@ -14,7 +14,7 @@ import type { GivenPlugin } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { CommandError, createCommands, defaultBlockName, freeInputs, schemas, stateSchema } from "./index.ts";
+import { CommandError, createCommands, defaultBlockName, freeInputs, linkFeeding, schemas, stateSchema } from "./index.ts";
 import type { Commands } from "./index.ts";
 
 async function setup(
@@ -369,6 +369,48 @@ describe("links", () => {
     );
   });
 
+  test("change_link swaps the inputs of two links into a block that is not variadic, in one step that one undo takes back", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+
+    // The merge block c takes ac as x and bc as y.
+    await commands.run("blockr.core-change_link", { id: "ac", input: "y" });
+    expect(inputs(store.board(), "c")).toEqual([
+      ["a", "y"],
+      ["b", "x"],
+    ]);
+
+    store.undo();
+    expect(store.board().links).toEqual(board.links);
+    expect(store.canUndo()).toBe(false);
+
+    // A link that comes from another block now swaps too.
+    await commands.run("blockr.core-change_link", { id: "bc", from: "d", input: "x" });
+    expect(inputs(store.board(), "c")).toEqual([
+      ["a", "y"],
+      ["d", "x"],
+    ]);
+  });
+
+  test("change_link swaps no inputs where the link goes to another block, nor among the links into a variadic block", async () => {
+    const { store, commands } = await setup();
+
+    // The old input of ab, the data of block b, means nothing to block c, so
+    // ac keeps x.
+    await expect(commands.run("blockr.core-change_link", { id: "ab", to: "c", input: "x" })).rejects.toThrow(
+      'The input "x" of block "c" takes the links "ab" and "ac", where it takes one.',
+    );
+
+    // The rbind block e takes be and de by their place, as neither gives a
+    // name, and de gives none still once be has had a name and lost it.
+    await commands.run("blockr.core-change_link", { id: "be", input: "top" });
+    await commands.run("blockr.core-change_link", { id: "be", input: "" });
+    expect(inputs(store.board(), "e")).toEqual([
+      ["b", ""],
+      ["d", ""],
+    ]);
+  });
+
   test("remove_link removes a link", async () => {
     const { store, commands } = await setup();
     await commands.run("blockr.core-remove_link", { id: "ab" });
@@ -438,6 +480,17 @@ describe("links", () => {
     expect(freeInputs(board, registry, "a")).toEqual([]);
     expect(freeInputs(board, registry, "z")).toBeUndefined();
     expect(freeInputs(board, {}, "c")).toBeUndefined();
+  });
+
+  test("the link that feeds an input is the one into the block, and none for a variadic block or a block the board lacks", async () => {
+    const { store } = await setup();
+    const board = store.board();
+    const registry = store.blockRegistry();
+
+    expect(linkFeeding(board, registry, "c", "y")).toBe("bc");
+    expect(linkFeeding(board, registry, "c", "y", "bc")).toBeUndefined();
+    expect(linkFeeding(board, registry, "e", "", "be")).toBeUndefined();
+    expect(linkFeeding(board, registry, "z", "x")).toBeUndefined();
   });
 });
 
