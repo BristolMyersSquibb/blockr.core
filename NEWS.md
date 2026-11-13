@@ -148,6 +148,8 @@
   value by the schema that its package ships beside the module that it lists
   for the plugin's class or the board option, as core ships those of its board
   options beside their modules (#560).
+  Under `anyOf` or `oneOf`, R writes a named list by the branch that it fits: the one object schema whose required properties are all among the list's names, as a split or a tab group in the dock's grids (#597).
+  A named list that fits no branch or several stays as it is, and so does any other value, such as a vector of length one where a string or an array of strings will do.
   Writing a board registers the block classes
   that its blocks refer to, from the blocks themselves, and fails on a value
   that JSON cannot hold, such as a function, so that such a board fails as
