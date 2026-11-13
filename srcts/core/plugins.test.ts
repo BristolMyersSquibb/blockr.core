@@ -372,7 +372,7 @@ describe("what a frontend offers other plugins", () => {
     s.stop();
   });
 
-  test("refuses a notification whose members are of the wrong kind, or that concerns a block that the board does not hold", async () => {
+  test("refuses a notification whose members are of the wrong kind, or that concerns a block that the board has never held", async () => {
     const s = await stubCore();
     const { notifications } = s.core;
     const base = { severity: "message", class: ["saved"], message: "Saved.", origin: "blockr.test-session_plugin" } as const;
@@ -390,6 +390,22 @@ describe("what a frontend offers other plugins", () => {
     expect(refused({ ...base, option: 3 })).toThrow("The option that a notification concerns is named by a non-empty string, not 3.");
     expect(refused({ ...base, block: "nowhere" })).toThrow('The board holds no block "nowhere" for a notification to concern.');
     expect(refused("Saved.")).toThrow('A notification is an object, not "Saved.".');
+    s.stop();
+  });
+
+  test("holds nothing of a notification about a block that has left the board, which the work that raises it can outlive", async () => {
+    const s = await stubCore();
+    const { notifications } = s.core;
+    s.core.store.apply({ blocks: { rm: ["b"] } });
+    await s.settled();
+    const before = notifications.get();
+    const heard: (readonly Notification[])[] = [];
+    notifications.subscribe((all) => heard.push(all));
+
+    const late = notifications.notify({ severity: "error", class: ["share_failed"], message: "Not shared.", origin: "blockr.test-session_plugin", block: "b" });
+    late();
+    expect(notifications.get()).toBe(before);
+    expect(heard).toEqual([]);
     s.stop();
   });
 

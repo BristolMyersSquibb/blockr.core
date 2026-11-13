@@ -8610,6 +8610,7 @@ function createNotifications(store, signal) {
   const held = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
   const ofStatus = /* @__PURE__ */ new Map();
+  const left2 = /* @__PURE__ */ new Set();
   const listeners = /* @__PURE__ */ new Set();
   let all = NONE2;
   let plugins = 0;
@@ -8633,7 +8634,10 @@ function createNotifications(store, signal) {
       raised.delete(id2);
       moved = true;
     }
-    for (const block of gone) ofStatus.delete(block);
+    for (const block of gone) {
+      ofStatus.delete(block);
+      left2.add(block);
+    }
     if (moved) publish();
   });
   stops.push(offStore);
@@ -8645,6 +8649,7 @@ function createNotifications(store, signal) {
     held.clear();
     raised.clear();
     ofStatus.clear();
+    left2.clear();
     if (had) publish();
     listeners.clear();
   }
@@ -8707,6 +8712,7 @@ function createNotifications(store, signal) {
         const given = checked2(notification);
         if (ended) return nothing;
         if (given.block !== void 0 && !holds(given.block)) {
+          if (left2.has(given.block)) return nothing;
           throw new Error(`The board holds no block ${JSON.stringify(given.block)} for a notification to concern.`);
         }
         const id2 = `plugin-${String(++plugins)}`;

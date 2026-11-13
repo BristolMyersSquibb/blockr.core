@@ -76,7 +76,9 @@ export interface CoreApi {
   readonly notifications: {
     // Raises a notification, which holds until the function that it returns
     // runs. It throws for one whose members are of the wrong kind, or that
-    // concerns a block that the board does not hold.
+    // concerns a block that the board has never held. One about a block that
+    // has left the board holds nothing, since the work that raises it can
+    // outlive the block.
     notify(notification: Omit<Notification, "id">): () => void;
     // Those that hold, the same array until one comes or goes.
     get(): readonly Notification[];

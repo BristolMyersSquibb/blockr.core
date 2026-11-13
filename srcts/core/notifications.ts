@@ -17,6 +17,8 @@
 // It withdraws every notification that concerns a block as the block leaves
 // the board, and every one as the board ends, as the next board opens, which
 // it announces.
+// It holds none that core or a plugin raises later about a block that has left,
+// since the work that raises it can outlive the block.
 
 import { announceTo, onAbort } from "../mount/index.ts";
 import type { Condition, Phase } from "../protocol/index.ts";
@@ -65,6 +67,10 @@ export function createNotifications(
   const raised = new Map<string, Set<object>>();
   // The ids of the notifications of each block's conditions.
   const ofStatus = new Map<BlockId, readonly string[]>();
+  // The blocks that have left the board. A notification that a plugin raises
+  // about one of them holds nothing, while one about a block that the board
+  // has never held is refused.
+  const left = new Set<BlockId>();
   const listeners = new Set<(all: readonly Notification[]) => void>();
   let all = NONE;
   let plugins = 0;
@@ -91,7 +97,10 @@ export function createNotifications(
       raised.delete(id);
       moved = true;
     }
-    for (const block of gone) ofStatus.delete(block);
+    for (const block of gone) {
+      ofStatus.delete(block);
+      left.add(block);
+    }
     if (moved) publish();
   });
   stops.push(offStore);
@@ -104,6 +113,7 @@ export function createNotifications(
     held.clear();
     raised.clear();
     ofStatus.clear();
+    left.clear();
     if (had) publish();
     listeners.clear();
   }
@@ -172,6 +182,7 @@ export function createNotifications(
         const given = checked(notification);
         if (ended) return nothing;
         if (given.block !== undefined && !holds(given.block)) {
+          if (left.has(given.block)) return nothing;
           throw new Error(`The board holds no block ${JSON.stringify(given.block)} for a notification to concern.`);
         }
         const id = `plugin-${String(++plugins)}`;
