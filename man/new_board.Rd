@@ -30,7 +30,7 @@ is_board(x)
 \item{options}{Board options, with the values the script gives}
 
 \item{plugins}{The state of the board's plugins, a list of plugins made by
-their packages' constructors, with no names}
+their packages' constructors, in which a script may name a plugin}
 
 \item{id}{Board ID, which \code{\link[=rand_names]{rand_names()}} draws where it is \code{NULL}}
 
@@ -62,10 +62,21 @@ A board takes no board options by default, since a board holds the value of a
 board option only once something sets it (see \code{\link[=new_board_options]{new_board_options()}}).
 
 A board gives only the state of its plugins, which \code{new_board()} takes in
-\code{plugins} as a list of plugins with no names, and holds each under the ID of
-its class, as \code{blockr.dag-dag_plugin}.
+\code{plugins} as a list of plugins, and holds each under the ID of its class, as
+\code{blockr.dag-dag_plugin}.
 It holds one plugin of each class, so the constructor refuses two of one
 class.
+A script may give a plugin a name in that list, as \code{dag} in
+\code{list(new_dock_plugin(), dag = new_dag_plugin())}.
+The state of another plugin may then refer to the plugin by that name, as a
+grid of the dock places the panel of the DAG with \code{plg("dag")}.
+The constructor refuses a name that the list gives to more than one plugin.
+The board keeps no name.
+Once the board is valid, the constructor calls \code{\link[=complete_plugin]{complete_plugin()}} on each of
+its plugins, with the board and the names, and the board holds what each call
+returns.
+So the method of a plugin's class can turn each name in the plugin's state
+into the ID of a class, as \code{plg("dag")} into \code{plg("blockr.dag-dag_plugin")}.
 Which plugins run is the app's choice, never the board's: \code{\link[=serve]{serve()}} takes
 the app's plugins in \code{plugins}, and refuses a board that holds a plugin of a
 class that the app does not run.

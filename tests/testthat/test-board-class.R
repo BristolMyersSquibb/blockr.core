@@ -203,7 +203,33 @@ test_that("a board holds the state of its plugins, by their classes' ids", {
   expect_error(new_board(class = "dock_board"), "unused argument")
 })
 
-test_that("a board refuses names and two plugins of one class", {
+test_that("a board takes names for its plugins, and keeps none", {
+
+  notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
+  grid <- plugin_ctor(function() NULL, c("grid_plugin", "frontend_plugin"))
+
+  board <- new_board(plugins = list(grid(), todo = notes("To do")), id = "b")
+
+  expect_identical(
+    names(board_plugins(board)),
+    c("blockr.test-grid_plugin", "blockr.test-notes_plugin")
+  )
+
+  # The board is the one that the list gives without its names
+  expect_identical(
+    board,
+    new_board(plugins = list(grid(), notes("To do")), id = "b")
+  )
+
+  # A name names one plugin
+  expect_error(
+    new_board(plugins = list(todo = notes(), todo = grid())),
+    "todo",
+    class = "board_plugins_invalid"
+  )
+})
+
+test_that("a board refuses two plugins of one class", {
 
   notes <- plugin_ctor(function() NULL, "notes_plugin")
 
@@ -214,8 +240,8 @@ test_that("a board refuses names and two plugins of one class", {
   )
 
   expect_error(
-    new_board(plugins = list(todo = notes())),
-    "todo",
+    new_board(plugins = list(todo = notes(), done = notes())),
+    "blockr.test-notes_plugin",
     class = "board_plugins_invalid"
   )
 
@@ -227,6 +253,120 @@ test_that("a board refuses names and two plugins of one class", {
   names(board[["plugins"]]) <- "notes"
 
   expect_error(validate_board(board), class = "board_plugins_invalid")
+})
+
+test_that("each plugin completes its state on the board, by the names", {
+
+  # The notes are about a plugin, which the script gives by a name, and the
+  # grid places blocks, which the board holds
+  notes <- plugin_ctor(function(about = "") NULL, "notes_plugin")
+  grid <- plugin_ctor(function(blocks = character()) NULL, "grid_plugin")
+
+  ids <- c(notes = "blockr.test-notes_plugin", grid = "blockr.test-grid_plugin")
+
+  seen <- list()
+
+  testthat::local_mocked_s3_method(
+    "complete_plugin",
+    "notes_plugin",
+    function(x, board, aliases, ...) {
+      seen[["notes"]] <<- list(board = board, aliases = aliases)
+      x[["about"]] <- aliases[[x[["about"]]]]
+      x
+    }
+  )
+
+  testthat::local_mocked_s3_method(
+    "complete_plugin",
+    "grid_plugin",
+    function(x, board, aliases, ...) {
+      seen[["grid"]] <<- list(board = board, aliases = aliases)
+      unknown <- setdiff(x[["blocks"]], board_block_ids(board))
+      if (length(unknown)) {
+        blockr_abort("No block {unknown}.", class = "grid_blocks_unknown")
+      }
+      x[["blocks"]] <- union(x[["blocks"]], board_block_ids(board))
+      x
+    }
+  )
+
+  blocks <- c(a = new_dataset_block(), b = new_subset_block())
+
+  board <- new_board(blocks, plugins = list(notes("main"), main = grid("a")))
+  plugins <- board_plugins(board)
+
+  expect_identical(
+    plugin_state(plugins[[ids[["notes"]]]]),
+    list(about = ids[["grid"]])
+  )
+  expect_identical(
+    plugin_state(plugins[[ids[["grid"]]]]),
+    list(blocks = c("a", "b"))
+  )
+
+  # Each method gets the names, and the board before any plugin completed its
+  # state, so the grid's method, which runs second, sees the notes as given
+  for (key in names(ids)) {
+
+    expect_identical(seen[[key]][["aliases"]], c(main = ids[["grid"]]))
+
+    before <- board_plugins(seen[[key]][["board"]])
+
+    expect_identical(
+      plugin_state(before[[ids[["notes"]]]]),
+      list(about = "main")
+    )
+    expect_identical(plugin_state(before[[ids[["grid"]]]]), list(blocks = "a"))
+  }
+
+  # So the order of the plugins does not matter
+  reversed <- new_board(
+    blocks,
+    plugins = list(main = grid("a"), notes("main"))
+  )
+
+  expect_identical(board_plugins(reversed)[ids], plugins[ids])
+
+  # Without names, a method gets none
+  new_board(blocks, plugins = list(grid("b")))
+
+  expect_identical(
+    seen[["grid"]][["aliases"]],
+    set_names(character(), character())
+  )
+
+  # A method refuses what the board lacks, so that the script fails here
+  expect_error(
+    new_board(blocks, plugins = grid("c")),
+    class = "grid_blocks_unknown"
+  )
+
+  # Only new_board() completes a plugin's state
+  seen <- list()
+
+  expect_identical(validate_board(board), board)
+  expect_length(seen, 0L)
+})
+
+test_that("a board refuses a method's result that is no plugin of its class", {
+
+  notes <- plugin_ctor(function() NULL, "notes_plugin")
+  grid <- plugin_ctor(function() NULL, "grid_plugin")
+
+  for (res in list(NULL, list(), grid())) {
+
+    testthat::local_mocked_s3_method(
+      "complete_plugin",
+      "notes_plugin",
+      function(x, board, aliases, ...) res
+    )
+
+    expect_error(
+      new_board(plugins = notes()),
+      "blockr.test-notes_plugin",
+      class = "plugin_complete_invalid"
+    )
+  }
 })
 
 test_that("validate_board checks each collection, not just cross-relations", {

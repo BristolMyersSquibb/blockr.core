@@ -219,6 +219,17 @@ test_that("a plugin class's method gives its version, or it is at version 1", {
   )
 })
 
+test_that("core's method of complete_plugin() returns the plugin as it is", {
+
+  notes <- plugin_ctor(function(about = "") NULL, "notes_plugin")
+  aliases <- c(dag = "blockr.dag-dag_plugin")
+
+  expect_identical(
+    complete_plugin(notes("dag"), new_board(plugins = notes("dag")), aliases),
+    notes("dag")
+  )
+})
+
 test_that("a plugin class's method gives its requests, or it has none", {
 
   local_plugin_classes(
