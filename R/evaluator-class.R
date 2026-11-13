@@ -525,7 +525,8 @@ job_error_reply <- function(job, e) {
   )
 }
 
-# Logs the conditions of the reply to a request that R ran, before R sends it.
+# Logs the conditions of the reply to a request that R ran, before R sends it,
+# and the reason of a reply to an evaluation (see `log_reason()`).
 # Each line names the block and its revision where the request names one,
 # as an evaluation and an output do, and the request otherwise.
 # The line's record holds the block and its revision as attributes too.
@@ -548,14 +549,17 @@ log_reply <- function(job, reply) {
     return(log_conditions(reply, request_subject(job)))
   }
 
-  log_conditions(
-    reply,
-    paste0("Block ", block[["block"]], " at revision ", block[["revision"]]),
-    list(
-      blockr.block.id = block[["block"]],
-      blockr.block.revision = block[["revision"]]
-    )
+  about <- paste0(
+    "Block ", block[["block"]], " at revision ", block[["revision"]]
   )
+
+  attributes <- list(
+    blockr.block.id = block[["block"]],
+    blockr.block.revision = block[["revision"]]
+  )
+
+  log_conditions(reply, about, attributes)
+  log_reason(reply, about, attributes)
 }
 
 # How a log line names a request that names no block: by its name and the
@@ -578,6 +582,28 @@ request_subject <- function(job) {
   }
 
   paste("Request", req[["name"]], "of", of)
+}
+
+# Logs why the block of a reply to an evaluation is invalid or waiting, at
+# debug, as "Block c at revision 9 is invalid: Choose a column."
+# The reason is part of the block's status, as a ready block's summary is,
+# rather than a condition, which R logs at the level of its severity.
+log_reason <- function(reply, about, attributes = list()) {
+
+  reason <- reply[["reason"]]
+
+  if (is.null(reason)) {
+    return(invisible())
+  }
+
+  write_log(
+    about, " is ", reply[["status"]], ": ", reason[["message"]],
+    level = "debug",
+    use_glue = FALSE,
+    attributes = attributes
+  )
+
+  invisible()
 }
 
 # Logs each condition of a reply at the level of its severity: a message at

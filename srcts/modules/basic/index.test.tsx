@@ -278,6 +278,25 @@ describe("a card", () => {
     expect(banners(card(el, "Head"))).toEqual([["message", "Took the head"]]);
   });
 
+  test("shows why an invalid block does not run on its footer's line, with no pill for it, whatever show_conditions names", async () => {
+    const { el, core } = await drawn({
+      evaluate: (request) =>
+        request.block === "c"
+          ? { status: "invalid", reason: { message: "Choose at least one column to join by.", arg: ["by"] } }
+          : undefined,
+    });
+
+    const merge = card(el, "Merge");
+    expect(badge(merge)).toBe("invalid");
+    expect(line(merge)).toEqual(["Choose at least one column to join by."]);
+    expect(banners(merge)).toEqual([]);
+
+    await step(() => {
+      core.store.apply({ options: { set: { show_conditions: ["error"] } } });
+    });
+    expect(line(card(el, "Merge"))).toEqual(["Choose at least one column to join by."]);
+  });
+
   test("greys its output out while its block is not ready, but not its footer, which shows a failed block's error and why a block waits", async () => {
     let fails = false;
     const { el, core, settled } = await drawn({
@@ -313,7 +332,7 @@ describe("a card", () => {
     // The blocks downstream of a failed block wait on it, and their footers
     // say why, whatever show_conditions names.
     expect(core.scheduler.status("c")?.status).toBe("waiting");
-    const why = core.scheduler.status("c")?.conditions[0]?.message;
+    const why = core.scheduler.status("c")?.reason?.message;
     expect(why).toMatch(/^This block is waiting for/);
     expect(badge(card(el, "Merge"))).toBe("waiting");
     expect(find(card(el, "Merge"), "footer").textContent).toBe(why);

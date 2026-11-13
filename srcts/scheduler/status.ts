@@ -6,18 +6,21 @@ import type { Graph } from "../graph/index.ts";
 import type {
   Condition,
   EvaluateReply,
+  Reason,
   Reply,
 } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
-import { quoted } from "../util/index.ts";
+import { jsonEqual, quoted } from "../util/index.ts";
 import type { Inputs } from "./recipes.ts";
 
 // A block's status is the first of these that holds:
-// - It reads `waiting` while it cannot run.
+// - It reads `waiting` while an input or a block upstream keeps it from
+//   running.
 // - It reads `unevaluated` before its first reply.
 // - It reads `stale` while its revision is newer than its latest reply's.
-// - Otherwise it reads what that reply says: `ready` for ok, `failed` for error
-//   and `invalid` for invalid.
+// - Otherwise it reads what that reply says: `ready` for ok, `failed` for
+//   error, `invalid` for invalid and `waiting` for waiting, which R replies for
+//   a block that runs only once asked, such as by its save button.
 export type Status =
   | "unevaluated"
   | "stale"
@@ -34,24 +37,28 @@ export interface BlockStatus {
   readonly evaluated: number | null;
   // Whether an evaluation of it is sent and not yet answered.
   readonly running: boolean;
-  // From the latest reply, which replaces those of the reply before. While the
-  // block is waiting, it holds the one condition the scheduler writes, of the
-  // phase `status`.
+  // From the latest reply, which replaces those of the reply before. A block
+  // that an input or a block upstream keeps waiting has none.
   readonly conditions: readonly Condition[];
   // Its standard output and error.
   readonly stdout: string;
   readonly stderr: string;
   // The result's summary from that reply, as "<data.frame> [150 × 7]".
   readonly summary: string | null;
+  // Why the block is invalid or waiting, from that reply, as R sends it.
+  // Where an input or a block upstream keeps the block waiting, the scheduler
+  // writes it, naming what the block waits for.
+  readonly reason: Reason | null;
 }
 
 // What a reply to an evaluation says about the block. An error that R raised
 // before it read the request, such as a refusal by the lock, comes without a
 // summary or an output.
 export interface Outcome {
-  readonly status: "ok" | "error" | "invalid";
+  readonly status: "ok" | "error" | "invalid" | "waiting";
   readonly revision: number;
   readonly summary: string | null;
+  readonly reason: Reason | null;
   readonly conditions: readonly Condition[];
   readonly stdout: string;
   readonly stderr: string;
@@ -68,6 +75,7 @@ export function replyOutcome(reply: Reply, revision: number): Outcome | undefine
     status: reply.status,
     revision,
     summary: evaluated.summary ?? null,
+    reason: evaluated.reason ?? null,
     conditions: evaluated.conditions ?? NO_CONDITIONS,
     stdout: evaluated.stdout ?? "",
     stderr: evaluated.stderr ?? "",
@@ -81,6 +89,7 @@ export function unsent(revision: number, message: string): Outcome {
     status: "error",
     revision,
     summary: null,
+    reason: null,
     conditions: [
       {
         severity: "error",
@@ -104,26 +113,28 @@ export function unevaluated(revision: number, running: boolean): BlockStatus {
     stdout: "",
     stderr: "",
     summary: null,
+    reason: null,
   };
 }
 
+// The status that a reply for the block's current revision gives it.
+const REPLIED: Readonly<Record<Outcome["status"], Status>> = {
+  ok: "ready",
+  error: "failed",
+  invalid: "invalid",
+  waiting: "waiting",
+};
+
 // What a block reads with a reply, for its revision now. Where the reply is for
-// an older revision, the block reads stale but keeps the reply's conditions. A
-// block that failed before it went stale then shows why.
+// an older revision, the block reads stale but keeps the reply's conditions and
+// reason. A block that failed before it went stale then shows why.
 export function replied(
   outcome: Outcome,
   revision: number,
   running: boolean,
 ): BlockStatus {
   return {
-    status:
-      outcome.revision !== revision
-        ? "stale"
-        : outcome.status === "ok"
-          ? "ready"
-          : outcome.status === "error"
-            ? "failed"
-            : "invalid",
+    status: outcome.revision !== revision ? "stale" : REPLIED[outcome.status],
     revision,
     evaluated: outcome.revision,
     running,
@@ -131,13 +142,14 @@ export function replied(
     stdout: outcome.stdout,
     stderr: outcome.stderr,
     summary: outcome.summary,
+    reason: outcome.reason,
   };
 }
 
-// What a block reads while it cannot run. It has no summary, and its one
-// condition names what it waits for.
+// What a block reads while an input or a block upstream keeps it from running.
+// It has no summary and no conditions, and its reason names what it waits for.
 export function waiting(
-  why: Condition,
+  why: Reason,
   revision: number,
   evaluated: number | null,
   running: boolean,
@@ -147,19 +159,20 @@ export function waiting(
     revision,
     evaluated,
     running,
-    conditions: [why],
+    conditions: NO_CONDITIONS,
     stdout: "",
     stderr: "",
     summary: null,
+    reason: why,
   };
 }
 
-// The condition of a waiting block. It names the inputs that no link feeds,
-// or else the blocks upstream that keep the block waiting. It is a message,
-// since the status already says that the block waits.
+// The reason of a block that an input or a block upstream keeps waiting. It
+// names the inputs that no link feeds, or else the blocks upstream that keep
+// the block waiting, and concerns no state arg.
 export function waitingFor(
   what: { unlinked: readonly string[] } | { upstream: readonly BlockId[] },
-): Condition {
+): Reason {
   let message: string;
   if ("upstream" in what) {
     const blocks = what.upstream.length === 1 ? "block" : "blocks";
@@ -170,12 +183,7 @@ export function waitingFor(
     const inputs = what.unlinked.length === 1 ? "input" : "inputs";
     message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
   }
-  return {
-    severity: "message",
-    class: ["blockr_message", "message", "condition"],
-    phase: "status",
-    message,
-  };
+  return { message, arg: [] };
 }
 
 // Whether two statuses read the same. The scheduler then keeps handing out the
@@ -189,12 +197,11 @@ export function sameStatus(a: BlockStatus, b: BlockStatus): boolean {
     a.stdout === b.stdout &&
     a.stderr === b.stderr &&
     a.summary === b.summary &&
+    // The scheduler writes the reason of a block that it keeps waiting afresh
+    // in each pass.
+    jsonEqual(a.reason, b.reason) &&
     a.conditions.length === b.conditions.length &&
-    a.conditions.every(
-      (condition, i) =>
-        condition === b.conditions[i] ||
-        (condition.phase === "status" && condition.message === b.conditions[i]?.message),
-    )
+    a.conditions.every((condition, i) => condition === b.conditions[i])
   );
 }
 
@@ -219,7 +226,7 @@ export function blockStatuses(input: {
     if (revision === undefined) continue;
     const outcome = input.outcomes.get(id);
     const running = input.running.has(id);
-    const reason = why(id);
+    const reason = keptWaiting(input.inputs.get(id), statuses);
     const now =
       reason !== undefined
         ? waiting(reason, revision, outcome?.revision ?? null, running)
@@ -239,28 +246,34 @@ export function blockStatuses(input: {
     if (!statuses.has(id)) changed.push(id);
   }
   return { statuses, changed };
-
-  // Why a block cannot run, if it cannot. A block cannot run in three cases:
-  // - An input has no link, and R does not bind it.
-  // - A variadic block has no link.
-  // - A block that it reads has the status failed, invalid or waiting.
-  function why(id: BlockId): Condition | undefined {
-    const inputs = input.inputs.get(id);
-    const unlinked = inputs?.unlinked ?? [];
-    if (unlinked.length > 0) return waitingFor({ unlinked });
-    const reads = (inputs?.recipe ?? []).flatMap((read) => read.block ?? []);
-    const blocked = [...new Set(reads)].filter((up) => {
-      const status = statuses.get(up)?.status;
-      return status === "failed" || status === "invalid" || status === "waiting";
-    });
-    return blocked.length > 0 ? waitingFor({ upstream: blocked }) : undefined;
-  }
 }
 
-// Why an evaluation with parameters is not sent: the block reads waiting, for
-// what its status's condition names.
+// Why an input or a block upstream keeps a block from running, if one does,
+// from the block's inputs and the statuses of the blocks it reads. That is so
+// in three cases:
+// - An input has no link, and R does not bind it.
+// - A variadic block has no link.
+// - A block that it reads has the status failed, invalid or waiting.
+// A block that R says waits is not kept waiting so, since it runs once a
+// one-time evaluation asks, as a save button does.
+export function keptWaiting(
+  inputs: Inputs | undefined,
+  statuses: ReadonlyMap<BlockId, BlockStatus>,
+): Reason | undefined {
+  const unlinked = inputs?.unlinked ?? [];
+  if (unlinked.length > 0) return waitingFor({ unlinked });
+  const reads = (inputs?.recipe ?? []).flatMap((read) => read.block ?? []);
+  const blocked = [...new Set(reads)].filter((up) => {
+    const status = statuses.get(up)?.status;
+    return status === "failed" || status === "invalid" || status === "waiting";
+  });
+  return blocked.length > 0 ? waitingFor({ upstream: blocked }) : undefined;
+}
+
+// Why an evaluation with parameters is not sent: an input or a block upstream
+// keeps the block waiting, as the reason of its status names.
 export function waitingError(id: BlockId, status: BlockStatus): Error {
-  const why = status.conditions[0]?.message ?? "This block is waiting.";
+  const why = status.reason?.message ?? "This block is waiting.";
   return new Error(
     `${why.replace(/^This block/, `Block "${id}"`)} Its evaluation with parameters is not sent.`,
   );

@@ -32,6 +32,7 @@ const types: Record<string, string> = {
   "evaluate-variadic": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-error": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-invalid": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
+  "evaluate-waiting": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-params": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-missing": "Fixture<[EvaluateRequest], [[MissingReply]]>",
   "evaluate-locked": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",

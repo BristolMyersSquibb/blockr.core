@@ -88,6 +88,7 @@ export function playR() {
         block: request.block,
         revision: request.revision,
         summary: status === "ok" ? "<data.frame> [150 × 5]" : null,
+        reason: null,
         conditions: [],
         stdout: "",
         stderr: "",

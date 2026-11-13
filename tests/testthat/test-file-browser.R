@@ -42,13 +42,19 @@ test_that("a file browser block gives the path of its file", {
   res <- evaluate_block(filebrowser_block, list(volumes = vols))
 
   expect_identical(res[["status"]], "invalid")
-  expect_identical(res[["conditions"]][[1L]][["message"]], "Choose a file.")
+  expect_identical(
+    res[["reason"]],
+    list(message = "Choose a file.", arg = "file_path")
+  )
 
   res <- evaluate_block(filebrowser_block,
                         list(file_path = "", volumes = vols))
 
   expect_identical(res[["status"]], "invalid")
-  expect_identical(res[["conditions"]][[1L]][["message"]], "Choose a file.")
+  expect_identical(
+    res[["reason"]],
+    list(message = "Choose a file.", arg = "file_path")
+  )
 
   res <- evaluate_block(
     filebrowser_block,

@@ -73,15 +73,29 @@ glue_plur <- function(..., envir = parent.frame()) {
 #' addition to `class`, conditions inherit from "blockr_error",
 #' "blockr_warning" or "blockr_message".
 #'
-#' The fourth wrapper, `blockr_invalid()`, signals that a block's state cannot
-#' run yet, such as a selection the user emptied, as an error that also
-#' inherits from "blockr_invalid". R then reports the block as `invalid`
-#' rather than `error`, records the condition as a message, and runs nothing.
-#' A block class signals it from its `expr`, while the check of a function
-#' given as its `inputs` signals an error with `blockr_abort()` (see
-#' [new_block_class()]).
+#' Two more wrappers stop a block without failing it.
+#' Each signals an error that also inherits from "blockr_invalid" or
+#' "blockr_waiting", and R then runs nothing more of the block and reports it
+#' with the status of that name.
+#' R records neither error as a condition of the evaluation,
+#' but keeps its message as the block's reason (see [evaluate_block()]).
+#'
+#' - The signal `blockr_invalid()` says that a block's state cannot run yet,
+#'   such as a selection the user emptied.
+#'   Its `arg` names the state args that the reason concerns,
+#'   so that a block's UI shows the reason by the fields of those args.
+#' - The signal `blockr_waiting()` says that a block's state can run, but that
+#'   the block runs only once something else happens.
+#'   An example is the write block of blockr.io in manual mode:
+#'   it writes only once its save button passes `save` to its `block_eval()`
+#'   method.
+#'
+#' A block class signals either from its `expr` or a [block_eval()] method,
+#' while the check of a function given as its `inputs` signals an error with
+#' `blockr_abort()` (see [new_block_class()]).
 #'
 #' @param ... Forwarded to [cli::pluralize()]
+#' @param arg The state args that the reason concerns, as a character vector
 #' @param class Condition class
 #' @param envir Forwarded to [cli::pluralize()]
 #'
@@ -98,7 +112,7 @@ glue_plur <- function(..., envir = parent.frame()) {
 #'   },
 #'   expr = function(by) {
 #'     if (!length(by)) {
-#'       blockr_invalid("Choose at least one column to join by.")
+#'       blockr_invalid("Choose at least one column to join by.", arg = "by")
 #'     }
 #'     bbquote(merge(.(x), .(y), by = .(by)))
 #'   },
@@ -118,10 +132,30 @@ blockr_abort <- function(..., class = character(), envir = parent.frame()) {
 
 #' @rdname blockr_abort
 #' @export
-blockr_invalid <- function(..., class = character(), envir = parent.frame()) {
+blockr_invalid <- function(..., arg = character(), class = character(),
+                           envir = parent.frame()) {
+
+  if (!is.character(arg) || anyNA(arg)) {
+    blockr_abort(
+      "The `arg` of `blockr_invalid()` names state args, as a character ",
+      "vector.",
+      class = "blockr_invalid_arg_invalid"
+    )
+  }
+
   rlang::abort(
     glue_plur(..., envir = envir),
-    c(class, "blockr_invalid", "blockr_error")
+    c(class, "blockr_invalid", "blockr_error"),
+    arg = arg
+  )
+}
+
+#' @rdname blockr_abort
+#' @export
+blockr_waiting <- function(..., class = character(), envir = parent.frame()) {
+  rlang::abort(
+    glue_plur(..., envir = envir),
+    c(class, "blockr_waiting", "blockr_error")
   )
 }
 

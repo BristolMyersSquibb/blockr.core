@@ -3,13 +3,21 @@
 \name{blockr_abort}
 \alias{blockr_abort}
 \alias{blockr_invalid}
+\alias{blockr_waiting}
 \alias{blockr_warn}
 \alias{blockr_inform}
 \title{Blockr conditions}
 \usage{
 blockr_abort(..., class = character(), envir = parent.frame())
 
-blockr_invalid(..., class = character(), envir = parent.frame())
+blockr_invalid(
+  ...,
+  arg = character(),
+  class = character(),
+  envir = parent.frame()
+)
+
+blockr_waiting(..., class = character(), envir = parent.frame())
 
 blockr_warn(
   ...,
@@ -34,6 +42,8 @@ blockr_inform(
 
 \item{envir}{Forwarded to \code{\link[cli:pluralize]{cli::pluralize()}}}
 
+\item{arg}{The state args that the reason concerns, as a character vector}
+
 \item{frequency, frequency_id}{Forwarded to \code{\link[rlang:warn]{rlang::warn()}}}
 }
 \value{
@@ -45,13 +55,27 @@ addition to \code{class}, conditions inherit from "blockr_error",
 "blockr_warning" or "blockr_message".
 }
 \details{
-The fourth wrapper, \code{blockr_invalid()}, signals that a block's state cannot
-run yet, such as a selection the user emptied, as an error that also
-inherits from "blockr_invalid". R then reports the block as \code{invalid}
-rather than \code{error}, records the condition as a message, and runs nothing.
-A block class signals it from its \code{expr}, while the check of a function
-given as its \code{inputs} signals an error with \code{blockr_abort()} (see
-\code{\link[=new_block_class]{new_block_class()}}).
+Two more wrappers stop a block without failing it.
+Each signals an error that also inherits from "blockr_invalid" or
+"blockr_waiting", and R then runs nothing more of the block and reports it
+with the status of that name.
+R records neither error as a condition of the evaluation,
+but keeps its message as the block's reason (see \code{\link[=evaluate_block]{evaluate_block()}}).
+\itemize{
+\item The signal \code{blockr_invalid()} says that a block's state cannot run yet,
+such as a selection the user emptied.
+Its \code{arg} names the state args that the reason concerns,
+so that a block's UI shows the reason by the fields of those args.
+\item The signal \code{blockr_waiting()} says that a block's state can run, but that
+the block runs only once something else happens.
+An example is the write block of blockr.io in manual mode:
+it writes only once its save button passes \code{save} to its \code{block_eval()}
+method.
+}
+
+A block class signals either from its \code{expr} or a \code{\link[=block_eval]{block_eval()}} method,
+while the check of a function given as its \code{inputs} signals an error with
+\code{blockr_abort()} (see \code{\link[=new_block_class]{new_block_class()}}).
 }
 \examples{
 merge_block <- new_block_class(
@@ -64,7 +88,7 @@ merge_block <- new_block_class(
   },
   expr = function(by) {
     if (!length(by)) {
-      blockr_invalid("Choose at least one column to join by.")
+      blockr_invalid("Choose at least one column to join by.", arg = "by")
     }
     bbquote(merge(.(x), .(y), by = .(by)))
   },

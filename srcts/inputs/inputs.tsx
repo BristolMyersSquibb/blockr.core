@@ -7,6 +7,8 @@
 // until the user presses Enter or leaves it,
 // submits a pick at once,
 // and says below itself why the host refused what it submitted.
+// Below itself, in muted text, it also says why its block is invalid or
+// waiting, where the reason concerns its value.
 // A label holds its input, so that it needs no id,
 // as a block's UI may be mounted in several places at once.
 
@@ -68,6 +70,7 @@ export function TextInput({
   return (
     <>
       <Field label={label}>{lines > 1 ? <textarea rows={lines} {...props} /> : <input type="text" {...props} />}</Field>
+      <Reason reason={bound.reason} />
       <Refusal error={bound.error} />
     </>
   );
@@ -108,12 +111,12 @@ export function NumberInput({
     const trimmed = input.trim();
     if (trimmed === "") return {};
     const value = Number(trimmed);
-    if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
+    if (!Number.isInteger(value)) return { error: `${trimmed} is not a whole number.` };
     if (min !== undefined && value < min) {
-      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
+      return { error: `${trimmed} is below the minimum of ${String(min)}.` };
     }
     if (largest !== undefined && value > largest) {
-      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
+      return { error: `${trimmed} is above the maximum of ${String(largest)}.` };
     }
     return { value };
   };
@@ -153,7 +156,8 @@ export function NumberInput({
           onBlur={settle}
         />
       </Field>
-      <Refusal error={checked.reason ?? bound.error} />
+      <Reason reason={bound.reason} />
+      <Refusal error={checked.error ?? bound.error} />
     </>
   );
 }
@@ -162,7 +166,7 @@ export function NumberInput({
 // and otherwise why it does not, but for an empty text, which needs no saying.
 interface Read {
   readonly value?: number;
-  readonly reason?: string;
+  readonly error?: string;
 }
 
 // A select of one string, which shows `placeholder` while the value is unset.
@@ -215,6 +219,7 @@ export function Select({
           ))}
         </select>
       </Field>
+      <Reason reason={bound.reason} />
       <Refusal error={bound.error} />
     </>
   );
@@ -234,6 +239,7 @@ export function Checkbox({ bound, label }: { bound: Bound; label: string }): Rea
         />
         {label}
       </label>
+      <Reason reason={bound.reason} />
       <Refusal error={bound.error} />
     </>
   );
@@ -309,6 +315,7 @@ export function Checklist({
         })}
         {choices !== undefined && empty !== undefined && shown.length === 0 && <p className={styles.hint}>{empty}</p>}
       </div>
+      <Reason reason={bound.reason} />
       <Refusal error={bound.error} />
     </fieldset>
   );
@@ -317,6 +324,12 @@ export function Checklist({
 // How a select or a checklist shows a value that its choices lack.
 function missing(value: string): string {
   return `${value} (not available)`;
+}
+
+// Says why the block is invalid or waiting, where the reason concerns the
+// input's value, in muted text.
+function Reason({ reason }: { reason: string | null }): ReactElement | null {
+  return reason === null ? null : <p className={styles.hint}>{reason}</p>;
 }
 
 // Says why the host refused what an input submitted.

@@ -1,0 +1,38 @@
+{
+  "description": "An evaluation of blockr.io's write block w in manual mode, without the parameter save that its save button passes. Its block_eval() method signals blockr_waiting() for it, so R writes nothing and replies waiting, with the method's message as the reason, which concerns no state arg.",
+  "client": [
+    {
+      "id": "31",
+      "kind": "evaluate",
+      "block": "w",
+      "revision": 12,
+      "locked": null,
+      "recipe": {
+        "registry_id": "blockr.io-write_block",
+        "state": {
+          "directory": "exports",
+          "filename": "iris",
+          "format": "csv",
+          "auto_write": false,
+          "args": {}
+        },
+        "inputs": [{ "input": "", "block": "c", "revision": 4 }]
+      }
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "31",
+        "status": "waiting",
+        "block": "w",
+        "revision": 12,
+        "summary": null,
+        "reason": { "message": "Save to write the file.", "arg": [] },
+        "conditions": [],
+        "stdout": "",
+        "stderr": ""
+      }
+    ]
+  ]
+}

@@ -114,9 +114,8 @@ page requires the board option (see \code{\link[=blockr_option]{blockr_option()}
 So \code{options(blockr.n_rows = 25L)}, or the environment variable
 \code{BLOCKR_N_ROWS}, still sets the rows of a page on a board that holds no
 value for \code{n_rows}.
-Without a blockr option, \code{n_rows} takes 10, \code{show_conditions} messages,
-warnings and errors, and \code{dark_mode} the theme that the user's system
-prefers.
+Without a blockr option, \code{n_rows} takes 10, \code{show_conditions} warnings and
+errors, and \code{dark_mode} the theme that the user's system prefers.
 
 Several board options make a \code{board_options} object, which
 \code{new_board_options()} makes, holding one board option per ID. The predicate

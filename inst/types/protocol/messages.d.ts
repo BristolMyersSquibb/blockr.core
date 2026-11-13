@@ -5,7 +5,7 @@ import type { RegistryEntry } from "../types/registry.ts";
 export declare const PROTOCOL_VERSION = "1.0";
 export type Kind = "hello" | "blockr_options" | "evaluate" | "request" | "output" | "cancel" | "forget";
 export type Capability = "cancel" | "interrupt" | "progress";
-export type ReplyStatus = "ok" | "error" | "cancelled" | "invalid" | "missing";
+export type ReplyStatus = "ok" | "error" | "cancelled" | "invalid" | "waiting" | "missing";
 export type ClientMessage = Request[];
 export type RMessage = (Reply | Progress)[];
 export type Request = HelloRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | PluginRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
@@ -100,13 +100,18 @@ export type RecipeInput = (BlockRevision & {
 };
 export interface EvaluateReply {
     id: string;
-    status: "ok" | "error" | "invalid";
+    status: "ok" | "error" | "invalid" | "waiting";
     block: BlockId;
     revision: number;
     summary: string | null;
+    reason: Reason | null;
     conditions: Condition[];
     stdout: string;
     stderr: string;
+}
+export interface Reason {
+    message: string;
+    arg: string[];
 }
 export interface Condition {
     severity: "error" | "warning" | "message";
@@ -114,7 +119,7 @@ export interface Condition {
     phase?: Phase;
     message: string;
 }
-export type Phase = "expr" | "inputs" | "block_eval" | "result_summary" | "output" | "request" | "status";
+export type Phase = "expr" | "inputs" | "block_eval" | "result_summary" | "output" | "request";
 export interface BlockClassRequest {
     id: string;
     kind: "request";

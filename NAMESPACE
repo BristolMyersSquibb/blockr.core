@@ -273,6 +273,7 @@ export(blockr_inform)
 export(blockr_invalid)
 export(blockr_option)
 export(blockr_ser)
+export(blockr_waiting)
 export(blockr_warn)
 export(blocks)
 export(board_block_ids)
@@ -462,11 +463,13 @@ export(write_log)
 import(vctrs)
 importFrom(cli,qty)
 importFrom(evaluate,replay)
-importFrom(generics,intersect)
-importFrom(generics,is.element)
-importFrom(generics,setdiff)
-importFrom(generics,setequal)
-importFrom(generics,union)
+importFrom(generics,
+  intersect,
+  is.element,
+  setdiff,
+  setequal,
+  union
+)
 importFrom(grDevices,col2rgb)
 importFrom(graphics,plot)
 importFrom(methods,is)

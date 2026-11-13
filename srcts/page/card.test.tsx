@@ -227,27 +227,36 @@ describe("the card of a block that serve() serves alone", () => {
     expect(banners(el)).toEqual([["error", "object 'Petal' not found"]]);
   });
 
-  test("shows why a waiting block waits, and an invalid block's reason as a message", async () => {
+  test("shows why a waiting or an invalid block does not run on the footer's line, muted, and pills for the block's conditions alone", async () => {
     const r = played();
     const { el } = draw(r.core);
 
     await r.set({
       status: "waiting",
       evaluated: null,
-      conditions: [{ ...condition("message", 'This block is waiting for its input "data" to be linked.'), phase: "status" }],
+      reason: { message: 'This block is waiting for its input "data" to be linked.', arg: [] },
     });
     expect(footer(el).textContent).toBe('This block is waiting for its input "data" to be linked.');
+    expect(find(footer(el), "span > span").className).toContain("bc:text-text-muted");
     expect(footer(el).querySelector("button")).toBeNull();
     expect(footer(el).className).not.toContain("bc:opacity-50");
     expect(banners(el)).toEqual([]);
 
-    // R reports why a block is invalid as a message, whose pill opens its
-    // banner, as any message's does, and no pill of the errors.
-    await r.set({ status: "invalid", conditions: [condition("message", "Upload a file.")] });
-    expect(line(el)).toEqual(["1 message"]);
+    // Why a block is invalid is no condition, so no pill counts it.
+    await r.set({ status: "invalid", reason: { message: "Upload a file.", arg: ["file_path"] } });
+    expect(line(el)).toEqual(["Upload a file."]);
     expect(banners(el)).toEqual([]);
+
+    // A block that R says waits shows its reason beside the pills of the
+    // conditions that R raised.
+    await r.set({
+      status: "waiting",
+      reason: { message: "Save to write the file.", arg: [] },
+      conditions: [condition("message", "Checked the path.")],
+    });
+    expect(line(el)).toEqual(["Save to write the file.", "1 message"]);
     await click(pill(el, "1 message"));
-    expect(banners(el)).toEqual([["message", "Upload a file."]]);
+    expect(banners(el)).toEqual([["message", "Checked the path."]]);
   });
 
   test("dims the footer and the output while R evaluates the block, and keeps what they show", async () => {
@@ -283,7 +292,7 @@ describe("the card of a block that serve() serves alone", () => {
     expect(box(el).className).not.toContain("bc:h-96");
     expect(line(el)).toEqual(["error"]);
     expect(banners(el)).toEqual([["error", "object 'Sepal' not found"]]);
-    await r.set({ status: "invalid", revision: 2, evaluated: 2, conditions: [condition("message", "Save to write the file.")] });
+    await r.set({ status: "invalid", revision: 2, evaluated: 2, reason: { message: "Choose a column.", arg: ["x"] } });
     expect(output(el).className).toContain("bc:h-0");
 
     await r.set({ revision: 3, evaluated: 3, summary: "<data.frame> [6 × 5]" });
@@ -299,7 +308,7 @@ describe("the card of a block that serve() serves alone", () => {
       status: "waiting",
       revision: 5,
       evaluated: 4,
-      conditions: [{ ...condition("message", 'This block is waiting for its input "data" to be linked.'), phase: "status" }],
+      reason: { message: 'This block is waiting for its input "data" to be linked.', arg: [] },
     });
     expect(output(el).className).toContain("bc:flex-1");
     expect(box(el).className).toContain("bc:h-96");

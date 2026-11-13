@@ -44,7 +44,7 @@ filebrowser_block <- new_block_class(
   "filebrowser_block",
   expr = function(file_path, volumes = filebrowser_volumes()) {
     if (missing(file_path) || !isTRUE(nzchar(file_path))) {
-      blockr_invalid("Choose a file.")
+      blockr_invalid("Choose a file.", arg = "file_path")
     }
     call("file.path", file_path)
   },

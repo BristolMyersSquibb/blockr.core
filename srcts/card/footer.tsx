@@ -4,11 +4,11 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve).
 //
 // - The footer is one centred line of the block's status: a ready block's
-//   summary, or why a waiting block waits, and a pill for each severity of the
-//   conditions of R's reply that the card shows.
+//   summary, or the reason of an invalid or a waiting block, and a pill for
+//   each severity of the conditions of R's reply that the card shows.
 //   The pill of the errors reads "error", and those of the warnings and the
 //   messages count them, as "2 warnings".
-//   The footer writes out no message of R's, which may be of any length.
+//   The footer writes out no condition's message, which may be of any length.
 // - The banners are those of the conditions whose pills are open, in the
 //   order R raised them: each condition in full, in the colour of its
 //   severity.
@@ -89,7 +89,7 @@ export function Banners({ shown, severities, open, panel }: FooterProps): ReactE
   const listed =
     shown === undefined
       ? []
-      : statusConditions(shown).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+      : shown.conditions.filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
   if (listed.length === 0) return null;
   return (
     <ul id={panel} aria-label="Conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0">
@@ -128,8 +128,8 @@ const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: stri
 };
 
 // The line of the footer for a status that has one: a ready block's summary,
-// or why a waiting block waits, and a pill for each severity given of the
-// conditions of R's reply.
+// or the reason of an invalid or a waiting block, in muted text, and a pill
+// for each severity given of the conditions of R's reply.
 // The pill of the errors reads "error", and those of the warnings and the
 // messages count them.
 function StatusLine({
@@ -145,9 +145,12 @@ function StatusLine({
   open: ReadonlySet<Severity>;
   toggle: (severity: Severity) => void;
 }): ReactElement | null {
-  if (status.status === "waiting") {
-    return <span className="bc:text-text-muted">{status.conditions[0]?.message}</span>;
-  }
+  const said =
+    status.status === "ready"
+      ? status.summary
+      : status.status === "invalid" || status.status === "waiting"
+        ? (status.reason?.message ?? null)
+        : null;
 
   const pills = SEVERITIES.filter((severity) => severities.includes(severity)).flatMap((severity) => {
     const n = status.conditions.filter((condition) => condition.severity === severity).length;
@@ -172,7 +175,7 @@ function StatusLine({
 
   return (
     <span className="bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2">
-      {status.status === "ready" && status.summary !== null ? <span className="bc:text-text-muted">{status.summary}</span> : null}
+      {said === null ? null : <span className="bc:text-text-muted">{said}</span>}
       {pills}
     </span>
   );
@@ -242,9 +245,3 @@ function useShown(status: BlockStatus | undefined): BlockStatus | undefined {
 // The severities whose banners are open as the card starts: the errors, since
 // their pill names no more of them than their severity.
 const OPEN_AT_START: ReadonlySet<Severity> = new Set<Severity>(["error"]);
-
-// The conditions that the footer opens to, in the order R raised them: those
-// of R's reply, which a waiting block has none of.
-function statusConditions(status: BlockStatus): readonly Condition[] {
-  return status.status === "waiting" ? [] : status.conditions;
-}

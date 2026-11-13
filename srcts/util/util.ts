@@ -1,6 +1,7 @@
 // What the client's modules share: reading and writing plain data without
 // changing it in place, the text of messages, and errors.
 
+import type { BlockStatus } from "../scheduler/index.ts";
 import type { Json } from "../types/json.ts";
 
 // An object's own value under a key, which an id such as "constructor" never
@@ -129,6 +130,14 @@ export function quoted(items: readonly string[]): string {
 
 export function pathText(path: readonly string[]): string {
   return path.join("/");
+}
+
+// The message of the reason why a block is invalid or waiting, where the
+// reason concerns the state arg, which the field bound to that arg shows, and
+// null otherwise.
+export function reasonFor(status: BlockStatus, arg: string): string | null {
+  const reason = status.reason;
+  return reason?.arg.includes(arg) === true ? reason.message : null;
 }
 
 // The package that an id names, "blockr.dag" for "blockr.dag-dag" or

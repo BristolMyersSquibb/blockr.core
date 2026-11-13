@@ -14,6 +14,10 @@ function report(error) {
     throw error;
   });
 }
+function reasonFor(status, arg) {
+  const reason = status.reason;
+  return reason?.arg.includes(arg) === true ? reason.message : null;
+}
 
 // srcts/react/hooks.ts
 var snapshots = /* @__PURE__ */ new WeakMap();
@@ -42,6 +46,7 @@ function useValue(host, key) {
   const name = key ?? ("option" in host ? host.option : "");
   const [value, setValue] = useState(() => held(host, name));
   const [error, setError] = useState(null);
+  const reason = useReason(host, name);
   const binding = useRef(null);
   useLayoutEffect(() => {
     const bound = bind(host, name, setValue, {
@@ -59,6 +64,7 @@ function useValue(host, key) {
     () => ({
       value,
       error,
+      reason,
       get: () => binding.current?.get() ?? held(host, name),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
       type: (next) => {
@@ -68,8 +74,16 @@ function useValue(host, key) {
         binding.current?.flush();
       }
     }),
-    [value, error, host, name]
+    [value, error, reason, host, name]
   );
+}
+function useReason(host, key) {
+  const subscribe = useCallback(
+    (notify) => "option" in host ? () => void 0 : host.on("context", notify),
+    [host]
+  );
+  const read = useCallback(() => "option" in host ? null : reasonFor(host.context().status, key), [host, key]);
+  return useSyncExternalStore(subscribe, read);
 }
 function useRequest(host, name, options = {}) {
   const [answered, setAnswered] = useState({ answer: void 0, error: null, loading: true });
@@ -219,6 +233,7 @@ function TextInput({
   };
   return /* @__PURE__ */ jsxs2(Fragment, { children: [
     /* @__PURE__ */ jsx2(Field, { label, children: lines > 1 ? /* @__PURE__ */ jsx2("textarea", { rows: lines, ...props }) : /* @__PURE__ */ jsx2("input", { type: "text", ...props }) }),
+    /* @__PURE__ */ jsx2(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
   ] });
 }
@@ -236,12 +251,12 @@ function NumberInput({
     const trimmed = input.trim();
     if (trimmed === "") return {};
     const value = Number(trimmed);
-    if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
+    if (!Number.isInteger(value)) return { error: `${trimmed} is not a whole number.` };
     if (min !== void 0 && value < min) {
-      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
+      return { error: `${trimmed} is below the minimum of ${String(min)}.` };
     }
     if (largest !== void 0 && value > largest) {
-      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
+      return { error: `${trimmed} is above the maximum of ${String(largest)}.` };
     }
     return { value };
   };
@@ -278,7 +293,8 @@ function NumberInput({
         onBlur: settle
       }
     ) }),
-    /* @__PURE__ */ jsx2(Refusal, { error: checked.reason ?? bound.error })
+    /* @__PURE__ */ jsx2(Reason, { reason: bound.reason }),
+    /* @__PURE__ */ jsx2(Refusal, { error: checked.error ?? bound.error })
   ] });
 }
 function Select({
@@ -309,6 +325,7 @@ function Select({
         ]
       }
     ) }),
+    /* @__PURE__ */ jsx2(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
   ] });
 }
@@ -328,6 +345,7 @@ function Checkbox({ bound, label }) {
       ),
       label
     ] }),
+    /* @__PURE__ */ jsx2(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
   ] });
 }
@@ -373,11 +391,15 @@ function Checklist({
       }),
       choices !== void 0 && empty !== void 0 && shown.length === 0 && /* @__PURE__ */ jsx2("p", { className: styles.hint, children: empty })
     ] }),
+    /* @__PURE__ */ jsx2(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
   ] });
 }
 function missing(value) {
   return `${value} (not available)`;
+}
+function Reason({ reason }) {
+  return reason === null ? null : /* @__PURE__ */ jsx2("p", { className: styles.hint, children: reason });
 }
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx2("p", { role: "alert", className: styles.alert, children: error });

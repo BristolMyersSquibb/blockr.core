@@ -1,5 +1,5 @@
 import type { Graph } from "../graph/index.ts";
-import type { Condition, Reply } from "../protocol/index.ts";
+import type { Condition, Reason, Reply } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { Inputs } from "./recipes.ts";
 export type Status = "unevaluated" | "stale" | "waiting" | "invalid" | "ready" | "failed";
@@ -12,11 +12,13 @@ export interface BlockStatus {
     readonly stdout: string;
     readonly stderr: string;
     readonly summary: string | null;
+    readonly reason: Reason | null;
 }
 export interface Outcome {
-    readonly status: "ok" | "error" | "invalid";
+    readonly status: "ok" | "error" | "invalid" | "waiting";
     readonly revision: number;
     readonly summary: string | null;
+    readonly reason: Reason | null;
     readonly conditions: readonly Condition[];
     readonly stdout: string;
     readonly stderr: string;
@@ -25,12 +27,12 @@ export declare function replyOutcome(reply: Reply, revision: number): Outcome | 
 export declare function unsent(revision: number, message: string): Outcome;
 export declare function unevaluated(revision: number, running: boolean): BlockStatus;
 export declare function replied(outcome: Outcome, revision: number, running: boolean): BlockStatus;
-export declare function waiting(why: Condition, revision: number, evaluated: number | null, running: boolean): BlockStatus;
+export declare function waiting(why: Reason, revision: number, evaluated: number | null, running: boolean): BlockStatus;
 export declare function waitingFor(what: {
     unlinked: readonly string[];
 } | {
     upstream: readonly BlockId[];
-}): Condition;
+}): Reason;
 export declare function sameStatus(a: BlockStatus, b: BlockStatus): boolean;
 export declare function blockStatuses(input: {
     readonly graph: Graph;
@@ -43,4 +45,5 @@ export declare function blockStatuses(input: {
     statuses: Map<BlockId, BlockStatus>;
     changed: BlockId[];
 };
+export declare function keptWaiting(inputs: Inputs | undefined, statuses: ReadonlyMap<BlockId, BlockStatus>): Reason | undefined;
 export declare function waitingError(id: BlockId, status: BlockStatus): Error;

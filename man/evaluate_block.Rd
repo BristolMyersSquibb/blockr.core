@@ -45,11 +45,15 @@ one-time evaluation}
 }
 \value{
 The evaluation \code{evaluate_block()} returns an object of class
-\code{block_evaluation}, a list holding its \code{status}, \code{"ok"}, \code{"invalid"} or
-\code{"error"}, the block expression as \code{expr}, the \code{result}, its \code{summary} and
-the \code{conditions} raised, where what was not reached is \code{NULL}. The result
-is what \code{block_eval()} returns, while \code{result_summary()} returns a string
-and \code{eval_env()} an environment.
+\code{block_evaluation}, a list holding its \code{status}, \code{"ok"}, \code{"invalid"},
+\code{"waiting"} or \code{"error"}, the block expression as \code{expr}, the \code{result}, its
+\code{summary}, the \code{reason} and the \code{conditions} raised, where what was not
+reached is \code{NULL}.
+The reason is a list of its \code{message} and the state args it concerns, as a
+character vector \code{arg}, for an evaluation that is \code{invalid} or \code{waiting},
+and \code{NULL} otherwise.
+The result is what \code{block_eval()} returns, while \code{result_summary()} returns
+a string and \code{eval_env()} an environment.
 }
 \description{
 A block is evaluated from its class, its state and the results of the
@@ -63,15 +67,21 @@ describing the result with the generic \code{result_summary()}.
 \details{
 A \code{\link[=blockr_invalid]{blockr_invalid()}} that \code{expr} or a \code{block_eval()} method signals, or an
 unset arg that the body of \code{expr} uses or interpolation fills in, makes R
-run nothing and report the status \code{invalid}, while a failed check in
-\code{inputs}, or any other error, reports \code{error}, and a block that runs reports
-\code{ok}. A check in \code{inputs} returns \code{NULL}, and any other value fails it too.
+run nothing and report the status \code{invalid}.
+A \code{\link[=blockr_waiting]{blockr_waiting()}} that either signals makes R report \code{waiting}.
+A failed check in \code{inputs}, or any other error, reports \code{error}, and a block
+that runs reports \code{ok}.
+A check in \code{inputs} returns \code{NULL}, and any other value fails it too.
 Every condition raised on the way is recorded with its severity, its class,
 its message and the phase that raised it: \code{inputs}, \code{expr}, which covers
 interpolation, \code{block_eval} or \code{result_summary}. Warnings and messages are
 recorded rather than signaled.
-The error that makes a block \code{invalid} is recorded with the severity
-\code{message}, since the status already says that the state cannot run.
+The error that makes a block \code{invalid} or \code{waiting} is no condition of the
+evaluation, but its reason, which is part of the block's status, as a ready
+block's summary is.
+The reason holds the error's message and the state args that it concerns:
+those that the \code{arg} of a \code{blockr_invalid()} names, or the arg that R's
+error for an unset arg names.
 
 The \code{block_eval()} generic runs the block expression, \code{expr}, in \code{env},
 where each upstream block's result is bound to its id, dispatching on the
