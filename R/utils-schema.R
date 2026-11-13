@@ -7,12 +7,17 @@
 # A value that the schema has as an object becomes a named list, an empty one
 # included, and so does a named vector, such as the file browser's volumes,
 # `c(home = "~")`, whose names R's writer would drop.
-# Scalars, values that the schema allows in several forms,
-# with `anyOf` or `oneOf`, and values it says nothing about stay as they are. A
-# `$ref` is resolved within `root`, the schema as read from its file.
+# A value that the schema allows in several forms, with `anyOf` or `oneOf`, is
+# shaped by the branch that it fits, as `shape_by_branch()` gives it.
+# Scalars and values that the schema says nothing about stay as they are.
+# A `$ref` is resolved within `root`, the schema as read from its file.
 shape_by_schema <- function(x, schema, root = schema) {
 
   schema <- resolve_schema_ref(schema, root)
+
+  if (not_null(schema_branches(schema))) {
+    return(shape_by_branch(x, schema, root))
+  }
 
   switch(
     coal(schema_type(schema), "", fail_all = FALSE),
@@ -27,8 +32,7 @@ shape_by_schema <- function(x, schema, root = schema) {
 # or says nothing.
 schema_type <- function(schema) {
 
-  if (!is.list(schema) || not_null(schema[["anyOf"]]) ||
-        not_null(schema[["oneOf"]])) {
+  if (!is.list(schema) || not_null(schema_branches(schema))) {
     return(NULL)
   }
 
@@ -47,6 +51,73 @@ schema_type <- function(schema) {
   }
 
   NULL
+}
+
+# The branches of a schema that allows a value in several forms, with `anyOf`
+# or `oneOf`.
+# It is `NULL` for any other schema.
+schema_branches <- function(schema) {
+
+  if (!is.list(schema)) {
+    return(NULL)
+  }
+
+  coal(schema[["anyOf"]], schema[["oneOf"]], fail_all = FALSE)
+}
+
+# Shapes a value under `anyOf` or `oneOf` by the branch that it fits.
+# A value fits a branch where the branch is an object schema, and the value is
+# a named list whose names include each property that the branch requires.
+# Its names must be strings of their own, none of them empty.
+# An empty list fits no branch, so that `list()` stays an array.
+# A data frame or another list with a class fits no branch either.
+# A list that fits no branch or several stays as it is, and so does any other
+# value.
+# So a vector of length one stays bare where the schema allows a string or an
+# array of strings.
+# In the dock's grids, a split requires `children` and `sizes`, and a tab group
+# requires `panels` and `active`.
+# So each node of a grid fits one branch.
+# A named vector fits no branch, though an object schema alone turns it into an
+# object.
+# Core's `Json` type allows any object.
+# If a named vector fit it, the vector would turn from an array into an object
+# in the state of each block class without a schema.
+shape_by_branch <- function(x, schema, root) {
+
+  if (!length(x) || !is_named_list(x)) {
+    return(x)
+  }
+
+  branch <- fitting_branch(schema, names(x), root)
+
+  if (is.null(branch)) {
+    return(x)
+  }
+
+  shape_object(x, branch, root)
+}
+
+# The one branch of a schema's `anyOf` or `oneOf` that is an object schema
+# whose required properties are all among `props`.
+# It is `NULL` where no branch or several are.
+fitting_branch <- function(schema, props, root) {
+
+  branches <- lapply(schema_branches(schema), resolve_schema_ref, root)
+
+  fits <- lgl_ply(
+    branches,
+    function(branch) {
+      identical(schema_type(branch), "object") &&
+        all(branch[["required"]] %in% props)
+    }
+  )
+
+  if (sum(fits) != 1L) {
+    return(NULL)
+  }
+
+  branches[[which(fits)]]
 }
 
 resolve_schema_ref <- function(schema, root) {
@@ -133,6 +204,13 @@ shape_object <- function(x, schema, root) {
 # are arrays, and otherwise an object of them by column name. An object leaves
 # out a missing value of a property that the schema does not require, as JSON
 # has no missing value but an absent property.
+# Where the items allow several forms, the rows are shaped by the branch that
+# the data frame's columns fit, as `fitting_branch()` gives it.
+# Where the columns fit no branch or several, each row is an object of its
+# cells as they are.
+# A cell under `anyOf` or `oneOf` stays as it is.
+# The cells of a table output are such cells, of core's `Json` type.
+# Each is a single value or its summary, so shaping each would only cost time.
 shape_rows <- function(x, items, root) {
 
   if (length(x)) {
@@ -151,6 +229,10 @@ shape_rows <- function(x, items, root) {
     }
 
     return(lapply(rows, lapply, shape_by_schema, cell, root))
+  }
+
+  if (not_null(schema_branches(items))) {
+    items <- coal(fitting_branch(items, names(x), root), items)
   }
 
   required <- items[["required"]]

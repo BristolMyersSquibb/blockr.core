@@ -201,3 +201,150 @@ test_that("a reference is followed into the schema's definitions", {
     class = "json_schema_ref_invalid"
   )
 })
+
+test_that("a value under `anyOf` or `oneOf` is shaped by the branch it fits", {
+
+  nodes <- list(type = "array", items = list(`$ref` = "#/definitions/Node"))
+  panel <- list(`$ref` = "#/definitions/Panel")
+
+  schema <- list(
+    `$ref` = "#/definitions/Split",
+    definitions = list(
+      Node = list(
+        anyOf = list(
+          list(`$ref` = "#/definitions/Split"),
+          list(`$ref` = "#/definitions/TabGroup")
+        )
+      ),
+      Split = list(
+        type = "object",
+        properties = list(children = nodes, sizes = list(type = "array")),
+        required = c("children", "sizes")
+      ),
+      TabGroup = list(
+        type = "object",
+        properties = list(
+          panels = list(type = "array", items = panel),
+          active = panel
+        ),
+        required = c("panels", "active")
+      ),
+      Panel = list(
+        oneOf = list(
+          list(
+            type = "object",
+            properties = list(block = list(type = "string")),
+            required = "block"
+          ),
+          list(
+            type = "object",
+            properties = list(plugin = list(type = "string")),
+            required = "plugin"
+          )
+        )
+      )
+    )
+  )
+
+  tabs <- list(panels = list(list(block = "a")), active = list(block = "a"))
+  split <- list(children = list(tabs), sizes = 1L)
+
+  expect_identical(
+    written(list(children = list(split), sizes = 1L), schema),
+    paste0(
+      "{\"children\":[{\"children\":[{\"panels\":[{\"block\":\"a\"}],",
+      "\"active\":{\"block\":\"a\"}}],\"sizes\":[1]}],\"sizes\":[1]}"
+    )
+  )
+})
+
+test_that("a value that fits no branch or several stays as it is", {
+
+  branch <- function(prop) {
+    list(
+      type = "object",
+      properties = set_names(list(list(type = "array")), prop),
+      required = prop
+    )
+  }
+
+  either <- list(anyOf = list(branch("a"), branch("b")))
+
+  expect_identical(written(list(a = 1L), either), "{\"a\":[1]}")
+  expect_identical(written(list(b = 1L), either), "{\"b\":[1]}")
+  expect_identical(written(list(c = 1L), either), "{\"c\":1}")
+  expect_identical(written(list(a = 1L, b = 1L), either), "{\"a\":1,\"b\":1}")
+  expect_identical(written(c(a = "x"), either), "\"x\"")
+  expect_identical(written(list("x"), either), "[\"x\"]")
+
+  optional <- list(
+    anyOf = list(
+      list(type = "null"),
+      list(type = "object", properties = list(a = list(type = "array")))
+    )
+  )
+
+  expect_identical(written(list(a = 1L), optional), "{\"a\":[1]}")
+  expect_identical(written(NULL, optional), "null")
+  expect_identical(written(list(), optional), "[]")
+  expect_identical(written(set_names(list(), character()), optional), "{}")
+})
+
+test_that("a value under core's `Json` type is written as R writes it", {
+
+  x <- list(
+    vec = c(a = "x", b = "y"),
+    one = c(a = "x"),
+    lst = list(p = 1L, q = list(), r = set_names(list(), character())),
+    df = data.frame(x = 1L)
+  )
+
+  json <- list(`$ref` = "#/definitions/Json")
+
+  expect_identical(shape_by_schema(x, json, json_board_schema()), x)
+})
+
+test_that("a data frame's rows are shaped by the branch its columns fit", {
+
+  schema <- list(
+    type = "array",
+    items = list(
+      anyOf = list(
+        list(
+          type = "object",
+          properties = list(
+            column = list(type = "string"),
+            values = list(type = "array")
+          ),
+          required = c("column", "values")
+        ),
+        list(
+          type = "object",
+          properties = list(expr = list(type = "string")),
+          required = "expr"
+        )
+      )
+    )
+  )
+
+  df <- data.frame(column = c("x", "y"))
+  df$values <- list("a", c("b", "c"))
+
+  expect_identical(
+    written(df, schema),
+    paste0(
+      "[{\"column\":\"x\",\"values\":[\"a\"]},",
+      "{\"column\":\"y\",\"values\":[\"b\",\"c\"]}]"
+    )
+  )
+
+  df$expr <- c("x > 1", NA)
+
+  expect_identical(
+    written(df, schema),
+    paste0(
+      "[{\"column\":\"x\",\"values\":\"a\",\"expr\":\"x > 1\"},",
+      "{\"column\":\"y\",\"values\":[\"b\",\"c\"]}]"
+    )
+  )
+})
