@@ -18,12 +18,14 @@ import { listedModules, pluginUi } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { withOptions, withPlugins } from "../testing/store.ts";
 import type { Notification } from "../types/core-api.ts";
-import type { BlockHost } from "../types/hosts.ts";
+import type { BlockHost, OutputHost } from "../types/hosts.ts";
 
 const FILE = "blockr.core-file_storage_plugin";
 
-// The URL of the UI module of the class of block b, the head block.
+// The URL of the UI module of the class of block b, the head block, and of
+// the renderer of its output.
 const HEAD = HELLO.block_registry["blockr.core-head_block"]?.module ?? "";
+const TABLE = HELLO.block_registry["blockr.core-head_block"]?.renderer?.module ?? "";
 
 const fromModules = (notification: Notification): boolean => notification.source.kind === "module";
 
@@ -186,6 +188,39 @@ describe("the notifications of the modules of packages", () => {
     s.stop();
   });
 
+  test("that the renderer of a block's output raises through its host come from the block, naming the renderer, with the renderer's package, until the renderer is unmounted", async () => {
+    const hosts: OutputHost[] = [];
+    const s = await stubCore({
+      modules: {
+        [TABLE]: {
+          api: 1,
+          default: {
+            options: ["n_rows"],
+            render: ({ host }: { host: OutputHost }) => {
+              hosts.push(host);
+            },
+          },
+        },
+      },
+    });
+    s.core.scheduler.demand("test", ["b"]);
+    const unmount = s.core.mountOutput(document.createElement("div"), "b");
+    await s.settled();
+    hosts[0]?.notify({ severity: "warning", code: "truncated", message: "Only the first rows show." });
+
+    expect(held(s.core, fromModules)).toEqual([
+      {
+        severity: "warning",
+        message: "Only the first rows show.",
+        source: { kind: "module", object: { block: "b" }, code: "truncated", package: "blockr.core", renderer: "blockr.core-table_output" },
+        about: { block: "b" },
+      },
+    ]);
+    unmount();
+    expect(held(s.core, fromModules)).toEqual([]);
+    s.stop();
+  });
+
   test("that a board option's onChange() raises come from the board option, with the package that lists it, until its next call returns", async () => {
     const zoom: Option = {
       id: "zoom",
@@ -217,7 +252,7 @@ describe("the notifications of the modules of packages", () => {
 });
 
 describe("core's notifications", () => {
-  test("of a block's UI module that cannot draw are one, however many mounts fail, which concerns the block, with the module's package", async () => {
+  test("of a block's UI module that cannot draw are one, however many mounts fail, which concerns the block, with the module's package, and leave each element empty", async () => {
     const reported = reports();
     const s = await stubCore();
     const first = document.createElement("div");
@@ -231,13 +266,34 @@ describe("core's notifications", () => {
     expect(held(s.core, (n) => codeOf(n) === "module_failed")).toEqual([
       {
         severity: "error",
-        message: first.textContent,
+        message: expect.stringContaining(`The module ${module} of blockr.core failed to load`) as string,
         source: { kind: "core", code: "module_failed", package: "blockr.core" },
         about: { block: "b" },
       },
     ]);
-    expect(first.textContent).toContain(`The module ${module} of blockr.core failed to load`);
-    expect(second.textContent).toBe(first.textContent);
+    expect([first.textContent, second.textContent]).toEqual(["", ""]);
+    s.stop();
+  });
+
+  test("of a renderer that cannot draw concern the block, naming the renderer, with its package, and leave the output's element empty", async () => {
+    const reported = reports();
+    const s = await stubCore({ modules: { [TABLE]: { api: 2, default: { render: () => undefined } } } });
+    s.core.scheduler.demand("test", ["b"]);
+    const el = document.createElement("div");
+    s.core.mountOutput(el, "b");
+    await s.settled();
+    reported.restore();
+
+    const module = TABLE.replace(/[?#].*$/, "");
+    expect(held(s.core, (n) => codeOf(n) === "module_failed")).toEqual([
+      {
+        severity: "error",
+        message: `The module ${module} of blockr.core was built against major 2 of core's JS API, where core's is 1.`,
+        source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: "blockr.core-table_output" },
+        about: { block: "b" },
+      },
+    ]);
+    expect(el.textContent).toBe("");
     s.stop();
   });
 
@@ -261,7 +317,7 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
-    expect(el.textContent).toBe('The UI of the board option "zoom" failed in render(): No slider.');
+    expect(el.textContent).toBe("");
     expect(held(s.core, (n) => codeOf(n) === "module_failed")).toEqual([
       {
         severity: "error",

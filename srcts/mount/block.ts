@@ -13,15 +13,16 @@
 //    own and a signal, which it aborts once the mount ends, and runs the
 //    cleanup that render() returns.
 // Where the module fails to load, declares another major, leaves out such a
-// board option or throws in render(), core shows an error in the element that
-// names the module and its package, while the page and the block's evaluation
-// carry on, and raises a notification that concerns the block, with the
-// module's package, which holds until the next board opens or the block leaves
-// the board. So it shows an error where a board option that the module names
-// does not go onto the board, as where its default fails: the module goes
-// without none of them, and core ends a module that it has drawn once one does
-// not go onto the board again. The notification that concerns the board option
-// tells of that, once for the board.
+// board option or throws in render(), core leaves the element empty, so that
+// the frontend alone says where the failure shows, while the page and the
+// block's evaluation carry on. It raises a notification that names the module
+// and concerns the block, with the module's package, which holds until the
+// next board opens or the block leaves the board. So it raises one where a
+// board option that the module names does not go onto the board, as where its
+// default fails: the module goes without none of them, and core ends a module
+// that it has drawn once one does not go onto the board again. The
+// notification that concerns the board option says why it is not on the
+// board, once for the board.
 //
 // A host keeps nothing of its own: the state is the store's, the status the
 // scheduler's and the answers core's, so one block mounts in several places
@@ -76,7 +77,7 @@ import { mountOption } from "./option.ts";
 import { createShelves, mountOutput } from "./output.ts";
 import type { OutputEvent } from "./output.ts";
 import { blockRequest } from "./requests.ts";
-import { attempt, mountableModule, onAbort, REPLACED, showError } from "./shared.ts";
+import { attempt, mountableModule, onAbort, REPLACED, withoutOptions } from "./shared.ts";
 
 export interface Mounts {
   // Mounts the UI module of the block's class in the element until the
@@ -304,6 +305,7 @@ export function createMounts(options: MountsOptions): Mounts {
       throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
     }
     const pkg = packageFromId(entry.id);
+    const by = `the UI module of block class "${entry.id}"`;
 
     // The mount ends as its signal aborts, which may happen whenever the
     // loading below awaits.
@@ -363,20 +365,20 @@ export function createMounts(options: MountsOptions): Mounts {
       }
 
       // Where a board option that the module names does not go onto the
-      // board, its element shows why in place of the module, which core has
-      // reported. A module that has drawn ends then.
+      // board, which core has reported, the module does not draw, and core
+      // raises why. A module that has drawn ends then.
       const named = mod.options ?? [];
-      const kept = keepOptions(named, `the UI module of block class "${entry.id}"`, (failures) => {
+      const kept = keepOptions(named, by, () => {
         if (ended()) return;
         end();
-        showError(el, failures.join("\n"));
+        lacking(named);
       });
       stopKeeping = kept.stop;
       const failures = await kept.added;
       if (ended()) return;
       if (failures.length > 0) {
         kept.stop();
-        showError(el, failures.join("\n"));
+        lacking(named);
         return;
       }
       host.name(named);
@@ -391,11 +393,19 @@ export function createMounts(options: MountsOptions): Mounts {
       }
     })();
 
+    // A module that cannot draw, which leaves its element empty.
     function fail(error: unknown): void {
       if (ended()) return;
-      showError(el, errorMessage(error));
       report(error);
       raise(coreNotification("module_failed", "error", errorMessage(error), { about: { block }, package: pkg }));
+    }
+
+    // Raises that the module cannot draw without the board options that it
+    // names and that the board lacks, which concerns the block, beside the
+    // notification about each board option.
+    function lacking(ids: readonly OptionId[]): void {
+      const missing = ids.filter((id) => !Object.hasOwn(store.board().options, id));
+      raise(coreNotification("module_failed", "error", withoutOptions(by, missing), { about: { block }, package: pkg }));
     }
 
     return end;
@@ -621,7 +631,7 @@ function blockHost(deps: HostDeps): MountedHost {
     notify(notification) {
       const given = checkRaised(notification);
       if (!following) return () => undefined;
-      const withdraw = deps.notify({ block }, deps.pkg, given);
+      const withdraw = deps.notify({ object: { block }, package: deps.pkg }, given);
       const mine = (): void => {
         notified.delete(mine);
         withdraw();

@@ -8,9 +8,9 @@
 //    holds what the output's coercion reads before core asks for an output.
 //    While the renderer draws the output, core adds again each of them that a
 //    delta removes. Where one does not go onto the board, as where its default
-//    fails, core asks R for nothing, and shows why as it shows an ask that
-//    failed: in the element where no output came before, and otherwise through
-//    the host's `error()`, until the board holds a value.
+//    fails, core asks R for nothing, and raises that the renderer cannot draw
+//    without it, until an output comes, as it raises the failure of a renderer
+//    that cannot draw. The host's `error()` gives why meanwhile.
 // 2. Once the block reads ready and the element measures more than 0 by 0, core
 //    asks R for the output, through the scheduler, with the block's revision,
 //    the values of the board options that the renderer names, the info it
@@ -36,14 +36,16 @@
 // Where R cannot make the block's output, as where it replies error or an ask
 // gets no reply, core raises a notification with the condition that the
 // host's `error()` gives, which concerns the block, in place of the one before,
-// until the block's next output arrives. A renderer that cannot draw raises
-// one that concerns the block, with the renderer's package, which holds until
-// the next board opens or the block leaves the board. What a renderer raises
-// through its host's notify() comes from the block, with the renderer's
-// package, and holds until the renderer is unmounted at the latest. Each
-// condition of R's error reply to a request of the output raises a
-// notification that concerns the block, which holds until R next replies to a
-// request of the same name and scope.
+// until the block's next output arrives. A renderer that cannot draw, as one
+// that fails to load or throws in render(), raises one that concerns the
+// block, with the renderer and its package, which holds until the next board
+// opens or the block leaves the board, and leaves the element empty. Core
+// draws nothing in the element itself, so that the frontend alone says where
+// a failure shows. What a renderer raises through its host's notify() comes
+// from the block, with the renderer and its package, and holds until the
+// renderer is unmounted at the latest. Each condition of R's error reply to a
+// request of the output raises a notification that concerns the block, which
+// holds until R next replies to a request of the same name and scope.
 // A mount is bound to the board it was made on and to its block. Once another
 // board opens or the block leaves the board, core ends the mount.
 
@@ -72,7 +74,7 @@ import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, mountableModule, onAbort, REPLACED, showError } from "./shared.ts";
+import { announceTo, attempt, mountableModule, onAbort, REPLACED, withoutOptions } from "./shared.ts";
 import type { Mountable } from "./shared.ts";
 
 // How long core waits for an element's size to settle before it asks R for an
@@ -263,6 +265,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   let held: Made | undefined;
   let asking: { readonly key: string; leave(): void } | undefined;
   let error: Condition | null = null;
+  // What withdraws the notification that the renderer cannot draw without the
+  // board options that it names, while it holds.
+  let unfit: (() => void) | undefined;
   let drawing: Drawing | undefined;
   let options = store.board().options;
 
@@ -294,7 +299,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         const named = mod.options ?? [];
         // Core has reported why one did not go onto the board.
         const failures = await deps.addOptions(named, `the renderer "${given.id}"`);
-        if (failures.length > 0) throw new Error(failures.join("\n"));
+        if (failures.length > 0) throw missingOptions(given, named);
         return { renderer: given, mod, named };
       })();
       preparing.set(given.id, loading);
@@ -312,15 +317,22 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
         keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, (failures) => {
-          fail(new Error(failures.join("\n")));
+        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, () => {
+          fail(missingOptions(prepared.renderer, prepared.named), prepared.renderer);
         });
         sync();
       },
       (failure: unknown) => {
-        fail(failure);
+        fail(failure, given);
       },
     );
+  }
+
+  // Why the renderer cannot draw without the board options that it names and
+  // that the board lacks.
+  function missingOptions(given: OutputRenderer, ids: readonly OptionId[]): Error {
+    const missing = ids.filter((id) => !Object.hasOwn(store.board().options, id));
+    return new Error(withoutOptions(`the renderer "${given.id}"`, missing));
   }
 
   // The board options that the mount asks with: those that the renderer
@@ -475,7 +487,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         left = true;
         mine.callers -= 1;
         if (asking === ask) asking = undefined;
-        fail(failure);
+        if (!ended()) failed(noOutput(errorMessage(failure)));
       },
     );
     return ask;
@@ -489,7 +501,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         return;
       case "error": {
         const conditions = "conditions" in reply ? reply.conditions : [];
-        failed(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`), conditions);
+        failed(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`));
         return;
       }
       default:
@@ -537,36 +549,51 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     before?.();
   }
 
-  // Keeps why the latest ask failed, while the renderer keeps what it holds,
-  // or shows it in the element where no output came before.
-  function failed(condition: Condition, conditions: readonly Condition[]): void {
+  // Keeps why the latest ask failed, which the host's error() gives, while the
+  // renderer keeps what it holds.
+  function failed(condition: Condition): void {
     error = condition;
-    if (held === undefined) {
-      showError(el, conditions.length > 0 ? conditions.map((c) => c.message).join("\n") : condition.message);
-    }
     announce();
   }
 
-  // A renderer that cannot draw, which nothing else can, or an ask that got no
-  // reply.
-  function fail(failure: unknown): void {
+  // A renderer that cannot draw, which nothing else can: one that fails to
+  // load, which holds until the next board opens or the block leaves the
+  // board, or one without the board options that it names, which holds until
+  // an output comes and the host's error() gives meanwhile.
+  function fail(failure: unknown, by: OutputRenderer): void {
     if (ended()) return;
+    const notification = coreNotification("module_failed", "error", errorMessage(failure), {
+      about: { block },
+      package: packageFromId(by.id),
+      renderer: by.id,
+    });
     if (failure instanceof ModuleError) {
-      showError(el, failure.message);
       if (!broken.has(failure)) {
         report(failure);
-        deps.raise(coreNotification("module_failed", "error", failure.message, { about: { block }, package: failure.package }));
+        deps.raise(notification);
       }
       broken.add(failure);
       return;
     }
-    failed(noOutput(errorMessage(failure)), []);
+    const before = unfit;
+    unfit = deps.raise(notification);
+    before?.();
+    failed(noOutput(errorMessage(failure)));
+  }
+
+  // Withdraws that the renderer cannot draw without the board options that it
+  // names, as an output comes or the mount ends.
+  function fit(): void {
+    const before = unfit;
+    unfit = undefined;
+    before?.();
   }
 
   // Holds an output, and draws it with the renderer that it names.
   function take(next: Made): void {
     held = next;
     error = null;
+    fit();
     const named = next.output.renderer;
     if (renderer?.id !== named.id) expect(named);
     if (drawing !== undefined && drawing.prepared.renderer.id !== named.id) unmountRenderer();
@@ -577,7 +604,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
           mountRenderer(prepared);
         },
         (failure: unknown) => {
-          fail(failure);
+          fail(failure, named);
         },
       );
     }
@@ -602,9 +629,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${errorMessage(failure)}`, {
           cause: failure,
         });
-        showError(el, why.message);
-        report(why);
-        deps.raise(coreNotification("module_failed", "error", why.message, { about: { block }, package: pkg }));
+        el.replaceChildren();
+        fail(why, prepared.renderer);
       }
     })();
   }
@@ -814,7 +840,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       notify(notification) {
         const given = checkRaised(notification);
         if (!following || !bound()) return () => undefined;
-        const withdraw = deps.notify({ block }, pkg, given);
+        const withdraw = deps.notify({ object: { block }, package: pkg, renderer: prepared.renderer.id }, given);
         const mine = (): void => {
           notified.delete(mine);
           withdraw();
@@ -878,6 +904,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     if (settling !== undefined) clearTimeout(settling);
     asking?.leave();
     asking = undefined;
+    fit();
     unmountRenderer();
     el.replaceChildren();
     wake();

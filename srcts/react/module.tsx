@@ -69,10 +69,12 @@ export interface OutputProps<O extends BlockOutput = BlockOutput, P = Json> {
 // output as its class's contract types it, since R writes every output by its
 // class's schema. Around the component, the renderer:
 // - marks itself busy and dims what the component drew while core asks R for
-//   a newer output,
-// - shows why the latest ask failed, above the output it holds, and
+//   a newer output, and
 // - shows the error of a component that throws in place of what it drew, until
 //   another output comes.
+// It draws nothing of why the latest ask failed, which the component gets as
+// `error`, since core raises it as a notification about the block, which the
+// frontend places.
 export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
   Draw: ComponentType<OutputProps<O, P>>,
   options: ModuleOptions = {},
@@ -81,7 +83,6 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
     const now = useOutput(host);
     return (
       <div className="bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default" aria-busy={now.loading}>
-        {now.error === null ? null : <Alert message={now.error.message} />}
         <Boundary output={now.output}>
           <div className={`bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`}>
             <Draw

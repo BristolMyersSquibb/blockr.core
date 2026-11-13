@@ -75,11 +75,16 @@ var raiseNothing = () => () => void 0;
 var repliedNothing = () => void 0;
 var notifyNothing = () => () => void 0;
 function coreNotification(code, severity, message, concerns = {}) {
-  const pkg = concerns.package;
+  const { package: pkg, renderer } = concerns;
   return {
     severity,
     message,
-    source: { kind: "core", code, ...pkg === void 0 || pkg === null ? {} : { package: pkg } },
+    source: {
+      kind: "core",
+      code,
+      ...pkg === void 0 || pkg === null ? {} : { package: pkg },
+      ...renderer === void 0 ? {} : { renderer }
+    },
     ...concerns.about === void 0 ? {} : { about: concerns.about }
   };
 }
@@ -3747,6 +3752,9 @@ function mountableModule(exports, module, pkg) {
   }
   return mod;
 }
+function withoutOptions(module, ids2) {
+  return `Without the board option${ids2.length === 1 ? "" : "s"} ${quoted(ids2)}, ${module} cannot draw.`;
+}
 function showError(el, message) {
   const box = document.createElement("div");
   box.setAttribute("role", "alert");
@@ -3831,7 +3839,7 @@ function mountOption(deps, el, option) {
     notify(notification) {
       const given = checkRaised(notification);
       if (ended()) return () => void 0;
-      const withdraw = deps.notify({ option }, pkg ?? null, given);
+      const withdraw = deps.notify({ object: { option }, package: pkg ?? null }, given);
       const mine = () => {
         notified.delete(mine);
         withdraw();
@@ -3876,18 +3884,13 @@ function mountOption(deps, el, option) {
       return;
     }
     if (ended()) return;
-    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, (failures2) => {
-      if (ended()) return;
-      end();
-      showError(el, failures2.join("\n"));
-    });
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
     const failures = await kept.added;
     if (ended()) return;
     value2 = current2();
     if (value2 === void 0 && failures.length > 0) {
       kept.stop();
-      showError(el, failures.join("\n"));
       return;
     }
     try {
@@ -3904,7 +3907,6 @@ function mountOption(deps, el, option) {
   })();
   function fail(error) {
     if (ended()) return;
-    showError(el, errorMessage(error));
     report(error);
     deps.raise(coreNotification("module_failed", "error", errorMessage(error), { about: { option }, package: pkg }));
   }
@@ -3991,6 +3993,7 @@ function mountOutput(deps, el, block) {
   let held2;
   let asking;
   let error = null;
+  let unfit;
   let drawing;
   let options = store.board().options;
   const waiting2 = /* @__PURE__ */ new Set();
@@ -4010,7 +4013,7 @@ function mountOutput(deps, el, block) {
         const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
         const named4 = mod.options ?? [];
         const failures = await deps.addOptions(named4, `the renderer "${given.id}"`);
-        if (failures.length > 0) throw new Error(failures.join("\n"));
+        if (failures.length > 0) throw missingOptions(given, named4);
         return { renderer: given, mod, named: named4 };
       })();
       preparing.set(given.id, loading);
@@ -4026,15 +4029,19 @@ function mountOutput(deps, el, block) {
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
         keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, (failures) => {
-          fail(new Error(failures.join("\n")));
+        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, () => {
+          fail(missingOptions(prepared.renderer, prepared.named), prepared.renderer);
         });
         sync();
       },
       (failure) => {
-        fail(failure);
+        fail(failure, given);
       }
     );
+  }
+  function missingOptions(given, ids2) {
+    const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
+    return new Error(withoutOptions(`the renderer "${given.id}"`, missing2));
   }
   function named3() {
     if (renderer === void 0) return null;
@@ -4157,7 +4164,7 @@ function mountOutput(deps, el, block) {
         left2 = true;
         mine.callers -= 1;
         if (asking === ask) asking = void 0;
-        fail(failure);
+        if (!ended()) failed3(noOutput(errorMessage(failure)));
       }
     );
     return ask;
@@ -4170,7 +4177,7 @@ function mountOutput(deps, el, block) {
         return;
       case "error": {
         const conditions = "conditions" in reply ? reply.conditions : [];
-        failed3(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`), conditions);
+        failed3(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`));
         return;
       }
       default:
@@ -4201,29 +4208,39 @@ function mountOutput(deps, el, block) {
     });
     before?.();
   }
-  function failed3(condition, conditions) {
+  function failed3(condition) {
     error = condition;
-    if (held2 === void 0) {
-      showError(el, conditions.length > 0 ? conditions.map((c2) => c2.message).join("\n") : condition.message);
-    }
     announce2();
   }
-  function fail(failure) {
+  function fail(failure, by) {
     if (ended()) return;
+    const notification = coreNotification("module_failed", "error", errorMessage(failure), {
+      about: { block },
+      package: packageFromId(by.id),
+      renderer: by.id
+    });
     if (failure instanceof ModuleError) {
-      showError(el, failure.message);
       if (!broken.has(failure)) {
         report(failure);
-        deps.raise(coreNotification("module_failed", "error", failure.message, { about: { block }, package: failure.package }));
+        deps.raise(notification);
       }
       broken.add(failure);
       return;
     }
-    failed3(noOutput(errorMessage(failure)), []);
+    const before = unfit;
+    unfit = deps.raise(notification);
+    before?.();
+    failed3(noOutput(errorMessage(failure)));
+  }
+  function fit2() {
+    const before = unfit;
+    unfit = void 0;
+    before?.();
   }
   function take(next) {
     held2 = next;
     error = null;
+    fit2();
     const named4 = next.output.renderer;
     if (renderer?.id !== named4.id) expect(named4);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
@@ -4234,7 +4251,7 @@ function mountOutput(deps, el, block) {
           mountRenderer(prepared);
         },
         (failure) => {
-          fail(failure);
+          fail(failure, named4);
         }
       );
     }
@@ -4258,9 +4275,8 @@ function mountOutput(deps, el, block) {
         const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${errorMessage(failure)}`, {
           cause: failure
         });
-        showError(el, why.message);
-        report(why);
-        deps.raise(coreNotification("module_failed", "error", why.message, { about: { block }, package: pkg }));
+        el.replaceChildren();
+        fail(why, prepared.renderer);
       }
     })();
   }
@@ -4435,7 +4451,7 @@ function mountOutput(deps, el, block) {
       notify(notification) {
         const given = checkRaised(notification);
         if (!following || !bound()) return () => void 0;
-        const withdraw = deps.notify({ block }, pkg, given);
+        const withdraw = deps.notify({ object: { block }, package: pkg, renderer: prepared.renderer.id }, given);
         const mine = () => {
           notified.delete(mine);
           withdraw();
@@ -4493,6 +4509,7 @@ function mountOutput(deps, el, block) {
     if (settling !== void 0) clearTimeout(settling);
     asking?.leave();
     asking = void 0;
+    fit2();
     unmountRenderer();
     el.replaceChildren();
     wake();
@@ -4639,6 +4656,7 @@ function createMounts(options) {
       throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
     }
     const pkg = packageFromId(entry.id);
+    const by = `the UI module of block class "${entry.id}"`;
     const controller = new AbortController();
     const { signal } = controller;
     const ended = () => signal.aborted;
@@ -4686,17 +4704,17 @@ function createMounts(options) {
         return;
       }
       const named3 = mod.options ?? [];
-      const kept = keepOptions(named3, `the UI module of block class "${entry.id}"`, (failures2) => {
+      const kept = keepOptions(named3, by, () => {
         if (ended()) return;
         end();
-        showError(el, failures2.join("\n"));
+        lacking(named3);
       });
       stopKeeping = kept.stop;
       const failures = await kept.added;
       if (ended()) return;
       if (failures.length > 0) {
         kept.stop();
-        showError(el, failures.join("\n"));
+        lacking(named3);
         return;
       }
       host.name(named3);
@@ -4711,9 +4729,12 @@ function createMounts(options) {
     })();
     function fail(error) {
       if (ended()) return;
-      showError(el, errorMessage(error));
       report(error);
       raise(coreNotification("module_failed", "error", errorMessage(error), { about: { block }, package: pkg }));
+    }
+    function lacking(ids2) {
+      const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      raise(coreNotification("module_failed", "error", withoutOptions(by, missing2), { about: { block }, package: pkg }));
     }
     return end;
   }
@@ -4866,7 +4887,7 @@ function blockHost(deps) {
     notify(notification) {
       const given = checkRaised(notification);
       if (!following) return () => void 0;
-      const withdraw = deps.notify({ block }, deps.pkg, given);
+      const withdraw = deps.notify({ object: { block }, package: deps.pkg }, given);
       const mine = () => {
         notified.delete(mine);
         withdraw();
@@ -7652,24 +7673,29 @@ function runPlugins(deps) {
     const offEnd = onAbort(replaced, end);
     function fail(error) {
       if (ended()) return;
-      showError(el, errorMessage(error));
       report(error);
-      deps.raise(
-        coreNotification("module_failed", "error", errorMessage(error), { about: { plugin }, package: packageFromId(plugin) })
-      );
+      cannotDraw(errorMessage(error));
+    }
+    function cannotDraw(message) {
+      deps.raise(coreNotification("module_failed", "error", message, { about: { plugin }, package: packageFromId(plugin) }));
+    }
+    function lacking(ids2) {
+      const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing2));
     }
     void (async () => {
-      const kept = keepOptions(def.options ?? [], `the plugin class "${plugin}"`, (failures2) => {
+      const named3 = def.options ?? [];
+      const kept = keepOptions(named3, `the plugin class "${plugin}"`, () => {
         if (ended()) return;
         end();
-        showError(el, failures2.join("\n"));
+        lacking(named3);
       });
       stopKeeping = kept.stop;
       const failures = await kept.added;
       if (ended()) return;
       if (failures.length > 0) {
         kept.stop();
-        showError(el, failures.join("\n"));
+        lacking(named3);
         return;
       }
       try {
@@ -7876,7 +7902,7 @@ function createCore(parts) {
     if (def?.onChange === void 0) return;
     const raisedNow = [];
     const notify = (notification) => {
-      const withdraw = notifications.notify({ option: id2 }, optionPackage(id2) ?? null, notification);
+      const withdraw = notifications.notify({ object: { option: id2 }, package: optionPackage(id2) ?? null }, notification);
       raisedNow.push(withdraw);
       return withdraw;
     };
@@ -8967,7 +8993,7 @@ function createNotifications(store, options = {}) {
       if (held2.delete(id2)) publish();
     };
   };
-  const notify = (object2, pkg, notification) => {
+  const notify = ({ object: object2, package: pkg, renderer }, notification) => {
     const given = checkRaised(notification);
     if (ended) return nothing;
     const about = given.about === void 0 ? object2 : given.about ?? void 0;
@@ -8983,7 +9009,13 @@ function createNotifications(store, options = {}) {
       frozen(id2, {
         severity: given.severity,
         message: given.message,
-        source: { kind: "module", object: object2, code: given.code, ...pkg === null ? {} : { package: pkg } },
+        source: {
+          kind: "module",
+          object: object2,
+          code: given.code,
+          ...pkg === null ? {} : { package: pkg },
+          ...renderer === void 0 ? {} : { renderer }
+        },
         ...about === void 0 ? {} : { about }
       })
     );
@@ -9009,7 +9041,7 @@ function createNotifications(store, options = {}) {
           report(new Error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`));
           return nothing;
         }
-        return notify({ plugin }, packageFromId(plugin), given);
+        return notify({ object: { plugin }, package: packageFromId(plugin) }, given);
       },
       get: () => all,
       subscribe(fn) {
@@ -9083,13 +9115,19 @@ function sourceCopy(source) {
     case "r":
       return { kind: "r", class: [...source.class], request: { ...source.request } };
     case "core":
-      return { kind: "core", code: source.code, ...source.package === void 0 ? {} : { package: source.package } };
+      return {
+        kind: "core",
+        code: source.code,
+        ...source.package === void 0 ? {} : { package: source.package },
+        ...source.renderer === void 0 ? {} : { renderer: source.renderer }
+      };
     case "module":
       return {
         kind: "module",
         object: moduleObjectCopy(source.object),
         code: source.code,
-        ...source.package === void 0 ? {} : { package: source.package }
+        ...source.package === void 0 ? {} : { package: source.package },
+        ...source.renderer === void 0 ? {} : { renderer: source.renderer }
       };
   }
 }
@@ -9542,7 +9580,7 @@ import { flushSync as flushSync2 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback7, useMemo as useMemo3, useState as useState10 } from "react";
+import { useCallback as useCallback7, useMemo as useMemo4, useState as useState10 } from "react";
 
 // srcts/picker/picker.tsx
 import { useMemo as useMemo2, useState as useState4 } from "react";
@@ -10276,7 +10314,7 @@ import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5,
 import { useCallback as useCallback2, useId as useId3, useState as useState5 } from "react";
 import { Fragment, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
-function useFooter(status, severities = SEVERITIES2) {
+function useFooter(status, notifications, severities = SEVERITIES2) {
   const shown2 = useShown(status);
   const [open, setOpen] = useState5(OPEN_AT_START);
   const panel = useId3();
@@ -10287,7 +10325,7 @@ function useFooter(status, severities = SEVERITIES2) {
       return next;
     });
   }, []);
-  return { status, shown: shown2, severities, open, toggle, panel };
+  return { status, shown: shown2, notifications, severities, open, toggle, panel };
 }
 function Footer({ status, shown: shown2 }) {
   return /* @__PURE__ */ jsx6(
@@ -10300,10 +10338,9 @@ function Footer({ status, shown: shown2 }) {
     }
   );
 }
-function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
-  if (shown2 === void 0) return null;
+function Pills({ status, shown: shown2, notifications, severities, open, toggle, panel }) {
   const pills = SEVERITIES2.flatMap((severity) => {
-    const n2 = counted(shown2, severities, severity);
+    const n2 = counted(shown2, notifications, severities, severity);
     return n2 === 0 ? [] : [{ severity, n: n2 }];
   });
   if (pills.length === 0) return null;
@@ -10337,21 +10374,21 @@ function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
     }
   );
 }
-function Banners({ shown: shown2, severities, open, panel }) {
-  if (shown2 === void 0) return null;
-  const listed2 = shown2.conditions.filter(
-    (condition) => severities.includes(condition.severity) && open.has(condition.severity)
+function Banners({ shown: shown2, notifications, severities, open, panel }) {
+  const listed2 = notifications.filter(
+    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
   );
-  if (shown2.reason !== null && open.has("message")) listed2.push({ severity: "message", message: shown2.reason });
+  const reason = shown2?.reason ?? null;
+  if (reason !== null && open.has("message")) listed2.push({ severity: "message", message: reason });
   if (listed2.length === 0) return null;
   return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed2.map(({ severity, message }, i2) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i2)) });
 }
 function settled2(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
-function counted(status, severities, severity) {
-  const conditions = severities.includes(severity) ? status.conditions.filter((condition) => condition.severity === severity).length : 0;
-  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
+function counted(status, notifications, severities, severity) {
+  const n2 = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+  return severity === "message" && (status?.reason ?? null) !== null ? n2 + 1 : n2;
 }
 var MARKS = {
   error: {
@@ -10445,7 +10482,7 @@ function Mounted({
 }
 
 // srcts/card/status.ts
-import { useCallback as useCallback3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useCallback as useCallback3, useMemo as useMemo3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
 function useStatus(core, block) {
   const subscribe = useCallback3(
     (notify) => core.scheduler.subscribe((changed) => {
@@ -10454,6 +10491,19 @@ function useStatus(core, block) {
     [core, block]
   );
   return useSyncExternalStore2(subscribe, () => core.scheduler.status(block));
+}
+function useNotified(core, block) {
+  const subscribe = useCallback3(
+    (notify) => core.notifications.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  const all = useSyncExternalStore2(subscribe, () => core.notifications.get());
+  return useMemo3(
+    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
+    [all, block]
+  );
 }
 function useSized(status) {
   const ready = status?.status === "ready";
@@ -10585,7 +10635,8 @@ var BlockCard = memo(function BlockCard2({
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
-  const footer = useFooter(status, severities);
+  const notified = useNotified(core, id2);
+  const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState8(false);
   const ref = useRef5(null);
@@ -10754,8 +10805,8 @@ function stackBlocks(board, stack) {
 // srcts/modules/basic/notices.ts
 import { useSyncExternalStore as useSyncExternalStore3 } from "react";
 function listed(notification) {
-  const { about, source } = notification;
-  return about === void 0 || !("block" in about) || source.kind === "module";
+  const { about } = notification;
+  return about === void 0 || !("block" in about);
 }
 function isReload(notification) {
   return notification.source.kind === "core" && notification.source.code === "page_reload_needed";
@@ -11210,9 +11261,9 @@ function BasicBoard({ front }) {
 function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
-  const items = useMemo3(() => layoutItems(board), [board]);
+  const items = useMemo4(() => layoutItems(board), [board]);
   const shown2 = board.options.show_conditions;
-  const severities = useMemo3(() => asSeverities(shown2), [shown2]);
+  const severities = useMemo4(() => asSeverities(shown2), [shown2]);
   const [dialog, setDialog] = useState10(null);
   const add = useCallback7((mode) => {
     setDialog({ kind: "add", mode });
@@ -12535,7 +12586,7 @@ function useTyped(bound) {
 }
 
 // srcts/react/hooks.ts
-import { useCallback as useCallback10, useLayoutEffect as useLayoutEffect7, useMemo as useMemo4, useRef as useRef8, useState as useState16, useSyncExternalStore as useSyncExternalStore4 } from "react";
+import { useCallback as useCallback10, useLayoutEffect as useLayoutEffect7, useMemo as useMemo5, useRef as useRef8, useState as useState16, useSyncExternalStore as useSyncExternalStore4 } from "react";
 function useValue(host, key2) {
   const name2 = key2 ?? ("option" in host ? host.option : "");
   const [value2, setValue] = useState16(() => held(host, name2));
@@ -12553,7 +12604,7 @@ function useValue(host, key2) {
       bound.release();
     };
   }, [host, name2]);
-  return useMemo4(
+  return useMemo5(
     () => ({
       value: value2,
       error,
@@ -12577,7 +12628,7 @@ function held(host, key2) {
 import { Component } from "react";
 import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
-import { jsx as jsx21, jsxs as jsxs17 } from "react/jsx-runtime";
+import { jsx as jsx21 } from "react/jsx-runtime";
 function reactModule(Draw, options = {}) {
   return {
     ...options.options === void 0 ? {} : { options: options.options },

@@ -200,6 +200,10 @@ export interface CoreSource {
   readonly code: CoreCode;
   // The package whose module failed, where core knows it.
   readonly package?: string;
+  // The renderer of the block's output, by its id, where it is the module that
+  // failed. A module of a block that fails without it is the block's UI
+  // module.
+  readonly renderer?: string;
 }
 
 // What core's own notification is of.
@@ -237,6 +241,10 @@ export interface ModuleSource {
   // The package whose module raised it, where core knows it, which it does
   // but for a block class defined outside a package.
   readonly package?: string;
+  // The renderer of the block's output, by its id, where it raised the
+  // notification. One that a block's module raises without it comes from the
+  // block's UI module.
+  readonly renderer?: string;
 }
 
 // What a package's module gives to raise a notification, from which core

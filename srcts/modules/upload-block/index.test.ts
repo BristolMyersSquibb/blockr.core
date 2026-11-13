@@ -61,7 +61,7 @@ test("sends the file the user picks to R, and submits the path R keeps it at", a
   expect(view.el.textContent).toContain("Uploaded sales.csv");
 });
 
-test("says why an upload failed, and submits nothing", async () => {
+test("leaves an upload that fails to core's notification of R's error reply, drawing nothing of it, and submits nothing", async () => {
   const { host, view, input } = await mounted(kept);
 
   await step(() => {
@@ -70,7 +70,30 @@ test("says why an upload failed, and submits nothing", async () => {
   await settle();
 
   expect(host.submitted).toEqual([]);
-  expect(find(view.el, '[role="alert"]').hidden).toBe(false);
-  expect(find(view.el, '[role="alert"]').textContent).toContain('records no answer of the request "upload"');
+  expect(view.el.querySelector('[role="alert"]')).toBeNull();
+  expect(host.notified).toEqual([]);
   expect(view.el.textContent).toContain("Uploaded sales.csv");
+});
+
+test("raises through its host that R kept the file but answered no path, until the next upload starts, and submits nothing", async () => {
+  const pathless = { ...fixture, requests: fixture.requests.map((request) => ({ ...request, answer: [] })) };
+  const host = stubBlockHost<State>(pathless, { state: {} });
+  const view = await mountOnPage(upload, host);
+  const input = find(view.el, 'input[type="file"]', HTMLInputElement);
+
+  await step(() => {
+    choose(input, sales());
+  });
+  await settle();
+  const unanswered = { severity: "error", code: "upload_unanswered", message: "R kept sales.csv but gave no path for it." };
+  expect(host.notified).toEqual([unanswered]);
+  expect(view.el.querySelector('[role="alert"]')).toBeNull();
+  expect(host.submitted).toEqual([]);
+
+  act(() => {
+    choose(input, sales());
+  });
+  expect(host.notified).toEqual([]);
+  await settle();
+  expect(host.notified).toEqual([unanswered]);
 });

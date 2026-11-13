@@ -1,11 +1,10 @@
 // What the basic frontend tells the user above the board, in the order it
 // came, each until it no longer holds or the user dismisses it: the
-// notifications of the board that concern no block and those that the modules
-// of packages raise, and what failed of the frontend's own work, such as an edit
-// that the store or the command registry refused. Of the notifications that R
-// and core raise about a block, a block's conditions show on its card, the
-// failures of its output and its UI in their elements, and those of its
-// requests through the module that made them.
+// notifications of the board that concern no block, whoever raised them, and
+// what failed of the frontend's own work, such as an edit that the store or the
+// command registry refused. Those about a block show on its card, whoever
+// raised them, as the conditions of its status, what failed of its UI module,
+// its output and its requests, and what its modules raise.
 
 import { useSyncExternalStore } from "react";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
@@ -39,11 +38,11 @@ export interface Notices {
   readonly stop: () => void;
 }
 
-// Whether the list shows the notification: one that concerns no block, or that
-// a package's module raised, which nothing else on the page shows.
+// Whether the list shows the notification: one that concerns no block, which
+// no card shows.
 function listed(notification: Notification): boolean {
-  const { about, source } = notification;
-  return about === undefined || !("block" in about) || source.kind === "module";
+  const { about } = notification;
+  return about === undefined || !("block" in about);
 }
 
 // Whether the notification is core's that asks the user to reload the page,

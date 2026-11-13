@@ -53,8 +53,8 @@ export const nRows: Omit<Option, "id"> = {
 
 const SEVERITIES = ["message", "warning", "error"] as const;
 
-// The severities of a block's conditions that a frontend shows, while R
-// reports every severity.
+// The severities of the notifications about a block that a frontend shows,
+// such as the conditions of its evaluation, while R reports every severity.
 export const showConditions: Omit<Option, "id"> = {
   label: "Message types to display",
   category: "Board options",

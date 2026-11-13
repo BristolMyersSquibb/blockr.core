@@ -30,7 +30,7 @@ test("shows each sample as print() shows it, in a box that scrolls rather than w
   expect(basicText.default.options).toBeUndefined();
 });
 
-test("draws each output that core hands it, marks it busy while a newer one loads, and shows why an ask failed over it", async () => {
+test("draws each output that core hands it, marks it busy while a newer one loads, and keeps it where an ask fails, drawing nothing of why, which core raises as a notification about the block", async () => {
   const [first, second] = texts;
   const host = stubOutputHost({ output: { ...first } });
   const mounted = await mountReact(basicText, host);
@@ -51,7 +51,7 @@ test("draws each output that core hands it, marks it busy while a newer one load
   await step(() => {
     host.setError({ severity: "error", class: ["simpleError", "error", "condition"], phase: "output", message: "boom" });
   });
-  expect(el.querySelector('[role="alert"]')?.textContent).toBe("boom");
+  expect(el.querySelector('[role="alert"]')).toBeNull();
   expect(pre?.textContent).toBe(second?.text);
 
   await step(() => {

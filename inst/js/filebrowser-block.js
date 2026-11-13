@@ -55,8 +55,8 @@ function FileBrowserBlock({ host }) {
     reads: shared ?? null
   });
   const loading = listed.loading;
-  const listing2 = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
-  const error = (loading ? null : listed.error) ?? file.error;
+  const failed = listed.error !== null;
+  const listing2 = failed ? { dirs: [], files: [] } : asListing(listed.answer);
   const go = (next) => {
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
     setPlace(next);
@@ -123,10 +123,10 @@ function FileBrowserBlock({ host }) {
           `file ${name}`
         );
       }),
-      listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ jsx(Note, { text: "This directory is empty." })
+      !failed && listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ jsx(Note, { text: "This directory is empty." })
     ] }) }),
     held !== void 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: `Chosen: ${held}` }),
-    error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error })
+    file.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: file.error })
   ] });
 }
 function Entry({ text, current = false, onClick }) {

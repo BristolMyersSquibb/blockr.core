@@ -3,7 +3,7 @@ import { flushSync as flushSync2 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback7, useMemo as useMemo3, useState as useState10 } from "react";
+import { useCallback as useCallback7, useMemo as useMemo4, useState as useState10 } from "react";
 
 // srcts/util/util.ts
 function own(record, key) {
@@ -747,7 +747,7 @@ import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5,
 import { useCallback as useCallback2, useId as useId3, useState as useState5 } from "react";
 import { Fragment, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 var SEVERITIES = ["error", "warning", "message"];
-function useFooter(status, severities = SEVERITIES) {
+function useFooter(status, notifications, severities = SEVERITIES) {
   const shown = useShown(status);
   const [open, setOpen] = useState5(OPEN_AT_START);
   const panel = useId3();
@@ -758,7 +758,7 @@ function useFooter(status, severities = SEVERITIES) {
       return next;
     });
   }, []);
-  return { status, shown, severities, open, toggle, panel };
+  return { status, shown, notifications, severities, open, toggle, panel };
 }
 function Footer({ status, shown }) {
   return /* @__PURE__ */ jsx6(
@@ -771,10 +771,9 @@ function Footer({ status, shown }) {
     }
   );
 }
-function Pills({ status, shown, severities, open, toggle, panel }) {
-  if (shown === void 0) return null;
+function Pills({ status, shown, notifications, severities, open, toggle, panel }) {
   const pills = SEVERITIES.flatMap((severity) => {
-    const n = counted(shown, severities, severity);
+    const n = counted(shown, notifications, severities, severity);
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
@@ -808,21 +807,21 @@ function Pills({ status, shown, severities, open, toggle, panel }) {
     }
   );
 }
-function Banners({ shown, severities, open, panel }) {
-  if (shown === void 0) return null;
-  const listed2 = shown.conditions.filter(
-    (condition) => severities.includes(condition.severity) && open.has(condition.severity)
+function Banners({ shown, notifications, severities, open, panel }) {
+  const listed2 = notifications.filter(
+    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
   );
-  if (shown.reason !== null && open.has("message")) listed2.push({ severity: "message", message: shown.reason });
+  const reason = shown?.reason ?? null;
+  if (reason !== null && open.has("message")) listed2.push({ severity: "message", message: reason });
   if (listed2.length === 0) return null;
   return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed2.map(({ severity, message }, i) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i)) });
 }
 function settled(status, shown) {
   return status !== void 0 && status === shown && !status.running;
 }
-function counted(status, severities, severity) {
-  const conditions = severities.includes(severity) ? status.conditions.filter((condition) => condition.severity === severity).length : 0;
-  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
+function counted(status, notifications, severities, severity) {
+  const n = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 var MARKS = {
   error: {
@@ -916,7 +915,7 @@ function Mounted({
 }
 
 // srcts/card/status.ts
-import { useCallback as useCallback3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useCallback as useCallback3, useMemo as useMemo3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
 function useStatus(core, block) {
   const subscribe = useCallback3(
     (notify) => core.scheduler.subscribe((changed) => {
@@ -925,6 +924,19 @@ function useStatus(core, block) {
     [core, block]
   );
   return useSyncExternalStore2(subscribe, () => core.scheduler.status(block));
+}
+function useNotified(core, block) {
+  const subscribe = useCallback3(
+    (notify) => core.notifications.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  const all = useSyncExternalStore2(subscribe, () => core.notifications.get());
+  return useMemo3(
+    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
+    [all, block]
+  );
 }
 function useSized(status) {
   const ready = status?.status === "ready";
@@ -1056,7 +1068,8 @@ var BlockCard = memo(function BlockCard2({
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
-  const footer = useFooter(status, severities);
+  const notified = useNotified(core, id2);
+  const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState8(false);
   const ref = useRef5(null);
@@ -1225,8 +1238,8 @@ function stackBlocks(board, stack) {
 // srcts/modules/basic/notices.ts
 import { useSyncExternalStore as useSyncExternalStore3 } from "react";
 function listed(notification) {
-  const { about, source } = notification;
-  return about === void 0 || !("block" in about) || source.kind === "module";
+  const { about } = notification;
+  return about === void 0 || !("block" in about);
 }
 function isReload(notification) {
   return notification.source.kind === "core" && notification.source.code === "page_reload_needed";
@@ -1681,9 +1694,9 @@ function BasicBoard({ front }) {
 function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
-  const items = useMemo3(() => layoutItems(board), [board]);
+  const items = useMemo4(() => layoutItems(board), [board]);
   const shown = board.options.show_conditions;
-  const severities = useMemo3(() => asSeverities(shown), [shown]);
+  const severities = useMemo4(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState10(null);
   const add = useCallback7((mode) => {
     setDialog({ kind: "add", mode });

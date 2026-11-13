@@ -15,6 +15,7 @@ import type { HelloReply, Lock } from "../protocol/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
+import { held } from "../testing/notifications.ts";
 import { classModule, listedModules, pluginUi } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
@@ -276,7 +277,7 @@ describe("mounting a plugin's UI", () => {
     s.stop();
   });
 
-  test("throws for a plugin that the app does not run or whose class has no ui, and shows why in the element where its ui fails", async () => {
+  test("throws for a plugin that the app does not run or whose class has no ui, and leaves the element empty where its ui fails, raising why", async () => {
     const broken: PluginClass = {
       id: "blockr.test-broken_plugin",
       ui: {
@@ -309,12 +310,20 @@ describe("mounting a plugin's UI", () => {
     await s.settled();
     reported.restore();
 
-    expect(failing.textContent).toBe('The ui of the plugin class "blockr.test-broken_plugin" failed in render(): boom');
+    expect(failing.textContent).toBe("");
+    expect(held(s.core, (n) => n.about !== undefined && "plugin" in n.about)).toEqual([
+      {
+        severity: "error",
+        message: 'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): boom',
+        source: { kind: "core", code: "module_failed", package: "blockr.test" },
+        about: { plugin: "blockr.test-broken_plugin" },
+      },
+    ]);
     expect(reported.errors()).toHaveLength(1);
     s.stop();
   });
 
-  test("adds the board options that the plugin's class requires before render(), and shows why in place of the UI where one does not go onto the board", async () => {
+  test("adds the board options that the plugin's class requires before render(), and where one does not go onto the board, leaves the UI's element empty and raises why about the board option, and that the UI cannot draw about the plugin", async () => {
     const seen: unknown[] = [];
     const ui = {
       render({ core }: { core: CoreApi }) {
@@ -336,9 +345,19 @@ describe("mounting a plugin's UI", () => {
     reported.restore();
 
     expect(seen).toEqual([1]);
-    expect(failing.textContent).toBe(
-      'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
-    );
+    expect(failing.textContent).toBe("");
+    expect(held(s.core, (n) => n.source.kind === "core").map((n) => [n.source, n.about, n.message])).toEqual([
+      [
+        { kind: "core", code: "board_option_failed" },
+        { option: "nowhere" },
+        'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
+      ],
+      [
+        { kind: "core", code: "module_failed", package: "blockr.test" },
+        { plugin: "blockr.test-needy_plugin" },
+        'Without the board option "nowhere", the ui of the plugin class "blockr.test-needy_plugin" cannot draw.',
+      ],
+    ]);
     s.stop();
   });
 });

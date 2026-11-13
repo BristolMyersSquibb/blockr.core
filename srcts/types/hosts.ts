@@ -142,7 +142,9 @@ export interface OutputHost {
   options(): Readonly<Record<OptionId, Json>>;
   // Whether core is asking R for a newer output.
   loading(): boolean;
-  // Why the latest ask failed, while output() keeps what it held.
+  // Why the latest ask failed, while output() keeps what it held. Core raises
+  // it as a notification about the block too, which the frontend places, so a
+  // renderer need not show it.
   error(): Condition | null;
   on(event: "output", fn: () => void): () => void;
   // Asks R for an output made with these, which params() returns once it
@@ -162,8 +164,9 @@ export interface OutputHost {
   // Reports what the user did on the output, such as a selection, for a
   // plugin to act on.
   emit(name: string, payload: Json): void;
-  // Raises a notification of the renderer's, which concerns the block unless
-  // it names another board object, and holds until the function that it
-  // returns runs or the renderer is unmounted.
+  // Raises a notification of the renderer's, which comes from the block,
+  // naming the renderer, concerns the block unless it names another board
+  // object, and holds until the function that it returns runs or the renderer
+  // is unmounted.
   notify(notification: Raised): () => void;
 }

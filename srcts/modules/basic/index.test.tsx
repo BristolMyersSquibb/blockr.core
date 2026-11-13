@@ -1046,7 +1046,7 @@ describe("what the user learns", () => {
     expect(notices(page.el)).toEqual([]);
   });
 
-  test("is each notification of the board that concerns no block or that the module of a package raises, in the colour of its severity, until it is withdrawn or the user dismisses it", async () => {
+  test("is each notification of the board that concerns no block, whoever raised it, in the colour of its severity, until it is withdrawn or the user dismisses it, while a block's card shows those about the block", async () => {
     const { el, core } = await drawn({
       evaluate: (request) =>
         request.block === "b"
@@ -1060,25 +1060,25 @@ describe("what the user learns", () => {
       core.notifications.notify(FILE_STORAGE, { severity: "warning", code: "token_expiring", message: "The token expires soon." });
       shared = core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
     });
-    // The condition of block b, which its card shows, is not among them.
+    // The condition of block b and what the plugin raised about b show on b's
+    // card, whoever raised them, and not in the list.
     expect(core.notifications.get().some((n) => n.message === "Few rows." && n.source.kind === "r")).toBe(true);
     expect(notices(el)).toEqual([
       ["message", "Saved to Connect."],
       ["warning", "The token expires soon."],
-      ["error", "Not shared."],
     ]);
-    expect(texts(el, 'ul[aria-label="Notices"] > li[role="alert"] span')).toEqual(["The token expires soon.", "Not shared."]);
+    expect(texts(el, 'ul[aria-label="Notices"] > li[role="alert"] span')).toEqual(["The token expires soon."]);
     expect(find(el, '[data-severity="message"]').getAttribute("role")).toBe("status");
+    const head = card(el, "Head");
+    expect(pills(head)).toEqual(["error", "1 warning"]);
+    expect(banners(head)).toEqual([["error", "Not shared."]]);
 
     await click(button(find(el, '[data-severity="message"]'), "Dismiss"));
-    expect(notices(el)).toEqual([
-      ["warning", "The token expires soon."],
-      ["error", "Not shared."],
-    ]);
+    expect(notices(el)).toEqual([["warning", "The token expires soon."]]);
     await step(() => {
       shared();
     });
-    expect(notices(el)).toEqual([["warning", "The token expires soon."]]);
+    expect(pills(head)).toEqual(["1 warning"]);
     expect(core.notifications.get().some((n) => n.message === "Saved to Connect.")).toBe(true);
   });
 
@@ -1092,10 +1092,12 @@ describe("what the user learns", () => {
       message: "Reload, please.",
       source: { kind: "module", object: { plugin: FILE_STORAGE }, code: "page_reload_needed" },
     };
-    // The frontend drawn with notifications that hold core's and a plugin's.
+    // The frontend drawn with notifications that hold core's and a plugin's,
+    // the same array while they hold, as CoreApi's are.
+    const holding = [reloading, posing];
     const notifications: CoreApi["notifications"] = {
       notify: () => () => undefined,
-      get: () => [reloading, posing],
+      get: () => holding,
       subscribe: () => () => undefined,
     };
     const el = document.createElement("div");

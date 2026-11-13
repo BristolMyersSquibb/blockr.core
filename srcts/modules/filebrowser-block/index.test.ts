@@ -117,7 +117,7 @@ test("goes up a directory, and back to one the path above the list names", async
   expect(entries()).toEqual(["data/", "notes.txt"]);
 });
 
-test("gives a volume that is gone up for the first, and says why its listing failed", async () => {
+test("gives a volume that is gone up for the first, and lists nothing where its listing fails, leaving why to core's notification of R's error reply", async () => {
   const { host, view } = await mounted(sales);
 
   await step(() => {
@@ -126,7 +126,8 @@ test("gives a volume that is gone up for the first, and says why its listing fai
   await settle();
 
   expect(host.requested.at(-1)).toEqual({ name: "list_dir", args: { volume: "srv", path: "" } });
-  expect(find(view.el, '[role="alert"]').textContent).toContain('records no answer of the request "list_dir"');
+  expect(view.el.querySelector('[role="alert"]')).toBeNull();
+  expect(view.el.textContent).not.toContain("This directory is empty.");
   expect(host.submitted).toEqual([]);
 });
 

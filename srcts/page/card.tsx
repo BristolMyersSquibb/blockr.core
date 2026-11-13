@@ -10,14 +10,17 @@
 // - The footer, the last line of the output's box, which shows a ready
 //   block's summary.
 // - Below the box, the pills: one for the reason of an invalid or a waiting
-//   block, and one for each severity of the conditions of R's reply.
+//   block, and one for each severity of the notifications of the board,
+//   whoever raised them, as the conditions of R's reply, what failed of the
+//   block's UI module, its output and its requests, what its modules raise,
+//   and core's request to reload the page, since the card is the whole page.
 // - The banners of the pills that are open.
 // The footer, the pills and the banners are those of srcts/card, which the
 // cards of core's basic frontend draw as well.
 // While R evaluates the block, the footer, the pills and the output dim, and
 // keep what they show. The output also dims while the block is not ready, and
-// keeps the last output that it drew. The card shows conditions in its pills
-// and its banners alone, and never as toasts.
+// keeps the last output that it drew. The card shows notifications in its
+// pills and its banners alone, and never as toasts.
 // The card draws in the page's theme, which the board option dark_mode
 // switches, as on every page that core starts.
 // Core asks R for an output only once the block reads ready and the output's
@@ -36,7 +39,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Banners, Footer, Mounted, Pills, useFooter, useSized, useStatus } from "../card/index.ts";
+import { Banners, Footer, Mounted, Pills, useFooter, useNotified, useSized, useStatus } from "../card/index.ts";
 import { loadingNote } from "../core/index.ts";
 import { showError } from "../mount/index.ts";
 import type { BlockId } from "../types/board.ts";
@@ -50,6 +53,7 @@ export const OWNER = "blockr.core";
 export type CardCore = Pick<CoreApi, "mountBlock" | "mountOutput"> & {
   readonly store: Pick<CoreApi["store"], "board" | "subscribe" | "locked">;
   readonly scheduler: Pick<CoreApi["scheduler"], "demand" | "status" | "subscribe">;
+  readonly notifications: Pick<CoreApi["notifications"], "get" | "subscribe">;
 };
 
 // Draws the board's one block in its card in the element, and demands it,
@@ -84,7 +88,11 @@ export function drawCard(el: HTMLElement, core: CardCore, signal: AbortSignal): 
 function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement {
   const name = useBlockName(core, id);
   const status = useStatus(core, id);
-  const footer = useFooter(status);
+  // The card is the whole page, and the board holds its block alone, so it
+  // shows every notification of the board, such as the one in which core asks
+  // for the page to be reloaded.
+  const notified = useNotified(core, null);
+  const footer = useFooter(status, notified);
   const sized = useSized(status);
 
   const mountUi = useCallback((el: HTMLElement) => core.mountBlock(el, id), [core, id]);

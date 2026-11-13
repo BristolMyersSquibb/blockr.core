@@ -305,7 +305,7 @@ describe("while core asks R for an output", () => {
     expect(table.rows()).toHaveLength(5);
   });
 
-  test("asks again no further than the first page unsorted, and shows the error over the page it holds", async () => {
+  test("asks again no further than the first page unsorted, and keeps the page it holds, drawing nothing of the error, which core raises as a notification about the block", async () => {
     // The fixtures hold no first page at five rows to a page.
     const table = await mounted(0, { options: { n_rows: 5 } });
 
@@ -314,7 +314,7 @@ describe("while core asks R for an output", () => {
     });
 
     expect(table.host.asked).toEqual([{}]);
-    expect(table.alert()?.textContent).toBe("The fixtures hold no output asked with the parameters {}.");
+    expect(table.alert()).toBeNull();
     expect(table.rows()).toHaveLength(3);
 
     await step(() => {
@@ -327,7 +327,8 @@ describe("while core asks R for an output", () => {
       first.host.setError(error);
     });
     expect(first.host.asked).toEqual([]);
-    expect(first.alert()?.textContent).toBe(error.message);
+    expect(first.alert()).toBeNull();
+    expect(first.rows().length).toBeGreaterThan(0);
   });
 });
 

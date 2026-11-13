@@ -280,7 +280,7 @@ var styles = {
 };
 
 // srcts/react/module.tsx
-import { jsx, jsxs } from "react/jsx-runtime";
+import { jsx } from "react/jsx-runtime";
 function reactModule(Draw, options = {}) {
   return {
     ...options.options === void 0 ? {} : { options: options.options },
@@ -298,21 +298,18 @@ function reactModule(Draw, options = {}) {
 function outputRenderer(Draw, options = {}) {
   function Renderer({ host }) {
     const now = useOutput(host);
-    return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default", "aria-busy": now.loading, children: [
-      now.error === null ? null : /* @__PURE__ */ jsx(Alert, { message: now.error.message }),
-      /* @__PURE__ */ jsx(Boundary, { output: now.output, children: /* @__PURE__ */ jsx("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`, children: /* @__PURE__ */ jsx(
-        Draw,
-        {
-          output: now.output,
-          body: now.body,
-          params: now.params,
-          options: now.options,
-          loading: now.loading,
-          error: now.error,
-          host
-        }
-      ) }) })
-    ] });
+    return /* @__PURE__ */ jsx("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default", "aria-busy": now.loading, children: /* @__PURE__ */ jsx(Boundary, { output: now.output, children: /* @__PURE__ */ jsx("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`, children: /* @__PURE__ */ jsx(
+      Draw,
+      {
+        output: now.output,
+        body: now.body,
+        params: now.params,
+        options: now.options,
+        loading: now.loading,
+        error: now.error,
+        host
+      }
+    ) }) }) });
   }
   return reactModule(Renderer, options);
 }
@@ -340,12 +337,12 @@ var Boundary = class extends Component {
 
 // srcts/inputs/inputs.tsx
 import { useState as useState2 } from "react";
-import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+import { Fragment, jsx as jsx2, jsxs } from "react/jsx-runtime";
 function Stack({ children }) {
   return /* @__PURE__ */ jsx2("div", { className: styles.stack, children });
 }
 function Field({ label, children }) {
-  return /* @__PURE__ */ jsxs2("label", { className: styles.field, children: [
+  return /* @__PURE__ */ jsxs("label", { className: styles.field, children: [
     /* @__PURE__ */ jsx2("span", { className: styles.label, children: label }),
     children
   ] });
@@ -376,7 +373,7 @@ function TextInput({
       bound.flush();
     }
   };
-  return /* @__PURE__ */ jsxs2(Fragment, { children: [
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx2(Field, { label, children: lines > 1 ? /* @__PURE__ */ jsx2("textarea", { rows: lines, ...props }) : /* @__PURE__ */ jsx2("input", { type: "text", ...props }) }),
     /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
   ] });
@@ -415,7 +412,7 @@ function NumberInput({
     if (value === void 0) typed(null);
   };
   const checked = read(shown);
-  return /* @__PURE__ */ jsxs2(Fragment, { children: [
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx2(Field, { label, children: /* @__PURE__ */ jsx2(
       "input",
       {
@@ -452,8 +449,8 @@ function Select({
   const lacked = current !== void 0 && !known.some((choice) => choice.value === current);
   const invalid = lacked && choices !== void 0 && !outdated;
   const shown = lacked ? [...known, { value: current, label: invalid ? missing(current) : current }] : known;
-  return /* @__PURE__ */ jsxs2(Fragment, { children: [
-    /* @__PURE__ */ jsx2(Field, { label, children: /* @__PURE__ */ jsxs2(
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx2(Field, { label, children: /* @__PURE__ */ jsxs(
       "select",
       {
         className: styles.box,
@@ -472,8 +469,8 @@ function Select({
   ] });
 }
 function Checkbox({ bound, label }) {
-  return /* @__PURE__ */ jsxs2(Fragment, { children: [
-    /* @__PURE__ */ jsxs2("label", { className: styles.check, children: [
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
       /* @__PURE__ */ jsx2(
         "input",
         {
@@ -508,12 +505,12 @@ function Checklist({
       ordered ? [...known.filter((choice) => next.includes(choice)), ...next.filter((other) => !known.includes(other))] : next
     );
   };
-  return /* @__PURE__ */ jsxs2("fieldset", { className: styles.fieldset, children: [
+  return /* @__PURE__ */ jsxs("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx2("legend", { className: styles.legend, children: legend }),
-    /* @__PURE__ */ jsxs2("div", { className: styles.list, children: [
+    /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
       shown.map((value) => {
         const invalid = choices !== void 0 && !outdated && !known.includes(value);
-        return /* @__PURE__ */ jsxs2("label", { className: styles.check, children: [
+        return /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
           /* @__PURE__ */ jsx2(
             "input",
             {

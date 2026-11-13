@@ -210,7 +210,7 @@ export function createCore(parts: CoreParts): Core {
     if (def?.onChange === undefined) return;
     const raisedNow: (() => void)[] = [];
     const notify = (notification: Raised): (() => void) => {
-      const withdraw = notifications.notify({ option: id }, optionPackage(id) ?? null, notification);
+      const withdraw = notifications.notify({ object: { option: id }, package: optionPackage(id) ?? null }, notification);
       raisedNow.push(withdraw);
       return withdraw;
     };

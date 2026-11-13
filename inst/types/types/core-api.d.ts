@@ -86,6 +86,7 @@ export interface CoreSource {
     readonly kind: "core";
     readonly code: CoreCode;
     readonly package?: string;
+    readonly renderer?: string;
 }
 export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered";
 export interface ModuleSource {
@@ -99,6 +100,7 @@ export interface ModuleSource {
     };
     readonly code: string;
     readonly package?: string;
+    readonly renderer?: string;
 }
 export interface Raised {
     readonly severity: Severity;

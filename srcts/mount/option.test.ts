@@ -12,10 +12,10 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore } from "../testing/store.ts";
-import type { ModuleSource, Raised } from "../types/core-api.ts";
+import type { Notification, Raised } from "../types/core-api.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import type { Replied } from "../util/index.ts";
+import type { From, Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Mounts } from "./index.ts";
 
@@ -64,7 +64,9 @@ interface Setup {
   replies: Parameters<Replied>[];
   // The notifications that modules raised through their hosts, while they
   // hold.
-  notified: { object: ModuleSource["object"]; pkg: string | null; notification: Raised }[];
+  notified: { from: From; notification: Raised }[];
+  // Each of core's notifications that the mounts raised, while it holds.
+  raised: Omit<Notification, "id">[];
   // Ends what core runs for the board, as core does as another board opens.
   end(): void;
 }
@@ -94,7 +96,8 @@ async function setup(
     stylesheet: () => Promise.resolve(),
   });
   const replies: Parameters<Replied>[] = [];
-  const notified: { object: ModuleSource["object"]; pkg: string | null; notification: Raised }[] = [];
+  const notified: { from: From; notification: Raised }[] = [];
+  const raised: Omit<Notification, "id">[] = [];
   const mounts = createMounts({
     core: noCore,
     store,
@@ -103,11 +106,18 @@ async function setup(
     loader,
     renderers: () => renderers,
     signal,
+    raise: (notification) => {
+      raised.push(notification);
+      return () => {
+        const at = raised.indexOf(notification);
+        if (at >= 0) raised.splice(at, 1);
+      };
+    },
     replied: (...args) => {
       replies.push(args);
     },
-    notify: (object, pkg, notification) => {
-      const given = { object, pkg, notification };
+    notify: (from, notification) => {
+      const given = { from, notification };
       notified.push(given);
       return () => {
         const at = notified.indexOf(given);
@@ -123,6 +133,7 @@ async function setup(
     imported,
     replies,
     notified,
+    raised,
     end: () => {
       controller.abort();
     },
@@ -216,7 +227,7 @@ describe("the host", () => {
     expect(calls.count).toBe(2);
   });
 
-  test("shows why in its element, and renders nothing, where the board lacks the value and the default fails", async () => {
+  test("leaves its element empty, and renders nothing, where the board lacks the value and the default fails, which the board option's notification says", async () => {
     const reported = reports();
     const broken = ui();
     const s = await setup([
@@ -236,7 +247,10 @@ describe("the host", () => {
     reported.restore();
 
     const why = 'The default of the board option "broken", which the UI of the board option "broken" requires, failed: No value today.';
-    expect(el.textContent).toBe(why);
+    expect(el.textContent).toBe("");
+    expect(s.raised).toEqual([
+      { severity: "error", message: why, source: { kind: "core", code: "board_option_failed" }, about: { option: "broken" } },
+    ]);
     expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
     expect(broken.mounts).toHaveLength(0);
     expect(Object.hasOwn(s.store.board().options, "broken")).toBe(false);
@@ -294,8 +308,8 @@ describe("the host", () => {
     const withdraw = rows.host().notify(given);
     rows.host().notify({ ...given, code: "other" });
     expect(s.notified).toEqual([
-      { object: { option: "n_rows" }, pkg: "blockr.core", notification: given },
-      { object: { option: "n_rows" }, pkg: "blockr.core", notification: { ...given, code: "other" } },
+      { from: { object: { option: "n_rows" }, package: "blockr.core" }, notification: given },
+      { from: { object: { option: "n_rows" }, package: "blockr.core" }, notification: { ...given, code: "other" } },
     ]);
     withdraw();
     withdraw();
@@ -340,7 +354,7 @@ describe("a mount", () => {
     expect(s.store.board().options).toEqual({ theme: "light" });
   });
 
-  test("ends its UI and shows why once a delta removes the value and the default does not go onto the board again", async () => {
+  test("ends its UI and leaves its element empty once a delta removes the value and the default does not go onto the board again, which the board option's notification says", async () => {
     const reported = reports();
     const shown = ui();
     let calls = 0;
@@ -363,12 +377,13 @@ describe("a mount", () => {
     reported.restore();
 
     const why = 'The default of the board option "once", which the UI of the board option "once" requires, failed: No value any more.';
-    expect(el.textContent).toBe(why);
+    expect(el.textContent).toBe("");
+    expect(s.raised.map((n) => [n.source, n.about, n.message])).toEqual([[{ kind: "core", code: "board_option_failed" }, { option: "once" }, why]]);
     expect(shown.cleanups()).toBe(1);
     expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
   });
 
-  test("shows an error where the renderer cannot be used", async () => {
+  test("leaves its element empty, and raises why, where the renderer cannot be used", async () => {
     const reported = reports();
     const s = await setup(options(ui().mod), {
       modules: { [DARK]: { api: 2, default: ui().mod } },
@@ -379,7 +394,9 @@ describe("a mount", () => {
     await tick();
     reported.restore();
 
-    expect(el.textContent).toContain("The module blockr.test/js/dark.js of blockr.test was built against major 2");
+    expect(el.textContent).toBe("");
+    expect(s.raised.map((n) => [n.source, n.about])).toEqual([[{ kind: "core", code: "module_failed", package: "blockr.test" }, { option: "theme" }]]);
+    expect(s.raised[0]?.message).toContain("The module blockr.test/js/dark.js of blockr.test was built against major 2");
     expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
   });
 
@@ -397,7 +414,10 @@ describe("a mount", () => {
     reported.restore();
 
     const message = 'The UI of the board option "n_rows" failed in render(): boom';
-    expect(el.textContent).toBe(message);
+    expect(el.textContent).toBe("");
+    expect(s.raised).toEqual([
+      { severity: "error", message, source: { kind: "core", code: "module_failed", package: "blockr.core" }, about: { option: "n_rows" } },
+    ]);
     expect(reported.errors().map((error) => (error as Error).message)).toEqual([message]);
   });
 

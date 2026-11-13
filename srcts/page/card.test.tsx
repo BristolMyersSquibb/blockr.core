@@ -1,6 +1,8 @@
 // The card of a block that serve() serves alone, drawn on what the test plays
 // of CoreApi: a board of the head block "b", the statuses that the test gives
-// the block, and mounts that write what they draw.
+// the block, with a notification about it for each condition of its status, as
+// core holds them, the other notifications that the test raises, and mounts
+// that write what they draw.
 
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
@@ -10,6 +12,7 @@ import { READY } from "../stubs/index.ts";
 import { find, texts } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import type { Block, Board } from "../types/board.ts";
+import type { Notification } from "../types/core-api.ts";
 import { drawCard, OWNER } from "./card.tsx";
 import type { CardCore } from "./card.tsx";
 
@@ -26,11 +29,30 @@ function condition(severity: Condition["severity"], message: string): Condition 
 const UNEVALUATED: BlockStatus = { ...READY, status: "unevaluated", evaluated: null, running: true };
 
 // What the card reads of CoreApi, played: the board given, the block's
-// status, which the test sets, the demands that the card makes, and what the
-// mounts draw and end.
+// status, which the test sets, the notifications about the block, the demands
+// that the card makes, and what the mounts draw and end.
 function played(board: Board = createBoard({ b: HEAD }), locked = false) {
   let status: BlockStatus | undefined = UNEVALUATED;
   const listeners = new Set<(changed: readonly string[]) => void>();
+  // The notifications that the test raised, and those that hold: one for
+  // each condition of the block's status, and those raised.
+  let raised: readonly Notification[] = [];
+  let notifications: readonly Notification[] = [];
+  const heard = new Set<(all: readonly Notification[]) => void>();
+  const derive = (): void => {
+    notifications = [
+      ...(status?.conditions ?? []).map(
+        (condition, i): Notification => ({
+          id: `status-${String(i)}`,
+          severity: condition.severity,
+          message: condition.message,
+          source: { kind: "r", class: condition.class, request: { type: "evaluate" } },
+          about: { block: "b" },
+        }),
+      ),
+      ...raised,
+    ];
+  };
   const demands: { owner: string; blocks: string[]; released: boolean }[] = [];
   const events: string[] = [];
   const core: CardCore = {
@@ -72,6 +94,19 @@ function played(board: Board = createBoard({ b: HEAD }), locked = false) {
         events.push(`output of ${block} ends`);
       };
     },
+    notifications: {
+      get: () => notifications,
+      subscribe(fn) {
+        heard.add(fn);
+        return () => {
+          heard.delete(fn);
+        };
+      },
+    },
+  };
+  const publish = (): void => {
+    derive();
+    for (const fn of heard) fn(notifications);
   };
   return {
     core,
@@ -82,7 +117,24 @@ function played(board: Board = createBoard({ b: HEAD }), locked = false) {
       status = { ...READY, ...next };
       await step(() => {
         for (const fn of listeners) fn(["b"]);
+        publish();
       });
+    },
+    // Raises a notification about the block, as a module that cannot draw
+    // does, or with null one that concerns no block, until the function that
+    // it returns runs.
+    async raise(notification: Omit<Notification, "id" | "about">, block: "b" | null = "b"): Promise<() => Promise<void>> {
+      const made: Notification = {
+        ...notification,
+        id: `raised-${String(raised.length)}`,
+        ...(block === null ? {} : { about: { block } }),
+      };
+      raised = [...raised, made];
+      await step(publish);
+      return async () => {
+        raised = raised.filter((held) => held !== made);
+        await step(publish);
+      };
     },
   };
 }
@@ -280,6 +332,50 @@ describe("the card of a block that serve() serves alone", () => {
     ]);
   });
 
+  test("shows the notifications about the block that its status does not hold, as of a module that cannot draw, in its pills and banners, until they are withdrawn", async () => {
+    const r = played();
+    const { el } = draw(r.core);
+    await r.set({ summary: "<data.frame> [6 × 5]", conditions: [condition("warning", "Dropped a column.")] });
+
+    const withdraw = await r.raise({
+      severity: "error",
+      message: "The module blockr.core/head-block.js of blockr.core failed to load.",
+      source: { kind: "core", code: "module_failed", package: "blockr.core" },
+    });
+    expect(pills(el)).toEqual(["error", "1 warning"]);
+    expect(banners(el)).toEqual([["error", "The module blockr.core/head-block.js of blockr.core failed to load."]]);
+
+    await withdraw();
+    expect(pills(el)).toEqual(["1 warning"]);
+    expect(banners(el)).toEqual([]);
+  });
+
+  test("shows the notifications of the board that concern no block, as core's request to reload the page, since the card is the whole page", async () => {
+    const r = played();
+    const { el } = draw(r.core);
+    await r.raise({
+      severity: "warning",
+      message: "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.1). Save the board, then reload the page.",
+      source: { kind: "core", code: "page_reload_needed" },
+    }, null);
+    expect(pills(el)).toEqual(["1 warning"]);
+    await click(pill(el, "1 warning"));
+    expect(banners(el)).toEqual([
+      ["warning", "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.1). Save the board, then reload the page."],
+    ]);
+  });
+
+  test("shows a pill where a notification is about the block before it has a status", async () => {
+    const r = played();
+    const { el } = draw(r.core);
+    await r.raise({
+      severity: "error",
+      message: "Without the board option \"zoom\", the renderer \"blockr.core-table_output\" cannot draw.",
+      source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: "blockr.core-table_output" },
+    });
+    expect(pills(el)).toEqual(["error"]);
+  });
+
   test("dims the footer, the pills and the output while R evaluates the block, and keeps what they show", async () => {
     const r = played();
     const { el } = draw(r.core);
@@ -290,7 +386,15 @@ describe("the card of a block that serve() serves alone", () => {
     expect(output(el).className).not.toContain("bc:opacity-50");
 
     // The user changed the block's state, and R evaluates its next revision.
-    await r.set({ status: "stale", revision: 2, running: true, summary: "<data.frame> [6 × 5]" });
+    // The status keeps the conditions of the reply before, as the scheduler's
+    // does, and so the notifications of them hold.
+    await r.set({
+      status: "stale",
+      revision: 2,
+      running: true,
+      summary: "<data.frame> [6 × 5]",
+      conditions: [condition("warning", "Dropped a column.")],
+    });
     expect([summary(el), pills(el)]).toEqual(["<data.frame> [6 × 5]", ["1 warning"]]);
     expect(footer(el).className).toContain("bc:opacity-50");
     expect(footer(el).getAttribute("aria-busy")).toBe("true");

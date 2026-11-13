@@ -19,22 +19,32 @@ export type Raise = (notification: Omit<Notification, "id">) => () => void;
 // them.
 export type Replied = (about: BoardObject, request: Extract<RRequest, { readonly name: string }>, conditions: readonly Condition[]) => void;
 
-// Raises a notification that a package's module gives, from the board object
-// that the module belongs to and with its package, null where core knows none,
-// and returns what withdraws it.
-export type Notify = (object: ModuleSource["object"], pkg: string | null, notification: Raised) => () => void;
+// Raises a notification that a package's module gives, from the module: the
+// board object that it belongs to, its package, null where core knows none, and
+// for the renderer of a block's output, the renderer's id. It returns what
+// withdraws the notification.
+export type Notify = (from: From, notification: Raised) => () => void;
+
+// The module that raises a notification, as its source names it.
+export interface From {
+  readonly object: ModuleSource["object"];
+  readonly package: string | null;
+  readonly renderer?: string;
+}
 
 // Raise nothing, for code that runs outside an opening, as in a test.
 export const raiseNothing: Raise = () => () => undefined;
 export const repliedNothing: Replied = () => undefined;
 export const notifyNothing: Notify = () => () => undefined;
 
-// What one of core's notifications concerns, none for the board, and the
-// package whose code failed, or null where an id names none, as for a block
-// class defined outside a package.
+// What one of core's notifications concerns, none for the board, the package
+// whose code failed, or null where an id names none, as for a block class
+// defined outside a package, and the renderer of the block's output, by its
+// id, where it is the module that failed.
 export interface Concerns {
   readonly about?: BoardObject;
   readonly package?: string | null;
+  readonly renderer?: string;
 }
 
 // One of core's notifications, of `code`.
@@ -44,11 +54,16 @@ export function coreNotification(
   message: string,
   concerns: Concerns = {},
 ): Omit<Notification, "id"> {
-  const pkg = concerns.package;
+  const { package: pkg, renderer } = concerns;
   return {
     severity,
     message,
-    source: { kind: "core", code, ...(pkg === undefined || pkg === null ? {} : { package: pkg }) },
+    source: {
+      kind: "core",
+      code,
+      ...(pkg === undefined || pkg === null ? {} : { package: pkg }),
+      ...(renderer === undefined ? {} : { renderer }),
+    },
     ...(concerns.about === undefined ? {} : { about: concerns.about }),
   };
 }

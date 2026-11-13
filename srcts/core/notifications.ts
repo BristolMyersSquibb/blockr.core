@@ -243,7 +243,7 @@ export function createNotifications(
     };
   };
 
-  const notify: Notify = (object, pkg, notification) => {
+  const notify: Notify = ({ object, package: pkg, renderer }, notification) => {
     const given = checkRaised(notification);
     if (ended) return nothing;
     const about = given.about === undefined ? object : (given.about ?? undefined);
@@ -259,7 +259,13 @@ export function createNotifications(
       frozen(id, {
         severity: given.severity,
         message: given.message,
-        source: { kind: "module", object, code: given.code, ...(pkg === null ? {} : { package: pkg }) },
+        source: {
+          kind: "module",
+          object,
+          code: given.code,
+          ...(pkg === null ? {} : { package: pkg }),
+          ...(renderer === undefined ? {} : { renderer }),
+        },
         ...(about === undefined ? {} : { about }),
       }),
     );
@@ -286,7 +292,7 @@ export function createNotifications(
           report(new Error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`));
           return nothing;
         }
-        return notify({ plugin }, packageFromId(plugin), given);
+        return notify({ object: { plugin }, package: packageFromId(plugin) }, given);
       },
       get: () => all,
       subscribe(fn) {
@@ -377,13 +383,19 @@ function sourceCopy(source: NotificationSource): NotificationSource {
     case "r":
       return { kind: "r", class: [...source.class], request: { ...source.request } };
     case "core":
-      return { kind: "core", code: source.code, ...(source.package === undefined ? {} : { package: source.package }) };
+      return {
+        kind: "core",
+        code: source.code,
+        ...(source.package === undefined ? {} : { package: source.package }),
+        ...(source.renderer === undefined ? {} : { renderer: source.renderer }),
+      };
     case "module":
       return {
         kind: "module",
         object: moduleObjectCopy(source.object),
         code: source.code,
         ...(source.package === undefined ? {} : { package: source.package }),
+        ...(source.renderer === undefined ? {} : { renderer: source.renderer }),
       };
   }
 }

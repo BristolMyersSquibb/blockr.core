@@ -21,17 +21,20 @@
 //    cleanup that its `start` returned.
 // Where a board option that a class names does not go onto the board, as where
 // its default fails, nothing that requires it draws or runs: the element of the
-// frontend or of the plugin's UI shows why, and core calls no `start` of the
-// plugin, which it reports. A `start` that throws and a `ui` that fails in
-// render() each raise a notification that concerns the plugin, with its
-// class's package, which holds until the next board opens.
+// frontend shows why, the element of the plugin's UI stays empty, and core
+// calls no `start` of the plugin, which it reports. A `start` that throws, and
+// a `ui` that fails in render() or cannot draw without such a board option,
+// each raise a notification that concerns the plugin, with its class's
+// package, which holds until the next board opens. Core draws nothing in the
+// element of the plugin's UI itself, so that the frontend alone says where a
+// failure shows.
 // A frontend places each plugin whose class has a `ui` with mountPlugin(),
 // which calls the `ui` with the element that the frontend gives, as
 // mountBlock() mounts a block's UI.
 // No change adds a plugin to the open board or removes one, so what core runs
 // for the plugins ends only as the next board opens.
 
-import { attempt, onAbort, REPLACED, showError } from "../mount/index.ts";
+import { attempt, onAbort, REPLACED, withoutOptions } from "../mount/index.ts";
 import type { Mounts } from "../mount/index.ts";
 import type { PluginEntry } from "../protocol/index.ts";
 import { inRole } from "../store/index.ts";
@@ -242,30 +245,41 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     };
     const offEnd = onAbort(replaced, end);
 
+    // A ui that cannot draw, which leaves its element empty.
     function fail(error: unknown): void {
       if (ended()) return;
-      showError(el, errorMessage(error));
       report(error);
-      deps.raise(
-        coreNotification("module_failed", "error", errorMessage(error), { about: { plugin }, package: packageFromId(plugin) }),
-      );
+      cannotDraw(errorMessage(error));
+    }
+
+    // Raises that the ui cannot draw, which concerns the plugin.
+    function cannotDraw(message: string): void {
+      deps.raise(coreNotification("module_failed", "error", message, { about: { plugin }, package: packageFromId(plugin) }));
+    }
+
+    // Raises that the ui cannot draw without the board options that the class
+    // names and that the board lacks, beside the notification about each board
+    // option, which core has reported.
+    function lacking(ids: readonly OptionId[]): void {
+      const missing = ids.filter((id) => !Object.hasOwn(store.board().options, id));
+      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
     }
 
     void (async () => {
       // Where a board option that the class names does not go onto the board,
-      // the element shows why in place of the ui, which core has reported. A
-      // ui that has drawn ends then.
-      const kept = keepOptions(def.options ?? [], `the plugin class "${plugin}"`, (failures) => {
+      // the ui does not draw. A ui that has drawn ends then.
+      const named = def.options ?? [];
+      const kept = keepOptions(named, `the plugin class "${plugin}"`, () => {
         if (ended()) return;
         end();
-        showError(el, failures.join("\n"));
+        lacking(named);
       });
       stopKeeping = kept.stop;
       const failures = await kept.added;
       if (ended()) return;
       if (failures.length > 0) {
         kept.stop();
-        showError(el, failures.join("\n"));
+        lacking(named);
         return;
       }
 

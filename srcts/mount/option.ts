@@ -10,9 +10,10 @@
 //    so core adds no other board option for it.
 // 3. It calls the module's render() with the element, the host and a signal,
 //    which it aborts once the mount ends. Where the default did not go onto
-//    the board, as where it failed, core shows why in the element instead,
-//    and so it does in place of the UI where the default does not go onto the
-//    board again once a delta removed the value.
+//    the board, as where it failed, core leaves the element empty instead,
+//    and ends the UI where the default does not go onto the board again once a
+//    delta removed the value. The notification that concerns the board option
+//    says why, once for the board.
 // The host gives the value as the board holds it, and announces each change of
 // it. A submit runs core's command that sets a board option, and a request goes
 // to the board option's requests in R, whose answers core never keeps. Once
@@ -20,9 +21,10 @@
 // Where the renderer fails in render(), the error names the renderer's module
 // and its package. Where the UI of the board option's definition fails, the
 // error names the board option, since only one package can register its id.
-// Either way, core shows the error in the element, and raises a notification
-// that concerns the board option, with the package of the renderer or of the
-// board option, which holds until the next board opens.
+// Either way, core leaves the element empty, so that the frontend alone says
+// where the failure shows, and raises a notification that concerns the board
+// option, with the package of the renderer or of the board option, which
+// holds until the next board opens.
 // What the module raises through its host's notify() comes from the board
 // option, with the package of the module, and holds until the mount ends at
 // the latest. Each condition of R's error reply to a request raises a
@@ -41,7 +43,7 @@ import type { Notify, Raise, Replied } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, mountableModule, onAbort, REPLACED, showError } from "./shared.ts";
+import { announceTo, attempt, mountableModule, onAbort, REPLACED } from "./shared.ts";
 import type { Mountable } from "./shared.ts";
 
 export interface OptionDeps {
@@ -148,7 +150,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     notify(notification) {
       const given = checkRaised(notification);
       if (ended()) return () => undefined;
-      const withdraw = deps.notify({ option }, pkg ?? null, given);
+      const withdraw = deps.notify({ object: { option }, package: pkg ?? null }, given);
       const mine = (): void => {
         notified.delete(mine);
         withdraw();
@@ -202,19 +204,14 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       return;
     }
     if (ended()) return;
-    // Core has reported why the board holds no value.
-    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, (failures) => {
-      if (ended()) return;
-      end();
-      showError(el, failures.join("\n"));
-    });
+    // Core has reported why the board holds no value, and raised it.
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
     const failures = await kept.added;
     if (ended()) return;
     value = current();
     if (value === undefined && failures.length > 0) {
       kept.stop();
-      showError(el, failures.join("\n"));
       return;
     }
 
@@ -233,9 +230,9 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     }
   })();
 
+  // A module that cannot draw, which leaves its element empty.
   function fail(error: unknown): void {
     if (ended()) return;
-    showError(el, errorMessage(error));
     report(error);
     deps.raise(coreNotification("module_failed", "error", errorMessage(error), { about: { option }, package: pkg }));
   }

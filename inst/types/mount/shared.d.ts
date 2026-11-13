@@ -1,3 +1,4 @@
+import type { OptionId } from "../types/board.ts";
 import type { Rendered } from "../types/hosts.ts";
 export interface Mountable<A> {
     readonly options?: readonly string[];
@@ -5,6 +6,7 @@ export interface Mountable<A> {
 }
 export declare function moduleExports(exports: unknown, module: string, pkg: string | null): Readonly<Record<string, unknown>>;
 export declare function mountableModule<A>(exports: unknown, module: string, pkg: string | null): Mountable<A>;
+export declare function withoutOptions(module: string, ids: readonly OptionId[]): string;
 export declare function showError(el: HTMLElement, message: string): void;
 export declare function attempt(fn: () => void): void;
 export declare function onAbort(signal: AbortSignal, fn: () => void): () => void;
