@@ -17,17 +17,17 @@
 // - Those that core raises, each with an id from what it holds, so that a
 //   failure raised twice, as by two mounts of one module, is one notification,
 //   which holds until each raise of it is withdrawn.
-// - Those that the code of packages raises, a plugin through notify() and a
-//   module that core mounts through its host, each with an id of its own.
+// - Those that the modules of packages raise, a plugin's through notify() and
+//   one that core mounts through its host, each with an id of its own.
 // It withdraws every notification that concerns a block, a link or a stack as
-// that leaves the board, and those of the code of a block as the block leaves,
+// that leaves the board, and those of a block's modules as the block leaves,
 // and every one as the board ends, as the next board opens, which it
 // announces.
 // It holds none that is raised about a block, a link or a stack that the board
 // does not hold, since the work that raises one can outlive what it concerns,
-// and it reports one that a package's code raises about a part that the board
-// has never held, or that a plugin that the app does not run raises, since only
-// a mistake in the code names such a part or plugin.
+// and it reports one that a package's module raises about a board object that
+// the board has never held, or that a plugin that the app does not run raises,
+// since only a mistake in the module names such a board object or plugin.
 
 import { announceTo, onAbort } from "../mount/index.ts";
 import type { Condition } from "../protocol/index.ts";
@@ -35,7 +35,7 @@ import { scheduledCode } from "../scheduler/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, EvaluatePhase, Notification, NotificationSource, Owner, Part } from "../types/core-api.ts";
+import type { BoardObject, CoreApi, EvaluatePhase, ModuleSource, Notification, NotificationSource } from "../types/core-api.ts";
 import { checkRaised, jsonEqual, packageFromId, report } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 
@@ -47,8 +47,8 @@ export interface Holder {
   // Holds the notifications of the conditions of R's latest reply to a
   // request, in place of those of the request's reply before.
   readonly replied: Replied;
-  // Raises a notification that the code of a package gives, from its owner,
-  // and returns what withdraws it.
+  // Raises a notification that a package's module gives, from the board
+  // object that the module belongs to, and returns what withdraws it.
   readonly notify: Notify;
   // Holds a notification for each condition of each block's status from now
   // on, as the scheduler announces each change of one.
@@ -86,13 +86,13 @@ export function createNotifications(
   // The raises that hold each of core's notifications, by its id.
   const raised = new Map<string, Set<object>>();
   // The ids of what holds in place of what held before, by what they replace
-  // each other for, a block's status or a request, with the part that it
-  // concerns.
-  const replacing = new Map<string, { readonly part: Part; readonly ids: readonly string[] }>();
+  // each other for, a block's status or a request, with the board object that
+  // it concerns.
+  const replacing = new Map<string, { readonly object: BoardObject; readonly ids: readonly string[] }>();
   // The blocks, links and stacks that have left the board, by key. A
   // notification raised about one of them holds nothing, and so does one that
-  // a package's code raises about a part that the board has never held, which
-  // core reports as well.
+  // a package's module raises about a board object that the board has never
+  // held, which core reports as well.
   const left = new Set<string>();
   const listeners = new Set<(all: readonly Notification[]) => void>();
   let all = NONE;
@@ -107,27 +107,27 @@ export function createNotifications(
 
   // Whether the board holds the block, the link or the stack. A board option
   // and a plugin stay for the opening, so every one counts.
-  function present(part: Part): boolean {
-    if (!("block" in part || "link" in part || "stack" in part)) return true;
+  function present(object: BoardObject): boolean {
+    if (!("block" in object || "link" in object || "stack" in object)) return true;
     if (!store.hasBoard()) return false;
     const board = store.board();
-    if ("block" in part) return Object.hasOwn(board.blocks, part.block);
-    if ("link" in part) return Object.hasOwn(board.links, part.link);
-    return Object.hasOwn(board.stacks, part.stack);
+    if ("block" in object) return Object.hasOwn(board.blocks, object.block);
+    if ("link" in object) return Object.hasOwn(board.links, object.link);
+    return Object.hasOwn(board.stacks, object.stack);
   }
 
-  // Whether the part is one that a package's code may name: one that the
-  // board holds, a board option that a loaded package defines or that the
-  // board holds a value of, or one of the app's plugins.
-  function known(part: Part): boolean {
-    if ("option" in part) {
+  // Whether the board object is one that a package's module may name: one
+  // that the board holds, a board option that a loaded package defines or
+  // that the board holds a value of, or one of the app's plugins.
+  function known(object: BoardObject): boolean {
+    if ("option" in object) {
       return (
-        Object.hasOwn(store.options.registered(), part.option) ||
-        (store.hasBoard() && Object.hasOwn(store.board().options, part.option))
+        Object.hasOwn(store.options.registered(), object.option) ||
+        (store.hasBoard() && Object.hasOwn(store.board().options, object.option))
       );
     }
-    if ("plugin" in part) return Object.hasOwn(plugins, part.plugin);
-    return present(part);
+    if ("plugin" in object) return Object.hasOwn(plugins, object.plugin);
+    return present(object);
   }
 
   const offStore = store.subscribe((change) => {
@@ -138,11 +138,11 @@ export function createNotifications(
       ...(change.delta.stacks?.rm ?? []).map((stack) => key({ stack })),
     ]);
     if (gone.size === 0) return;
-    for (const part of gone) left.add(part);
-    const goes = (part: Part | undefined): boolean => part !== undefined && gone.has(key(part));
+    for (const object of gone) left.add(object);
+    const goes = (object: BoardObject | undefined): boolean => object !== undefined && gone.has(key(object));
     let moved = false;
     for (const [id, notification] of held) {
-      if (!goes(notification.about) && !(notification.source.kind === "module" && goes(notification.source.owner))) {
+      if (!goes(notification.about) && !(notification.source.kind === "module" && goes(notification.source.object))) {
         continue;
       }
       held.delete(id);
@@ -150,7 +150,7 @@ export function createNotifications(
       moved = true;
     }
     for (const [what, holding] of replacing) {
-      if (goes(holding.part)) replacing.delete(what);
+      if (goes(holding.object)) replacing.delete(what);
     }
     if (moved) publish();
   });
@@ -173,7 +173,7 @@ export function createNotifications(
 
   // Holds `next` for `what` in place of what held for it, and says whether
   // that changed what holds. Those that hold still keep their place.
-  function replace(what: string, part: Part, next: ReadonlyMap<string, Notification>): boolean {
+  function replace(what: string, object: BoardObject, next: ReadonlyMap<string, Notification>): boolean {
     let moved = false;
     for (const id of replacing.get(what)?.ids ?? []) {
       if (!next.has(id) && held.delete(id)) moved = true;
@@ -185,7 +185,7 @@ export function createNotifications(
       moved = true;
     }
     if (next.size === 0) replacing.delete(what);
-    else replacing.set(what, { part, ids: [...next.keys()] });
+    else replacing.set(what, { object, ids: [...next.keys()] });
     return moved;
   }
 
@@ -224,7 +224,7 @@ export function createNotifications(
       given.severity,
       given.message,
       sourceCopy(given.source),
-      given.about === undefined ? null : partCopy(given.about),
+      given.about === undefined ? null : objectCopy(given.about),
     ]);
     const token = {};
     const tokens = raised.get(id) ?? new Set<object>();
@@ -242,13 +242,13 @@ export function createNotifications(
     };
   };
 
-  const notify: Notify = (owner, pkg, notification) => {
+  const notify: Notify = (object, pkg, notification) => {
     const given = checkRaised(notification);
     if (ended) return nothing;
-    const about = given.about === undefined ? owner : (given.about ?? undefined);
+    const about = given.about === undefined ? object : (given.about ?? undefined);
     if (about !== undefined && !known(about)) {
       if (!left.has(key(about))) {
-        report(new Error(`Core drops a notification that ${raiser(owner)} raised about ${named(about)}, ${unknown(about)}.`));
+        report(new Error(`Core drops a notification that ${raiser(object)} raised about ${named(about)}, ${unknown(about)}.`));
       }
       return nothing;
     }
@@ -258,7 +258,7 @@ export function createNotifications(
       frozen(id, {
         severity: given.severity,
         message: given.message,
-        source: { kind: "module", owner, code: given.code, ...(pkg === null ? {} : { package: pkg }) },
+        source: { kind: "module", object, code: given.code, ...(pkg === null ? {} : { package: pkg }) },
         ...(about === undefined ? {} : { about }),
       }),
     );
@@ -333,29 +333,29 @@ function isEvaluatePhase(phase: string | undefined): phase is EvaluatePhase {
   return phase !== undefined && Object.hasOwn(EVALUATE_PHASES, phase);
 }
 
-// The key of a part, by which core tells one that has left the board.
-function key(part: Part): string {
-  return JSON.stringify(part);
+// The key of a board object, by which core tells one that has left the board.
+function key(object: BoardObject): string {
+  return JSON.stringify(object);
 }
 
-// A part, as a message names it.
-function named(part: Part): string {
-  if ("block" in part) return `the block "${part.block}"`;
-  if ("link" in part) return `the link "${part.link}"`;
-  if ("stack" in part) return `the stack "${part.stack}"`;
-  if ("option" in part) return `the board option "${part.option}"`;
-  return `the plugin "${part.plugin}"`;
+// A board object, as a message names it.
+function named(object: BoardObject): string {
+  if ("block" in object) return `the block "${object.block}"`;
+  if ("link" in object) return `the link "${object.link}"`;
+  if ("stack" in object) return `the stack "${object.stack}"`;
+  if ("option" in object) return `the board option "${object.option}"`;
+  return `the plugin "${object.plugin}"`;
 }
 
-// Who raised a notification of a package's code, as a message names them.
-function raiser(owner: Owner): string {
-  return "plugin" in owner ? named(owner) : `the code of ${named(owner)}`;
+// Who raised a notification of a package's module, as a message names them.
+function raiser(object: ModuleSource["object"]): string {
+  return "plugin" in object ? named(object) : `a module of ${named(object)}`;
 }
 
-// Why a part is unknown, as a message gives it.
-function unknown(part: Part): string {
-  if ("option" in part) return "which no loaded package defines";
-  if ("plugin" in part) return "which the app does not run";
+// Why a board object is unknown, as a message gives it.
+function unknown(object: BoardObject): string {
+  if ("option" in object) return "which no loaded package defines";
+  if ("plugin" in object) return "which the app does not run";
   return "which the board has never held";
 }
 
@@ -367,7 +367,7 @@ function frozen(id: string, given: Omit<Notification, "id">): Notification {
     severity: given.severity,
     message: given.message,
     source: sourceCopy(given.source),
-    ...(given.about === undefined ? {} : { about: partCopy(given.about) }),
+    ...(given.about === undefined ? {} : { about: objectCopy(given.about) }),
   });
 }
 
@@ -380,23 +380,23 @@ function sourceCopy(source: NotificationSource): NotificationSource {
     case "module":
       return {
         kind: "module",
-        owner: ownerCopy(source.owner),
+        object: moduleObjectCopy(source.object),
         code: source.code,
         ...(source.package === undefined ? {} : { package: source.package }),
       };
   }
 }
 
-function partCopy(part: Part): Part {
-  if ("link" in part) return { link: part.link };
-  if ("stack" in part) return { stack: part.stack };
-  return ownerCopy(part);
+function objectCopy(object: BoardObject): BoardObject {
+  if ("link" in object) return { link: object.link };
+  if ("stack" in object) return { stack: object.stack };
+  return moduleObjectCopy(object);
 }
 
-function ownerCopy(owner: Owner): Owner {
-  if ("block" in owner) return { block: owner.block };
-  if ("option" in owner) return { option: owner.option };
-  return { plugin: owner.plugin };
+function moduleObjectCopy(object: ModuleSource["object"]): ModuleSource["object"] {
+  if ("block" in object) return { block: object.block };
+  if ("option" in object) return { option: object.option };
+  return { plugin: object.plugin };
 }
 
 function deepFrozen<T>(value: T): T {

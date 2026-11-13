@@ -21,7 +21,7 @@ export {
   setAt,
   without,
 } from "./util.ts";
-export { checkRaised, coreNotification, isPart, notifyNothing, raiseNothing, repliedNothing } from "./notification.ts";
+export { checkRaised, coreNotification, isBoardObject, notifyNothing, raiseNothing, repliedNothing } from "./notification.ts";
 export type { Concerns, Notify, Raise, Replied } from "./notification.ts";
 export { compile } from "./validate.ts";
 export type { Validate } from "./validate.ts";

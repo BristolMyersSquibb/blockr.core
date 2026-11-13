@@ -51,7 +51,7 @@ async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
     notes.splice(
       0,
       notes.length,
-      ...all.filter((notification) => notification.source.kind === "module" && "plugin" in notification.source.owner && notification.source.owner.plugin === EDIT),
+      ...all.filter((notification) => notification.source.kind === "module" && "plugin" in notification.source.object && notification.source.object.plugin === EDIT),
     );
   });
   let end = (): void => undefined;
@@ -635,7 +635,7 @@ describe("each edit", () => {
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
     expect(notes).toHaveLength(1);
     expect(notes[0]?.severity).toBe("error");
-    expect(notes[0]?.source).toEqual({ kind: "module", owner: { plugin: EDIT }, code: "edit_refused", package: "blockr.core" });
+    expect(notes[0]?.source).toEqual({ kind: "module", object: { plugin: EDIT }, code: "edit_refused", package: "blockr.core" });
     // It concerns the plugin, whatever block the edit names.
     expect(notes[0]?.about).toEqual({ plugin: EDIT });
     expect(notes[0]?.message).toContain('The command "blockr.core-add_link" refused to run');

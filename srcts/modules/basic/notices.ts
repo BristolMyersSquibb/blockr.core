@@ -1,7 +1,7 @@
 // What the basic frontend tells the user above the board, in the order it
 // came, each until it no longer holds or the user dismisses it: the
-// notifications of the board that concern no block and those that the code of
-// packages raises, and what failed of the frontend's own work, such as an edit
+// notifications of the board that concern no block and those that the modules
+// of packages raise, and what failed of the frontend's own work, such as an edit
 // that the store or the command registry refused. Of the notifications that R
 // and core raise about a block, a block's conditions show on its card, the
 // failures of its output and its UI in their elements, and those of its
@@ -40,7 +40,7 @@ export interface Notices {
 }
 
 // Whether the list shows the notification: one that concerns no block, or that
-// the code of a package raised, which nothing else on the page shows.
+// a package's module raised, which nothing else on the page shows.
 function listed(notification: Notification): boolean {
   const { about, source } = notification;
   return about === undefined || !("block" in about) || source.kind === "module";

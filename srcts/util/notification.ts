@@ -3,24 +3,26 @@
 // which the code that core runs for the board calls (../core/notifications.ts):
 // core's own notifications, where it fails at something that the user asked
 // for or that the board needs, the conditions of R's replies to requests, and
-// what the code of packages raises.
+// what the modules of packages raise.
 
 import type { Condition } from "../protocol/index.ts";
-import type { CoreCode, Notification, Owner, Part, Raised, RRequest } from "../types/core-api.ts";
+import type { BoardObject, CoreCode, ModuleSource, Notification, Raised, RRequest } from "../types/core-api.ts";
 import { isObject } from "./util.ts";
 
 // Raises a notification of the open board, and returns what withdraws it.
 export type Raise = (notification: Omit<Notification, "id">) => () => void;
 
 // Holds a notification for each condition of R's latest reply to a request,
-// which concern the part that the request was made for, in place of those of
-// the request's reply before, so that a request that fails again keeps its
-// notifications and one that succeeds, with no conditions, withdraws them.
-export type Replied = (about: Part, request: Extract<RRequest, { readonly name: string }>, conditions: readonly Condition[]) => void;
+// which concern the board object that the request was made for, in place of
+// those of the request's reply before, so that a request that fails again
+// keeps its notifications and one that succeeds, with no conditions, withdraws
+// them.
+export type Replied = (about: BoardObject, request: Extract<RRequest, { readonly name: string }>, conditions: readonly Condition[]) => void;
 
-// Raises a notification that a package's code gives, from its owner and with
-// its package, null where core knows none, and returns what withdraws it.
-export type Notify = (owner: Owner, pkg: string | null, notification: Raised) => () => void;
+// Raises a notification that a package's module gives, from the board object
+// that the module belongs to and with its package, null where core knows none,
+// and returns what withdraws it.
+export type Notify = (object: ModuleSource["object"], pkg: string | null, notification: Raised) => () => void;
 
 // Raise nothing, for code that runs outside an opening, as in a test.
 export const raiseNothing: Raise = () => () => undefined;
@@ -31,7 +33,7 @@ export const notifyNothing: Notify = () => () => undefined;
 // package whose code failed, or null where an id names none, as for a block
 // class defined outside a package.
 export interface Concerns {
-  readonly about?: Part;
+  readonly about?: BoardObject;
   readonly package?: string | null;
 }
 
@@ -53,21 +55,21 @@ export function coreNotification(
 
 const SEVERITIES: readonly unknown[] = ["message", "warning", "error"];
 
-// What a part of the board can be.
-const PARTS = ["block", "link", "stack", "option", "plugin"] as const;
+// What a board object can be.
+const KINDS = ["block", "link", "stack", "option", "plugin"] as const;
 
-// Whether the value names one part of the board, by its id.
-export function isPart(value: unknown): value is Part {
+// Whether the value names one board object, by its id.
+export function isBoardObject(value: unknown): value is BoardObject {
   if (!isObject(value)) return false;
   const keys = Object.keys(value);
   const [kind] = keys;
-  if (keys.length !== 1 || kind === undefined || !(PARTS as readonly string[]).includes(kind)) return false;
+  if (keys.length !== 1 || kind === undefined || !(KINDS as readonly string[]).includes(kind)) return false;
   const id = value[kind];
   return typeof id === "string" && id !== "";
 }
 
-// A notification that a package's code gives, checked, since code in plain JS
-// may give members of the wrong kind, which the types refuse.
+// A notification that a package's module gives, checked, since a module in
+// plain JS may give members of the wrong kind, which the types refuse.
 export function checkRaised(notification: Raised): Raised {
   const given: unknown = notification;
   if (!isObject(given)) {
@@ -87,9 +89,9 @@ export function checkRaised(notification: Raised): Raised {
     );
   }
   const { about } = given;
-  if (about !== undefined && about !== null && !isPart(about)) {
+  if (about !== undefined && about !== null && !isBoardObject(about)) {
     throw new TypeError(
-      `A notification concerns one part of the board, as { block: "a" }, of a block, a link, a stack, a board option or a plugin, or null for the board, not ${JSON.stringify(about)}.`,
+      `A notification concerns one board object, as { block: "a" }: a block, a link, a stack, a board option or a plugin, or null for the board, not ${JSON.stringify(about)}.`,
     );
   }
   return notification;

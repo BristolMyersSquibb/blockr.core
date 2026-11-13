@@ -75,8 +75,8 @@ export interface BlockHost<S extends State = State> {
   // A module another package offers, by id, such as "blockr.dplyr-filter".
   module<T = unknown>(id: string): Promise<T>;
   // Raises a notification of the module's, which concerns the block unless it
-  // names another part of the board, and holds until the function that it
-  // returns runs or the mount ends, as CoreApi's notify() raises a plugin's
+  // names another board object, and holds until the function that it returns
+  // runs or the mount ends, as CoreApi's notify() raises a plugin's
   // (./core-api.ts).
   notify(notification: Raised): () => void;
 }
@@ -122,8 +122,8 @@ export interface OptionHost<V extends Json = Json> {
     opts?: HostRequestOpts,
   ): Promise<T | Blob>;
   // Raises a notification of the module's, which concerns the board option
-  // unless it names another part of the board, and holds until the function
-  // that it returns runs or the mount ends.
+  // unless it names another board object, and holds until the function that
+  // it returns runs or the mount ends.
   notify(notification: Raised): () => void;
 }
 
@@ -163,7 +163,7 @@ export interface OutputHost {
   // plugin to act on.
   emit(name: string, payload: Json): void;
   // Raises a notification of the renderer's, which concerns the block unless
-  // it names another part of the board, and holds until the function that it
+  // it names another board object, and holds until the function that it
   // returns runs or the renderer is unmounted.
   notify(notification: Raised): () => void;
 }

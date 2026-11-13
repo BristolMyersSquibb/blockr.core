@@ -70,20 +70,20 @@ export interface CoreApi {
   // one for each condition of each block's status, one for each condition of
   // R's reply to a request that fails, those that core raises where it fails
   // at something that the user asked for or that the board needs, and those
-  // that the code of packages raises, a plugin through notify() and a module
+  // that the modules of packages raise, a plugin's through notify() and one
   // that core mounts through its host. Core holds them outside the board, in
   // the order they came, so that one raised before the frontend draws still
   // reaches it. It withdraws those that concern a block, a link or a stack as
   // that leaves the board, and every one as the next board opens.
   readonly notifications: {
     // Raises a notification of the plugin of the class `plugin`, which
-    // concerns the plugin unless it names another part of the board, and holds
+    // concerns the plugin unless it names another board object, and holds
     // until the function that it returns runs. It throws for one whose members
     // are of the wrong kind. One about a block, a link or a stack that the
     // board no longer holds holds nothing, since the work that raises it can
     // outlive what it concerns, and core reports one from a plugin that the
-    // app does not run or about a part that the board has never held, since
-    // only a mistake in the plugin names one.
+    // app does not run or about a board object that the board has never held,
+    // since only a mistake in the plugin names one.
     notify(plugin: PluginClassId, notification: Raised): () => void;
     // Those that hold, the same array until one comes or goes.
     get(): readonly Notification[];
@@ -151,26 +151,26 @@ export interface Notification {
   readonly message: string;
   // Who raised it.
   readonly source: NotificationSource;
-  // The part of the board that it concerns, or none for the board as a whole.
-  readonly about?: Part;
+  // The board object that it concerns, or none for the board as a whole.
+  readonly about?: BoardObject;
 }
 
 export type Severity = "message" | "warning" | "error";
 
-// A part of the board, by its id: a block, a link, a stack, a board option, or
-// one of the app's plugins, by the id of its class.
-export type Part =
+// A board object, by its id: a block, a link, a stack, a board option, or one
+// of the app's plugins, by the id of its class.
+export type BoardObject =
   | { readonly block: BlockId }
   | { readonly link: LinkId }
   | { readonly stack: StackId }
   | { readonly option: OptionId }
   | { readonly plugin: PluginClassId };
 
-// Who raised a notification: R, core or a package's code in the client.
+// Who raised a notification: R, core or a package's module in the client.
 export type NotificationSource = RSource | CoreSource | ModuleSource;
 
-// R, in a condition of its reply to what core asked of it for the part that
-// the notification concerns.
+// R, in a condition of its reply to what core asked of it for the board object
+// that the notification concerns.
 export interface RSource {
   readonly kind: "r";
   // The condition's class vector, as ["simpleWarning", "warning", "condition"].
@@ -193,12 +193,12 @@ export type RRequest =
 // it raises there.
 export type EvaluatePhase = Extract<Phase, "expr" | "inputs" | "block_eval" | "result_summary">;
 
-// Core's own code, where it fails at something that the user asked for or
-// that the board needs.
+// Core, where it fails at something that the user asked for or that the board
+// needs.
 export interface CoreSource {
   readonly kind: "core";
   readonly code: CoreCode;
-  // The package whose code failed, where core knows it, as that of a module.
+  // The package whose module failed, where core knows it.
   readonly package?: string;
 }
 
@@ -226,38 +226,32 @@ export type CoreCode =
   // that holds no condition.
   | "output_unanswered";
 
-// A package's code in the client: a plugin's, a module that core mounts for a
-// block or a board option, its UI module or a renderer, or a board option's
-// onChange().
+// A package's module in the client: a plugin class's, one that core mounts for
+// a block or a board option, its UI module or a renderer, or a board option's,
+// whose onChange() raises it.
 export interface ModuleSource {
   readonly kind: "module";
-  // The plugin, the block or the board option whose code raised it.
-  readonly owner: Owner;
+  // The board object whose module raised it: a plugin, a block or a board
+  // option.
+  readonly object: { readonly plugin: PluginClassId } | { readonly block: BlockId } | { readonly option: OptionId };
   // The package's own code for what it is of, as "edit_refused".
   readonly code: string;
-  // The package whose code raised it, where core knows it, which it does but
-  // for a block class defined outside a package.
+  // The package whose module raised it, where core knows it, which it does
+  // but for a block class defined outside a package.
   readonly package?: string;
 }
 
-// What a package's code in the client belongs to: a plugin, or the block or
-// the board option for which core mounts a module.
-export type Owner =
-  | { readonly plugin: PluginClassId }
-  | { readonly block: BlockId }
-  | { readonly option: OptionId };
-
-// What a package's code gives to raise a notification, from which core makes
-// the notification, naming who raised it.
+// What a package's module gives to raise a notification, from which core
+// makes the notification, naming who raised it.
 export interface Raised {
   readonly severity: Severity;
   readonly message: string;
   // The package's own code for what it is of, as "edit_refused", by which a
   // frontend that knows the package draws it.
   readonly code: string;
-  // The part of the board that it concerns: the owner of the code that raises
-  // it unless given, or null for the board as a whole.
-  readonly about?: Part | null;
+  // The board object that it concerns: the one whose module raises it unless
+  // given, or null for the board as a whole.
+  readonly about?: BoardObject | null;
 }
 
 // What a plugin's module exports as its default, beside the JS API major it

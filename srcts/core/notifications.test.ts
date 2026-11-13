@@ -2,8 +2,8 @@
 // condition of each block's status, one for each condition of R's error reply
 // to a request, those that core raises where a block's UI, a board option's UI
 // or a plugin fails, those that a module raises through its host or an
-// onChange() through its `notify`, and their withdrawal as what they concern
-// leaves the board (./notifications.ts). The checks of what a plugin raises
+// onChange() through its `notify`, and their withdrawal as the board object
+// that they concern leaves the board (./notifications.ts). The checks of what a plugin raises
 // are tested with the other members that reach plugins (./plugins.test.ts),
 // and what core raises as it starts the page and opens a board with the start
 // (./start.test.ts).
@@ -154,7 +154,7 @@ describe("the notifications of R's replies to requests", () => {
   });
 });
 
-describe("the notifications of the code of packages", () => {
+describe("the notifications of the modules of packages", () => {
   test("that a block's UI module raises through its host come from the block, with the package of its class, and concern the block, until the mount ends", async () => {
     const hosts: BlockHost[] = [];
     const s = await stubCore({
@@ -177,7 +177,7 @@ describe("the notifications of the code of packages", () => {
       {
         severity: "warning",
         message: "Few rows.",
-        source: { kind: "module", owner: { block: "b" }, code: "few_rows", package: "blockr.core" },
+        source: { kind: "module", object: { block: "b" }, code: "few_rows", package: "blockr.core" },
         about: { block: "b" },
       },
     ]);
@@ -206,7 +206,7 @@ describe("the notifications of the code of packages", () => {
       {
         severity: "warning",
         message: "Text may not fit.",
-        source: { kind: "module", owner: { option: "zoom" }, code: "zoomed", package: "blockr.test" },
+        source: { kind: "module", object: { option: "zoom" }, code: "zoomed", package: "blockr.test" },
         about: { option: "zoom" },
       },
     ]);

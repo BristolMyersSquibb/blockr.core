@@ -187,8 +187,8 @@ export interface Option {
   // sets the value. Where the board lacks the value, core adds the board
   // option with its default first.
   // Its `notify` raises a notification of the board option's, which concerns
-  // the board option unless it names another part of the board, and holds
-  // until the function that it returns runs or the next call returns.
+  // the board option unless it names another board object, and holds until
+  // the function that it returns runs or the next call returns.
   onChange?(value: Json, core: CoreApi, notify: (notification: Raised) => () => void): void;
   // Converts the value, as a JSON board holds it, from the version of its
   // shape that the board records to the one that the package's method of R's

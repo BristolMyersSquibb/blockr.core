@@ -55,6 +55,7 @@ export type {
 } from "./types/hosts.ts";
 export type {
   BlockRegistry,
+  BoardObject,
   CoreApi,
   CoreCode,
   CoreSource,
@@ -64,8 +65,6 @@ export type {
   Notification,
   NotificationSource,
   OutputEvents,
-  Owner,
-  Part,
   Plugin,
   PluginModule,
   Raised,

@@ -48,10 +48,10 @@ export interface Notification {
     readonly severity: Severity;
     readonly message: string;
     readonly source: NotificationSource;
-    readonly about?: Part;
+    readonly about?: BoardObject;
 }
 export type Severity = "message" | "warning" | "error";
-export type Part = {
+export type BoardObject = {
     readonly block: BlockId;
 } | {
     readonly link: LinkId;
@@ -90,22 +90,21 @@ export interface CoreSource {
 export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_objects_dropped" | "page_reload_needed" | "block_waiting" | "evaluation_unsent" | "output_unanswered";
 export interface ModuleSource {
     readonly kind: "module";
-    readonly owner: Owner;
+    readonly object: {
+        readonly plugin: PluginClassId;
+    } | {
+        readonly block: BlockId;
+    } | {
+        readonly option: OptionId;
+    };
     readonly code: string;
     readonly package?: string;
 }
-export type Owner = {
-    readonly plugin: PluginClassId;
-} | {
-    readonly block: BlockId;
-} | {
-    readonly option: OptionId;
-};
 export interface Raised {
     readonly severity: Severity;
     readonly message: string;
     readonly code: string;
-    readonly about?: Part | null;
+    readonly about?: BoardObject | null;
 }
 export interface PluginModule {
     render(args: {

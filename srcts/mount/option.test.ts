@@ -12,7 +12,7 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore } from "../testing/store.ts";
-import type { Owner, Raised } from "../types/core-api.ts";
+import type { ModuleSource, Raised } from "../types/core-api.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { Replied } from "../util/index.ts";
@@ -64,7 +64,7 @@ interface Setup {
   replies: Parameters<Replied>[];
   // The notifications that modules raised through their hosts, while they
   // hold.
-  notified: { owner: Owner; pkg: string | null; notification: Raised }[];
+  notified: { object: ModuleSource["object"]; pkg: string | null; notification: Raised }[];
   // Ends what core runs for the board, as core does as another board opens.
   end(): void;
 }
@@ -94,7 +94,7 @@ async function setup(
     stylesheet: () => Promise.resolve(),
   });
   const replies: Parameters<Replied>[] = [];
-  const notified: { owner: Owner; pkg: string | null; notification: Raised }[] = [];
+  const notified: { object: ModuleSource["object"]; pkg: string | null; notification: Raised }[] = [];
   const mounts = createMounts({
     core: noCore,
     store,
@@ -106,8 +106,8 @@ async function setup(
     replied: (...args) => {
       replies.push(args);
     },
-    notify: (owner, pkg, notification) => {
-      const given = { owner, pkg, notification };
+    notify: (object, pkg, notification) => {
+      const given = { object, pkg, notification };
       notified.push(given);
       return () => {
         const at = notified.indexOf(given);
@@ -294,8 +294,8 @@ describe("the host", () => {
     const withdraw = rows.host().notify(given);
     rows.host().notify({ ...given, code: "other" });
     expect(s.notified).toEqual([
-      { owner: { option: "n_rows" }, pkg: "blockr.core", notification: given },
-      { owner: { option: "n_rows" }, pkg: "blockr.core", notification: { ...given, code: "other" } },
+      { object: { option: "n_rows" }, pkg: "blockr.core", notification: given },
+      { object: { option: "n_rows" }, pkg: "blockr.core", notification: { ...given, code: "other" } },
     ]);
     withdraw();
     withdraw();

@@ -306,7 +306,7 @@ describe("mounting a plugin's UI", () => {
 });
 
 describe("what a frontend offers other plugins", () => {
-  test("holds each notification that a plugin raises until it withdraws it, from the plugin and about the plugin unless it names another part, hands every subscriber those that hold, and holds none once the next board opens", async () => {
+  test("holds each notification that a plugin raises until it withdraws it, from the plugin and about the plugin unless it names another board object, hands every subscriber those that hold, and holds none once the next board opens", async () => {
     const s = await stubCore();
     const { core } = s;
     const heard: (readonly Notification[])[] = [];
@@ -319,7 +319,7 @@ describe("what a frontend offers other plugins", () => {
     core.notifications.notify(FILE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
     core.notifications.notify(FILE, { severity: "warning", code: "quota", message: "Almost full.", about: null });
     const all = core.notifications.get();
-    const source = { kind: "module", owner: { plugin: FILE }, package: "blockr.core" } as const;
+    const source = { kind: "module", object: { plugin: FILE }, package: "blockr.core" } as const;
     expect(all).toHaveLength(before.length + 3);
     expect(all.slice(before.length)).toEqual([
       {
@@ -386,7 +386,7 @@ describe("what a frontend offers other plugins", () => {
     expect(refused({ ...base, message: 1 })).toThrow("The message of a notification is a string, not 1.");
     expect(refused({ ...base, code: "" })).toThrow('The code of a notification is a non-empty string, as "edit_refused", not "".');
     const part =
-      "A notification concerns one part of the board, as { block: \"a\" }, of a block, a link, a stack, a board option or a plugin, or null for the board, not";
+      "A notification concerns one board object, as { block: \"a\" }: a block, a link, a stack, a board option or a plugin, or null for the board, not";
     expect(refused({ ...base, about: { block: "b", link: "ab" } })).toThrow(`${part} {"block":"b","link":"ab"}.`);
     expect(refused({ ...base, about: { row: "b" } })).toThrow(`${part} {"row":"b"}.`);
     expect(refused({ ...base, about: { block: "" } })).toThrow(`${part} {"block":""}.`);
@@ -398,7 +398,7 @@ describe("what a frontend offers other plugins", () => {
     s.stop();
   });
 
-  test("holds nothing of a notification about a block, a link or a stack that the board does not hold, which the work that raises it can outlive, and reports one about a part that it has never held, and one that a plugin that the app does not run raises", async () => {
+  test("holds nothing of a notification about a block, a link or a stack that the board does not hold, which the work that raises it can outlive, and reports one about a board object that it has never held, and one that a plugin that the app does not run raises", async () => {
     const s = await stubCore();
     const { notifications } = s.core;
     // The link "ab" leaves with its block.

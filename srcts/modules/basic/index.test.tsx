@@ -1009,7 +1009,7 @@ describe("what the user learns", () => {
     expect(notices(page.el)).toEqual([]);
   });
 
-  test("is each notification of the board that concerns no block or that the code of a package raises, in the colour of its severity, until it is withdrawn or the user dismisses it", async () => {
+  test("is each notification of the board that concerns no block or that the module of a package raises, in the colour of its severity, until it is withdrawn or the user dismisses it", async () => {
     const { el, core } = await drawn({
       evaluate: (request) =>
         request.block === "b"
@@ -1053,7 +1053,7 @@ describe("what the user learns", () => {
       id: "posing",
       severity: "error",
       message: "Reload, please.",
-      source: { kind: "module", owner: { plugin: FILE_STORAGE }, code: "page_reload_needed" },
+      source: { kind: "module", object: { plugin: FILE_STORAGE }, code: "page_reload_needed" },
     };
     // The frontend drawn with notifications that hold core's and a plugin's.
     const notifications: CoreApi["notifications"] = {

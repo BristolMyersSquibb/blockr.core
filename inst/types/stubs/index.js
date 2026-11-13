@@ -84,12 +84,12 @@ function coreNotification(code, severity, message, concerns = {}) {
   };
 }
 var SEVERITIES = ["message", "warning", "error"];
-var PARTS = ["block", "link", "stack", "option", "plugin"];
-function isPart(value2) {
+var KINDS = ["block", "link", "stack", "option", "plugin"];
+function isBoardObject(value2) {
   if (!isObject(value2)) return false;
   const keys = Object.keys(value2);
   const [kind] = keys;
-  if (keys.length !== 1 || kind === void 0 || !PARTS.includes(kind)) return false;
+  if (keys.length !== 1 || kind === void 0 || !KINDS.includes(kind)) return false;
   const id2 = value2[kind];
   return typeof id2 === "string" && id2 !== "";
 }
@@ -112,9 +112,9 @@ function checkRaised(notification) {
     );
   }
   const { about } = given;
-  if (about !== void 0 && about !== null && !isPart(about)) {
+  if (about !== void 0 && about !== null && !isBoardObject(about)) {
     throw new TypeError(
-      `A notification concerns one part of the board, as { block: "a" }, of a block, a link, a stack, a board option or a plugin, or null for the board, not ${JSON.stringify(about)}.`
+      `A notification concerns one board object, as { block: "a" }: a block, a link, a stack, a board option or a plugin, or null for the board, not ${JSON.stringify(about)}.`
     );
   }
   return notification;
@@ -8848,20 +8848,20 @@ function createNotifications(store, options = {}) {
     all = Object.freeze([...held2.values()]);
     announceTo(listeners, all);
   }
-  function present(part) {
-    if (!("block" in part || "link" in part || "stack" in part)) return true;
+  function present(object2) {
+    if (!("block" in object2 || "link" in object2 || "stack" in object2)) return true;
     if (!store.hasBoard()) return false;
     const board = store.board();
-    if ("block" in part) return Object.hasOwn(board.blocks, part.block);
-    if ("link" in part) return Object.hasOwn(board.links, part.link);
-    return Object.hasOwn(board.stacks, part.stack);
+    if ("block" in object2) return Object.hasOwn(board.blocks, object2.block);
+    if ("link" in object2) return Object.hasOwn(board.links, object2.link);
+    return Object.hasOwn(board.stacks, object2.stack);
   }
-  function known(part) {
-    if ("option" in part) {
-      return Object.hasOwn(store.options.registered(), part.option) || store.hasBoard() && Object.hasOwn(store.board().options, part.option);
+  function known(object2) {
+    if ("option" in object2) {
+      return Object.hasOwn(store.options.registered(), object2.option) || store.hasBoard() && Object.hasOwn(store.board().options, object2.option);
     }
-    if ("plugin" in part) return Object.hasOwn(plugins, part.plugin);
-    return present(part);
+    if ("plugin" in object2) return Object.hasOwn(plugins, object2.plugin);
+    return present(object2);
   }
   const offStore = store.subscribe((change) => {
     if ("opened" in change) return;
@@ -8871,11 +8871,11 @@ function createNotifications(store, options = {}) {
       ...(change.delta.stacks?.rm ?? []).map((stack) => key({ stack }))
     ]);
     if (gone.size === 0) return;
-    for (const part of gone) left2.add(part);
-    const goes = (part) => part !== void 0 && gone.has(key(part));
+    for (const object2 of gone) left2.add(object2);
+    const goes = (object2) => object2 !== void 0 && gone.has(key(object2));
     let moved = false;
     for (const [id2, notification] of held2) {
-      if (!goes(notification.about) && !(notification.source.kind === "module" && goes(notification.source.owner))) {
+      if (!goes(notification.about) && !(notification.source.kind === "module" && goes(notification.source.object))) {
         continue;
       }
       held2.delete(id2);
@@ -8883,7 +8883,7 @@ function createNotifications(store, options = {}) {
       moved = true;
     }
     for (const [what, holding] of replacing) {
-      if (goes(holding.part)) replacing.delete(what);
+      if (goes(holding.object)) replacing.delete(what);
     }
     if (moved) publish();
   });
@@ -8902,7 +8902,7 @@ function createNotifications(store, options = {}) {
   }
   if (signal?.aborted === true) end();
   else if (signal !== void 0) onAbort(signal, end);
-  function replace(what, part, next) {
+  function replace(what, object2, next) {
     let moved = false;
     for (const id2 of replacing.get(what)?.ids ?? []) {
       if (!next.has(id2) && held2.delete(id2)) moved = true;
@@ -8914,7 +8914,7 @@ function createNotifications(store, options = {}) {
       moved = true;
     }
     if (next.size === 0) replacing.delete(what);
-    else replacing.set(what, { part, ids: [...next.keys()] });
+    else replacing.set(what, { object: object2, ids: [...next.keys()] });
     return moved;
   }
   function fromStatus(block, status) {
@@ -8948,7 +8948,7 @@ function createNotifications(store, options = {}) {
       given.severity,
       given.message,
       sourceCopy(given.source),
-      given.about === void 0 ? null : partCopy(given.about)
+      given.about === void 0 ? null : objectCopy(given.about)
     ]);
     const token = {};
     const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
@@ -8965,13 +8965,13 @@ function createNotifications(store, options = {}) {
       if (held2.delete(id2)) publish();
     };
   };
-  const notify = (owner, pkg, notification) => {
+  const notify = (object2, pkg, notification) => {
     const given = checkRaised(notification);
     if (ended) return nothing;
-    const about = given.about === void 0 ? owner : given.about ?? void 0;
+    const about = given.about === void 0 ? object2 : given.about ?? void 0;
     if (about !== void 0 && !known(about)) {
       if (!left2.has(key(about))) {
-        report(new Error(`Core drops a notification that ${raiser(owner)} raised about ${named2(about)}, ${unknown(about)}.`));
+        report(new Error(`Core drops a notification that ${raiser(object2)} raised about ${named2(about)}, ${unknown(about)}.`));
       }
       return nothing;
     }
@@ -8981,7 +8981,7 @@ function createNotifications(store, options = {}) {
       frozen(id2, {
         severity: given.severity,
         message: given.message,
-        source: { kind: "module", owner, code: given.code, ...pkg === null ? {} : { package: pkg } },
+        source: { kind: "module", object: object2, code: given.code, ...pkg === null ? {} : { package: pkg } },
         ...about === void 0 ? {} : { about }
       })
     );
@@ -9050,22 +9050,22 @@ function statusSource(condition) {
 function isEvaluatePhase(phase) {
   return phase !== void 0 && Object.hasOwn(EVALUATE_PHASES, phase);
 }
-function key(part) {
-  return JSON.stringify(part);
+function key(object2) {
+  return JSON.stringify(object2);
 }
-function named2(part) {
-  if ("block" in part) return `the block "${part.block}"`;
-  if ("link" in part) return `the link "${part.link}"`;
-  if ("stack" in part) return `the stack "${part.stack}"`;
-  if ("option" in part) return `the board option "${part.option}"`;
-  return `the plugin "${part.plugin}"`;
+function named2(object2) {
+  if ("block" in object2) return `the block "${object2.block}"`;
+  if ("link" in object2) return `the link "${object2.link}"`;
+  if ("stack" in object2) return `the stack "${object2.stack}"`;
+  if ("option" in object2) return `the board option "${object2.option}"`;
+  return `the plugin "${object2.plugin}"`;
 }
-function raiser(owner) {
-  return "plugin" in owner ? named2(owner) : `the code of ${named2(owner)}`;
+function raiser(object2) {
+  return "plugin" in object2 ? named2(object2) : `a module of ${named2(object2)}`;
 }
-function unknown(part) {
-  if ("option" in part) return "which no loaded package defines";
-  if ("plugin" in part) return "which the app does not run";
+function unknown(object2) {
+  if ("option" in object2) return "which no loaded package defines";
+  if ("plugin" in object2) return "which the app does not run";
   return "which the board has never held";
 }
 function frozen(id2, given) {
@@ -9074,7 +9074,7 @@ function frozen(id2, given) {
     severity: given.severity,
     message: given.message,
     source: sourceCopy(given.source),
-    ...given.about === void 0 ? {} : { about: partCopy(given.about) }
+    ...given.about === void 0 ? {} : { about: objectCopy(given.about) }
   });
 }
 function sourceCopy(source) {
@@ -9086,21 +9086,21 @@ function sourceCopy(source) {
     case "module":
       return {
         kind: "module",
-        owner: ownerCopy(source.owner),
+        object: moduleObjectCopy(source.object),
         code: source.code,
         ...source.package === void 0 ? {} : { package: source.package }
       };
   }
 }
-function partCopy(part) {
-  if ("link" in part) return { link: part.link };
-  if ("stack" in part) return { stack: part.stack };
-  return ownerCopy(part);
+function objectCopy(object2) {
+  if ("link" in object2) return { link: object2.link };
+  if ("stack" in object2) return { stack: object2.stack };
+  return moduleObjectCopy(object2);
 }
-function ownerCopy(owner) {
-  if ("block" in owner) return { block: owner.block };
-  if ("option" in owner) return { option: owner.option };
-  return { plugin: owner.plugin };
+function moduleObjectCopy(object2) {
+  if ("block" in object2) return { block: object2.block };
+  if ("option" in object2) return { option: object2.option };
+  return { plugin: object2.plugin };
 }
 function deepFrozen(value2) {
   if (typeof value2 === "object" && value2 !== null) {
@@ -10887,7 +10887,7 @@ function PluginSection({ id: id2, plugin }) {
 import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState9 } from "react";
 
 // srcts/modules/basic/storage.ts
-var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
+var KINDS2 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
 function drawnControls(core) {
   const storage = core.plugins.storage();
   if (storage === void 0) return void 0;
@@ -10921,7 +10921,7 @@ function distinct(list, twice) {
   const seen = /* @__PURE__ */ new Set();
   const kept = [];
   for (const control of list) {
-    if (!KINDS.has(control.kind)) continue;
+    if (!KINDS2.has(control.kind)) continue;
     if (seen.has(control.id)) {
       twice.add(control.id);
       continue;

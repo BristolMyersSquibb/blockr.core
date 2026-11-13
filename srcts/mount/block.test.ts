@@ -17,7 +17,7 @@ import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
-import type { Owner, Raised } from "../types/core-api.ts";
+import type { ModuleSource, Raised } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, BlockModule } from "../types/hosts.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Replied } from "../util/index.ts";
@@ -103,7 +103,7 @@ interface Setup {
   replies: Parameters<Replied>[];
   // The notifications that modules raised through their hosts, while they
   // hold.
-  notified: { owner: Owner; pkg: string | null; notification: Raised }[];
+  notified: { object: ModuleSource["object"]; pkg: string | null; notification: Raised }[];
   // Ends what core runs for the board, as core does as another board opens,
   // and opens the board of the reply given in a new store with new mounts, on
   // the same R and the same loader, as core starts again.
@@ -147,7 +147,7 @@ async function setup(
     const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
     scheduler.start();
     const replies: Parameters<Replied>[] = [];
-    const notified: { owner: Owner; pkg: string | null; notification: Raised }[] = [];
+    const notified: { object: ModuleSource["object"]; pkg: string | null; notification: Raised }[] = [];
     const mounts = createMounts({
       core: noCore,
       store,
@@ -158,8 +158,8 @@ async function setup(
       replied: (...args) => {
         replies.push(args);
       },
-      notify: (owner, pkg, notification) => {
-        const given = { owner, pkg, notification };
+      notify: (object, pkg, notification) => {
+        const given = { object, pkg, notification };
         notified.push(given);
         return () => {
           const at = notified.indexOf(given);
@@ -722,8 +722,8 @@ describe("a mount", () => {
     const withdraw = ui.host(0).notify(given);
     ui.host(1).notify({ ...given, code: "other" });
     expect(notified).toEqual([
-      { owner: { block: "b" }, pkg: "blockr.core", notification: given },
-      { owner: { block: "b" }, pkg: "blockr.core", notification: { ...given, code: "other" } },
+      { object: { block: "b" }, pkg: "blockr.core", notification: given },
+      { object: { block: "b" }, pkg: "blockr.core", notification: { ...given, code: "other" } },
     ]);
     withdraw();
     expect(notified.map((n) => n.notification.code)).toEqual(["other"]);
