@@ -243,6 +243,7 @@ const okReply = {
   block: "a",
   revision: 2,
   summary: "<data.frame> [150 × 5]",
+  reason: null,
   conditions: [],
   stdout: "",
   stderr: "",

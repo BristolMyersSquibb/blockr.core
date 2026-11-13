@@ -1,26 +1,33 @@
-// The footer of a block's card and the banners below it, which the card of a
-// block that serve() serves alone and the cards of core's basic frontend draw
-// alike
+// The footer of a block's card, and the pills and the banners below the
+// output's box, which the card of a block that serve() serves alone and the
+// cards of core's basic frontend draw alike
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve).
 //
-// - The footer is one centred line of the block's status: a ready block's
-//   summary, or why a waiting block waits, and a pill for each severity of the
+// - The footer is one centred line, the last of the output's box: a ready
+//   block's summary.
+// - The pills sit on a centred line of their own below the box, since the box
+//   holds what the block's renderer draws: a pill for each severity of the
 //   conditions of R's reply that the card shows.
+//   The pill of the messages also counts the reason of an invalid or a
+//   waiting block, whatever severities the card shows, so that a card always
+//   says why a block does not run.
 //   The pill of the errors reads "error", and those of the warnings and the
 //   messages count them, as "2 warnings".
-//   The footer writes out no message of R's, which may be of any length.
-// - The banners are those of the conditions whose pills are open, in the
-//   order R raised them: each condition in full, in the colour of its
-//   severity.
+//   No pill writes out a message, which may be of any length.
+// - The banners are those of the pills that are open, in the order R raised
+//   them, each in full, in the colour of its severity.
+//   The reason comes last among the messages, as what stopped the block.
 //   Each pill opens and closes its banners, and keeps its state when R
 //   evaluates the block again.
 //   The pill of the errors is open from the start, so that a failed block
 //   shows its error at once.
-// While R evaluates the block, the footer dims and keeps what it shows.
+// While R evaluates the block, the footer and the pills dim, and keep what
+// they show.
 //
 // A card draws the footer with Footer, as the last line of its output's box,
-// and the banners with Banners, below the box.
-// Both components draw from what useFooter() returns.
+// the pills with Pills below the box, and the banners with Banners below the
+// pills.
+// The three components draw from what useFooter() returns.
 
 import { useCallback, useId, useState } from "react";
 import type { ReactElement } from "react";
@@ -32,7 +39,7 @@ type Severity = Condition["severity"];
 // Every severity, in the order of the pills.
 const SEVERITIES: readonly Severity[] = ["error", "warning", "message"];
 
-// What Footer and Banners draw from.
+// What Footer, Pills and Banners draw from.
 export interface FooterProps {
   // The block's status.
   readonly status: BlockStatus | undefined;
@@ -49,8 +56,8 @@ export interface FooterProps {
   readonly panel: string;
 }
 
-// What the footer and the banners of a block draw from, for its status and
-// the severities given, or every severity where none are given.
+// What the footer, the pills and the banners of a block draw from, for its
+// status and the severities given, or every severity where none are given.
 export function useFooter(status: BlockStatus | undefined, severities: readonly Severity[] = SEVERITIES): FooterProps {
   const shown = useShown(status);
   const [open, setOpen] = useState<ReadonlySet<Severity>>(OPEN_AT_START);
@@ -66,38 +73,92 @@ export function useFooter(status: BlockStatus | undefined, severities: readonly 
 }
 
 // The footer, which dims while R evaluates the block.
-export function Footer({ status, shown, severities, open, toggle, panel }: FooterProps): ReactElement {
-  const settled = status !== undefined && status === shown && !status.running;
+export function Footer({ status, shown }: FooterProps): ReactElement {
   return (
     <footer
       aria-busy={status?.running === true}
       data-status={shown?.status}
-      className={`bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${
-        settled ? "" : "bc:opacity-50"
+      className={`bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${
+        settled(status, shown) ? "" : "bc:opacity-50"
       }`}
     >
-      {shown === undefined ? null : (
-        <StatusLine status={shown} severities={severities} panel={panel} open={open} toggle={toggle} />
-      )}
+      {shown?.status === "ready" ? shown.summary : null}
     </footer>
   );
 }
 
-// The banners of the conditions whose pills are open, in the order R raised
-// them.
+// The pills, which dim while R evaluates the block: one for each severity
+// that has something to count. A block with none has no line of pills.
+export function Pills({ status, shown, severities, open, toggle, panel }: FooterProps): ReactElement | null {
+  if (shown === undefined) return null;
+  const pills = SEVERITIES.flatMap((severity) => {
+    const n = counted(shown, severities, severity);
+    return n === 0 ? [] : [{ severity, n }];
+  });
+  if (pills.length === 0) return null;
+  return (
+    <div
+      role="group"
+      aria-label="Status"
+      aria-busy={status?.running === true}
+      className={`bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${
+        settled(status, shown) ? "" : "bc:opacity-50"
+      }`}
+    >
+      {pills.map(({ severity, n }) => {
+        const mark = MARKS[severity];
+        return (
+          <button
+            key={severity}
+            type="button"
+            aria-expanded={open.has(severity)}
+            aria-controls={panel}
+            onClick={() => {
+              toggle(severity);
+            }}
+            className={`bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`}
+          >
+            <SeverityIcon severity={severity} />
+            {severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// The banners of the pills that are open: the conditions in the order R
+// raised them, and the reason last among the messages.
 export function Banners({ shown, severities, open, panel }: FooterProps): ReactElement | null {
-  const listed =
-    shown === undefined
-      ? []
-      : statusConditions(shown).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+  if (shown === undefined) return null;
+  const listed: { severity: Severity; message: string }[] = shown.conditions.filter(
+    (condition) => severities.includes(condition.severity) && open.has(condition.severity),
+  );
+  if (shown.reason !== null && open.has("message")) listed.push({ severity: "message", message: shown.reason });
   if (listed.length === 0) return null;
   return (
     <ul id={panel} aria-label="Conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0">
-      {listed.map((condition, i) => (
-        <Banner key={i} condition={condition} />
+      {listed.map(({ severity, message }, i) => (
+        <Banner key={i} severity={severity} message={message} />
       ))}
     </ul>
   );
+}
+
+// Whether the footer and the pills show the block's status as it is: R
+// evaluates nothing of it, and it has a line of its own.
+function settled(status: BlockStatus | undefined, shown: BlockStatus | undefined): boolean {
+  return status !== undefined && status === shown && !status.running;
+}
+
+// How many banners the pill of a severity opens: the conditions of the
+// severity, where the card shows it, and for the messages, the reason too,
+// whatever severities the card shows.
+function counted(status: BlockStatus, severities: readonly Severity[], severity: Severity): number {
+  const conditions = severities.includes(severity)
+    ? status.conditions.filter((condition) => condition.severity === severity).length
+    : 0;
+  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
 }
 
 // How a card marks a condition of each severity, in its pill and in its
@@ -127,72 +188,21 @@ const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: stri
   },
 };
 
-// The line of the footer for a status that has one: a ready block's summary,
-// or why a waiting block waits, and a pill for each severity given of the
-// conditions of R's reply.
-// The pill of the errors reads "error", and those of the warnings and the
-// messages count them.
-function StatusLine({
-  status,
-  severities,
-  panel,
-  open,
-  toggle,
-}: {
-  status: BlockStatus;
-  severities: readonly Severity[];
-  panel: string;
-  open: ReadonlySet<Severity>;
-  toggle: (severity: Severity) => void;
-}): ReactElement | null {
-  if (status.status === "waiting") {
-    return <span className="bc:text-text-muted">{status.conditions[0]?.message}</span>;
-  }
-
-  const pills = SEVERITIES.filter((severity) => severities.includes(severity)).flatMap((severity) => {
-    const n = status.conditions.filter((condition) => condition.severity === severity).length;
-    if (n === 0) return [];
-    const mark = MARKS[severity];
-    return [
-      <button
-        key={severity}
-        type="button"
-        aria-expanded={open.has(severity)}
-        aria-controls={panel}
-        onClick={() => {
-          toggle(severity);
-        }}
-        className={`bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`}
-      >
-        <SeverityIcon severity={severity} />
-        {severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`}
-      </button>,
-    ];
-  });
-
-  return (
-    <span className="bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2">
-      {status.status === "ready" && status.summary !== null ? <span className="bc:text-text-muted">{status.summary}</span> : null}
-      {pills}
-    </span>
-  );
-}
-
-// A condition in full, as a banner in the colour of its severity, with the
-// severity's icon and name.
-function Banner({ condition }: { condition: Condition }): ReactElement {
-  const mark = MARKS[condition.severity];
+// A condition, or the reason, in full, as a banner in the colour of its
+// severity, with the severity's icon and name.
+function Banner({ severity, message }: { severity: Severity; message: string }): ReactElement {
+  const mark = MARKS[severity];
   return (
     <li
-      data-severity={condition.severity}
+      data-severity={severity}
       className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`}
     >
       <span className={`bc:mt-0.5 ${mark.text}`}>
-        <SeverityIcon severity={condition.severity} />
+        <SeverityIcon severity={severity} />
       </span>
       <span className="bc:grid bc:min-w-0 bc:gap-0.5">
         <span className={`bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`}>{mark.label}</span>
-        <span className="bc:font-mono bc:text-xs bc:whitespace-pre-wrap">{condition.message}</span>
+        <span className="bc:font-mono bc:text-xs bc:whitespace-pre-wrap">{message}</span>
       </span>
     </li>
   );
@@ -228,10 +238,10 @@ function SeverityIcon({ severity }: { severity: Severity }): ReactElement {
   );
 }
 
-// The status that the footer shows: the block's, where it has a line of its
-// own, and otherwise the last that had one.
+// The status that the footer and the pills show: the block's, where it has a
+// line of its own, and otherwise the last that had one.
 // A block that reads stale or unevaluated has no reply for its revision yet,
-// so the footer keeps what it showed while R evaluates the block.
+// so they keep what they showed while R evaluates the block.
 function useShown(status: BlockStatus | undefined): BlockStatus | undefined {
   const [kept, setKept] = useState<BlockStatus | undefined>(undefined);
   const now = status !== undefined && status.status !== "stale" && status.status !== "unevaluated" ? status : undefined;
@@ -242,9 +252,3 @@ function useShown(status: BlockStatus | undefined): BlockStatus | undefined {
 // The severities whose banners are open as the card starts: the errors, since
 // their pill names no more of them than their severity.
 const OPEN_AT_START: ReadonlySet<Severity> = new Set<Severity>(["error"]);
-
-// The conditions that the footer opens to, in the order R raised them: those
-// of R's reply, which a waiting block has none of.
-function statusConditions(status: BlockStatus): readonly Condition[] {
-  return status.status === "waiting" ? [] : status.conditions;
-}

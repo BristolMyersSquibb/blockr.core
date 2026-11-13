@@ -121,8 +121,10 @@ without a default starts unset and stays out of the block's state until
 something sets it. A body that uses an unset arg, or signals
 \code{\link[=blockr_invalid]{blockr_invalid()}} with a message, makes R run nothing and report the block
 as \code{invalid}, and a body that can do without an unset arg tests it with
-\code{\link[=missing]{missing()}}. Called
-without args, \code{expr} gives the state a new block starts with.
+\code{\link[=missing]{missing()}}.
+A body that signals \code{\link[=blockr_waiting]{blockr_waiting()}} makes R report the block as
+\code{waiting}, since its state can run, but only once something else happens.
+Called without args, \code{expr} gives the state a new block starts with.
 
 The data inputs, apart from the state args, are given as \code{inputs}: a
 character vector names them, such as \code{"data"}, \code{c("x", "y")} or \code{"..."} for

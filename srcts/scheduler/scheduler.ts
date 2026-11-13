@@ -45,7 +45,7 @@ import type { Asked, Plan, Sent } from "./plan.ts";
 import { inputsByBlock } from "./recipes.ts";
 import type { Inputs } from "./recipes.ts";
 import { bump, counter, opening, revise } from "./revisions.ts";
-import { blockStatuses, replyOutcome, unsent } from "./status.ts";
+import { blockStatuses, keptWaiting, replyOutcome, unsent } from "./status.ts";
 import type { BlockStatus, Outcome } from "./status.ts";
 
 export interface Scheduler {
@@ -451,9 +451,10 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   }
 
   // A reply's outcome becomes the block's where it is for the block's current
-  // revision, and the block reads anything but waiting. A reply of `cancelled`
-  // or `missing` has no outcome. A reply to an evaluation for a one-time
-  // evaluation with parameters goes to that one-time evaluation too.
+  // revision, and no input or block upstream keeps the block waiting. A block
+  // that R said waits takes it, as from its save button. A reply of
+  // `cancelled` or `missing` has no outcome. A reply to an evaluation for a
+  // one-time evaluation with parameters goes to that one-time evaluation too.
   const answered = action((id: number, reply: Reply) => {
     const evaluation = done(id);
     if (evaluation === undefined || ended()) return;
@@ -463,7 +464,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     if (
       outcome !== undefined &&
       evaluation.revision === revisions.value.get(evaluation.block) &&
-      statuses.value.get(evaluation.block)?.status !== "waiting"
+      keptWaiting(inputs.value.get(evaluation.block), statuses.value) === undefined
     ) {
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
     }
@@ -530,6 +531,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           graph: graph.value,
           revisions: revisions.value,
           statuses: statuses.value,
+          inputs: inputs.value,
           needs: needs.value,
           sent: sent.value.values(),
           asked: asked.value.values(),
@@ -698,7 +700,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           else resolve(result.statuses);
         });
 
-        const oneTime = evaluations.createOneTime([...new Set(blocks)], params, at, statuses.value);
+        const oneTime = evaluations.createOneTime([...new Set(blocks)], params, at, statuses.value, inputs.value);
         if (oneTime instanceof Error) {
           update({ oneTimes: oneTimes.value, settled: [[id, { error: oneTime }]] });
         } else {

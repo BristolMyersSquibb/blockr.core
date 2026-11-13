@@ -5,24 +5,28 @@
 // - The block's name, its class and its status, and a menu to rename or
 //   remove the block or to add a block before or after it.
 // - The block's UI and its output, which core mounts.
-// - The footer, the last line of the output's box, which shows the block's
-//   status in one centred line, with a pill for each severity of the
-//   conditions of R's reply that the board option show_conditions names.
-// - The banners of the conditions whose pills are open.
-// The footer and the banners are those of srcts/card, which the card of a
-// block that serve() serves alone draws as well.
+// - The footer, the last line of the output's box, which shows a ready
+//   block's summary.
+// - Below the box, the pills: one for the reason of an invalid or a waiting
+//   block, and one for each severity of the conditions of R's reply that the
+//   board option show_conditions names.
+// - The banners of the pills that are open.
+// The footer, the pills and the banners are those of srcts/card, which the
+// card of a block that serve() serves alone draws as well.
 //
 // Core keeps drawing a block's last output whatever the block's status. So
 // the card greys the output out while the block is not ready.
-// It greys out the output alone, and not the footer, so that the pills keep
-// the colours of their severities.
+// It greys out the output alone, and not the pills, so that they keep the
+// colours of their severities.
 // Core asks R for an output only once the block reads ready and the output's
 // element measures more than 0 by 0, and R draws a plot at that size.
 // So the card gives the output a height of its own from the first time the
 // block reads ready on, which the user may drag to another.
 // Before then there is nothing to draw, and the card of a block that fails or
-// reads invalid at once shows the footer and the banners alone, as that of a
+// reads invalid at once shows the pills and the banners alone, as that of a
 // waiting block does.
+// The box then has no footer either, since a block that never read ready has
+// no summary.
 // The handle sits at the end of the footer, clear of the output's own
 // controls.
 // The card always shows the block's UI and its output, with no toggles to
@@ -36,7 +40,7 @@
 
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
-import { Banners, Footer, Mounted, useFooter, useSized, useStatus } from "../../card/index.ts";
+import { Banners, Footer, Mounted, Pills, useFooter, useSized, useStatus } from "../../card/index.ts";
 import type { Condition } from "../../protocol/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
@@ -162,8 +166,9 @@ export const BlockCard = memo(function BlockCard({
             sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
           }`}
         />
-        <Footer {...footer} />
+        {sized ? <Footer {...footer} /> : null}
       </div>
+      <Pills {...footer} />
       <Banners {...footer} />
     </article>
   );

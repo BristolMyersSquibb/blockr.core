@@ -1,5 +1,6 @@
 import type { Graph } from "../graph/index.ts";
 import type { BlockId } from "../types/board.ts";
+import type { Inputs } from "./recipes.ts";
 import type { BlockStatus } from "./status.ts";
 export declare const GIVE_WAY = 5000;
 export interface Sent {
@@ -41,6 +42,7 @@ export declare function evaluationPlan(input: {
     readonly graph: Graph;
     readonly revisions: ReadonlyMap<BlockId, number>;
     readonly statuses: ReadonlyMap<BlockId, BlockStatus>;
+    readonly inputs: ReadonlyMap<BlockId, Inputs>;
     readonly needs: ReadonlyMap<BlockId, number>;
     readonly sent: Iterable<Sent>;
     readonly asked: Iterable<Asked>;

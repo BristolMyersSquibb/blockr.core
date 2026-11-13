@@ -310,7 +310,7 @@ local_write_block <- function(frame = parent.frame()) {
     "write_block",
     function(x, expr, env, save = FALSE, ...) {
       if (!isTRUE(x$auto_write) && !isTRUE(save)) {
-        blockr_invalid("Save to write the file.")
+        blockr_waiting("Save to write the file.")
       }
       NextMethod()
     },

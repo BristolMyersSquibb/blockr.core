@@ -5,7 +5,7 @@
 import { act } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost } from "../../stubs/index.ts";
-import { choose, find } from "../../testing/inputs.ts";
+import { choose, find, texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import * as upload from "./index.tsx";
@@ -33,11 +33,11 @@ async function mounted(state: State) {
   return { host, view, input: find(view.el, 'input[type="file"]', HTMLInputElement) };
 }
 
-test("says that no file is uploaded yet, and asks nothing until the user picks one", async () => {
+test("says nothing below the input, and asks nothing, until the user picks a file", async () => {
   const { host, view } = await mounted({});
   await settle();
 
-  expect(view.el.textContent).toContain("No file uploaded yet.");
+  expect(texts(view.el, "p")).toEqual([]);
   expect(host.requested).toEqual([]);
   expect(host.submitted).toEqual([]);
 });

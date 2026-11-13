@@ -204,7 +204,8 @@ A class whose block expression depends on the data says so in the expression, as
 Or its UI asks R for what a user picks from through a request, such as the columns of the input, and the user's pick goes into the state.
 
 The body of `expr` signals `blockr_invalid()` with a message for a state that cannot run, such as a selection that a user emptied.
-R then runs nothing and reports the block as `invalid`, with the message, which says what the user has to do.
+R then runs nothing and reports the block as `invalid`, with the message as the block's reason, which says what the user has to do.
+The reason is part of the block's status, as a ready block's summary is, so R records it as no condition.
 The merge block's message is "Choose at least one column to join by."
 The merge block gives that message for an unset `by` too, since R's own error for an unset arg does not say what to do.
 So its body tests `by` with `missing()` before it uses it.
@@ -362,13 +363,15 @@ The function `evaluate_block()` runs these steps as R does:
 
 The status is `ok` where the block ran.
 It is `invalid` where `expr` used an unset arg, or where `expr` or a `block_eval()` method signaled `blockr_invalid()`.
+It is `waiting` where either signaled `blockr_waiting()`, for a state that can run once something else happens.
 It is `error` where a check of the inputs or anything else failed.
-R records each condition with the phase that raised it.
+R records each condition with the phase that raised it, and keeps the message that made the block `invalid` or `waiting` as its reason.
 
 A class has no say in when its blocks are evaluated: the client evaluates what its frontend shows and what packages ask for.
 A class whose block expression may run only when its UI asks, such as a write block in manual mode, has a `block_eval()` method.
 The method decides whether and how the block expression runs, never what it computes.
-This write block writes only where its state holds `auto_write` or its UI passes the parameter `save`:
+This write block writes only where its state holds `auto_write` or its UI passes the parameter `save`.
+Otherwise it signals `blockr_waiting()`, since its state can run, but only once a user asks:
 
 ```{r}
 write_block <- new_block_class(
@@ -382,7 +385,7 @@ write_block <- new_block_class(
 
 block_eval.write_block <- function(x, expr, env, save = FALSE, ...) {
   if (!isTRUE(x$auto_write) && !save) {
-    blockr_invalid("Save to write the file.")
+    blockr_waiting("Save to write the file.")
   }
   NextMethod()
 }
@@ -392,6 +395,7 @@ path <- tempfile(fileext = ".csv")
 res <- evaluate_block(write_block, list(path = path), list(data = "a"),
                       list(a = datasets::BOD))
 res$status
+res$reason
 file.exists(path)
 
 res <- evaluate_block(write_block, list(path = path), list(data = "a"),
@@ -401,6 +405,7 @@ file.exists(path)
 ```
 
 The write block's save button asks for a __one-time evaluation__ with the parameter, `host.evaluate({ save: true })`, which R passes on to `block_eval()`.
+The client sends it for a block that R says waits, and the block reads `ready` once R has written the file.
 An exported script holds the write, so running it writes the file.
 
 R keeps the result of each block and binds it as an input of every block downstream.

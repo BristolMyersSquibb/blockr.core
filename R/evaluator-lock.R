@@ -25,8 +25,8 @@
 # input, as `interpolate()` takes them, and its lock.
 # For a locked block, it holds the block's state too, and what
 # `build_block_expr()` built from it: the block expression, or the
-# `blockr_invalid()` of a state that cannot run, which R replies with to every
-# evaluation of the block.
+# `blockr_invalid()` or `blockr_waiting()` that stops the block, which R
+# replies with to every evaluation of the block.
 # Any other error from building a locked block's expression stops the app as
 # it starts, since its board is broken: R names every such block, for the
 # operator to fix the board.
@@ -78,9 +78,9 @@ lock_board <- function(board, data = list(), registry = block_registry) {
 }
 
 # Refuses a board whose locked blocks include one whose block expression fails
-# to build from its opening state, with an error other than the
-# `blockr_invalid()` of a state that cannot run, naming each such block with
-# its error.
+# to build from its opening state, with an error other than one that stops the
+# block without failing it, such as the `blockr_invalid()` of a state that
+# cannot run, naming each such block with its error.
 check_locked_expressions <- function(lock) {
 
   failures <- character()

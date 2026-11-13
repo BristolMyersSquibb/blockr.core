@@ -48,6 +48,9 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
 
   const held = typeof path.value === "string" && path.value !== "" ? path.value : undefined;
   const error = failed ?? path.error;
+  // The line below the input names the file on its way or the file uploaded.
+  // Before then, the block's status says what is missing.
+  const said = uploading !== null ? `Uploading ${uploading}…` : held === undefined ? null : `Uploaded ${basename(held)}`;
   return (
     <Stack>
       <Field label="Upload data">
@@ -64,13 +67,7 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
           }}
         />
       </Field>
-      <p className={styles.hint}>
-        {uploading !== null
-          ? `Uploading ${uploading}…`
-          : held !== undefined
-            ? `Uploaded ${basename(held)}`
-            : "No file uploaded yet."}
-      </p>
+      {said !== null && <p className={styles.hint}>{said}</p>}
       {error !== null && (
         <p role="alert" className={styles.alert}>
           {error}

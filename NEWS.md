@@ -44,7 +44,9 @@
   fills in with the upstream ids, and `evaluate_block()` evaluates a block
   from its class, state and upstream results through `block_eval()`. A state
   reads `invalid` where `expr` signals `blockr_invalid()` or uses an unset arg,
-  and R reports why as a message. With them come `result_summary()`,
+  and `waiting` where it signals `blockr_waiting()`.
+  R reports why as the block's reason, which is no condition.
+  With them come `result_summary()`,
   `new_block_request()` and `run_block_request()`,
   `expect_block_fixture()`, which tests a class
   without Shiny, and `trace_block_classes()`, which a package calls in
@@ -209,6 +211,14 @@
   The function `install_js_types()` installs a copy of those types into a package's `node_modules`, with the types of the package's other dependencies that ship them, and a package calls it in the `pre` scripts that npm runs before each script that reads them (#495).
   The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
   The stub of a block's host then refuses a submit of a state that the file does not list (#437).
+* R's reply to an evaluation carries why a block is invalid or waiting in a field of its own, `reason`, beside `summary`, rather than as a condition.
+  The reason is the message of the `blockr_invalid()` or `blockr_waiting()` that stopped the block, or of R's error for an unset arg.
+  A new signal, `blockr_waiting()`, has R reply `waiting` for a state that can run once something else happens, such as a write block in manual mode, which writes only once its save button asks.
+  The reply's conditions hold only what R raised, each with the severity of its class, and R logs the reason at debug.
+  A block's status in the client holds the reason beside its summary.
+  The scheduler writes the reason of a block that an input or a block upstream keeps waiting, in place of a condition.
+  A one-time evaluation with parameters runs a block that R says waits, and the block takes its reply.
+  A card counts the reason in the pill of the messages, whatever `show_conditions` names, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
@@ -230,7 +240,6 @@
   What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
   Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
-  Where no blockr option sets it, `show_conditions` now shows messages too, not only warnings and errors, so that a card shows why a block is invalid (#572).
   The board option `dark_mode` switches the page's theme in `data-bc-theme`, an attribute of core's own on the page's root element, rather than in Bootstrap's `data-bs-theme` (#589).
   A package that styles the dark theme keys off the same attribute.
   The board option `n_rows` takes one row at least.
@@ -390,7 +399,7 @@
   Core's command `blockr.core-set_block_lock` sets a block's lock.
   Under the board lock, R refuses an evaluation that binds a block's data inputs to other blocks or gives a locked block another state, with an error that names the lock.
   With the load lock on too, R holds every block to the opening board, which it reads as the app starts, and evaluates a locked block with the block expression that it built then.
-  A locked block whose block expression fails to build then stops the app, naming the block, unless the failure is a `blockr_invalid()`, which R replies with to every evaluation of the block.
+  A locked block whose block expression fails to build then stops the app, naming the block, unless the failure is a `blockr_invalid()` or a `blockr_waiting()`, which R replies with to every evaluation of the block.
   Without the load lock, R holds a block to its first evaluation since the board opened.
   R runs every request as on any board, with the board option values that the request carries.
   The generic `is_board_locked()` goes, and a package reads the blockr option `locked` in its place (#434).
@@ -418,12 +427,13 @@
   R exports each block's latest result through `exportTestValues()` as `result`: a list by block ID for a board, and the block's result for a block that `serve()` serves alone.
   The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read (#443).
 * The cards of core's basic frontend show their block's status as the card of a block that `serve()` serves alone does, in place of the summary below the output and the list of conditions.
-  A footer, one centered line under the output, shows a ready block's summary, or why a waiting block waits, and a pill for each severity of the conditions of R's reply that the board option `show_conditions` names.
+  A footer, one centered line at the end of the output's box, shows a ready block's summary.
+  Below the box sits a pill for each severity of the conditions of R's reply that the board option `show_conditions` names, and the pill of the messages also counts why an invalid or a waiting block does not run.
   The pill of the errors reads `error`, and those of the warnings and the messages count them.
-  Each pill opens and closes the banners of its conditions below the output, each condition in full, in the color of its severity and in the order R raised them.
+  Each pill opens and closes its banners below it, each condition in full, in the color of its severity and in the order R raised them, and the reason last among the messages.
   The pill of the errors is open from the start, so that a failed block shows its error at once.
   A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
-  Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
+  Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its pills and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
 * The logger that the blockr option `logger` picks gets the message as written, its level, its package, `asis` and `attributes`.
   Until now, it got one finished line.
   So `cat_logger()` and `cnd_logger()` put the level, the time and the package in front of the message themselves, and wrap it, as `write_log()` did.

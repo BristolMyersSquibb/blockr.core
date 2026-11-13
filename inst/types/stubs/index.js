@@ -1223,7 +1223,8 @@ var READY = Object.freeze({
   conditions: Object.freeze([]),
   stdout: "",
   stderr: "",
-  summary: null
+  summary: null,
+  reason: null
 });
 function stubBlockContext(given = {}) {
   return Object.freeze({
@@ -2199,6 +2200,7 @@ function replyOutcome(reply, revision) {
     status: reply.status,
     revision,
     summary: evaluated.summary ?? null,
+    reason: evaluated.reason ?? null,
     conditions: evaluated.conditions ?? NO_CONDITIONS,
     stdout: evaluated.stdout ?? "",
     stderr: evaluated.stderr ?? ""
@@ -2209,6 +2211,7 @@ function unsent(revision, message) {
     status: "error",
     revision,
     summary: null,
+    reason: null,
     conditions: [
       {
         severity: "error",
@@ -2229,19 +2232,27 @@ function unevaluated(revision, running2) {
     conditions: NO_CONDITIONS,
     stdout: "",
     stderr: "",
-    summary: null
+    summary: null,
+    reason: null
   };
 }
+var REPLIED = {
+  ok: "ready",
+  error: "failed",
+  invalid: "invalid",
+  waiting: "waiting"
+};
 function replied(outcome, revision, running2) {
   return {
-    status: outcome.revision !== revision ? "stale" : outcome.status === "ok" ? "ready" : outcome.status === "error" ? "failed" : "invalid",
+    status: outcome.revision !== revision ? "stale" : REPLIED[outcome.status],
     revision,
     evaluated: outcome.revision,
     running: running2,
     conditions: outcome.conditions,
     stdout: outcome.stdout,
     stderr: outcome.stderr,
-    summary: outcome.summary
+    summary: outcome.summary,
+    reason: outcome.reason
   };
 }
 function waiting(why, revision, evaluated, running2) {
@@ -2250,34 +2261,26 @@ function waiting(why, revision, evaluated, running2) {
     revision,
     evaluated,
     running: running2,
-    conditions: [why],
+    conditions: NO_CONDITIONS,
     stdout: "",
     stderr: "",
-    summary: null
+    summary: null,
+    reason: why
   };
 }
 function waitingFor(what) {
-  let message;
   if ("upstream" in what) {
     const blocks = what.upstream.length === 1 ? "block" : "blocks";
-    message = `This block is waiting for ${blocks} ${quoted(what.upstream)}.`;
-  } else if (what.unlinked.includes("...")) {
-    message = "This block is waiting for a block to be linked to it.";
-  } else {
-    const inputs = what.unlinked.length === 1 ? "input" : "inputs";
-    message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
+    return `This block is waiting for ${blocks} ${quoted(what.upstream)}.`;
   }
-  return {
-    severity: "message",
-    class: ["blockr_message", "message", "condition"],
-    phase: "status",
-    message
-  };
+  if (what.unlinked.includes("...")) {
+    return "This block is waiting for a block to be linked to it.";
+  }
+  const inputs = what.unlinked.length === 1 ? "input" : "inputs";
+  return `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
 }
 function sameStatus(a2, b2) {
-  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.conditions.length === b2.conditions.length && a2.conditions.every(
-    (condition, i2) => condition === b2.conditions[i2] || condition.phase === "status" && condition.message === b2.conditions[i2]?.message
-  );
+  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.reason === b2.reason && a2.conditions.length === b2.conditions.length && a2.conditions.every((condition, i2) => condition === b2.conditions[i2]);
 }
 function blockStatuses(input2) {
   const statuses = /* @__PURE__ */ new Map();
@@ -2287,7 +2290,7 @@ function blockStatuses(input2) {
     if (revision === void 0) continue;
     const outcome = input2.outcomes.get(id2);
     const running2 = input2.running.has(id2);
-    const reason = why(id2);
+    const reason = keptWaiting(input2.inputs.get(id2), statuses);
     const now = reason !== void 0 ? waiting(reason, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
     const before = input2.before.get(id2);
     if (before !== void 0 && sameStatus(before, now)) {
@@ -2301,27 +2304,26 @@ function blockStatuses(input2) {
     if (!statuses.has(id2)) changed.push(id2);
   }
   return { statuses, changed };
-  function why(id2) {
-    const inputs = input2.inputs.get(id2);
-    const unlinked = inputs?.unlinked ?? [];
-    if (unlinked.length > 0) return waitingFor({ unlinked });
-    const reads = (inputs?.recipe ?? []).flatMap((read) => read.block ?? []);
-    const blocked = [...new Set(reads)].filter((up) => {
-      const status = statuses.get(up)?.status;
-      return status === "failed" || status === "invalid" || status === "waiting";
-    });
-    return blocked.length > 0 ? waitingFor({ upstream: blocked }) : void 0;
-  }
+}
+function keptWaiting(inputs, statuses) {
+  const unlinked = inputs?.unlinked ?? [];
+  if (unlinked.length > 0) return waitingFor({ unlinked });
+  const reads = (inputs?.recipe ?? []).flatMap((read) => read.block ?? []);
+  const blocked = [...new Set(reads)].filter((up) => {
+    const status = statuses.get(up)?.status;
+    return status === "failed" || status === "invalid" || status === "waiting";
+  });
+  return blocked.length > 0 ? waitingFor({ upstream: blocked }) : void 0;
 }
 function waitingError(id2, status) {
-  const why = status.conditions[0]?.message ?? "This block is waiting.";
+  const why = status.reason ?? "This block is waiting.";
   return new Error(
     `${why.replace(/^This block/, `Block "${id2}"`)} Its evaluation with parameters is not sent.`
   );
 }
 
 // srcts/scheduler/evaluations.ts
-function createOneTime(blocks, params, priority, statuses) {
+function createOneTime(blocks, params, priority, statuses, inputs) {
   if (params === void 0) {
     const onBoard = new Set(blocks.filter((id2) => statuses.has(id2)));
     if (onBoard.size === 0) {
@@ -2338,13 +2340,15 @@ function createOneTime(blocks, params, priority, statuses) {
   const parts = /* @__PURE__ */ new Map();
   for (const id2 of blocks) {
     const status = statuses.get(id2);
-    if (status?.status === "waiting") return waitingError(id2, status);
+    if (status !== void 0 && keptWaiting(inputs.get(id2), statuses) !== void 0) {
+      return waitingError(id2, status);
+    }
     parts.set(id2, { recipe: void 0, sent: void 0, result: void 0 });
   }
   return { priority, params, parts };
 }
 function settle(oneTimes, statuses) {
-  const settled2 = [];
+  const settled3 = [];
   for (const [id2, oneTime] of oneTimes) {
     if ("params" in oneTime) continue;
     const blocks = [...oneTime.blocks];
@@ -2354,18 +2358,18 @@ function settle(oneTimes, statuses) {
       const status = statuses.get(block);
       if (status !== void 0) result[block] = status;
     }
-    settled2.push([id2, { statuses: result }]);
+    settled3.push([id2, { statuses: result }]);
   }
-  return { oneTimes: without2(oneTimes, settled2.map(([id2]) => id2)), settled: settled2 };
+  return { oneTimes: without2(oneTimes, settled3.map(([id2]) => id2)), settled: settled3 };
 }
 function left(oneTimes, gone) {
   const kept = /* @__PURE__ */ new Map();
-  const settled2 = [];
+  const settled3 = [];
   for (const [id2, oneTime] of oneTimes) {
     if (!("params" in oneTime)) {
       const blocks = new Set([...oneTime.blocks].filter((block) => !gone.has(block)));
       if (blocks.size === 0) {
-        settled2.push([id2, { error: new Error("Every block of the one-time evaluation left the board.") }]);
+        settled3.push([id2, { error: new Error("Every block of the one-time evaluation left the board.") }]);
       } else {
         kept.set(id2, blocks.size === oneTime.blocks.size ? oneTime : { ...oneTime, blocks });
       }
@@ -2380,10 +2384,10 @@ function left(oneTimes, gone) {
       const error = new Error(
         `Block "${early[0]}" left the board before its evaluation with parameters was sent.`
       );
-      settled2.push([id2, { error }]);
+      settled3.push([id2, { error }]);
     }
   }
-  return { oneTimes: kept, settled: settled2 };
+  return { oneTimes: kept, settled: settled3 };
 }
 function sent(oneTimes, id2, block, evaluation) {
   return withPart(oneTimes, id2, block, { recipe: evaluation.recipe, sent: evaluation.id });
@@ -2567,7 +2571,7 @@ function evaluationPlan(input2) {
       if (item.oneTime !== void 0) {
         if (rejected.has(item.oneTime)) continue;
         const status = statuses.get(item.block);
-        if (status?.status === "waiting") {
+        if (status !== void 0 && keptWaiting(input2.inputs.get(item.block), statuses) !== void 0) {
           reject.push({ oneTime: item.oneTime, error: waitingError(item.block, status) });
           rejected.add(item.oneTime);
           continue;
@@ -2893,7 +2897,7 @@ function createScheduler(options) {
     if (evaluation === void 0 || ended()) return;
     if (reply.status === "missing") lacking(reply.missing);
     const outcome = replyOutcome(reply, evaluation.revision);
-    if (outcome !== void 0 && evaluation.revision === revisions.value.get(evaluation.block) && statuses.value.get(evaluation.block)?.status !== "waiting") {
+    if (outcome !== void 0 && evaluation.revision === revisions.value.get(evaluation.block) && keptWaiting(inputs.value.get(evaluation.block), statuses.value) === void 0) {
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
     }
     if (evaluation.oneTime !== void 0) {
@@ -2942,6 +2946,7 @@ function createScheduler(options) {
           graph: graph.value,
           revisions: revisions.value,
           statuses: statuses.value,
+          inputs: inputs.value,
           needs: needs.value,
           sent: sent2.value.values(),
           asked: asked.value.values(),
@@ -3000,10 +3005,10 @@ function createScheduler(options) {
   let heard = /* @__PURE__ */ new Map();
   const dispose = x(() => {
     const now = statuses.value;
-    const settled2 = settle(oneTimes.value, now);
-    if (settled2.settled.length > 0) {
+    const settled3 = settle(oneTimes.value, now);
+    if (settled3.settled.length > 0) {
       f(() => {
-        update(settled2);
+        update(settled3);
       });
     }
     const changed = changedSince(heard, now);
@@ -3075,7 +3080,7 @@ function createScheduler(options) {
           if ("error" in result) reject(asError(result.error));
           else resolve(result.statuses);
         });
-        const oneTime = createOneTime([...new Set(blocks)], params, at, statuses.value);
+        const oneTime = createOneTime([...new Set(blocks)], params, at, statuses.value, inputs.value);
         if (oneTime instanceof Error) {
           update({ oneTimes: oneTimes.value, settled: [[id2, { error: oneTime }]] });
         } else {
@@ -4398,10 +4403,10 @@ function createMounts(options) {
     const given = def.default;
     const started = typeof given === "function" ? Promise.resolve().then(() => given(options.core())) : Promise.resolve(given);
     resolving.set(id2, started);
-    const settled2 = () => {
+    const settled3 = () => {
       if (resolving.get(id2) === started) resolving.delete(id2);
     };
-    started.then(settled2, settled2);
+    started.then(settled3, settled3);
     return started;
   }
   async function addOptions(ids2, by) {
@@ -9769,22 +9774,69 @@ function useFooter(status, severities = SEVERITIES2) {
   }, []);
   return { status, shown: shown2, severities, open, toggle, panel };
 }
-function Footer({ status, shown: shown2, severities, open, toggle, panel }) {
-  const settled2 = status !== void 0 && status === shown2 && !status.running;
+function Footer({ status, shown: shown2 }) {
   return /* @__PURE__ */ jsx6(
     "footer",
     {
       "aria-busy": status?.running === true,
       "data-status": shown2?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
-      children: shown2 === void 0 ? null : /* @__PURE__ */ jsx6(StatusLine, { status: shown2, severities, panel, open, toggle })
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
+      children: shown2?.status === "ready" ? shown2.summary : null
+    }
+  );
+}
+function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
+  if (shown2 === void 0) return null;
+  const pills = SEVERITIES2.flatMap((severity) => {
+    const n2 = counted(shown2, severities, severity);
+    return n2 === 0 ? [] : [{ severity, n: n2 }];
+  });
+  if (pills.length === 0) return null;
+  return /* @__PURE__ */ jsx6(
+    "div",
+    {
+      role: "group",
+      "aria-label": "Status",
+      "aria-busy": status?.running === true,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
+      children: pills.map(({ severity, n: n2 }) => {
+        const mark = MARKS[severity];
+        return /* @__PURE__ */ jsxs5(
+          "button",
+          {
+            type: "button",
+            "aria-expanded": open.has(severity),
+            "aria-controls": panel,
+            onClick: () => {
+              toggle(severity);
+            },
+            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+            children: [
+              /* @__PURE__ */ jsx6(SeverityIcon, { severity }),
+              severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
+            ]
+          },
+          severity
+        );
+      })
     }
   );
 }
 function Banners({ shown: shown2, severities, open, panel }) {
-  const listed = shown2 === void 0 ? [] : statusConditions(shown2).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+  if (shown2 === void 0) return null;
+  const listed = shown2.conditions.filter(
+    (condition) => severities.includes(condition.severity) && open.has(condition.severity)
+  );
+  if (shown2.reason !== null && open.has("message")) listed.push({ severity: "message", message: shown2.reason });
   if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx6(Banner, { condition }, i2)) });
+  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i2) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i2)) });
+}
+function settled2(status, shown2) {
+  return status !== void 0 && status === shown2 && !status.running;
+}
+function counted(status, severities, severity) {
+  const conditions = severities.includes(severity) ? status.conditions.filter((condition) => condition.severity === severity).length : 0;
+  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
 }
 var MARKS = {
   error: {
@@ -9809,57 +9861,18 @@ var MARKS = {
     border: "bc:border-border-accent"
   }
 };
-function StatusLine({
-  status,
-  severities,
-  panel,
-  open,
-  toggle
-}) {
-  if (status.status === "waiting") {
-    return /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
-  }
-  const pills = SEVERITIES2.filter((severity) => severities.includes(severity)).flatMap((severity) => {
-    const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
-    if (n2 === 0) return [];
-    const mark = MARKS[severity];
-    return [
-      /* @__PURE__ */ jsxs5(
-        "button",
-        {
-          type: "button",
-          "aria-expanded": open.has(severity),
-          "aria-controls": panel,
-          onClick: () => {
-            toggle(severity);
-          },
-          className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
-          children: [
-            /* @__PURE__ */ jsx6(SeverityIcon, { severity }),
-            severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
-          ]
-        },
-        severity
-      )
-    ];
-  });
-  return /* @__PURE__ */ jsxs5("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
-    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: status.summary }) : null,
-    pills
-  ] });
-}
-function Banner({ condition }) {
-  const mark = MARKS[condition.severity];
+function Banner({ severity, message }) {
+  const mark = MARKS[severity];
   return /* @__PURE__ */ jsxs5(
     "li",
     {
-      "data-severity": condition.severity,
+      "data-severity": severity,
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
       children: [
-        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(SeverityIcon, { severity: condition.severity }) }),
+        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(SeverityIcon, { severity }) }),
         /* @__PURE__ */ jsxs5("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
           /* @__PURE__ */ jsx6("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
+          /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
         ] })
       ]
     }
@@ -9894,9 +9907,6 @@ function useShown(status) {
   return now ?? kept;
 }
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
-function statusConditions(status) {
-  return status.status === "waiting" ? [] : status.conditions;
-}
 
 // srcts/card/mounted.tsx
 import { useLayoutEffect as useLayoutEffect3, useRef as useRef3 } from "react";
@@ -10151,10 +10161,11 @@ var BlockCard = memo(function BlockCard2({
                   className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              /* @__PURE__ */ jsx9(Footer, { ...footer })
+              sized ? /* @__PURE__ */ jsx9(Footer, { ...footer }) : null
             ]
           }
         ),
+        /* @__PURE__ */ jsx9(Pills, { ...footer }),
         /* @__PURE__ */ jsx9(Banners, { ...footer })
       ]
     }
@@ -12049,7 +12060,7 @@ var showConditions = {
   // variable gives it.
   default: async (core) => {
     const value2 = await core.blockrOption("show_conditions");
-    if (value2 === void 0) return SEVERITIES3;
+    if (value2 === void 0) return ["warning", "error"];
     return checked2("show_conditions", takesSeverities, value2, typeof value2 === "string" ? [value2] : value2);
   },
   ui: checklistUi("Message types to display", SEVERITIES3)
@@ -13083,6 +13094,7 @@ function fixtureR(hello, options) {
         const reply = {
           status: "ok",
           summary: null,
+          reason: null,
           conditions: [],
           stdout: "",
           stderr: "",

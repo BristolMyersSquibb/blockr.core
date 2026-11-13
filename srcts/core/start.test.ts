@@ -131,6 +131,7 @@ function playedR() {
               block: request.block,
               revision: request.revision,
               summary: null,
+              reason: null,
               conditions: [],
               stdout: "",
               stderr: "",
@@ -1113,7 +1114,7 @@ describe("the frontend and the plugins", () => {
     const empty = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } };
     await started({ [BASIC]: basicModule(basic.frontend) }, empty);
 
-    expect(basic.seen).toEqual([[BASIC_FRONTEND, ["message", "warning", "error"], "light"]]);
+    expect(basic.seen).toEqual([[BASIC_FRONTEND, ["warning", "error"], "light"]]);
   });
 
   test("calls the frontend's render() with what R's reply to hello holds in frontend, in args, for every board that opens", async () => {

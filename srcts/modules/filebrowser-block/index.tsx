@@ -151,7 +151,8 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
           </>
         )}
       </ul>
-      <p className={styles.hint}>{held === undefined ? "No file chosen yet." : `Chosen: ${held}`}</p>
+      {/* Before a file is chosen, the block's status says what is missing. */}
+      {held !== undefined && <p className={styles.hint}>{`Chosen: ${held}`}</p>}
       {error !== null && (
         <p role="alert" className={styles.alert}>
           {error}

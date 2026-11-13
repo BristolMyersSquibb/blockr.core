@@ -76,7 +76,7 @@ var showConditions = {
   // variable gives it.
   default: async (core) => {
     const value = await core.blockrOption("show_conditions");
-    if (value === void 0) return SEVERITIES;
+    if (value === void 0) return ["warning", "error"];
     return checked("show_conditions", takesSeverities, value, typeof value === "string" ? [value] : value);
   },
   ui: checklistUi("Message types to display", SEVERITIES)

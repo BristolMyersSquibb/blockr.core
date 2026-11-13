@@ -22,6 +22,7 @@
         "block": "d",
         "revision": 8,
         "summary": null,
+        "reason": null,
         "conditions": [
           {
             "severity": "error",

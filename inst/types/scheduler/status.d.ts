@@ -12,11 +12,13 @@ export interface BlockStatus {
     readonly stdout: string;
     readonly stderr: string;
     readonly summary: string | null;
+    readonly reason: string | null;
 }
 export interface Outcome {
-    readonly status: "ok" | "error" | "invalid";
+    readonly status: "ok" | "error" | "invalid" | "waiting";
     readonly revision: number;
     readonly summary: string | null;
+    readonly reason: string | null;
     readonly conditions: readonly Condition[];
     readonly stdout: string;
     readonly stderr: string;
@@ -25,12 +27,12 @@ export declare function replyOutcome(reply: Reply, revision: number): Outcome | 
 export declare function unsent(revision: number, message: string): Outcome;
 export declare function unevaluated(revision: number, running: boolean): BlockStatus;
 export declare function replied(outcome: Outcome, revision: number, running: boolean): BlockStatus;
-export declare function waiting(why: Condition, revision: number, evaluated: number | null, running: boolean): BlockStatus;
+export declare function waiting(why: string, revision: number, evaluated: number | null, running: boolean): BlockStatus;
 export declare function waitingFor(what: {
     unlinked: readonly string[];
 } | {
     upstream: readonly BlockId[];
-}): Condition;
+}): string;
 export declare function sameStatus(a: BlockStatus, b: BlockStatus): boolean;
 export declare function blockStatuses(input: {
     readonly graph: Graph;
@@ -43,4 +45,5 @@ export declare function blockStatuses(input: {
     statuses: Map<BlockId, BlockStatus>;
     changed: BlockId[];
 };
+export declare function keptWaiting(inputs: Inputs | undefined, statuses: ReadonlyMap<BlockId, BlockStatus>): string | undefined;
 export declare function waitingError(id: BlockId, status: BlockStatus): Error;

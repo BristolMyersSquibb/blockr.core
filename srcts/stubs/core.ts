@@ -279,6 +279,7 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
         const reply: EvaluateReply = {
           status: "ok",
           summary: null,
+          reason: null,
           conditions: [],
           stdout: "",
           stderr: "",
