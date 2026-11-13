@@ -3,7 +3,7 @@
 // that core gives what every block, link and stack shares.
 
 export { CommandError, createCommands } from "./commands.ts";
-export type { Command, Commands } from "./commands.ts";
+export type { Command, CommandContext, Commands } from "./commands.ts";
 export { defaultBlockName, freeInputs, linkFeeding } from "./core.ts";
 export * as schemas from "./schemas.ts";
 export { stateSchema } from "./schemas.ts";

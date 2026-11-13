@@ -2,8 +2,8 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#starting-the-page):
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
-//    scheduler reads and for rand_id, the shape of the ids that its commands
-//    mint, and creates for the board that it opens the store and the command
+//    scheduler reads and for rand_id, the shape of the ids that commands mint,
+//    and creates for the board that it opens the store and the command
 //    registry.
 // 3. It imports the module of the class of each of the app's plugins and of
 //    each board option that R's reply names, each once per page, and
@@ -362,8 +362,8 @@ export function start(options: StartOptions): Started {
     );
 
     // The blockr options that the scheduler reads, and rand_id, the shape of
-    // the ids that core's commands mint, asked at once, in one request, before
-    // the scheduler starts and the commands run, and kept for the page.
+    // the ids that commands mint, asked at once, in one request, before the
+    // scheduler starts and the commands run, and kept for the page.
     // Each goes as R sent it to the scheduler or the command registry, which
     // converts and checks it, and takes its fallback where nothing sets it.
     const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId] = await Promise.all([
@@ -374,7 +374,12 @@ export function start(options: StartOptions): Started {
     ]);
 
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
-    const commands = createCommands(store, { signal, lock: reply.lock, randId });
+    const commands = createCommands(store, {
+      signal,
+      lock: reply.lock,
+      randId,
+      blockrOption: (name) => blockrOptions.read(name),
+    });
     await register(reply, store, commands, signal);
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;

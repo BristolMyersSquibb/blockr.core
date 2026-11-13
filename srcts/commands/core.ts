@@ -14,11 +14,13 @@
 // schema of the block's class before the store does, so that the error names
 // the command. An edit that changes nothing is the store's to drop, which
 // makes no step of it.
-// The ids that they mint for what they add take the shape that the blockr
-// option rand_id names, as R's rand_names() draws them.
+// They read the board lock and mint ids through the context that the command
+// registry hands every command, as a plugin class's commands do. So the ids
+// that they mint for what they add take the shape that the blockr option
+// rand_id names, as R's rand_names() draws them.
 
-import { mintId, pathFromSegments, sentenceCase, stateFailures } from "../store/index.ts";
-import type { Patch, RandId, Store } from "../store/index.ts";
+import { pathFromSegments, sentenceCase, stateFailures } from "../store/index.ts";
+import type { Patch, Store } from "../store/index.ts";
 import type {
   Block,
   BlockId,
@@ -33,7 +35,7 @@ import type { Json, JsonSchema } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { own, packageFromId, quoted, without } from "../util/index.ts";
 import { refusal } from "./commands.ts";
-import type { Command } from "./commands.ts";
+import type { Command, CommandContext } from "./commands.ts";
 import * as schemas from "./schemas.ts";
 
 type State = Readonly<Record<string, Json>>;
@@ -73,21 +75,7 @@ const newBlock = {
   },
 };
 
-export interface CoreCommandsOptions {
-  // Whether R's reply to `hello` sets the board lock, which leaves core's
-  // command for a plugin's state not enabled.
-  readonly locked?: boolean;
-  // The shape of the ids that core's commands mint, which the blockr option
-  // rand_id names, "adjective_animal" unless given.
-  readonly randId?: RandId;
-}
-
-export function coreCommands(store: Store, options: CoreCommandsOptions = {}): Command<Json, unknown>[] {
-  // A new id that `taken` does not hold, in the shape that rand_id names.
-  function mint(taken: (id: string) => boolean): string {
-    return mintId(taken, options.randId);
-  }
-
+export function coreCommands(store: Store): Command<Json, unknown>[] {
   function registryEntry(command: string, registryId: RegistryId): RegistryEntry {
     const entry = own(store.blockRegistry(), registryId);
     if (entry === undefined) {
@@ -102,6 +90,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
     command: string,
     board: Board,
     args: NewBlock,
+    mintId: CommandContext["mintId"],
   ): [BlockId, Block, RegistryEntry] {
     const entry = registryEntry(command, args.registry_id);
     const state = { ...entry.state, ...args.state };
@@ -109,7 +98,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
     if (failures.length > 0) {
       throw refusal(command, failures.map((failure) => `The state of the new block ${failure}`));
     }
-    const id = args.id ?? mint((id) => Object.hasOwn(board.blocks, id));
+    const id = args.id ?? mintId((id) => Object.hasOwn(board.blocks, id));
     return [
       id,
       { registry_id: entry.id, state, name: args.name ?? defaultBlockName(entry.id), locked: null },
@@ -167,8 +156,8 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       description:
         "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given.",
       args: object(newBlock, ["registry_id"]),
-      run(board, args) {
-        const [id, block] = added(this.id, board, args);
+      run(board, args, { mintId }) {
+        const [id, block] = added(this.id, board, args, mintId);
         return { blocks: { add: { [id]: block } } };
       },
     }),
@@ -246,10 +235,10 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
         ["from", "registry_id"],
       ),
       enabled: (board, { from }) => Object.hasOwn(board.blocks, from),
-      run(board, args) {
-        const [id, block, entry] = added(this.id, board, args);
+      run(board, args, { mintId }) {
+        const [id, block, entry] = added(this.id, board, args, mintId);
         const input = newInput(this.id, entry, args.input);
-        const link = mint((id) => Object.hasOwn(board.links, id));
+        const link = mintId((id) => Object.hasOwn(board.links, id));
         return {
           blocks: { add: { [id]: block } },
           links: { add: { [link]: { from: args.from, to: id, input } } },
@@ -274,10 +263,10 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
         ["to", "registry_id"],
       ),
       enabled: (board, { to, input }) => linkable(board, to, input),
-      run(board, args) {
+      run(board, args, { mintId }) {
         const input = linkInput(this.id, board, args.to, args.input);
-        const [id, block] = added(this.id, board, args);
-        const link = mint((id) => Object.hasOwn(board.links, id));
+        const [id, block] = added(this.id, board, args, mintId);
+        const link = mintId((id) => Object.hasOwn(board.links, id));
         return {
           blocks: { add: { [id]: block } },
           links: { add: { [link]: { from: id, to: args.to, input } } },
@@ -302,13 +291,13 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
         ["link", "registry_id"],
       ),
       enabled: (board, { link }) => Object.hasOwn(board.links, link),
-      run(board, args) {
+      run(board, args, { mintId }) {
         const split = own(board.links, args.link);
         if (split === undefined) return [];
-        const [id, block, entry] = added(this.id, board, args);
+        const [id, block, entry] = added(this.id, board, args, mintId);
         const input = newInput(this.id, entry, args.input);
-        const near = mint((id) => Object.hasOwn(board.links, id));
-        const far = mint((id) => Object.hasOwn(board.links, id) || id === near);
+        const near = mintId((id) => Object.hasOwn(board.links, id));
+        const far = mintId((id) => Object.hasOwn(board.links, id) || id === near);
 
         // The link into the input that the split link fed takes its place
         // among the links, since a variadic block takes its links in order.
@@ -356,8 +345,8 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
       ),
       enabled: (board, { from, to, input }) =>
         Object.hasOwn(board.blocks, from) && linkable(board, to, input),
-      run(board, { from, to, input, id }) {
-        const link = id ?? mint((id) => Object.hasOwn(board.links, id));
+      run(board, { from, to, input, id }, { mintId }) {
+        const link = id ?? mintId((id) => Object.hasOwn(board.links, id));
         const resolved = linkInput(this.id, board, to, input);
         return { links: { add: { [link]: { from, to, input: resolved } } } };
       },
@@ -479,8 +468,8 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
             "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own.",
         },
       }),
-      run(board, { id, name = "Stack", blocks = [], color = null }) {
-        const stack = id ?? mint((id) => Object.hasOwn(board.stacks, id));
+      run(board, { id, name = "Stack", blocks = [], color = null }, { mintId }) {
+        const stack = id ?? mintId((id) => Object.hasOwn(board.stacks, id));
         const left = leave(board, stack, blocks);
         return {
           stacks: {
@@ -579,7 +568,7 @@ export function coreCommands(store: Store, options: CoreCommandsOptions = {}): C
         },
         ["plugin", "patches"],
       ),
-      enabled: (board, { plugin }) => options.locked !== true && Object.hasOwn(board.plugins, plugin),
+      enabled: (board, { plugin }, { lock }) => !lock.board && Object.hasOwn(board.plugins, plugin),
       run: (_board, { plugin, patches }) => ({
         patches: patches.map((patch) => ({ ...patch, path: `${pathFromSegments(["plugins", plugin])}${patch.path}` })),
       }),

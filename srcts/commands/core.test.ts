@@ -15,7 +15,7 @@ import type { Board } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { CommandError, createCommands, defaultBlockName, freeInputs, linkFeeding, schemas, stateSchema } from "./index.ts";
-import type { Commands } from "./index.ts";
+import type { CommandContext, Commands } from "./index.ts";
 
 async function setup(
   register?: (store: Store) => void,
@@ -160,7 +160,12 @@ describe("blocks", () => {
     const { store, commands } = await setup();
     // eslint-disable-next-line @typescript-eslint/unbound-method -- takes run() off the command on purpose
     const { run } = commands.registered()["blockr.core-add_block"] ?? {};
-    expect(() => run?.(store.board(), { registry_id: "blockr.dplyr-filter_block" })).toThrow(
+    const context: CommandContext = {
+      lock: { board: false, load: false },
+      mintId: () => "calm_heron",
+      blockrOption: () => Promise.resolve(undefined),
+    };
+    expect(() => run?.(store.board(), { registry_id: "blockr.dplyr-filter_block" }, context)).toThrow(
       'The command "blockr.core-add_block" refused to run',
     );
   });

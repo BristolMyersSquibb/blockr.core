@@ -16,7 +16,9 @@ export interface Store {
     hasBoard(): boolean;
     locked(block: BlockId): boolean;
     subscribe(fn: (change: Change, board: Board) => void): () => void;
-    apply(delta: Delta | readonly Delta[], origin?: Origin): void;
+    apply(delta: Delta | readonly Delta[], origin?: Origin, opts?: {
+        readonly undo?: false;
+    }): void;
     open(given: string | HelloReply): Promise<Dropped[]>;
     check(text: string): Promise<Dropped[]>;
     jsonBoard(): JsonBoard;
