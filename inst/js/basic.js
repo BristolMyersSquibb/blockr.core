@@ -751,10 +751,10 @@ function useFooter(status, severities = SEVERITIES) {
   const shown = useShown(status);
   const [open, setOpen] = useState5(OPEN_AT_START);
   const panel = useId3();
-  const toggle = useCallback2((pill) => {
+  const toggle = useCallback2((severity) => {
     setOpen((was) => {
       const next = new Set(was);
-      if (!next.delete(pill)) next.add(pill);
+      if (!next.delete(severity)) next.add(severity);
       return next;
     });
   }, []);
@@ -773,10 +773,10 @@ function Footer({ status, shown }) {
 }
 function Pills({ status, shown, severities, open, toggle, panel }) {
   if (shown === void 0) return null;
-  const pills = [
-    ...shown.reason === null ? [] : ["reason"],
-    ...SEVERITIES.filter((severity) => severities.includes(severity) && count(shown, severity) > 0)
-  ];
+  const pills = SEVERITIES.flatMap((severity) => {
+    const n = counted(shown, severities, severity);
+    return n === 0 ? [] : [{ severity, n }];
+  });
   if (pills.length === 0) return null;
   return /* @__PURE__ */ jsx6(
     "div",
@@ -785,25 +785,24 @@ function Pills({ status, shown, severities, open, toggle, panel }) {
       "aria-label": "Status",
       "aria-busy": status?.running === true,
       className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled(status, shown) ? "" : "bc:opacity-50"}`,
-      children: pills.map((pill) => {
-        const mark = MARKS[pill];
-        const n = pill === "reason" ? 1 : count(shown, pill);
+      children: pills.map(({ severity, n }) => {
+        const mark = MARKS[severity];
         return /* @__PURE__ */ jsxs5(
           "button",
           {
             type: "button",
-            "aria-expanded": open.has(pill),
+            "aria-expanded": open.has(severity),
             "aria-controls": panel,
             onClick: () => {
-              toggle(pill);
+              toggle(severity);
             },
             className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
             children: [
-              /* @__PURE__ */ jsx6(PillIcon, { pill }),
-              pill === "reason" || pill === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
+              /* @__PURE__ */ jsx6(SeverityIcon, { severity }),
+              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
             ]
           },
-          pill
+          severity
         );
       })
     }
@@ -811,30 +810,21 @@ function Pills({ status, shown, severities, open, toggle, panel }) {
 }
 function Banners({ shown, severities, open, panel }) {
   if (shown === void 0) return null;
-  const reason = open.has("reason") ? shown.reason : null;
   const listed = shown.conditions.filter(
     (condition) => severities.includes(condition.severity) && open.has(condition.severity)
   );
-  if (reason === null && listed.length === 0) return null;
-  return /* @__PURE__ */ jsxs5("ul", { id: panel, "aria-label": "Reason and conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: [
-    reason === null ? null : /* @__PURE__ */ jsx6(Banner, { pill: "reason", message: reason }, "reason"),
-    listed.map((condition, i) => /* @__PURE__ */ jsx6(Banner, { pill: condition.severity, message: condition.message }, i))
-  ] });
+  if (shown.reason !== null && open.has("message")) listed.push({ severity: "message", message: shown.reason });
+  if (listed.length === 0) return null;
+  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i)) });
 }
 function settled(status, shown) {
   return status !== void 0 && status === shown && !status.running;
 }
-function count(status, severity) {
-  return status.conditions.filter((condition) => condition.severity === severity).length;
+function counted(status, severities, severity) {
+  const conditions = severities.includes(severity) ? status.conditions.filter((condition) => condition.severity === severity).length : 0;
+  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
 }
 var MARKS = {
-  reason: {
-    label: "Reason",
-    noun: "reason",
-    text: "bc:text-text-muted",
-    tint: "bc:bg-gray-500/10",
-    border: "bc:border-gray-400"
-  },
   error: {
     label: "Error",
     noun: "error",
@@ -857,15 +847,15 @@ var MARKS = {
     border: "bc:border-border-accent"
   }
 };
-function Banner({ pill, message }) {
-  const mark = MARKS[pill];
+function Banner({ severity, message }) {
+  const mark = MARKS[severity];
   return /* @__PURE__ */ jsxs5(
     "li",
     {
-      "data-pill": pill,
+      "data-severity": severity,
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
       children: [
-        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(PillIcon, { pill }) }),
+        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(SeverityIcon, { severity }) }),
         /* @__PURE__ */ jsxs5("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
           /* @__PURE__ */ jsx6("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
           /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
@@ -874,7 +864,7 @@ function Banner({ pill, message }) {
     }
   );
 }
-function PillIcon({ pill }) {
+function SeverityIcon({ severity }) {
   return /* @__PURE__ */ jsx6(
     "svg",
     {
@@ -886,12 +876,12 @@ function PillIcon({ pill }) {
       strokeWidth: 1.6,
       strokeLinecap: "round",
       strokeLinejoin: "round",
-      children: pill === "warning" ? /* @__PURE__ */ jsxs5(Fragment, { children: [
+      children: severity === "warning" ? /* @__PURE__ */ jsxs5(Fragment, { children: [
         /* @__PURE__ */ jsx6("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
         /* @__PURE__ */ jsx6("path", { d: "M8 6.2v3.2M8 11.6v.1" })
       ] }) : /* @__PURE__ */ jsxs5(Fragment, { children: [
         /* @__PURE__ */ jsx6("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx6("path", { d: pill === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+        /* @__PURE__ */ jsx6("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
       ] })
     }
   );

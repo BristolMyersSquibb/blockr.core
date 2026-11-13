@@ -126,10 +126,10 @@ function pill(el: HTMLElement, text: string): HTMLButtonElement {
   return found;
 }
 
-// The pill and the message of each banner that is open, in order.
+// The severity and the message of each banner that is open, in order.
 function banners(el: HTMLElement): string[][] {
-  return [...el.querySelectorAll('ul[aria-label="Reason and conditions"] li')].map((li) => [
-    li.getAttribute("data-pill") ?? "",
+  return [...el.querySelectorAll('ul[aria-label="Conditions"] li')].map((li) => [
+    li.getAttribute("data-severity") ?? "",
     li.querySelector("span > span:last-child")?.textContent ?? "",
   ]);
 }
@@ -242,7 +242,7 @@ describe("the card of a block that serve() serves alone", () => {
     expect(banners(el)).toEqual([["error", "object 'Petal' not found"]]);
   });
 
-  test("shows why a waiting or an invalid block does not run behind a pill of its own, before the pills of the block's conditions", async () => {
+  test("counts why a waiting or an invalid block does not run among its messages, and shows it last in their banners", async () => {
     const r = played();
     const { el } = draw(r.core);
 
@@ -251,33 +251,32 @@ describe("the card of a block that serve() serves alone", () => {
       evaluated: null,
       reason: 'This block is waiting for its input "data" to be linked.',
     });
-    expect(pills(el)).toEqual(["reason"]);
-    const reason = pill(el, "reason");
-    expect(reason.className).toContain("bc:text-text-muted");
-    expect(reason.getAttribute("aria-expanded")).toBe("false");
+    expect(pills(el)).toEqual(["1 message"]);
+    const messages = pill(el, "1 message");
+    expect(messages.className).toContain("bc:text-blue-600");
+    expect(messages.getAttribute("aria-expanded")).toBe("false");
     expect(status(el).className).not.toContain("bc:opacity-50");
     expect(banners(el)).toEqual([]);
 
-    await click(reason);
-    expect(banners(el)).toEqual([["reason", 'This block is waiting for its input "data" to be linked.']]);
+    await click(messages);
+    expect(banners(el)).toEqual([["message", 'This block is waiting for its input "data" to be linked.']]);
 
     // The pill keeps its state as the reason changes.
     await r.set({ status: "invalid", reason: "Upload a file." });
-    expect(pills(el)).toEqual(["reason"]);
-    expect(banners(el)).toEqual([["reason", "Upload a file."]]);
+    expect(pills(el)).toEqual(["1 message"]);
+    expect(banners(el)).toEqual([["message", "Upload a file."]]);
 
-    // A block that R says waits shows the pill of its reason before those of
-    // the conditions that R raised, and its banner before theirs.
+    // A block that R says waits counts its reason with the messages that R
+    // raised, and shows it after them, as what stopped the block.
     await r.set({
       status: "waiting",
       reason: "Save to write the file.",
       conditions: [condition("message", "Checked the path.")],
     });
-    expect(pills(el)).toEqual(["reason", "1 message"]);
-    await click(pill(el, "1 message"));
+    expect(pills(el)).toEqual(["2 messages"]);
     expect(banners(el)).toEqual([
-      ["reason", "Save to write the file."],
       ["message", "Checked the path."],
+      ["message", "Save to write the file."],
     ]);
   });
 

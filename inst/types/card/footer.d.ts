@@ -2,13 +2,12 @@ import type { ReactElement } from "react";
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 type Severity = Condition["severity"];
-type Pill = "reason" | Severity;
 export interface FooterProps {
     readonly status: BlockStatus | undefined;
     readonly shown: BlockStatus | undefined;
     readonly severities: readonly Severity[];
-    readonly open: ReadonlySet<Pill>;
-    readonly toggle: (pill: Pill) => void;
+    readonly open: ReadonlySet<Severity>;
+    readonly toggle: (severity: Severity) => void;
     readonly panel: string;
 }
 export declare function useFooter(status: BlockStatus | undefined, severities?: readonly Severity[]): FooterProps;

@@ -58,8 +58,6 @@
     --bc-color-blue-500: oklch(62.3% .214 259.815);
     --bc-color-blue-600: oklch(54.6% .245 262.881);
     --bc-color-gray-100: oklch(96.7% .003 264.542);
-    --bc-color-gray-400: oklch(70.7% .022 261.325);
-    --bc-color-gray-500: oklch(55.1% .027 264.364);
     --bc-color-gray-900: oklch(21% .034 264.665);
     --bc-color-black: #000;
     --bc-color-white: #fff;
@@ -541,10 +539,6 @@
   border-color: var(--bc-color-border-warning);
 }
 
-.bc\:border-gray-400 {
-  border-color: var(--bc-color-gray-400);
-}
-
 .bc\:bg-amber-500\/10 {
   background-color: var(--bc-color-amber-500);
 }
@@ -579,16 +573,6 @@
 
 .bc\:bg-current {
   background-color: currentColor;
-}
-
-.bc\:bg-gray-500\/10 {
-  background-color: var(--bc-color-gray-500);
-}
-
-@supports (color: color-mix(in lab, red, red)) {
-  .bc\:bg-gray-500\/10 {
-    background-color: color-mix(in oklab, var(--bc-color-gray-500) 10%, transparent);
-  }
 }
 
 .bc\:bg-red-500\/10 {

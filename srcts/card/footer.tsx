@@ -6,16 +6,17 @@
 // - The footer is one centred line, the last of the output's box: a ready
 //   block's summary.
 // - The pills sit on a centred line of their own below the box, since the box
-//   holds what the block's renderer draws.
-//   An invalid or a waiting block has a pill that reads "reason".
-//   Then comes a pill for each severity of the conditions of R's reply that
-//   the card shows.
+//   holds what the block's renderer draws: a pill for each severity of the
+//   conditions of R's reply that the card shows.
+//   The pill of the messages also counts the reason of an invalid or a
+//   waiting block, whatever severities the card shows, so that a card always
+//   says why a block does not run.
 //   The pill of the errors reads "error", and those of the warnings and the
 //   messages count them, as "2 warnings".
 //   No pill writes out a message, which may be of any length.
-// - The banners are those of the pills that are open: the reason first, and
-//   then the conditions in the order R raised them, each in full, in the
-//   colour of its severity.
+// - The banners are those of the pills that are open, in the order R raised
+//   them, each in full, in the colour of its severity.
+//   The reason comes last among the messages, as what stopped the block.
 //   Each pill opens and closes its banners, and keeps its state when R
 //   evaluates the block again.
 //   The pill of the errors is open from the start, so that a failed block
@@ -35,10 +36,6 @@ import type { BlockStatus } from "../scheduler/index.ts";
 
 type Severity = Condition["severity"];
 
-// What a pill opens: the reason of an invalid or a waiting block, or the
-// conditions of a severity.
-type Pill = "reason" | Severity;
-
 // Every severity, in the order of the pills.
 const SEVERITIES: readonly Severity[] = ["error", "warning", "message"];
 
@@ -51,10 +48,10 @@ export interface FooterProps {
   readonly shown: BlockStatus | undefined;
   // The severities whose pills and banners the card shows.
   readonly severities: readonly Severity[];
-  // The pills whose banners are open.
-  readonly open: ReadonlySet<Pill>;
-  // Opens the banners of the pill, or closes them where they are open.
-  readonly toggle: (pill: Pill) => void;
+  // The severities whose banners are open.
+  readonly open: ReadonlySet<Severity>;
+  // Opens the banners of the severity, or closes them where they are open.
+  readonly toggle: (severity: Severity) => void;
   // The id of the list of banners, which each pill controls.
   readonly panel: string;
 }
@@ -63,12 +60,12 @@ export interface FooterProps {
 // status and the severities given, or every severity where none are given.
 export function useFooter(status: BlockStatus | undefined, severities: readonly Severity[] = SEVERITIES): FooterProps {
   const shown = useShown(status);
-  const [open, setOpen] = useState<ReadonlySet<Pill>>(OPEN_AT_START);
+  const [open, setOpen] = useState<ReadonlySet<Severity>>(OPEN_AT_START);
   const panel = useId();
-  const toggle = useCallback((pill: Pill) => {
+  const toggle = useCallback((severity: Severity) => {
     setOpen((was) => {
       const next = new Set(was);
-      if (!next.delete(pill)) next.add(pill);
+      if (!next.delete(severity)) next.add(severity);
       return next;
     });
   }, []);
@@ -90,15 +87,14 @@ export function Footer({ status, shown }: FooterProps): ReactElement {
   );
 }
 
-// The pills, which dim while R evaluates the block: the reason's, and one for
-// each severity given of the conditions of R's reply. A block with none has no
-// line of pills.
+// The pills, which dim while R evaluates the block: one for each severity
+// that has something to count. A block with none has no line of pills.
 export function Pills({ status, shown, severities, open, toggle, panel }: FooterProps): ReactElement | null {
   if (shown === undefined) return null;
-  const pills: Pill[] = [
-    ...(shown.reason === null ? [] : ["reason" as const]),
-    ...SEVERITIES.filter((severity) => severities.includes(severity) && count(shown, severity) > 0),
-  ];
+  const pills = SEVERITIES.flatMap((severity) => {
+    const n = counted(shown, severities, severity);
+    return n === 0 ? [] : [{ severity, n }];
+  });
   if (pills.length === 0) return null;
   return (
     <div
@@ -109,22 +105,21 @@ export function Pills({ status, shown, severities, open, toggle, panel }: Footer
         settled(status, shown) ? "" : "bc:opacity-50"
       }`}
     >
-      {pills.map((pill) => {
-        const mark = MARKS[pill];
-        const n = pill === "reason" ? 1 : count(shown, pill);
+      {pills.map(({ severity, n }) => {
+        const mark = MARKS[severity];
         return (
           <button
-            key={pill}
+            key={severity}
             type="button"
-            aria-expanded={open.has(pill)}
+            aria-expanded={open.has(severity)}
             aria-controls={panel}
             onClick={() => {
-              toggle(pill);
+              toggle(severity);
             }}
             className={`bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`}
           >
-            <PillIcon pill={pill} />
-            {pill === "reason" || pill === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`}
+            <SeverityIcon severity={severity} />
+            {severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`}
           </button>
         );
       })}
@@ -132,20 +127,19 @@ export function Pills({ status, shown, severities, open, toggle, panel }: Footer
   );
 }
 
-// The banners of the pills that are open: the reason's first, and then the
-// conditions in the order R raised them.
+// The banners of the pills that are open: the conditions in the order R
+// raised them, and the reason last among the messages.
 export function Banners({ shown, severities, open, panel }: FooterProps): ReactElement | null {
   if (shown === undefined) return null;
-  const reason = open.has("reason") ? shown.reason : null;
-  const listed = shown.conditions.filter(
+  const listed: { severity: Severity; message: string }[] = shown.conditions.filter(
     (condition) => severities.includes(condition.severity) && open.has(condition.severity),
   );
-  if (reason === null && listed.length === 0) return null;
+  if (shown.reason !== null && open.has("message")) listed.push({ severity: "message", message: shown.reason });
+  if (listed.length === 0) return null;
   return (
-    <ul id={panel} aria-label="Reason and conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0">
-      {reason === null ? null : <Banner key="reason" pill="reason" message={reason} />}
-      {listed.map((condition, i) => (
-        <Banner key={i} pill={condition.severity} message={condition.message} />
+    <ul id={panel} aria-label="Conditions" className="bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0">
+      {listed.map(({ severity, message }, i) => (
+        <Banner key={i} severity={severity} message={message} />
       ))}
     </ul>
   );
@@ -157,22 +151,20 @@ function settled(status: BlockStatus | undefined, shown: BlockStatus | undefined
   return status !== undefined && status === shown && !status.running;
 }
 
-// How many conditions of the severity R's reply holds.
-function count(status: BlockStatus, severity: Severity): number {
-  return status.conditions.filter((condition) => condition.severity === severity).length;
+// How many banners the pill of a severity opens: the conditions of the
+// severity, where the card shows it, and for the messages, the reason too,
+// whatever severities the card shows.
+function counted(status: BlockStatus, severities: readonly Severity[], severity: Severity): number {
+  const conditions = severities.includes(severity)
+    ? status.conditions.filter((condition) => condition.severity === severity).length
+    : 0;
+  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
 }
 
-// How a card marks each pill, and its banners: in the theme's danger colour for
-// an error, its warning colour for a warning, its accent, blue, for a message,
-// and in muted grey for the reason, which is no condition.
-const MARKS: Readonly<Record<Pill, { label: string; noun: string; text: string; tint: string; border: string }>> = {
-  reason: {
-    label: "Reason",
-    noun: "reason",
-    text: "bc:text-text-muted",
-    tint: "bc:bg-gray-500/10",
-    border: "bc:border-gray-400",
-  },
+// How a card marks a condition of each severity, in its pill and in its
+// banner: in the theme's danger colour for an error, its warning colour for a
+// warning, and its accent, blue, for a message.
+const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: string; tint: string; border: string }>> = {
   error: {
     label: "Error",
     noun: "error",
@@ -196,17 +188,17 @@ const MARKS: Readonly<Record<Pill, { label: string; noun: string; text: string; 
   },
 };
 
-// The reason or a condition in full, as a banner in the colour of its pill,
-// with the pill's icon and name.
-function Banner({ pill, message }: { pill: Pill; message: string }): ReactElement {
-  const mark = MARKS[pill];
+// A condition, or the reason, in full, as a banner in the colour of its
+// severity, with the severity's icon and name.
+function Banner({ severity, message }: { severity: Severity; message: string }): ReactElement {
+  const mark = MARKS[severity];
   return (
     <li
-      data-pill={pill}
+      data-severity={severity}
       className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`}
     >
       <span className={`bc:mt-0.5 ${mark.text}`}>
-        <PillIcon pill={pill} />
+        <SeverityIcon severity={severity} />
       </span>
       <span className="bc:grid bc:min-w-0 bc:gap-0.5">
         <span className={`bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`}>{mark.label}</span>
@@ -216,10 +208,10 @@ function Banner({ pill, message }: { pill: Pill; message: string }): ReactElemen
   );
 }
 
-// The icon of a pill, drawn in the colour of the text around it: a cross in a
-// circle for an error, an exclamation mark in a triangle for a warning, and an
-// i in a circle for a message or the reason.
-function PillIcon({ pill }: { pill: Pill }): ReactElement {
+// The icon of a severity, drawn in the colour of the text around it: a cross in
+// a circle for an error, an exclamation mark in a triangle for a warning, and
+// an i in a circle for a message.
+function SeverityIcon({ severity }: { severity: Severity }): ReactElement {
   return (
     <svg
       aria-hidden="true"
@@ -231,7 +223,7 @@ function PillIcon({ pill }: { pill: Pill }): ReactElement {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {pill === "warning" ? (
+      {severity === "warning" ? (
         <>
           <path d="M8 1.8 14.6 13.6H1.4Z" />
           <path d="M8 6.2v3.2M8 11.6v.1" />
@@ -239,7 +231,7 @@ function PillIcon({ pill }: { pill: Pill }): ReactElement {
       ) : (
         <>
           <circle cx="8" cy="8" r="6.4" />
-          <path d={pill === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1"} />
+          <path d={severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1"} />
         </>
       )}
     </svg>
@@ -257,6 +249,6 @@ function useShown(status: BlockStatus | undefined): BlockStatus | undefined {
   return now ?? kept;
 }
 
-// The pills whose banners are open as the card starts: the errors, since their
-// pill names no more of them than their severity.
-const OPEN_AT_START: ReadonlySet<Pill> = new Set<Pill>(["error"]);
+// The severities whose banners are open as the card starts: the errors, since
+// their pill names no more of them than their severity.
+const OPEN_AT_START: ReadonlySet<Severity> = new Set<Severity>(["error"]);

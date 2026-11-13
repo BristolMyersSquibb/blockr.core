@@ -1896,9 +1896,9 @@ function topological(blocks, sources, targets) {
   const order = blocks.filter((id2) => left2.get(id2) === 0);
   for (const id2 of order) {
     for (const next of targets.get(id2) ?? []) {
-      const count2 = (left2.get(next) ?? 0) - 1;
-      left2.set(next, count2);
-      if (count2 === 0) order.push(next);
+      const count = (left2.get(next) ?? 0) - 1;
+      left2.set(next, count);
+      if (count === 0) order.push(next);
     }
   }
   const placed2 = new Set(order);
@@ -2759,7 +2759,7 @@ function createScheduler(options) {
   const settles = /* @__PURE__ */ new Map();
   const subscribers = /* @__PURE__ */ new Set();
   let ids2 = 0;
-  const count2 = options.nextRevision ?? counter();
+  const count = options.nextRevision ?? counter();
   let stopped;
   const ended = () => options.signal?.aborted === true;
   const endedError = () => new Error("Another board opened.");
@@ -2769,7 +2769,7 @@ function createScheduler(options) {
   let wakeTimer;
   function revision() {
     try {
-      return count2();
+      return count();
     } catch (error) {
       stopped = error;
       throw error;
@@ -6156,9 +6156,9 @@ function inserted(record, key, value2, before) {
   members.splice(members.findIndex(([name2]) => name2 === before), 0, [key, value2]);
   return Object.fromEntries(members);
 }
-function spliced(items, index, count2, ...added) {
+function spliced(items, index, count, ...added) {
   const copy = [...items];
-  copy.splice(index, count2, ...added);
+  copy.splice(index, count, ...added);
   return copy;
 }
 function arrayIndex(segment) {
@@ -9759,10 +9759,10 @@ function useFooter(status, severities = SEVERITIES2) {
   const shown2 = useShown(status);
   const [open, setOpen] = useState5(OPEN_AT_START);
   const panel = useId3();
-  const toggle = useCallback2((pill) => {
+  const toggle = useCallback2((severity) => {
     setOpen((was) => {
       const next = new Set(was);
-      if (!next.delete(pill)) next.add(pill);
+      if (!next.delete(severity)) next.add(severity);
       return next;
     });
   }, []);
@@ -9781,10 +9781,10 @@ function Footer({ status, shown: shown2 }) {
 }
 function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
   if (shown2 === void 0) return null;
-  const pills = [
-    ...shown2.reason === null ? [] : ["reason"],
-    ...SEVERITIES2.filter((severity) => severities.includes(severity) && count(shown2, severity) > 0)
-  ];
+  const pills = SEVERITIES2.flatMap((severity) => {
+    const n2 = counted(shown2, severities, severity);
+    return n2 === 0 ? [] : [{ severity, n: n2 }];
+  });
   if (pills.length === 0) return null;
   return /* @__PURE__ */ jsx6(
     "div",
@@ -9793,25 +9793,24 @@ function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
       "aria-label": "Status",
       "aria-busy": status?.running === true,
       className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
-      children: pills.map((pill) => {
-        const mark = MARKS[pill];
-        const n2 = pill === "reason" ? 1 : count(shown2, pill);
+      children: pills.map(({ severity, n: n2 }) => {
+        const mark = MARKS[severity];
         return /* @__PURE__ */ jsxs5(
           "button",
           {
             type: "button",
-            "aria-expanded": open.has(pill),
+            "aria-expanded": open.has(severity),
             "aria-controls": panel,
             onClick: () => {
-              toggle(pill);
+              toggle(severity);
             },
             className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
             children: [
-              /* @__PURE__ */ jsx6(PillIcon, { pill }),
-              pill === "reason" || pill === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
+              /* @__PURE__ */ jsx6(SeverityIcon, { severity }),
+              severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
             ]
           },
-          pill
+          severity
         );
       })
     }
@@ -9819,30 +9818,21 @@ function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
 }
 function Banners({ shown: shown2, severities, open, panel }) {
   if (shown2 === void 0) return null;
-  const reason = open.has("reason") ? shown2.reason : null;
   const listed = shown2.conditions.filter(
     (condition) => severities.includes(condition.severity) && open.has(condition.severity)
   );
-  if (reason === null && listed.length === 0) return null;
-  return /* @__PURE__ */ jsxs5("ul", { id: panel, "aria-label": "Reason and conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: [
-    reason === null ? null : /* @__PURE__ */ jsx6(Banner, { pill: "reason", message: reason }, "reason"),
-    listed.map((condition, i2) => /* @__PURE__ */ jsx6(Banner, { pill: condition.severity, message: condition.message }, i2))
-  ] });
+  if (shown2.reason !== null && open.has("message")) listed.push({ severity: "message", message: shown2.reason });
+  if (listed.length === 0) return null;
+  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i2) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i2)) });
 }
 function settled2(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
-function count(status, severity) {
-  return status.conditions.filter((condition) => condition.severity === severity).length;
+function counted(status, severities, severity) {
+  const conditions = severities.includes(severity) ? status.conditions.filter((condition) => condition.severity === severity).length : 0;
+  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
 }
 var MARKS = {
-  reason: {
-    label: "Reason",
-    noun: "reason",
-    text: "bc:text-text-muted",
-    tint: "bc:bg-gray-500/10",
-    border: "bc:border-gray-400"
-  },
   error: {
     label: "Error",
     noun: "error",
@@ -9865,15 +9855,15 @@ var MARKS = {
     border: "bc:border-border-accent"
   }
 };
-function Banner({ pill, message }) {
-  const mark = MARKS[pill];
+function Banner({ severity, message }) {
+  const mark = MARKS[severity];
   return /* @__PURE__ */ jsxs5(
     "li",
     {
-      "data-pill": pill,
+      "data-severity": severity,
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
       children: [
-        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(PillIcon, { pill }) }),
+        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(SeverityIcon, { severity }) }),
         /* @__PURE__ */ jsxs5("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
           /* @__PURE__ */ jsx6("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
           /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
@@ -9882,7 +9872,7 @@ function Banner({ pill, message }) {
     }
   );
 }
-function PillIcon({ pill }) {
+function SeverityIcon({ severity }) {
   return /* @__PURE__ */ jsx6(
     "svg",
     {
@@ -9894,12 +9884,12 @@ function PillIcon({ pill }) {
       strokeWidth: 1.6,
       strokeLinecap: "round",
       strokeLinejoin: "round",
-      children: pill === "warning" ? /* @__PURE__ */ jsxs5(Fragment, { children: [
+      children: severity === "warning" ? /* @__PURE__ */ jsxs5(Fragment, { children: [
         /* @__PURE__ */ jsx6("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
         /* @__PURE__ */ jsx6("path", { d: "M8 6.2v3.2M8 11.6v.1" })
       ] }) : /* @__PURE__ */ jsxs5(Fragment, { children: [
         /* @__PURE__ */ jsx6("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx6("path", { d: pill === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+        /* @__PURE__ */ jsx6("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
       ] })
     }
   );
@@ -10860,10 +10850,10 @@ function BlocksSection({ core, board }) {
   const registry = core.blockRegistry();
   const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
-  const count2 = Object.keys(board.blocks).length;
-  return /* @__PURE__ */ jsxs12(Section, { title: "Blocks", count: count2, children: [
+  const count = Object.keys(board.blocks).length;
+  return /* @__PURE__ */ jsxs12(Section, { title: "Blocks", count, children: [
     /* @__PURE__ */ jsx15(Part, { title: "Add a block", children: /* @__PURE__ */ jsx15(BlockPicker, { core, mode: ADD, run }) }),
-    /* @__PURE__ */ jsx15(Part, { title: "Blocks on the board", children: count2 === 0 ? /* @__PURE__ */ jsx15("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs12(Fragment3, { children: [
+    /* @__PURE__ */ jsx15(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx15("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs12(Fragment3, { children: [
       /* @__PURE__ */ jsx15(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx15("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsxs12("table", { className: table.table, children: [
         /* @__PURE__ */ jsx15("caption", { className: "bc:sr-only", children: "The board's blocks" }),
@@ -11534,11 +11524,11 @@ function EditBoard({ core }) {
     /* @__PURE__ */ jsx18(StacksSection, { core, board, locked: locked2 })
   ] });
 }
-function Section({ title, count: count2, children }) {
+function Section({ title, count, children }) {
   return /* @__PURE__ */ jsx18("section", { "aria-label": title, className: "bc:rounded-md bc:border bc:border-border-default", children: /* @__PURE__ */ jsxs15("details", { open: true, className: "bc:group", children: [
     /* @__PURE__ */ jsxs15("summary", { className: "bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:px-3 bc:py-2 bc:font-sans bc:text-sm bc:font-semibold", children: [
       /* @__PURE__ */ jsx18("h3", { className: "bc:m-0 bc:text-sm bc:font-semibold", children: title }),
-      /* @__PURE__ */ jsx18("span", { className: "bc:rounded-full bc:border bc:border-border-default bc:px-1.5 bc:text-xs bc:font-normal bc:text-text-muted", children: count2 })
+      /* @__PURE__ */ jsx18("span", { className: "bc:rounded-full bc:border bc:border-border-default bc:px-1.5 bc:text-xs bc:font-normal bc:text-text-muted", children: count })
     ] }),
     /* @__PURE__ */ jsx18("div", { className: "bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3", children })
   ] }) });

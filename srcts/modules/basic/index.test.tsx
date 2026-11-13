@@ -96,10 +96,10 @@ const summary = (card: HTMLElement): string | null => card.querySelector("footer
 // The text of each pill below a card's output.
 const pills = (card: HTMLElement): string[] => texts(card, '[aria-label="Status"] button');
 
-// The pill and the message of each banner that a card shows, in order.
+// The severity and the message of each banner that a card shows, in order.
 function banners(card: HTMLElement): string[][] {
-  return [...card.querySelectorAll('ul[aria-label="Reason and conditions"] li')].map((li) => [
-    li.getAttribute("data-pill") ?? "",
+  return [...card.querySelectorAll('ul[aria-label="Conditions"] li')].map((li) => [
+    li.getAttribute("data-severity") ?? "",
     li.querySelector("span > span:last-child")?.textContent ?? "",
   ]);
 }
@@ -284,7 +284,7 @@ describe("a card", () => {
     expect(banners(card(el, "Head"))).toEqual([["message", "Took the head"]]);
   });
 
-  test("shows why an invalid block does not run behind a pill of its own, whatever show_conditions names", async () => {
+  test("counts why an invalid block does not run among its messages, whatever show_conditions names", async () => {
     const { el, core } = await drawn({
       evaluate: (request) =>
         request.block === "c"
@@ -295,17 +295,19 @@ describe("a card", () => {
     const merge = card(el, "Merge");
     expect(badge(merge)).toBe("invalid");
     expect(summary(merge)).toBeNull();
-    expect(pills(merge)).toEqual(["reason"]);
+    // The board holds show_conditions at warnings and errors, and the pill of
+    // the messages counts the reason all the same.
+    expect(pills(merge)).toEqual(["1 message"]);
     expect(banners(merge)).toEqual([]);
 
-    await click(button(merge, "reason"));
-    expect(banners(card(el, "Merge"))).toEqual([["reason", "Choose at least one column to join by."]]);
+    await click(button(merge, "1 message"));
+    expect(banners(card(el, "Merge"))).toEqual([["message", "Choose at least one column to join by."]]);
 
     await step(() => {
       core.store.apply({ options: { set: { show_conditions: ["error"] } } });
     });
-    expect(pills(card(el, "Merge"))).toEqual(["reason"]);
-    expect(banners(card(el, "Merge"))).toEqual([["reason", "Choose at least one column to join by."]]);
+    expect(pills(card(el, "Merge"))).toEqual(["1 message"]);
+    expect(banners(card(el, "Merge"))).toEqual([["message", "Choose at least one column to join by."]]);
   });
 
   test("greys its output out while its block is not ready, but not its pills, which show a failed block's error and why a block waits", async () => {
@@ -342,14 +344,14 @@ describe("a card", () => {
     expect(banners(head)).toEqual([["error", "No rows"]]);
 
     // The blocks downstream of a failed block wait on it, and the pills of
-    // their reasons say why, whatever show_conditions names.
+    // their messages say why, whatever show_conditions names.
     expect(core.scheduler.status("c")?.status).toBe("waiting");
     const why = core.scheduler.status("c")?.reason;
     expect(why).toMatch(/^This block is waiting for/);
     expect(badge(card(el, "Merge"))).toBe("waiting");
-    expect(pills(card(el, "Merge"))).toEqual(["reason"]);
-    await click(button(card(el, "Merge"), "reason"));
-    expect(banners(card(el, "Merge"))).toEqual([["reason", why]]);
+    expect(pills(card(el, "Merge"))).toEqual(["1 message"]);
+    await click(button(card(el, "Merge"), "1 message"));
+    expect(banners(card(el, "Merge"))).toEqual([["message", why]]);
 
     // Where show_conditions leaves out the errors, no pill shows for the
     // error, and no banner.
