@@ -17,8 +17,9 @@
 // It withdraws every notification that concerns a block as the block leaves
 // the board, and every one as the board ends, as the next board opens, which
 // it announces.
-// It holds none that core or a plugin raises later about a block that has left,
-// since the work that raises it can outlive the block.
+// It holds none that core or a plugin raises about a block that the board does
+// not hold, since the work that raises one can outlive its block, and it
+// reports one that a plugin raises about a block that the board has never held.
 
 import { announceTo, onAbort } from "../mount/index.ts";
 import type { Condition, Phase } from "../protocol/index.ts";
@@ -27,7 +28,7 @@ import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId } from "../types/board.ts";
 import type { CoreApi, Notification } from "../types/core-api.ts";
-import { isObject, jsonEqual } from "../util/index.ts";
+import { isObject, jsonEqual, report } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 
 export interface Holder {
@@ -68,8 +69,9 @@ export function createNotifications(
   // The ids of the notifications of each block's conditions.
   const ofStatus = new Map<BlockId, readonly string[]>();
   // The blocks that have left the board. A notification that a plugin raises
-  // about one of them holds nothing, while one about a block that the board
-  // has never held is refused.
+  // about one of them holds nothing, and so does one about a block that the
+  // board has never held, which core reports as well, since only a mistake in
+  // the plugin names such a block.
   const left = new Set<BlockId>();
   const listeners = new Set<(all: readonly Notification[]) => void>();
   let all = NONE;
@@ -182,8 +184,14 @@ export function createNotifications(
         const given = checked(notification);
         if (ended) return nothing;
         if (given.block !== undefined && !holds(given.block)) {
-          if (left.has(given.block)) return nothing;
-          throw new Error(`The board holds no block ${JSON.stringify(given.block)} for a notification to concern.`);
+          if (!left.has(given.block)) {
+            report(
+              new Error(
+                `Core drops a notification that ${JSON.stringify(given.origin)} raised about the block ${JSON.stringify(given.block)}, which the board has never held.`,
+              ),
+            );
+          }
+          return nothing;
         }
         const id = `plugin-${String(++plugins)}`;
         held.set(id, frozen(id, given));

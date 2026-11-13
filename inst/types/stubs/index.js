@@ -8803,8 +8803,14 @@ function createNotifications(store, signal) {
         const given = checked2(notification);
         if (ended) return nothing;
         if (given.block !== void 0 && !holds(given.block)) {
-          if (left2.has(given.block)) return nothing;
-          throw new Error(`The board holds no block ${JSON.stringify(given.block)} for a notification to concern.`);
+          if (!left2.has(given.block)) {
+            report(
+              new Error(
+                `Core drops a notification that ${JSON.stringify(given.origin)} raised about the block ${JSON.stringify(given.block)}, which the board has never held.`
+              )
+            );
+          }
+          return nothing;
         }
         const id2 = `plugin-${String(++plugins)}`;
         held2.set(id2, frozen(id2, given));

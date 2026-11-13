@@ -455,8 +455,8 @@
 * The `notifications` of `CoreApi` hold every notification of the open board, in the order they came, until each is withdrawn: one for each condition of each block's status, those that core raises where it fails at something that the user asked for or that the board needs, and those that plugins raise.
   A frontend reads them through `get()`, which returns the same array until one comes or goes, and follows them through `subscribe()`, so that one raised before the frontend draws still reaches it.
   A `Notification` has an id, a severity, a class, a message and an origin, `"r"`, `"core"` or the id of a plugin's class, and names what it concerns: a block, a board option, a plugin or a package, or none of these for the board.
-  A plugin raises one with `notify()`, which returns what withdraws it, and which refuses one whose members are of the wrong kind or that concerns a block that the board has never held.
-  One about a block that has left the board holds nothing.
+  A plugin raises one with `notify()`, which returns what withdraws it, and which refuses one whose members are of the wrong kind.
+  One about a block that the board does not hold holds nothing, and core logs one about a block that the board has never held.
   Core withdraws every notification that concerns a block as the block leaves the board, and every one as the next board opens.
   The `Note` type is gone (#539).
 * Core raises a notification where a module cannot draw, a block's UI, a renderer, a board option's UI or a plugin's UI, where a module that the reply to `hello` names fails to load or the store refuses its default export, where a board option does not go onto the board, an `onChange` throws or a plugin's `start` throws, where the board that the storage plugin names or a later board fails to open, and where the store dropped something as the board opened.
