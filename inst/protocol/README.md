@@ -168,7 +168,7 @@ The status is `invalid` where the class's `expr` or its `block_eval()` method si
 It is `waiting` where either signals `blockr_waiting()`, for a state that can run once something else happens, such as a write block in manual mode, which writes only once its save button asks.
 It is `error` where an error is raised before a result exists, as when the checks of the inputs fail or the block expression does, and `ok` otherwise, also where `result_summary()` fails, which leaves `summary` null and reports its error.
 The error that makes a block `invalid` or `waiting` is no condition of the reply, since it is part of the block's status, as a ready block's summary is.
-R sends its message as the reply's `reason` instead, with the state args that it concerns in `arg`: those that the `arg` of `blockr_invalid()` names, or the arg that R's error for an unset arg names, and none for `blockr_waiting()`.
+R sends its message as the reply's `reason` instead, with the state args that it concerns in `arg`: those that the `arg` of `blockr_invalid()` names, and none for R's error for an unset arg or for `blockr_waiting()`.
 The reply's `conditions` hold only what R raised, each with the severity of its class.
 
 ### Conditions

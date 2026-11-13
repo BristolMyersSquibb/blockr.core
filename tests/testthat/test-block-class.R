@@ -393,7 +393,6 @@ test_that("missing args are told apart from other errors", {
 
   expect_true(is_missing_arg_error(cnd))
   expect_true(stops_block(cnd))
-  expect_identical(missing_arg_name(cnd), "x")
 
   old <- simpleError(
     sprintf(
@@ -403,9 +402,7 @@ test_that("missing args are told apart from other errors", {
   )
 
   expect_true(is_missing_arg_error(old))
-  expect_identical(missing_arg_name(old), "by")
   expect_false(is_missing_arg_error(simpleError("argument by")))
-  expect_identical(missing_arg_name(simpleError("argument by")), character())
   expect_false(stops_block(simpleError("boom")))
 })
 

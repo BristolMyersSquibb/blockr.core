@@ -545,18 +545,6 @@ is_missing_arg_error <- function(cnd) {
        grepl(missing_arg_pattern(), conditionMessage(cnd)))
 }
 
-# The arg that R's error for an unset arg names in its message,
-# or none where its message is not the one that R translates.
-missing_arg_name <- function(cnd) {
-
-  msg <- conditionMessage(cnd)
-  hit <- regmatches(msg, regexec(missing_arg_pattern(), msg))[[1L]]
-
-  if (length(hit) == 2L) hit[[2L]] else character()
-}
-
-# The message of R's error for an unset arg, as R translates it, with the arg
-# that it names as its one group.
 missing_arg_pattern <- function() {
 
   msg <- gettext("argument \"%s\" is missing, with no default", domain = "R")
@@ -564,10 +552,7 @@ missing_arg_pattern <- function() {
 
   paste0(
     "^",
-    paste(
-      gsub("([][{}()+*^$|\\\\.?])", "\\\\\\1", parts),
-      collapse = "(.+)"
-    ),
+    paste(gsub("([][{}()+*^$|\\\\.?])", "\\\\\\1", parts), collapse = ".+"),
     "$"
   )
 }

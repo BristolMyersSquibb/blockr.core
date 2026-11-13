@@ -80,8 +80,8 @@ The error that makes a block \code{invalid} or \code{waiting} is no condition of
 evaluation, but its reason, which is part of the block's status, as a ready
 block's summary is.
 The reason holds the error's message and the state args that it concerns:
-those that the \code{arg} of a \code{blockr_invalid()} names, or the arg that R's
-error for an unset arg names.
+those that the \code{arg} of a \code{blockr_invalid()} names, and none where R's
+error for an unset arg or a \code{blockr_waiting()} stopped the block.
 
 The \code{block_eval()} generic runs the block expression, \code{expr}, in \code{env},
 where each upstream block's result is bound to its id, dispatching on the

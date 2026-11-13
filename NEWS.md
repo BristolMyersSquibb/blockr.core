@@ -211,7 +211,7 @@
   The stub of a block's host then refuses a submit of a state that the file does not list (#437).
 * R's reply to an evaluation carries why a block is invalid or waiting in a field of its own, `reason`, beside `summary`, rather than as a condition.
   The reason holds the message of the `blockr_invalid()` or `blockr_waiting()` that stopped the block, or of R's error for an unset arg, and in `arg` the state args that it concerns.
-  The signal `blockr_invalid()` names them in its `arg`, and R names the arg of its own error for an unset arg.
+  The signal `blockr_invalid()` names them in its `arg`.
   A new signal, `blockr_waiting()`, has R reply `waiting` for a state that can run once something else happens, such as a write block in manual mode, which writes only once its save button asks.
   The reply's conditions hold only what R raised, each with the severity of its class, and R logs the reason at debug.
   A block's status in the client holds the reason beside its summary.

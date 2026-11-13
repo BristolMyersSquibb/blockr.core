@@ -35,7 +35,7 @@ test_that("a static block evaluates its expression", {
   res <- evaluate_block(static_block, list())
 
   expect_identical(res[["status"]], "invalid")
-  expect_identical(res[["reason"]][["arg"]], "expression")
+  expect_identical(res[["reason"]][["arg"]], character())
 })
 
 test_that("the static block's fixture", {

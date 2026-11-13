@@ -41,7 +41,7 @@ test_that("a registered class is evaluated by its registry id", {
 
 test_that("a state that cannot run makes R run nothing and report invalid", {
 
-  # R's error for an unset arg names the arg, which the reason concerns.
+  # R's error for an unset arg is the reason, which names no state arg.
   res <- evaluate_block(merge_class, list(), list(x = "a", y = "b"),
                         list(a = datasets::BOD, b = datasets::BOD))
 
@@ -51,7 +51,10 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
   expect_null(res$summary)
   expect_identical(
     res$reason,
-    list(message = "argument \"by\" is missing, with no default", arg = "by")
+    list(
+      message = "argument \"by\" is missing, with no default",
+      arg = character()
+    )
   )
   # Why the block is invalid is part of its status, so it is no condition.
   expect_identical(res$conditions, list())
@@ -99,7 +102,7 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
                         list(a = datasets::iris))
 
   expect_identical(res$status, "invalid")
-  expect_identical(res$reason$arg, "n")
+  expect_identical(res$reason$arg, character())
   expect_identical(res$conditions, list())
 })
 

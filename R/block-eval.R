@@ -23,8 +23,8 @@
 #' evaluation, but its reason, which is part of the block's status, as a ready
 #' block's summary is.
 #' The reason holds the error's message and the state args that it concerns:
-#' those that the `arg` of a `blockr_invalid()` names, or the arg that R's
-#' error for an unset arg names.
+#' those that the `arg` of a `blockr_invalid()` names, and none where R's
+#' error for an unset arg or a `blockr_waiting()` stopped the block.
 #'
 #' The `block_eval()` generic runs the block expression, `expr`, in `env`,
 #' where each upstream block's result is bound to its id, dispatching on the
@@ -457,24 +457,17 @@ stop_status <- function(cnd, phase) {
 
 # Why a phase that stopped the block without failing it stopped it, as the
 # block's reason: the message of its error, and the state args that the reason
-# concerns.
-# The `arg` of a `blockr_invalid()` names those args, and R's error for an
-# unset arg names its arg in its message.
+# concerns, which only the `arg` of a `blockr_invalid()` names.
 # It is `NULL` for a phase that ran, or that failed the block.
 phase_reason <- function(x) {
 
   cnd <- x[["error"]]
-  status <- stop_status(cnd, x[["phase"]])
 
-  if (is.null(status)) {
+  if (is.null(stop_status(cnd, x[["phase"]]))) {
     return(NULL)
   }
 
-  arg <- if (inherits(cnd, "blockr_invalid")) {
-    cnd[["arg"]]
-  } else if (identical(status, "invalid")) {
-    missing_arg_name(cnd)
-  }
+  arg <- if (inherits(cnd, "blockr_invalid")) cnd[["arg"]]
 
   list(
     message = condition_text(cnd),
