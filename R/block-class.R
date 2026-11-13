@@ -30,8 +30,10 @@
 #' something sets it. A body that uses an unset arg, or signals
 #' [blockr_invalid()] with a message, makes R run nothing and report the block
 #' as `invalid`, and a body that can do without an unset arg tests it with
-#' [missing()]. Called
-#' without args, `expr` gives the state a new block starts with.
+#' [missing()].
+#' A body that signals [blockr_waiting()] makes R report the block as
+#' `waiting`, since its state can run, but only once something else happens.
+#' Called without args, `expr` gives the state a new block starts with.
 #'
 #' The data inputs, apart from the state args, are given as `inputs`: a
 #' character vector names them, such as `"data"`, `c("x", "y")` or `"..."` for
@@ -438,7 +440,7 @@ validate_initial_expr <- function(expr, inputs) {
 
   res <- tryCatch(
     expr(),
-    error = function(e) if (is_invalid_cnd(e)) NULL else stop(e)
+    error = function(e) if (stops_block(e)) NULL else stop(e)
   )
 
   if (!is.null(res) && !is.call(res) && !is.name(res) &&
@@ -531,8 +533,10 @@ call_option_ctors <- function(ctors) {
   lapply(ctors, function(new) new())
 }
 
-is_invalid_cnd <- function(cnd) {
-  inherits(cnd, "blockr_invalid") || is_missing_arg_error(cnd)
+# Whether an error that `expr` raises stops a block without failing it,
+# as `blockr_invalid()`, `blockr_waiting()` and R's error for an unset arg do.
+stops_block <- function(cnd) {
+  not_null(stop_status(cnd, "expr"))
 }
 
 is_missing_arg_error <- function(cnd) {
@@ -618,7 +622,7 @@ expr_state <- function(cls, args) {
 
   tryCatch(
     do.call(expr, args, quote = TRUE),
-    error = function(e) if (!is_invalid_cnd(e)) stop(e)
+    error = function(e) if (!stops_block(e)) stop(e)
   )
 
   fmls <- formals(expr)

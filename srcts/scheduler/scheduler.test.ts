@@ -145,6 +145,7 @@ describe("revisions", () => {
         running: false,
         conditions: [],
         summary: null,
+        reason: null,
       });
     }
   });
@@ -288,16 +289,21 @@ describe("revisions", () => {
 });
 
 describe("statuses", () => {
-  test("follow R's replies: ready for ok, failed for error and invalid for invalid", async () => {
+  test("follow R's replies: ready for ok, failed for error, invalid for invalid and waiting for waiting", async () => {
     const { r, scheduler } = await setup();
-    scheduler.demand("test", ["b", "d"]);
+    scheduler.demand("test", ["b", "d", "f"]);
     scheduler.start();
     await tick();
 
     r.evaluated(pendingRequest(r, "a"));
     r.evaluated(pendingRequest(r, "b"), "error", { conditions: [failure], stderr: "Error!" });
     r.evaluated(pendingRequest(r, "d"), "invalid", {
-      conditions: [{ ...failure, phase: "expr", message: "The subset is not set." }],
+      reason: "Choose a subset.",
+    });
+    await tick();
+    r.evaluated(pendingRequest(r, "f"), "waiting", {
+      reason: "Press plot.",
+      conditions: [{ ...failure, severity: "message", phase: "expr", message: "Checked the axes." }],
     });
     await tick();
 
@@ -313,13 +319,22 @@ describe("statuses", () => {
       stderr: "Error!",
       summary: null,
     });
-    expect(blockStatus(scheduler, "d").status).toBe("invalid");
-    expect(blockStatus(scheduler, "c").conditions[0]?.message).toBe(
-      'This block is waiting for block "b".',
-    );
-    expect(blockStatus(scheduler, "e").conditions[0]?.message).toBe(
-      'This block is waiting for blocks "b" and "d".',
-    );
+    expect(blockStatus(scheduler, "d")).toMatchObject({
+      status: "invalid",
+      reason: "Choose a subset.",
+      conditions: [],
+      summary: null,
+    });
+    // A block that R says waits keeps the conditions of R's reply.
+    expect(blockStatus(scheduler, "f")).toMatchObject({
+      status: "waiting",
+      reason: "Press plot.",
+      conditions: [{ message: "Checked the axes." }],
+    });
+    expect(blockStatus(scheduler, "a").reason).toBeNull();
+    expect(blockStatus(scheduler, "b").reason).toBeNull();
+    expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
+    expect(blockStatus(scheduler, "e").reason).toBe('This block is waiting for blocks "b" and "d".');
   });
 
   test("read stale once the revision moves, keeping what the latest reply said", async () => {
@@ -342,7 +357,7 @@ describe("statuses", () => {
     expect(blockStatus(scheduler, "b").revision).toBeGreaterThan(failed.revision);
   });
 
-  test("read waiting for an unlinked input, a variadic block without a link and a block upstream that cannot run, with one condition of the phase status", async () => {
+  test("read waiting for an unlinked input, a variadic block without a link and a block upstream that cannot run, with a reason that names what it waits for and no condition", async () => {
     const { store, scheduler } = await setup();
 
     store.apply({ links: { rm: ["ab", "be", "de"] } });
@@ -352,25 +367,39 @@ describe("statuses", () => {
       revision: blockStatus(scheduler, "b").revision,
       evaluated: null,
       running: false,
-      conditions: [
-        {
-          severity: "message",
-          class: ["blockr_message", "message", "condition"],
-          phase: "status",
-          message: 'This block is waiting for its input "data" to be linked.',
-        },
-      ],
+      conditions: [],
       stdout: "",
       stderr: "",
       summary: null,
+      reason: 'This block is waiting for its input "data" to be linked.',
     });
-    expect(blockStatus(scheduler, "e").conditions[0]?.message).toBe(
-      "This block is waiting for a block to be linked to it.",
-    );
-    expect(blockStatus(scheduler, "c").conditions[0]?.message).toBe(
-      'This block is waiting for block "b".',
-    );
+    expect(blockStatus(scheduler, "e").reason).toBe("This block is waiting for a block to be linked to it.");
+    expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
     expect(blockStatus(scheduler, "d").status).toBe("unevaluated");
+  });
+
+  test("keep the blocks below a block that R says waits waiting, and the status of that block until its revision moves", async () => {
+    const { r, store, scheduler } = await setup();
+    scheduler.demand("test", ["c"]);
+    scheduler.start();
+    await tick();
+
+    r.evaluated(pendingRequest(r, "a"));
+    await tick();
+    r.evaluated(pendingRequest(r, "b"), "waiting", { reason: "Press run." });
+    await tick();
+
+    const waiting = blockStatus(scheduler, "b");
+    expect(waiting).toMatchObject({ status: "waiting", evaluated: waiting.revision, reason: "Press run." });
+    expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
+    // The block is current, so nothing evaluates it again.
+    await tick();
+    expect(r.pending().filter((request) => request.block === "b")).toEqual([]);
+
+    store.apply({ blocks: { mod: { b: { state: { n: 8 } } } } });
+    await tick();
+    expect(blockStatus(scheduler, "b").status).toBe("stale");
+    expect(r.pending().filter((request) => request.block === "b")).toHaveLength(1);
   });
 
   test("count an input that R binds itself as linked, naming it in the recipe alone", async () => {
@@ -836,6 +865,32 @@ describe("one-time evaluations with parameters", () => {
     const statuses = await saving;
     expect(statuses.b).toMatchObject({ status: "ready", revision: ready.revision, stdout: "Wrote iris.csv" });
     expect(blockStatus(scheduler, "b").stdout).toBe("Wrote iris.csv");
+  });
+
+  test("evaluate a block that R says waits, whose reply becomes the block's own, as a save button does", async () => {
+    const { r, scheduler } = await setup();
+    scheduler.demand("test", ["c"]);
+    scheduler.start();
+    await tick();
+    r.evaluated(pendingRequest(r, "a"));
+    await tick();
+    r.evaluated(pendingRequest(r, "b"), "waiting", { reason: "Save to write the file." });
+    await tick();
+    const waiting = blockStatus(scheduler, "b");
+    expect(waiting.status).toBe("waiting");
+
+    const saving = scheduler.evaluate(["b"], { save: true });
+    await tick();
+    const request = pendingRequest(r, "b");
+    expect(request).toMatchObject({ block: "b", revision: waiting.revision, params: { save: true } });
+
+    r.evaluated(request, "ok", { stdout: "Wrote iris.csv" });
+    const statuses = await saving;
+    expect(statuses.b).toMatchObject({ status: "ready", revision: waiting.revision, reason: null });
+    expect(blockStatus(scheduler, "b").status).toBe("ready");
+    // The block below it no longer waits, and goes to R.
+    await tick();
+    expect(r.pending().map((one) => one.block)).toEqual(["c"]);
   });
 
   test("send no other evaluation of that revision, never cancel it and keep what it reads evaluated until R replies", async () => {

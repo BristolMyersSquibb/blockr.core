@@ -8,8 +8,9 @@
 //   derives from the scheduler, ahead of any frontend, rather than copies. Its
 //   id comes from the block, the severity, the source and the message, so that
 //   the same condition in the block's next reply keeps its id, and two that
-//   share all four are one. Its source is R, or core for the two conditions
-//   that the scheduler writes itself.
+//   share all four are one. Its source is R, or core for the error of an
+//   evaluation that the transport could not send, which the scheduler writes
+//   itself.
 // - One for each condition of R's latest reply to each request that a module
 //   or a plugin made, in place of those of the request's reply before, so that
 //   a request that fails again keeps its notifications, and one that succeeds
@@ -31,7 +32,7 @@
 
 import { announceTo, onAbort } from "../mount/index.ts";
 import type { Condition } from "../protocol/index.ts";
-import { scheduledCode } from "../scheduler/index.ts";
+import { isUnsentError } from "../scheduler/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
@@ -316,11 +317,11 @@ export function createNotifications(
   };
 }
 
-// Who raised a condition of a block's status: R, or core for one that the
-// scheduler wrote itself.
+// Who raised a condition of a block's status: R, or core for the error of an
+// evaluation that the transport could not send, which the scheduler wrote
+// itself.
 function statusSource(condition: Condition): NotificationSource {
-  const code = scheduledCode(condition);
-  if (code !== undefined) return { kind: "core", code };
+  if (isUnsentError(condition)) return { kind: "core", code: "evaluation_unsent" };
   const { phase } = condition;
   return {
     kind: "r",

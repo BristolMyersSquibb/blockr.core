@@ -125,7 +125,7 @@ function FileBrowserBlock({ host }) {
       }),
       listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ jsx(Note, { text: "This directory is empty." })
     ] }) }),
-    /* @__PURE__ */ jsx("p", { className: styles.hint, children: held === void 0 ? "No file chosen yet." : `Chosen: ${held}` }),
+    held !== void 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: `Chosen: ${held}` }),
     error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error })
   ] });
 }

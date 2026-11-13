@@ -219,8 +219,8 @@ test_that("with both locks, R keeps what building a locked block signalled", {
   for (revision in 1:2) {
     reply <- evaluated(session, "1", "a", revision, recipe)
     expect_identical(reply$status, "invalid")
-    expect_identical(reply$conditions[[1L]]$phase, "expr")
-    expect_match(reply$conditions[[1L]]$message, "dataset")
+    expect_identical(reply$reason, "Choose a dataset.")
+    expect_length(reply$conditions, 0L)
   }
 })
 
@@ -318,7 +318,7 @@ test_that("with both locks, R takes the parameters from the request", {
     inputs = list(read_of("a", 1L, ""))
   )
 
-  expect_identical(evaluated(session, "2", "w", 1L, recipe)$status, "invalid")
+  expect_identical(evaluated(session, "2", "w", 1L, recipe)$status, "waiting")
   expect_identical(
     evaluated(session, "3", "w", 2L, recipe, params = list(save = TRUE))$status,
     "ok"

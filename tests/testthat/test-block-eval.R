@@ -41,23 +41,24 @@ test_that("a registered class is evaluated by its registry id", {
 
 test_that("a state that cannot run makes R run nothing and report invalid", {
 
+  # R's error for an unset arg is the reason.
   res <- evaluate_block(merge_class, list(), list(x = "a", y = "b"),
                         list(a = datasets::BOD, b = datasets::BOD))
 
   expect_identical(res$status, "invalid")
   expect_null(res$expr)
   expect_null(res$result)
-  expect_length(res$conditions, 1L)
-  expect_identical(res$conditions[[1L]]$phase, "expr")
-  # The status already says that the state cannot run, so why is a message.
-  expect_identical(res$conditions[[1L]]$severity, "message")
-  expect_match(res$conditions[[1L]]$message, "by")
+  expect_null(res$summary)
+  expect_identical(res$reason, "argument \"by\" is missing, with no default")
+  # Why the block is invalid is part of its status, so it is no condition.
+  expect_identical(res$conditions, list())
 
   picky <- new_block_class(
     "picky_block",
     inputs = "data",
     expr = function(cols = character()) {
       if (!length(cols)) blockr_invalid("Choose at least one column.")
+      message("Checked the columns.")
       bbquote(.(data)[, .(cols), drop = FALSE])
     },
     ui = js_module("picky.js")
@@ -67,9 +68,17 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
                         list(a = datasets::iris))
 
   expect_identical(res$status, "invalid")
-  expect_identical(res$conditions[[1L]]$message, "Choose at least one column.")
+  expect_identical(res$reason, "Choose at least one column.")
+  expect_identical(res$conditions, list())
+
+  # The conditions raised before the block stopped stay, each with the
+  # severity of its class.
+  res <- evaluate_block(picky, list(cols = "Species"), list(data = "a"),
+                        list(a = datasets::iris))
+
+  expect_identical(res$status, "ok")
+  expect_null(res$reason)
   expect_identical(res$conditions[[1L]]$severity, "message")
-  expect_true("blockr_invalid" %in% res$conditions[[1L]]$class)
 
   unset_fun <- new_block_class(
     "unset_fun_block",
@@ -82,7 +91,8 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
                         list(a = datasets::iris))
 
   expect_identical(res$status, "invalid")
-  expect_identical(res$conditions[[1L]]$phase, "expr")
+  expect_identical(res$reason, "argument \"n\" is missing, with no default")
+  expect_identical(res$conditions, list())
 })
 
 test_that("failed checks and errors report error, by phase", {
@@ -262,7 +272,7 @@ test_that("a block_eval() method decides whether the expression runs", {
   saver <- new_block_class(
     "saver_block",
     inputs = "data",
-    expr = function(auto = FALSE) bbquote(.(data)),
+    expr = function(auto = FALSE, path = "") bbquote(.(data)),
     ui = js_module("saver.js")
   )
 
@@ -270,24 +280,75 @@ test_that("a block_eval() method decides whether the expression runs", {
     "block_eval",
     "saver_block",
     function(x, expr, env, save = FALSE, ...) {
-      if (!isTRUE(x$auto) && !save) blockr_invalid("Save to write the file.")
+      if (!nzchar(x$path)) blockr_invalid("Choose a path.")
+      if (!isTRUE(x$auto) && !save) blockr_waiting("Save to write the file.")
       NextMethod()
     },
     envir = asNamespace("blockr.core")
   )
 
-  res <- evaluate_block(saver, list(auto = FALSE), list(data = "a"),
-                        list(a = datasets::BOD))
+  # A state that can run, but that the method runs only once asked, waits.
+  res <- evaluate_block(saver, list(auto = FALSE, path = "out.csv"),
+                        list(data = "a"), list(a = datasets::BOD))
 
-  expect_identical(res$status, "invalid")
+  expect_identical(res$status, "waiting")
   expect_identical(res$expr, quote(a))
-  expect_identical(res$conditions[[1L]]$phase, "block_eval")
-  expect_identical(res$conditions[[1L]]$severity, "message")
+  expect_null(res$summary)
+  expect_identical(res$reason, "Save to write the file.")
+  expect_identical(res$conditions, list())
 
-  res <- evaluate_block(saver, list(auto = FALSE), list(data = "a"),
-                        list(a = datasets::BOD), save = TRUE)
+  res <- evaluate_block(saver, list(auto = FALSE, path = "out.csv"),
+                        list(data = "a"), list(a = datasets::BOD), save = TRUE)
 
   expect_identical(res$status, "ok")
+  expect_null(res$reason)
+
+  # A state that cannot run is invalid, whatever the parameters.
+  res <- evaluate_block(saver, list(auto = FALSE, path = ""), list(data = "a"),
+                        list(a = datasets::BOD), save = TRUE)
+
+  expect_identical(res$status, "invalid")
+  expect_identical(res$reason, "Choose a path.")
+})
+
+test_that("only expr and block_eval() stop a block without failing it", {
+
+  early <- new_block_class(
+    "early_block",
+    inputs = function(data) blockr_waiting("Not yet."),
+    expr = function() bbquote(.(data)),
+    ui = js_module("early.js")
+  )
+
+  res <- evaluate_block(early, list(), list(data = "a"), list(a = 1:3))
+
+  expect_identical(res$status, "error")
+  expect_null(res$reason)
+  expect_identical(res$conditions[[1L]]$phase, "inputs")
+  expect_identical(res$conditions[[1L]]$severity, "error")
+
+  later <- new_block_class(
+    "later_block",
+    inputs = "data",
+    expr = function() bbquote(.(data)),
+    ui = js_module("later.js")
+  )
+
+  # R's error for an unset arg stops a block only in `expr`.
+  registerS3method(
+    "block_eval",
+    "later_block",
+    function(x, expr, env, ...) {
+      unset <- function(n) n
+      unset()
+    },
+    envir = asNamespace("blockr.core")
+  )
+
+  res <- evaluate_block(later, list(), list(data = "a"), list(a = 1:3))
+
+  expect_identical(res$status, "error")
+  expect_null(res$reason)
 })
 
 test_that("core's block_eval() method evaluates the block expression", {

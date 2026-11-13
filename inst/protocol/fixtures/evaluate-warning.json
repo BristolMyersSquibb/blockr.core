@@ -22,6 +22,7 @@
         "block": "d",
         "revision": 6,
         "summary": "<data.frame> [3 × 5]",
+        "reason": null,
         "conditions": [
           {
             "severity": "warning",

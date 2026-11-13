@@ -29,6 +29,7 @@
         "block": "w",
         "revision": 12,
         "summary": "<data.frame> [300 × 9]",
+        "reason": null,
         "conditions": [],
         "stdout": "",
         "stderr": ""

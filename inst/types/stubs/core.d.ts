@@ -18,6 +18,7 @@ export interface StubCoreOptions {
     readonly answer?: Answer;
     readonly el?: HTMLElement;
     readonly measure?: Measure;
+    readonly refuse?: readonly Request["kind"][];
 }
 export interface StubCore {
     readonly core: CoreApi;

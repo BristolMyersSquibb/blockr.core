@@ -25,6 +25,7 @@
         "block": "e",
         "revision": 7,
         "summary": "<data.frame> [9 × 5]",
+        "reason": null,
         "conditions": [],
         "stdout": "",
         "stderr": ""

@@ -32,6 +32,7 @@ A reply's `status` belongs to its request alone, so that a request or an output 
 | `ok` | the request succeeded | those of the request's kind |
 | `error` | R raised an error, or refused the request, as it refuses an evaluation that breaks a lock | `conditions` ([Conditions](#conditions)), and an evaluation's properties in the reply to an `evaluate` |
 | `invalid` | only to an `evaluate`: the block's state cannot run | an evaluation's properties |
+| `waiting` | only to an `evaluate`: the block's state can run, but the block runs only once something else happens, such as a click on its save button | an evaluation's properties |
 | `cancelled` | R dropped or stopped the request, after a `cancel` or a `forget` | none |
 | `missing` | the request names a result that R does not hold ([Missing results](#missing-results)) | `missing` |
 
@@ -159,10 +160,16 @@ R looks the class up by its registry id, runs the checks of a function the class
 |---|---|
 | `block`, `revision` | as the request named them |
 | `summary` | the result's summary from `result_summary()`, such as `"<data.frame> [150 × 5]"`, or `null` where there is no result or its summary failed |
+| `reason` | why the block is `invalid` or `waiting`, as `"Upload a file."`, and `null` in a reply of any other status (below) |
 | `conditions` | every condition raised ([Conditions](#conditions)) |
 | `stdout`, `stderr` | the standard output and error |
 
-The status is `invalid` where the class's `expr` or its `block_eval()` method signals `blockr_invalid()`, with its message, or `expr` uses an arg that the state leaves unset, naming it, all before the block expression runs, so that R runs nothing. R gives that condition the severity `message`, whatever its class, since the status already says that the state cannot run. It is `error` where an error is raised before a result exists, as when the checks of the inputs fail or the block expression does, and `ok` otherwise, also where `result_summary()` fails, which leaves `summary` null and reports its error.
+The status is `invalid` where the class's `expr` or its `block_eval()` method signals `blockr_invalid()`, or `expr` uses an arg that the state leaves unset, all before the block expression runs, so that R runs nothing.
+It is `waiting` where either signals `blockr_waiting()`, for a state that can run once something else happens, such as a write block in manual mode, which writes only once its save button asks.
+It is `error` where an error is raised before a result exists, as when the checks of the inputs fail or the block expression does, and `ok` otherwise, also where `result_summary()` fails, which leaves `summary` null and reports its error.
+The error that makes a block `invalid` or `waiting` is no condition of the reply, since it is part of the block's status, as a ready block's summary is.
+R sends its message as the reply's `reason` instead.
+The reply's `conditions` hold only what R raised, each with the severity of its class.
 
 ### Conditions
 
@@ -181,7 +188,6 @@ The status is `invalid` where the class's `expr` or its `block_eval()` method si
 | `result_summary` | `result_summary()`, which describes the result |
 | `output` | the coercion that makes an output, in the reply to an `output` |
 | `request` | the request's function, in the reply to a `request` |
-| `status` | the client's scheduler, for a block that is `waiting`, which R never writes |
 
 A reply carries every condition raised, and no tracebacks, which R writes to its log only with debug logging on. The conditions of an evaluation's reply replace those of the block's earlier reply, as the Language Server Protocol replaces diagnostics ([LSP](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics)).
 
@@ -319,7 +325,7 @@ Under the board lock, R refuses an evaluation, with parameters or without, that 
 What R holds a block to depends on the load lock:
 
 - Where the load lock is on too, R holds every block to the opening board, which it reads once, as the app starts.
-  It reads every block's class, the ids its inputs bind to and its `locked`, and for a locked block its state and the block expression it builds from that state, or the `blockr_invalid()` that building it signalled.
+  It reads every block's class, the ids its inputs bind to and its `locked`, and for a locked block its state and the block expression it builds from that state, or the `blockr_invalid()` or `blockr_waiting()` that building it signalled.
   Any other error from building a locked block's expression stops the app as it starts, naming each such block, since the board is broken and the operator fixes it.
   It then evaluates only that board's blocks, refusing one that the board lacks, with their opening links and the classes it read, whatever registry id a recipe names.
   It evaluates a locked block with the block expression it built as the app started, so that one whose opening state cannot run gets `invalid` to every evaluation, and a block left open with a block expression it builds from the request's state.
@@ -403,6 +409,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`evaluate-variadic`](fixtures/evaluate-variadic.json) | an evaluation of a variadic block |
 | [`evaluate-error`](fixtures/evaluate-error.json) | an evaluation that fails |
 | [`evaluate-invalid`](fixtures/evaluate-invalid.json) | an evaluation of a state that cannot run |
+| [`evaluate-waiting`](fixtures/evaluate-waiting.json) | an evaluation of a block that runs only once asked, as a write block in manual mode does |
 | [`evaluate-params`](fixtures/evaluate-params.json) | a one-time evaluation with parameters |
 | [`evaluate-missing`](fixtures/evaluate-missing.json) | an evaluation that names a result R does not hold |
 | [`evaluate-locked`](fixtures/evaluate-locked.json) | an evaluation that gives a locked block another state, which R refuses under both locks |

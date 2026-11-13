@@ -57,12 +57,12 @@ test_that("an upload keeps the file and answers with its path", {
   res <- evaluate_block(upload_block, list())
 
   expect_identical(res[["status"]], "invalid")
-  expect_identical(res[["conditions"]][[1L]][["message"]], "Upload a file.")
+  expect_identical(res[["reason"]], "Upload a file.")
 
   res <- evaluate_block(upload_block, list(file_path = ""))
 
   expect_identical(res[["status"]], "invalid")
-  expect_identical(res[["conditions"]][[1L]][["message"]], "Upload a file.")
+  expect_identical(res[["reason"]], "Upload a file.")
 })
 
 test_that("uploads go to the session's temporary directory by default", {

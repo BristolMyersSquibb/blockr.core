@@ -133,6 +133,7 @@ answer_evaluate <- function(ev, job) {
     req[["fields"]],
     list(
       summary = res[["summary"]],
+      reason = reason_reply(res[["reason"]]),
       conditions = lapply(res[["conditions"]], condition_reply),
       stdout = utf8_text(ran[["stdout"]]),
       stderr = utf8_text(ran[["stderr"]])
@@ -402,7 +403,7 @@ error_reply <- function(id, conditions, fields = NULL) {
 
   res <- c(
     list(id = id, status = "error"),
-    if (not_null(fields)) c(fields, list(summary = NULL)),
+    if (not_null(fields)) c(fields, list(summary = NULL, reason = NULL)),
     list(conditions = lapply(conditions, condition_reply))
   )
 
@@ -418,6 +419,12 @@ r_condition <- function(cnd) {
   res <- condition_record(cnd, NULL)
   res[["phase"]] <- NULL
   res
+}
+
+# Why a block is invalid or waiting as a reply carries it, as valid UTF-8, or
+# `NULL`.
+reason_reply <- function(x) {
+  if (not_null(x)) utf8_text(x)
 }
 
 # A condition as a reply carries it,

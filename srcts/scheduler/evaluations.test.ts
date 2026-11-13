@@ -31,6 +31,7 @@ function outcome(status: Outcome["status"], id: BlockId): Outcome {
     status,
     revision: at(id),
     summary: null,
+    reason: status === "invalid" || status === "waiting" ? "Not yet." : null,
     conditions: [],
     stdout: "",
     stderr: "",
@@ -50,13 +51,13 @@ function statuses(replies: [BlockId, Outcome["status"]][] = []) {
 }
 
 function plain(blocks: BlockId[], priority = 0): Plain {
-  const oneTime = createOneTime(blocks, undefined, priority, statuses());
+  const oneTime = createOneTime(blocks, undefined, priority, statuses(), inputs);
   if (oneTime instanceof Error || "params" in oneTime) throw new Error("No one-time evaluation.");
   return oneTime;
 }
 
 function withParams(blocks: BlockId[], priority = 0): WithParams {
-  const oneTime = createOneTime(blocks, { save: true }, priority, statuses());
+  const oneTime = createOneTime(blocks, { save: true }, priority, statuses(), inputs);
   if (oneTime instanceof Error || !("params" in oneTime)) {
     throw new Error("No one-time evaluation with parameters.");
   }
@@ -85,6 +86,7 @@ function ok(oneTimes: ReadonlyMap<number, OneTime>, id: number, block: BlockId) 
     block,
     revision: at(block),
     summary: null,
+    reason: null,
     conditions: [],
     stdout: "Wrote iris.csv",
     stderr: "",
@@ -100,33 +102,48 @@ function oneTimePart(oneTimes: ReadonlyMap<number, OneTime>, id: number, block: 
 describe("a new one-time evaluation", () => {
   test("without parameters leaves out the blocks that the board lacks, and rejects where that leaves none", () => {
     expect(plain(["c", "z"], 1)).toEqual({ blocks: new Set(["c"]), priority: 1 });
-    expect(errorMessage(createOneTime(["z", "y"], undefined, 0, statuses()))).toBe(
+    expect(errorMessage(createOneTime(["z", "y"], undefined, 0, statuses(), inputs))).toBe(
       'The board holds none of the blocks "z" and "y" to evaluate.',
     );
   });
 
-  test("with parameters has a part for each block, and rejects where it names no block, a block the board lacks or one that reads waiting", () => {
+  test("with parameters has a part for each block, and rejects where it names no block, a block the board lacks or one that an input or a block upstream keeps waiting", () => {
     const oneTime = withParams(["d", "b"]);
     expect([...oneTime.parts.keys()]).toEqual(["d", "b"]);
     expect(oneTime.parts.get("b")).toEqual({ recipe: undefined, sent: undefined, result: undefined });
 
-    expect(errorMessage(createOneTime([], {}, 0, statuses()))).toBe("An evaluation with parameters names no block.");
-    expect(errorMessage(createOneTime(["b", "z"], {}, 0, statuses()))).toBe(
+    expect(errorMessage(createOneTime([], {}, 0, statuses(), inputs))).toBe("An evaluation with parameters names no block.");
+    expect(errorMessage(createOneTime(["b", "z"], {}, 0, statuses(), inputs))).toBe(
       'The board holds no block "z" to evaluate.',
     );
     const loose = createBoard({ c: "merge_block" });
     const looseGraph = createGraph(loose);
+    const looseInputs = inputsByBlock(loose, looseGraph, hello.block_registry, new Set());
     const waiting = blockStatuses({
       graph: looseGraph,
       revisions: opening(looseGraph, counter()),
       outcomes: new Map(),
-      inputs: inputsByBlock(loose, looseGraph, hello.block_registry, new Set()),
+      inputs: looseInputs,
       running: new Set(),
       before: new Map(),
     }).statuses;
-    expect(errorMessage(createOneTime(["c"], {}, 0, waiting))).toBe(
+    expect(errorMessage(createOneTime(["c"], {}, 0, waiting, looseInputs))).toBe(
       'Block "c" is waiting for its inputs "x" and "y" to be linked. Its evaluation with parameters is not sent.',
     );
+    expect(errorMessage(createOneTime(["b"], {}, 0, statuses([["a", "error"]]), inputs))).toBe(
+      'Block "b" is waiting for block "a". Its evaluation with parameters is not sent.',
+    );
+  });
+
+  test("with parameters takes a block that R says waits, which it runs, as a save button does", () => {
+    const now = statuses([
+      ["a", "ok"],
+      ["b", "waiting"],
+    ]);
+    expect(now.get("b")?.status).toBe("waiting");
+    const oneTime = createOneTime(["b"], { save: true }, 0, now, inputs);
+    if (oneTime instanceof Error || !("params" in oneTime)) throw new Error("No one-time evaluation with parameters.");
+    expect([...oneTime.parts.keys()]).toEqual(["b"]);
   });
 });
 

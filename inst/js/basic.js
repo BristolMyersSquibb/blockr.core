@@ -760,22 +760,69 @@ function useFooter(status, severities = SEVERITIES) {
   }, []);
   return { status, shown, severities, open, toggle, panel };
 }
-function Footer({ status, shown, severities, open, toggle, panel }) {
-  const settled = status !== void 0 && status === shown && !status.running;
+function Footer({ status, shown }) {
   return /* @__PURE__ */ jsx6(
     "footer",
     {
       "aria-busy": status?.running === true,
       "data-status": shown?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled ? "" : "bc:opacity-50"}`,
-      children: shown === void 0 ? null : /* @__PURE__ */ jsx6(StatusLine, { status: shown, severities, panel, open, toggle })
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled(status, shown) ? "" : "bc:opacity-50"}`,
+      children: shown?.status === "ready" ? shown.summary : null
+    }
+  );
+}
+function Pills({ status, shown, severities, open, toggle, panel }) {
+  if (shown === void 0) return null;
+  const pills = SEVERITIES.flatMap((severity) => {
+    const n = counted(shown, severities, severity);
+    return n === 0 ? [] : [{ severity, n }];
+  });
+  if (pills.length === 0) return null;
+  return /* @__PURE__ */ jsx6(
+    "div",
+    {
+      role: "group",
+      "aria-label": "Status",
+      "aria-busy": status?.running === true,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled(status, shown) ? "" : "bc:opacity-50"}`,
+      children: pills.map(({ severity, n }) => {
+        const mark = MARKS[severity];
+        return /* @__PURE__ */ jsxs5(
+          "button",
+          {
+            type: "button",
+            "aria-expanded": open.has(severity),
+            "aria-controls": panel,
+            onClick: () => {
+              toggle(severity);
+            },
+            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+            children: [
+              /* @__PURE__ */ jsx6(SeverityIcon, { severity }),
+              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
+            ]
+          },
+          severity
+        );
+      })
     }
   );
 }
 function Banners({ shown, severities, open, panel }) {
-  const listed2 = shown === void 0 ? [] : statusConditions(shown).filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
+  if (shown === void 0) return null;
+  const listed2 = shown.conditions.filter(
+    (condition) => severities.includes(condition.severity) && open.has(condition.severity)
+  );
+  if (shown.reason !== null && open.has("message")) listed2.push({ severity: "message", message: shown.reason });
   if (listed2.length === 0) return null;
-  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed2.map((condition, i) => /* @__PURE__ */ jsx6(Banner, { condition }, i)) });
+  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed2.map(({ severity, message }, i) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i)) });
+}
+function settled(status, shown) {
+  return status !== void 0 && status === shown && !status.running;
+}
+function counted(status, severities, severity) {
+  const conditions = severities.includes(severity) ? status.conditions.filter((condition) => condition.severity === severity).length : 0;
+  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
 }
 var MARKS = {
   error: {
@@ -800,57 +847,18 @@ var MARKS = {
     border: "bc:border-border-accent"
   }
 };
-function StatusLine({
-  status,
-  severities,
-  panel,
-  open,
-  toggle
-}) {
-  if (status.status === "waiting") {
-    return /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: status.conditions[0]?.message });
-  }
-  const pills = SEVERITIES.filter((severity) => severities.includes(severity)).flatMap((severity) => {
-    const n = status.conditions.filter((condition) => condition.severity === severity).length;
-    if (n === 0) return [];
-    const mark = MARKS[severity];
-    return [
-      /* @__PURE__ */ jsxs5(
-        "button",
-        {
-          type: "button",
-          "aria-expanded": open.has(severity),
-          "aria-controls": panel,
-          onClick: () => {
-            toggle(severity);
-          },
-          className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
-          children: [
-            /* @__PURE__ */ jsx6(SeverityIcon, { severity }),
-            severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
-          ]
-        },
-        severity
-      )
-    ];
-  });
-  return /* @__PURE__ */ jsxs5("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
-    status.status === "ready" && status.summary !== null ? /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: status.summary }) : null,
-    pills
-  ] });
-}
-function Banner({ condition }) {
-  const mark = MARKS[condition.severity];
+function Banner({ severity, message }) {
+  const mark = MARKS[severity];
   return /* @__PURE__ */ jsxs5(
     "li",
     {
-      "data-severity": condition.severity,
+      "data-severity": severity,
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
       children: [
-        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(SeverityIcon, { severity: condition.severity }) }),
+        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(SeverityIcon, { severity }) }),
         /* @__PURE__ */ jsxs5("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
           /* @__PURE__ */ jsx6("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
+          /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
         ] })
       ]
     }
@@ -885,9 +893,6 @@ function useShown(status) {
   return now ?? kept;
 }
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
-function statusConditions(status) {
-  return status.status === "waiting" ? [] : status.conditions;
-}
 
 // srcts/card/mounted.tsx
 import { useLayoutEffect as useLayoutEffect3, useRef as useRef3 } from "react";
@@ -1142,10 +1147,11 @@ var BlockCard = memo(function BlockCard2({
                   className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              /* @__PURE__ */ jsx9(Footer, { ...footer })
+              sized ? /* @__PURE__ */ jsx9(Footer, { ...footer }) : null
             ]
           }
         ),
+        /* @__PURE__ */ jsx9(Pills, { ...footer }),
         /* @__PURE__ */ jsx9(Banners, { ...footer })
       ]
     }

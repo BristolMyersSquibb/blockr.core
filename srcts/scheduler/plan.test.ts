@@ -32,6 +32,7 @@ function outcome(status: Outcome["status"], id: BlockId): Outcome {
     status,
     revision: at(id),
     summary: null,
+    reason: status === "invalid" || status === "waiting" ? "Not yet." : null,
     conditions: [],
     stdout: "",
     stderr: "",
@@ -75,6 +76,7 @@ function plan(fields: Partial<Parameters<typeof evaluationPlan>[0]> = {}) {
     graph,
     revisions,
     statuses: statuses(),
+    inputs,
     needs: new Map(),
     sent: [],
     asked: [],
@@ -159,13 +161,26 @@ describe("the evaluation of a block for a one-time evaluation with parameters", 
     ]);
   });
 
-  test("rejects the one-time evaluation where the block reads waiting, whatever room R has", () => {
+  test("rejects the one-time evaluation where a block upstream keeps the block waiting, whatever room R has", () => {
     const save = pending("b");
     const found = plan({ pending: [save], statuses: statuses([["a", "error"]]), queue: 0, sent: [sent("f")] });
     expect(found.send).toEqual([]);
     expect(found.reject.map(({ oneTime, error }) => [oneTime, error.message])).toEqual([
       [save.oneTime, 'Block "b" is waiting for block "a". Its evaluation with parameters is not sent.'],
     ]);
+  });
+
+  test("sends the one-time evaluation of a block that R says waits", () => {
+    const save = pending("b");
+    const found = plan({
+      pending: [save],
+      statuses: statuses([
+        ["a", "ok"],
+        ["b", "waiting"],
+      ]),
+    });
+    expect(found.reject).toEqual([]);
+    expect(found.send).toEqual([{ block: "b", oneTime: save.oneTime }]);
   });
 });
 

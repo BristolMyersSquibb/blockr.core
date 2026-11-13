@@ -267,15 +267,16 @@ protocol_r_values <- function() {
         proto_evaluated(
           "21", "c", 9L,
           status = "invalid",
-          conditions = list(
-            proto_condition(
-              "message",
-              c("blockr_invalid", "blockr_error", "rlang_error", "error",
-                "condition"),
-              "Choose at least one column to join by.",
-              phase = "expr"
-            )
-          )
+          reason = "Choose at least one column to join by."
+        )
+      )
+    ),
+    `evaluate-waiting` = list(
+      list(
+        proto_evaluated(
+          "31", "w", 12L,
+          status = "waiting",
+          reason = "Save to write the file."
         )
       )
     ),
@@ -1076,13 +1077,15 @@ proto_served_file <- function() {
 }
 
 proto_evaluated <- function(id, block, revision, status = "ok",
-                            summary = NULL, conditions = list()) {
+                            summary = NULL, reason = NULL,
+                            conditions = list()) {
   obj(
     id = id,
     status = status,
     block = block,
     revision = revision,
     summary = summary,
+    reason = reason,
     conditions = conditions,
     stdout = "",
     stderr = ""

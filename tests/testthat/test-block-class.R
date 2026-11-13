@@ -222,6 +222,12 @@ test_that("new_block_class() checks a class once", {
   )
 
   expect_s3_class(
+    new_block_class("x_block", "data", function() blockr_waiting("Not yet."),
+                    ui),
+    "block_class"
+  )
+
+  expect_s3_class(
     new_block_class("x_block", "data", function(by) bbquote(f(.(by))), ui),
     "block_class"
   )
@@ -353,7 +359,19 @@ test_that("blockr_invalid() signals a classed error", {
 
   expect_s3_class(cnd, c("my_block_unset", "blockr_invalid", "blockr_error"))
   expect_identical(conditionMessage(cnd), "Choose 2 columns.")
-  expect_true(is_invalid_cnd(cnd))
+  expect_true(stops_block(cnd))
+})
+
+test_that("blockr_waiting() signals a classed error", {
+
+  cnd <- tryCatch(
+    blockr_waiting("Save to write the file.", class = "my_block_manual"),
+    error = identity
+  )
+
+  expect_s3_class(cnd, c("my_block_manual", "blockr_waiting", "blockr_error"))
+  expect_identical(conditionMessage(cnd), "Save to write the file.")
+  expect_true(stops_block(cnd))
 })
 
 test_that("missing args are told apart from other errors", {
@@ -361,7 +379,7 @@ test_that("missing args are told apart from other errors", {
   cnd <- tryCatch((function(x) x)(), error = identity)
 
   expect_true(is_missing_arg_error(cnd))
-  expect_true(is_invalid_cnd(cnd))
+  expect_true(stops_block(cnd))
 
   old <- simpleError(
     sprintf(
@@ -372,7 +390,24 @@ test_that("missing args are told apart from other errors", {
 
   expect_true(is_missing_arg_error(old))
   expect_false(is_missing_arg_error(simpleError("argument by")))
-  expect_false(is_invalid_cnd(simpleError("boom")))
+  expect_false(stops_block(simpleError("boom")))
+})
+
+test_that("a class's expr may wait from the state a new block starts with", {
+
+  manual <- block_constructor(
+    new_block_class(
+      "manual_block",
+      inputs = "data",
+      expr = function(go = FALSE) {
+        if (!go) blockr_waiting("Press go.")
+        bbquote(.(data))
+      },
+      ui = js_module("manual.js")
+    )
+  )
+
+  expect_identical(block_state(manual()), list(go = FALSE))
 })
 
 test_that("blocks of a class print, combine and report their state args", {

@@ -218,8 +218,6 @@ export type CoreCode =
   | "board_objects_dropped"
   // A package that R runs at another version than the page loaded.
   | "page_reload_needed"
-  // A block that waits for a link or for blocks upstream.
-  | "block_waiting"
   // An evaluation that the transport could not send to R.
   | "evaluation_unsent"
   // An ask of a block's output that got no reply, or an error reply to one

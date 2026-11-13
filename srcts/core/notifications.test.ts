@@ -64,18 +64,18 @@ describe("a block's notifications", () => {
     s.stop();
   });
 
-  test("are core's for the message of a block that waits, which the scheduler writes itself", async () => {
-    const s = await stubCore();
-    await s.settled();
-    await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
+  test("are core's for the error of an evaluation that the transport could not send, which the scheduler writes itself, and none for why a block waits, which its status gives as its reason", async () => {
+    const s = await stubCore({ refuse: ["evaluate"] });
+    s.core.scheduler.demand("test", ["b"]);
     await s.settled();
 
-    expect(held(s.core, concerning("b"))).toEqual([
+    expect(s.core.scheduler.status("b")?.reason).toBe('This block is waiting for block "a".');
+    expect(held(s.core, (n) => concerning("a")(n) || concerning("b")(n))).toEqual([
       {
-        severity: "message",
-        message: 'This block is waiting for its input "data" to be linked.',
-        source: { kind: "core", code: "block_waiting" },
-        about: { block: "b" },
+        severity: "error",
+        message: "The evaluation could not be sent to R: The transport is closed.",
+        source: { kind: "core", code: "evaluation_unsent" },
+        about: { block: "a" },
       },
     ]);
     s.stop();

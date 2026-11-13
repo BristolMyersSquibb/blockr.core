@@ -23,7 +23,7 @@ export type Kind =
 // Optional behavior, which both sides use only where both named it.
 export type Capability = "cancel" | "interrupt" | "progress";
 
-export type ReplyStatus = "ok" | "error" | "cancelled" | "invalid" | "missing";
+export type ReplyStatus = "ok" | "error" | "cancelled" | "invalid" | "waiting" | "missing";
 
 // A message is an array, of requests from the client or of replies and
 // progress notes from R, so that several travel together.
@@ -207,12 +207,17 @@ export type RecipeInput =
 
 export interface EvaluateReply {
   id: string;
-  status: "ok" | "error" | "invalid";
+  status: "ok" | "error" | "invalid" | "waiting";
   block: BlockId;
   revision: number;
   // The result's summary from `result_summary()`, or null where there is no
   // result or its summary failed.
   summary: string | null;
+  // Why the block does not run, which is part of its status, as a ready
+  // block's summary is: the message of the blockr_invalid() or
+  // blockr_waiting() that stopped it, or of R's error for an unset arg.
+  // It is null in a reply of any other status than invalid or waiting.
+  reason: string | null;
   conditions: Condition[];
   stdout: string;
   stderr: string;
@@ -228,16 +233,8 @@ export interface Condition {
   message: string;
 }
 
-// The client's scheduler writes conditions of the phase `status`, and R
-// writes the others.
-export type Phase =
-  | "expr"
-  | "inputs"
-  | "block_eval"
-  | "result_summary"
-  | "output"
-  | "request"
-  | "status";
+// What raised a condition in R.
+export type Phase = "expr" | "inputs" | "block_eval" | "result_summary" | "output" | "request";
 
 // Requests. Each names one of core's types: block_class, output_class,
 // renderer, option or plugin. R reads a request into an object of class

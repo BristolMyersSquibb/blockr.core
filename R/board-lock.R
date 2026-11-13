@@ -38,7 +38,8 @@
 #' block's opening state.
 #' A locked block whose block expression fails to build from that state stops
 #' the app as it starts, naming the block, unless the failure is a
-#' [blockr_invalid()], which R replies with to every evaluation of the block.
+#' [blockr_invalid()] or a [blockr_waiting()], which R replies with to every
+#' evaluation of the block.
 #' Since no migration runs in R, it refuses a JSON board that `serve()` is
 #' given with a block whose class the block registry lacks, or whose state is
 #' at another version than its class gives, naming each.

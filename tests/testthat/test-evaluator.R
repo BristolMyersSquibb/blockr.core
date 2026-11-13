@@ -220,11 +220,46 @@ test_that("R replies invalid where the state cannot run", {
 
   expect_fixture_replies(session, "evaluate-invalid")
 
-  # R logs why the block is invalid at info, as a message, not as an error.
-  expect_identical(chr_xtr(session$logged, "level"), "info")
+  # Why the block is invalid is no condition, so R logs nothing at info.
+  expect_identical(session$logged, list())
+})
+
+test_that("R logs why a block is invalid or waiting at debug", {
+
+  local_write_block()
+
+  session <- local_evaluator()
+
+  withr::local_options(blockr.log_level = "debug")
+  reset_logging()
+
+  hold_result(session, "a", 2L)
+  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(
+    session, "c", 4L,
+    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+  )
+
+  # The waiting block reads c, whose result R drops once c is invalid.
+  expect_fixture_replies(session, "evaluate-waiting")
+  expect_fixture_replies(session, "evaluate-invalid")
+
+  reasons <- Filter(
+    function(line) grepl(" is (invalid|waiting): ", line[["message"]]),
+    session$logged
+  )
+
+  expect_identical(chr_xtr(reasons, "level"), c("debug", "debug"))
   expect_identical(
-    chr_xtr(session$logged, "message"),
-    "Block c at revision 9: Choose at least one column to join by."
+    chr_xtr(reasons, "message"),
+    c(
+      "Block w at revision 12 is waiting: Save to write the file.",
+      "Block c at revision 9 is invalid: Choose at least one column to join by."
+    )
+  )
+  expect_identical(
+    reasons[[1L]][["attributes"]],
+    list(blockr.block.id = "w", blockr.block.revision = 12L)
   )
 })
 
@@ -250,7 +285,24 @@ test_that("R passes the parameters of a one-time evaluation to block_eval()", {
   session$receive(req)
   session$run()
 
-  expect_identical(last_reply(session)$status, "invalid")
+  expect_identical(last_reply(session)$status, "waiting")
+})
+
+test_that("R replies waiting where a block runs only once asked", {
+
+  local_write_block()
+
+  session <- local_evaluator()
+
+  hold_result(session, "a", 2L)
+  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(
+    session, "c", 4L,
+    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+  )
+
+  expect_fixture_replies(session, "evaluate-waiting")
+  expect_identical(session$logged, list())
 })
 
 test_that("R replies missing to a revision it does not hold", {
@@ -1131,8 +1183,8 @@ test_that("R replies error in place of a reply too large to send", {
   )
   expect_named(
     reply,
-    c("id", "status", "block", "revision", "summary", "conditions", "stdout",
-      "stderr")
+    c("id", "status", "block", "revision", "summary", "reason", "conditions",
+      "stdout", "stderr")
   )
   expect_identical(
     reply$conditions[[1L]]$message,

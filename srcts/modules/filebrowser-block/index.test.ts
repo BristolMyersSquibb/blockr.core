@@ -55,7 +55,7 @@ test("starts at the root of the first volume for a block with no file, and draws
   expect(host.requested).toEqual([{ name: "list_dir", args: { volume: "here", path: "" } }]);
   expect(entries()).toEqual(["data/", "notes.txt"]);
   expect(view.el.querySelector("select")).toBeNull();
-  expect(view.el.textContent).toContain("No file chosen yet.");
+  expect(texts(view.el, "p")).toEqual([]);
 });
 
 test("opens the directory the user clicks, and submits the path of the file the user clicks", async () => {
