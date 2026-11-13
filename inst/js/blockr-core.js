@@ -459,9 +459,9 @@ function topological(blocks, sources, targets) {
   const order = blocks.filter((id2) => left2.get(id2) === 0);
   for (const id2 of order) {
     for (const next of targets.get(id2) ?? []) {
-      const count = (left2.get(next) ?? 0) - 1;
-      left2.set(next, count);
-      if (count === 0) order.push(next);
+      const count2 = (left2.get(next) ?? 0) - 1;
+      left2.set(next, count2);
+      if (count2 === 0) order.push(next);
     }
   }
   const placed = new Set(order);
@@ -2127,7 +2127,7 @@ function createOneTime(blocks, params, priority, statuses, inputs) {
   return { priority, params, parts };
 }
 function settle(oneTimes, statuses) {
-  const settled2 = [];
+  const settled3 = [];
   for (const [id2, oneTime] of oneTimes) {
     if ("params" in oneTime) continue;
     const blocks = [...oneTime.blocks];
@@ -2137,18 +2137,18 @@ function settle(oneTimes, statuses) {
       const status = statuses.get(block);
       if (status !== void 0) result[block] = status;
     }
-    settled2.push([id2, { statuses: result }]);
+    settled3.push([id2, { statuses: result }]);
   }
-  return { oneTimes: without2(oneTimes, settled2.map(([id2]) => id2)), settled: settled2 };
+  return { oneTimes: without2(oneTimes, settled3.map(([id2]) => id2)), settled: settled3 };
 }
 function left(oneTimes, gone) {
   const kept = /* @__PURE__ */ new Map();
-  const settled2 = [];
+  const settled3 = [];
   for (const [id2, oneTime] of oneTimes) {
     if (!("params" in oneTime)) {
       const blocks = new Set([...oneTime.blocks].filter((block) => !gone.has(block)));
       if (blocks.size === 0) {
-        settled2.push([id2, { error: new Error("Every block of the one-time evaluation left the board.") }]);
+        settled3.push([id2, { error: new Error("Every block of the one-time evaluation left the board.") }]);
       } else {
         kept.set(id2, blocks.size === oneTime.blocks.size ? oneTime : { ...oneTime, blocks });
       }
@@ -2163,10 +2163,10 @@ function left(oneTimes, gone) {
       const error = new Error(
         `Block "${early[0]}" left the board before its evaluation with parameters was sent.`
       );
-      settled2.push([id2, { error }]);
+      settled3.push([id2, { error }]);
     }
   }
-  return { oneTimes: kept, settled: settled2 };
+  return { oneTimes: kept, settled: settled3 };
 }
 function sent(oneTimes, id2, block, evaluation) {
   return withPart(oneTimes, id2, block, { recipe: evaluation.recipe, sent: evaluation.id });
@@ -2538,7 +2538,7 @@ function createScheduler(options) {
   const settles = /* @__PURE__ */ new Map();
   const subscribers = /* @__PURE__ */ new Set();
   let ids2 = 0;
-  const count = options.nextRevision ?? counter();
+  const count2 = options.nextRevision ?? counter();
   let stopped;
   const ended = () => options.signal?.aborted === true;
   const endedError = () => new Error("Another board opened.");
@@ -2548,7 +2548,7 @@ function createScheduler(options) {
   let wakeTimer;
   function revision() {
     try {
-      return count();
+      return count2();
     } catch (error) {
       stopped = error;
       throw error;
@@ -2784,10 +2784,10 @@ function createScheduler(options) {
   let heard = /* @__PURE__ */ new Map();
   const dispose = x(() => {
     const now = statuses.value;
-    const settled2 = settle(oneTimes.value, now);
-    if (settled2.settled.length > 0) {
+    const settled3 = settle(oneTimes.value, now);
+    if (settled3.settled.length > 0) {
       f(() => {
-        update(settled2);
+        update(settled3);
       });
     }
     const changed = changedSince(heard, now);
@@ -4182,10 +4182,10 @@ function createMounts(options) {
     const given = def.default;
     const started = typeof given === "function" ? Promise.resolve().then(() => given(options.core())) : Promise.resolve(given);
     resolving.set(id2, started);
-    const settled2 = () => {
+    const settled3 = () => {
       if (resolving.get(id2) === started) resolving.delete(id2);
     };
-    started.then(settled2, settled2);
+    started.then(settled3, settled3);
     return started;
   }
   async function addOptions(ids2, by) {
@@ -6064,9 +6064,9 @@ function inserted(record, key, value2, before) {
   members.splice(members.findIndex(([name3]) => name3 === before), 0, [key, value2]);
   return Object.fromEntries(members);
 }
-function spliced(items, index, count, ...added) {
+function spliced(items, index, count2, ...added) {
   const copy = [...items];
-  copy.splice(index, count, ...added);
+  copy.splice(index, count2, ...added);
   return copy;
 }
 function arrayIndex(segment) {
@@ -8937,33 +8937,90 @@ function useFooter(status, severities = SEVERITIES2) {
   const shown2 = useShown(status);
   const [open, setOpen] = useState(OPEN_AT_START);
   const panel = useId();
-  const toggle = useCallback((severity) => {
+  const toggle = useCallback((pill) => {
     setOpen((was) => {
       const next = new Set(was);
-      if (!next.delete(severity)) next.add(severity);
+      if (!next.delete(pill)) next.add(pill);
       return next;
     });
   }, []);
   return { status, shown: shown2, severities, open, toggle, panel };
 }
-function Footer({ status, shown: shown2, severities, open, toggle, panel }) {
-  const settled2 = status !== void 0 && status === shown2 && !status.running;
+function Footer({ status, shown: shown2 }) {
   return /* @__PURE__ */ jsx(
     "footer",
     {
       "aria-busy": status?.running === true,
       "data-status": shown2?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
-      children: shown2 === void 0 ? null : /* @__PURE__ */ jsx(StatusLine, { status: shown2, severities, panel, open, toggle })
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
+      children: shown2?.status === "ready" ? shown2.summary : null
+    }
+  );
+}
+function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
+  if (shown2 === void 0) return null;
+  const pills = [
+    ...shown2.reason === null ? [] : ["reason"],
+    ...SEVERITIES2.filter((severity) => severities.includes(severity) && count(shown2, severity) > 0)
+  ];
+  if (pills.length === 0) return null;
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      role: "group",
+      "aria-label": "Status",
+      "aria-busy": status?.running === true,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
+      children: pills.map((pill) => {
+        const mark = MARKS[pill];
+        const n2 = pill === "reason" ? 1 : count(shown2, pill);
+        return /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            "aria-expanded": open.has(pill),
+            "aria-controls": panel,
+            onClick: () => {
+              toggle(pill);
+            },
+            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+            children: [
+              /* @__PURE__ */ jsx(PillIcon, { pill }),
+              pill === "reason" || pill === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
+            ]
+          },
+          pill
+        );
+      })
     }
   );
 }
 function Banners({ shown: shown2, severities, open, panel }) {
-  const listed = shown2 === void 0 ? [] : shown2.conditions.filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
-  if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i2) => /* @__PURE__ */ jsx(Banner, { condition }, i2)) });
+  if (shown2 === void 0) return null;
+  const reason = open.has("reason") ? shown2.reason : null;
+  const listed = shown2.conditions.filter(
+    (condition) => severities.includes(condition.severity) && open.has(condition.severity)
+  );
+  if (reason === null && listed.length === 0) return null;
+  return /* @__PURE__ */ jsxs("ul", { id: panel, "aria-label": "Reason and conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: [
+    reason === null ? null : /* @__PURE__ */ jsx(Banner, { pill: "reason", message: reason }, "reason"),
+    listed.map((condition, i2) => /* @__PURE__ */ jsx(Banner, { pill: condition.severity, message: condition.message }, i2))
+  ] });
+}
+function settled2(status, shown2) {
+  return status !== void 0 && status === shown2 && !status.running;
+}
+function count(status, severity) {
+  return status.conditions.filter((condition) => condition.severity === severity).length;
 }
 var MARKS = {
+  reason: {
+    label: "Reason",
+    noun: "reason",
+    text: "bc:text-text-muted",
+    tint: "bc:bg-gray-500/10",
+    border: "bc:border-gray-400"
+  },
   error: {
     label: "Error",
     noun: "error",
@@ -8986,61 +9043,24 @@ var MARKS = {
     border: "bc:border-border-accent"
   }
 };
-function StatusLine({
-  status,
-  severities,
-  panel,
-  open,
-  toggle
-}) {
-  const said = status.status === "ready" ? status.summary : status.status === "invalid" || status.status === "waiting" ? status.reason : null;
-  const pills = SEVERITIES2.filter((severity) => severities.includes(severity)).flatMap((severity) => {
-    const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
-    if (n2 === 0) return [];
-    const mark = MARKS[severity];
-    return [
-      /* @__PURE__ */ jsxs(
-        "button",
-        {
-          type: "button",
-          "aria-expanded": open.has(severity),
-          "aria-controls": panel,
-          onClick: () => {
-            toggle(severity);
-          },
-          className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
-          children: [
-            /* @__PURE__ */ jsx(SeverityIcon, { severity }),
-            severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
-          ]
-        },
-        severity
-      )
-    ];
-  });
-  return /* @__PURE__ */ jsxs("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
-    said === null ? null : /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", children: said }),
-    pills
-  ] });
-}
-function Banner({ condition }) {
-  const mark = MARKS[condition.severity];
+function Banner({ pill, message }) {
+  const mark = MARKS[pill];
   return /* @__PURE__ */ jsxs(
     "li",
     {
-      "data-severity": condition.severity,
+      "data-pill": pill,
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
       children: [
-        /* @__PURE__ */ jsx("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx(SeverityIcon, { severity: condition.severity }) }),
+        /* @__PURE__ */ jsx("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx(PillIcon, { pill }) }),
         /* @__PURE__ */ jsxs("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
           /* @__PURE__ */ jsx("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
+          /* @__PURE__ */ jsx("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
         ] })
       ]
     }
   );
 }
-function SeverityIcon({ severity }) {
+function PillIcon({ pill }) {
   return /* @__PURE__ */ jsx(
     "svg",
     {
@@ -9052,12 +9072,12 @@ function SeverityIcon({ severity }) {
       strokeWidth: 1.6,
       strokeLinecap: "round",
       strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+      children: pill === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
         /* @__PURE__ */ jsx("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
         /* @__PURE__ */ jsx("path", { d: "M8 6.2v3.2M8 11.6v.1" })
       ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
         /* @__PURE__ */ jsx("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+        /* @__PURE__ */ jsx("path", { d: pill === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
       ] })
     }
   );
@@ -9167,10 +9187,11 @@ function AloneCard({ core, id: id2 }) {
                   className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              /* @__PURE__ */ jsx3(Footer, { ...footer })
+              sized ? /* @__PURE__ */ jsx3(Footer, { ...footer }) : null
             ]
           }
         ),
+        /* @__PURE__ */ jsx3(Pills, { ...footer }),
         /* @__PURE__ */ jsx3(Banners, { ...footer })
       ]
     }

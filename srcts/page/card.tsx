@@ -7,15 +7,17 @@
 // - The block's UI, which core mounts where the board lock leaves the block
 //   open, as the store's locked() says.
 // - The block's output, as R's chosen renderer draws it, which core mounts.
-// - The footer, one centred line of the block's status, with a pill for each
-//   severity of the conditions of R's reply.
-// - The banners of the conditions whose pills are open.
-// The footer and the banners are those of srcts/card, which the cards of
-// core's basic frontend draw as well.
-// While R evaluates the block, the footer and the output dim, and keep what
-// they show. The output also dims while the block is not ready, and keeps the
-// last output that it drew. The card shows conditions in its footer and its
-// banners alone, and never as toasts.
+// - The footer, the last line of the output's box, which shows a ready
+//   block's summary.
+// - Below the box, the pills: one for the reason of an invalid or a waiting
+//   block, and one for each severity of the conditions of R's reply.
+// - The banners of the pills that are open.
+// The footer, the pills and the banners are those of srcts/card, which the
+// cards of core's basic frontend draw as well.
+// While R evaluates the block, the footer, the pills and the output dim, and
+// keep what they show. The output also dims while the block is not ready, and
+// keeps the last output that it drew. The card shows conditions in its pills
+// and its banners alone, and never as toasts.
 // The card draws in the page's theme, which the board option dark_mode
 // switches, as on every page that core starts.
 // Core asks R for an output only once the block reads ready and the output's
@@ -23,8 +25,10 @@
 // So the card gives the output a height of its own from the first time the
 // block reads ready on, which the user may drag to another.
 // Before then there is nothing to draw, and the card of a block that fails or
-// reads invalid at once shows the footer and the banners alone, as that of a
+// reads invalid at once shows the pills and the banners alone, as that of a
 // waiting block does.
+// The box then has no footer either, since a block that never read ready has
+// no summary.
 // The footer is the last line of the output's box, so that the handle sits at
 // the end of the footer, clear of the output's own controls.
 
@@ -32,7 +36,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Banners, Footer, Mounted, useFooter, useSized, useStatus } from "../card/index.ts";
+import { Banners, Footer, Mounted, Pills, useFooter, useSized, useStatus } from "../card/index.ts";
 import { loadingNote } from "../core/index.ts";
 import { showError } from "../mount/index.ts";
 import type { BlockId } from "../types/board.ts";
@@ -109,8 +113,9 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
             sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"
           }`}
         />
-        <Footer {...footer} />
+        {sized ? <Footer {...footer} /> : null}
       </div>
+      <Pills {...footer} />
       <Banners {...footer} />
     </article>
   );

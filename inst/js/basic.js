@@ -751,33 +751,90 @@ function useFooter(status, severities = SEVERITIES) {
   const shown = useShown(status);
   const [open, setOpen] = useState5(OPEN_AT_START);
   const panel = useId3();
-  const toggle = useCallback2((severity) => {
+  const toggle = useCallback2((pill) => {
     setOpen((was) => {
       const next = new Set(was);
-      if (!next.delete(severity)) next.add(severity);
+      if (!next.delete(pill)) next.add(pill);
       return next;
     });
   }, []);
   return { status, shown, severities, open, toggle, panel };
 }
-function Footer({ status, shown, severities, open, toggle, panel }) {
-  const settled = status !== void 0 && status === shown && !status.running;
+function Footer({ status, shown }) {
   return /* @__PURE__ */ jsx6(
     "footer",
     {
       "aria-busy": status?.running === true,
       "data-status": shown?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:transition-opacity ${settled ? "" : "bc:opacity-50"}`,
-      children: shown === void 0 ? null : /* @__PURE__ */ jsx6(StatusLine, { status: shown, severities, panel, open, toggle })
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled(status, shown) ? "" : "bc:opacity-50"}`,
+      children: shown?.status === "ready" ? shown.summary : null
+    }
+  );
+}
+function Pills({ status, shown, severities, open, toggle, panel }) {
+  if (shown === void 0) return null;
+  const pills = [
+    ...shown.reason === null ? [] : ["reason"],
+    ...SEVERITIES.filter((severity) => severities.includes(severity) && count(shown, severity) > 0)
+  ];
+  if (pills.length === 0) return null;
+  return /* @__PURE__ */ jsx6(
+    "div",
+    {
+      role: "group",
+      "aria-label": "Status",
+      "aria-busy": status?.running === true,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled(status, shown) ? "" : "bc:opacity-50"}`,
+      children: pills.map((pill) => {
+        const mark = MARKS[pill];
+        const n = pill === "reason" ? 1 : count(shown, pill);
+        return /* @__PURE__ */ jsxs5(
+          "button",
+          {
+            type: "button",
+            "aria-expanded": open.has(pill),
+            "aria-controls": panel,
+            onClick: () => {
+              toggle(pill);
+            },
+            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+            children: [
+              /* @__PURE__ */ jsx6(PillIcon, { pill }),
+              pill === "reason" || pill === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
+            ]
+          },
+          pill
+        );
+      })
     }
   );
 }
 function Banners({ shown, severities, open, panel }) {
-  const listed = shown === void 0 ? [] : shown.conditions.filter((condition) => severities.includes(condition.severity) && open.has(condition.severity));
-  if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map((condition, i) => /* @__PURE__ */ jsx6(Banner, { condition }, i)) });
+  if (shown === void 0) return null;
+  const reason = open.has("reason") ? shown.reason : null;
+  const listed = shown.conditions.filter(
+    (condition) => severities.includes(condition.severity) && open.has(condition.severity)
+  );
+  if (reason === null && listed.length === 0) return null;
+  return /* @__PURE__ */ jsxs5("ul", { id: panel, "aria-label": "Reason and conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: [
+    reason === null ? null : /* @__PURE__ */ jsx6(Banner, { pill: "reason", message: reason }, "reason"),
+    listed.map((condition, i) => /* @__PURE__ */ jsx6(Banner, { pill: condition.severity, message: condition.message }, i))
+  ] });
+}
+function settled(status, shown) {
+  return status !== void 0 && status === shown && !status.running;
+}
+function count(status, severity) {
+  return status.conditions.filter((condition) => condition.severity === severity).length;
 }
 var MARKS = {
+  reason: {
+    label: "Reason",
+    noun: "reason",
+    text: "bc:text-text-muted",
+    tint: "bc:bg-gray-500/10",
+    border: "bc:border-gray-400"
+  },
   error: {
     label: "Error",
     noun: "error",
@@ -800,61 +857,24 @@ var MARKS = {
     border: "bc:border-border-accent"
   }
 };
-function StatusLine({
-  status,
-  severities,
-  panel,
-  open,
-  toggle
-}) {
-  const said = status.status === "ready" ? status.summary : status.status === "invalid" || status.status === "waiting" ? status.reason : null;
-  const pills = SEVERITIES.filter((severity) => severities.includes(severity)).flatMap((severity) => {
-    const n = status.conditions.filter((condition) => condition.severity === severity).length;
-    if (n === 0) return [];
-    const mark = MARKS[severity];
-    return [
-      /* @__PURE__ */ jsxs5(
-        "button",
-        {
-          type: "button",
-          "aria-expanded": open.has(severity),
-          "aria-controls": panel,
-          onClick: () => {
-            toggle(severity);
-          },
-          className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
-          children: [
-            /* @__PURE__ */ jsx6(SeverityIcon, { severity }),
-            severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
-          ]
-        },
-        severity
-      )
-    ];
-  });
-  return /* @__PURE__ */ jsxs5("span", { className: "bc:inline-flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2", children: [
-    said === null ? null : /* @__PURE__ */ jsx6("span", { className: "bc:text-text-muted", children: said }),
-    pills
-  ] });
-}
-function Banner({ condition }) {
-  const mark = MARKS[condition.severity];
+function Banner({ pill, message }) {
+  const mark = MARKS[pill];
   return /* @__PURE__ */ jsxs5(
     "li",
     {
-      "data-severity": condition.severity,
+      "data-pill": pill,
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
       children: [
-        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(SeverityIcon, { severity: condition.severity }) }),
+        /* @__PURE__ */ jsx6("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx6(PillIcon, { pill }) }),
         /* @__PURE__ */ jsxs5("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
           /* @__PURE__ */ jsx6("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: condition.message })
+          /* @__PURE__ */ jsx6("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
         ] })
       ]
     }
   );
 }
-function SeverityIcon({ severity }) {
+function PillIcon({ pill }) {
   return /* @__PURE__ */ jsx6(
     "svg",
     {
@@ -866,12 +886,12 @@ function SeverityIcon({ severity }) {
       strokeWidth: 1.6,
       strokeLinecap: "round",
       strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs5(Fragment, { children: [
+      children: pill === "warning" ? /* @__PURE__ */ jsxs5(Fragment, { children: [
         /* @__PURE__ */ jsx6("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
         /* @__PURE__ */ jsx6("path", { d: "M8 6.2v3.2M8 11.6v.1" })
       ] }) : /* @__PURE__ */ jsxs5(Fragment, { children: [
         /* @__PURE__ */ jsx6("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx6("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+        /* @__PURE__ */ jsx6("path", { d: pill === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
       ] })
     }
   );
@@ -1137,10 +1157,11 @@ var BlockCard = memo(function BlockCard2({
                   className: `bc:min-w-0 bc:transition-opacity ${ready ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              /* @__PURE__ */ jsx9(Footer, { ...footer })
+              sized ? /* @__PURE__ */ jsx9(Footer, { ...footer }) : null
             ]
           }
         ),
+        /* @__PURE__ */ jsx9(Pills, { ...footer }),
         /* @__PURE__ */ jsx9(Banners, { ...footer })
       ]
     }

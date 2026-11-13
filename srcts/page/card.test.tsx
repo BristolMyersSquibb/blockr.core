@@ -97,31 +97,39 @@ function draw(core: CardCore): { el: HTMLElement; controller: AbortController } 
   return { el, controller };
 }
 
-const footer = (el: HTMLElement): HTMLElement => find(el, "footer");
 const output = (el: HTMLElement): HTMLElement => find(el, '[aria-label="Output"]');
 
-// The output's box, whose last line is the footer.
+// The output's box, whose last line is the footer once the box has a height of
+// its own.
 function box(el: HTMLElement): HTMLElement {
-  const found = footer(el).parentElement;
-  if (found === null) throw new Error("Found no box around the footer.");
+  const found = output(el).parentElement;
+  if (found === null) throw new Error("Found no box around the output.");
   return found;
 }
 
-// The footer's line: the summary, where it shows one, and the text of each
-// pill.
-const line = (el: HTMLElement): string[] => texts(footer(el), "span > span, button");
+const footer = (el: HTMLElement): HTMLElement => find(el, "footer");
+
+// The footer's line, a ready block's summary, or null where the card draws no
+// footer.
+const summary = (el: HTMLElement): string | null => el.querySelector("footer")?.textContent ?? null;
+
+// The line of pills below the output's box.
+const status = (el: HTMLElement): HTMLElement => find(el, '[aria-label="Status"]');
+
+// The text of each pill.
+const pills = (el: HTMLElement): string[] => texts(el, '[aria-label="Status"] button');
 
 // The pill whose text is the one given.
 function pill(el: HTMLElement, text: string): HTMLButtonElement {
-  const found = [...footer(el).querySelectorAll("button")].find((button) => button.textContent === text);
+  const found = [...status(el).querySelectorAll("button")].find((button) => button.textContent === text);
   if (found === undefined) throw new Error(`Found no pill ${text}.`);
   return found;
 }
 
-// The severity and the message of each banner that is open, in order.
+// The pill and the message of each banner that is open, in order.
 function banners(el: HTMLElement): string[][] {
-  return [...el.querySelectorAll('ul[aria-label="Conditions"] li')].map((li) => [
-    li.getAttribute("data-severity") ?? "",
+  return [...el.querySelectorAll('ul[aria-label="Reason and conditions"] li')].map((li) => [
+    li.getAttribute("data-pill") ?? "",
     li.querySelector("span > span:last-child")?.textContent ?? "",
   ]);
 }
@@ -147,8 +155,9 @@ describe("the card of a block that serve() serves alone", () => {
     expect(r.events).toEqual(["UI of b mounts", "output of b mounts"]);
     expect(r.demands).toEqual([{ owner: OWNER, blocks: ["b"], released: false }]);
     // Nothing to show before the block first reads ready, so the output has
-    // no height, and R draws nothing for it yet.
-    expect(footer(el).textContent).toBe("");
+    // no height and its box no footer, and R draws nothing for it yet.
+    expect(summary(el)).toBeNull();
+    expect(el.querySelector('[aria-label="Status"]')).toBeNull();
     expect(output(el).className).toContain("bc:h-0");
   });
 
@@ -160,12 +169,14 @@ describe("the card of a block that serve() serves alone", () => {
     expect(output(el).textContent).toBe("Output of b");
   });
 
-  test("shows a ready block's summary, and a pill that counts its warnings and one its messages, each opening its banners", async () => {
+  test("shows a ready block's summary in its footer, and below the output's box a pill that counts its warnings and one its messages, each opening its banners", async () => {
     const r = played();
     const { el } = draw(r.core);
 
     await r.set({ summary: "<data.frame> [50 × 5]" });
-    expect(line(el)).toEqual(["<data.frame> [50 × 5]"]);
+    expect(summary(el)).toBe("<data.frame> [50 × 5]");
+    expect(box(el).lastElementChild).toBe(footer(el));
+    expect(pills(el)).toEqual([]);
     expect(output(el).className).toContain("bc:flex-1");
     expect(output(el).dataset.current).toBe("true");
 
@@ -177,7 +188,11 @@ describe("the card of a block that serve() serves alone", () => {
         condition("warning", "Dropped a column."),
       ],
     });
-    expect(line(el)).toEqual(["<data.frame> [0 × 5]", "2 warnings", "1 message"]);
+    expect(summary(el)).toBe("<data.frame> [0 × 5]");
+    // The pills sit on a line of their own below the box, which holds what
+    // the renderer draws.
+    expect(box(el).nextElementSibling).toBe(status(el));
+    expect(pills(el)).toEqual(["2 warnings", "1 message"]);
     expect(banners(el)).toEqual([]);
 
     const warnings = pill(el, "2 warnings");
@@ -211,7 +226,7 @@ describe("the card of a block that serve() serves alone", () => {
       conditions: [condition("warning", "NAs introduced by coercion"), condition("error", "object 'Sepal' not found\nDid you mean 'Sepal.Width'?")],
     });
 
-    expect(line(el)).toEqual(["error", "1 warning"]);
+    expect(pills(el)).toEqual(["error", "1 warning"]);
     const error = pill(el, "error");
     expect(error.className).toContain("bc:text-text-danger");
     expect(error.getAttribute("aria-expanded")).toBe("true");
@@ -227,7 +242,7 @@ describe("the card of a block that serve() serves alone", () => {
     expect(banners(el)).toEqual([["error", "object 'Petal' not found"]]);
   });
 
-  test("shows why a waiting or an invalid block does not run on the footer's line, muted, and pills for the block's conditions alone", async () => {
+  test("shows why a waiting or an invalid block does not run behind a pill of its own, before the pills of the block's conditions", async () => {
     const r = played();
     const { el } = draw(r.core);
 
@@ -236,61 +251,72 @@ describe("the card of a block that serve() serves alone", () => {
       evaluated: null,
       reason: 'This block is waiting for its input "data" to be linked.',
     });
-    expect(footer(el).textContent).toBe('This block is waiting for its input "data" to be linked.');
-    expect(find(footer(el), "span > span").className).toContain("bc:text-text-muted");
-    expect(footer(el).querySelector("button")).toBeNull();
-    expect(footer(el).className).not.toContain("bc:opacity-50");
+    expect(pills(el)).toEqual(["reason"]);
+    const reason = pill(el, "reason");
+    expect(reason.className).toContain("bc:text-text-muted");
+    expect(reason.getAttribute("aria-expanded")).toBe("false");
+    expect(status(el).className).not.toContain("bc:opacity-50");
     expect(banners(el)).toEqual([]);
 
-    // Why a block is invalid is no condition, so no pill counts it.
+    await click(reason);
+    expect(banners(el)).toEqual([["reason", 'This block is waiting for its input "data" to be linked.']]);
+
+    // The pill keeps its state as the reason changes.
     await r.set({ status: "invalid", reason: "Upload a file." });
-    expect(line(el)).toEqual(["Upload a file."]);
-    expect(banners(el)).toEqual([]);
+    expect(pills(el)).toEqual(["reason"]);
+    expect(banners(el)).toEqual([["reason", "Upload a file."]]);
 
-    // A block that R says waits shows its reason beside the pills of the
-    // conditions that R raised.
+    // A block that R says waits shows the pill of its reason before those of
+    // the conditions that R raised, and its banner before theirs.
     await r.set({
       status: "waiting",
       reason: "Save to write the file.",
       conditions: [condition("message", "Checked the path.")],
     });
-    expect(line(el)).toEqual(["Save to write the file.", "1 message"]);
+    expect(pills(el)).toEqual(["reason", "1 message"]);
     await click(pill(el, "1 message"));
-    expect(banners(el)).toEqual([["message", "Checked the path."]]);
+    expect(banners(el)).toEqual([
+      ["reason", "Save to write the file."],
+      ["message", "Checked the path."],
+    ]);
   });
 
-  test("dims the footer and the output while R evaluates the block, and keeps what they show", async () => {
+  test("dims the footer, the pills and the output while R evaluates the block, and keeps what they show", async () => {
     const r = played();
     const { el } = draw(r.core);
 
     await r.set({ summary: "<data.frame> [6 × 5]", conditions: [condition("warning", "Dropped a column.")] });
     expect(footer(el).className).not.toContain("bc:opacity-50");
+    expect(status(el).className).not.toContain("bc:opacity-50");
     expect(output(el).className).not.toContain("bc:opacity-50");
 
     // The user changed the block's state, and R evaluates its next revision.
     await r.set({ status: "stale", revision: 2, running: true, summary: "<data.frame> [6 × 5]" });
-    expect(line(el)).toEqual(["<data.frame> [6 × 5]", "1 warning"]);
+    expect([summary(el), pills(el)]).toEqual(["<data.frame> [6 × 5]", ["1 warning"]]);
     expect(footer(el).className).toContain("bc:opacity-50");
     expect(footer(el).getAttribute("aria-busy")).toBe("true");
+    expect(status(el).className).toContain("bc:opacity-50");
+    expect(status(el).getAttribute("aria-busy")).toBe("true");
     expect(output(el).className).toContain("bc:opacity-50");
     expect(output(el).textContent).toBe("Output of b");
 
     await r.set({ revision: 2, evaluated: 2, summary: "<data.frame> [3 × 5]" });
-    expect(line(el)).toEqual(["<data.frame> [3 × 5]"]);
+    expect([summary(el), pills(el)]).toEqual(["<data.frame> [3 × 5]", []]);
     expect(footer(el).className).not.toContain("bc:opacity-50");
     expect(output(el).dataset.current).toBe("true");
   });
 
-  test("gives the output a height of its own from the first time the block reads ready on, and keeps it", async () => {
+  test("gives the output a height of its own, and its box a footer, from the first time the block reads ready on, and keeps them", async () => {
     const r = played();
     const { el } = draw(r.core);
 
     // A block that fails or reads invalid at once has nothing to draw, so the
-    // card shows its footer and its banners alone.
+    // card shows its pills and its banners alone.
     await r.set({ status: "failed", conditions: [condition("error", "object 'Sepal' not found")] });
     expect(output(el).className).toContain("bc:h-0");
     expect(box(el).className).not.toContain("bc:h-96");
-    expect(line(el)).toEqual(["error"]);
+    expect(summary(el)).toBeNull();
+    expect(pills(el)).toEqual(["error"]);
     expect(banners(el)).toEqual([["error", "object 'Sepal' not found"]]);
     await r.set({ status: "invalid", revision: 2, evaluated: 2, reason: "Choose a column." });
     expect(output(el).className).toContain("bc:h-0");
@@ -298,6 +324,7 @@ describe("the card of a block that serve() serves alone", () => {
     await r.set({ revision: 3, evaluated: 3, summary: "<data.frame> [6 × 5]" });
     expect(output(el).className).toContain("bc:flex-1");
     expect(box(el).className).toContain("bc:h-96");
+    expect(summary(el)).toBe("<data.frame> [6 × 5]");
 
     // Core keeps drawing the last output as the block fails or waits, so the
     // output keeps its height, greyed out.
@@ -312,6 +339,7 @@ describe("the card of a block that serve() serves alone", () => {
     });
     expect(output(el).className).toContain("bc:flex-1");
     expect(box(el).className).toContain("bc:h-96");
+    expect(summary(el)).toBe("");
   });
 
   test("ends the card and its mounts, and releases its demand, as the signal aborts", async () => {

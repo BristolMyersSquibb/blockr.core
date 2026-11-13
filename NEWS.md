@@ -216,7 +216,7 @@
   A block's status in the client holds the reason beside its summary.
   The scheduler writes the reason of a block that an input or a block upstream keeps waiting, in place of a condition.
   A one-time evaluation with parameters runs a block that R says waits, and the block takes its reply.
-  A card shows the reason on the line of its footer, where a ready block shows its summary (#596).
+  A card shows the reason behind a pill of its own, which `show_conditions` never hides, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
@@ -418,12 +418,13 @@
   R exports each block's latest result through `exportTestValues()` as `result`: a list by block ID for a board, and the block's result for a block that `serve()` serves alone.
   The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read (#443).
 * The cards of core's basic frontend show their block's status as the card of a block that `serve()` serves alone does, in place of the summary below the output and the list of conditions.
-  A footer, one centered line under the output, shows a ready block's summary, or why an invalid or a waiting block does not run, and a pill for each severity of the conditions of R's reply that the board option `show_conditions` names.
+  A footer, one centered line at the end of the output's box, shows a ready block's summary.
+  Below the box sit a pill that reads `reason` for an invalid or a waiting block, and a pill for each severity of the conditions of R's reply that the board option `show_conditions` names.
   The pill of the errors reads `error`, and those of the warnings and the messages count them.
-  Each pill opens and closes the banners of its conditions below the output, each condition in full, in the color of its severity and in the order R raised them.
+  Each pill opens and closes its banners below it: the reason, or each condition in full, in the color of its severity and in the order R raised them.
   The pill of the errors is open from the start, so that a failed block shows its error at once.
   A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
-  Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its footer and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
+  Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its pills and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
 * The logger that the blockr option `logger` picks gets the message as written, its level, its package, `asis` and `attributes`.
   Until now, it got one finished line.
   So `cat_logger()` and `cnd_logger()` put the level, the time and the package in front of the message themselves, and wrap it, as `write_log()` did.
