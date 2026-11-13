@@ -54,6 +54,7 @@ function UploadBlock({ host }) {
   }
   const held = typeof path.value === "string" && path.value !== "" ? path.value : void 0;
   const error = failed ?? path.error;
+  const said = uploading !== null ? `Uploading ${uploading}\u2026` : held !== void 0 ? `Uploaded ${basename(held)}` : path.reason;
   return /* @__PURE__ */ jsxs(Stack, { children: [
     /* @__PURE__ */ jsx(Field, { label: "Upload data", children: /* @__PURE__ */ jsx(
       "input",
@@ -68,7 +69,7 @@ function UploadBlock({ host }) {
         }
       }
     ) }),
-    /* @__PURE__ */ jsx("p", { className: styles.hint, children: uploading !== null ? `Uploading ${uploading}\u2026` : held !== void 0 ? `Uploaded ${basename(held)}` : "No file uploaded yet." }),
+    said !== null && /* @__PURE__ */ jsx("p", { className: styles.hint, children: said }),
     error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error })
   ] });
 }

@@ -218,7 +218,7 @@
   The scheduler writes the reason of a block that an input or a block upstream keeps waiting, in place of a condition.
   A one-time evaluation with parameters runs a block that R says waits, and the block takes its reply.
   A card shows the reason on the line of its footer, where a ready block shows its summary, and `useValue()` gives it to the field bound to each state arg that it concerns.
-  Core's inputs show it below the field, in muted text (#596).
+  Core's inputs show it below the field, in muted text, and so do the file pickers of the upload and file browser blocks (#596).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.

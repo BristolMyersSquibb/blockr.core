@@ -57,6 +57,7 @@ function FileBrowserBlock({ host }) {
   const loading = listed.loading;
   const listing2 = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
+  const said = held === void 0 ? file.reason : `Chosen: ${held}`;
   const go = (next) => {
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
     setPlace(next);
@@ -125,7 +126,7 @@ function FileBrowserBlock({ host }) {
       }),
       listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ jsx(Note, { text: "This directory is empty." })
     ] }) }),
-    /* @__PURE__ */ jsx("p", { className: styles.hint, children: held === void 0 ? "No file chosen yet." : `Chosen: ${held}` }),
+    said !== null && /* @__PURE__ */ jsx("p", { className: styles.hint, children: said }),
     error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error })
   ] });
 }

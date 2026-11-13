@@ -64,6 +64,9 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
   const loading = listed.loading;
   const listing = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
   const error = (loading ? null : listed.error) ?? file.error;
+  // The line below the listing names the file chosen,
+  // and otherwise the reason that concerns file_path, as core's inputs show it.
+  const said = held === undefined ? file.reason : `Chosen: ${held}`;
 
   // Shows another place, which it asks R to list.
   const go = (next: Place): void => {
@@ -151,7 +154,7 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
           </>
         )}
       </ul>
-      <p className={styles.hint}>{held === undefined ? "No file chosen yet." : `Chosen: ${held}`}</p>
+      {said !== null && <p className={styles.hint}>{said}</p>}
       {error !== null && (
         <p role="alert" className={styles.alert}>
           {error}
