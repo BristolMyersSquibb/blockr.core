@@ -219,10 +219,7 @@ test_that("with both locks, R keeps what building a locked block signalled", {
   for (revision in 1:2) {
     reply <- evaluated(session, "1", "a", revision, recipe)
     expect_identical(reply$status, "invalid")
-    expect_identical(
-      reply$reason,
-      list(message = "Choose a dataset.", arg = I("dataset"))
-    )
+    expect_identical(reply$reason, "Choose a dataset.")
     expect_length(reply$conditions, 0L)
   }
 })

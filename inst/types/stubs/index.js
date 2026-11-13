@@ -50,10 +50,6 @@ function listing(items) {
 function quoted(items) {
   return listing(items.map((item) => `"${item}"`));
 }
-function reasonFor(status, arg) {
-  const reason = status.reason;
-  return reason?.arg.includes(arg) === true ? reason.message : null;
-}
 function packageFromId(id2) {
   const at = id2.indexOf("-");
   if (at < 0) return null;
@@ -2273,22 +2269,18 @@ function waiting(why, revision, evaluated, running2) {
   };
 }
 function waitingFor(what) {
-  let message;
   if ("upstream" in what) {
     const blocks = what.upstream.length === 1 ? "block" : "blocks";
-    message = `This block is waiting for ${blocks} ${quoted(what.upstream)}.`;
-  } else if (what.unlinked.includes("...")) {
-    message = "This block is waiting for a block to be linked to it.";
-  } else {
-    const inputs = what.unlinked.length === 1 ? "input" : "inputs";
-    message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
+    return `This block is waiting for ${blocks} ${quoted(what.upstream)}.`;
   }
-  return { message, arg: [] };
+  if (what.unlinked.includes("...")) {
+    return "This block is waiting for a block to be linked to it.";
+  }
+  const inputs = what.unlinked.length === 1 ? "input" : "inputs";
+  return `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
 }
 function sameStatus(a2, b2) {
-  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && // The scheduler writes the reason of a block that it keeps waiting afresh
-  // in each pass.
-  jsonEqual(a2.reason, b2.reason) && a2.conditions.length === b2.conditions.length && a2.conditions.every((condition, i2) => condition === b2.conditions[i2]);
+  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.reason === b2.reason && a2.conditions.length === b2.conditions.length && a2.conditions.every((condition, i2) => condition === b2.conditions[i2]);
 }
 function blockStatuses(input2) {
   const statuses = /* @__PURE__ */ new Map();
@@ -2324,7 +2316,7 @@ function keptWaiting(inputs, statuses) {
   return blocked.length > 0 ? waitingFor({ upstream: blocked }) : void 0;
 }
 function waitingError(id2, status) {
-  const why = status.reason?.message ?? "This block is waiting.";
+  const why = status.reason ?? "This block is waiting.";
   return new Error(
     `${why.replace(/^This block/, `Block "${id2}"`)} Its evaluation with parameters is not sent.`
   );
@@ -9823,7 +9815,7 @@ function StatusLine({
   open,
   toggle
 }) {
-  const said = status.status === "ready" ? status.summary : status.status === "invalid" || status.status === "waiting" ? status.reason?.message ?? null : null;
+  const said = status.status === "ready" ? status.summary : status.status === "invalid" || status.status === "waiting" ? status.reason : null;
   const pills = SEVERITIES2.filter((severity) => severities.includes(severity)).flatMap((severity) => {
     const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
     if (n2 === 0) return [];
@@ -11812,12 +11804,12 @@ function NumberInput({
     const trimmed = input2.trim();
     if (trimmed === "") return {};
     const value2 = Number(trimmed);
-    if (!Number.isInteger(value2)) return { error: `${trimmed} is not a whole number.` };
+    if (!Number.isInteger(value2)) return { reason: `${trimmed} is not a whole number.` };
     if (min !== void 0 && value2 < min) {
-      return { error: `${trimmed} is below the minimum of ${String(min)}.` };
+      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
     }
     if (largest !== void 0 && value2 > largest) {
-      return { error: `${trimmed} is above the maximum of ${String(largest)}.` };
+      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
     }
     return { value: value2 };
   };
@@ -11854,8 +11846,7 @@ function NumberInput({
         onBlur: settle2
       }
     ) }),
-    /* @__PURE__ */ jsx20(Reason, { reason: bound.reason }),
-    /* @__PURE__ */ jsx20(Refusal, { error: checked3.error ?? bound.error })
+    /* @__PURE__ */ jsx20(Refusal, { error: checked3.reason ?? bound.error })
   ] });
 }
 function Select({
@@ -11886,7 +11877,6 @@ function Select({
         ]
       }
     ) }),
-    /* @__PURE__ */ jsx20(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
@@ -11932,15 +11922,11 @@ function Checklist({
       }),
       choices !== void 0 && empty2 !== void 0 && shown2.length === 0 && /* @__PURE__ */ jsx20("p", { className: styles.hint, children: empty2 })
     ] }),
-    /* @__PURE__ */ jsx20(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
 function missing(value2) {
   return `${value2} (not available)`;
-}
-function Reason({ reason }) {
-  return reason === null ? null : /* @__PURE__ */ jsx20("p", { className: styles.hint, children: reason });
 }
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx20("p", { role: "alert", className: styles.alert, children: error });
@@ -11961,7 +11947,6 @@ function useValue(host, key) {
   const name2 = key ?? ("option" in host ? host.option : "");
   const [value2, setValue] = useState16(() => held(host, name2));
   const [error, setError] = useState16(null);
-  const reason = useReason(host, name2);
   const binding = useRef8(null);
   useLayoutEffect7(() => {
     const bound = bind2(host, name2, setValue, {
@@ -11979,7 +11964,6 @@ function useValue(host, key) {
     () => ({
       value: value2,
       error,
-      reason,
       get: () => binding.current?.get() ?? held(host, name2),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
       type: (next) => {
@@ -11989,16 +11973,8 @@ function useValue(host, key) {
         binding.current?.flush();
       }
     }),
-    [value2, error, reason, host, name2]
+    [value2, error, host, name2]
   );
-}
-function useReason(host, key) {
-  const subscribe = useCallback10(
-    (notify) => "option" in host ? () => void 0 : host.on("context", notify),
-    [host]
-  );
-  const read = useCallback10(() => "option" in host ? null : reasonFor(host.context().status, key), [host, key]);
-  return useSyncExternalStore4(subscribe, read);
 }
 function held(host, key) {
   return "option" in host ? host.value() : own(host.state(), key);

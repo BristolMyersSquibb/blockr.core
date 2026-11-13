@@ -54,7 +54,7 @@ function UploadBlock({ host }) {
   }
   const held = typeof path.value === "string" && path.value !== "" ? path.value : void 0;
   const error = failed ?? path.error;
-  const said = uploading !== null ? `Uploading ${uploading}\u2026` : held !== void 0 ? `Uploaded ${basename(held)}` : path.reason;
+  const said = uploading !== null ? `Uploading ${uploading}\u2026` : held === void 0 ? null : `Uploaded ${basename(held)}`;
   return /* @__PURE__ */ jsxs(Stack, { children: [
     /* @__PURE__ */ jsx(Field, { label: "Upload data", children: /* @__PURE__ */ jsx(
       "input",

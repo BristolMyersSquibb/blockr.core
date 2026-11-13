@@ -282,7 +282,7 @@ describe("a card", () => {
     const { el, core } = await drawn({
       evaluate: (request) =>
         request.block === "c"
-          ? { status: "invalid", reason: { message: "Choose at least one column to join by.", arg: ["by"] } }
+          ? { status: "invalid", reason: "Choose at least one column to join by." }
           : undefined,
     });
 
@@ -332,7 +332,7 @@ describe("a card", () => {
     // The blocks downstream of a failed block wait on it, and their footers
     // say why, whatever show_conditions names.
     expect(core.scheduler.status("c")?.status).toBe("waiting");
-    const why = core.scheduler.status("c")?.reason?.message;
+    const why = core.scheduler.status("c")?.reason;
     expect(why).toMatch(/^This block is waiting for/);
     expect(badge(card(el, "Merge"))).toBe("waiting");
     expect(find(card(el, "Merge"), "footer").textContent).toBe(why);

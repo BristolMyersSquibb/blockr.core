@@ -21,18 +21,12 @@ test_that("a merge block is invalid until it joins by a column", {
   res <- evaluate_block(merge_block, list(), inputs, results)
 
   expect_identical(res[["status"]], "invalid")
-  expect_identical(
-    res[["reason"]],
-    list(message = "Choose at least one column to join by.", arg = "by")
-  )
+  expect_identical(res[["reason"]], "Choose at least one column to join by.")
 
   res <- evaluate_block(merge_block, list(by = list()), inputs, results)
 
   expect_identical(res[["status"]], "invalid")
-  expect_identical(
-    res[["reason"]],
-    list(message = "Choose at least one column to join by.", arg = "by")
-  )
+  expect_identical(res[["reason"]], "Choose at least one column to join by.")
 
   res <- evaluate_block(merge_block, list(by = "Time", all_x = TRUE), inputs,
                         results)

@@ -10,12 +10,7 @@
 \usage{
 blockr_abort(..., class = character(), envir = parent.frame())
 
-blockr_invalid(
-  ...,
-  arg = character(),
-  class = character(),
-  envir = parent.frame()
-)
+blockr_invalid(..., class = character(), envir = parent.frame())
 
 blockr_waiting(..., class = character(), envir = parent.frame())
 
@@ -42,8 +37,6 @@ blockr_inform(
 
 \item{envir}{Forwarded to \code{\link[cli:pluralize]{cli::pluralize()}}}
 
-\item{arg}{The state args that the reason concerns, as a character vector}
-
 \item{frequency, frequency_id}{Forwarded to \code{\link[rlang:warn]{rlang::warn()}}}
 }
 \value{
@@ -64,8 +57,6 @@ but keeps its message as the block's reason (see \code{\link[=evaluate_block]{ev
 \itemize{
 \item The signal \code{blockr_invalid()} says that a block's state cannot run yet,
 such as a selection the user emptied.
-Its \code{arg} names the state args that the reason concerns,
-so that a block's UI shows the reason by the fields of those args.
 \item The signal \code{blockr_waiting()} says that a block's state can run, but that
 the block runs only once something else happens.
 An example is the write block of blockr.io in manual mode:
@@ -88,7 +79,7 @@ merge_block <- new_block_class(
   },
   expr = function(by) {
     if (!length(by)) {
-      blockr_invalid("Choose at least one column to join by.", arg = "by")
+      blockr_invalid("Choose at least one column to join by.")
     }
     bbquote(merge(.(x), .(y), by = .(by)))
   },

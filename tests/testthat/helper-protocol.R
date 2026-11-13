@@ -267,7 +267,7 @@ protocol_r_values <- function() {
         proto_evaluated(
           "21", "c", 9L,
           status = "invalid",
-          reason = proto_reason("Choose at least one column to join by.", "by")
+          reason = "Choose at least one column to join by."
         )
       )
     ),
@@ -276,7 +276,7 @@ protocol_r_values <- function() {
         proto_evaluated(
           "31", "w", 12L,
           status = "waiting",
-          reason = proto_reason("Save to write the file.")
+          reason = "Save to write the file."
         )
       )
     ),
@@ -1090,11 +1090,6 @@ proto_evaluated <- function(id, block, revision, status = "ok",
     stdout = "",
     stderr = ""
   )
-}
-
-# Why a block is invalid or waiting, with the state args that it concerns.
-proto_reason <- function(message, arg = character()) {
-  obj(message = message, arg = I(arg))
 }
 
 proto_error <- function(id, condition) {

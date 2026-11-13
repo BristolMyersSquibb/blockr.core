@@ -27,10 +27,6 @@ function own(record, key) {
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
-function reasonFor(status, arg) {
-  const reason = status.reason;
-  return reason?.arg.includes(arg) === true ? reason.message : null;
-}
 
 // srcts/controls/controls.tsx
 import { Fragment as Fragment2, jsx, jsxs } from "react/jsx-runtime";
@@ -86,7 +82,6 @@ function controls(host, signal) {
       () => draw({
         value,
         error: refusal,
-        reason: "option" in host ? null : reasonFor(host.context().status, key),
         get: () => binding.get(),
         commit: (next) => binding.commit(next),
         type: (next) => {
@@ -189,11 +184,9 @@ function controls(host, signal) {
       }
     };
   }
-  const unfollow = "option" in host ? void 0 : host.on("context", redraw);
   function cleanup() {
     if (ended) return;
     ended = true;
-    unfollow?.();
     for (const binding of bindings) binding.release();
     for (const request of followed) request.release();
     root.unmount();

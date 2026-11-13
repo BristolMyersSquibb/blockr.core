@@ -421,16 +421,10 @@ r_condition <- function(cnd) {
   res
 }
 
-# Why a block is invalid or waiting as a reply carries it, or `NULL`,
-# with the state args that it concerns as an array and its message as valid
-# UTF-8.
+# Why a block is invalid or waiting as a reply carries it, as valid UTF-8, or
+# `NULL`.
 reason_reply <- function(x) {
-
-  if (is.null(x)) {
-    return(NULL)
-  }
-
-  list(message = utf8_text(x[["message"]]), arg = I(x[["arg"]]))
+  if (not_null(x)) utf8_text(x)
 }
 
 # A condition as a reply carries it,

@@ -234,7 +234,7 @@ describe("the card of a block that serve() serves alone", () => {
     await r.set({
       status: "waiting",
       evaluated: null,
-      reason: { message: 'This block is waiting for its input "data" to be linked.', arg: [] },
+      reason: 'This block is waiting for its input "data" to be linked.',
     });
     expect(footer(el).textContent).toBe('This block is waiting for its input "data" to be linked.');
     expect(find(footer(el), "span > span").className).toContain("bc:text-text-muted");
@@ -243,7 +243,7 @@ describe("the card of a block that serve() serves alone", () => {
     expect(banners(el)).toEqual([]);
 
     // Why a block is invalid is no condition, so no pill counts it.
-    await r.set({ status: "invalid", reason: { message: "Upload a file.", arg: ["file_path"] } });
+    await r.set({ status: "invalid", reason: "Upload a file." });
     expect(line(el)).toEqual(["Upload a file."]);
     expect(banners(el)).toEqual([]);
 
@@ -251,7 +251,7 @@ describe("the card of a block that serve() serves alone", () => {
     // conditions that R raised.
     await r.set({
       status: "waiting",
-      reason: { message: "Save to write the file.", arg: [] },
+      reason: "Save to write the file.",
       conditions: [condition("message", "Checked the path.")],
     });
     expect(line(el)).toEqual(["Save to write the file.", "1 message"]);
@@ -292,7 +292,7 @@ describe("the card of a block that serve() serves alone", () => {
     expect(box(el).className).not.toContain("bc:h-96");
     expect(line(el)).toEqual(["error"]);
     expect(banners(el)).toEqual([["error", "object 'Sepal' not found"]]);
-    await r.set({ status: "invalid", revision: 2, evaluated: 2, reason: { message: "Choose a column.", arg: ["x"] } });
+    await r.set({ status: "invalid", revision: 2, evaluated: 2, reason: "Choose a column." });
     expect(output(el).className).toContain("bc:h-0");
 
     await r.set({ revision: 3, evaluated: 3, summary: "<data.frame> [6 × 5]" });
@@ -308,7 +308,7 @@ describe("the card of a block that serve() serves alone", () => {
       status: "waiting",
       revision: 5,
       evaluated: 4,
-      reason: { message: 'This block is waiting for its input "data" to be linked.', arg: [] },
+      reason: 'This block is waiting for its input "data" to be linked.',
     });
     expect(output(el).className).toContain("bc:flex-1");
     expect(box(el).className).toContain("bc:h-96");

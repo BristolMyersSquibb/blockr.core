@@ -28,7 +28,7 @@ dataset_block <- new_block_class(
   "dataset_block",
   expr = function(dataset, package = "datasets") {
     if (missing(dataset) || !isTRUE(nzchar(dataset))) {
-      blockr_invalid("Choose a dataset.", arg = "dataset")
+      blockr_invalid("Choose a dataset.")
     }
     call("::", as.name(package), as.name(dataset))
   },

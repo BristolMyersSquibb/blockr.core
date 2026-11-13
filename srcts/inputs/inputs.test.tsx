@@ -214,60 +214,6 @@ describe("the inputs of a block's UI", () => {
 
     expect(host.submitted).toEqual([form({ label: "yz" })]);
   });
-
-  test("say below each input, in muted text, why the block is invalid or waiting, where the reason names its state arg", () => {
-    const { host, el } = block();
-    const hints = (): string[] => [...el.querySelectorAll("p")].map((p) => `${p.className.includes("text-muted") ? "muted" : "alert"}: ${p.textContent}`);
-    expect(hints()).toEqual([]);
-
-    act(() => {
-      host.setContext({
-        status: { ...host.context().status, status: "invalid", reason: { message: "Choose the columns.", arg: ["direction", "by"] } },
-      });
-    });
-    expect(hints()).toEqual(["muted: Choose the columns.", "muted: Choose the columns."]);
-    // The checklist's reason sits in its fieldset, below its checkboxes.
-    expect(find(el, "fieldset p").textContent).toBe("Choose the columns.");
-
-    // A reason that names no state arg, as for a block that waits, shows by
-    // no input.
-    act(() => {
-      host.setContext({
-        status: { ...host.context().status, status: "waiting", reason: { message: "Save to write the file.", arg: [] } },
-      });
-    });
-    expect(hints()).toEqual([]);
-
-    act(() => {
-      host.setContext({
-        status: { ...host.context().status, status: "invalid", reason: { message: "Choose a label.", arg: ["label"] } },
-      });
-    });
-    expect(hints()).toEqual(["muted: Choose a label."]);
-    act(() => {
-      host.setContext({ status: { ...host.context().status, status: "ready", reason: null } });
-    });
-    expect(hints()).toEqual([]);
-  });
-
-  test("say a refusal as an alert below the reason", async () => {
-    const { host, el, inputs } = block();
-    act(() => {
-      host.setContext({
-        status: { ...host.context().status, status: "invalid", reason: { message: "Choose a label.", arg: ["label"] } },
-      });
-    });
-
-    await act(async () => {
-      type(inputs.label, "zzz");
-      press(inputs.label, "Enter");
-      await Promise.resolve();
-    });
-
-    expect([...el.querySelectorAll("p")].map((p) => p.getAttribute("role") ?? "muted")).toEqual(["muted", "alert"]);
-    expect(find(el, "p").textContent).toBe("Choose a label.");
-    expect(texts(el, '[role="alert"]')[0]).toContain("which the fixture does not list");
-  });
 });
 
 // The UIs of core's board options, each bound to the board option's value.

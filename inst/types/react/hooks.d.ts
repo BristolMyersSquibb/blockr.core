@@ -14,7 +14,6 @@ export declare function useOutput(host: OutputHost): OutputSnapshot;
 export interface Bound {
     readonly value: Json | undefined;
     readonly error: string | null;
-    readonly reason: string | null;
     get(): Json | undefined;
     commit(value: Json): Promise<boolean>;
     type(value: Json | undefined): void;

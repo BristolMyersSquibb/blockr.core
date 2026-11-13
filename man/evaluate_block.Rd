@@ -49,9 +49,8 @@ The evaluation \code{evaluate_block()} returns an object of class
 \code{"waiting"} or \code{"error"}, the block expression as \code{expr}, the \code{result}, its
 \code{summary}, the \code{reason} and the \code{conditions} raised, where what was not
 reached is \code{NULL}.
-The reason is a list of its \code{message} and the state args it concerns, as a
-character vector \code{arg}, for an evaluation that is \code{invalid} or \code{waiting},
-and \code{NULL} otherwise.
+The reason is a string for an evaluation that is \code{invalid} or \code{waiting}, and
+\code{NULL} otherwise.
 The result is what \code{block_eval()} returns, while \code{result_summary()} returns
 a string and \code{eval_env()} an environment.
 }
@@ -77,11 +76,9 @@ its message and the phase that raised it: \code{inputs}, \code{expr}, which cove
 interpolation, \code{block_eval} or \code{result_summary}. Warnings and messages are
 recorded rather than signaled.
 The error that makes a block \code{invalid} or \code{waiting} is no condition of the
-evaluation, but its reason, which is part of the block's status, as a ready
-block's summary is.
-The reason holds the error's message and the state args that it concerns:
-those that the \code{arg} of a \code{blockr_invalid()} names, and none where R's
-error for an unset arg or a \code{blockr_waiting()} stopped the block.
+evaluation.
+Its message is the block's reason, which is part of the block's status, as a
+ready block's summary is.
 
 The \code{block_eval()} generic runs the block expression, \code{expr}, in \code{env},
 where each upstream block's result is bound to its id, dispatching on the

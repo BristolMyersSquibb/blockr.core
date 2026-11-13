@@ -7,5 +7,5 @@ export type { BlockRegistry, CoreApi, FrontendModule, Note, OutputEvents, Plugin
 export type { Change, Delta, Dropped, Hints, Migration, Option, Options, Origin, Patch, PluginClass, Plugins, Storage, StorageControl, Store, StoreError, } from "./store/index.ts";
 export type { Command, CommandError, Commands } from "./commands/index.ts";
 export type { BlockStatus, Demand, Scheduler, Status } from "./scheduler/index.ts";
-export type { Condition, Lock, OutputInfo, Phase, Reason } from "./protocol/index.ts";
+export type { Condition, Lock, OutputInfo, Phase } from "./protocol/index.ts";
 export type { ModuleError, RequestError } from "./mount/index.ts";

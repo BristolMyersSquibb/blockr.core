@@ -104,14 +104,10 @@ export interface EvaluateReply {
     block: BlockId;
     revision: number;
     summary: string | null;
-    reason: Reason | null;
+    reason: string | null;
     conditions: Condition[];
     stdout: string;
     stderr: string;
-}
-export interface Reason {
-    message: string;
-    arg: string[];
 }
 export interface Condition {
     severity: "error" | "warning" | "message";

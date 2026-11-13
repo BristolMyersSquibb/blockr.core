@@ -33,21 +33,11 @@ async function mounted(state: State) {
   return { host, view, input: find(view.el, 'input[type="file"]', HTMLInputElement) };
 }
 
-test("shows why the block is invalid below the input, and asks nothing until the user picks one", async () => {
+test("says nothing below the input, and asks nothing, until the user picks a file", async () => {
   const { host, view } = await mounted({});
   await settle();
-  expect(texts(view.el, "p")).toEqual([]);
 
-  await step(() => {
-    host.setContext({
-      status: {
-        ...host.context().status,
-        status: "invalid",
-        reason: { message: "Upload a file.", arg: ["file_path"] },
-      },
-    });
-  });
-  expect(texts(view.el, "p")).toEqual(["Upload a file."]);
+  expect(texts(view.el, "p")).toEqual([]);
   expect(host.requested).toEqual([]);
   expect(host.submitted).toEqual([]);
 });

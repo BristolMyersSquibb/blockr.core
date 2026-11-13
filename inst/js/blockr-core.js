@@ -2048,22 +2048,18 @@ function waiting(why, revision, evaluated, running2) {
   };
 }
 function waitingFor(what) {
-  let message;
   if ("upstream" in what) {
     const blocks = what.upstream.length === 1 ? "block" : "blocks";
-    message = `This block is waiting for ${blocks} ${quoted(what.upstream)}.`;
-  } else if (what.unlinked.includes("...")) {
-    message = "This block is waiting for a block to be linked to it.";
-  } else {
-    const inputs = what.unlinked.length === 1 ? "input" : "inputs";
-    message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
+    return `This block is waiting for ${blocks} ${quoted(what.upstream)}.`;
   }
-  return { message, arg: [] };
+  if (what.unlinked.includes("...")) {
+    return "This block is waiting for a block to be linked to it.";
+  }
+  const inputs = what.unlinked.length === 1 ? "input" : "inputs";
+  return `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
 }
 function sameStatus(a2, b2) {
-  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && // The scheduler writes the reason of a block that it keeps waiting afresh
-  // in each pass.
-  jsonEqual(a2.reason, b2.reason) && a2.conditions.length === b2.conditions.length && a2.conditions.every((condition, i2) => condition === b2.conditions[i2]);
+  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.reason === b2.reason && a2.conditions.length === b2.conditions.length && a2.conditions.every((condition, i2) => condition === b2.conditions[i2]);
 }
 function blockStatuses(input2) {
   const statuses = /* @__PURE__ */ new Map();
@@ -2099,7 +2095,7 @@ function keptWaiting(inputs, statuses) {
   return blocked.length > 0 ? waitingFor({ upstream: blocked }) : void 0;
 }
 function waitingError(id2, status) {
-  const why = status.reason?.message ?? "This block is waiting.";
+  const why = status.reason ?? "This block is waiting.";
   return new Error(
     `${why.replace(/^This block/, `Block "${id2}"`)} Its evaluation with parameters is not sent.`
   );
@@ -8997,7 +8993,7 @@ function StatusLine({
   open,
   toggle
 }) {
-  const said = status.status === "ready" ? status.summary : status.status === "invalid" || status.status === "waiting" ? status.reason?.message ?? null : null;
+  const said = status.status === "ready" ? status.summary : status.status === "invalid" || status.status === "waiting" ? status.reason : null;
   const pills = SEVERITIES2.filter((severity) => severities.includes(severity)).flatMap((severity) => {
     const n2 = status.conditions.filter((condition) => condition.severity === severity).length;
     if (n2 === 0) return [];

@@ -304,11 +304,10 @@ new_merge_block()
 ```
 
 A body that uses an unset arg makes R run nothing and report the status `invalid`.
-R reports R's error as the block's reason rather than as a condition, with no state arg in its `arg`.
+R reports R's error as the block's reason rather than as a condition.
 The same holds where `bbquote()` fills in an unset arg, such as `.(by)`, and where base `bquote()` does so in the body of a function that `expr` returns.
 R's error, such as `argument "by" is missing, with no default`, does not tell a user what to do.
 So the merge block tests its `by` with `missing()`, and signals `blockr_invalid()` with a message that does.
-Its `arg` names `by`, so that the block's UI shows the message below the field of `by`.
 It reads `invalid` until a user picks its columns:
 
 ```{r}

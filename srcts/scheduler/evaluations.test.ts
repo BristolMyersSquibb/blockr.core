@@ -31,7 +31,7 @@ function outcome(status: Outcome["status"], id: BlockId): Outcome {
     status,
     revision: at(id),
     summary: null,
-    reason: status === "invalid" || status === "waiting" ? { message: "Not yet.", arg: [] } : null,
+    reason: status === "invalid" || status === "waiting" ? "Not yet." : null,
     conditions: [],
     stdout: "",
     stderr: "",

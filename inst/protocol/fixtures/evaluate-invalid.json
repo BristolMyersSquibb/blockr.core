@@ -1,5 +1,5 @@
 {
-  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr signals blockr_invalid() for it, naming by as the state arg that the reason concerns, so R runs nothing and replies invalid, with the class's message as the reason rather than as a condition.",
+  "description": "An evaluation of the merge block c after the user cleared by, an arg without a default, which the state then leaves unset. Its class's expr signals blockr_invalid() for it, so R runs nothing and replies invalid, with the class's message as the reason rather than as a condition.",
 
   "client": [
     {
@@ -26,7 +26,7 @@
         "block": "c",
         "revision": 9,
         "summary": null,
-        "reason": { "message": "Choose at least one column to join by.", "arg": ["by"] },
+        "reason": "Choose at least one column to join by.",
         "conditions": [],
         "stdout": "",
         "stderr": ""

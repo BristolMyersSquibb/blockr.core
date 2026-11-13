@@ -210,15 +210,13 @@
   The fixture file that `expect_block_fixture()` writes lists each state as a block given those args holds it, its defaults filled in and written by the schema of the class's UI module.
   The stub of a block's host then refuses a submit of a state that the file does not list (#437).
 * R's reply to an evaluation carries why a block is invalid or waiting in a field of its own, `reason`, beside `summary`, rather than as a condition.
-  The reason holds the message of the `blockr_invalid()` or `blockr_waiting()` that stopped the block, or of R's error for an unset arg, and in `arg` the state args that it concerns.
-  The signal `blockr_invalid()` names them in its `arg`.
+  The reason is the message of the `blockr_invalid()` or `blockr_waiting()` that stopped the block, or of R's error for an unset arg.
   A new signal, `blockr_waiting()`, has R reply `waiting` for a state that can run once something else happens, such as a write block in manual mode, which writes only once its save button asks.
   The reply's conditions hold only what R raised, each with the severity of its class, and R logs the reason at debug.
   A block's status in the client holds the reason beside its summary.
   The scheduler writes the reason of a block that an input or a block upstream keeps waiting, in place of a condition.
   A one-time evaluation with parameters runs a block that R says waits, and the block takes its reply.
-  A card shows the reason on the line of its footer, where a ready block shows its summary, and `useValue()` gives it to the field bound to each state arg that it concerns.
-  Core's inputs show it below the field, in muted text, and so do the file pickers of the upload and file browser blocks (#596).
+  A card shows the reason on the line of its footer, where a ready block shows its summary (#596).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.

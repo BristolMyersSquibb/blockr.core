@@ -24,10 +24,6 @@ function jsonEqual(a, b) {
   }
   return false;
 }
-function reasonFor(status, arg) {
-  const reason = status.reason;
-  return reason?.arg.includes(arg) === true ? reason.message : null;
-}
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
@@ -233,7 +229,6 @@ function TextInput({
   };
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx(Field, { label, children: lines > 1 ? /* @__PURE__ */ jsx("textarea", { rows: lines, ...props }) : /* @__PURE__ */ jsx("input", { type: "text", ...props }) }),
-    /* @__PURE__ */ jsx(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx(Refusal, { error: bound.error })
   ] });
 }
@@ -251,12 +246,12 @@ function NumberInput({
     const trimmed = input.trim();
     if (trimmed === "") return {};
     const value = Number(trimmed);
-    if (!Number.isInteger(value)) return { error: `${trimmed} is not a whole number.` };
+    if (!Number.isInteger(value)) return { reason: `${trimmed} is not a whole number.` };
     if (min !== void 0 && value < min) {
-      return { error: `${trimmed} is below the minimum of ${String(min)}.` };
+      return { reason: `${trimmed} is below the minimum of ${String(min)}.` };
     }
     if (largest !== void 0 && value > largest) {
-      return { error: `${trimmed} is above the maximum of ${String(largest)}.` };
+      return { reason: `${trimmed} is above the maximum of ${String(largest)}.` };
     }
     return { value };
   };
@@ -293,8 +288,7 @@ function NumberInput({
         onBlur: settle
       }
     ) }),
-    /* @__PURE__ */ jsx(Reason, { reason: bound.reason }),
-    /* @__PURE__ */ jsx(Refusal, { error: checked.error ?? bound.error })
+    /* @__PURE__ */ jsx(Refusal, { error: checked.reason ?? bound.error })
   ] });
 }
 function Select({
@@ -325,7 +319,6 @@ function Select({
         ]
       }
     ) }),
-    /* @__PURE__ */ jsx(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx(Refusal, { error: bound.error })
   ] });
 }
@@ -345,7 +338,6 @@ function Checkbox({ bound, label }) {
       ),
       label
     ] }),
-    /* @__PURE__ */ jsx(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx(Refusal, { error: bound.error })
   ] });
 }
@@ -391,15 +383,11 @@ function Checklist({
       }),
       choices !== void 0 && empty !== void 0 && shown.length === 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: empty })
     ] }),
-    /* @__PURE__ */ jsx(Reason, { reason: bound.reason }),
     /* @__PURE__ */ jsx(Refusal, { error: bound.error })
   ] });
 }
 function missing(value) {
   return `${value} (not available)`;
-}
-function Reason({ reason }) {
-  return reason === null ? null : /* @__PURE__ */ jsx("p", { className: styles.hint, children: reason });
 }
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error });
@@ -468,7 +456,6 @@ function controls(host, signal) {
       () => draw({
         value,
         error: refusal,
-        reason: "option" in host ? null : reasonFor(host.context().status, key),
         get: () => binding.get(),
         commit: (next) => binding.commit(next),
         type: (next) => {
@@ -571,11 +558,9 @@ function controls(host, signal) {
       }
     };
   }
-  const unfollow = "option" in host ? void 0 : host.on("context", redraw);
   function cleanup() {
     if (ended) return;
     ended = true;
-    unfollow?.();
     for (const binding of bindings) binding.release();
     for (const request of followed) request.release();
     root.unmount();

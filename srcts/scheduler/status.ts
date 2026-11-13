@@ -6,11 +6,10 @@ import type { Graph } from "../graph/index.ts";
 import type {
   Condition,
   EvaluateReply,
-  Reason,
   Reply,
 } from "../protocol/index.ts";
 import type { BlockId } from "../types/board.ts";
-import { jsonEqual, quoted } from "../util/index.ts";
+import { quoted } from "../util/index.ts";
 import type { Inputs } from "./recipes.ts";
 
 // A block's status is the first of these that holds:
@@ -48,7 +47,7 @@ export interface BlockStatus {
   // Why the block is invalid or waiting, from that reply, as R sends it.
   // Where an input or a block upstream keeps the block waiting, the scheduler
   // writes it, naming what the block waits for.
-  readonly reason: Reason | null;
+  readonly reason: string | null;
 }
 
 // What a reply to an evaluation says about the block. An error that R raised
@@ -58,7 +57,7 @@ export interface Outcome {
   readonly status: "ok" | "error" | "invalid" | "waiting";
   readonly revision: number;
   readonly summary: string | null;
-  readonly reason: Reason | null;
+  readonly reason: string | null;
   readonly conditions: readonly Condition[];
   readonly stdout: string;
   readonly stderr: string;
@@ -149,7 +148,7 @@ export function replied(
 // What a block reads while an input or a block upstream keeps it from running.
 // It has no summary and no conditions, and its reason names what it waits for.
 export function waiting(
-  why: Reason,
+  why: string,
   revision: number,
   evaluated: number | null,
   running: boolean,
@@ -169,21 +168,19 @@ export function waiting(
 
 // The reason of a block that an input or a block upstream keeps waiting. It
 // names the inputs that no link feeds, or else the blocks upstream that keep
-// the block waiting, and concerns no state arg.
+// the block waiting.
 export function waitingFor(
   what: { unlinked: readonly string[] } | { upstream: readonly BlockId[] },
-): Reason {
-  let message: string;
+): string {
   if ("upstream" in what) {
     const blocks = what.upstream.length === 1 ? "block" : "blocks";
-    message = `This block is waiting for ${blocks} ${quoted(what.upstream)}.`;
-  } else if (what.unlinked.includes("...")) {
-    message = "This block is waiting for a block to be linked to it.";
-  } else {
-    const inputs = what.unlinked.length === 1 ? "input" : "inputs";
-    message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
+    return `This block is waiting for ${blocks} ${quoted(what.upstream)}.`;
   }
-  return { message, arg: [] };
+  if (what.unlinked.includes("...")) {
+    return "This block is waiting for a block to be linked to it.";
+  }
+  const inputs = what.unlinked.length === 1 ? "input" : "inputs";
+  return `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
 }
 
 // Whether two statuses read the same. The scheduler then keeps handing out the
@@ -197,9 +194,7 @@ export function sameStatus(a: BlockStatus, b: BlockStatus): boolean {
     a.stdout === b.stdout &&
     a.stderr === b.stderr &&
     a.summary === b.summary &&
-    // The scheduler writes the reason of a block that it keeps waiting afresh
-    // in each pass.
-    jsonEqual(a.reason, b.reason) &&
+    a.reason === b.reason &&
     a.conditions.length === b.conditions.length &&
     a.conditions.every((condition, i) => condition === b.conditions[i])
   );
@@ -259,7 +254,7 @@ export function blockStatuses(input: {
 export function keptWaiting(
   inputs: Inputs | undefined,
   statuses: ReadonlyMap<BlockId, BlockStatus>,
-): Reason | undefined {
+): string | undefined {
   const unlinked = inputs?.unlinked ?? [];
   if (unlinked.length > 0) return waitingFor({ unlinked });
   const reads = (inputs?.recipe ?? []).flatMap((read) => read.block ?? []);
@@ -273,7 +268,7 @@ export function keptWaiting(
 // Why an evaluation with parameters is not sent: an input or a block upstream
 // keeps the block waiting, as the reason of its status names.
 export function waitingError(id: BlockId, status: BlockStatus): Error {
-  const why = status.reason?.message ?? "This block is waiting.";
+  const why = status.reason ?? "This block is waiting.";
   return new Error(
     `${why.replace(/^This block/, `Block "${id}"`)} Its evaluation with parameters is not sent.`,
   );

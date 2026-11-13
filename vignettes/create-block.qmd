@@ -207,7 +207,6 @@ The body of `expr` signals `blockr_invalid()` with a message for a state that ca
 R then runs nothing and reports the block as `invalid`, with the message as the block's reason, which says what the user has to do.
 The reason is part of the block's status, as a ready block's summary is, so R records it as no condition.
 The merge block's message is "Choose at least one column to join by."
-Its `arg` names the state args that the reason concerns, here `by`, so that core's inputs show the message below the field of each.
 The merge block gives that message for an unset `by` too, since R's own error for an unset arg does not say what to do.
 So its body tests `by` with `missing()` before it uses it.
 A body that can do without an unset arg tests it with `missing()` too.
@@ -396,7 +395,7 @@ path <- tempfile(fileext = ".csv")
 res <- evaluate_block(write_block, list(path = path), list(data = "a"),
                       list(a = datasets::BOD))
 res$status
-res$reason$message
+res$reason
 file.exists(path)
 
 res <- evaluate_block(write_block, list(path = path), list(data = "a"),

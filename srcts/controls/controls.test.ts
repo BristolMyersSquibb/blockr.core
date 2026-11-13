@@ -198,30 +198,6 @@ describe("the controls of a block's UI", () => {
   });
 });
 
-describe("the reason of a block that does not run", () => {
-  test("shows below each control bound to a state arg that it names, in muted text, as the host announces the block's status", () => {
-    const { host, ui } = drawn();
-    const hints = (): string[] => [...ui.el.querySelectorAll("p")].map((p) => p.textContent);
-    expect(hints()).toEqual([]);
-
-    host.setContext({
-      status: { ...host.context().status, status: "invalid", reason: { message: "Choose an end.", arg: ["direction"] } },
-    });
-    expect(hints()).toEqual(["Choose an end."]);
-    expect(find(ui.el, "p").className).toContain("bc:text-text-muted");
-
-    host.setContext({ status: { ...host.context().status, status: "ready", reason: null } });
-    expect(hints()).toEqual([]);
-
-    // Once the controls end, they no longer follow the host.
-    ui.cleanup();
-    host.setContext({
-      status: { ...host.context().status, status: "invalid", reason: { message: "Choose an end.", arg: ["direction"] } },
-    });
-    expect(ui.el.children).toHaveLength(0);
-  });
-});
-
 describe("the controls of a board option's UI", () => {
   test("bind the board option's value under its id, and nothing else", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });

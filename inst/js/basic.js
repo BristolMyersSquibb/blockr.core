@@ -807,7 +807,7 @@ function StatusLine({
   open,
   toggle
 }) {
-  const said = status.status === "ready" ? status.summary : status.status === "invalid" || status.status === "waiting" ? status.reason?.message ?? null : null;
+  const said = status.status === "ready" ? status.summary : status.status === "invalid" || status.status === "waiting" ? status.reason : null;
   const pills = SEVERITIES.filter((severity) => severities.includes(severity)).flatMap((severity) => {
     const n = status.conditions.filter((condition) => condition.severity === severity).length;
     if (n === 0) return [];

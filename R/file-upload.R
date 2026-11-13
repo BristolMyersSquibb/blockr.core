@@ -54,7 +54,7 @@ upload_block <- new_block_class(
   "upload_block",
   expr = function(file_path) {
     if (missing(file_path) || !isTRUE(nzchar(file_path))) {
-      blockr_invalid("Upload a file.", arg = "file_path")
+      blockr_invalid("Upload a file.")
     }
     call("file.path", file_path)
   },

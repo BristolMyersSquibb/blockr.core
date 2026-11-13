@@ -12,7 +12,7 @@ import type { Condition } from "../protocol/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { errorMessage, own, reasonFor } from "../util/index.ts";
+import { errorMessage, own } from "../util/index.ts";
 
 // What an output host holds at one moment.
 export interface OutputSnapshot {
@@ -56,14 +56,10 @@ function outputSnapshot(host: OutputHost): OutputSnapshot {
 // A value that a component shows and edits:
 // the value as the binding last showed it,
 // why the host refused the last submit, if it did,
-// why the block is invalid or waiting, where the reason concerns the value,
 // and what reads and submits the value, as a Binding does.
 export interface Bound {
   readonly value: Json | undefined;
   readonly error: string | null;
-  // The message of the reason of the block's status, where the reason names
-  // the state arg, and null otherwise, as for a board option's value.
-  readonly reason: string | null;
   get(): Json | undefined;
   commit(value: Json): Promise<boolean>;
   type(value: Json | undefined): void;
@@ -78,7 +74,6 @@ export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
   const name = key ?? ("option" in host ? host.option : "");
   const [value, setValue] = useState<Json | undefined>(() => held(host, name));
   const [error, setError] = useState<string | null>(null);
-  const reason = useReason(host, name);
   const binding = useRef<Binding | null>(null);
 
   // The binding starts before the browser paints, so that no event of the
@@ -100,7 +95,6 @@ export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
     () => ({
       value,
       error,
-      reason,
       get: () => binding.current?.get() ?? held(host, name),
       commit: (next: Json) => binding.current?.commit(next) ?? Promise.resolve(false),
       type: (next: Json | undefined) => {
@@ -110,20 +104,8 @@ export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
         binding.current?.flush();
       },
     }),
-    [value, error, reason, host, name],
+    [value, error, host, name],
   );
-}
-
-// The message of the reason of the block's status, where the reason names the
-// state arg. It follows the block's context, as the host announces each
-// change. A board option's value has none.
-function useReason(host: BlockHost | OptionHost, key: string): string | null {
-  const subscribe = useCallback(
-    (notify: () => void) => ("option" in host ? () => undefined : host.on("context", notify)),
-    [host],
-  );
-  const read = useCallback(() => ("option" in host ? null : reasonFor(host.context().status, key)), [host, key]);
-  return useSyncExternalStore(subscribe, read);
 }
 
 // The last answer of a request, which stays while the request is asked

@@ -597,7 +597,7 @@ log_reason <- function(reply, about, attributes = list()) {
   }
 
   write_log(
-    about, " is ", reply[["status"]], ": ", reason[["message"]],
+    about, " is ", reply[["status"]], ": ", reason,
     level = "debug",
     use_glue = FALSE,
     attributes = attributes

@@ -1,4 +1,3 @@
-import type { BlockStatus } from "../scheduler/index.ts";
 import type { Json } from "../types/json.ts";
 export declare function own<T>(record: Readonly<Record<string, T>>, key: string): T | undefined;
 export declare function errorMessage(error: unknown): string;
@@ -13,7 +12,6 @@ export declare function frozenCopy<T extends Json>(x: T): T;
 export declare function listing(items: readonly string[]): string;
 export declare function quoted(items: readonly string[]): string;
 export declare function pathText(path: readonly string[]): string;
-export declare function reasonFor(status: BlockStatus, arg: string): string | null;
 export declare function packageFromId(id: string): string | null;
 export declare function isPackageName(name: unknown): name is string;
 export declare function asNumber(text: string): number;

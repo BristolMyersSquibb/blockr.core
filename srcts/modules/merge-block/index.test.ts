@@ -51,24 +51,6 @@ test("shows the state, with a checkbox for each column its inputs share", async 
   expect(host.submitted).toEqual([]);
 });
 
-test("shows why the block is invalid below the columns to join by", async () => {
-  const { host, view } = await mounted({ all_x: false, all_y: false });
-  await settle();
-  expect(view.el.querySelector("fieldset p")).toBeNull();
-
-  await step(() => {
-    host.setContext({
-      status: {
-        ...host.context().status,
-        status: "invalid",
-        reason: { message: "Choose at least one column to join by.", arg: ["by"] },
-      },
-    });
-  });
-  expect(find(view.el, "fieldset p").textContent).toBe("Choose at least one column to join by.");
-  expect(view.el.querySelectorAll("p")).toHaveLength(1);
-});
-
 test("never sets the columns to join by once the shared columns arrive", async () => {
   const { host, checked } = await mounted({ all_x: false, all_y: false });
   await settle();

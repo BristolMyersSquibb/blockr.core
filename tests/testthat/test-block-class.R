@@ -359,20 +359,7 @@ test_that("blockr_invalid() signals a classed error", {
 
   expect_s3_class(cnd, c("my_block_unset", "blockr_invalid", "blockr_error"))
   expect_identical(conditionMessage(cnd), "Choose 2 columns.")
-  expect_identical(cnd$arg, character())
   expect_true(stops_block(cnd))
-
-  cnd <- tryCatch(
-    blockr_invalid("Choose a column for each axis.", arg = c("x", "y")),
-    error = identity
-  )
-
-  expect_identical(cnd$arg, c("x", "y"))
-
-  expect_error(
-    blockr_invalid("Choose a column.", arg = NA_character_),
-    class = "blockr_invalid_arg_invalid"
-  )
 })
 
 test_that("blockr_waiting() signals a classed error", {

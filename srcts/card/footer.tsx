@@ -149,7 +149,7 @@ function StatusLine({
     status.status === "ready"
       ? status.summary
       : status.status === "invalid" || status.status === "waiting"
-        ? (status.reason?.message ?? null)
+        ? status.reason
         : null;
 
   const pills = SEVERITIES.filter((severity) => severities.includes(severity)).flatMap((severity) => {

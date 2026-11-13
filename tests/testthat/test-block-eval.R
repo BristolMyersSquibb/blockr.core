@@ -41,7 +41,7 @@ test_that("a registered class is evaluated by its registry id", {
 
 test_that("a state that cannot run makes R run nothing and report invalid", {
 
-  # R's error for an unset arg is the reason, which names no state arg.
+  # R's error for an unset arg is the reason.
   res <- evaluate_block(merge_class, list(), list(x = "a", y = "b"),
                         list(a = datasets::BOD, b = datasets::BOD))
 
@@ -49,13 +49,7 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
   expect_null(res$expr)
   expect_null(res$result)
   expect_null(res$summary)
-  expect_identical(
-    res$reason,
-    list(
-      message = "argument \"by\" is missing, with no default",
-      arg = character()
-    )
-  )
+  expect_identical(res$reason, "argument \"by\" is missing, with no default")
   # Why the block is invalid is part of its status, so it is no condition.
   expect_identical(res$conditions, list())
 
@@ -63,9 +57,7 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
     "picky_block",
     inputs = "data",
     expr = function(cols = character()) {
-      if (!length(cols)) {
-        blockr_invalid("Choose at least one column.", arg = "cols")
-      }
+      if (!length(cols)) blockr_invalid("Choose at least one column.")
       message("Checked the columns.")
       bbquote(.(data)[, .(cols), drop = FALSE])
     },
@@ -76,10 +68,7 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
                         list(a = datasets::iris))
 
   expect_identical(res$status, "invalid")
-  expect_identical(
-    res$reason,
-    list(message = "Choose at least one column.", arg = "cols")
-  )
+  expect_identical(res$reason, "Choose at least one column.")
   expect_identical(res$conditions, list())
 
   # The conditions raised before the block stopped stay, each with the
@@ -102,28 +91,8 @@ test_that("a state that cannot run makes R run nothing and report invalid", {
                         list(a = datasets::iris))
 
   expect_identical(res$status, "invalid")
-  expect_identical(res$reason$arg, character())
+  expect_identical(res$reason, "argument \"n\" is missing, with no default")
   expect_identical(res$conditions, list())
-})
-
-test_that("blockr_invalid() names its args as a character vector", {
-
-  bad <- new_block_class(
-    "bad_arg_block",
-    inputs = "data",
-    expr = function(cols = "Species") {
-      if (!nzchar(cols)) blockr_invalid("Choose a column.", arg = 1L)
-      bbquote(.(data))
-    },
-    ui = js_module("bad.js")
-  )
-
-  res <- evaluate_block(bad, list(cols = ""), list(data = "a"),
-                        list(a = datasets::iris))
-
-  expect_identical(res$status, "error")
-  expect_null(res$reason)
-  expect_contains(res$conditions[[1L]]$class, "blockr_invalid_arg_invalid")
 })
 
 test_that("failed checks and errors report error, by phase", {
@@ -311,7 +280,7 @@ test_that("a block_eval() method decides whether the expression runs", {
     "block_eval",
     "saver_block",
     function(x, expr, env, save = FALSE, ...) {
-      if (!nzchar(x$path)) blockr_invalid("Choose a path.", arg = "path")
+      if (!nzchar(x$path)) blockr_invalid("Choose a path.")
       if (!isTRUE(x$auto) && !save) blockr_waiting("Save to write the file.")
       NextMethod()
     },
@@ -325,10 +294,7 @@ test_that("a block_eval() method decides whether the expression runs", {
   expect_identical(res$status, "waiting")
   expect_identical(res$expr, quote(a))
   expect_null(res$summary)
-  expect_identical(
-    res$reason,
-    list(message = "Save to write the file.", arg = character())
-  )
+  expect_identical(res$reason, "Save to write the file.")
   expect_identical(res$conditions, list())
 
   res <- evaluate_block(saver, list(auto = FALSE, path = "out.csv"),
@@ -342,7 +308,7 @@ test_that("a block_eval() method decides whether the expression runs", {
                         list(a = datasets::BOD), save = TRUE)
 
   expect_identical(res$status, "invalid")
-  expect_identical(res$reason, list(message = "Choose a path.", arg = "path"))
+  expect_identical(res$reason, "Choose a path.")
 })
 
 test_that("only expr and block_eval() stop a block without failing it", {

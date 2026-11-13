@@ -23,7 +23,7 @@ import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { errorMessage, own, reasonFor } from "../util/index.ts";
+import { errorMessage, own } from "../util/index.ts";
 
 export interface NumberInput {
   // Sets the largest number the input takes, or none.
@@ -56,7 +56,6 @@ export interface Checklist {
 export interface Controls<K extends string = string> {
   // The element that holds the controls in the order they were made,
   // each of which says below itself why the host refused what it submitted,
-  // and why the block is invalid or waiting, where the reason names its key,
   // and below them the line that alert() fills.
   readonly el: HTMLElement;
   // Puts an element that a module draws itself among the controls.
@@ -168,9 +167,8 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   }
 
   // Binds an input of core's React SDK to the value under the key,
-  // which it draws with the value as the binding last showed it,
-  // why the host refused what it last submitted, if it did,
-  // and the reason of the block's status, where it names the key.
+  // which it draws with the value as the binding last showed it
+  // and why the host refused what it last submitted, if it did.
   function input(key: string, draw: (bound: Bound) => ReactElement): void {
     let value: Json | undefined;
     let refusal: string | null = null;
@@ -197,7 +195,6 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
       draw({
         value,
         error: refusal,
-        reason: "option" in host ? null : reasonFor(host.context().status, key),
         get: () => binding.get(),
         commit: (next) => binding.commit(next),
         type: (next) => {
@@ -315,14 +312,9 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     };
   }
 
-  // The inputs show the reason of the block's status, so they draw again as
-  // the host announces a change of the block's context.
-  const unfollow = "option" in host ? undefined : host.on("context", redraw);
-
   function cleanup(): void {
     if (ended) return;
     ended = true;
-    unfollow?.();
     for (const binding of bindings) binding.release();
     for (const request of followed) request.release();
     root.unmount();

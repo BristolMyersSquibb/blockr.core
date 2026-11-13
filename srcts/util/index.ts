@@ -16,7 +16,6 @@ export {
   packageFromId,
   pathText,
   quoted,
-  reasonFor,
   report,
   setAt,
   without,

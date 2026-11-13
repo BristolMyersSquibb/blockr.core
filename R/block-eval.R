@@ -20,11 +20,9 @@
 #' interpolation, `block_eval` or `result_summary`. Warnings and messages are
 #' recorded rather than signaled.
 #' The error that makes a block `invalid` or `waiting` is no condition of the
-#' evaluation, but its reason, which is part of the block's status, as a ready
-#' block's summary is.
-#' The reason holds the error's message and the state args that it concerns:
-#' those that the `arg` of a `blockr_invalid()` names, and none where R's
-#' error for an unset arg or a `blockr_waiting()` stopped the block.
+#' evaluation.
+#' Its message is the block's reason, which is part of the block's status, as a
+#' ready block's summary is.
 #'
 #' The `block_eval()` generic runs the block expression, `expr`, in `env`,
 #' where each upstream block's result is bound to its id, dispatching on the
@@ -79,9 +77,8 @@
 #' `"waiting"` or `"error"`, the block expression as `expr`, the `result`, its
 #' `summary`, the `reason` and the `conditions` raised, where what was not
 #' reached is `NULL`.
-#' The reason is a list of its `message` and the state args it concerns, as a
-#' character vector `arg`, for an evaluation that is `invalid` or `waiting`,
-#' and `NULL` otherwise.
+#' The reason is a string for an evaluation that is `invalid` or `waiting`, and
+#' `NULL` otherwise.
 #' The result is what `block_eval()` returns, while `result_summary()` returns
 #' a string and `eval_env()` an environment.
 #'
@@ -296,16 +293,15 @@ new_block_evaluation <- function(status, expr = NULL, result = NULL,
   }
 
   reason_fits <- if (status %in% c("invalid", "waiting")) {
-    is_block_reason(reason)
+    is_string(reason)
   } else {
     is.null(reason)
   }
 
   if (!reason_fits) {
     blockr_abort(
-      "Expecting the reason of a block evaluation to be a list of a string ",
-      "`message` and a character vector `arg` where its status is ",
-      "\"invalid\" or \"waiting\", and `NULL` otherwise.",
+      "Expecting the reason of a block evaluation to be a string where its ",
+      "status is \"invalid\" or \"waiting\", and `NULL` otherwise.",
       class = "block_evaluation_reason_invalid"
     )
   }
@@ -330,10 +326,6 @@ new_block_evaluation <- function(status, expr = NULL, result = NULL,
   )
 }
 
-is_block_reason <- function(x) {
-  is.list(x) && is_string(x[["message"]]) && is.character(x[["arg"]])
-}
-
 #' @export
 format.block_evaluation <- function(x, ...) {
 
@@ -348,7 +340,7 @@ format.block_evaluation <- function(x, ...) {
       paste0("Summary: ", x[["summary"]])
     },
     if (not_null(x[["reason"]])) {
-      format_block_reason(x[["reason"]])
+      paste0("Reason: ", x[["reason"]])
     },
     if (length(cnds)) {
       c(
@@ -359,20 +351,6 @@ format.block_evaluation <- function(x, ...) {
         )
       )
     }
-  )
-}
-
-# The line of an evaluation's reason, which names the state args it concerns,
-# as "Reason (by): Choose at least one column to join by."
-format_block_reason <- function(x) {
-
-  arg <- x[["arg"]]
-
-  paste0(
-    "Reason",
-    if (length(arg)) paste0(" (", paste(arg, collapse = ", "), ")"),
-    ": ",
-    x[["message"]]
   )
 }
 
@@ -456,23 +434,15 @@ stop_status <- function(cnd, phase) {
 }
 
 # Why a phase that stopped the block without failing it stopped it, as the
-# block's reason: the message of its error, and the state args that the reason
-# concerns, which only the `arg` of a `blockr_invalid()` names.
+# block's reason: the message of its error.
 # It is `NULL` for a phase that ran, or that failed the block.
 phase_reason <- function(x) {
 
   cnd <- x[["error"]]
 
-  if (is.null(stop_status(cnd, x[["phase"]]))) {
-    return(NULL)
+  if (not_null(stop_status(cnd, x[["phase"]]))) {
+    condition_text(cnd)
   }
-
-  arg <- if (inherits(cnd, "blockr_invalid")) cnd[["arg"]]
-
-  list(
-    message = condition_text(cnd),
-    arg = coal(arg, character(), fail_all = FALSE)
-  )
 }
 
 # The record of a condition that a reply carries, with the severity of its

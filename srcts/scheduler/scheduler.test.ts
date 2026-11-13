@@ -298,11 +298,11 @@ describe("statuses", () => {
     r.evaluated(pendingRequest(r, "a"));
     r.evaluated(pendingRequest(r, "b"), "error", { conditions: [failure], stderr: "Error!" });
     r.evaluated(pendingRequest(r, "d"), "invalid", {
-      reason: { message: "Choose a subset.", arg: ["subset"] },
+      reason: "Choose a subset.",
     });
     await tick();
     r.evaluated(pendingRequest(r, "f"), "waiting", {
-      reason: { message: "Press plot.", arg: [] },
+      reason: "Press plot.",
       conditions: [{ ...failure, severity: "message", phase: "expr", message: "Checked the axes." }],
     });
     await tick();
@@ -321,20 +321,20 @@ describe("statuses", () => {
     });
     expect(blockStatus(scheduler, "d")).toMatchObject({
       status: "invalid",
-      reason: { message: "Choose a subset.", arg: ["subset"] },
+      reason: "Choose a subset.",
       conditions: [],
       summary: null,
     });
     // A block that R says waits keeps the conditions of R's reply.
     expect(blockStatus(scheduler, "f")).toMatchObject({
       status: "waiting",
-      reason: { message: "Press plot.", arg: [] },
+      reason: "Press plot.",
       conditions: [{ message: "Checked the axes." }],
     });
     expect(blockStatus(scheduler, "a").reason).toBeNull();
     expect(blockStatus(scheduler, "b").reason).toBeNull();
-    expect(blockStatus(scheduler, "c").reason).toEqual({ message: 'This block is waiting for block "b".', arg: [] });
-    expect(blockStatus(scheduler, "e").reason?.message).toBe('This block is waiting for blocks "b" and "d".');
+    expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
+    expect(blockStatus(scheduler, "e").reason).toBe('This block is waiting for blocks "b" and "d".');
   });
 
   test("read stale once the revision moves, keeping what the latest reply said", async () => {
@@ -371,10 +371,10 @@ describe("statuses", () => {
       stdout: "",
       stderr: "",
       summary: null,
-      reason: { message: 'This block is waiting for its input "data" to be linked.', arg: [] },
+      reason: 'This block is waiting for its input "data" to be linked.',
     });
-    expect(blockStatus(scheduler, "e").reason?.message).toBe("This block is waiting for a block to be linked to it.");
-    expect(blockStatus(scheduler, "c").reason?.message).toBe('This block is waiting for block "b".');
+    expect(blockStatus(scheduler, "e").reason).toBe("This block is waiting for a block to be linked to it.");
+    expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
     expect(blockStatus(scheduler, "d").status).toBe("unevaluated");
   });
 
@@ -386,12 +386,12 @@ describe("statuses", () => {
 
     r.evaluated(pendingRequest(r, "a"));
     await tick();
-    r.evaluated(pendingRequest(r, "b"), "waiting", { reason: { message: "Press run.", arg: [] } });
+    r.evaluated(pendingRequest(r, "b"), "waiting", { reason: "Press run." });
     await tick();
 
     const waiting = blockStatus(scheduler, "b");
-    expect(waiting).toMatchObject({ status: "waiting", evaluated: waiting.revision, reason: { message: "Press run." } });
-    expect(blockStatus(scheduler, "c").reason?.message).toBe('This block is waiting for block "b".');
+    expect(waiting).toMatchObject({ status: "waiting", evaluated: waiting.revision, reason: "Press run." });
+    expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
     // The block is current, so nothing evaluates it again.
     await tick();
     expect(r.pending().filter((request) => request.block === "b")).toEqual([]);
@@ -874,7 +874,7 @@ describe("one-time evaluations with parameters", () => {
     await tick();
     r.evaluated(pendingRequest(r, "a"));
     await tick();
-    r.evaluated(pendingRequest(r, "b"), "waiting", { reason: { message: "Save to write the file.", arg: [] } });
+    r.evaluated(pendingRequest(r, "b"), "waiting", { reason: "Save to write the file." });
     await tick();
     const waiting = blockStatus(scheduler, "b");
     expect(waiting.status).toBe("waiting");

@@ -213,21 +213,14 @@ export interface EvaluateReply {
   // The result's summary from `result_summary()`, or null where there is no
   // result or its summary failed.
   summary: string | null;
-  // Why the block is invalid or waiting, or null in a reply of any other
-  // status.
-  reason: Reason | null;
+  // Why the block does not run, which is part of its status, as a ready
+  // block's summary is: the message of the blockr_invalid() or
+  // blockr_waiting() that stopped it, or of R's error for an unset arg.
+  // It is null in a reply of any other status than invalid or waiting.
+  reason: string | null;
   conditions: Condition[];
   stdout: string;
   stderr: string;
-}
-
-// Why a block does not run, which is part of its status, as a ready block's
-// summary is: the message of the blockr_invalid() or blockr_waiting() that
-// stopped it in R, or of R's error for an unset arg, and the state args that
-// it concerns, which a block's UI shows it by.
-export interface Reason {
-  message: string;
-  arg: string[];
 }
 
 export interface Condition {

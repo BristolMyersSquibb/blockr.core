@@ -15,7 +15,7 @@ scatter_block <- new_block_class(
   },
   expr = function(x, y) {
     if (missing(x) || missing(y) || !isTRUE(nzchar(x)) || !isTRUE(nzchar(y))) {
-      blockr_invalid("Choose a column for each axis.", arg = c("x", "y"))
+      blockr_invalid("Choose a column for each axis.")
     }
     # Each column is taken with `[`, which fails on one the data lacks, where
     # `[[` gives `NULL`, from which `plot()` draws the other column against

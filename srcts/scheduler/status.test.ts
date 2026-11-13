@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "vitest";
 import { createGraph } from "../graph/index.ts";
-import type { Condition, Reason } from "../protocol/index.ts";
+import type { Condition } from "../protocol/index.ts";
 import { createBoard, sample } from "../testing/board.ts";
 import { hello } from "../testing/store.ts";
 import type { Board, BlockId } from "../types/board.ts";
@@ -20,7 +20,7 @@ const failure: Condition = {
   message: "object 'Species' not found",
 };
 
-const unset: Reason = { message: "Choose a subset.", arg: ["subset"] };
+const unset = "Choose a subset.";
 
 function outcome(status: Outcome["status"], revision: number, conditions: Condition[] = []): Outcome {
   return {
@@ -84,7 +84,7 @@ describe("statuses", () => {
     expect(found.get("b")).toMatchObject({ conditions: [failure], summary: null, reason: null, evaluated: 2 });
     expect(found.get("d")).toMatchObject({ reason: unset, conditions: [] });
     expect(found.get("e")).toMatchObject({
-      reason: { message: 'This block is waiting for blocks "b" and "d".', arg: [] },
+      reason: 'This block is waiting for blocks "b" and "d".',
       conditions: [],
     });
   });
@@ -95,7 +95,7 @@ describe("statuses", () => {
       ["b", outcome("waiting", at(revisions, "b"))],
     ]);
     expect(found.get("b")).toMatchObject({ status: "waiting", reason: unset, evaluated: 2 });
-    expect(found.get("c")?.reason?.message).toBe('This block is waiting for block "b".');
+    expect(found.get("c")?.reason).toBe('This block is waiting for block "b".');
   });
 
   test("read stale where the reply is for an older revision, keeping what it said", () => {
@@ -109,7 +109,7 @@ describe("statuses", () => {
       status: "waiting",
       conditions: [],
       summary: null,
-      reason: { message: 'This block is waiting for its input "y" to be linked.', arg: [] },
+      reason: 'This block is waiting for its input "y" to be linked.',
     });
   });
 
@@ -155,12 +155,12 @@ describe("what keeps a block waiting", () => {
     ]);
     expect(found.get("b")?.status).toBe("waiting");
     expect(keptWaiting(inputs.get("b"), found)).toBeUndefined();
-    expect(keptWaiting(inputs.get("c"), found)).toEqual({ message: 'This block is waiting for block "b".', arg: [] });
+    expect(keptWaiting(inputs.get("c"), found)).toBe('This block is waiting for block "b".');
 
     const loose = createBoard({ c: "merge_block" });
     const looseGraph = createGraph(loose);
     const looseInputs = inputsByBlock(loose, looseGraph, hello.block_registry, new Set());
-    expect(keptWaiting(looseInputs.get("c"), statuses(loose).statuses)?.message).toBe(
+    expect(keptWaiting(looseInputs.get("c"), statuses(loose).statuses)).toBe(
       'This block is waiting for its inputs "x" and "y" to be linked.',
     );
   });

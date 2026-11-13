@@ -55,22 +55,7 @@ test("starts at the root of the first volume for a block with no file, and draws
   expect(host.requested).toEqual([{ name: "list_dir", args: { volume: "here", path: "" } }]);
   expect(entries()).toEqual(["data/", "notes.txt"]);
   expect(view.el.querySelector("select")).toBeNull();
-});
-
-test("shows why the block is invalid below the listing", async () => {
-  const { host, view } = await mounted({ volumes });
   expect(texts(view.el, "p")).toEqual([]);
-
-  await step(() => {
-    host.setContext({
-      status: {
-        ...host.context().status,
-        status: "invalid",
-        reason: { message: "Choose a file.", arg: ["file_path"] },
-      },
-    });
-  });
-  expect(texts(view.el, "p")).toEqual(["Choose a file."]);
 });
 
 test("opens the directory the user clicks, and submits the path of the file the user clicks", async () => {
