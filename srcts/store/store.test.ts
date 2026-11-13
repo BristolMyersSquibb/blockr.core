@@ -2103,6 +2103,29 @@ describe("undo", () => {
     expect(store.board().options).toEqual({ n_rows: 20 });
   });
 
+  test("a step applied with undo: false is no undo step: it is applied, announced and numbered as any other, and leaves the origin's undo and redo steps as they are", async () => {
+    const store = await opened();
+    store.apply({ name: "Renamed" });
+    store.apply({ name: "Again" });
+    store.undo();
+    const seen = changes(store);
+    const edit = store.editId({ block: "b" });
+
+    const delta: Delta = { blocks: { mod: { b: { state: { n: 7 } } } } };
+    store.apply(delta, "user", { undo: false });
+    expect(seen).toEqual([{ delta, origin: "user" }]);
+    expect(store.editId({ block: "b" })).toBeGreaterThan(edit ?? Infinity);
+    expect([store.canUndo(), store.canRedo()]).toEqual([true, true]);
+
+    store.redo();
+    expect(store.board().name).toBe("Again");
+    store.undo();
+    store.undo();
+    expect(store.board().name).toBe("Iris review");
+    expect(store.canUndo()).toBe(false);
+    expect(store.board().blocks.b?.state.n).toBe(7);
+  });
+
   test("sets back a stack's colour, null for none, by steps that survive JSON", async () => {
     const store = await opened();
     const seen = changes(store);

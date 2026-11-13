@@ -4,6 +4,7 @@
 // fixtures.
 
 import { describe, expect, test, vi } from "vitest";
+import type { Lock } from "../protocol/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
 import { openedStore, withPlugins } from "../testing/store.ts";
@@ -144,6 +145,26 @@ describe("running a command", () => {
     store.undo("assistant");
     expect(store.board()).toEqual(board);
     expect(Object.keys(store.board().links)).toEqual(Object.keys(board.links));
+  });
+
+  test("applies the deltas of a command with undo: false as no undo step, which leaves the origin's undo and redo steps as they are", async () => {
+    const { store, commands } = await setup();
+    commands.register(renameB({ undo: false }));
+    store.apply({ name: "Sepals" });
+    store.apply({ name: "Petals" });
+    store.undo();
+
+    await commands.run("test.pkg-rename_b", { name: "Renamed" });
+
+    expect(store.board().blocks.b?.name).toBe("Renamed");
+    expect([store.canUndo(), store.canRedo()]).toEqual([true, true]);
+    store.redo();
+    expect(store.board().name).toBe("Petals");
+    store.undo();
+    store.undo();
+    expect(store.board().name).toBe("Iris review");
+    expect(store.canUndo()).toBe(false);
+    expect(store.board().blocks.b?.name).toBe("Renamed");
   });
 
   test("applies a command that does not prepare before run() returns", async () => {
@@ -342,6 +363,49 @@ describe("preparing", () => {
     await expect(commands.run("test.pkg-later")).rejects.toThrow(
       'The command "test.pkg-later" failed\n- No layout.',
     );
+  });
+});
+
+describe("the context", () => {
+  test("hands enabled(), prepare() and run() the locks, the blockr options and ids in the shape that rand_id names", async () => {
+    const store = await openedStore();
+    const lock: Lock = { board: false, load: true };
+    const asked: string[] = [];
+    const commands = createCommands(store, {
+      lock,
+      randId: "letters_6",
+      blockrOption(name) {
+        asked.push(name);
+        return Promise.resolve(name === "stack_name" ? "Petals" : undefined);
+      },
+    });
+    const locks: Lock[] = [];
+    commands.register<Json, Json | undefined>({
+      id: "test.pkg-add_stack",
+      label: "Add stack",
+      enabled(_board, _args, context) {
+        locks.push(context.lock);
+        return true;
+      },
+      prepare: (_board, _args, context) => context.blockrOption("stack_name"),
+      run(board, name, context) {
+        const id = context.mintId((id) => Object.hasOwn(board.stacks, id));
+        // The command converts the blockr option's value and takes a fallback
+        // of its own where nothing sets it.
+        return { stacks: { add: { [id]: { name: typeof name === "string" ? name : "Stack", blocks: [], color: null } } } };
+      },
+    });
+    const before = Object.keys(store.board().stacks);
+
+    await commands.run("test.pkg-add_stack");
+
+    // The registry checks enabled() before prepare() and again once it
+    // resolves.
+    expect(locks).toEqual([lock, lock]);
+    expect(asked).toEqual(["stack_name"]);
+    const minted = Object.keys(store.board().stacks).filter((id) => !before.includes(id));
+    expect(minted).toEqual([expect.stringMatching(/^[a-z]{6}$/)]);
+    expect(store.board().stacks[minted[0] ?? ""]?.name).toBe("Petals");
   });
 });
 

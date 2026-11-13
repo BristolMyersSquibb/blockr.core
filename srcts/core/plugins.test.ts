@@ -11,7 +11,7 @@ import { describe, expect, test } from "vitest";
 import basicFrontend from "../modules/basic/index.tsx";
 // eslint-disable-next-line no-restricted-imports
 import editBoard from "../modules/edit-board/index.tsx";
-import type { HelloReply } from "../protocol/index.ts";
+import type { HelloReply, Lock } from "../protocol/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
@@ -130,6 +130,44 @@ describe("the plugins that run", () => {
     // before.
     const next = await reopen(s);
     expect(Object.keys(next.commands.registered())).toContain("blockr.test-clear_notes");
+    s.stop();
+  });
+
+  test("hand the commands of their classes the app's locks, the blockr options that R gives and ids in the shape that rand_id names", async () => {
+    const got: { lock?: Lock; limit?: unknown } = {};
+    const notes: PluginClass = {
+      id: "blockr.test-notes_plugin",
+      state: { schema: { type: "object" }, default: {} },
+      commands: [
+        {
+          id: "blockr.test-add_note",
+          label: "Add a note",
+          enabled(_board, _args, { lock }) {
+            got.lock = lock;
+            return true;
+          },
+          prepare: (_board, _args, { blockrOption }) => blockrOption("notes_limit"),
+          run(_board, limit, { mintId }) {
+            got.limit = limit;
+            return { patches: [{ op: "add", path: `/plugins/blockr.test-notes_plugin/${mintId(() => false)}`, value: "To do" }] };
+          },
+        },
+      ],
+    };
+    const s = await stubbed(
+      [notes],
+      { [notes.id]: { name: "Notes", state: {} } },
+      { blockrOptions: { rand_id: "letters_8", notes_limit: 3 } },
+      { ...HELLO, lock: { board: true, load: false } },
+    );
+
+    // Under the board lock, the store applies a patch inside a plugin's state,
+    // which the plugin's commands lock themselves.
+    await s.core.commands.run("blockr.test-add_note");
+
+    expect(got).toEqual({ lock: { board: true, load: false }, limit: 3 });
+    const state = s.core.store.board().plugins[notes.id] as Readonly<Record<string, unknown>>;
+    expect(Object.entries(state)).toEqual([[expect.stringMatching(/^[a-z]{8}$/), "To do"]]);
     s.stop();
   });
 

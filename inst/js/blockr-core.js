@@ -7047,7 +7047,7 @@ function createStore(options = {}) {
       else edits.delete(key);
     }
   }
-  function apply(delta, origin = "user") {
+  function apply(delta, origin = "user", opts = {}) {
     guard2();
     const deltas = isDeltas(delta) ? delta : [delta];
     if (deltas.length === 0) return;
@@ -7060,7 +7060,7 @@ function createStore(options = {}) {
       const { applied, inverses } = run(start2, deltas, {}, refused2);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start2);
-      if (inverses.length > 0) {
+      if (inverses.length > 0 && opts.undo !== false) {
         setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
       }
       for (const { delta: delta2, board: next } of applied) {
@@ -7845,10 +7845,7 @@ var newBlock = {
     description: "Values of the new block's state args, which the schema of its class types, in place of those its class starts a block with."
   }
 };
-function coreCommands(store, options = {}) {
-  function mint(taken) {
-    return mintId(taken, options.randId);
-  }
+function coreCommands(store) {
   function registryEntry(command2, registryId2) {
     const entry = own(store.blockRegistry(), registryId2);
     if (entry === void 0) {
@@ -7856,14 +7853,14 @@ function coreCommands(store, options = {}) {
     }
     return entry;
   }
-  function added(command2, board2, args) {
+  function added(command2, board2, args, mintId2) {
     const entry = registryEntry(command2, args.registry_id);
     const state2 = { ...entry.state, ...args.state };
     const failures = stateFailures(entry, state2);
     if (failures.length > 0) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
-    const id2 = args.id ?? mint((id3) => Object.hasOwn(board2.blocks, id3));
+    const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
     return [
       id2,
       { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null },
@@ -7900,8 +7897,8 @@ function coreCommands(store, options = {}) {
       label: "Add block",
       description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given.",
       args: object(newBlock, ["registry_id"]),
-      run(board2, args) {
-        const [id2, block] = added(this.id, board2, args);
+      run(board2, args, { mintId: mintId2 }) {
+        const [id2, block] = added(this.id, board2, args, mintId2);
         return { blocks: { add: { [id2]: block } } };
       }
     }),
@@ -7975,10 +7972,10 @@ function coreCommands(store, options = {}) {
         ["from", "registry_id"]
       ),
       enabled: (board2, { from }) => Object.hasOwn(board2.blocks, from),
-      run(board2, args) {
-        const [id2, block, entry] = added(this.id, board2, args);
+      run(board2, args, { mintId: mintId2 }) {
+        const [id2, block, entry] = added(this.id, board2, args, mintId2);
         const input2 = newInput(this.id, entry, args.input);
-        const link = mint((id3) => Object.hasOwn(board2.links, id3));
+        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
         return {
           blocks: { add: { [id2]: block } },
           links: { add: { [link]: { from: args.from, to: id2, input: input2 } } }
@@ -8001,10 +7998,10 @@ function coreCommands(store, options = {}) {
         ["to", "registry_id"]
       ),
       enabled: (board2, { to, input: input2 }) => linkable(board2, to, input2),
-      run(board2, args) {
+      run(board2, args, { mintId: mintId2 }) {
         const input2 = linkInput(this.id, board2, args.to, args.input);
-        const [id2, block] = added(this.id, board2, args);
-        const link = mint((id3) => Object.hasOwn(board2.links, id3));
+        const [id2, block] = added(this.id, board2, args, mintId2);
+        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
         return {
           blocks: { add: { [id2]: block } },
           links: { add: { [link]: { from: id2, to: args.to, input: input2 } } }
@@ -8027,13 +8024,13 @@ function coreCommands(store, options = {}) {
         ["link", "registry_id"]
       ),
       enabled: (board2, { link }) => Object.hasOwn(board2.links, link),
-      run(board2, args) {
+      run(board2, args, { mintId: mintId2 }) {
         const split = own(board2.links, args.link);
         if (split === void 0) return [];
-        const [id2, block, entry] = added(this.id, board2, args);
+        const [id2, block, entry] = added(this.id, board2, args, mintId2);
         const input2 = newInput(this.id, entry, args.input);
-        const near = mint((id3) => Object.hasOwn(board2.links, id3));
-        const far = mint((id3) => Object.hasOwn(board2.links, id3) || id3 === near);
+        const near = mintId2((id3) => Object.hasOwn(board2.links, id3));
+        const far = mintId2((id3) => Object.hasOwn(board2.links, id3) || id3 === near);
         return {
           blocks: { add: { [id2]: block } },
           links: {
@@ -8069,8 +8066,8 @@ function coreCommands(store, options = {}) {
         ["from", "to"]
       ),
       enabled: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
-      run(board2, { from, to, input: input2, id: id2 }) {
-        const link = id2 ?? mint((id3) => Object.hasOwn(board2.links, id3));
+      run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
+        const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
         const resolved = linkInput(this.id, board2, to, input2);
         return { links: { add: { [link]: { from, to, input: resolved } } } };
       }
@@ -8168,8 +8165,8 @@ function coreCommands(store, options = {}) {
           description: "The new stack's colour, which frontends draw it in, or null for none. The stack gets null where this is left out, and a frontend draws a stack without a colour in a default of its own."
         }
       }),
-      run(board2, { id: id2, name: name3 = "Stack", blocks: blocks2 = [], color: color2 = null }) {
-        const stack = id2 ?? mint((id3) => Object.hasOwn(board2.stacks, id3));
+      run(board2, { id: id2, name: name3 = "Stack", blocks: blocks2 = [], color: color2 = null }, { mintId: mintId2 }) {
+        const stack = id2 ?? mintId2((id3) => Object.hasOwn(board2.stacks, id3));
         const left2 = leave(board2, stack, blocks2);
         return {
           stacks: {
@@ -8259,7 +8256,7 @@ function coreCommands(store, options = {}) {
         },
         ["plugin", "patches"]
       ),
-      enabled: (board2, { plugin }) => options.locked !== true && Object.hasOwn(board2.plugins, plugin),
+      enabled: (board2, { plugin }, { lock }) => !lock.board && Object.hasOwn(board2.plugins, plugin),
       run: (_board, { plugin, patches: patches2 }) => ({
         patches: patches2.map((patch2) => ({ ...patch2, path: `${pathFromSegments(["plugins", plugin])}${patch2.path}` }))
       })
@@ -8342,6 +8339,12 @@ function createCommands(store, options = {}) {
     () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
   );
   const ended = () => options.signal?.aborted === true;
+  const randId = options.randId === void 0 ? "adjective_animal" : asRandId(options.randId);
+  const context = {
+    lock: options.lock ?? { board: false, load: false },
+    mintId: (taken) => mintId(taken, randId),
+    blockrOption: options.blockrOption ?? (() => Promise.resolve(void 0))
+  };
   function register(command2) {
     const { id: id2 } = command2;
     if (typeof id2 !== "string" || !isCommandId(id2)) {
@@ -8390,7 +8393,7 @@ function createCommands(store, options = {}) {
     return store.board();
   }
   function allow(command2, board, args) {
-    const enabled = attempt2(command2, () => command2.enabled?.(board, args) ?? true);
+    const enabled = attempt2(command2, () => command2.enabled?.(board, args, context) ?? true);
     if (!enabled) {
       throw refusal(command2.id, [
         `It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`
@@ -8398,13 +8401,12 @@ function createCommands(store, options = {}) {
     }
   }
   function build(command2, board, args) {
-    const returned = attempt2(command2, () => command2.run(board, args));
+    const returned = attempt2(command2, () => command2.run(board, args, context));
     const deltas2 = isDeltas(returned) ? returned : [returned];
     return deltas2.map(withEdits);
   }
-  function deltas(id2, given) {
-    const { command: command2, args } = lookup(id2, given);
-    const board = current2(id2);
+  function deltas(command2, args) {
+    const board = current2(command2.id);
     allow(command2, board, args);
     if (command2.prepare === void 0) return build(command2, board, args);
     return prepared(command2, board, args);
@@ -8412,7 +8414,7 @@ function createCommands(store, options = {}) {
   async function prepared(command2, board, args) {
     let input2;
     try {
-      input2 = await command2.prepare?.(board, args);
+      input2 = await command2.prepare?.(board, args, context);
     } catch (error) {
       throw failed(command2, error);
     }
@@ -8462,17 +8464,16 @@ function createCommands(store, options = {}) {
       }
     },
     async run(id2, given, origin = "user") {
-      const step2 = deltas(id2, given);
-      store.apply(Array.isArray(step2) ? step2 : await step2, origin);
+      const { command: command2, args } = lookup(id2, given);
+      const step2 = deltas(command2, args);
+      store.apply(Array.isArray(step2) ? step2 : await step2, origin, { undo: command2.undo });
     },
     async plan(id2, given) {
-      return deltas(id2, given);
+      const { command: command2, args } = lookup(id2, given);
+      return deltas(command2, args);
     }
   };
-  for (const command2 of coreCommands(store, {
-    locked: options.lock?.board === true,
-    randId: options.randId === void 0 ? "adjective_animal" : asRandId(options.randId)
-  })) {
+  for (const command2 of coreCommands(store)) {
     registry.register(command2);
   }
   return registry;
@@ -8677,7 +8678,12 @@ function start(options) {
       blockrOptions.read("rand_id")
     ]);
     const store = createStore({ hello: reply, signal, migration: (id2) => migrations.get(id2) });
-    const commands = createCommands(store, { signal, lock: reply.lock, randId });
+    const commands = createCommands(store, {
+      signal,
+      lock: reply.lock,
+      randId,
+      blockrOption: (name3) => blockrOptions.read(name3)
+    });
     await register(reply, store, commands, signal);
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({

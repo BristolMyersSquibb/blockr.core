@@ -55,11 +55,14 @@ export interface Store {
   // they change.
   // A step that sets or removes only board option values is no undo step:
   // it leaves the origin's undo and redo lists as they are.
+  // Nor is a step applied with `{ undo: false }`, as the command registry
+  // applies the deltas of a command with `undo: false`. The store applies and
+  // announces such a step as any other, but keeps no inverse of it.
   // Under the board lock, it refuses every delta but one that changes the
   // state of a block that the board lock leaves open, a board option's value
   // or what sits inside a plugin's state, which the plugin locks itself
   // (./lock.ts).
-  apply(delta: Delta | readonly Delta[], origin?: Origin): void;
+  apply(delta: Delta | readonly Delta[], origin?: Origin, opts?: { readonly undo?: false }): void;
   // Opens the opening board that R sent with its reply to `hello`, or a JSON
   // board given as its text, with the block registry of the last such reply,
   // and resolves with what it dropped.
@@ -342,7 +345,11 @@ export function createStore(options: StoreOptions = {}): Store {
     }
   }
 
-  function apply(delta: Delta | readonly Delta[], origin: Origin = "user"): void {
+  function apply(
+    delta: Delta | readonly Delta[],
+    origin: Origin = "user",
+    opts: { readonly undo?: false } = {},
+  ): void {
     guard();
     const deltas: readonly Delta[] = isDeltas(delta) ? delta : [delta];
     if (deltas.length === 0) return;
@@ -357,7 +364,7 @@ export function createStore(options: StoreOptions = {}): Store {
       const { applied, inverses } = run(start, deltas, {}, refused);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start);
-      if (inverses.length > 0) {
+      if (inverses.length > 0 && opts.undo !== false) {
         setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
       }
 

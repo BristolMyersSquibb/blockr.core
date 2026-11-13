@@ -3,21 +3,39 @@
 // own among them. A command reads the board and returns deltas, and the command
 // registry applies them through the store as one step of the origin it is
 // given, so that every edit, whoever makes it, passes the store's checks.
-// The step is one undo step, unless it sets or removes only board option
-// values (../store/store.ts).
+// The step is one undo step, unless the command has `undo: false` or the step
+// sets or removes only board option values (../store/store.ts).
+// Beside the board and its args, the command registry hands every command its
+// context: what the app fixes for the page.
 // Core creates a command registry for each store and hands it to plugins,
 // a frontend among them, through `CoreApi`. It ends with the store, as another
 // board opens.
 
 import { computed, signal } from "@preact/signals-core";
 import type { Lock } from "../protocol/index.ts";
-import { isDeltas, isRandId, pluginClassFromPath, RAND_IDS } from "../store/index.ts";
+import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { compile, errorMessage, packageFromId, quoted } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
+
+// What the command registry hands every command beside the board and its
+// args: what the app fixes for the page. A plugin class's commands read it to
+// refuse what its plugins lock, and to mint ids as core's commands do.
+export interface CommandContext {
+  // The locks that R's reply to `hello` gives: whether the board lock and the
+  // load lock are on.
+  readonly lock: Lock;
+  // A new id, such as "calm_heron", that `taken` does not hold, in the shape
+  // that the blockr option rand_id names.
+  readonly mintId: (taken: (id: string) => boolean) => string;
+  // A blockr option as R sent it, or undefined where nothing sets it, as
+  // CoreApi.blockrOption() reads it. It returns a promise, so a command reads
+  // a blockr option in its prepare().
+  readonly blockrOption: (name: string) => Promise<Json | undefined>;
+}
 
 export interface Command<A extends Json = Json, P = A> {
   // Named as a registry id is, `{pkg}-{name}`, such as
@@ -35,12 +53,16 @@ export interface Command<A extends Json = Json, P = A> {
   readonly shortcut?: string;
   // Whether it applies to the board with these args, which menus show by
   // greying out what does not.
-  enabled?(board: Board, args: A): boolean;
+  enabled?(board: Board, args: A, context: CommandContext): boolean;
+  // False where its deltas take no undo step, as for a command that changes
+  // only what the user looks at, such as the dock's active view. The store
+  // still applies and announces them as any others.
+  readonly undo?: false;
   // What has to wait, such as a layout that elkjs returns as a promise.
-  prepare?(board: Board, args: A): Promise<P>;
+  prepare?(board: Board, args: A, context: CommandContext): Promise<P>;
   // Reads the board and returns the deltas of the edit, changing nothing
   // itself.
-  run(board: Board, args: P): Delta | readonly Delta[];
+  run(board: Board, args: P, context: CommandContext): Delta | readonly Delta[];
 }
 
 export interface Commands {
@@ -53,8 +75,9 @@ export interface Commands {
   // fit the schema of its args.
   enabled(id: string, args?: Json): boolean;
   // Runs the command and applies its deltas as one step of the origin, "user"
-  // unless given, or rejects with what refused it, having changed nothing. A
-  // command that does not prepare is applied before run() returns.
+  // unless given, or rejects with what refused it, having changed nothing. The
+  // step is an undo step unless the command has `undo: false`. A command that
+  // does not prepare is applied before run() returns.
   run(id: string, args?: Json, origin?: Origin): Promise<void>;
   // The deltas the command returns on the current board, not applied, with
   // the edit ids of the board they were built on, so that the store refuses
@@ -91,15 +114,20 @@ export interface CommandsOptions {
   // store: from then on the registry runs and plans no command, and drops a
   // command still in its prepare() rather than run it.
   readonly signal?: AbortSignal;
-  // The locks that R's reply to `hello` gives. Under the board lock, core's
-  // command for a plugin's state is not enabled, since there only a plugin
-  // class's own commands know what the plugin locks.
+  // The locks that R's reply to `hello` gives, which the context of every
+  // command holds. Under the board lock, core's command for a plugin's state
+  // is not enabled, since there only a plugin class's own commands know what
+  // the plugin locks. No lock is on unless given.
   readonly lock?: Lock;
-  // The `rand_id` blockr option as R sent it, the shape of the ids that core's
-  // commands mint, which core asks R for as soon as R has answered its hello.
+  // The `rand_id` blockr option as R sent it, the shape of the ids that the
+  // context of every command mints, which core asks R for as soon as R has
+  // answered its hello.
   // It is "adjective_animal" unless given, and the command registry refuses a
   // value that names no shape.
   readonly randId?: Json | undefined;
+  // Reads a blockr option for the context of every command, as
+  // CoreApi.blockrOption() does. Unless given, nothing sets a blockr option.
+  readonly blockrOption?: (name: string) => Promise<Json | undefined>;
 }
 
 export function createCommands(store: Store, options: CommandsOptions = {}): Commands {
@@ -108,6 +136,12 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     Object.fromEntries([...commands.value].map(([id, { command }]) => [id, command])),
   );
   const ended = (): boolean => options.signal?.aborted === true;
+  const randId = options.randId === undefined ? "adjective_animal" : asRandId(options.randId);
+  const context: CommandContext = {
+    lock: options.lock ?? { board: false, load: false },
+    mintId: (taken) => mintId(taken, randId),
+    blockrOption: options.blockrOption ?? (() => Promise.resolve(undefined)),
+  };
 
   function register<A extends Json, P>(command: Command<A, P>): () => void {
     const { id } = command;
@@ -168,7 +202,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   }
 
   function allow(command: Command<Json, unknown>, board: Board, args: Json): void {
-    const enabled = attempt(command, () => command.enabled?.(board, args) ?? true);
+    const enabled = attempt(command, () => command.enabled?.(board, args, context) ?? true);
     if (!enabled) {
       throw refusal(command.id, [
         `It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`,
@@ -179,7 +213,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // The deltas that the command returns on the board, with the edit ids the
   // board gives what they change where the command left them out.
   function build(command: Command<Json, unknown>, board: Board, args: unknown): Delta[] {
-    const returned = attempt(command, () => command.run(board, args));
+    const returned = attempt(command, () => command.run(board, args, context));
     const deltas: readonly Delta[] = isDeltas(returned) ? returned : [returned];
     return deltas.map(withEdits);
   }
@@ -188,9 +222,8 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // not prepare, so that run() applies them before it returns, and otherwise
   // once prepare() resolves, on the board as it is then, where the command is
   // still enabled and no board has opened in the meantime.
-  function deltas(id: string, given: Json | undefined): Delta[] | Promise<Delta[]> {
-    const { command, args } = lookup(id, given);
-    const board = current(id);
+  function deltas(command: Command<Json, unknown>, args: Json): Delta[] | Promise<Delta[]> {
+    const board = current(command.id);
     allow(command, board, args);
     if (command.prepare === undefined) return build(command, board, args);
     return prepared(command, board, args);
@@ -203,7 +236,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   ): Promise<Delta[]> {
     let input: unknown;
     try {
-      input = await command.prepare?.(board, args);
+      input = await command.prepare?.(board, args, context);
     } catch (error) {
       throw failed(command, error);
     }
@@ -264,18 +297,17 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       }
     },
     async run(id, given, origin = "user") {
-      const step = deltas(id, given);
-      store.apply(Array.isArray(step) ? step : await step, origin);
+      const { command, args } = lookup(id, given);
+      const step = deltas(command, args);
+      store.apply(Array.isArray(step) ? step : await step, origin, { undo: command.undo });
     },
     async plan(id, given) {
-      return deltas(id, given);
+      const { command, args } = lookup(id, given);
+      return deltas(command, args);
     },
   };
 
-  for (const command of coreCommands(store, {
-    locked: options.lock?.board === true,
-    randId: options.randId === undefined ? "adjective_animal" : asRandId(options.randId),
-  })) {
+  for (const command of coreCommands(store)) {
     registry.register(command);
   }
 
