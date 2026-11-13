@@ -9,7 +9,9 @@
 // 3. Where R replies `missing`, since a revision moved on before R ran the
 //    request, the host has the inputs evaluated again and asks again.
 // Once another board opens or the block leaves the board, the request stops,
-// whichever step it is at, so that nothing of it reaches the next board.
+// whichever step it is at, so that nothing of it reaches the next board. Each
+// condition of R's error reply raises a notification that concerns the block,
+// which holds until R next replies to a request of the same name.
 // What core keeps of the answers is ./answers.ts's.
 
 import type { Condition, ReplyStatus } from "../protocol/index.ts";
@@ -20,6 +22,7 @@ import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { isObject, own, quoted } from "../util/index.ts";
+import type { Replied } from "../util/index.ts";
 import type { Answers, ClassRequest } from "./answers.ts";
 
 // How many times a request asks R before it gives up on results that R keeps
@@ -62,6 +65,9 @@ export interface RequestDeps {
   readonly store: Pick<Store, "board">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "inputs">;
   readonly answers: Answers;
+  // Holds a notification for each condition of R's latest reply to each of
+  // the block's requests (../core/notifications.ts).
+  readonly replied: Replied;
   // Whether the host is still bound to its board and its block, and why not
   // where it is not.
   readonly bound: () => boolean;
@@ -133,6 +139,7 @@ export async function blockRequest(
 
     switch (reply.status) {
       case "ok":
+        deps.replied({ block }, { type: "block_class", name }, []);
         if (body !== null) return body;
         return "value" in reply && reply.value !== undefined ? reply.value : null;
       case "missing":
@@ -142,11 +149,14 @@ export async function blockRequest(
         });
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name}" of block "${block}".`, { status: "cancelled" });
-      default:
+      default: {
+        const conditions = "conditions" in reply ? reply.conditions : [];
+        deps.replied({ block }, { type: "block_class", name }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name}" of block "${block}".`, {
           status: reply.status,
-          conditions: "conditions" in reply ? reply.conditions : [],
+          conditions,
         });
+      }
     }
   }
 }

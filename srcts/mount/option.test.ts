@@ -12,8 +12,10 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore } from "../testing/store.ts";
+import type { Owner, Raised } from "../types/core-api.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
+import type { Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Mounts } from "./index.ts";
 
@@ -58,6 +60,11 @@ interface Setup {
   store: Store;
   mounts: Mounts;
   imported: string[];
+  // What the mounts handed on of each of R's replies to a request.
+  replies: Parameters<Replied>[];
+  // The notifications that modules raised through their hosts, while they
+  // hold.
+  notified: { owner: Owner; pkg: string | null; notification: Raised }[];
   // Ends what core runs for the board, as core does as another board opens.
   end(): void;
 }
@@ -86,12 +93,36 @@ async function setup(
     },
     stylesheet: () => Promise.resolve(),
   });
-  const mounts = createMounts({ core: noCore, store, commands, scheduler, loader, renderers: () => renderers, signal });
+  const replies: Parameters<Replied>[] = [];
+  const notified: { owner: Owner; pkg: string | null; notification: Raised }[] = [];
+  const mounts = createMounts({
+    core: noCore,
+    store,
+    commands,
+    scheduler,
+    loader,
+    renderers: () => renderers,
+    signal,
+    replied: (...args) => {
+      replies.push(args);
+    },
+    notify: (owner, pkg, notification) => {
+      const given = { owner, pkg, notification };
+      notified.push(given);
+      return () => {
+        const at = notified.indexOf(given);
+        if (at >= 0) notified.splice(at, 1);
+      };
+    },
+    optionPackage: (option) => (option === "n_rows" ? "blockr.core" : undefined),
+  });
   return {
     r,
     store,
     mounts,
     imported,
+    replies,
+    notified,
     end: () => {
       controller.abort();
     },
@@ -243,6 +274,40 @@ describe("the host", () => {
     });
     await expect(first).resolves.toEqual(["x"]);
     await expect(second).rejects.toBeInstanceOf(RequestError);
+    // Each reply goes on as R's latest to a request of its name.
+    expect(s.replies).toEqual([
+      [{ option: "n_rows" }, { type: "option", name: "list_dir" }, []],
+      [
+        { option: "n_rows" },
+        { type: "option", name: "list_dir" },
+        [{ severity: "error", class: ["simpleError", "error", "condition"], phase: "request", message: "gone" }],
+      ],
+    ]);
+  });
+
+  test("raises what the module gives its notify(), from the board option, with the package that lists it, until the mount ends", async () => {
+    const rows = ui();
+    const s = await setup(options(rows.mod));
+    const unmount = s.mounts.mountOption(document.createElement("div"), "n_rows");
+    await tick();
+    const given: Raised = { severity: "warning", code: "large", message: "Many rows slow the table.", about: null };
+    const withdraw = rows.host().notify(given);
+    rows.host().notify({ ...given, code: "other" });
+    expect(s.notified).toEqual([
+      { owner: { option: "n_rows" }, pkg: "blockr.core", notification: given },
+      { owner: { option: "n_rows" }, pkg: "blockr.core", notification: { ...given, code: "other" } },
+    ]);
+    withdraw();
+    withdraw();
+    expect(s.notified.map((n) => n.notification.code)).toEqual(["other"]);
+    expect(() => rows.host().notify({ ...given, severity: "fatal" } as unknown as Raised)).toThrow(
+      'The severity of a notification is "message", "warning" or "error", not "fatal".',
+    );
+
+    unmount();
+    expect(s.notified).toEqual([]);
+    rows.host().notify(given);
+    expect(s.notified).toEqual([]);
   });
 });
 

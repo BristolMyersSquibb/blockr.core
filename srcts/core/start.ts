@@ -391,7 +391,7 @@ export function start(options: StartOptions): Started {
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
     // The notifications of the board, made before core imports the modules
     // that the reply names, so that the frontend hears of one that fails.
-    const notifications = createNotifications(store, signal);
+    const notifications = createNotifications(store, { signal, plugins: reply.plugins });
     const { raise } = notifications;
     askReload(raise);
     const commands = createCommands(store, { signal, lock: reply.lock, randId });
@@ -444,7 +444,7 @@ export function start(options: StartOptions): Started {
               "board_open_failed",
               "error",
               `The board that the storage plugin "${instead.plugin}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
-              { package: packageFromId(instead.plugin) },
+              { about: { plugin: instead.plugin }, package: packageFromId(instead.plugin) },
             ),
           );
           await migrations.prepare(reply.board, reply.block_registry);
@@ -527,14 +527,14 @@ export function start(options: StartOptions): Started {
       Promise.all(
         Object.entries(reply.plugins).map(([id, entry]) =>
           listed(entry, packageFromId(id), (error) => {
-            failed(error, { plugin: id, package: packageFromId(id) });
+            failed(error, { about: { plugin: id }, package: packageFromId(id) });
           }),
         ),
       ),
       Promise.all(
         Object.entries(reply.options).map(([id, entry]) =>
           listed(entry, entry.package, (error) => {
-            failed(error, { option: id, package: entry.package });
+            failed(error, { about: { option: id }, package: entry.package });
           }),
         ),
       ),
@@ -546,7 +546,7 @@ export function start(options: StartOptions): Started {
       try {
         store.options.register({ ...(def as unknown as Option), id });
       } catch (error) {
-        failed(error, { option: id, package: entry.package });
+        failed(error, { about: { option: id }, package: entry.package });
       }
     });
     Object.keys(reply.plugins).forEach((id, i) => {
@@ -557,7 +557,7 @@ export function start(options: StartOptions): Started {
         cls = { ...(def as unknown as PluginClass), id };
         store.plugins.register(cls);
       } catch (error) {
-        failed(error, { plugin: id, package: packageFromId(id) });
+        failed(error, { about: { plugin: id }, package: packageFromId(id) });
         return;
       }
       for (const command of cls.commands ?? []) {
@@ -607,7 +607,7 @@ export function start(options: StartOptions): Started {
     if (plugin === undefined || storage?.load === undefined) return undefined;
     const refuse = (error: Error): void => {
       report(error);
-      raise(coreNotification("board_open_failed", "error", error.message, { package: packageFromId(plugin) }));
+      raise(coreNotification("board_open_failed", "error", error.message, { about: { plugin }, package: packageFromId(plugin) }));
     };
     let text: unknown;
     try {

@@ -17,8 +17,8 @@
 //    board, so that the scheduler evaluates first what the page first shows.
 // 2. It shows above the board the notifications of the board that concern no
 //    block, such as the one in which core names what the store dropped as the
-//    board opened, and those that plugins raise, until core withdraws one or
-//    the user dismisses it.
+//    board opened, and those that the code of packages raises, until one is
+//    withdrawn or the user dismisses it.
 // 3. It draws the board that the store holds, and then demands the blocks in
 //    view as the page lays out their cards.
 // 4. It binds undo, redo and the buttons among the storage controls to their

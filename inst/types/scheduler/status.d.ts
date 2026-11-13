@@ -21,7 +21,8 @@ export interface Outcome {
     readonly stdout: string;
     readonly stderr: string;
 }
-export declare function writtenByCore(condition: Condition): boolean;
+export type ScheduledCode = "block_waiting" | "evaluation_unsent";
+export declare function scheduledCode(condition: Condition): ScheduledCode | undefined;
 export declare function replyOutcome(reply: Reply, revision: number): Outcome | undefined;
 export declare function unsent(revision: number, message: string): Outcome;
 export declare function unevaluated(revision: number, running: boolean): BlockStatus;

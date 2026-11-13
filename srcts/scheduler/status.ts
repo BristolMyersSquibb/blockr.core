@@ -59,20 +59,23 @@ export interface Outcome {
 
 const NO_CONDITIONS: readonly Condition[] = Object.freeze([]);
 
-// The conditions that the scheduler writes itself, rather than R: the message
-// of a block that waits and the error of an evaluation that the transport
-// could not send. A condition of R's may have no phase either, as where a lock
-// refuses an evaluation, so the phase does not tell them apart.
-const written = new WeakSet<Condition>();
+// The conditions that the scheduler writes itself, rather than R, by the code
+// of core's notification of each: the message of a block that waits and the
+// error of an evaluation that the transport could not send. A condition of R's
+// may have no phase either, as where a lock refuses an evaluation, so the
+// phase does not tell them apart.
+const written = new WeakMap<Condition, ScheduledCode>();
 
-// Whether the scheduler wrote the condition itself, which makes the origin of
-// its notification "core" rather than "r".
-export function writtenByCore(condition: Condition): boolean {
-  return written.has(condition);
+export type ScheduledCode = "block_waiting" | "evaluation_unsent";
+
+// The code of core's notification of a condition that the scheduler wrote
+// itself, or undefined for one of R's.
+export function scheduledCode(condition: Condition): ScheduledCode | undefined {
+  return written.get(condition);
 }
 
-function byCore(condition: Condition): Condition {
-  written.add(condition);
+function byCore(code: ScheduledCode, condition: Condition): Condition {
+  written.set(condition, code);
   return condition;
 }
 
@@ -99,7 +102,7 @@ export function unsent(revision: number, message: string): Outcome {
     revision,
     summary: null,
     conditions: [
-      byCore({
+      byCore("evaluation_unsent", {
         severity: "error",
         class: ["blockr_error", "error", "condition"],
         message: `The evaluation could not be sent to R: ${message}`,
@@ -187,7 +190,7 @@ export function waitingFor(
     const inputs = what.unlinked.length === 1 ? "input" : "inputs";
     message = `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
   }
-  return byCore({
+  return byCore("block_waiting", {
     severity: "message",
     class: ["blockr_message", "message", "condition"],
     phase: "status",

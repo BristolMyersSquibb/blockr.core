@@ -22,7 +22,7 @@ import { BlockCard, StackGroup } from "./card.tsx";
 import { FrontEndContext, runCommand, useFrontEnd } from "./context.ts";
 import type { FrontEnd } from "./context.ts";
 import { layoutItems } from "./layout.ts";
-import { useNotices } from "./notices.ts";
+import { isReload, useNotices } from "./notices.ts";
 import type { Severity } from "./notices.ts";
 import { OptionsDialog } from "./options.tsx";
 import { Plugins } from "./plugins.tsx";
@@ -143,7 +143,7 @@ function Notices(): ReactElement | null {
           className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${NOTICE_TONES[notice.severity]}`}
         >
           <span className="bc:flex-1 bc:whitespace-pre-wrap">{notice.text}</span>
-          {notice.notification?.class.includes("page_reload_needed") === true ? (
+          {notice.notification !== undefined && isReload(notice.notification) ? (
             <button
               type="button"
               className={classes.quiet}

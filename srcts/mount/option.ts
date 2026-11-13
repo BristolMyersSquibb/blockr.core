@@ -23,6 +23,11 @@
 // Either way, core shows the error in the element, and raises a notification
 // that concerns the board option, with the package of the renderer or of the
 // board option, which holds until the next board opens.
+// What the module raises through its host's notify() comes from the board
+// option, with the package of the module, and holds until the mount ends at
+// the latest. Each condition of R's error reply to a request raises a
+// notification that concerns the board option, which holds until R next
+// replies to a request of the same name.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
@@ -31,8 +36,8 @@ import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { coreNotification, errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
-import type { Raise } from "../util/index.ts";
+import { checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
+import type { Notify, Raise, Replied } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
@@ -58,6 +63,11 @@ export interface OptionDeps {
   ) => { readonly added: Promise<readonly string[]>; readonly stop: () => void };
   // Raises a notification of the board (../core/notifications.ts).
   readonly raise: Raise;
+  // Holds a notification for each condition of R's latest reply to each of
+  // the board option's requests.
+  readonly replied: Replied;
+  // Raises the notification that the module gives through its host.
+  readonly notify: Notify;
   // The package that lists a board option, from R's reply to `hello`.
   readonly optionPackage: (option: OptionId) => string | undefined;
 }
@@ -87,6 +97,8 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   let cleanup: (() => void) | undefined;
   // Stops keeping the board option on the board, once the module has loaded.
   let stopKeeping: (() => void) | undefined;
+  // What withdraws each notification that the module raised and that holds.
+  const notified = new Set<() => void>();
 
   function bound(): boolean {
     return !ended() && !deps.replaced.aborted;
@@ -133,6 +145,17 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       if (!bound()) return Promise.reject(unboundError());
       return optionRequest(deps, option, name, args, opts) as Promise<T | Blob>;
     },
+    notify(notification) {
+      const given = checkRaised(notification);
+      if (ended()) return () => undefined;
+      const withdraw = deps.notify({ option }, pkg ?? null, given);
+      const mine = (): void => {
+        notified.delete(mine);
+        withdraw();
+      };
+      notified.add(mine);
+      return mine;
+    },
   };
 
   const offStore = store.subscribe((_change, board) => {
@@ -155,6 +178,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     offStore();
     stopKeeping?.();
     listeners.clear();
+    for (const withdraw of [...notified]) withdraw();
     if (cleanup !== undefined) attempt(cleanup);
     el.replaceChildren();
   }
@@ -213,7 +237,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     if (ended()) return;
     showError(el, errorMessage(error));
     report(error);
-    deps.raise(coreNotification("module_failed", "error", errorMessage(error), { option, package: pkg }));
+    deps.raise(coreNotification("module_failed", "error", errorMessage(error), { about: { option }, package: pkg }));
   }
 
   return end;
@@ -223,7 +247,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
 // as R writes it, or with the File of a download. Core never keeps the answer
 // of a board option's request.
 async function optionRequest(
-  deps: Pick<OptionDeps, "scheduler">,
+  deps: Pick<OptionDeps, "scheduler" | "replied">,
   option: OptionId,
   name: string,
   args: Readonly<Record<string, Json>>,
@@ -239,14 +263,18 @@ async function optionRequest(
   );
   switch (reply.status) {
     case "ok":
+      deps.replied({ option }, { type: "option", name }, []);
       if (body !== null) return body;
       return "value" in reply && reply.value !== undefined ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name}" of the board option "${option}".`, { status: "cancelled" });
-    default:
+    default: {
+      const conditions = "conditions" in reply ? reply.conditions : [];
+      deps.replied({ option }, { type: "option", name }, conditions);
       throw new RequestError(`R replied ${reply.status} to the request "${name}" of the board option "${option}".`, {
         status: reply.status,
-        conditions: "conditions" in reply ? reply.conditions : [],
+        conditions,
       });
+    }
   }
 }

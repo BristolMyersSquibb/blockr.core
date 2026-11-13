@@ -17,8 +17,10 @@ import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
+import type { Owner, Raised } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, BlockModule } from "../types/hosts.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import type { Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Mounts, Source } from "./index.ts";
 
@@ -97,6 +99,11 @@ interface Setup {
   mounts: Mounts;
   imported: string[];
   sheets: string[];
+  // What the mounts handed on of each of R's replies to a request.
+  replies: Parameters<Replied>[];
+  // The notifications that modules raised through their hosts, while they
+  // hold.
+  notified: { owner: Owner; pkg: string | null; notification: Raised }[];
   // Ends what core runs for the board, as core does as another board opens,
   // and opens the board of the reply given in a new store with new mounts, on
   // the same R and the same loader, as core starts again.
@@ -139,7 +146,27 @@ async function setup(
     const commands = createCommands(store, { signal });
     const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
     scheduler.start();
-    const mounts = createMounts({ core: noCore, store, commands, scheduler, loader, signal });
+    const replies: Parameters<Replied>[] = [];
+    const notified: { owner: Owner; pkg: string | null; notification: Raised }[] = [];
+    const mounts = createMounts({
+      core: noCore,
+      store,
+      commands,
+      scheduler,
+      loader,
+      signal,
+      replied: (...args) => {
+        replies.push(args);
+      },
+      notify: (owner, pkg, notification) => {
+        const given = { owner, pkg, notification };
+        notified.push(given);
+        return () => {
+          const at = notified.indexOf(given);
+          if (at >= 0) notified.splice(at, 1);
+        };
+      },
+    });
     return {
       r,
       store,
@@ -147,6 +174,8 @@ async function setup(
       mounts,
       imported,
       sheets,
+      replies,
+      notified,
       next: (after = hello) => {
         controller.abort();
         return open(after);
@@ -683,6 +712,34 @@ describe("the host", () => {
 });
 
 describe("a mount", () => {
+  test("raises what the module gives its host's notify(), from the block, with the package of its class, until the mount ends", async () => {
+    const ui = recorder();
+    const { mounts, notified, store } = await setup({ [HEAD]: ui.exports });
+    const cleanup = mounts.mountBlock(document.createElement("div"), "b");
+    mounts.mountBlock(document.createElement("div"), "b");
+    await tick();
+    const given: Raised = { severity: "warning", code: "few_rows", message: "Few rows.", about: { block: "a" } };
+    const withdraw = ui.host(0).notify(given);
+    ui.host(1).notify({ ...given, code: "other" });
+    expect(notified).toEqual([
+      { owner: { block: "b" }, pkg: "blockr.core", notification: given },
+      { owner: { block: "b" }, pkg: "blockr.core", notification: { ...given, code: "other" } },
+    ]);
+    withdraw();
+    expect(notified.map((n) => n.notification.code)).toEqual(["other"]);
+    expect(() => ui.host(0).notify({ ...given, message: 1 } as unknown as Raised)).toThrow(
+      "The message of a notification is a string, not 1.",
+    );
+
+    // The first mount ends, and the second as its block leaves the board.
+    ui.host(0).notify(given);
+    cleanup();
+    expect(notified.map((n) => n.notification.code)).toEqual(["other"]);
+    ui.host(0).notify(given);
+    store.apply({ blocks: { rm: ["b"] } });
+    expect(notified).toEqual([]);
+  });
+
   test("ends as the frontend calls its cleanup, which aborts the signal, runs the module's cleanup and empties the element", async () => {
     const ui = recorder();
     const { mounts } = await setup({ [HEAD]: ui.exports });
@@ -1001,6 +1058,24 @@ describe("a request", () => {
       conditions: [failure],
       message: `R replied error to the request "listing" of block "b".\n- ${failure.message}`,
     });
+  });
+
+  test("hands on each of R's replies as its latest to a request of the block of its name, with the conditions of an error and none of an ok", async () => {
+    const { r, host, replies } = await mounted();
+
+    const failing = host.request("listing");
+    await tick();
+    r.reply({ id: lastRequest(r).id, status: "error", conditions: [failure] });
+    await expect(failing).rejects.toBeInstanceOf(RequestError);
+    const listing = host.request("listing");
+    await tick();
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [] });
+    await listing;
+
+    expect(replies).toEqual([
+      [{ block: "b" }, { type: "block_class", name: "listing" }, [failure]],
+      [{ block: "b" }, { type: "block_class", name: "listing" }, []],
+    ]);
   });
 
   test("rejects with the statuses of the inputs that could not be evaluated, and does not go to R", async () => {

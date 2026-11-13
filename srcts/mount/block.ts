@@ -28,6 +28,9 @@
 // at once, each with a host of its own. A host is bound to the board it was
 // made on and to its block. Once another board opens or the block leaves the
 // board, core ends the mount, and the host's submit() and evaluate() reject.
+// What the module raises through its host's notify() comes from the block,
+// with the package of its class, and holds until the mount ends at the
+// latest.
 // Core makes the mounts anew for each board that opens, with a signal that
 // aborts as the next board opens, which ends every mount.
 
@@ -54,12 +57,15 @@ import {
   isObject,
   jsonEqual,
   own,
+  checkRaised,
+  notifyNothing,
   packageFromId,
   quoted,
   raiseNothing,
+  repliedNothing,
   report,
 } from "../util/index.ts";
-import type { Raise } from "../util/index.ts";
+import type { Notify, Raise, Replied } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { Answers } from "./answers.ts";
 import { ModuleError } from "./load.ts";
@@ -125,6 +131,13 @@ export interface MountsOptions {
   // option does not go onto the board (../core/notifications.ts). It raises
   // none unless given.
   readonly raise?: Raise;
+  // Holds a notification for each condition of R's latest reply to each
+  // request of a mounted module, which concern the block or the board option
+  // that the request was made for. It holds none unless given.
+  readonly replied?: Replied;
+  // Raises the notification that a mounted module gives through its host. It
+  // raises none unless given.
+  readonly notify?: Notify;
   // The package that lists a board option, from R's reply to `hello`, which
   // the notification of the board option's failing UI names.
   readonly optionPackage?: (option: OptionId) => string | undefined;
@@ -147,6 +160,8 @@ export function createMounts(options: MountsOptions): Mounts {
   const emit = options.emit ?? ((): void => undefined);
   const renderers = options.renderers ?? ((): Readonly<Record<string, Renderer>> => ({}));
   const raise = options.raise ?? raiseNothing;
+  const replied = options.replied ?? repliedNothing;
+  const notify = options.notify ?? notifyNothing;
   const optionPackage = options.optionPackage ?? ((): undefined => undefined);
 
   // What core keeps of the board, which goes with the mounts as another board
@@ -170,7 +185,7 @@ export function createMounts(options: MountsOptions): Mounts {
     if (!replaced.aborted && !reported.has(message)) {
       reported.add(message);
       report(new Error(message));
-      raise(coreNotification("board_option_failed", "error", message, { option }));
+      raise(coreNotification("board_option_failed", "error", message, { about: { option } }));
     }
     return [message];
   }
@@ -320,7 +335,10 @@ export function createMounts(options: MountsOptions): Mounts {
       answers,
       block,
       entry,
+      pkg,
       replaced,
+      replied,
+      notify,
       unbound: end,
     });
     const offEnd = onAbort(replaced, end);
@@ -377,7 +395,7 @@ export function createMounts(options: MountsOptions): Mounts {
       if (ended()) return;
       showError(el, errorMessage(error));
       report(error);
-      raise(coreNotification("module_failed", "error", errorMessage(error), { block, package: pkg }));
+      raise(coreNotification("module_failed", "error", errorMessage(error), { about: { block }, package: pkg }));
     }
 
     return end;
@@ -387,12 +405,12 @@ export function createMounts(options: MountsOptions): Mounts {
     mountBlock,
     mountOutput: (el, block) =>
       mountOutput(
-        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit, raise },
+        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit, raise, replied, notify },
         el,
         block,
       ),
     mountOption: (el, option) =>
-      mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions, raise, optionPackage }, el, option),
+      mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions, raise, replied, notify, optionPackage }, el, option),
     addOptions,
     keepOptions,
   };
@@ -424,15 +442,20 @@ interface HostDeps {
   readonly answers: Answers;
   readonly block: BlockId;
   readonly entry: RegistryEntry;
+  // The package of the block's class, null for one defined outside a package.
+  readonly pkg: string | null;
   // Aborts as another board opens in place of the host's.
   readonly replaced: AbortSignal;
+  readonly replied: Replied;
+  readonly notify: Notify;
   // What ends the mount once the host is no longer bound to its board and
   // its block.
   readonly unbound: () => void;
 }
 
 // A block's host, with what only its mount calls: name() takes the board
-// options that the module names, and drop() stops it following the board.
+// options that the module names, and drop() stops it following the board and
+// withdraws the notifications that the module raised.
 interface MountedHost extends BlockHost {
   name(options: readonly OptionId[]): void;
   drop(): void;
@@ -451,6 +474,8 @@ function blockHost(deps: HostDeps): MountedHost {
   let following = true;
   let gone = false;
   const listeners = { state: new Set<() => void>(), context: new Set<() => void>() };
+  // What withdraws each notification that the module raised and that holds.
+  const notified = new Set<() => void>();
 
   function mountedBlock(board: typeof seen): Block | undefined {
     return own(board.blocks, block);
@@ -593,11 +618,25 @@ function blockHost(deps: HostDeps): MountedHost {
     module<T = unknown>(id: string): Promise<T> {
       return deps.loader.module(id) as Promise<T>;
     },
+    notify(notification) {
+      const given = checkRaised(notification);
+      if (!following) return () => undefined;
+      const withdraw = deps.notify({ block }, deps.pkg, given);
+      const mine = (): void => {
+        notified.delete(mine);
+        withdraw();
+      };
+      notified.add(mine);
+      return mine;
+    },
     name(options) {
       named = options;
       context = blockContext(mountedBlock(seen));
     },
-    drop: stop,
+    drop() {
+      stop();
+      for (const withdraw of [...notified]) withdraw();
+    },
   };
 }
 

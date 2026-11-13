@@ -1219,7 +1219,11 @@ function stackBlocks(board, stack) {
 // srcts/modules/basic/notices.ts
 import { useSyncExternalStore as useSyncExternalStore3 } from "react";
 function listed(notification) {
-  return notification.block === void 0 || notification.origin !== "r" && notification.origin !== "core";
+  const { about, source } = notification;
+  return about === void 0 || !("block" in about) || source.kind === "module";
+}
+function isReload(notification) {
+  return notification.source.kind === "core" && notification.source.code === "page_reload_needed";
 }
 function createNotices(notifications) {
   let notices = [];
@@ -1748,7 +1752,7 @@ function Notices() {
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${NOTICE_TONES[notice.severity]}`,
       children: [
         /* @__PURE__ */ jsx13("span", { className: "bc:flex-1 bc:whitespace-pre-wrap", children: notice.text }),
-        notice.notification?.class.includes("page_reload_needed") === true ? /* @__PURE__ */ jsx13(
+        notice.notification !== void 0 && isReload(notice.notification) ? /* @__PURE__ */ jsx13(
           "button",
           {
             type: "button",

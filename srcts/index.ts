@@ -56,12 +56,23 @@ export type {
 export type {
   BlockRegistry,
   CoreApi,
+  CoreCode,
+  CoreSource,
+  EvaluatePhase,
   FrontendModule,
+  ModuleSource,
   Notification,
+  NotificationSource,
   OutputEvents,
+  Owner,
+  Part,
   Plugin,
   PluginModule,
+  Raised,
   RequestOpts,
+  RRequest,
+  RSource,
+  Severity,
 } from "./types/core-api.ts";
 export type {
   Change,

@@ -922,12 +922,7 @@ function runCommand(core, id2, args) {
   return core.commands.run(id2, args).then(
     () => true,
     (error) => {
-      core.notifications.notify({
-        severity: "error",
-        class: ["edit_refused", "blockr_error", "error", "condition"],
-        message: errorMessage(error),
-        origin: EDIT_BOARD
-      });
+      core.notifications.notify(EDIT_BOARD, { severity: "error", code: "edit_refused", message: errorMessage(error) });
       return false;
     }
   );

@@ -1,8 +1,8 @@
 import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Options, Origin, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, OptionId, PluginClassId, RegistryId } from "./board.ts";
+import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
+import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
@@ -23,7 +23,7 @@ export interface CoreApi {
     readonly lock: Lock;
     readonly outputEvents: OutputEvents;
     readonly notifications: {
-        notify(notification: Omit<Notification, "id">): () => void;
+        notify(plugin: PluginClassId, notification: Raised): () => void;
         get(): readonly Notification[];
         subscribe(fn: (all: readonly Notification[]) => void): () => void;
     };
@@ -45,15 +45,67 @@ export interface Plugin {
 }
 export interface Notification {
     readonly id: string;
-    readonly severity: "message" | "warning" | "error";
-    readonly class: readonly string[];
+    readonly severity: Severity;
     readonly message: string;
-    readonly origin: Origin;
-    readonly phase?: Phase;
-    readonly block?: BlockId;
-    readonly option?: OptionId;
-    readonly plugin?: PluginClassId;
+    readonly source: NotificationSource;
+    readonly about?: Part;
+}
+export type Severity = "message" | "warning" | "error";
+export type Part = {
+    readonly block: BlockId;
+} | {
+    readonly link: LinkId;
+} | {
+    readonly stack: StackId;
+} | {
+    readonly option: OptionId;
+} | {
+    readonly plugin: PluginClassId;
+};
+export type NotificationSource = RSource | CoreSource | ModuleSource;
+export interface RSource {
+    readonly kind: "r";
+    readonly class: readonly string[];
+    readonly request: RRequest;
+}
+export type RRequest = {
+    readonly type: "evaluate";
+    readonly phase?: EvaluatePhase;
+} | {
+    readonly type: "output";
+} | {
+    readonly type: "block_class" | "output_class" | "option" | "plugin";
+    readonly name: string;
+} | {
+    readonly type: "renderer";
+    readonly renderer: string;
+    readonly name: string;
+};
+export type EvaluatePhase = Extract<Phase, "expr" | "inputs" | "block_eval" | "result_summary">;
+export interface CoreSource {
+    readonly kind: "core";
+    readonly code: CoreCode;
     readonly package?: string;
+}
+export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_objects_dropped" | "page_reload_needed" | "block_waiting" | "evaluation_unsent" | "output_unanswered";
+export interface ModuleSource {
+    readonly kind: "module";
+    readonly owner: Owner;
+    readonly code: string;
+    readonly package?: string;
+}
+export type Owner = {
+    readonly plugin: PluginClassId;
+} | {
+    readonly block: BlockId;
+} | {
+    readonly option: OptionId;
+};
+export interface Raised {
+    readonly severity: Severity;
+    readonly message: string;
+    readonly code: string;
+    readonly about?: Part | null;
 }
 export interface PluginModule {
     render(args: {

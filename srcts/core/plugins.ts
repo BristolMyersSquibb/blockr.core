@@ -204,7 +204,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     } catch (error) {
       const why = new Error(`The start of the plugin class "${id}" failed: ${errorMessage(error)}`, { cause: error });
       report(why);
-      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { plugin: id, package: packageFromId(id) }));
+      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { about: { plugin: id }, package: packageFromId(id) }));
       return;
     }
     if (typeof returned !== "function") return;
@@ -247,7 +247,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
       showError(el, errorMessage(error));
       report(error);
       deps.raise(
-        coreNotification("module_failed", "error", errorMessage(error), { plugin, package: packageFromId(plugin) }),
+        coreNotification("module_failed", "error", errorMessage(error), { about: { plugin }, package: packageFromId(plugin) }),
       );
     }
 

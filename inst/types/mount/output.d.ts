@@ -3,7 +3,7 @@ import type { Scheduler } from "../scheduler/index.ts";
 import type { OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import type { Raise } from "../util/index.ts";
+import type { Notify, Raise, Replied } from "../util/index.ts";
 import type { Answers } from "./answers.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
@@ -58,6 +58,8 @@ export interface OutputDeps {
     readonly resolveDefaults: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
     readonly emit: (event: OutputEvent) => void;
     readonly raise: Raise;
+    readonly replied: Replied;
+    readonly notify: Notify;
 }
 export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void;
 export {};

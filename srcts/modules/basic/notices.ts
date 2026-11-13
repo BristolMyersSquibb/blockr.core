@@ -1,10 +1,11 @@
 // What the basic frontend tells the user above the board, in the order it
 // came, each until it no longer holds or the user dismisses it: the
-// notifications of the board that concern no block and those that plugins
-// raise, and what failed of the frontend's own work, such as an edit that the
-// store or the command registry refused. Of the notifications that R and core
-// raise for a block, a block's conditions show on its card, and the failures of
-// its output and its UI in their elements.
+// notifications of the board that concern no block and those that the code of
+// packages raises, and what failed of the frontend's own work, such as an edit
+// that the store or the command registry refused. Of the notifications that R
+// and core raise about a block, a block's conditions show on its card, the
+// failures of its output and its UI in their elements, and those of its
+// requests through the module that made them.
 
 import { useSyncExternalStore } from "react";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
@@ -17,7 +18,7 @@ export interface Notice {
   readonly key: string;
   readonly text: string;
   readonly severity: Severity;
-  // The notification that it shows, by whose class the list offers what the
+  // The notification that it shows, by whose source the list offers what the
   // user can do, such as reloading the page, or none for a failure of the
   // frontend's own.
   readonly notification?: Notification;
@@ -39,9 +40,16 @@ export interface Notices {
 }
 
 // Whether the list shows the notification: one that concerns no block, or that
-// a plugin raised, which nothing else on the page shows.
+// the code of a package raised, which nothing else on the page shows.
 function listed(notification: Notification): boolean {
-  return notification.block === undefined || (notification.origin !== "r" && notification.origin !== "core");
+  const { about, source } = notification;
+  return about === undefined || !("block" in about) || source.kind === "module";
+}
+
+// Whether the notification is core's that asks the user to reload the page,
+// for which the list offers a button that reloads it.
+export function isReload(notification: Notification): boolean {
+  return notification.source.kind === "core" && notification.source.code === "page_reload_needed";
 }
 
 export function createNotices(notifications: CoreApi["notifications"]): Notices {

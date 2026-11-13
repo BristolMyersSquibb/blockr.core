@@ -5,6 +5,7 @@ import type { BlockId } from "../types/board.ts";
 import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import type { Replied } from "../util/index.ts";
 import type { Answers } from "./answers.ts";
 export declare class RequestError extends Error {
     readonly status: Exclude<ReplyStatus, "ok"> | null;
@@ -34,6 +35,7 @@ export interface RequestDeps {
     readonly store: Pick<Store, "board">;
     readonly scheduler: Pick<Scheduler, "evaluate" | "inputs">;
     readonly answers: Answers;
+    readonly replied: Replied;
     readonly bound: () => boolean;
     readonly unboundError: () => Error;
 }

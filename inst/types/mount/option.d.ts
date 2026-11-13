@@ -3,7 +3,7 @@ import type { Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
-import type { Raise } from "../util/index.ts";
+import type { Notify, Raise, Replied } from "../util/index.ts";
 import type { Loader } from "./load.ts";
 export interface OptionDeps {
     readonly store: Pick<Store, "board" | "options" | "subscribe">;
@@ -17,6 +17,8 @@ export interface OptionDeps {
         readonly stop: () => void;
     };
     readonly raise: Raise;
+    readonly replied: Replied;
+    readonly notify: Notify;
     readonly optionPackage: (option: OptionId) => string | undefined;
 }
 export declare function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId): () => void;

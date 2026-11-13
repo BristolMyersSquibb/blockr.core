@@ -15,12 +15,12 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
-import type { Notification } from "../types/core-api.ts";
+import type { Notification, Owner, Raised } from "../types/core-api.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import type { Raise } from "../util/index.ts";
+import type { Notify, Raise, Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Measure, Mounts, OutputEvent } from "./index.ts";
 
@@ -110,6 +110,11 @@ interface Setup {
   size: ReturnType<typeof measuring>;
   // The notifications that the mounts raised, while they hold.
   raised: Omit<Notification, "id">[];
+  // What the mounts handed on of each of R's replies to a request.
+  replies: Parameters<Replied>[];
+  // The notifications that renderers raised through their hosts, while they
+  // hold.
+  notified: { owner: Owner; pkg: string | null; notification: Raised }[];
   // Ends what core runs for the board, as core does as another board opens,
   // and opens the board of the reply given in a new store with new mounts, on
   // the same R and the same loader, as core starts again.
@@ -149,6 +154,19 @@ async function setup(
       holds = false;
     };
   };
+  const replies: Parameters<Replied>[] = [];
+  const replied: Replied = (...args) => {
+    replies.push(args);
+  };
+  const notified: { owner: Owner; pkg: string | null; notification: Raised }[] = [];
+  const notify: Notify = (owner, pkg, notification) => {
+    const given = { owner, pkg, notification };
+    notified.push(given);
+    return () => {
+      const at = notified.indexOf(given);
+      if (at >= 0) notified.splice(at, 1);
+    };
+  };
 
   async function open(given: HelloReply): Promise<Setup> {
     const controller = new AbortController();
@@ -169,6 +187,8 @@ async function setup(
         events.push(event);
       },
       raise,
+      replied,
+      notify,
       signal,
     });
     return {
@@ -180,6 +200,8 @@ async function setup(
       events,
       size,
       raised,
+      replies,
+      notified,
       next: (after = bare) => {
         controller.abort();
         return open(after);
@@ -396,7 +418,14 @@ describe("asking", () => {
     s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [failure] });
     await tick();
     // One ask for both mounts, so one notification.
-    expect(s.raised).toEqual([{ ...failure, origin: "r", block: "b" }]);
+    expect(s.raised).toEqual([
+      {
+        severity: "error",
+        message: "no page 9",
+        source: { kind: "r", class: failure.class, request: { type: "output" } },
+        about: { block: "b" },
+      },
+    ]);
 
     // Where R gives no condition, core writes the one that error() gives.
     s.scheduler.invalidate("b");
@@ -407,11 +436,9 @@ describe("asking", () => {
     expect(s.raised).toEqual([
       {
         severity: "error",
-        class: ["blockr_error", "error", "condition"],
         message: 'R failed to make the output of block "b".',
-        origin: "core",
-        phase: "output",
-        block: "b",
+        source: { kind: "core", code: "output_unanswered" },
+        about: { block: "b" },
       },
     ]);
 
@@ -431,7 +458,7 @@ describe("asking", () => {
     reported.restore();
     const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
     expect(s.raised).toEqual([
-      { severity: "error", class: ["board_option_failed", "blockr_error", "error", "condition"], message: why, origin: "core", option: "broken" },
+      { severity: "error", message: why, source: { kind: "core", code: "board_option_failed" }, about: { option: "broken" } },
     ]);
   });
 });
@@ -628,11 +655,9 @@ describe("the renderer", () => {
       new Set([
         JSON.stringify({
           severity: "error",
-          class: ["module_failed", "blockr_error", "error", "condition"],
           message: el.textContent,
-          origin: "core",
-          block: "b",
-          package: "blockr.core",
+          source: { kind: "core", code: "module_failed", package: "blockr.core" },
+          about: { block: "b" },
         }),
       ]),
     );
@@ -755,17 +780,50 @@ describe("a request", () => {
     await expect(download).resolves.toEqual([2]);
   });
 
-  test("rejects with the reply's status and conditions", async () => {
+  test("rejects with the reply's status and conditions, which it hands on as R's latest reply to a request of its name, as it does an ok reply's none", async () => {
     const { s, table } = await drawn();
     const failure = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no xlsx" };
     const download = table.host().request("download", { format: "xlsx" });
     await tick();
     s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "error", conditions: [failure] });
     await expect(download).rejects.toMatchObject({ status: "error", conditions: [failure] });
+
+    const sorted = table.host().request("sort", {}, { scope: "renderer" });
+    await tick();
+    s.r.reply({ id: requests(s.r)[1]?.id ?? "", status: "ok", value: [] });
+    await sorted;
+    expect(s.replies).toEqual([
+      [{ block: "b" }, { type: "output_class", name: "download" }, [failure]],
+      [{ block: "b" }, { type: "renderer", renderer: TABLE.id, name: "sort" }, []],
+    ]);
   });
 });
 
 describe("a mount", () => {
+  test("raises what the renderer gives its host's notify(), from the block, with the renderer's package, until the renderer is unmounted", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    const el = await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    const given: Raised = { severity: "warning", code: "truncated", message: "Only the first 150 rows show." };
+    const withdraw = table.host().notify(given);
+    table.host().notify({ ...given, code: "sorted", message: "Sorted." });
+    expect(s.notified).toEqual([
+      { owner: { block: "b" }, pkg: "blockr.core", notification: given },
+      { owner: { block: "b" }, pkg: "blockr.core", notification: { ...given, code: "sorted", message: "Sorted." } },
+    ]);
+    withdraw();
+    expect(s.notified.map((n) => n.notification.code)).toEqual(["sorted"]);
+    expect(() => table.host().notify({ ...given, code: "" })).toThrow("The code of a notification is a non-empty string");
+
+    s.store.apply({ blocks: { rm: ["b"] } });
+    expect(el.textContent).toBe("");
+    expect(s.notified).toEqual([]);
+    table.host().notify(given);
+    expect(s.notified).toEqual([]);
+  });
+
   test("reports what the renderer emits, by its block", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });

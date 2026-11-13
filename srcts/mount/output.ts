@@ -38,7 +38,12 @@
 // host's `error()` gives, which concerns the block, in place of the one before,
 // until the block's next output arrives. A renderer that cannot draw raises
 // one that concerns the block, with the renderer's package, which holds until
-// the next board opens or the block leaves the board.
+// the next board opens or the block leaves the board. What a renderer raises
+// through its host's notify() comes from the block, with the renderer's
+// package, and holds until the renderer is unmounted at the latest. Each
+// condition of R's error reply to a request of the output raises a
+// notification that concerns the block, which holds until R next replies to a
+// request of the same name and scope.
 // A mount is bound to the board it was made on and to its block. Once another
 // board opens or the block leaves the board, core ends the mount.
 
@@ -49,8 +54,19 @@ import type { BlockId, OptionId } from "../types/board.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
-import { asError, coreNotification, errorMessage, frozenCopy, isObject, jsonEqual, own, packageFromId, report } from "../util/index.ts";
-import type { Raise } from "../util/index.ts";
+import {
+  asError,
+  checkRaised,
+  coreNotification,
+  errorMessage,
+  frozenCopy,
+  isObject,
+  jsonEqual,
+  own,
+  packageFromId,
+  report,
+} from "../util/index.ts";
+import type { Notify, Raise, Replied } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
@@ -167,6 +183,11 @@ export interface OutputDeps {
   readonly emit: (event: OutputEvent) => void;
   // Raises a notification of the board (../core/notifications.ts).
   readonly raise: Raise;
+  // Holds a notification for each condition of R's latest reply to each of
+  // the output's requests.
+  readonly replied: Replied;
+  // Raises the notification that a renderer gives through its host.
+  readonly notify: Notify;
 }
 
 interface OutputArgs {
@@ -500,15 +521,18 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     if (!deps.replaced.aborted) hold(noOutput(message), "core");
   }
 
-  function hold(condition: Condition, origin: "r" | "core"): void {
+  // Raises the notification of the condition, which R wrote or core did, in
+  // place of the one before.
+  function hold(condition: Condition, by: "r" | "core"): void {
     const before = shelf.failure;
     shelf.failure = deps.raise({
       severity: condition.severity,
-      class: condition.class,
       message: condition.message,
-      origin,
-      ...(condition.phase === undefined ? {} : { phase: condition.phase }),
-      block,
+      source:
+        by === "r"
+          ? { kind: "r", class: condition.class, request: { type: "output" } }
+          : { kind: "core", code: "output_unanswered" },
+      about: { block },
     });
     before?.();
   }
@@ -531,7 +555,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       showError(el, failure.message);
       if (!broken.has(failure)) {
         report(failure);
-        deps.raise(coreNotification("module_failed", "error", failure.message, { block, package: failure.package }));
+        deps.raise(coreNotification("module_failed", "error", failure.message, { about: { block }, package: failure.package }));
       }
       broken.add(failure);
       return;
@@ -580,7 +604,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         });
         showError(el, why.message);
         report(why);
-        deps.raise(coreNotification("module_failed", "error", why.message, { block, package: pkg }));
+        deps.raise(coreNotification("module_failed", "error", why.message, { about: { block }, package: pkg }));
       }
     })();
   }
@@ -696,8 +720,13 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         },
       );
       if (!bound()) throw unboundError();
+      const requested =
+        opts.scope === "renderer"
+          ? { type: "renderer" as const, renderer: prepared.renderer.id, name }
+          : { type: "output_class" as const, name };
       switch (reply.status) {
         case "ok":
+          deps.replied({ block }, requested, []);
           if (body !== null) return body;
           return "value" in reply && reply.value !== undefined ? reply.value : null;
         case "missing":
@@ -705,11 +734,14 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
           throw new RequestError(`${what} gave up, since R kept lacking the result it reads.`, { status: "missing" });
         case "cancelled":
           throw new RequestError(`R cancelled ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, { status: "cancelled" });
-        default:
+        default: {
+          const conditions = "conditions" in reply ? reply.conditions : [];
+          deps.replied({ block }, requested, conditions);
           throw new RequestError(`R replied ${reply.status} to ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, {
             status: reply.status,
-            conditions: "conditions" in reply ? reply.conditions : [],
+            conditions,
           });
+        }
       }
     }
   }
@@ -729,6 +761,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     const listeners = new Set<() => void>();
     let named: { for: Made | undefined; values: Readonly<Record<OptionId, Json>> } | undefined;
     let following = true;
+    // What withdraws each notification that the renderer raised and that
+    // holds.
+    const notified = new Set<() => void>();
+    const pkg = packageFromId(prepared.renderer.id);
     return {
       block,
       output: () => held?.output ?? null,
@@ -775,12 +811,24 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       emit(name, payload) {
         if (following && bound()) deps.emit({ block, name, payload });
       },
+      notify(notification) {
+        const given = checkRaised(notification);
+        if (!following || !bound()) return () => undefined;
+        const withdraw = deps.notify({ block }, pkg, given);
+        const mine = (): void => {
+          notified.delete(mine);
+          withdraw();
+        };
+        notified.add(mine);
+        return mine;
+      },
       announce() {
         if (following) announceTo(listeners);
       },
       drop() {
         following = false;
         listeners.clear();
+        for (const withdraw of [...notified]) withdraw();
       },
     };
   }

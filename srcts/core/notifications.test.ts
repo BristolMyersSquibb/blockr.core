@@ -1,9 +1,11 @@
 // The notifications of the open board on the CoreApi for tests: one for each
-// condition of each block's status, those that core raises where a block's UI,
-// a board option's UI or a plugin fails, and their withdrawal as the block
-// leaves the board (./notifications.ts). Those that a plugin raises are tested
-// with the other members that reach plugins (./plugins.test.ts), and those that
-// core raises as it starts the page and opens a board with the start
+// condition of each block's status, one for each condition of R's error reply
+// to a request, those that core raises where a block's UI, a board option's UI
+// or a plugin fails, those that a module raises through its host or an
+// onChange() through its `notify`, and their withdrawal as what they concern
+// leaves the board (./notifications.ts). The checks of what a plugin raises
+// are tested with the other members that reach plugins (./plugins.test.ts),
+// and what core raises as it starts the page and opens a board with the start
 // (./start.test.ts).
 
 import { describe, expect, test } from "vitest";
@@ -11,23 +13,19 @@ import type { Condition } from "../protocol/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
+import { codeOf, concerning, held } from "../testing/notifications.ts";
 import { listedModules, pluginUi } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { withOptions, withPlugins } from "../testing/store.ts";
-import type { CoreApi, Notification } from "../types/core-api.ts";
+import type { Notification } from "../types/core-api.ts";
+import type { BlockHost } from "../types/hosts.ts";
 
-const ERROR = ["blockr_error", "error", "condition"];
+const FILE = "blockr.core-file_storage_plugin";
 
-// What the notifications that hold say, without their ids, of those that
-// `keep` keeps.
-function held(core: CoreApi, keep: (notification: Notification) => boolean = () => true): Record<string, unknown>[] {
-  return core.notifications
-    .get()
-    .filter(keep)
-    .map((notification) => Object.fromEntries(Object.entries(notification).filter(([key]) => key !== "id")));
-}
+// The URL of the UI module of the class of block b, the head block.
+const HEAD = HELLO.block_registry["blockr.core-head_block"]?.module ?? "";
 
-const of = (block: string) => (notification: Notification) => notification.block === block;
+const fromModules = (notification: Notification): boolean => notification.source.kind === "module";
 
 // The CoreApi for tests, whose R evaluates block b with the conditions that
 // `conditions` gives at the time, with b demanded.
@@ -42,43 +40,42 @@ async function conditioned(conditions: () => Condition[], options: StubCoreOptio
 }
 
 describe("a block's notifications", () => {
-  test("are one for each condition of its status, with the origin r, the same id while the condition holds, and one for two that share the block, severity, class and message", async () => {
+  test("are one for each condition of its status, from R's evaluation in the phase that raised it, with the same id while the condition holds, and one for two that share the block, severity, source and message", async () => {
     const few: Condition = { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "block_eval", message: "Few rows." };
     const read: Condition = { severity: "message", class: ["simpleMessage", "message", "condition"], phase: "block_eval", message: "Read 150 rows." };
     let conditions = [few, few, read];
     const s = await conditioned(() => conditions);
 
-    expect(held(s.core, of("b"))).toEqual([
-      { severity: "warning", class: few.class, message: "Few rows.", origin: "r", phase: "block_eval", block: "b" },
-      { severity: "message", class: read.class, message: "Read 150 rows.", origin: "r", phase: "block_eval", block: "b" },
+    const evaluation = { type: "evaluate", phase: "block_eval" } as const;
+    expect(held(s.core, concerning("b"))).toEqual([
+      { severity: "warning", message: "Few rows.", source: { kind: "r", class: few.class, request: evaluation }, about: { block: "b" } },
+      { severity: "message", message: "Read 150 rows.", source: { kind: "r", class: read.class, request: evaluation }, about: { block: "b" } },
     ]);
-    const before = s.core.notifications.get().filter(of("b"));
+    const before = s.core.notifications.get().filter(concerning("b"));
 
     // The block's next reply drops one condition and keeps the other, whose
     // notification keeps its id.
     conditions = [read];
     s.core.scheduler.invalidate("b");
     await s.settled();
-    const after = s.core.notifications.get().filter(of("b"));
+    const after = s.core.notifications.get().filter(concerning("b"));
     expect(after.map((n) => n.message)).toEqual(["Read 150 rows."]);
     expect(after[0]?.id).toBe(before[1]?.id);
     s.stop();
   });
 
-  test("have the origin core for the message of a block that waits, which the scheduler writes itself", async () => {
+  test("are core's for the message of a block that waits, which the scheduler writes itself", async () => {
     const s = await stubCore();
     await s.settled();
     await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
     await s.settled();
 
-    expect(held(s.core, of("b"))).toEqual([
+    expect(held(s.core, concerning("b"))).toEqual([
       {
         severity: "message",
-        class: ["blockr_message", "message", "condition"],
         message: 'This block is waiting for its input "data" to be linked.',
-        origin: "core",
-        phase: "status",
-        block: "b",
+        source: { kind: "core", code: "block_waiting" },
+        about: { block: "b" },
       },
     ]);
     s.stop();
@@ -88,18 +85,133 @@ describe("a block's notifications", () => {
     const reported = reports();
     const few: Condition = { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "block_eval", message: "Few rows." };
     const s = await conditioned(() => [few]);
-    s.core.notifications.notify({ severity: "error", class: ["share_failed"], message: "Not shared.", origin: "blockr.test-session_plugin", block: "b" });
-    s.core.notifications.notify({ severity: "message", class: ["saved"], message: "Saved.", origin: "blockr.test-session_plugin" });
+    s.core.notifications.notify(FILE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
+    s.core.notifications.notify(FILE, { severity: "message", code: "saved", message: "Saved." });
     // The UI module of b's class, which the test gives none of, fails to load.
     s.core.mountBlock(document.createElement("div"), "b");
     await s.settled();
-    expect(held(s.core, of("b")).map((n) => n.class)).toEqual([few.class, ["share_failed"], ["module_failed", ...ERROR]]);
+    expect(s.core.notifications.get().filter(concerning("b")).map(codeOf)).toEqual(["simpleWarning", "share_failed", "module_failed"]);
 
     await s.core.commands.run("blockr.core-remove_block", { id: "b" });
     await s.settled();
     reported.restore();
-    expect(held(s.core, of("b"))).toEqual([]);
+    expect(held(s.core, concerning("b"))).toEqual([]);
     expect(held(s.core).map((n) => n.message)).toContain("Saved.");
+    s.stop();
+  });
+});
+
+describe("the notifications about a link or a stack", () => {
+  test("go as it leaves the board, and one raised about it once it has left holds nothing", async () => {
+    const s = await stubCore();
+    await s.settled();
+    s.core.notifications.notify(FILE, { severity: "warning", code: "slow", message: "Slow link.", about: { link: "ab" } });
+    s.core.notifications.notify(FILE, { severity: "warning", code: "crowded", message: "Crowded stack.", about: { stack: "s1" } });
+    expect(held(s.core, fromModules).map(codeOf)).toEqual(["slow", "crowded"]);
+
+    await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
+    expect(held(s.core, fromModules).map(codeOf)).toEqual(["crowded"]);
+    await s.core.commands.run("blockr.core-remove_stack", { id: "s1" });
+    expect(held(s.core, fromModules)).toEqual([]);
+
+    const reported = reports();
+    s.core.notifications.notify(FILE, { severity: "warning", code: "slow", message: "Slow link.", about: { link: "ab" } });
+    reported.restore();
+    expect(reported.errors()).toEqual([]);
+    expect(held(s.core, fromModules)).toEqual([]);
+    s.stop();
+  });
+});
+
+describe("the notifications of R's replies to requests", () => {
+  test("are one for each condition of an error reply, which concerns what the request was made for, until R next replies to a request of the same name", async () => {
+    let full = true;
+    const s = await stubCore({
+      answer: (request) => {
+        if (request.kind !== "request" || request.type !== "plugin") return undefined;
+        if (full) throw new Error("The disk is full.");
+        return "saved";
+      },
+    });
+    await s.settled();
+    const ofRequests = (n: Notification): boolean => n.source.kind === "r" && n.source.request.type === "plugin";
+
+    await expect(s.core.request(FILE, "save")).rejects.toThrow("The disk is full.");
+    await expect(s.core.request(FILE, "save")).rejects.toThrow("The disk is full.");
+    expect(held(s.core, ofRequests)).toEqual([
+      {
+        severity: "error",
+        message: "The disk is full.",
+        source: { kind: "r", class: ["blockr_error", "error", "condition"], request: { type: "plugin", name: "save" } },
+        about: { plugin: FILE },
+      },
+    ]);
+
+    full = false;
+    await expect(s.core.request(FILE, "save")).resolves.toBe("saved");
+    expect(held(s.core, ofRequests)).toEqual([]);
+    s.stop();
+  });
+});
+
+describe("the notifications of the code of packages", () => {
+  test("that a block's UI module raises through its host come from the block, with the package of its class, and concern the block, until the mount ends", async () => {
+    const hosts: BlockHost[] = [];
+    const s = await stubCore({
+      modules: {
+        [HEAD]: {
+          api: 1,
+          default: {
+            render: ({ host }: { host: BlockHost }) => {
+              hosts.push(host);
+            },
+          },
+        },
+      },
+    });
+    const unmount = s.core.mountBlock(document.createElement("div"), "b");
+    await s.settled();
+    hosts[0]?.notify({ severity: "warning", code: "few_rows", message: "Few rows." });
+
+    expect(held(s.core, fromModules)).toEqual([
+      {
+        severity: "warning",
+        message: "Few rows.",
+        source: { kind: "module", owner: { block: "b" }, code: "few_rows", package: "blockr.core" },
+        about: { block: "b" },
+      },
+    ]);
+    unmount();
+    expect(held(s.core, fromModules)).toEqual([]);
+    s.stop();
+  });
+
+  test("that a board option's onChange() raises come from the board option, with the package that lists it, until its next call returns", async () => {
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: 1,
+      ui: { render: () => undefined },
+      onChange(value, _core, notify) {
+        if (value === 3) notify({ severity: "warning", code: "zoomed", message: "Text may not fit." });
+      },
+    };
+    const s = await stubCore({ hello: withOptions(["zoom"]), modules: listedModules([], [zoom]) });
+    await s.settled();
+
+    await s.core.commands.run("blockr.core-set_option", { id: "zoom", value: 3 });
+    expect(held(s.core, fromModules)).toEqual([
+      {
+        severity: "warning",
+        message: "Text may not fit.",
+        source: { kind: "module", owner: { option: "zoom" }, code: "zoomed", package: "blockr.test" },
+        about: { option: "zoom" },
+      },
+    ]);
+    await s.core.commands.run("blockr.core-set_option", { id: "zoom", value: 2 });
+    expect(held(s.core, fromModules)).toEqual([]);
     s.stop();
   });
 });
@@ -115,15 +227,13 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
-    const module = HELLO.block_registry["blockr.core-head_block"]?.module.replace(/[?#].*$/, "") ?? "";
-    expect(held(s.core, (n) => n.class[0] === "module_failed")).toEqual([
+    const module = HEAD.replace(/[?#].*$/, "");
+    expect(held(s.core, (n) => codeOf(n) === "module_failed")).toEqual([
       {
         severity: "error",
-        class: ["module_failed", ...ERROR],
         message: first.textContent,
-        origin: "core",
-        block: "b",
-        package: "blockr.core",
+        source: { kind: "core", code: "module_failed", package: "blockr.core" },
+        about: { block: "b" },
       },
     ]);
     expect(first.textContent).toContain(`The module ${module} of blockr.core failed to load`);
@@ -152,14 +262,12 @@ describe("core's notifications", () => {
     reported.restore();
 
     expect(el.textContent).toBe('The UI of the board option "zoom" failed in render(): No slider.');
-    expect(held(s.core, (n) => n.class[0] === "module_failed")).toEqual([
+    expect(held(s.core, (n) => codeOf(n) === "module_failed")).toEqual([
       {
         severity: "error",
-        class: ["module_failed", ...ERROR],
         message: 'The UI of the board option "zoom" failed in render(): No slider.',
-        origin: "core",
-        option: "zoom",
-        package: "blockr.test",
+        source: { kind: "core", code: "module_failed", package: "blockr.test" },
+        about: { option: "zoom" },
       },
     ]);
     s.stop();
@@ -189,22 +297,18 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
-    expect(held(s.core, (n) => n.plugin !== undefined)).toEqual([
+    expect(held(s.core, (n) => n.about !== undefined && "plugin" in n.about)).toEqual([
       {
         severity: "error",
-        class: ["plugin_start_failed", ...ERROR],
         message: 'The start of the plugin class "blockr.test-notes_plugin" failed: No notes.',
-        origin: "core",
-        plugin: "blockr.test-notes_plugin",
-        package: "blockr.test",
+        source: { kind: "core", code: "plugin_start_failed", package: "blockr.test" },
+        about: { plugin: "blockr.test-notes_plugin" },
       },
       {
         severity: "error",
-        class: ["module_failed", ...ERROR],
         message: 'The ui of the plugin class "blockr.test-notes_plugin" failed in render(): No pad.',
-        origin: "core",
-        plugin: "blockr.test-notes_plugin",
-        package: "blockr.test",
+        source: { kind: "core", code: "module_failed", package: "blockr.test" },
+        about: { plugin: "blockr.test-notes_plugin" },
       },
     ]);
     s.stop();
@@ -219,13 +323,12 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
-    expect(held(s.core, (n) => n.option === "nowhere")).toEqual([
+    expect(held(s.core, (n) => n.about !== undefined && "option" in n.about && n.about.option === "nowhere")).toEqual([
       {
         severity: "error",
-        class: ["board_option_failed", ...ERROR],
         message: 'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
-        origin: "core",
-        option: "nowhere",
+        source: { kind: "core", code: "board_option_failed" },
+        about: { option: "nowhere" },
       },
     ]);
     s.stop();

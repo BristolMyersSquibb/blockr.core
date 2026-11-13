@@ -19,7 +19,7 @@ import { reports } from "../../testing/reports.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
 import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
-import type { CoreApi } from "../../types/core-api.ts";
+import type { CoreApi, Notification } from "../../types/core-api.ts";
 import * as basic from "./index.tsx";
 
 // A module that writes what it draws and for which block, as a block's UI or
@@ -1009,23 +1009,22 @@ describe("what the user learns", () => {
     expect(notices(page.el)).toEqual([]);
   });
 
-  test("is each notification of the board that concerns no block or that a plugin raises, in the colour of its severity, until it is withdrawn or the user dismisses it", async () => {
+  test("is each notification of the board that concerns no block or that the code of a package raises, in the colour of its severity, until it is withdrawn or the user dismisses it", async () => {
     const { el, core } = await drawn({
       evaluate: (request) =>
         request.block === "b"
           ? { conditions: [{ severity: "warning", class: ["warning", "condition"], phase: "block_eval", message: "Few rows." }] }
           : undefined,
     });
-    const origin = "blockr.test-session_plugin";
 
     let shared: () => void = () => undefined;
     await step(() => {
-      core.notifications.notify({ severity: "message", class: ["saved"], message: "Saved to Connect.", origin });
-      core.notifications.notify({ severity: "warning", class: ["token_expiring"], message: "The token expires soon.", origin });
-      shared = core.notifications.notify({ severity: "error", class: ["share_failed"], message: "Not shared.", origin, block: "b" });
+      core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved to Connect." });
+      core.notifications.notify(FILE_STORAGE, { severity: "warning", code: "token_expiring", message: "The token expires soon." });
+      shared = core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
     });
     // The condition of block b, which its card shows, is not among them.
-    expect(core.notifications.get().some((n) => n.message === "Few rows." && n.block === "b")).toBe(true);
+    expect(core.notifications.get().some((n) => n.message === "Few rows." && n.source.kind === "r")).toBe(true);
     expect(notices(el)).toEqual([
       ["message", "Saved to Connect."],
       ["warning", "The token expires soon."],
@@ -1046,22 +1045,40 @@ describe("what the user learns", () => {
     expect(core.notifications.get().some((n) => n.message === "Saved to Connect.")).toBe(true);
   });
 
-  test("that asks for the page to be reloaded offers to reload it", async () => {
-    const { el, core } = await drawn();
-    await step(() => {
-      core.notifications.notify({
-        severity: "warning",
-        class: ["page_reload_needed", "blockr_warning", "warning", "condition"],
-        message: "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.1). Save the board, then reload the page.",
-        origin: "core",
-      });
+  test("that core raises to ask for the page to be reloaded offers to reload it, which none of a plugin's does, whatever its code", async () => {
+    const { core } = await drawn();
+    const message = "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.1). Save the board, then reload the page.";
+    const reloading: Notification = { id: "reload", severity: "warning", message, source: { kind: "core", code: "page_reload_needed" } };
+    const posing: Notification = {
+      id: "posing",
+      severity: "error",
+      message: "Reload, please.",
+      source: { kind: "module", owner: { plugin: FILE_STORAGE }, code: "page_reload_needed" },
+    };
+    // The frontend drawn with notifications that hold core's and a plugin's.
+    const notifications: CoreApi["notifications"] = {
+      notify: () => () => undefined,
+      get: () => [reloading, posing],
+      subscribe: () => () => undefined,
+    };
+    const el = document.createElement("div");
+    document.body.append(el);
+    const controller = new AbortController();
+    let cleanup: () => void = () => undefined;
+    act(() => {
+      cleanup = basic.default.frontend.render({ el, core: { ...core, notifications }, signal: controller.signal });
     });
-    const notice = find(el, '[data-severity="warning"]');
-    expect(buttons(notice)).toEqual(["Reload", "Dismiss"]);
+
+    expect(buttons(find(el, '[data-severity="warning"]'))).toEqual(["Reload", "Dismiss"]);
+    expect(buttons(find(el, '[data-severity="error"]'))).toEqual(["Dismiss"]);
     const reload = vi.spyOn(window.location, "reload").mockImplementation(() => undefined);
-    await click(button(notice, "Reload"));
+    await click(button(find(el, '[data-severity="warning"]'), "Reload"));
     expect(reload).toHaveBeenCalledTimes(1);
     reload.mockRestore();
+    act(() => {
+      cleanup();
+    });
+    el.remove();
   });
 });
 

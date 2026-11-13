@@ -12,13 +12,14 @@ import fileStorage from "../modules/file-storage/index.ts";
 import type { EvaluateRequest, HelloReply, Reply, Request, Transport, TransportListener } from "../protocol/index.ts";
 import { coreOptions } from "../options/index.ts";
 import type { Option, PluginClass, Storage } from "../store/index.ts";
+import { codeOf, held } from "../testing/notifications.ts";
 import { classModule, optionModule } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { hello, optionUrl, pluginUrl, reply, withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
 import type { JsonBoard, PluginClassId } from "../types/board.ts";
-import type { CoreApi, FrontendModule, PluginModule } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, Notification, PluginModule } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { own } from "../util/index.ts";
 import { pageFrontEnds, start } from "./index.ts";
@@ -518,14 +519,14 @@ describe("starting the page", () => {
     expect(core.store.board().name).toBe("Iris review");
     expect(storage.loads).toHaveLength(1);
     const messages = reported.errors().map((error) => (error as Error).message);
-    const named = core.notifications.get().filter((n) => n.class[0] === "board_open_failed");
+    const named = core.notifications.get().filter((n) => codeOf(n) === "board_open_failed");
     if (message === undefined) {
       expect(messages).toEqual([]);
       expect(named).toEqual([]);
     } else {
       expect(messages.some((said) => said.startsWith(message))).toBe(true);
-      expect(named.map((n) => [n.severity, n.class, n.origin, n.package, n.message.startsWith(message)])).toEqual([
-        ["error", ["board_open_failed", "blockr_error", "error", "condition"], "core", "blockr.session", true],
+      expect(named.map((n) => [n.severity, n.source, n.about, n.message.startsWith(message)])).toEqual([
+        ["error", { kind: "core", code: "board_open_failed", package: "blockr.session" }, { plugin: SESSION }, true],
       ]);
     }
   });
@@ -542,8 +543,8 @@ describe("starting the page", () => {
 
     expect(core.store.board().name).toBe("Iris review");
     expect(reported.errors()).toHaveLength(1);
-    const named = core.notifications.get().filter((n) => n.class[0] === "board_open_failed");
-    expect(named.map((n) => n.package)).toEqual(["blockr.session"]);
+    const named = core.notifications.get().filter((n) => codeOf(n) === "board_open_failed");
+    expect(named.map((n) => [n.source, n.about])).toEqual([[{ kind: "core", code: "board_open_failed", package: "blockr.session" }, { plugin: SESSION }]]);
     expect(named[0]?.message).toContain(
       'The board that the storage plugin "blockr.session-session_plugin" named did not open, so core opens the board that R sent: ',
     );
@@ -595,8 +596,11 @@ describe("starting the page", () => {
     ]);
     // Each raises a notification that concerns its plugin class or board
     // option, with the module's package, which the frontend hears as it draws.
-    const failed = core.notifications.get().filter((n) => n.class[0] === "module_failed");
-    expect(failed.map((n) => [n.plugin ?? n.option, n.package, n.origin, n.message]).sort()).toEqual([
+    const failed = core.notifications.get().filter((n) => codeOf(n) === "module_failed");
+    const part = (n: Notification): string | undefined =>
+      n.about === undefined ? undefined : "plugin" in n.about ? n.about.plugin : "option" in n.about ? n.about.option : undefined;
+    const pkg = (n: Notification): string | undefined => (n.source.kind === "core" ? n.source.package : undefined);
+    expect(failed.map((n) => [part(n), pkg(n), n.source.kind, n.message]).sort()).toEqual([
       [
         "blockr.bad-bad_plugin",
         "blockr.bad",
@@ -617,7 +621,7 @@ describe("starting the page", () => {
     const seen: (readonly string[])[] = [];
     const front = basicModule({
       render({ core }) {
-        seen.push(core.notifications.get().map((n) => n.class[0] ?? ""));
+        seen.push(core.notifications.get().map(codeOf));
       },
     });
     const filter = { registry_id: "blockr.dplyr-filter_block", version: 1, state: {}, name: "Filter", locked: null };
@@ -632,12 +636,11 @@ describe("starting the page", () => {
     const core = await s.started.ready;
 
     expect(seen).toEqual([["board_objects_dropped"]]);
-    expect(core.notifications.get().map(({ severity, class: cls, message, origin }) => ({ severity, class: cls, message, origin }))).toEqual([
+    expect(held(core)).toEqual([
       {
         severity: "warning",
-        class: ["board_objects_dropped", "blockr_warning", "warning", "condition"],
         message: 'The board opened without:\n- block "x" (blockr.dplyr-filter_block)',
-        origin: "core",
+        source: { kind: "core", code: "board_objects_dropped" },
       },
     ]);
   });
@@ -934,8 +937,8 @@ describe("a board opened later", () => {
     expect(s.el.textContent).toBe("Kept");
     // The opening has ended the code that called open(), so core tells the
     // user itself, in a notification that concerns the board.
-    const failed = s.started.core()?.notifications.get().filter((n) => n.class[0] === "board_open_failed") ?? [];
-    expect(failed.map((n) => [n.origin, n.package])).toEqual([["core", undefined]]);
+    const failed = s.started.core()?.notifications.get().filter((n) => codeOf(n) === "board_open_failed") ?? [];
+    expect(failed.map((n) => [n.source, n.about])).toEqual([[{ kind: "core", code: "board_open_failed" }, undefined]]);
     expect(failed[0]?.message).toMatch(
       /^The board did not open, so core opened the board before it again: .*The state of the plugin "blockr\.strict-zoom_plugin"/s,
     );
@@ -1092,12 +1095,13 @@ describe("board options", () => {
     const changes = (): readonly unknown[] =>
       s.core.notifications
         .get()
-        .filter((n) => n.class[0] === "on_change_failed")
-        .map((n) => [n.option, n.package, n.message]);
-    expect(changes()).toEqual([["zoom", "blockr.test", 'The onChange of the board option "zoom" failed: No zoom of 1.']]);
+        .filter((n) => codeOf(n) === "on_change_failed")
+        .map((n) => [n.about, n.source, n.message]);
+    const source = { kind: "core", code: "on_change_failed", package: "blockr.test" };
+    expect(changes()).toEqual([[{ option: "zoom" }, source, 'The onChange of the board option "zoom" failed: No zoom of 1.']]);
 
     s.core.store.apply({ options: { set: { zoom: 2 } } });
-    expect(changes()).toEqual([["zoom", "blockr.test", 'The onChange of the board option "zoom" failed: No zoom of 2.']]);
+    expect(changes()).toEqual([[{ option: "zoom" }, source, 'The onChange of the board option "zoom" failed: No zoom of 2.']]);
 
     failing = false;
     s.core.store.apply({ options: { set: { zoom: 3 } } });
@@ -1444,7 +1448,7 @@ describe("a later session", () => {
     const reloads = (): readonly string[] =>
       core.notifications
         .get()
-        .filter((n) => n.class[0] === "page_reload_needed")
+        .filter((n) => codeOf(n) === "page_reload_needed")
         .map((n) => n.message);
 
     s.r.session();
@@ -1454,14 +1458,13 @@ describe("a later session", () => {
 
     s.r.session({ ...hello, packages: { "blockr.core": "0.2.1" } });
     await tick();
-    expect(core.notifications.get().filter((n) => n.class[0] === "page_reload_needed")).toEqual([
+    expect(core.notifications.get().filter((n) => codeOf(n) === "page_reload_needed")).toEqual([
       {
         id: expect.any(String) as string,
         severity: "warning",
-        class: ["page_reload_needed", "blockr_warning", "warning", "condition"],
         message:
           "R now runs other versions of packages than this page loaded (blockr.core 0.2.0 to 0.2.1). Save the board, then reload the page.",
-        origin: "core",
+        source: { kind: "core", code: "page_reload_needed" },
       },
     ]);
 
@@ -1570,7 +1573,7 @@ describe("a later session", () => {
       [BASIC]: frontEnd().exports,
     });
     const reloads = (core: CoreApi | undefined): readonly string[] =>
-      (core?.notifications.get() ?? []).filter((n) => n.class[0] === "page_reload_needed").map((n) => n.message);
+      (core?.notifications.get() ?? []).filter((n) => codeOf(n) === "page_reload_needed").map((n) => n.message);
     const asked = "R now runs other versions of packages than this page loaded (blockr.test 1.0.0 to 1.1.0). Save the board, then reload the page.";
     s.r.session(first);
     await tick();

@@ -12,7 +12,7 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
-import type { RequestOpts } from "./core-api.ts";
+import type { Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 
 // A block's state: its values for the formals of its class's `expr`.
@@ -74,6 +74,11 @@ export interface BlockHost<S extends State = State> {
   evaluate(params: Record<string, Json>): Promise<BlockStatus>;
   // A module another package offers, by id, such as "blockr.dplyr-filter".
   module<T = unknown>(id: string): Promise<T>;
+  // Raises a notification of the module's, which concerns the block unless it
+  // names another part of the board, and holds until the function that it
+  // returns runs or the mount ends, as CoreApi's notify() raises a plugin's
+  // (./core-api.ts).
+  notify(notification: Raised): () => void;
 }
 
 export interface BlockContext {
@@ -116,6 +121,10 @@ export interface OptionHost<V extends Json = Json> {
     args?: Record<string, Json>,
     opts?: HostRequestOpts,
   ): Promise<T | Blob>;
+  // Raises a notification of the module's, which concerns the board option
+  // unless it names another part of the board, and holds until the function
+  // that it returns runs or the mount ends.
+  notify(notification: Raised): () => void;
 }
 
 export interface OutputHost {
@@ -153,4 +162,8 @@ export interface OutputHost {
   // Reports what the user did on the output, such as a selection, for a
   // plugin to act on.
   emit(name: string, payload: Json): void;
+  // Raises a notification of the renderer's, which concerns the block unless
+  // it names another part of the board, and holds until the function that it
+  // returns runs or the renderer is unmounted.
+  notify(notification: Raised): () => void;
 }

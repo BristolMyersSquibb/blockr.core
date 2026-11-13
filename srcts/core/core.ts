@@ -19,7 +19,8 @@
 // the notifications of the board, which the frontend draws (./notifications.ts),
 // and which block has focus, which the frontend sets. Both are the page's,
 // outside the board, and end with the board. Where an onChange() throws, core
-// raises a notification that holds until its next call returns.
+// raises a notification that holds until its next call returns, and so do
+// those that the call raises through its `notify`.
 
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
@@ -28,7 +29,7 @@ import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, OutputEvents } from "../types/core-api.ts";
+import type { CoreApi, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { coreNotification, errorMessage, jsonEqual, own, report } from "../util/index.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
@@ -112,6 +113,8 @@ export function createCore(parts: CoreParts): Core {
     core: () => api,
     renderers: parts.renderers,
     raise,
+    replied: notifications.replied,
+    notify: notifications.notify,
     optionPackage,
     ...(parts.measure === undefined ? {} : { measure: parts.measure }),
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
@@ -167,7 +170,7 @@ export function createCore(parts: CoreParts): Core {
     notifications: notifications.api,
     focus: createFocus(store, parts.signal),
     request: <T = Json>(plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
-      pluginRequest({ plugins, scheduler }, plugin, name, args, opts) as Promise<T | Blob>,
+      pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name, args, opts) as Promise<T | Blob>,
     module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
     blockrOption: (name) => blockrOptions.read(name),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
@@ -198,18 +201,27 @@ export function createCore(parts: CoreParts): Core {
   // The notification of each onChange() that threw, by its board option's id,
   // which holds until its next call returns.
   const failing = new Map<OptionId, () => void>();
+  // What withdraws each notification that the last call of each onChange()
+  // raised, by its board option's id, which runs as its next call returns.
+  const raisedBy = new Map<OptionId, (() => void)[]>();
 
   function changed(id: OptionId, value: Json): void {
     const def = own(store.options.registered(), id);
     if (def?.onChange === undefined) return;
+    const raisedNow: (() => void)[] = [];
+    const notify = (notification: Raised): (() => void) => {
+      const withdraw = notifications.notify({ option: id }, optionPackage(id) ?? null, notification);
+      raisedNow.push(withdraw);
+      return withdraw;
+    };
     let failure: (() => void) | undefined;
     try {
-      def.onChange(value, api);
+      def.onChange(value, api, notify);
     } catch (error) {
       report(error);
       failure = raise(
         coreNotification("on_change_failed", "error", `The onChange of the board option "${id}" failed: ${errorMessage(error)}`, {
-          option: id,
+          about: { option: id },
           package: optionPackage(id),
         }),
       );
@@ -217,6 +229,8 @@ export function createCore(parts: CoreParts): Core {
     failing.get(id)?.();
     if (failure === undefined) failing.delete(id);
     else failing.set(id, failure);
+    for (const withdraw of raisedBy.get(id) ?? []) withdraw();
+    raisedBy.set(id, raisedNow);
   }
 
   return { api, plugins };

@@ -10,7 +10,9 @@
 // 3. Where R replies `missing`, since a revision moved on before R ran the
 //    request, core has the blocks evaluated again and asks again.
 // Core keeps no answer of a plugin's request, since it may write, and the
-// scheduler sends it to no later session, since it may have run.
+// scheduler sends it to no later session, since it may have run. Each
+// condition of R's error reply raises a notification that concerns the
+// plugin, which holds until R next replies to a request of the same name.
 
 import type { BlockRevision } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
@@ -18,6 +20,7 @@ import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { RequestOpts } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { isObject, own, quoted } from "../util/index.ts";
+import type { Replied } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
 import type { RunningPlugins } from "./plugins.ts";
 
@@ -29,6 +32,9 @@ const ATTEMPTS = 3;
 export interface PluginRequestDeps {
   readonly plugins: Pick<RunningPlugins, "appPlugins">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "request" | "status">;
+  // Holds a notification for each condition of R's latest reply to each of
+  // the plugin's requests, which concern the plugin (./notifications.ts).
+  readonly replied: Replied;
 }
 
 // Sends the request `name` of the plugin that runs whose class has the id
@@ -72,6 +78,7 @@ export async function pluginRequest(
 
     switch (reply.status) {
       case "ok":
+        deps.replied({ plugin }, { type: "plugin", name }, []);
         if (body !== null) return body;
         return "value" in reply && reply.value !== undefined ? reply.value : null;
       case "missing":
@@ -79,11 +86,14 @@ export async function pluginRequest(
         throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name}" of the plugin "${plugin}".`, { status: "cancelled" });
-      default:
+      default: {
+        const conditions = "conditions" in reply ? reply.conditions : [];
+        deps.replied({ plugin }, { type: "plugin", name }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name}" of the plugin "${plugin}".`, {
           status: reply.status,
-          conditions: "conditions" in reply ? reply.conditions : [],
+          conditions,
         });
+      }
     }
   }
 }

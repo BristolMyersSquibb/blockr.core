@@ -13,5 +13,6 @@ export interface Notices {
     readonly subscribe: (fn: () => void) => () => void;
     readonly stop: () => void;
 }
+export declare function isReload(notification: Notification): boolean;
 export declare function createNotices(notifications: CoreApi["notifications"]): Notices;
 export declare function useNotices(notices: Notices): readonly Notice[];
