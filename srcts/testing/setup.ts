@@ -3,11 +3,13 @@
 // logged an error that it did not capture with logged() (./logged.ts), so that
 // no failure that core catches goes unseen, and nothing reaches the console.
 // After each test, core forgets what it set up for the page's logging, so that
-// the next test starts as a page does.
+// the next test starts as a page does, and the API records no spans, whatever a
+// test set up (./spans.ts).
 
 import { afterEach, beforeEach } from "vitest";
 import { replaceLogger, resetLogging } from "../log/index.ts";
 import type { LogLine } from "../types/log.ts";
+import { stopRecording } from "./spans.ts";
 
 let uncaptured: LogLine[] = [];
 let restore: (() => void) | undefined;
@@ -23,6 +25,7 @@ afterEach(() => {
   restore?.();
   restore = undefined;
   resetLogging();
+  stopRecording();
   const errors = uncaptured;
   uncaptured = [];
   if (errors.length > 0) {

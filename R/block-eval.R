@@ -366,7 +366,15 @@ print.block_evaluation <- function(x, ...) {
 # An error that stops the block without failing it is no condition of the
 # evaluation, so the phase keeps it as its error alone, from which
 # `phase_reason()` reads the block's reason.
+# Where R records a span of the evaluation's message, it records a span of each
+# phase of the evaluation inside it, `expr`, `inputs`, `block_eval` and
+# `result_summary`, which is active while the phase runs and is marked failed
+# where the phase fails the block (see `start_message_span()`).
 run_phase <- function(phase, expr) {
+
+  span <- if (traced_answer() && phase %in% traced_phases()) {
+    otel::start_local_active_span(phase)
+  }
 
   conditions <- fastmap::fastqueue()
 
@@ -392,11 +400,18 @@ run_phase <- function(phase, expr) {
     }
   )
 
+  failed <- res[["error"]]
+
+  if (not_null(span) && not_null(failed) &&
+        is.null(stop_status(failed, phase))) {
+    span$set_status("error", conditionMessage(failed))
+  }
+
   list(
     phase = phase,
     value = res[["value"]],
     conditions = conditions$as_list(),
-    error = res[["error"]]
+    error = failed
   )
 }
 

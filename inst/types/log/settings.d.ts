@@ -15,6 +15,11 @@ export interface OtelModule {
         url: string;
         sessionId: () => string | undefined;
     }): Logger;
+    otelTracing(options: {
+        url: string;
+        sessionId: () => string | undefined;
+    }): unknown;
 }
 export declare function logSettings(values: LogOptions, base?: string): LogSettings;
+export declare function collectorUrl(value: Json, path: string, base?: string): string;
 export declare function setUpLogging(settings: LogSettings, sessionId: () => string | undefined, load: () => Promise<OtelModule>): void;

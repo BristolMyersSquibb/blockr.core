@@ -7,10 +7,11 @@
     "@blockr/core/react": "blockr-core-react.js",
     "@blockr/core/binding": "blockr-core-binding.js",
     "@blockr/core/controls": "blockr-core-controls.js",
-    "@blockr/core/otel": "blockr-core-otel.js"
+    "@blockr/core/otel": "blockr-core-otel.js",
+    "@opentelemetry/api": "opentelemetry-api.js"
   },
   "files": [
     "react-963521e2.js",
-    "opentelemetry-ab9396c4.js"
+    "opentelemetry-f97c2de3.js"
   ]
 }

@@ -5,6 +5,7 @@
 // a frontend among them, each class and each board option from the module that
 // R's reply names for it.
 
+import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 // The module of core's storage plugin, which the build bundles on its own.
 // eslint-disable-next-line no-restricted-imports
@@ -16,6 +17,8 @@ import { codeOf, held } from "../testing/notifications.ts";
 import { classModule, optionModule } from "../testing/plugins.ts";
 import { consoleLogger, createLog, currentLogging, resetLogging, setTestLoggersAside } from "../log/index.ts";
 import { logged } from "../testing/logged.ts";
+import { recordSpans } from "../testing/spans.ts";
+import type { Recorded } from "../testing/spans.ts";
 import { hello, optionUrl, pluginUrl, reply, withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
@@ -395,6 +398,7 @@ describe("starting the page", () => {
                   lines.push({ ...line, attributes: { ...line.attributes, session: sessionId() ?? null } });
                 };
               },
+              otelTracing: () => undefined,
             }),
         },
       );
@@ -418,7 +422,7 @@ describe("starting the page", () => {
     }
   });
 
-  test("writes to the console, and logs why, where it is given no OpenTelemetry module to send to a collector with", async () => {
+  test("writes to the console, records no spans, and logs why, where it is given no OpenTelemetry module to send to a collector with", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
@@ -431,7 +435,8 @@ describe("starting the page", () => {
 
     expect(currentLogging()).toEqual({ lowest: "info", logger: consoleLogger });
     expect(reported.errors().map((line) => line.message)).toEqual([
-      "Core could not set up its OpenTelemetry logger, so the page writes its log lines to the console: Core was given no OpenTelemetry module to send log records with.",
+      "Core could not set up its OpenTelemetry logger, so the page writes its log lines to the console: Core was given no OpenTelemetry module to send log records or spans with.",
+      "Core could not set up its OpenTelemetry tracing, so the page records no spans: Core was given no OpenTelemetry module to send log records or spans with.",
     ]);
   });
 
@@ -1782,5 +1787,80 @@ describe("a block that serve() serves alone", () => {
     // board does, but not show_conditions, which only the basic frontend
     // requires, which does not run.
     expect(Object.keys(core.store.board().options).sort()).toEqual(["dark_mode", "n_rows"]);
+  });
+});
+
+describe("the spans of the page's start and of each opening", () => {
+  const named = (name: string): string => JSON.stringify({ ...hello.board, board: { ...hello.board.board, name } });
+
+  // Starts the page on the reply given, with blockr options that name a
+  // collector, and an OpenTelemetry module whose tracing records the spans.
+  async function traced(modules: Readonly<Record<string, unknown>>, replied: HelloReply = hello) {
+    let recorded: Recorded | undefined;
+    const s = setup(modules, {
+      otel: () =>
+        Promise.resolve({
+          otelLogger: () => () => undefined,
+          otelTracing() {
+            recorded = recordSpans();
+          },
+        }),
+    });
+    s.r.session(replied);
+    await tick();
+    s.r.options({ otel_client_endpoint: "https://connect.example.com/otlp/" });
+    const core = await s.started.ready;
+    await tick();
+    if (recorded === undefined) throw new Error("Core set no tracing up.");
+    return { ...s, core, recorded };
+  }
+
+  // The names of the spans inside the span given, in the order they ended.
+  function inside(recorded: Recorded, name: string): string[] {
+    const whole = recorded.span(name);
+    return recorded
+      .spans()
+      .filter((span) => span.parentSpanContext?.spanId === whole.spanContext().spanId)
+      .map((span) => span.name);
+  }
+
+  test("are recorded once the page's tracing is set up, with a span for each step of the start", async () => {
+    const basic = frontEnd();
+    const { exports } = session(() => Promise.resolve(undefined));
+    const s = await traced({ [BASIC]: basic.exports, [pluginUrl(SESSION)]: exports }, withSession());
+
+    expect(inside(s.recorded, "start")).toEqual(["hello", "modules", "storage.load", "store.open", "render"]);
+    expect(s.recorded.span("start").parentSpanContext).toBeUndefined();
+    expect(s.recorded.span("start").status.code).toBe(SpanStatusCode.UNSET);
+    s.recorded.restore();
+  });
+
+  test("of a board opened later go under the span active as the store's open() was called", async () => {
+    const basic = frontEnd();
+    const s = await traced({ [BASIC]: basic.exports });
+    const caller = trace.getTracer("blockr.test").startSpan("load board");
+
+    const opening = context.with(trace.setSpan(context.active(), caller), () => s.core.store.open(named("Later")));
+    await tick();
+    s.r.answer();
+    await opening;
+    caller.end();
+    await tick();
+
+    expect(s.recorded.span("open").parentSpanContext?.spanId).toBe(caller.spanContext().spanId);
+    expect(inside(s.recorded, "open")).toEqual(["hello", "modules", "store.open", "render"]);
+    s.recorded.restore();
+  });
+
+  test("of a board that the store refuses to open mark the opening as failed", async () => {
+    const basic = frontEnd();
+    const s = await traced({ [BASIC]: basic.exports });
+
+    await expect(s.core.store.open("{")).rejects.toThrow("The store refused to open the board");
+    await tick();
+
+    expect(s.recorded.span("open").status.code).toBe(SpanStatusCode.ERROR);
+    expect(inside(s.recorded, "open")).toEqual([]);
+    s.recorded.restore();
   });
 });

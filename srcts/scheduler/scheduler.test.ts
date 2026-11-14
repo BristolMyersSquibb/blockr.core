@@ -4,6 +4,7 @@
 // played over the protocol's own client, so the tests check what the scheduler
 // sends as messages.
 
+import { context, trace } from "@opentelemetry/api";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { SessionEndedError } from "../protocol/index.ts";
 import type {
@@ -17,6 +18,7 @@ import { createStore } from "../store/index.ts";
 import type { Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import { logged } from "../testing/logged.ts";
+import { recordSpans } from "../testing/spans.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { coreOptions, reply as fixtureReply, hello, withPlugins } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
@@ -1209,5 +1211,73 @@ describe("requests", () => {
     for (const asking of again) {
       await expect(asking).resolves.toMatchObject({ reply: { status: "ok" } });
     }
+  });
+});
+
+describe("spans", () => {
+  test("an evaluation's span starts a trace of its own, and links to the span that was active as its block got its revision", async () => {
+    const { r, store, scheduler } = await setup();
+    const recorded = recordSpans();
+    scheduler.demand("test", ["c"]);
+    scheduler.start();
+    await evaluateAll(r);
+
+    // The edit changes b's recipe, and so the recipe of c, which b feeds.
+    const edit = trace.getTracer("blockr.test").startSpan("command blockr.test-edit");
+    context.with(trace.setSpan(context.active(), edit), () => {
+      store.apply({ blocks: { mod: { b: { state: { n: 10 } } } } });
+    });
+    edit.end();
+    await evaluateAll(r);
+
+    // A new session gives every block a revision of its own, with no span.
+    scheduler.session();
+    await evaluateAll(r);
+
+    const evaluations = recorded.spans().filter((span) => span.name === "evaluate");
+    const linked = (block: string) =>
+      evaluations
+        .filter((span) => span.attributes["blockr.block.id"] === block)
+        .map((span) => span.links.map((link) => link.context.spanId));
+    const editId = edit.spanContext().spanId;
+
+    expect(linked("a")).toEqual([[], []]);
+    expect(linked("b")).toEqual([[], [editId], []]);
+    expect(linked("c")).toEqual([[], [editId], []]);
+    for (const span of evaluations) {
+      expect(span.parentSpanContext).toBeUndefined();
+      expect(span.spanContext().traceId).not.toBe(edit.spanContext().traceId);
+    }
+    recorded.restore();
+  });
+
+  test("an output's span goes under the span active as it is asked for, in every session that it goes to, and names its block's class", async () => {
+    const { r, scheduler } = await setup();
+    const recorded = recordSpans();
+    scheduler.demand("test", ["a"]);
+    scheduler.start();
+    await evaluateAll(r);
+
+    const caller = trace.getTracer("blockr.test").startSpan("view");
+    const asked = context.with(trace.setSpan(context.active(), caller), () => scheduler.request(output(scheduler, "a")));
+    await tick();
+    expect(r.asked("output")).toHaveLength(1);
+    r.end();
+    r.connect();
+    await tick();
+    expect(r.asked("output")).toHaveLength(2);
+    const resent = r.asked("output").at(-1);
+    if (resent === undefined) throw new Error("R was asked for no output.");
+    r.reply({ id: resent.id ?? "", status: "missing", missing: [] });
+    await asked;
+    caller.end();
+
+    const outputs = recorded.spans().filter((span) => span.name === "output");
+    expect(outputs).toHaveLength(2);
+    for (const span of outputs) {
+      expect(span.parentSpanContext?.spanId).toBe(caller.spanContext().spanId);
+      expect(span.attributes["blockr.block.registry_id"]).toBe("blockr.core-dataset_block");
+    }
+    recorded.restore();
   });
 });

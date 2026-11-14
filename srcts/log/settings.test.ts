@@ -104,6 +104,7 @@ describe("setting the page's logger up", () => {
           lines.push(line);
         };
       },
+      otelTracing: () => undefined,
     });
     await module;
     await Promise.resolve();

@@ -275,7 +275,7 @@ test_that("the import map names the URL at which R serves each import", {
     c(
       "react", "react/jsx-runtime", "react-dom", "react-dom/client",
       "@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls",
-      "@blockr/core/otel"
+      "@blockr/core/otel", "@opentelemetry/api"
     )
   )
 

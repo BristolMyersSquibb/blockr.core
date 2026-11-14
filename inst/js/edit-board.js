@@ -581,12 +581,12 @@ function createGraph(board) {
 function once(ends) {
   return new Map([...ends].map(([id2, blocks]) => [id2, [...new Set(blocks)]]));
 }
-function closure(ids, steps) {
+function closure(ids, steps2) {
   const reached = /* @__PURE__ */ new Set();
-  const todo = [...ids].filter((id2) => steps.has(id2));
+  const todo = [...ids].filter((id2) => steps2.has(id2));
   for (const id2 of todo) reached.add(id2);
   for (const id2 of todo) {
-    for (const next of steps.get(id2) ?? []) {
+    for (const next of steps2.get(id2) ?? []) {
       if (reached.has(next)) continue;
       reached.add(next);
       todo.push(next);

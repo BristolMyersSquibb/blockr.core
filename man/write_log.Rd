@@ -102,6 +102,8 @@ The client writes each line to the browser's console.
 \item With \code{"otel"}, R writes each line as a record through \code{\link[otel:log]{otel::log()}},
 with its level as the record's severity.
 The record's attributes are the package, as \code{blockr.package.name},
+the session whose message R handles as it writes the line, if any,
+as \code{session.id}, Shiny's token of the session,
 and \code{attributes}.
 The client sends its lines as records to the OpenTelemetry collector
 whose URL the blockr option \code{otel_client_endpoint} gives,
@@ -134,6 +136,22 @@ of these records.
 The client reads the blockr option \code{log_level} as well, and drops a line
 below it in the browser.
 Every logger stops with an error at the level "fatal".
+
+Beside log records, both sides record spans through OpenTelemetry.
+Where OpenTelemetry exports traces, as the environment variable
+\code{OTEL_TRACES_EXPORTER} sets it up, R records a span of each evaluation,
+request and output that the client asks for, with a span inside it for each
+phase of an evaluation.
+Where \code{otel_client_endpoint} names a collector, whatever \code{logger} says,
+the client records its spans and sends them to the collector's path
+\code{v1/traces}: a span of each command, of each evaluation, request and output
+that it sends, and of the page's start and each opening of a board.
+Each request carries the context of the client's span in \code{traceparent},
+so that R's span of it is a child of the client's, in one trace.
+The span of an evaluation links to the span of the command that changed the
+block's recipe.
+Spans name the session by \code{session.id} and hold ids and revisions,
+never a block's state or data.
 
 Core works out the logger, the level and the blockr options \code{log_time} and
 \code{log_mem} each when it first needs them, and keeps them for the process.

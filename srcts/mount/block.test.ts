@@ -5,6 +5,7 @@
 // - The merge c takes a as x and b as y.
 // - The variadic rbind e binds b and d, in that order.
 
+import { context, trace } from "@opentelemetry/api";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CommandError, createCommands } from "../commands/index.ts";
 import type { BlockClassRequest, Condition, HelloReply } from "../protocol/index.ts";
@@ -15,6 +16,7 @@ import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { logged } from "../testing/logged.ts";
+import { recordSpans } from "../testing/spans.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
 import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
@@ -958,6 +960,30 @@ describe("a request", () => {
     });
     r.reply({ id: lastRequest(r).id, status: "ok", value: [150], conditions: [] });
     await expect(max).resolves.toEqual([150]);
+  });
+
+  test("goes under the span that was active as the module called, though it went once its inputs were evaluated", async () => {
+    const { r, host } = await mounted();
+    const recorded = recordSpans();
+    const view = trace.getTracer("blockr.test").startSpan("view");
+
+    const max = context.with(trace.setSpan(context.active(), view), () => host.request("n_max"));
+    await tick();
+    await evaluateAll(r);
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [150], conditions: [] });
+    await expect(max).resolves.toEqual([150]);
+    view.end();
+
+    const request = recorded.span("request n_max");
+    expect(request.parentSpanContext?.spanId).toBe(view.spanContext().spanId);
+    expect(request.attributes).toMatchObject({
+      "blockr.request.type": "block_class",
+      "blockr.block.id": "b",
+      "blockr.block.registry_id": head.id,
+    });
+    // The evaluation of the input that it reads starts a trace of its own.
+    expect(recorded.span("evaluate").parentSpanContext).toBeUndefined();
+    recorded.restore();
   });
 
   test("sends the state args its function names, from args or else from the block's state, its parameters, and the board options it names", async () => {

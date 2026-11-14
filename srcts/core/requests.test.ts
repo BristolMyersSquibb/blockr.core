@@ -2,6 +2,7 @@
 // plugins that run, which the test gives, by the id of the plugin's class, with
 // a scheduler whose evaluations and replies the test gives.
 
+import { context, trace } from "@opentelemetry/api";
 import { describe, expect, test } from "vitest";
 import type { Condition, Reply } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
@@ -10,6 +11,7 @@ import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { Plugin } from "../types/core-api.ts";
 import type { Replied } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
+import { recordSpans } from "../testing/spans.ts";
 import { pluginRequest } from "./index.ts";
 
 type Sent = Parameters<Scheduler["request"]>[0];
@@ -32,6 +34,8 @@ function setup(replies: Reply[], statuses: Record<BlockId, BlockStatus> = { a: R
   const sent: Sent[] = [];
   const options: Options[] = [];
   const evaluated: BlockId[][] = [];
+  // The span that was active as each request went to the scheduler.
+  const active: (string | undefined)[] = [];
   const scheduler: Pick<Scheduler, "evaluate" | "request" | "status"> = {
     status: (id) => statuses[id],
     evaluate(blocks) {
@@ -42,6 +46,7 @@ function setup(replies: Reply[], statuses: Record<BlockId, BlockStatus> = { a: R
     request(request, given) {
       sent.push(request);
       options.push(given);
+      active.push(trace.getActiveSpan()?.spanContext().spanId);
       const reply = replies.shift();
       if (reply === undefined) return Promise.reject(new Error("The test gives no more replies."));
       return Promise.resolve({ reply, body: null });
@@ -53,7 +58,7 @@ function setup(replies: Reply[], statuses: Record<BlockId, BlockStatus> = { a: R
   const replied: Replied = (...args) => {
     handed.push(args);
   };
-  return { deps: { plugins, scheduler, replied }, sent, options, evaluated, handed };
+  return { deps: { plugins, scheduler, replied }, sent, options, evaluated, handed, active };
 }
 
 const ok = (value: unknown, conditions: Condition[] = []): Reply => ({ id: "1", status: "ok", value: value as never, conditions });
@@ -142,5 +147,25 @@ describe("a plugin's request", () => {
     const s = setup([]);
     await expect(pluginRequest(s.deps, plugin, name, args as never, opts)).rejects.toThrow(message);
     expect(s.sent).toEqual([]);
+  });
+});
+
+describe("a plugin's request's span", () => {
+  test("goes under the span that was active as the plugin called, though the request went once the blocks it reads were evaluated", async () => {
+    const recorded = recordSpans();
+    const s = setup([{ id: "1", status: "missing", missing: [{ block: "a", revision: 1 }] }, ok(["a <- 1"])]);
+    const tool = trace.getTracer("blockr.test").startSpan("execute_tool code");
+
+    const answer = context.with(trace.setSpan(context.active(), tool), () =>
+      pluginRequest(s.deps, CODE, "script", {}, { reads: ["a"] }),
+    );
+    await expect(answer).resolves.toEqual(["a <- 1"]);
+    tool.end();
+
+    // Both times that the request went, after the blocks it reads were
+    // evaluated, once again after R lacked a result.
+    expect(s.active).toEqual([tool.spanContext().spanId, tool.spanContext().spanId]);
+    expect(trace.getActiveSpan()).toBeUndefined();
+    recorded.restore();
   });
 });

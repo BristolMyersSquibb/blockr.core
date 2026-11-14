@@ -67,6 +67,11 @@
 # R logs every condition that it sends in a reply, at the level of its
 # severity, naming the block and its revision where the request names one
 # (see `log_reply()`).
+# The log lines that R writes while it handles a message of the session,
+# `session_id`, which `serve()` gives as Shiny's token of the session,
+# name the session by `session.id` (see `with_log_session()`).
+# R records a span of each `evaluate`, `request` and `output`,
+# which names the session too (see `start_message_span()`).
 #
 # Another evaluator, such as one that runs requests in backend processes,
 # differs in four generics: the capabilities that R names,
@@ -75,7 +80,8 @@
 # The rest is the protocol, which every evaluator shares.
 new_evaluator <- function(board, data = list(), lock = NULL,
                           registry = block_registry, plugins = list(),
-                          frontend = as_json_object(list())) {
+                          frontend = as_json_object(list()),
+                          session_id = NULL) {
 
   if (missing(board) || is.null(board)) {
     blockr_abort(
@@ -117,6 +123,7 @@ new_evaluator <- function(board, data = list(), lock = NULL,
   ev$registry <- registry
   ev$plugins <- plugins
   ev$frontend <- frontend
+  ev$session_id <- session_id
   ev$started <- FALSE
   ev$shared <- character()
   ev$results <- new.env(parent = emptyenv())
@@ -170,7 +177,9 @@ run_request <- function(x, job) {
 run_request.session_evaluator <- function(x, job) {
   promises::promise(
     function(resolve, reject) {
-      resolve(with_answering(x, job, answer_request(x, job)))
+      resolve(
+        with_answering(x, job, with_message_span(job, answer_request(x, job)))
+      )
     }
   )
 }
@@ -211,9 +220,12 @@ drop_results.session_evaluator <- function(x, blocks = NULL) {
 
 receive_requests <- function(ev, message, send) {
 
-  for (req in message) {
-    receive_request(ev, req, send)
-  }
+  with_log_session(
+    ev$session_id,
+    for (req in message) {
+      receive_request(ev, req, send)
+    }
+  )
 
   run_soon(ev)
 
@@ -385,7 +397,8 @@ forget_blocks <- function(ev, blocks, send) {
 }
 
 # Drops the queued requests at the positions given,
-# replying `cancelled` to each, in one message.
+# replying `cancelled` to each, in one message,
+# which ends the span of each.
 drop_requests <- function(ev, positions, send) {
 
   if (!length(positions)) {
@@ -395,15 +408,26 @@ drop_requests <- function(ev, positions, send) {
   dropped <- ev$queue[positions]
   ev$queue <- ev$queue[-positions]
 
-  send(
-    lapply(dropped, function(job) list(id = job[["id"]], status = "cancelled"))
+  replies <- lapply(
+    dropped,
+    function(job) list(id = job[["id"]], status = "cancelled")
   )
+
+  send(replies)
+
+  for (i in seq_along(dropped)) {
+    end_message_span(ev, dropped[[i]], replies[[i]])
+  }
+
+  invisible()
 }
 
 # Reads a request that asks R for work, and queues it.
 # The queue keeps with it the blocks that it evaluates or reads,
 # so that a `forget` can drop it,
-# and the function `send()` that its reply goes through.
+# the function `send()` that its reply goes through,
+# and the span of the message, where R records one,
+# which starts once R has read the message.
 enqueue_request <- function(ev, req, send) {
 
   read <- switch(
@@ -419,7 +443,8 @@ enqueue_request <- function(ev, req, send) {
     kind = req[["kind"]],
     req = read,
     blocks = request_blocks(read),
-    send = send
+    send = send,
+    span = start_message_span(ev, req, read)
   )
 
   ev$queue <- c(ev$queue, list(job))
@@ -459,24 +484,36 @@ run_next <- function(ev) {
     run_soon(ev)
   }
 
-  promises::then(
-    run_request(ev, job),
-    onFulfilled = function(reply) {
-      on.exit(finish())
-      log_reply(job, reply)
-      deliver_reply(ev, job, reply)
-    },
-    onRejected = function(e) {
-      on.exit(finish())
-      log_error("R failed to answer request {job$id}: {conditionMessage(e)}")
-      deliver_reply(ev, job, job_error_reply(job, e))
-    }
+  with_log_session(
+    ev$session_id,
+    promises::then(
+      run_request(ev, job),
+      onFulfilled = function(reply) {
+        on.exit(finish())
+        with_log_session(ev$session_id, {
+          log_reply(job, reply)
+          sent <- deliver_reply(ev, job, reply)
+          end_message_span(ev, job, sent)
+        })
+      },
+      onRejected = function(e) {
+        on.exit(finish())
+        with_log_session(ev$session_id, {
+          log_error(
+            "R failed to answer request {job$id}: {conditionMessage(e)}"
+          )
+          sent <- deliver_reply(ev, job, job_error_reply(job, e))
+          end_message_span(ev, job, sent)
+        })
+      }
+    )
   )
 
   invisible()
 }
 
-# Sends a reply in a message of its own.
+# Sends a reply in a message of its own, and returns the reply that it sent,
+# or `NULL` where it could send none.
 # Where R cannot send it, as when its JSON cannot be written, or when the
 # message would be larger than the transport sends, R sends an `error` in its
 # place, since the client waits for a reply to every request with an id.
@@ -484,7 +521,10 @@ run_next <- function(ev) {
 # result of an evaluation that it refused to send, as an `error` leaves R none.
 deliver_reply <- function(ev, job, reply) {
   tryCatch(
-    job[["send"]](list(reply)),
+    {
+      job[["send"]](list(reply))
+      reply
+    },
     error = function(e) {
 
       note <- if (inherits(e, "protocol_message_too_large")) {
@@ -504,10 +544,16 @@ deliver_reply <- function(ev, job, reply) {
         drop_results(ev, block)
       }
 
+      instead <- job_error_reply(job, e)
+
       tryCatch(
-        job[["send"]](list(job_error_reply(job, e))),
+        {
+          job[["send"]](list(instead))
+          instead
+        },
         error = function(e) {
           log_error("R failed to reply to {job$id}: {conditionMessage(e)}")
+          NULL
         }
       )
     }
