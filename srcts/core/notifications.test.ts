@@ -18,7 +18,7 @@ import { listedModules, pluginUi } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { withOptions, withPlugins } from "../testing/store.ts";
 import type { Notification } from "../types/core-api.ts";
-import type { BlockHost, OutputHost } from "../types/hosts.ts";
+import type { BlockHost, OptionHost, OutputHost } from "../types/hosts.ts";
 
 const FILE = "blockr.core-file_storage_plugin";
 
@@ -144,7 +144,12 @@ describe("the notifications of R's replies to requests", () => {
       {
         severity: "error",
         message: "The disk is full.",
-        source: { kind: "r", class: ["blockr_error", "error", "condition"], request: { type: "plugin", name: "save" } },
+        source: {
+          kind: "r",
+          class: ["blockr_error", "error", "condition"],
+          request: { type: "plugin", name: "save" },
+          module: { object: { plugin: FILE }, package: "blockr.core" },
+        },
         about: { plugin: FILE },
       },
     ]);
@@ -154,10 +159,71 @@ describe("the notifications of R's replies to requests", () => {
     expect(held(s.core, ofRequests)).toEqual([]);
     s.stop();
   });
+
+  test("name the module that made the request: the block's UI module, the renderer of the block's output, whichever scope its request has, and the board option's module", async () => {
+    const hosts: { block?: BlockHost; output?: OutputHost; option?: OptionHost } = {};
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: 1,
+      ui: {
+        render: ({ host }: { host: OptionHost }) => {
+          hosts.option = host;
+        },
+      },
+    };
+    const s = await stubCore({
+      hello: withOptions(["zoom"]),
+      modules: {
+        ...listedModules([], [zoom]),
+        [HEAD]: {
+          api: 1,
+          default: {
+            render: ({ host }: { host: BlockHost }) => {
+              hosts.block = host;
+            },
+          },
+        },
+        [TABLE]: {
+          api: 1,
+          default: {
+            options: ["n_rows"],
+            render: ({ host }: { host: OutputHost }) => {
+              hosts.output = host;
+            },
+          },
+        },
+      },
+      answer: () => {
+        throw new Error("No answer.");
+      },
+    });
+    s.core.scheduler.demand("test", ["b"]);
+    s.core.mountBlock(document.createElement("div"), "b");
+    s.core.mountOutput(document.createElement("div"), "b");
+    s.core.mountOption(document.createElement("div"), "zoom");
+    await s.settled();
+
+    await expect(hosts.block?.request("n_max")).rejects.toMatchObject({ status: "error" });
+    await expect(hosts.output?.request("download")).rejects.toMatchObject({ status: "error" });
+    await expect(hosts.output?.request("labels", {}, { scope: "renderer" })).rejects.toMatchObject({ status: "error" });
+    await expect(hosts.option?.request("list_dir")).rejects.toMatchObject({ status: "error" });
+    const renderer = { object: { block: "b" }, renderer: "blockr.core-table_output", package: "blockr.core" };
+    const replied = held(s.core, (n) => n.source.kind === "r");
+    expect(replied.map(({ source, about }) => [source.kind === "r" ? source.request : undefined, source.module, about])).toEqual([
+      [{ type: "block_class", name: "n_max" }, { object: { block: "b" }, package: "blockr.core" }, { block: "b" }],
+      [{ type: "output_class", name: "download" }, renderer, { block: "b" }],
+      [{ type: "renderer", name: "labels" }, renderer, { block: "b" }],
+      [{ type: "option", name: "list_dir" }, { object: { option: "zoom" }, package: "blockr.test" }, { option: "zoom" }],
+    ]);
+    s.stop();
+  });
 });
 
 describe("the notifications of the modules of packages", () => {
-  test("that a block's UI module raises through its host come from the block, with the package of its class, and concern the block, until the mount ends", async () => {
+  test("that a block's UI module raises through its host name that module, with the package of its class, and concern the block, until the mount ends", async () => {
     const hosts: BlockHost[] = [];
     const s = await stubCore({
       modules: {
@@ -179,7 +245,7 @@ describe("the notifications of the modules of packages", () => {
       {
         severity: "warning",
         message: "Few rows.",
-        source: { kind: "module", object: { block: "b" }, code: "few_rows", package: "blockr.core" },
+        source: { kind: "module", module: { object: { block: "b" }, package: "blockr.core" }, code: "few_rows" },
         about: { block: "b" },
       },
     ]);
@@ -188,7 +254,36 @@ describe("the notifications of the modules of packages", () => {
     s.stop();
   });
 
-  test("that the renderer of a block's output raises through its host come from the block, naming the renderer, with the renderer's package, until the renderer is unmounted", async () => {
+  test("that a block's module raises about another board object go as the block leaves the board", async () => {
+    const hosts: BlockHost[] = [];
+    const s = await stubCore({
+      modules: {
+        [HEAD]: {
+          api: 1,
+          default: {
+            render: ({ host }: { host: BlockHost }) => {
+              hosts.push(host);
+            },
+          },
+        },
+      },
+    });
+    s.core.mountBlock(document.createElement("div"), "b");
+    await s.settled();
+    hosts[0]?.notify({ severity: "message", code: "copied", message: "Copied the rows of a.", about: { block: "a" } });
+    hosts[0]?.notify({ severity: "warning", code: "slow", message: "The board is slow.", about: null });
+    expect(held(s.core, fromModules).map((n) => [n.about, n.source.module])).toEqual([
+      [{ block: "a" }, { object: { block: "b" }, package: "blockr.core" }],
+      [undefined, { object: { block: "b" }, package: "blockr.core" }],
+    ]);
+
+    await s.core.commands.run("blockr.core-remove_block", { id: "b" });
+    await s.settled();
+    expect(held(s.core, fromModules)).toEqual([]);
+    s.stop();
+  });
+
+  test("that the renderer of a block's output raises through its host name the renderer, with its package, and concern the block, until the renderer is unmounted", async () => {
     const hosts: OutputHost[] = [];
     const s = await stubCore({
       modules: {
@@ -212,7 +307,11 @@ describe("the notifications of the modules of packages", () => {
       {
         severity: "warning",
         message: "Only the first rows show.",
-        source: { kind: "module", object: { block: "b" }, code: "truncated", package: "blockr.core", renderer: "blockr.core-table_output" },
+        source: {
+          kind: "module",
+          module: { object: { block: "b" }, renderer: "blockr.core-table_output", package: "blockr.core" },
+          code: "truncated",
+        },
         about: { block: "b" },
       },
     ]);
@@ -221,7 +320,7 @@ describe("the notifications of the modules of packages", () => {
     s.stop();
   });
 
-  test("that a board option's onChange() raises come from the board option, with the package that lists it, until its next call returns", async () => {
+  test("that a board option's onChange() raises name the board option's module, with the package that lists it, until its next call returns", async () => {
     const zoom: Option = {
       id: "zoom",
       label: "Zoom",
@@ -241,7 +340,7 @@ describe("the notifications of the modules of packages", () => {
       {
         severity: "warning",
         message: "Text may not fit.",
-        source: { kind: "module", object: { option: "zoom" }, code: "zoomed", package: "blockr.test" },
+        source: { kind: "module", module: { object: { option: "zoom" }, package: "blockr.test" }, code: "zoomed" },
         about: { option: "zoom" },
       },
     ]);
@@ -252,7 +351,7 @@ describe("the notifications of the modules of packages", () => {
 });
 
 describe("core's notifications", () => {
-  test("of a block's UI module that cannot draw are one, however many mounts fail, which concerns the block, with the module's package, and leave each element empty", async () => {
+  test("of a block's UI module that cannot draw are one, however many mounts fail, which names the module, with its package, concerns the block and leaves each element empty", async () => {
     const reported = reports();
     const s = await stubCore();
     const first = document.createElement("div");
@@ -267,7 +366,7 @@ describe("core's notifications", () => {
       {
         severity: "error",
         message: expect.stringContaining(`The module ${module} of blockr.core failed to load`) as string,
-        source: { kind: "core", code: "module_failed", package: "blockr.core" },
+        source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, package: "blockr.core" } },
         about: { block: "b" },
       },
     ]);
@@ -275,7 +374,7 @@ describe("core's notifications", () => {
     s.stop();
   });
 
-  test("of a renderer that cannot draw concern the block, naming the renderer, with its package, and leave the output's element empty", async () => {
+  test("of a renderer that cannot draw name the renderer, with its package, concern the block and leave the output's element empty", async () => {
     const reported = reports();
     const s = await stubCore({ modules: { [TABLE]: { api: 2, default: { render: () => undefined } } } });
     s.core.scheduler.demand("test", ["b"]);
@@ -289,7 +388,11 @@ describe("core's notifications", () => {
       {
         severity: "error",
         message: `The module ${module} of blockr.core was built against major 2 of core's JS API, where core's is 1.`,
-        source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: "blockr.core-table_output" },
+        source: {
+          kind: "core",
+          code: "module_failed",
+          module: { object: { block: "b" }, renderer: "blockr.core-table_output", package: "blockr.core" },
+        },
         about: { block: "b" },
       },
     ]);
@@ -297,7 +400,7 @@ describe("core's notifications", () => {
     s.stop();
   });
 
-  test("of a board option's UI that fails in render() concern the board option, with the package that lists it", async () => {
+  test("of a board option's UI that fails in render() name the board option's module, with the package that lists it, and concern the board option", async () => {
     const reported = reports();
     const zoom: Option = {
       id: "zoom",
@@ -322,14 +425,14 @@ describe("core's notifications", () => {
       {
         severity: "error",
         message: 'The UI of the board option "zoom" failed in render(): No slider.',
-        source: { kind: "core", code: "module_failed", package: "blockr.test" },
+        source: { kind: "core", code: "module_failed", module: { object: { option: "zoom" }, package: "blockr.test" } },
         about: { option: "zoom" },
       },
     ]);
     s.stop();
   });
 
-  test("of a plugin whose start throws or whose ui fails in render() concern the plugin, with its class's package", async () => {
+  test("of a plugin whose start throws or whose ui fails in render() name the plugin class's module, with its package, and concern the plugin", async () => {
     const reported = reports();
     const ui = pluginUi();
     const failing: PluginClass = {
@@ -357,20 +460,56 @@ describe("core's notifications", () => {
       {
         severity: "error",
         message: 'The start of the plugin class "blockr.test-notes_plugin" failed: No notes.',
-        source: { kind: "core", code: "plugin_start_failed", package: "blockr.test" },
+        source: {
+          kind: "core",
+          code: "plugin_start_failed",
+          module: { object: { plugin: "blockr.test-notes_plugin" }, package: "blockr.test" },
+        },
         about: { plugin: "blockr.test-notes_plugin" },
       },
       {
         severity: "error",
         message: 'The ui of the plugin class "blockr.test-notes_plugin" failed in render(): No pad.',
-        source: { kind: "core", code: "module_failed", package: "blockr.test" },
+        source: { kind: "core", code: "module_failed", module: { object: { plugin: "blockr.test-notes_plugin" }, package: "blockr.test" } },
         about: { plugin: "blockr.test-notes_plugin" },
       },
     ]);
     s.stop();
   });
 
-  test("of a board option that does not go onto the board concern the board option, once for the board", async () => {
+  test("of a board option whose default fails name the board option's module, with the package that lists it, and concern the board option", async () => {
+    const reported = reports();
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: () => {
+        throw new Error("No zoom today.");
+      },
+      ui: { render: () => undefined },
+    };
+    const zoomed: PluginClass = { id: "blockr.test-zoomed_plugin", options: ["zoom"], ui: pluginUi().ui };
+    const s = await stubCore({
+      hello: withOptions(["zoom"], withPlugins({ [zoomed.id]: { name: "Zoomed" } })),
+      modules: listedModules([zoomed], [zoom]),
+    });
+    s.core.mountPlugin(document.createElement("div"), zoomed.id);
+    await s.settled();
+    reported.restore();
+
+    expect(held(s.core, (n) => codeOf(n) === "board_option_failed")).toEqual([
+      {
+        severity: "error",
+        message: 'The default of the board option "zoom", which the plugin class "blockr.test-zoomed_plugin" requires, failed: No zoom today.',
+        source: { kind: "core", code: "board_option_failed", module: { object: { option: "zoom" }, package: "blockr.test" } },
+        about: { option: "zoom" },
+      },
+    ]);
+    s.stop();
+  });
+
+  test("of a board option that no loaded package defines concern the board option, are one for the board and name no module", async () => {
     const reported = reports();
     const needy: PluginClass = { id: "blockr.test-needy_plugin", options: ["nowhere"], ui: pluginUi().ui };
     const s = await stubCore({ hello: withPlugins({ [needy.id]: { name: "Needy" } }), modules: listedModules([needy]) });

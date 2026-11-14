@@ -65,6 +65,7 @@ export type {
   Notification,
   NotificationSource,
   OutputEvents,
+  PackageModule,
   Plugin,
   PluginModule,
   Raised,

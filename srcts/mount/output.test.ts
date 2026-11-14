@@ -15,12 +15,12 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
-import type { Notification, Raised } from "../types/core-api.ts";
+import type { Notification, PackageModule, Raised } from "../types/core-api.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import type { From, Notify, Raise, Replied } from "../util/index.ts";
+import type { Notify, Raise, Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Measure, Mounts, OutputEvent } from "./index.ts";
 
@@ -114,7 +114,7 @@ interface Setup {
   replies: Parameters<Replied>[];
   // The notifications that renderers raised through their hosts, while they
   // hold.
-  notified: { from: From; notification: Raised }[];
+  notified: { module: PackageModule; notification: Raised }[];
   // Ends what core runs for the board, as core does as another board opens,
   // and opens the board of the reply given in a new store with new mounts, on
   // the same R and the same loader, as core starts again.
@@ -158,9 +158,9 @@ async function setup(
   const replied: Replied = (...args) => {
     replies.push(args);
   };
-  const notified: { from: From; notification: Raised }[] = [];
-  const notify: Notify = (from, notification) => {
-    const given = { from, notification };
+  const notified: { module: PackageModule; notification: Raised }[] = [];
+  const notify: Notify = (module, notification) => {
+    const given = { module, notification };
     notified.push(given);
     return () => {
       const at = notified.indexOf(given);
@@ -501,11 +501,16 @@ describe("asking", () => {
     reported.restore();
     const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
     expect(s.raised).toEqual([
-      { severity: "error", message: why, source: { kind: "core", code: "board_option_failed" }, about: { option: "broken" } },
+      {
+        severity: "error",
+        message: why,
+        source: { kind: "core", code: "board_option_failed", module: { object: { option: "broken" } } },
+        about: { option: "broken" },
+      },
       {
         severity: "error",
         message: `Without the board option "broken", the renderer "${TABLE.id}" cannot draw.`,
-        source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id },
+        source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" } },
         about: { block: "b" },
       },
     ]);
@@ -616,8 +621,12 @@ describe("board options", () => {
     expect(outputs(s.r)).toHaveLength(1);
     expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
     expect(s.raised.map((n) => [n.source, n.about, n.message])).toEqual([
-      [{ kind: "core", code: "board_option_failed" }, { option: "once" }, why],
-      [{ kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id }, { block: "b" }, lacking],
+      [{ kind: "core", code: "board_option_failed", module: { object: { option: "once" } } }, { option: "once" }, why],
+      [
+        { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" } },
+        { block: "b" },
+        lacking,
+      ],
     ]);
 
     // Once the board holds a value, core asks again, and the next output
@@ -712,7 +721,7 @@ describe("the renderer", () => {
           severity: "error",
           message:
             "The module blockr.core/basic-table.js of blockr.core was built against major 2 of core's JS API, where core's is 1.",
-          source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id },
+          source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" } },
           about: { block: "b" },
         }),
       ]),
@@ -742,7 +751,7 @@ describe("the renderer", () => {
       {
         severity: "error",
         message: "The module blockr.core/basic-table.js of blockr.core failed in render(): boom",
-        source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id },
+        source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" } },
         about: { block: "b" },
       },
     ]);
@@ -880,14 +889,14 @@ describe("a request", () => {
     s.r.reply({ id: requests(s.r)[1]?.id ?? "", status: "ok", value: [], conditions: [warning] });
     await sorted;
     expect(s.replies).toEqual([
-      [{ block: "b" }, { type: "output_class", name: "download" }, [failure]],
-      [{ block: "b" }, { type: "renderer", renderer: TABLE.id, name: "sort" }, [warning]],
+      [{ object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" }, { type: "output_class", name: "download" }, [failure]],
+      [{ object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" }, { type: "renderer", name: "sort" }, [warning]],
     ]);
   });
 });
 
 describe("a mount", () => {
-  test("raises what the renderer gives its host's notify(), from the block, with the renderer's package, until the renderer is unmounted", async () => {
+  test("raises what the renderer gives its host's notify(), naming the renderer, with its package, until the renderer is unmounted", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });
     const el = await ready(s);
@@ -896,9 +905,10 @@ describe("a mount", () => {
     const given: Raised = { severity: "warning", code: "truncated", message: "Only the first 150 rows show." };
     const withdraw = table.host().notify(given);
     table.host().notify({ ...given, code: "sorted", message: "Sorted." });
+    const module = { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" };
     expect(s.notified).toEqual([
-      { from: { object: { block: "b" }, package: "blockr.core", renderer: TABLE.id }, notification: given },
-      { from: { object: { block: "b" }, package: "blockr.core", renderer: TABLE.id }, notification: { ...given, code: "sorted", message: "Sorted." } },
+      { module, notification: given },
+      { module, notification: { ...given, code: "sorted", message: "Sorted." } },
     ]);
     withdraw();
     expect(s.notified.map((n) => n.notification.code)).toEqual(["sorted"]);

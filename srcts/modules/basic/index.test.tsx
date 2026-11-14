@@ -1090,7 +1090,7 @@ describe("what the user learns", () => {
       id: "posing",
       severity: "error",
       message: "Reload, please.",
-      source: { kind: "module", object: { plugin: FILE_STORAGE }, code: "page_reload_needed" },
+      source: { kind: "module", module: { object: { plugin: FILE_STORAGE }, package: "blockr.core" }, code: "page_reload_needed" },
     };
     // The frontend drawn with notifications that hold core's and a plugin's,
     // the same array while they hold, as CoreApi's are.

@@ -14,16 +14,17 @@
 // - One for each condition of R's latest reply to each request that a module
 //   or a plugin made, ok or error, in place of those of the request's reply
 //   before, so that a request that fails again keeps its notifications, and
-//   one that succeeds with no condition withdraws them.
+//   one that succeeds with no condition withdraws them. Its source names the
+//   module that made the request.
 // - Those that core raises, each with an id from what it holds, so that a
 //   failure raised twice, as by two mounts of one module, is one notification,
 //   which holds until each raise of it is withdrawn.
 // - Those that the modules of packages raise, a plugin's through notify() and
 //   one that core mounts through its host, each with an id of its own.
 // It withdraws every notification that concerns a block, a link or a stack as
-// that leaves the board, and those of a block's modules as the block leaves,
-// and every one as the board ends, as the next board opens, which it
-// announces.
+// that leaves the board, and those whose source names a module of the block
+// as the block leaves, and every one as the board ends, as the next board
+// opens, which it announces.
 // It holds none that is raised about a block, a link or a stack that the board
 // does not hold, since the work that raises one can outlive what it concerns,
 // and it reports one that a package's module raises about a board object that
@@ -36,8 +37,8 @@ import { isUnsentError } from "../scheduler/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
-import type { BoardObject, CoreApi, EvaluatePhase, ModuleSource, Notification, NotificationSource } from "../types/core-api.ts";
-import { checkRaised, jsonEqual, packageFromId, report } from "../util/index.ts";
+import type { BoardObject, CoreApi, EvaluatePhase, Notification, NotificationSource, PackageModule } from "../types/core-api.ts";
+import { checkRaised, jsonEqual, packageFromId, packageModule, report } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 
 export interface Holder {
@@ -143,9 +144,7 @@ export function createNotifications(
     const goes = (object: BoardObject | undefined): boolean => object !== undefined && gone.has(key(object));
     let moved = false;
     for (const [id, notification] of held) {
-      if (!goes(notification.about) && !(notification.source.kind === "module" && goes(notification.source.object))) {
-        continue;
-      }
+      if (!goes(notification.about) && !goes(notification.source.module?.object)) continue;
       held.delete(id);
       raised.delete(id);
       moved = true;
@@ -205,17 +204,19 @@ export function createNotifications(
     return replace(JSON.stringify(["status", block]), about, next);
   }
 
-  const replied: Replied = (about, request, conditions) => {
+  const replied: Replied = (module, request, conditions) => {
     if (ended) return;
+    const about = module.object;
+    const by = moduleCopy(module);
     const next = new Map<string, Notification>();
     if (present(about)) {
       for (const condition of conditions) {
-        const source: NotificationSource = { kind: "r", class: condition.class, request };
-        const id = JSON.stringify(["request", about, condition.severity, source, condition.message]);
+        const source: NotificationSource = { kind: "r", class: condition.class, request, module: by };
+        const id = JSON.stringify(["request", condition.severity, source, condition.message]);
         if (!next.has(id)) next.set(id, frozen(id, { severity: condition.severity, message: condition.message, source, about }));
       }
     }
-    if (replace(JSON.stringify(["request", about, request]), about, next)) publish();
+    if (replace(JSON.stringify(["request", by, request]), about, next)) publish();
   };
 
   const raise: Raise = (given) => {
@@ -243,13 +244,13 @@ export function createNotifications(
     };
   };
 
-  const notify: Notify = ({ object, package: pkg, renderer }, notification) => {
+  const notify: Notify = (module, notification) => {
     const given = checkRaised(notification);
     if (ended) return nothing;
-    const about = given.about === undefined ? object : (given.about ?? undefined);
+    const about = given.about === undefined ? module.object : (given.about ?? undefined);
     if (about !== undefined && !known(about)) {
       if (!left.has(key(about))) {
-        report(new Error(`Core drops a notification that ${raiser(object)} raised about ${named(about)}, ${unknown(about)}.`));
+        report(new Error(`Core drops a notification that ${raiser(module.object)} raised about ${named(about)}, ${unknown(about)}.`));
       }
       return nothing;
     }
@@ -259,13 +260,7 @@ export function createNotifications(
       frozen(id, {
         severity: given.severity,
         message: given.message,
-        source: {
-          kind: "module",
-          object,
-          code: given.code,
-          ...(pkg === null ? {} : { package: pkg }),
-          ...(renderer === undefined ? {} : { renderer }),
-        },
+        source: { kind: "module", module, code: given.code },
         ...(about === undefined ? {} : { about }),
       }),
     );
@@ -292,7 +287,7 @@ export function createNotifications(
           report(new Error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`));
           return nothing;
         }
-        return notify({ object: { plugin }, package: packageFromId(plugin) }, given);
+        return notify(packageModule({ plugin }, packageFromId(plugin)), given);
       },
       get: () => all,
       subscribe(fn) {
@@ -355,7 +350,7 @@ function named(object: BoardObject): string {
 }
 
 // Who raised a notification of a package's module, as a message names them.
-function raiser(object: ModuleSource["object"]): string {
+function raiser(object: PackageModule["object"]): string {
   return "plugin" in object ? named(object) : `a module of ${named(object)}`;
 }
 
@@ -381,23 +376,24 @@ function frozen(id: string, given: Omit<Notification, "id">): Notification {
 function sourceCopy(source: NotificationSource): NotificationSource {
   switch (source.kind) {
     case "r":
-      return { kind: "r", class: [...source.class], request: { ...source.request } };
+      return {
+        kind: "r",
+        class: [...source.class],
+        request: { ...source.request },
+        ...(source.module === undefined ? {} : { module: moduleCopy(source.module) }),
+      };
     case "core":
-      return {
-        kind: "core",
-        code: source.code,
-        ...(source.package === undefined ? {} : { package: source.package }),
-        ...(source.renderer === undefined ? {} : { renderer: source.renderer }),
-      };
+      return { kind: "core", code: source.code, ...(source.module === undefined ? {} : { module: moduleCopy(source.module) }) };
     case "module":
-      return {
-        kind: "module",
-        object: moduleObjectCopy(source.object),
-        code: source.code,
-        ...(source.package === undefined ? {} : { package: source.package }),
-        ...(source.renderer === undefined ? {} : { renderer: source.renderer }),
-      };
+      return { kind: "module", module: moduleCopy(source.module), code: source.code };
   }
+}
+
+// A copy of the module with its members in one order, so that a
+// notification's id does not depend on the order in which the code that
+// raised the notification wrote them.
+function moduleCopy(module: PackageModule): PackageModule {
+  return packageModule(moduleObjectCopy(module.object), module.package, module.renderer);
 }
 
 function objectCopy(object: BoardObject): BoardObject {
@@ -406,7 +402,7 @@ function objectCopy(object: BoardObject): BoardObject {
   return moduleObjectCopy(object);
 }
 
-function moduleObjectCopy(object: ModuleSource["object"]): ModuleSource["object"] {
+function moduleObjectCopy(object: PackageModule["object"]): PackageModule["object"] {
   if ("block" in object) return { block: object.block };
   if ("option" in object) return { option: object.option };
   return { plugin: object.plugin };

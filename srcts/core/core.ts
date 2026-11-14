@@ -31,7 +31,7 @@ import type { Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { coreNotification, errorMessage, jsonEqual, own, report } from "../util/index.ts";
+import { coreNotification, errorMessage, jsonEqual, own, packageModule, report } from "../util/index.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
 import type { Holder } from "./notifications.ts";
 import { runPlugins } from "./plugins.ts";
@@ -209,8 +209,10 @@ export function createCore(parts: CoreParts): Core {
     const def = own(store.options.registered(), id);
     if (def?.onChange === undefined) return;
     const raisedNow: (() => void)[] = [];
+    // The board option's module, which defines its onChange().
+    const module = packageModule({ option: id }, optionPackage(id));
     const notify = (notification: Raised): (() => void) => {
-      const withdraw = notifications.notify({ object: { option: id }, package: optionPackage(id) ?? null }, notification);
+      const withdraw = notifications.notify(module, notification);
       raisedNow.push(withdraw);
       return withdraw;
     };
@@ -221,8 +223,7 @@ export function createCore(parts: CoreParts): Core {
       report(error);
       failure = raise(
         coreNotification("on_change_failed", "error", `The onChange of the board option "${id}" failed: ${errorMessage(error)}`, {
-          about: { option: id },
-          package: optionPackage(id),
+          module,
         }),
       );
     }

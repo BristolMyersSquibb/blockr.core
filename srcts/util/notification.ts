@@ -6,45 +6,55 @@
 // what the modules of packages raise.
 
 import type { Condition } from "../protocol/index.ts";
-import type { BoardObject, CoreCode, ModuleSource, Notification, Raised, RRequest } from "../types/core-api.ts";
+import type { BoardObject, CoreCode, Notification, PackageModule, Raised, RRequest } from "../types/core-api.ts";
 import { isObject } from "./util.ts";
 
 // Raises a notification of the open board, and returns what withdraws it.
 export type Raise = (notification: Omit<Notification, "id">) => () => void;
 
-// Holds a notification for each condition of R's latest reply to a request,
-// which concern the board object that the request was made for, in place of
-// those of the request's reply before, so that a request that fails again
+// Holds a notification for each condition of R's latest reply to a request
+// that a package's module made, in place of those of the module's reply
+// before to a request of the same name, so that a request that fails again
 // keeps its notifications and one that succeeds with no condition withdraws
-// them.
-export type Replied = (about: BoardObject, request: Extract<RRequest, { readonly name: string }>, conditions: readonly Condition[]) => void;
+// them. They concern the board object that the module belongs to, for which
+// the request was made.
+export type Replied = (
+  module: PackageModule,
+  request: Extract<RRequest, { readonly name: string }>,
+  conditions: readonly Condition[],
+) => void;
 
-// Raises a notification that a package's module gives, from the module: the
-// board object that it belongs to, its package, null where core knows none, and
-// for the renderer of a block's output, the renderer's id. It returns what
-// withdraws the notification.
-export type Notify = (from: From, notification: Raised) => () => void;
-
-// The module that raises a notification, as its source names it.
-export interface From {
-  readonly object: ModuleSource["object"];
-  readonly package: string | null;
-  readonly renderer?: string;
-}
+// Raises a notification that a package's module gives, from the module, and
+// returns what withdraws the notification.
+export type Notify = (module: PackageModule, notification: Raised) => () => void;
 
 // Raise nothing, for code that runs outside an opening, as in a test.
 export const raiseNothing: Raise = () => () => undefined;
 export const repliedNothing: Replied = () => undefined;
 export const notifyNothing: Notify = () => () => undefined;
 
-// What one of core's notifications concerns, none for the board, the package
-// whose code failed, or null where an id names none, as for a block class
-// defined outside a package, and the renderer of the block's output, by its
-// id, where it is the module that failed.
+// A package's module, as a notification's source names it, from the board
+// object whose module it is, its package and, where the module is a renderer,
+// the renderer's id. A package of null or undefined, as of a block class
+// defined outside a package, leaves the module without one.
+export function packageModule(
+  object: PackageModule["object"],
+  pkg: string | null | undefined,
+  renderer?: string,
+): PackageModule {
+  return {
+    object,
+    ...(renderer === undefined ? {} : { renderer }),
+    ...(pkg === undefined || pkg === null ? {} : { package: pkg }),
+  };
+}
+
+// What one of core's notifications concerns, none for the board, and the
+// module whose code failed, where a module's code failed. A notification with
+// a module concerns the module's board object unless `about` names another.
 export interface Concerns {
   readonly about?: BoardObject;
-  readonly package?: string | null;
-  readonly renderer?: string;
+  readonly module?: PackageModule;
 }
 
 // One of core's notifications, of `code`.
@@ -54,17 +64,13 @@ export function coreNotification(
   message: string,
   concerns: Concerns = {},
 ): Omit<Notification, "id"> {
-  const { package: pkg, renderer } = concerns;
+  const { module } = concerns;
+  const about = concerns.about ?? module?.object;
   return {
     severity,
     message,
-    source: {
-      kind: "core",
-      code,
-      ...(pkg === undefined || pkg === null ? {} : { package: pkg }),
-      ...(renderer === undefined ? {} : { renderer }),
-    },
-    ...(concerns.about === undefined ? {} : { about: concerns.about }),
+    source: { kind: "core", code, ...(module === undefined ? {} : { module }) },
+    ...(about === undefined ? {} : { about }),
   };
 }
 

@@ -340,7 +340,7 @@ describe("the card of a block that serve() serves alone", () => {
     const withdraw = await r.raise({
       severity: "error",
       message: "The module blockr.core/head-block.js of blockr.core failed to load.",
-      source: { kind: "core", code: "module_failed", package: "blockr.core" },
+      source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, package: "blockr.core" } },
     });
     expect(pills(el)).toEqual(["error", "1 warning"]);
     expect(banners(el)).toEqual([["error", "The module blockr.core/head-block.js of blockr.core failed to load."]]);
@@ -371,7 +371,11 @@ describe("the card of a block that serve() serves alone", () => {
     await r.raise({
       severity: "error",
       message: "Without the board option \"zoom\", the renderer \"blockr.core-table_output\" cannot draw.",
-      source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: "blockr.core-table_output" },
+      source: {
+        kind: "core",
+        code: "module_failed",
+        module: { object: { block: "b" }, renderer: "blockr.core-table_output", package: "blockr.core" },
+      },
     });
     expect(pills(el)).toEqual(["error"]);
   });

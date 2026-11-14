@@ -47,7 +47,8 @@
 // renderer is unmounted at the latest. Each condition of R's reply to a
 // request of the output, ok or error, raises a notification that concerns the
 // block, which holds until R next replies to a request of the same name and
-// scope.
+// scope. Its source names the renderer, which made the request, whichever
+// scope the request has.
 // A mount is bound to the board it was made on and to its block. Once another
 // board opens or the block leaves the board, core ends the mount.
 
@@ -55,6 +56,7 @@ import type { Store } from "../store/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Condition, OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
+import type { PackageModule } from "../types/core-api.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
@@ -68,6 +70,7 @@ import {
   jsonEqual,
   own,
   packageFromId,
+  packageModule,
   report,
 } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
@@ -289,6 +292,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         ? `Another board opened, so the host of the output of block "${block}" no longer asks R.`
         : `Block "${block}" left the board, so the host of its output no longer asks R.`,
     );
+
+  // The renderer as the module of the block's output, with its package.
+  const rendererModule = (renderer: OutputRenderer): PackageModule =>
+    packageModule({ block }, packageFromId(renderer.id), renderer.id);
 
   // Loads a renderer and adds the board options that it names to the board.
   function prepare(given: OutputRenderer): Promise<Prepared> {
@@ -565,11 +572,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // an output comes and the host's error() gives meanwhile.
   function fail(failure: unknown, by: OutputRenderer): void {
     if (ended()) return;
-    const notification = coreNotification("module_failed", "error", errorMessage(failure), {
-      about: { block },
-      package: packageFromId(by.id),
-      renderer: by.id,
-    });
+    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by) });
     if (failure instanceof ModuleError) {
       if (!broken.has(failure)) {
         report(failure);
@@ -733,6 +736,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     opts: OutputRequestOpts,
   ): Promise<Json | Blob> {
     const what = `The request "${name}" of the output of block "${block}"`;
+    // The renderer, which made the request, whichever scope the request has.
+    const module = rendererModule(prepared.renderer);
+    const requested = { type: opts.scope === "renderer" ? ("renderer" as const) : ("output_class" as const), name };
     for (let attempt = 1; ; attempt++) {
       const target = await current(name, opts.signal);
       const output = { block, revision: target.asked.revision };
@@ -749,14 +755,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         },
       );
       if (!bound()) throw unboundError();
-      const requested =
-        opts.scope === "renderer"
-          ? { type: "renderer" as const, renderer: prepared.renderer.id, name }
-          : { type: "output_class" as const, name };
       const conditions = "conditions" in reply ? reply.conditions : [];
       switch (reply.status) {
         case "ok":
-          deps.replied({ block }, requested, conditions);
+          deps.replied(module, requested, conditions);
           if (body !== null) return body;
           return "value" in reply && reply.value !== undefined ? reply.value : null;
         case "missing":
@@ -765,7 +767,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         case "cancelled":
           throw new RequestError(`R cancelled ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, { status: "cancelled" });
         default:
-          deps.replied({ block }, requested, conditions);
+          deps.replied(module, requested, conditions);
           throw new RequestError(`R replied ${reply.status} to ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, {
             status: reply.status,
             conditions,
@@ -792,7 +794,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     // What withdraws each notification that the renderer raised and that
     // holds.
     const notified = new Set<() => void>();
-    const pkg = packageFromId(prepared.renderer.id);
+    const module = rendererModule(prepared.renderer);
     return {
       block,
       output: () => held?.output ?? null,
@@ -842,7 +844,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       notify(notification) {
         const given = checkRaised(notification);
         if (!following || !bound()) return () => undefined;
-        const withdraw = deps.notify({ object: { block }, package: pkg, renderer: prepared.renderer.id }, given);
+        const withdraw = deps.notify(module, given);
         const mine = (): void => {
           notified.delete(mine);
           withdraw();
