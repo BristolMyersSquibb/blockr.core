@@ -431,3 +431,31 @@ test_that("a plugin prints its class's id and its state", {
   )
   expect_output(str(plugin), "<notes_plugin> blockr.test-notes_plugin")
 })
+
+test_that("a plugin prints fields that are empty or lists of lists", {
+
+  views <- plugin_ctor(
+    function(views = list(), active = NULL, tags = character()) NULL,
+    "views_plugin"
+  )
+
+  expect_identical(
+    format(views()),
+    c(
+      "<views_plugin> blockr.test-views_plugin",
+      "views: list()",
+      "active: NULL",
+      "tags: character()"
+    )
+  )
+
+  plugin <- views(
+    list(
+      main = list(name = "Main", panels = list()),
+      side = list(name = "Side", panels = list("b", "c"))
+    ),
+    "main"
+  )
+
+  expect_identical(format(plugin)[2L], "views: Main, list(), Side, b, c")
+})

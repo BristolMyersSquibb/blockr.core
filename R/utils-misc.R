@@ -548,11 +548,22 @@ id_to_sentence_case <- function(x) {
   to_sentence_case(x, c("([A-Z])", "_", "-", "\\."), c(" \\1", " ", " ", " "))
 }
 
+# The value `x` on one line.
+# A value of length 0 shows as "NULL" or as its class with "()", as "list()".
+# A longer value shows its first `n` elements, each formatted by this function,
+# so that an element that is empty or a list gives one string as well.
 format_head <- function(x, n = 3L) {
+
+  if (!length(x)) {
+    return(if (is.null(x)) "NULL" else paste0(class(x)[1L], "()"))
+  }
 
   if (length(x) > 1) {
 
-    res <- paste(chr_ply(utils::head(x, n = n), format), collapse = ", ")
+    res <- paste(
+      chr_ply(utils::head(x, n = n), format_head, n = n),
+      collapse = ", "
+    )
 
     if (length(x) > n) {
       res <- paste0(res, ", ...")
