@@ -304,7 +304,7 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
         }
         const made = options.output?.(request) ?? sample(held.registry_id);
         if (made === undefined) return [failed(id, "output", `The fixtures hold no output of block "${request.block}".`)];
-        const reply: OutputReply = { id, status: "ok", output: made.output };
+        const reply: OutputReply = { id, status: "ok", output: made.output, conditions: [] };
         return made.body === undefined ? [reply] : [{ ...reply, body: { type: made.body.type } }, made.body];
       }
       default: {
@@ -317,9 +317,9 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
         if (answer === undefined) return [failed(id, "request", `The test gives no answer to the request ${JSON.stringify(request)}.`)];
         if (answer instanceof Blob) {
           const announced = answer instanceof File ? { type: answer.type, name: answer.name } : { type: answer.type };
-          return [{ id, status: "ok", body: announced }, answer];
+          return [{ id, status: "ok", body: announced, conditions: [] }, answer];
         }
-        return [{ id, status: "ok", value: answer }];
+        return [{ id, status: "ok", value: answer, conditions: [] }];
       }
     }
   }

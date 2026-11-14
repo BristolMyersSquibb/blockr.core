@@ -258,11 +258,11 @@ describe("replies", () => {
     const b = t.client.request(evaluate);
     const [ida, idb] = t.sent.flatMap((s) => s.message).slice(1).map((m) => m.id);
 
-    t.receive({ id: idb ?? "", status: "ok", value: ["b"] });
-    t.receive({ id: ida ?? "", status: "ok", value: ["a"] });
+    t.receive({ id: idb ?? "", status: "ok", value: ["b"], conditions: [] });
+    t.receive({ id: ida ?? "", status: "ok", value: ["a"], conditions: [] });
 
-    expect(await a).toEqual({ reply: { id: ida, status: "ok", value: ["a"] }, body: null });
-    expect(await b).toEqual({ reply: { id: idb, status: "ok", value: ["b"] }, body: null });
+    expect(await a).toEqual({ reply: { id: ida, status: "ok", value: ["a"], conditions: [] }, body: null });
+    expect(await b).toEqual({ reply: { id: idb, status: "ok", value: ["b"], conditions: [] }, body: null });
   });
 
   test("that nothing waits on are ignored", async () => {
@@ -272,13 +272,13 @@ describe("replies", () => {
     const a = t.client.request(echo);
     const id = lastRequestId(t.sent, "request");
 
-    t.receive({ id: "unknown", status: "ok", value: [] });
+    t.receive({ id: "unknown", status: "ok", value: [], conditions: [] });
     t.receive({ id: "unknown", progress: { value: 0.5 } });
-    t.receive({ id, status: "ok", value: [1] });
+    t.receive({ id, status: "ok", value: [1], conditions: [] });
     // A second reply to an answered request.
-    t.receive({ id, status: "ok", value: [2] });
+    t.receive({ id, status: "ok", value: [2], conditions: [] });
 
-    expect((await a).reply).toEqual({ id, status: "ok", value: [1] });
+    expect((await a).reply).toEqual({ id, status: "ok", value: [1], conditions: [] });
   });
 
   test("come with their bodies", async () => {
@@ -291,11 +291,11 @@ describe("replies", () => {
     const png = new Blob(["png"], { type: "image/png" });
 
     t.receive(
-      { id: ida ?? "", status: "ok", body: { type: "image/png" } },
+      { id: ida ?? "", status: "ok", body: { type: "image/png" }, conditions: [] },
       Promise.resolve(png),
     );
     t.receive(
-      { id: idb ?? "", status: "ok", body: { type: "image/png" } },
+      { id: idb ?? "", status: "ok", body: { type: "image/png" }, conditions: [] },
       Promise.reject(new Error("R served no body")),
     );
 
@@ -313,7 +313,7 @@ describe("replies", () => {
 
     t.receive({ id, progress: { value: 0.3, message: "Rendering" } });
     t.receive({ id, progress: { value: 0.8 } });
-    t.receive({ id, status: "ok", value: [] });
+    t.receive({ id, status: "ok", value: [], conditions: [] });
 
     await a;
     expect(notes).toEqual([{ value: 0.3, message: "Rendering" }, { value: 0.8 }]);
@@ -355,7 +355,7 @@ describe("bodies", () => {
     const upload = t.client.request(echo, { body: new Blob(["big"]) });
     const other = t.client.request(echo);
     const id = lastRequestId(t.sent, "request");
-    t.receive({ id, status: "ok", value: [] });
+    t.receive({ id, status: "ok", value: [], conditions: [] });
 
     await expect(upload).rejects.toThrow("Maximum upload size exceeded");
     expect((await other).reply.status).toBe("ok");
@@ -385,7 +385,7 @@ describe("a session that ends", () => {
     // A reply to a request of the session before, such as to a hello that
     // Shiny replayed, is ignored.
     t.receive({ ...helloReply, id: lostHello });
-    t.receive({ id: lostId, status: "ok", value: [] });
+    t.receive({ id: lostId, status: "ok", value: [], conditions: [] });
     expect(t.sent).toHaveLength(3);
 
     t.receive({ ...helloReply, id: lastRequestId(t.sent, "hello") });

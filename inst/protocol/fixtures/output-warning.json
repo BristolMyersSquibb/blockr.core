@@ -1,0 +1,47 @@
+{
+  "description": "An output on another board whose coercion warns: the block class's coercion turns a column of text into integers before it makes a table output, and one of the values is no number. R makes the output all the same, so the reply is ok, and it carries the warning with its class vector and the phase output.",
+  "client": [
+    {
+      "id": "37",
+      "kind": "output",
+      "block": "n",
+      "revision": 3,
+      "options": { "n_rows": 50 },
+      "info": {
+        "width": 640,
+        "height": 400,
+        "pixel_ratio": 2,
+        "bg": "#ffffff",
+        "fg": "#212529",
+        "accent": "#0d6efd",
+        "font": "Inter"
+      },
+      "params": {}
+    }
+  ],
+  "r": [
+    [
+      {
+        "id": "37",
+        "status": "ok",
+        "output": {
+          "renderer": {
+            "id": "blockr.core-table_output",
+            "module": "blockr.core/basic-table.js?v=b7e2a915"
+          },
+          "columns": [{ "name": "n", "class": "integer" }],
+          "rows": [[3], [null]],
+          "total": 2
+        },
+        "conditions": [
+          {
+            "severity": "warning",
+            "class": ["simpleWarning", "warning", "condition"],
+            "phase": "output",
+            "message": "NAs introduced by coercion"
+          }
+        ]
+      }
+    ]
+  ]
+}

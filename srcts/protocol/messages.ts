@@ -339,12 +339,13 @@ export interface RendererRequest {
   option?: never;
 }
 
-// An answer as R writes it, every vector as an array, or a file. R marks with
+// An answer as R writes it, every vector as an array, or a file, with every
+// message and warning that the request's function raised. R marks with
 // `volatile` its reply to a request of an output class that it resolved to one
 // that the class makes volatile, whose answer the client never keeps.
 export type RequestReply =
-  | { id: string; status: "ok"; value: Json; body?: never; volatile?: true }
-  | { id: string; status: "ok"; body: Body; value?: never; volatile?: true };
+  | { id: string; status: "ok"; value: Json; body?: never; conditions: Condition[]; volatile?: true }
+  | { id: string; status: "ok"; body: Body; value?: never; conditions: Condition[]; volatile?: true };
 
 // Outputs
 
@@ -371,12 +372,14 @@ export interface OutputInfo {
 }
 
 // An output, whose properties beside its renderer are those of its class's
-// contract, as srcts/types/outputs.ts gives core's.
+// contract, as srcts/types/outputs.ts gives core's, with every message and
+// warning that the coercion raised.
 export interface OutputReply {
   id: string;
   status: "ok";
   output: BlockOutput & Record<string, Json>;
   body?: Body;
+  conditions: Condition[];
 }
 
 // A binary body, which travels beside the message as the transport carries it,

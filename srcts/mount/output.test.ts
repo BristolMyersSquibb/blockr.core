@@ -6,7 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createCommands } from "../commands/index.ts";
-import type { HelloReply, OutputInfo, OutputRequest, Request } from "../protocol/index.ts";
+import type { Condition, HelloReply, OutputInfo, OutputRequest, Request } from "../protocol/index.ts";
 import { counter, createScheduler } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { createStore } from "../store/index.ts";
@@ -247,7 +247,7 @@ function lastOutput(r: PlayedR): OutputRequest {
 // Replies to an output request with a table output of `total` rows, drawn by
 // the renderer given.
 function replyTable(r: PlayedR, request: OutputRequest, total = 150, drawn: OutputRenderer = TABLE): void {
-  r.reply({ id: request.id, status: "ok", output: { renderer: drawn, columns: [], rows: [], total } });
+  r.reply({ id: request.id, status: "ok", output: { renderer: drawn, columns: [], rows: [], total }, conditions: [] });
 }
 
 function requests(r: PlayedR): Request[] {
@@ -450,6 +450,48 @@ describe("asking", () => {
     expect(s.raised).toEqual([]);
   });
 
+  test("raises a notification for each warning of an output, and none for its messages, which concerns the block, in place of those before", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    await ready(s);
+    const condition = (severity: "message" | "warning", message: string): Condition => ({
+      severity,
+      class: severity === "warning" ? ["simpleWarning", "warning", "condition"] : ["simpleMessage", "message", "condition"],
+      phase: "output",
+      message,
+    });
+    const output = { renderer: TABLE, columns: [], rows: [], total: 150 };
+    const warned = (message: string) => ({
+      severity: "warning",
+      message,
+      source: { kind: "r", class: ["simpleWarning", "warning", "condition"], request: { type: "output" } },
+      about: { block: "b" },
+    });
+
+    s.r.reply({
+      id: lastOutput(s.r).id,
+      status: "ok",
+      output,
+      conditions: [condition("message", "Paging by 50 rows"), condition("warning", "NAs introduced by coercion")],
+    });
+    await tick();
+    expect(table.host().error()).toBeNull();
+    expect(s.raised).toEqual([warned("NAs introduced by coercion")]);
+
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output, conditions: [condition("warning", "Dropped 2 rows")] });
+    await tick();
+    expect(s.raised).toEqual([warned("Dropped 2 rows")]);
+
+    // An output with no warning withdraws them.
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(s.raised).toEqual([]);
+  });
+
   test("raises that the renderer cannot draw where a board option that it names does not go onto the board, beside the board option's own notification, which says why", async () => {
     const reported = reports();
     const table = renderer(["n_rows", "broken"]);
@@ -642,7 +684,7 @@ describe("the renderer", () => {
     expect(lastOutput(s.r).options).toEqual({ n_rows: 50, show_conditions: ["error"], dark_mode: "light", zoom: 1 });
     expect(s.store.board().options).toEqual({ show_conditions: ["error"] });
 
-    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" } });
+    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" }, conditions: [] });
     await tick();
     expect(text.host().output()).toEqual({ renderer: TEXT, text: "a" });
     // The renderer names no board option, so what the output was asked with
@@ -761,8 +803,8 @@ describe("a request", () => {
       { kind: "request", type: "renderer", renderer: TABLE.id, output: { block: "b", revision }, name: "labels", args: {}, options: { n_rows: 50 }, params: { page: 2 } },
     ]);
     const [first, second] = requests(s.r);
-    s.r.reply({ id: first?.id ?? "", status: "ok", value: ["a,b"] });
-    s.r.reply({ id: second?.id ?? "", status: "ok", value: { x: ["X"] } });
+    s.r.reply({ id: first?.id ?? "", status: "ok", value: ["a,b"], conditions: [] });
+    s.r.reply({ id: second?.id ?? "", status: "ok", value: { x: ["X"] }, conditions: [] });
     await expect(download).resolves.toEqual(["a,b"]);
     await expect(labels).resolves.toEqual({ x: ["X"] });
 
@@ -785,7 +827,7 @@ describe("a request", () => {
     await tick();
     const revision = s.scheduler.status("b")?.revision;
     expect(requests(s.r)[0]).toMatchObject({ output: { block: "b", revision } });
-    s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "ok", value: [1] });
+    s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "ok", value: [1], conditions: [] });
     await expect(download).resolves.toEqual([1]);
   });
 
@@ -820,13 +862,14 @@ describe("a request", () => {
     replyTable(s.r, lastOutput(s.r));
     await tick();
     expect(requests(s.r)).toHaveLength(2);
-    s.r.reply({ id: requests(s.r)[1]?.id ?? "", status: "ok", value: [2] });
+    s.r.reply({ id: requests(s.r)[1]?.id ?? "", status: "ok", value: [2], conditions: [] });
     await expect(download).resolves.toEqual([2]);
   });
 
-  test("rejects with the reply's status and conditions, which it hands on as R's latest reply to a request of its name, as it does an ok reply's none", async () => {
+  test("rejects with the reply's status and conditions, which it hands on as R's latest reply to a request of its name, as it does an ok reply's", async () => {
     const { s, table } = await drawn();
     const failure = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no xlsx" };
+    const warning = { severity: "warning" as const, class: ["simpleWarning", "warning", "condition"], phase: "request" as const, message: "NAs introduced by coercion" };
     const download = table.host().request("download", { format: "xlsx" });
     await tick();
     s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "error", conditions: [failure] });
@@ -834,11 +877,11 @@ describe("a request", () => {
 
     const sorted = table.host().request("sort", {}, { scope: "renderer" });
     await tick();
-    s.r.reply({ id: requests(s.r)[1]?.id ?? "", status: "ok", value: [] });
+    s.r.reply({ id: requests(s.r)[1]?.id ?? "", status: "ok", value: [], conditions: [warning] });
     await sorted;
     expect(s.replies).toEqual([
       [{ block: "b" }, { type: "output_class", name: "download" }, [failure]],
-      [{ block: "b" }, { type: "renderer", renderer: TABLE.id, name: "sort" }, []],
+      [{ block: "b" }, { type: "renderer", renderer: TABLE.id, name: "sort" }, [warning]],
     ]);
   });
 });
@@ -891,7 +934,7 @@ describe("a mount", () => {
 
     s.store.undo();
     const other = await ready(s, "a");
-    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TABLE, columns: [], rows: [], total: 150 } });
+    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TABLE, columns: [], rows: [], total: 150 }, conditions: [] });
     await tick();
     expect(other.textContent).toContain("150");
     await s.next();

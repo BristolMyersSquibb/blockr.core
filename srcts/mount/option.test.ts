@@ -280,7 +280,8 @@ describe("the host", () => {
       { kind: "request", type: "option", option: "n_rows", name: "list_dir", args: { path: "a" } },
       { kind: "request", type: "option", option: "n_rows", name: "list_dir", args: { path: "a" } },
     ]);
-    s.r.reply({ id: sent[0]?.id ?? "", status: "ok", value: ["x"] });
+    const warning = { severity: "warning" as const, class: ["simpleWarning", "warning", "condition"], phase: "request" as const, message: "NAs introduced by coercion" };
+    s.r.reply({ id: sent[0]?.id ?? "", status: "ok", value: ["x"], conditions: [warning] });
     s.r.reply({
       id: sent[1]?.id ?? "",
       status: "error",
@@ -290,7 +291,7 @@ describe("the host", () => {
     await expect(second).rejects.toBeInstanceOf(RequestError);
     // Each reply goes on as R's latest to a request of its name.
     expect(s.replies).toEqual([
-      [{ option: "n_rows" }, { type: "option", name: "list_dir" }, []],
+      [{ option: "n_rows" }, { type: "option", name: "list_dir" }, [warning]],
       [
         { option: "n_rows" },
         { type: "option", name: "list_dir" },

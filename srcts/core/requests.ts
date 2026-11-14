@@ -11,8 +11,8 @@
 //    request, core has the blocks evaluated again and asks again.
 // Core keeps no answer of a plugin's request, since it may write, and the
 // scheduler sends it to no later session, since it may have run. Each
-// condition of R's error reply raises a notification that concerns the
-// plugin, which holds until R next replies to a request of the same name.
+// condition of R's reply, ok or error, raises a notification that concerns
+// the plugin, which holds until R next replies to a request of the same name.
 
 import type { BlockRevision } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
@@ -76,9 +76,10 @@ export async function pluginRequest(
       },
     );
 
+    const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
       case "ok":
-        deps.replied({ plugin }, { type: "plugin", name }, []);
+        deps.replied({ plugin }, { type: "plugin", name }, conditions);
         if (body !== null) return body;
         return "value" in reply && reply.value !== undefined ? reply.value : null;
       case "missing":
@@ -86,14 +87,12 @@ export async function pluginRequest(
         throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name}" of the plugin "${plugin}".`, { status: "cancelled" });
-      default: {
-        const conditions = "conditions" in reply ? reply.conditions : [];
+      default:
         deps.replied({ plugin }, { type: "plugin", name }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name}" of the plugin "${plugin}".`, {
           status: reply.status,
           conditions,
         });
-      }
     }
   }
 }

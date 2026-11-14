@@ -31,7 +31,8 @@
         "body": {
           "type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
           "name": "report.pptx"
-        }
+        },
+        "conditions": []
       }
     ]
   ]

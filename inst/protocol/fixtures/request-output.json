@@ -21,7 +21,8 @@
         "body": {
           "type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
           "name": "chart.pptx"
-        }
+        },
+        "conditions": []
       }
     ]
   ]

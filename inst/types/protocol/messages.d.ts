@@ -190,12 +190,14 @@ export type RequestReply = {
     status: "ok";
     value: Json;
     body?: never;
+    conditions: Condition[];
     volatile?: true;
 } | {
     id: string;
     status: "ok";
     body: Body;
     value?: never;
+    conditions: Condition[];
     volatile?: true;
 };
 export interface OutputRequest {
@@ -221,6 +223,7 @@ export interface OutputReply {
     status: "ok";
     output: BlockOutput & Record<string, Json>;
     body?: Body;
+    conditions: Condition[];
 }
 export interface Body {
     type: string;

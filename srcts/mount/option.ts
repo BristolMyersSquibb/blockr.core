@@ -27,7 +27,7 @@
 // holds until the next board opens.
 // What the module raises through its host's notify() comes from the board
 // option, with the package of the module, and holds until the mount ends at
-// the latest. Each condition of R's error reply to a request raises a
+// the latest. Each condition of R's reply to a request, ok or error, raises a
 // notification that concerns the board option, which holds until R next
 // replies to a request of the same name.
 
@@ -258,20 +258,19 @@ async function optionRequest(
       ...(opts.progress === undefined ? {} : { progress: opts.progress.bind(opts) }),
     },
   );
+  const conditions = "conditions" in reply ? reply.conditions : [];
   switch (reply.status) {
     case "ok":
-      deps.replied({ option }, { type: "option", name }, []);
+      deps.replied({ option }, { type: "option", name }, conditions);
       if (body !== null) return body;
       return "value" in reply && reply.value !== undefined ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name}" of the board option "${option}".`, { status: "cancelled" });
-    default: {
-      const conditions = "conditions" in reply ? reply.conditions : [];
+    default:
       deps.replied({ option }, { type: "option", name }, conditions);
       throw new RequestError(`R replied ${reply.status} to the request "${name}" of the board option "${option}".`, {
         status: reply.status,
         conditions,
       });
-    }
   }
 }

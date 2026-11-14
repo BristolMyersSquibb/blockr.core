@@ -52,6 +52,7 @@ const types: Record<string, string> = {
   "request-renderer": "Fixture<[RendererRequest], [[RequestReply]]>",
   output: "Fixture<[OutputRequest], [[OutputReply]]>",
   "output-plot": "Fixture<[OutputRequest], [[OutputReply]]>",
+  "output-warning": "Fixture<[OutputRequest], [[OutputReply]]>",
   "output-error": "Fixture<[OutputRequest], [[ErrorReply]]>",
   cancel: "Fixture<[CancelRequest], [[CancelledReply]]>",
   forget: "Fixture<[ForgetRequest], [[CancelledReply]]>",

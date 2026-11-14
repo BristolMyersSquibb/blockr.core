@@ -19,7 +19,8 @@
       {
         "id": "27",
         "status": "ok",
-        "value": ["a <- datasets::iris", "b <- utils::head(a, n = 6L)"]
+        "value": ["a <- datasets::iris", "b <- utils::head(a, n = 6L)"],
+        "conditions": []
       }
     ]
   ]

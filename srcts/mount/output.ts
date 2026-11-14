@@ -33,9 +33,10 @@
 // R made, with what it was asked with, which a mount draws without asking R
 // where it would ask with the same. The shelves go with the mounts, which core
 // makes anew for each board that opens.
-// Where R cannot make the block's output, as where it replies error or an ask
-// gets no reply, core raises a notification with the condition that the
-// host's `error()` gives, which concerns the block, in place of the one before,
+// Where R makes the block's output, core raises a notification for each
+// warning of R's reply, which concerns the block, in place of those before.
+// Where R cannot make it, as where it replies error or an ask gets no reply,
+// core raises one with the condition that the host's `error()` gives instead,
 // until the block's next output arrives. A renderer that cannot draw, as one
 // that fails to load or throws in render(), raises one that concerns the
 // block, with the renderer and its package, which holds until the next board
@@ -43,9 +44,10 @@
 // draws nothing in the element itself, so that the frontend alone says where
 // a failure shows. What a renderer raises through its host's notify() comes
 // from the block, with the renderer and its package, and holds until the
-// renderer is unmounted at the latest. Each condition of R's error reply to a
-// request of the output raises a notification that concerns the block, which
-// holds until R next replies to a request of the same name and scope.
+// renderer is unmounted at the latest. Each condition of R's reply to a
+// request of the output, ok or error, raises a notification that concerns the
+// block, which holds until R next replies to a request of the same name and
+// scope.
 // A mount is bound to the board it was made on and to its block. Once another
 // board opens or the block leaves the board, core ends the mount.
 
@@ -123,9 +125,9 @@ const EMPTY: Readonly<Record<string, Json>> = Object.freeze({});
 interface Shelf {
   params: Readonly<Record<string, Json>>;
   last: Made | undefined;
-  // What withdraws the notification that R could not make the output, while
-  // one holds.
-  failure: (() => void) | undefined;
+  // What withdraws each notification of R's latest reply to an ask of the
+  // output: one for each warning of an output, or why R could not make one.
+  notified: readonly (() => void)[];
   // The mounts of the block's output, which ask again as its parameters change.
   readonly mounts: Set<() => void>;
   readonly flights: Map<string, Flight>;
@@ -147,7 +149,7 @@ export function createShelves(): Shelves {
     of(block) {
       let shelf = shelves.get(block);
       if (shelf === undefined) {
-        shelf = { params: {}, last: undefined, failure: undefined, mounts: new Set(), flights: new Map() };
+        shelf = { params: {}, last: undefined, notified: [], mounts: new Set(), flights: new Map() };
         shelves.set(block, shelf);
       }
       return shelf;
@@ -513,40 +515,41 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     }
   }
 
-  // Raises the notification that R could not make the block's output, as the
-  // host's `error()` gives it, in place of the one before, or withdraws it
-  // once an output comes, for the block, whichever mount asked.
+  // Raises the notifications of R's reply to an ask of the block's output, in
+  // place of those before, for the block, whichever mount asked: one for each
+  // warning of an output, or where R could not make the output, one with the
+  // condition that the host's `error()` gives.
   function heard(reply: Reply): void {
     if (deps.replaced.aborted) return;
     if (reply.status === "ok" && "output" in reply) {
-      const before = shelf.failure;
-      shelf.failure = undefined;
-      before?.();
+      hold(reply.conditions.filter((condition) => condition.severity === "warning"), "r");
     } else if (reply.status === "error") {
       const first = "conditions" in reply ? reply.conditions[0] : undefined;
-      hold(first ?? noOutput(`R failed to make the output of block "${block}".`), first === undefined ? "core" : "r");
+      hold([first ?? noOutput(`R failed to make the output of block "${block}".`)], first === undefined ? "core" : "r");
     }
   }
 
   // An ask of the block's output that got no reply.
   function unanswered(message: string): void {
-    if (!deps.replaced.aborted) hold(noOutput(message), "core");
+    if (!deps.replaced.aborted) hold([noOutput(message)], "core");
   }
 
-  // Raises the notification of the condition, which R wrote or core did, in
-  // place of the one before.
-  function hold(condition: Condition, by: "r" | "core"): void {
-    const before = shelf.failure;
-    shelf.failure = deps.raise({
-      severity: condition.severity,
-      message: condition.message,
-      source:
-        by === "r"
-          ? { kind: "r", class: condition.class, request: { type: "output" } }
-          : { kind: "core", code: "output_unanswered" },
-      about: { block },
-    });
-    before?.();
+  // Raises a notification of each condition, which R wrote or core did, in
+  // place of those before.
+  function hold(conditions: readonly Condition[], by: "r" | "core"): void {
+    const before = shelf.notified;
+    shelf.notified = conditions.map((condition) =>
+      deps.raise({
+        severity: condition.severity,
+        message: condition.message,
+        source:
+          by === "r"
+            ? { kind: "r", class: condition.class, request: { type: "output" } }
+            : { kind: "core", code: "output_unanswered" },
+        about: { block },
+      }),
+    );
+    for (const withdraw of before) withdraw();
   }
 
   // Keeps why the latest ask failed, which the host's error() gives, while the
@@ -750,9 +753,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         opts.scope === "renderer"
           ? { type: "renderer" as const, renderer: prepared.renderer.id, name }
           : { type: "output_class" as const, name };
+      const conditions = "conditions" in reply ? reply.conditions : [];
       switch (reply.status) {
         case "ok":
-          deps.replied({ block }, requested, []);
+          deps.replied({ block }, requested, conditions);
           if (body !== null) return body;
           return "value" in reply && reply.value !== undefined ? reply.value : null;
         case "missing":
@@ -760,14 +764,12 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
           throw new RequestError(`${what} gave up, since R kept lacking the result it reads.`, { status: "missing" });
         case "cancelled":
           throw new RequestError(`R cancelled ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, { status: "cancelled" });
-        default: {
-          const conditions = "conditions" in reply ? reply.conditions : [];
+        default:
           deps.replied({ block }, requested, conditions);
           throw new RequestError(`R replied ${reply.status} to ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, {
             status: reply.status,
             conditions,
           });
-        }
       }
     }
   }

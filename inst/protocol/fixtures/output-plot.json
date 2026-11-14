@@ -32,7 +32,8 @@
           "width": 640,
           "height": 400
         },
-        "body": { "type": "image/png" }
+        "body": { "type": "image/png" },
+        "conditions": []
       }
     ]
   ]

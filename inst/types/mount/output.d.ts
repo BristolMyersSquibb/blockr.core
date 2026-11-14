@@ -34,7 +34,7 @@ interface Flight {
 interface Shelf {
     params: Readonly<Record<string, Json>>;
     last: Made | undefined;
-    failure: (() => void) | undefined;
+    notified: readonly (() => void)[];
     readonly mounts: Set<() => void>;
     readonly flights: Map<string, Flight>;
 }
