@@ -1,6 +1,8 @@
 # The apps that serve() returns, end to end: core's client on the page in
 # Chrome, and R's evaluator in the app, which runs in another R process with
 # the blockr.core installed, page and R alike.
+# Each app that serves a board or a path names core's plugins in `plugins`.
+# The mock of setup-listings.R does not reach the app's process.
 
 test_that("serve() serves a board, a JSON board's path and a block alone", {
 
@@ -18,7 +20,7 @@ test_that("serve() serves a board, a JSON board's path and a block alone", {
 
   # Core's basic frontend draws the board of an app whose plugins hold no
   # other frontend, and its toolbar saves and opens through core's storage
-  # plugin, which the app runs by default.
+  # plugin.
   url <- start_served_app(
     quote(
       serve(
@@ -26,7 +28,8 @@ test_that("serve() serves a board, a JSON board's path and a block alone", {
           c(a = new_dataset_block("BOD"), b = new_head_block(n = 3L)),
           list(from = "a", to = "b"),
           name = "Served board"
-        )
+        ),
+        plugins = subset(available_plugins(), package == "blockr.core")
       )
     )
   )
@@ -49,7 +52,10 @@ test_that("serve() serves a board, a JSON board's path and a block alone", {
     quote(
       serve(
         new_board(name = "Unsaved board"),
-        plugins = subset(available_plugins(), id != "file_storage_plugin")
+        plugins = subset(
+          available_plugins(),
+          package == "blockr.core" & id != "file_storage_plugin"
+        )
       )
     )
   )
@@ -82,7 +88,14 @@ test_that("serve() serves a board, a JSON board's path and a block alone", {
   )
   writeLines(unclass(encode_message(blockr_ser(board))), path)
 
-  url <- start_served_app(bquote(serve(.(path))))
+  url <- start_served_app(
+    bquote(
+      serve(
+        .(path),
+        plugins = subset(available_plugins(), package == "blockr.core")
+      )
+    )
+  )
 
   page_showing(page, url, c("Saved board", "<data.frame> [4 × 11]"))
 
