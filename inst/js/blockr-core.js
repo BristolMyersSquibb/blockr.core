@@ -3721,6 +3721,12 @@ function createShelves() {
 function noOutput(message) {
   return { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message };
 }
+function whyFailed(reply, block) {
+  const conditions = "conditions" in reply ? reply.conditions : [];
+  const error = conditions.find((condition) => condition.severity === "error");
+  if (error !== void 0) return { condition: error, by: "r" };
+  return { condition: noOutput(`R failed to make the output of block "${block}".`), by: "core" };
+}
 function mountOutput(deps, el, block) {
   const { store, scheduler, loader, measure } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
@@ -3927,11 +3933,9 @@ function mountOutput(deps, el, block) {
       case "ok":
         take({ asked, output: reply.output, body });
         return;
-      case "error": {
-        const conditions = "conditions" in reply ? reply.conditions : [];
-        failed2(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`));
+      case "error":
+        failed2(whyFailed(reply, block).condition);
         return;
-      }
       default:
         announce2();
     }
@@ -3941,8 +3945,8 @@ function mountOutput(deps, el, block) {
     if (reply.status === "ok" && "output" in reply) {
       hold(reply.conditions.filter((condition) => condition.severity === "warning"), "r");
     } else if (reply.status === "error") {
-      const first = "conditions" in reply ? reply.conditions[0] : void 0;
-      hold([first ?? noOutput(`R failed to make the output of block "${block}".`)], first === void 0 ? "core" : "r");
+      const { condition, by } = whyFailed(reply, block);
+      hold([condition], by);
     }
   }
   function unanswered(message) {

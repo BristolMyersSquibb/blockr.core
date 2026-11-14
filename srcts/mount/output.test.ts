@@ -450,6 +450,55 @@ describe("asking", () => {
     expect(s.raised).toEqual([]);
   });
 
+  test("takes why an output failed from the error of R's reply, not from a warning that came before it, in error() and in the notification", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    // R's reply where the coercion turns a column of text into integers before
+    // it makes a table output, and the ask lacks the board option n_rows.
+    const warning: Condition = {
+      severity: "warning",
+      class: ["simpleWarning", "warning", "condition"],
+      phase: "output",
+      message: "NAs introduced by coercion",
+    };
+    const failure: Condition = {
+      severity: "error",
+      class: ["table_output_params_invalid", "blockr_error", "rlang_error", "error", "condition"],
+      phase: "output",
+      message: "A table output takes its page size from the parameter `page_size` or the board option `n_rows`, but neither is given.",
+    };
+
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [warning, failure] });
+    await tick();
+    expect(table.host().error()).toEqual(failure);
+    expect(table.host().output()).toMatchObject({ total: 150 });
+    expect(s.raised).toEqual([
+      {
+        severity: "error",
+        message: failure.message,
+        source: { kind: "r", class: failure.class, request: { type: "output" } },
+        about: { block: "b" },
+      },
+    ]);
+
+    // Where the reply holds no error, core writes the condition, as where it
+    // holds none.
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [warning] });
+    await tick();
+    const written = 'R failed to make the output of block "b".';
+    expect(table.host().error()).toMatchObject({ severity: "error", message: written });
+    expect(s.raised).toEqual([
+      { severity: "error", message: written, source: { kind: "core", code: "output_unanswered" }, about: { block: "b" } },
+    ]);
+  });
+
   test("raises a notification for each warning of an output, and none for its messages, which concerns the block, in place of those before", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });

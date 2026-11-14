@@ -229,6 +229,18 @@ function noOutput(message: string): Condition {
   return { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message };
 }
 
+// Why R could not make the output of the block, from R's error reply: the
+// reply's condition of the severity error. Where the coercion failed, that is
+// the error that stopped it, and the reply holds it after the messages and
+// warnings that the coercion raised before. Where the reply holds no error,
+// core writes its own condition.
+function whyFailed(reply: Reply, block: BlockId): { readonly condition: Condition; readonly by: "r" | "core" } {
+  const conditions = "conditions" in reply ? reply.conditions : [];
+  const error = conditions.find((condition) => condition.severity === "error");
+  if (error !== undefined) return { condition: error, by: "r" };
+  return { condition: noOutput(`R failed to make the output of block "${block}".`), by: "core" };
+}
+
 // Mounts the output of the block in the element until the returned cleanup
 // runs. It throws where the board holds no such block.
 export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void {
@@ -501,11 +513,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       case "ok":
         take({ asked, output: (reply as OutputReply).output, body });
         return;
-      case "error": {
-        const conditions = "conditions" in reply ? reply.conditions : [];
-        failed(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`));
+      case "error":
+        failed(whyFailed(reply, block).condition);
         return;
-      }
       default:
         // A reply of `missing` comes where the block's revision moved on, or
         // where R lost its result, which the scheduler then has evaluated
@@ -524,8 +534,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     if (reply.status === "ok" && "output" in reply) {
       hold(reply.conditions.filter((condition) => condition.severity === "warning"), "r");
     } else if (reply.status === "error") {
-      const first = "conditions" in reply ? reply.conditions[0] : undefined;
-      hold([first ?? noOutput(`R failed to make the output of block "${block}".`)], first === undefined ? "core" : "r");
+      const { condition, by } = whyFailed(reply, block);
+      hold([condition], by);
     }
   }
 
