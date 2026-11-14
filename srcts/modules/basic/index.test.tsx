@@ -1177,7 +1177,7 @@ describe("what the user learns", () => {
       ["error", title, "The store refused to undo the step."],
     ]);
     expect(new Set(core.notifications.get().map(({ source, about }) => JSON.stringify([source, about])))).toEqual(
-      new Set([JSON.stringify([{ kind: "module", object: { plugin: BASIC }, code: "edit_refused", package: "blockr.core" }, { plugin: BASIC }])]),
+      new Set([JSON.stringify([{ kind: "module", module: { object: { plugin: BASIC }, package: "blockr.core" }, code: "edit_refused" }, { plugin: BASIC }])]),
     );
     expect(pills(card(el, "Head"))).toEqual([]);
   });
@@ -1253,7 +1253,7 @@ describe("what the user learns", () => {
       id: "posing",
       severity: "error",
       message: "Reload, please.",
-      source: { kind: "module", object: { plugin: FILE_STORAGE }, code: "page_reload_needed" },
+      source: { kind: "module", module: { object: { plugin: FILE_STORAGE }, package: "blockr.core" }, code: "page_reload_needed" },
     };
     // The frontend drawn with notifications that hold core's and a plugin's,
     // the same array while they hold, as CoreApi's are.

@@ -19,10 +19,10 @@ import { logged } from "../testing/logged.ts";
 import { recordSpans } from "../testing/spans.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
-import type { Notification, Raised } from "../types/core-api.ts";
+import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, BlockModule } from "../types/hosts.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import type { From, Replied } from "../util/index.ts";
+import type { Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Mounts, Source } from "./index.ts";
 
@@ -105,7 +105,7 @@ interface Setup {
   replies: Parameters<Replied>[];
   // The notifications that modules raised through their hosts, while they
   // hold.
-  notified: { from: From; notification: Raised }[];
+  notified: { module: SourceModule; notification: Raised }[];
   // Each of core's notifications that the mounts raised, while it holds.
   raised: Omit<Notification, "id">[];
   // Ends what core runs for the board, as core does as another board opens,
@@ -151,7 +151,7 @@ async function setup(
     const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
     scheduler.start();
     const replies: Parameters<Replied>[] = [];
-    const notified: { from: From; notification: Raised }[] = [];
+    const notified: { module: SourceModule; notification: Raised }[] = [];
     const raised: Omit<Notification, "id">[] = [];
     const mounts = createMounts({
       core: noCore,
@@ -170,8 +170,8 @@ async function setup(
       replied: (...args) => {
         replies.push(args);
       },
-      notify: (from, notification) => {
-        const given = { from, notification };
+      notify: (module, notification) => {
+        const given = { module, notification };
         notified.push(given);
         return () => {
           const at = notified.indexOf(given);
@@ -201,7 +201,12 @@ async function setup(
 
 // Core's notification that a module of block b's class cannot draw.
 function cannotDraw(message: string): Omit<Notification, "id"> {
-  return { severity: "error", message, source: { kind: "core", code: "module_failed", package: "blockr.core" }, about: { block: "b" } };
+  return {
+    severity: "error",
+    message,
+    source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, package: "blockr.core" } },
+    about: { block: "b" },
+  };
 }
 
 // The codes of core's notifications that the mounts raised, in order, each
@@ -756,7 +761,7 @@ describe("the host", () => {
 });
 
 describe("a mount", () => {
-  test("raises what the module gives its host's notify(), from the block, with the package of its class, until the mount ends", async () => {
+  test("raises what the module gives its host's notify(), naming the block's UI module, with the package of its class, until the mount ends", async () => {
     const ui = recorder();
     const { mounts, notified, store } = await setup({ [HEAD]: ui.exports });
     const cleanup = mounts.mountBlock(document.createElement("div"), "b");
@@ -766,8 +771,8 @@ describe("a mount", () => {
     const withdraw = ui.host(0).notify(given);
     ui.host(1).notify({ ...given, code: "other" });
     expect(notified).toEqual([
-      { from: { object: { block: "b" }, package: "blockr.core" }, notification: given },
-      { from: { object: { block: "b" }, package: "blockr.core" }, notification: { ...given, code: "other" } },
+      { module: { object: { block: "b" }, package: "blockr.core" }, notification: given },
+      { module: { object: { block: "b" }, package: "blockr.core" }, notification: { ...given, code: "other" } },
     ]);
     withdraw();
     expect(notified.map((n) => n.notification.code)).toEqual(["other"]);
@@ -1158,8 +1163,8 @@ describe("a request", () => {
     await listing;
 
     expect(replies).toEqual([
-      [{ block: "b" }, { type: "block_class", name: "listing" }, [failure]],
-      [{ block: "b" }, { type: "block_class", name: "listing" }, [warning]],
+      [{ object: { block: "b" }, package: "blockr.core" }, { type: "block_class", name: "listing" }, [failure]],
+      [{ object: { block: "b" }, package: "blockr.core" }, { type: "block_class", name: "listing" }, [warning]],
     ]);
   });
 

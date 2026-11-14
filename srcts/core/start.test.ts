@@ -641,7 +641,12 @@ describe("starting the page", () => {
     } else {
       expect(messages.some((said) => said.startsWith(message))).toBe(true);
       expect(named.map((n) => [n.severity, n.source, n.about, n.message.startsWith(message)])).toEqual([
-        ["error", { kind: "core", code: "board_open_failed", package: "blockr.session" }, { plugin: SESSION }, true],
+        [
+          "error",
+          { kind: "core", code: "board_open_failed", module: { object: { plugin: SESSION }, package: "blockr.session" } },
+          { plugin: SESSION },
+          true,
+        ],
       ]);
     }
   });
@@ -659,7 +664,12 @@ describe("starting the page", () => {
     expect(core.store.board().name).toBe("Iris review");
     expect(reported.errors()).toHaveLength(1);
     const named = core.notifications.get().filter((n) => codeOf(n) === "board_open_failed");
-    expect(named.map((n) => [n.source, n.about])).toEqual([[{ kind: "core", code: "board_open_failed", package: "blockr.session" }, { plugin: SESSION }]]);
+    expect(named.map((n) => [n.source, n.about])).toEqual([
+      [
+        { kind: "core", code: "board_open_failed", module: { object: { plugin: SESSION }, package: "blockr.session" } },
+        { plugin: SESSION },
+      ],
+    ]);
     expect(named[0]?.message).toContain(
       'The board that the storage plugin "blockr.session-session_plugin" named did not open, so core opens the board that R sent: ',
     );
@@ -714,7 +724,7 @@ describe("starting the page", () => {
     const failed = core.notifications.get().filter((n) => codeOf(n) === "module_failed");
     const part = (n: Notification): string | undefined =>
       n.about === undefined ? undefined : "plugin" in n.about ? n.about.plugin : "option" in n.about ? n.about.option : undefined;
-    const pkg = (n: Notification): string | undefined => (n.source.kind === "core" ? n.source.package : undefined);
+    const pkg = (n: Notification): string | undefined => n.source.module?.package;
     expect(failed.map((n) => [part(n), pkg(n), n.source.kind, n.message]).sort()).toEqual([
       [
         "blockr.bad-bad_plugin",
@@ -1224,7 +1234,7 @@ describe("board options", () => {
         .get()
         .filter((n) => codeOf(n) === "on_change_failed")
         .map((n) => [n.about, n.source, n.message]);
-    const source = { kind: "core", code: "on_change_failed", package: "blockr.test" };
+    const source = { kind: "core", code: "on_change_failed", module: { object: { option: "zoom" }, package: "blockr.test" } };
     expect(changes()).toEqual([[{ option: "zoom" }, source, 'The onChange of the board option "zoom" failed: No zoom of 1.']]);
 
     s.core.store.apply({ options: { set: { zoom: 2 } } });

@@ -1437,8 +1437,7 @@ function concerned(about, core, board) {
   return link === void 0 ? `Link "${about.link}"` : `Link from ${block(link.from)} to ${block(link.to)}`;
 }
 function sourcePackage(notification) {
-  const { source } = notification;
-  return source.kind === "r" ? void 0 : source.package;
+  return notification.source.module?.package;
 }
 function isReload(notification) {
   return notification.source.kind === "core" && notification.source.code === "page_reload_needed";

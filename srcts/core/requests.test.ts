@@ -124,8 +124,8 @@ describe("a plugin's request", () => {
     await pluginRequest(s.deps, CODE, "script", {}, {});
 
     expect(s.handed).toEqual([
-      [{ plugin: CODE }, { type: "plugin", name: "script" }, [condition]],
-      [{ plugin: CODE }, { type: "plugin", name: "script" }, [warning]],
+      [{ object: { plugin: CODE }, package: "blockr.code" }, { type: "plugin", name: "script" }, [condition]],
+      [{ object: { plugin: CODE }, package: "blockr.code" }, { type: "plugin", name: "script" }, [warning]],
     ]);
   });
 

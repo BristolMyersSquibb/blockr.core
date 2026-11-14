@@ -11,7 +11,8 @@
 // Once another board opens or the block leaves the board, the request stops,
 // whichever step it is at, so that nothing of it reaches the next board. Each
 // condition of R's reply, ok or error, raises a notification that concerns the
-// block, which holds until R next replies to a request of the same name.
+// block, which holds until R next replies to a request of the same name. Its
+// source names the block's UI module, which made the request.
 // What core keeps of the answers is ./answers.ts's.
 // The request's span goes under the span that was active as the module called
 // the host's request(), though the host sends the request only once its inputs
@@ -25,7 +26,7 @@ import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { keepContext } from "../trace/index.ts";
-import { isObject, own, quoted } from "../util/index.ts";
+import { isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import type { Answers, ClassRequest } from "./answers.ts";
 
@@ -97,6 +98,9 @@ export async function blockRequest(
   }
   const share = spec.action === true || opts.file !== undefined ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name}" of block "${block}"`;
+  // The block's UI module, which made the request, with the package of its
+  // class.
+  const module = sourceModule({ block }, packageFromId(entry.id));
   const inCaller = keepContext();
 
   for (let attempt = 1; ; attempt++) {
@@ -147,7 +151,7 @@ export async function blockRequest(
     const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
       case "ok":
-        deps.replied({ block }, { type: "block_class", name }, conditions);
+        deps.replied(module, { type: "block_class", name }, conditions);
         if (body !== null) return body;
         return "value" in reply && reply.value !== undefined ? reply.value : null;
       case "missing":
@@ -158,7 +162,7 @@ export async function blockRequest(
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name}" of block "${block}".`, { status: "cancelled" });
       default:
-        deps.replied({ block }, { type: "block_class", name }, conditions);
+        deps.replied(module, { type: "block_class", name }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name}" of block "${block}".`, {
           status: reply.status,
           conditions,
