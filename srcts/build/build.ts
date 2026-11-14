@@ -6,7 +6,9 @@
 //   <name>.js on its own, by the build preset of ./preset.ts.
 // - Core's React SDK, srcts/react, its binding, srcts/binding, and its
 //   controls, srcts/controls, are bundled into files of their own,
-//   blockr-core-react.js, blockr-core-binding.js and blockr-core-controls.js.
+//   blockr-core-react.js, blockr-core-binding.js and blockr-core-controls.js,
+//   and so is its OpenTelemetry module, srcts/otel, into blockr-core-otel.js,
+//   with the parts of OpenTelemetry's SDK that it uses.
 // - React's entry points, such as `react` and `react-dom/client`, are written
 //   as ES modules of their own, such as react.js and react-dom-client.js,
 //   which read one minified bundle of React, react-<hash>.js.
@@ -14,6 +16,8 @@
 //   their imports of React and of each other imports, which the page that R
 //   serves resolves through its import map, as inst/js/import-map.json lays
 //   it out. So the page runs one copy of each, and so do a package's modules.
+//   The runtime leaves its import of the OpenTelemetry module an import as
+//   well, so that a page loads the module only where it imports it.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
@@ -174,11 +178,13 @@ async function reactModules(out: string): Promise<string[]> {
 }
 
 // Core's libraries for modules, each by its name in the import map and the
-// directory of its source in srcts.
+// directory of its source in srcts, and its OpenTelemetry module, which the
+// runtime imports by its name too.
 const LIBRARIES = [
   ["@blockr/core/react", "react"],
   ["@blockr/core/binding", "binding"],
   ["@blockr/core/controls", "controls"],
+  ["@blockr/core/otel", "otel"],
 ] as const;
 
 // Maps the imports in core's sources of core's React SDK, its binding and its

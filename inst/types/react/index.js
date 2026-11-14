@@ -8,10 +8,8 @@ function own(record, key) {
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
-function report(error) {
-  queueMicrotask(() => {
-    throw error;
-  });
+function asError(error) {
+  return error instanceof Error ? error : new Error(String(error));
 }
 function isObject(x) {
   return typeof x === "object" && x !== null && !Array.isArray(x);
@@ -304,7 +302,7 @@ var Boundary = class extends Component {
     return { failed: true };
   }
   componentDidCatch(error) {
-    report(error);
+    this.props.host.log.error(asError(error));
     const before = this.failure;
     this.failure = this.props.host.notify({
       severity: "error",

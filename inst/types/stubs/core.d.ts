@@ -2,6 +2,7 @@ import type { Measure } from "../mount/index.ts";
 import type { EvaluateReply, EvaluateRequest, HelloReply, OutputInfo, OutputRequest, Request } from "../protocol/index.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
+import type { LogLine } from "../types/log.ts";
 import type { BlockOutput } from "../types/outputs.ts";
 export declare const HELLO: HelloReply;
 export declare const INFO: OutputInfo;
@@ -24,6 +25,7 @@ export interface StubCore {
     readonly core: CoreApi;
     readonly sent: readonly Request[];
     readonly settled: () => Promise<void>;
+    readonly logged: readonly LogLine[];
     readonly stop: () => void;
 }
 export declare function stubCore(options?: StubCoreOptions): Promise<StubCore>;

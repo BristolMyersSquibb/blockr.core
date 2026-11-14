@@ -26,7 +26,7 @@ import type { ReactElement } from "react";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import { classes, NameField, useHistory } from "../../ui/index.ts";
-import { report } from "../../util/index.ts";
+import { asError } from "../../util/index.ts";
 import { runCommand, useFrontEnd } from "./context.ts";
 import { ariaShortcuts } from "./shortcuts.ts";
 import { drawnControls, runButton } from "./storage.ts";
@@ -132,18 +132,18 @@ function StorageControls(): ReactElement | null {
     try {
       return storage.subscribe(redraw);
     } catch (error) {
-      report(error);
+      core.log("blockr.core").error(asError(error));
       return undefined;
     }
-  }, [storage]);
+  }, [core, storage]);
 
   const drawn = drawnControls(core);
-  // The page hears of each problem once, rather than as each drawing finds it
+  // Core's log gets each problem once, rather than as each drawing finds it
   // again.
   const problem = drawn?.problem;
   useEffect(() => {
-    if (problem !== undefined) report(new Error(problem));
-  }, [problem]);
+    if (problem !== undefined) core.log("blockr.core").error(problem);
+  }, [core, problem]);
 
   if (drawn === undefined) return null;
   if (drawn.failed) {

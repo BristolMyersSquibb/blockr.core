@@ -120,6 +120,23 @@ describe("the Shiny transport", () => {
     expect(p.ended).toHaveBeenCalledTimes(1);
   });
 
+  test("names the session that runs by Shiny's token of it, as R gives it, and none while none runs", () => {
+    const p = page();
+    expect(p.transport.sessionId?.()).toBeUndefined();
+
+    p.deliver({ body_url: bodyUrl, token: "0a1b" });
+    expect(p.transport.sessionId?.()).toBe("0a1b");
+
+    p.disconnect();
+    expect(p.transport.sessionId?.()).toBeUndefined();
+
+    // A session whose start gives no token, or no string, is named by none.
+    p.deliver({ body_url: bodyUrl });
+    expect(p.transport.sessionId?.()).toBeUndefined();
+    p.deliver({ body_url: bodyUrl, token: 7 });
+    expect(p.transport.sessionId?.()).toBeUndefined();
+  });
+
   test("ignores what is neither a message nor the start of a session", () => {
     const p = page();
 

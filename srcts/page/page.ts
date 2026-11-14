@@ -13,7 +13,7 @@ import { showError } from "../mount/index.ts";
 import type { LoaderOptions, Measure } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import { shinyTransport } from "../transport/index.ts";
-import { report } from "../util/index.ts";
+import { log } from "../log/index.ts";
 import { loadingNote, pageFrontEnds, start } from "../core/index.ts";
 import type { Started } from "../core/index.ts";
 import { drawCard } from "./card.tsx";
@@ -47,9 +47,12 @@ export function startPage(options: PageOptions): Started {
       },
     },
     ...(options.alone === true ? { alone: true } : {}),
+    // The build leaves this import an import, which the page's import map
+    // resolves, so that a page loads the module only where it imports it.
+    otel: () => import("../otel/index.ts"),
     fail(error) {
       showError(el, error.message);
-      report(error);
+      log.error(error);
     },
   });
 }

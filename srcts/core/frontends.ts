@@ -24,7 +24,8 @@ import { attempt, showError } from "../mount/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { FrontendModule } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { errorMessage, report } from "../util/index.ts";
+import { log } from "../log/index.ts";
+import { errorMessage } from "../util/index.ts";
 import type { FrontEnds } from "./start.ts";
 
 interface Drawn {
@@ -76,7 +77,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       el.replaceChildren();
       if ("none" in prepared) {
         showError(el, prepared.none);
-        report(new Error(prepared.none));
+        log.error(prepared.none);
         return;
       }
       if (failures.length > 0) {
@@ -113,7 +114,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
           cause: error,
         });
         showError(el, why.message);
-        report(why);
+        log.error(why);
       }
     },
   };

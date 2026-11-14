@@ -1,8 +1,10 @@
 // What the stubs of the hosts share.
 
+import { writingLog } from "../log/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { Raised } from "../types/core-api.ts";
 import type { BlockContext } from "../types/hosts.ts";
+import type { Log, LogLine } from "../types/log.ts";
 import { checkRaised } from "../util/index.ts";
 
 // The status of a block that R evaluated at its first revision, with no
@@ -72,5 +74,17 @@ export function notifier(): { notified: readonly Raised[]; notify: (notification
         notified.splice(notified.indexOf(given), 1);
       };
     },
+  };
+}
+
+// The lines that a module logged through a stub's log, at every level, in the
+// order they came, each naming the package given, or none.
+export function lineHolder(pkg: string | null = null): { logged: readonly LogLine[]; log: Log } {
+  const logged: LogLine[] = [];
+  return {
+    logged,
+    log: writingLog(pkg, (line) => {
+      logged.push(line);
+    }),
   };
 }

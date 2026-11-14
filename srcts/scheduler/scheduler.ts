@@ -36,7 +36,8 @@ import type { Delta, Store } from "../store/index.ts";
 import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { asError, asLogical, asNumber, errorMessage, own, report } from "../util/index.ts";
+import { log } from "../log/index.ts";
+import { asError, asLogical, asNumber, errorMessage, own } from "../util/index.ts";
 import * as evaluations from "./evaluations.ts";
 import type { OneTime, Settled } from "./evaluations.ts";
 import { neededBlocks } from "./needs.ts";
@@ -581,7 +582,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           try {
             return new Set(blocks(of));
           } catch (error) {
-            report(
+            log.error(
               new Error(
                 `The demand of ${owner} threw, so it demands nothing until it returns: ${errorMessage(error)}`,
                 { cause: error },
@@ -629,7 +630,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           try {
             fn(changed);
           } catch (error) {
-            report(error);
+            log.error(asError(error));
           }
         }
       });

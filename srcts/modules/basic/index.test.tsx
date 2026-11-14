@@ -15,11 +15,12 @@ import { labelled, listOf, optionOf, optionsOf } from "../../testing/combobox.ts
 import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
-import { reports } from "../../testing/reports.ts";
+import { logged } from "../../testing/logged.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
 import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
+import type { LogLine } from "../../types/log.ts";
 import * as basic from "./index.tsx";
 
 // A module that writes what it draws and for which block, as a block's UI or
@@ -864,8 +865,8 @@ describe("the storage controls", () => {
       { kind: "button", id: "save", label: "Save again", shortcut: "Mod+E", run: ran("again") },
       { kind: "menu", id: "more", label: "More", items: [{ kind: "status", id: "a", text: "A" }, { kind: "status", id: "a", text: "B" }] },
     ]);
-    const reported = reports();
-    let errors: unknown[];
+    const reported = logged();
+    let errors: readonly LogLine[];
     try {
       const page = await drawn(storage.options);
       expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Save", "More▾"]);
@@ -895,9 +896,9 @@ describe("the storage controls", () => {
       reported.restore();
       errors = reported.errors();
     }
-    expect(errors.filter((error) => error instanceof Error).map((error) => error.message)).toEqual([
-      'Storage controls of one list share the ids "save" and "a", so only the first of each draws.',
-      "The storage controls failed: No session.",
+    expect(errors.map((line) => [line.package, line.message])).toEqual([
+      ["blockr.core", 'Storage controls of one list share the ids "save" and "a", so only the first of each draws.'],
+      ["blockr.core", "The storage controls failed: No session."],
     ]);
   });
 });

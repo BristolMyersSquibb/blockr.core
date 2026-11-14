@@ -4,7 +4,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { stubOptionHost, stubOutputHost } from "../stubs/index.ts";
 import { mountReact, step } from "../testing/react.ts";
-import { reports } from "../testing/reports.ts";
 import type { OptionHost } from "../types/hosts.ts";
 import type { TextOutput } from "../types/outputs.ts";
 import { outputRenderer, reactModule } from "./index.ts";
@@ -94,7 +93,7 @@ describe("outputRenderer()", () => {
     expect(el.querySelector("pre")?.textContent).toBe("one");
   });
 
-  test("draws nothing in place of a component that throws, raises why through the host, and draws it again once another output comes", async () => {
+  test("draws nothing in place of a component that throws, raises why through the host and logs it there, and draws it again once another output comes", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const renderer = outputRenderer<TextOutput>(({ output }) => {
       if (output.text.startsWith("bad")) throw new Error(`cannot show ${output.text}`);
@@ -106,36 +105,29 @@ describe("outputRenderer()", () => {
       code: "render_failed",
       message: `The renderer failed to draw the output: cannot show ${what}`,
     });
-    const reported = reports();
-    let errors: unknown[];
-    try {
-      const { el } = await mountReact({ api: 1, default: renderer }, host);
-      expect(el.textContent).toBe("");
-      expect(el.querySelector('[role="alert"]')).toBeNull();
-      expect(host.notified).toEqual([failed("bad one")]);
+    const { el } = await mountReact({ api: 1, default: renderer }, host);
+    expect(el.textContent).toBe("");
+    expect(el.querySelector('[role="alert"]')).toBeNull();
+    expect(host.notified).toEqual([failed("bad one")]);
 
-      // Another output that it cannot draw replaces the notification.
-      await step(() => {
-        host.setOutput({ ...text("bad two") });
-      });
-      expect(el.textContent).toBe("");
-      expect(host.notified).toEqual([failed("bad two")]);
+    // Another output that it cannot draw replaces the notification.
+    await step(() => {
+      host.setOutput({ ...text("bad two") });
+    });
+    expect(el.textContent).toBe("");
+    expect(host.notified).toEqual([failed("bad two")]);
 
-      await step(() => {
-        host.setOutput({ ...text("good") });
-      });
-      expect(el.querySelector("pre")?.textContent).toBe("good");
-      expect(host.notified).toEqual([]);
-    } finally {
-      reported.restore();
-      errors = reported.errors();
-    }
-    // What the capture holds besides the reported errors are React's own
-    // microtasks, which throw nothing.
-    expect(errors.filter((error) => error instanceof Error).map((error) => error.message)).toEqual([
-      "cannot show bad one",
-      "cannot show bad two",
+    await step(() => {
+      host.setOutput({ ...text("good") });
+    });
+    expect(el.querySelector("pre")?.textContent).toBe("good");
+    expect(host.notified).toEqual([]);
+    // Each throw is logged at error, with the Error that the component threw.
+    expect(host.logged.map((line) => [line.level, line.message])).toEqual([
+      ["error", "cannot show bad one"],
+      ["error", "cannot show bad two"],
     ]);
+    expect(host.logged.every((line) => line.error instanceof Error)).toBe(true);
   });
 
   test("raises one notification where its component throws on an output that comes later, which holds until the renderer is unmounted", async () => {
@@ -145,27 +137,20 @@ describe("outputRenderer()", () => {
       return <pre>{output.text}</pre>;
     });
     const host = stubOutputHost({ output: { ...text("good") } });
-    const reported = reports();
-    let errors: unknown[];
-    try {
-      const mounted = await mountReact({ api: 1, default: renderer }, host);
-      expect(mounted.el.querySelector("pre")?.textContent).toBe("good");
-      expect(host.notified).toEqual([]);
+    const mounted = await mountReact({ api: 1, default: renderer }, host);
+    expect(mounted.el.querySelector("pre")?.textContent).toBe("good");
+    expect(host.notified).toEqual([]);
 
-      await step(() => {
-        host.setOutput({ ...text("bad") });
-      });
-      expect(mounted.el.textContent).toBe("");
-      expect(host.notified.map((notification) => notification.code)).toEqual(["render_failed"]);
+    await step(() => {
+      host.setOutput({ ...text("bad") });
+    });
+    expect(mounted.el.textContent).toBe("");
+    expect(host.notified.map((notification) => notification.code)).toEqual(["render_failed"]);
 
-      await step(() => {
-        mounted.unmount();
-      });
-      expect(host.notified).toEqual([]);
-    } finally {
-      reported.restore();
-      errors = reported.errors();
-    }
-    expect(errors.filter((error) => error instanceof Error).map((error) => error.message)).toEqual(["no text to show"]);
+    await step(() => {
+      mounted.unmount();
+    });
+    expect(host.notified).toEqual([]);
+    expect(host.logged.map((line) => line.message)).toEqual(["no text to show"]);
   });
 });

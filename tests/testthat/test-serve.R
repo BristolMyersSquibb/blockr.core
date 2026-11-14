@@ -613,7 +613,7 @@ test_that("serve() reads the opening board for the locks as it is called", {
   app <- serve(served_board())
 
   withr::local_options(
-    blockr.logger = cnd_logger,
+    blockr.logger = "condition",
     blockr.log_level = "error",
     width = 500L
   )
@@ -646,11 +646,24 @@ test_that("serve() reads the opening board for the locks as it is called", {
 
 test_that("serve() stops where the logger that the app names cannot work", {
 
-  withr::local_envvar(BLOCKR_LOGGER = "")
-  withr::local_options(blockr.logger = "otel_logger")
+  withr::local_envvar(BLOCKR_LOGGER = "", BLOCKR_OTEL_CLIENT_ENDPOINT = "")
+  withr::local_options(blockr.logger = "otel")
   local_reset_logging()
 
   expect_error(serve(served_board()), class = "otel_logger_unavailable")
+
+  # Where R can write through OpenTelemetry, the client needs a collector too.
+  local_mocked_bindings(get_otel_logger = function() list())
+
+  expect_error(serve(served_board()), class = "otel_client_endpoint_missing")
+
+  withr::local_options(blockr.otel_client_endpoint = "https://example.com/otlp")
+
+  expect_s3_class(serve(served_board()), "shiny.appobj")
+
+  withr::local_options(blockr.logger = otel_logger)
+
+  expect_error(serve(served_board()), class = "logger_invalid")
 })
 
 test_that("serve() serves a block alone, binding its data by input", {
@@ -869,7 +882,7 @@ test_that("the app exports the latest result of each block for e2e tests", {
   # R holds no result of a block whose latest evaluation failed, so the
   # export leaves the block out.
   withr::local_options(
-    blockr.logger = cnd_logger,
+    blockr.logger = "condition",
     blockr.log_level = "error",
     width = 500L
   )

@@ -4,6 +4,7 @@ import type { Raised } from "../types/core-api.ts";
 import type { OutputHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
+import type { LogLine } from "../types/log.ts";
 import type { Answered } from "./option.ts";
 export interface StubOutputHostOptions {
     readonly output?: Json;
@@ -28,6 +29,7 @@ export interface StubOutputHost extends OutputHost {
         readonly scope: "class" | "renderer";
     }[];
     readonly notified: readonly Raised[];
+    readonly logged: readonly LogLine[];
     setOutput(output: Json, body?: Blob | null, params?: Json): void;
     setLoading(loading: boolean): void;
     setError(error: Condition | null): void;

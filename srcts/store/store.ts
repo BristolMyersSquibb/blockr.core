@@ -13,7 +13,8 @@ import { signal } from "@preact/signals-core";
 import type { HelloReply } from "../protocol/index.ts";
 import type { BlockId, Board, JsonBoard, PluginClassId, RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { asError, own, packageFromId, report } from "../util/index.ts";
+import { log } from "../log/index.ts";
+import { asError, own, packageFromId } from "../util/index.ts";
 import { check } from "./check.ts";
 import { commit, target } from "./commit.ts";
 import type { Changed, Inverse, Target } from "./commit.ts";
@@ -230,7 +231,7 @@ export function createStore(options: StoreOptions = {}): Store {
       try {
         fn(change, next);
       } catch (error) {
-        report(error);
+        log.error(asError(error));
       }
     }
   }

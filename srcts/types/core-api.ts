@@ -15,6 +15,7 @@ import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
+import type { Log } from "./log.ts";
 import type { RegistryEntry } from "./registry.ts";
 
 export interface CoreApi {
@@ -81,9 +82,9 @@ export interface CoreApi {
     // until the function that it returns runs. It throws for one whose members
     // are of the wrong kind. One about a block, a link or a stack that the
     // board no longer holds holds nothing, since the work that raises it can
-    // outlive what it concerns, and core reports one from a plugin that the
-    // app does not run or about a board object that the board has never held,
-    // since only a mistake in the plugin names one.
+    // outlive what it concerns, which core logs at debug. Core logs at error one
+    // from a plugin that the app does not run or about a board object that the
+    // board has never held, since only a mistake in the plugin names one.
     notify(plugin: PluginClassId, notification: Raised): () => void;
     // Those that hold, the same array until one comes or goes.
     get(): readonly Notification[];
@@ -91,6 +92,12 @@ export interface CoreApi {
     // useSyncExternalStore follows a store with get().
     subscribe(fn: (all: readonly Notification[]) => void): () => void;
   };
+  // A log whose lines name the package, as `core.log("blockr.dock").warn(...)`
+  // writes a warning of blockr.dock, which the page's logger writes out, to
+  // the browser's console or to an OpenTelemetry collector
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#logging).
+  // It throws for a package that is not named as R names one.
+  log(pkg: string): Log;
   // Which block has focus, which the frontend sets as the user moves into a
   // block, and which a plugin such as the assistant reads to tell which block
   // the user is looking at. Core holds it for the page, outside the board, so

@@ -23,6 +23,7 @@ export interface ClientOptions {
 export interface Transport {
     send(message: ClientMessage, bodies: ReadonlyMap<string, Blob>): Promise<void>;
     listen(listener: TransportListener): void;
+    sessionId?(): string | undefined;
 }
 export interface TransportListener {
     started(): void;

@@ -445,14 +445,14 @@
   The pill of the errors is open from the start, so that a failed block shows its error at once.
   A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
   Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its pills and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
-* The logger that the blockr option `logger` picks gets the message as written, its level, its package, `asis` and `attributes`.
-  Until now, it got one finished line.
-  So `cat_logger()` and `cnd_logger()` put the level, the time and the package in front of the message themselves, and wrap it, as `write_log()` did.
-  A logger written elsewhere has to take the new arguments as well.
-  The new `otel_logger()` writes each line through `otel::log()` as an OpenTelemetry record.
+* The blockr option `logger` names the logger by a string, which core's client reads as well, where it took a function, or the name of one, until now.
+  With `"console"`, R writes an error to standard error and every other line to standard output, as `cat_logger()` did.
+  With `"condition"`, R signals an error or a warning as a warning and every other line as a message, as `cnd_logger()` did.
+  With `"otel"`, R writes each line through `otel::log()` as an OpenTelemetry record.
   The record's severity is the line's level, and its attributes are the package, as `blockr.package.name`, and the `attributes` that `write_log()` takes.
-  Where the blockr option `logger` names no logger, core picks `otel_logger()` where OpenTelemetry has set up an exporter of logs, as the environment variable `OTEL_LOGS_EXPORTER` does, and `cat_logger()` otherwise.
-  Where it names `otel_logger()` and no exporter is set up, writing a line fails, and so does `serve()` (#550).
+  Any other value is an error, and `cat_logger()` and `cnd_logger()` are no longer exported.
+  Where `logger` is not set, R writes through OpenTelemetry where it has set up an exporter of logs, as the environment variable `OTEL_LOGS_EXPORTER` does, and to the console otherwise.
+  Where it is `"otel"` and no exporter is set up, writing a line fails, and so does `serve()` (#550, #551).
 * Only the blockr option `log_level` drops a line: OpenTelemetry's own level, `OTEL_LOG_LEVEL`, drops none of core's records.
   Core works out the logger, the level and the blockr options `log_time` and `log_mem` each when it first needs them, and keeps them for the process, so that writing a line reads no option.
   As it starts an app, `serve()` drops what core keeps and works out the logger afresh.
@@ -511,6 +511,16 @@
   In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
   Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it.
   The Edit board plugin raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses (#539).
+* The client's code logs through a `Log`: a plugin through the `log()` of `CoreApi`, as `core.log("blockr.dock")`, and every other module through its host's `log`, which names the module's package already.
+  A `Log` has `error()`, `warn()`, `info()`, `debug()` and `trace()`, each taking a message and attributes, and `error()` takes an `Error` too, which goes with its stack.
+  The client drops a line below the blockr option `log_level`, as R does.
+  It writes the others to the browser's console, behind the package's name, where the blockr option `logger` is `"console"` or `"condition"`.
+  With `"otel"`, it sends each line as a record, in batches, to the OpenTelemetry collector whose URL the blockr option `otel_client_endpoint` gives, at its path `v1/logs`, which every user's browser must reach.
+  Where `logger` is not set, the client sends to that collector where `otel_client_endpoint` names one, and writes to the console otherwise.
+  Each record names the session by `session.id`, Shiny's token of the session, which R now sends as it starts the session.
+  The page imports core's OpenTelemetry module, `blockr-core-otel.js`, only where it sends records, and `serve()` stops where `logger` is `"otel"` and `otel_client_endpoint` names no collector.
+  Core logs every failure that it catches at error, with its stack, and logs at debug each notification that it drops because the board no longer holds what the notification concerns.
+  The stubs of the hosts hold what a module logs in `logged`, and so does `stubCore()`, which passes each line on to the logger that the page would write it with (#551).
 
 # blockr.core 0.1.4
 

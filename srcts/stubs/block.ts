@@ -14,8 +14,9 @@ import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
 import type { Raised } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, HostRequestOpts, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { asError, isObject, jsonEqual, own } from "../util/index.ts";
-import { announcer, notifier, stubBlockContext } from "./util.ts";
+import type { LogLine } from "../types/log.ts";
+import { asError, isObject, jsonEqual, own, packageFromId } from "../util/index.ts";
+import { announcer, lineHolder, notifier, stubBlockContext } from "./util.ts";
 
 // A block class's fixture file: the states that a block of the class may
 // hold, each as the block holds it, and what the class's requests answered in
@@ -61,6 +62,9 @@ export interface StubBlockHost<S extends State = State> extends BlockHost<S> {
   // Each notification that the module raised and that holds, in the order
   // they came.
   readonly notified: readonly Raised[];
+  // Each line that the module logged through `log`, at every level, in the
+  // order they came, naming the package of the block's class.
+  readonly logged: readonly LogLine[];
   // Sets the block's state from outside the module, as undo, the assistant or
   // a plugin does, and announces it.
   setState(state: S): void;
@@ -80,6 +84,7 @@ export function stubBlockHost<S extends State = State>(
   const evaluated: Record<string, Json>[] = [];
   const on = announcer(["state", "context"] as const);
   const { notified, notify } = notifier();
+  const { logged, log } = lineHolder(packageFromId(options.class ?? "stub"));
 
   return {
     block: options.block ?? "block",
@@ -92,6 +97,8 @@ export function stubBlockHost<S extends State = State>(
     evaluated,
     notified,
     notify,
+    logged,
+    log,
     submit(change) {
       if (!isObject(change)) {
         return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));

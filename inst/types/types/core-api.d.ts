@@ -5,6 +5,7 @@ import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
+import type { Log } from "./log.ts";
 import type { RegistryEntry } from "./registry.ts";
 export interface CoreApi {
     readonly store: Store;
@@ -27,6 +28,7 @@ export interface CoreApi {
         get(): readonly Notification[];
         subscribe(fn: (all: readonly Notification[]) => void): () => void;
     };
+    log(pkg: string): Log;
     readonly focus: {
         get(): BlockId | null;
         set(block: BlockId | null): void;

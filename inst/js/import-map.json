@@ -6,7 +6,8 @@
     "react-dom/client": "react-dom-client.js",
     "@blockr/core/react": "blockr-core-react.js",
     "@blockr/core/binding": "blockr-core-binding.js",
-    "@blockr/core/controls": "blockr-core-controls.js"
+    "@blockr/core/controls": "blockr-core-controls.js",
+    "@blockr/core/otel": "blockr-core-otel.js"
   },
   "files": [
     "react-963521e2.js"

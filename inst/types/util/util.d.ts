@@ -2,7 +2,6 @@ import type { Json } from "../types/json.ts";
 export declare function own<T>(record: Readonly<Record<string, T>>, key: string): T | undefined;
 export declare function errorMessage(error: unknown): string;
 export declare function asError(error: unknown): Error;
-export declare function report(error: unknown): void;
 export declare function isObject(x: unknown): x is Readonly<Record<string, unknown>>;
 export declare function jsonEqual(a: unknown, b: unknown): boolean;
 export declare function getAt(root: unknown, path: readonly string[]): unknown;

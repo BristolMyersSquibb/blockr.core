@@ -10,15 +10,18 @@
 
 import { describe, expect, test } from "vitest";
 import type { Condition } from "../protocol/index.ts";
+import { createStore } from "../store/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
 import { codeOf, concerning, held } from "../testing/notifications.ts";
 import { listedModules, pluginUi } from "../testing/plugins.ts";
-import { reports } from "../testing/reports.ts";
-import { withOptions, withPlugins } from "../testing/store.ts";
+import { logged } from "../testing/logged.ts";
+import { hello, withOptions, withPlugins } from "../testing/store.ts";
 import type { Notification } from "../types/core-api.ts";
 import type { BlockHost, OutputHost } from "../types/hosts.ts";
+import { coreNotification } from "../util/index.ts";
+import { createNotifications } from "./notifications.ts";
 
 const FILE = "blockr.core-file_storage_plugin";
 
@@ -84,7 +87,7 @@ describe("a block's notifications", () => {
   });
 
   test("go as the block leaves the board, those that core and plugins raise included", async () => {
-    const reported = reports();
+    const reported = logged();
     const few: Condition = { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "block_eval", message: "Few rows." };
     const s = await conditioned(() => [few]);
     s.core.notifications.notify(FILE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
@@ -116,12 +119,43 @@ describe("the notifications about a link or a stack", () => {
     await s.core.commands.run("blockr.core-remove_stack", { id: "s1" });
     expect(held(s.core, fromModules)).toEqual([]);
 
-    const reported = reports();
+    const reported = logged();
     s.core.notifications.notify(FILE, { severity: "warning", code: "slow", message: "Slow link.", about: { link: "ab" } });
     reported.restore();
-    expect(reported.errors()).toEqual([]);
+    expect(reported.lines().map((line) => [line.level, line.message])).toEqual([
+      ["debug", `Core drops a notification that the plugin "${FILE}" raised about the link "ab", which has left the board.`],
+    ]);
     expect(held(s.core, fromModules)).toEqual([]);
     s.stop();
+  });
+});
+
+describe("what the holder drops", () => {
+  test("is logged at debug where core raises a notification, or R replies with conditions, about a block that the board does not hold", async () => {
+    const store = createStore({ hello });
+    await store.open(hello);
+    const holder = createNotifications(store, { plugins: hello.plugins });
+    const reported = logged();
+
+    holder.raise(coreNotification("module_failed", "error", "No module.", { about: { block: "nowhere" } }));
+    holder.replied({ block: "nowhere" }, { type: "block_class", name: "columns" }, [
+      { severity: "error", class: ["error", "condition"], message: "No columns." },
+    ]);
+    holder.replied({ block: "nowhere" }, { type: "renderer", renderer: "blockr.core-table_output", name: "page" }, [
+      { severity: "warning", class: ["warning", "condition"], message: "No page." },
+    ]);
+    holder.replied({ block: "nowhere" }, { type: "block_class", name: "columns" }, []);
+    reported.restore();
+
+    expect(holder.api.get()).toEqual([]);
+    expect(reported.lines().map((line) => [line.level, line.message])).toEqual([
+      ["debug", 'Core drops a notification that core raised about the block "nowhere", which the board does not hold.'],
+      ["debug", 'Core drops the notifications of R\'s reply to the request "columns" about the block "nowhere", which the board does not hold.'],
+      [
+        "debug",
+        'Core drops the notifications of R\'s reply to the request "page" of the renderer "blockr.core-table_output" about the block "nowhere", which the board does not hold.',
+      ],
+    ]);
   });
 });
 
@@ -253,7 +287,7 @@ describe("the notifications of the modules of packages", () => {
 
 describe("core's notifications", () => {
   test("of a block's UI module that cannot draw are one, however many mounts fail, which concerns the block, with the module's package, and leave each element empty", async () => {
-    const reported = reports();
+    const reported = logged();
     const s = await stubCore();
     const first = document.createElement("div");
     const second = document.createElement("div");
@@ -276,7 +310,7 @@ describe("core's notifications", () => {
   });
 
   test("of a renderer that cannot draw concern the block, naming the renderer, with its package, and leave the output's element empty", async () => {
-    const reported = reports();
+    const reported = logged();
     const s = await stubCore({ modules: { [TABLE]: { api: 2, default: { render: () => undefined } } } });
     s.core.scheduler.demand("test", ["b"]);
     const el = document.createElement("div");
@@ -298,7 +332,7 @@ describe("core's notifications", () => {
   });
 
   test("of a board option's UI that fails in render() concern the board option, with the package that lists it", async () => {
-    const reported = reports();
+    const reported = logged();
     const zoom: Option = {
       id: "zoom",
       label: "Zoom",
@@ -330,7 +364,7 @@ describe("core's notifications", () => {
   });
 
   test("of a plugin whose start throws or whose ui fails in render() concern the plugin, with its class's package", async () => {
-    const reported = reports();
+    const reported = logged();
     const ui = pluginUi();
     const failing: PluginClass = {
       id: "blockr.test-notes_plugin",
@@ -371,7 +405,7 @@ describe("core's notifications", () => {
   });
 
   test("of a board option that does not go onto the board concern the board option, once for the board", async () => {
-    const reported = reports();
+    const reported = logged();
     const needy: PluginClass = { id: "blockr.test-needy_plugin", options: ["nowhere"], ui: pluginUi().ui };
     const s = await stubCore({ hello: withPlugins({ [needy.id]: { name: "Needy" } }), modules: listedModules([needy]) });
     s.core.mountPlugin(document.createElement("div"), needy.id);

@@ -22,7 +22,7 @@
 // Where a board option that a class names does not go onto the board, as where
 // its default fails, nothing that requires it draws or runs: the element of the
 // frontend shows why, the element of the plugin's UI stays empty, and core
-// calls no `start` of the plugin, which it reports. A `start` that throws, and
+// calls no `start` of the plugin, which it logs. A `start` that throws, and
 // a `ui` that fails in render() or cannot draw without such a board option,
 // each raise a notification that concerns the plugin, with its class's
 // package, which holds until the next board opens. Core draws nothing in the
@@ -41,7 +41,8 @@ import { inRole } from "../store/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Plugin, PluginModule } from "../types/core-api.ts";
-import { coreNotification, errorMessage, own, packageFromId, report } from "../util/index.ts";
+import { log } from "../log/index.ts";
+import { asError, coreNotification, errorMessage, own, packageFromId } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 
 // What the render() of the `ui` of a plugin's class gets.
@@ -181,11 +182,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     starting.forEach(({ id, def }, i) => {
       if (replaced.aborted) return;
       if ((failures[i] ?? []).length > 0) {
-        report(
-          new Error(
-            `The plugin "${id}" does not start, since board options that its class requires did not go onto the board.`,
-          ),
-        );
+        log.error(`The plugin "${id}" does not start, since board options that its class requires did not go onto the board.`);
         return;
       }
       launch(id, def);
@@ -206,7 +203,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
       returned = def.start?.({ core: deps.core(), plugin: id, signal: controller.signal });
     } catch (error) {
       const why = new Error(`The start of the plugin class "${id}" failed: ${errorMessage(error)}`, { cause: error });
-      report(why);
+      log.error(why);
       deps.raise(coreNotification("plugin_start_failed", "error", why.message, { about: { plugin: id }, package: packageFromId(id) }));
       return;
     }
@@ -248,7 +245,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     // A ui that cannot draw, which leaves its element empty.
     function fail(error: unknown): void {
       if (ended()) return;
-      report(error);
+      log.error(asError(error));
       cannotDraw(errorMessage(error));
     }
 
