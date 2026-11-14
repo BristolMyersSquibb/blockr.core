@@ -1170,10 +1170,13 @@ describe("what the user learns", () => {
   test("is why the store or the command registry refused an edit, an error of the code edit_refused that core raises about the board, whatever block the edit names, which shows again as the same refusal comes again", async () => {
     const { el, core } = await drawn();
     // The user removes the link from Iris to Head, and the assistant then
-    // feeds Head's one input from Wide sepals. So the store refuses to undo
-    // the user's step, which would give that input a second link.
+    // feeds Head's one input from Wide sepals, in a step that is no undo step.
+    // So the store refuses to undo the user's step, the history's last, which
+    // would give that input a second link.
     await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
-    await act(() => core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" }, "assistant"));
+    act(() => {
+      core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "data" } } } }, "assistant", { undo: false });
+    });
     await click(button(el, "Undo"));
     const refusal = core.notifications.get()[0]?.message ?? "";
     expect(refusal).toMatch(/^The store refused to undo the step/);
@@ -1332,7 +1335,7 @@ describe("undo and redo", () => {
     expect(board().name).toBe("Sepals");
   });
 
-  test("are on the toolbar, each while the user has a step for it", async () => {
+  test("are on the toolbar, each while the history holds a step for it", async () => {
     const { el, core, board } = await drawn();
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([true, true]);
 
@@ -1342,6 +1345,19 @@ describe("undo and redo", () => {
     await click(button(el, "Undo"));
     expect(board().name).toBe("Iris review");
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([true, false]);
+  });
+
+  test("take back and apply again the steps of every origin, the assistant's among them", async () => {
+    const { el, core, board } = await drawn();
+    await act(() => core.commands.run("blockr.core-rename_board", { name: "Sepals" }, "assistant"));
+    expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([false, true]);
+
+    await click(button(el, "Undo"));
+    expect(board().name).toBe("Iris review");
+    await step(() => {
+      press(document.body, "z", { ctrlKey: true, shiftKey: true });
+    });
+    expect(board().name).toBe("Sepals");
   });
 });
 

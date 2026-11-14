@@ -13,7 +13,8 @@ export function useBoard(core: Pick<CoreApi, "store">): Board {
   return useSyncExternalStore(subscribe, () => core.store.board());
 }
 
-// Whether the user has a step to undo and one to redo.
+// Whether the store's history holds a step to undo and one to redo, whoever
+// took them.
 export function useHistory(core: Pick<CoreApi, "store">): { canUndo: boolean; canRedo: boolean } {
   const subscribe = useStore(core);
   const canUndo = useSyncExternalStore(subscribe, () => core.store.canUndo());

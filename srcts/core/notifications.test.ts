@@ -582,20 +582,21 @@ describe("core's notifications", () => {
       s.core.store.apply(unknownInput);
     }).toThrow("The store rejected the delta");
     // The user removes the link from block a to block b, and the assistant
-    // then feeds b's one input from block d, which an undo would give a second
-    // link.
+    // then feeds b's one input from block d. An undo of the user's last step,
+    // past the assistant's, would give that input a second link.
     await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
     await s.core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" }, "assistant");
     expect(() => {
-      s.core.store.undo();
+      s.core.store.undo("user");
     }).toThrow("The store refused to undo the step");
     // The user feeds block f's one input from block d, in place of block a,
-    // and takes that back. The assistant then feeds it from block b, which a
-    // redo would give a second link.
+    // and takes that back. The assistant then feeds it from block b, in a step
+    // that is no undo step and so keeps the redo list, which a redo would give
+    // a second link.
     await s.core.commands.run("blockr.core-remove_link", { id: "keen_finch" });
     await s.core.commands.run("blockr.core-add_link", { id: "df", from: "d", to: "f", input: "data" });
     s.core.store.undo();
-    await s.core.commands.run("blockr.core-add_link", { from: "b", to: "f", input: "data" }, "assistant");
+    s.core.store.apply({ links: { add: { bf: { from: "b", to: "f", input: "data" } } } }, "assistant", { undo: false });
     expect(() => {
       s.core.store.redo();
     }).toThrow("The store refused to redo the step");
@@ -654,6 +655,14 @@ describe("core's notifications", () => {
     expect(() => {
       s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant");
     }).toThrow();
+    // The assistant removes the link from block a to block b, and the user
+    // then feeds b's one input from block d. An undo of the assistant's last
+    // step, past the user's, would give that input a second link.
+    await s.core.commands.run("blockr.core-remove_link", { id: "ab" }, "assistant");
+    await s.core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" });
+    expect(() => {
+      s.core.store.undo("assistant");
+    }).toThrow("The store refused to undo the step");
     quiet.restore();
 
     expect(held(s.core, (n) => codeOf(n) === "edit_refused")).toEqual([]);

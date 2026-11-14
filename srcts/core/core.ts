@@ -311,9 +311,11 @@ function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAga
           store.undo(origin);
         });
       },
-      redo(origin) {
-        edit(origin, () => {
-          store.redo(origin);
+      // A redo names no origin, so it is the user's, as the store announces
+      // it.
+      redo() {
+        edit(undefined, () => {
+          store.redo();
         });
       },
     },
