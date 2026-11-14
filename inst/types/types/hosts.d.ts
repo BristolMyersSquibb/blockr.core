@@ -3,6 +3,7 @@ import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
 import type { Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
+import type { Log } from "./log.ts";
 export type State = Readonly<Record<string, Json>>;
 export interface BlockModule<S extends State = State> {
     readonly options?: readonly OptionId[];
@@ -39,6 +40,7 @@ export interface BlockHost<S extends State = State> {
     evaluate(params: Record<string, Json>): Promise<BlockStatus>;
     module<T = unknown>(id: string): Promise<T>;
     notify(notification: Raised): () => void;
+    readonly log: Log;
 }
 export interface BlockContext {
     readonly name: string;
@@ -60,6 +62,7 @@ export interface OptionHost<V extends Json = Json> {
     submit(value: V): Promise<void>;
     request<T = Json>(name: string, args?: Record<string, Json>, opts?: HostRequestOpts): Promise<T | Blob>;
     notify(notification: Raised): () => void;
+    readonly log: Log;
 }
 export interface OutputHost {
     readonly block: BlockId;
@@ -74,4 +77,5 @@ export interface OutputHost {
     request<T = Json>(name: string, args?: Record<string, Json>, opts?: OutputRequestOpts): Promise<T | Blob>;
     emit(name: string, payload: Json): void;
     notify(notification: Raised): () => void;
+    readonly log: Log;
 }

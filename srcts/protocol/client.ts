@@ -14,7 +14,8 @@
 //    and rejects each request that it is asked to send.
 
 import type { BlockId } from "../types/board.ts";
-import { asError, report } from "../util/index.ts";
+import { log } from "../log/index.ts";
+import { asError } from "../util/index.ts";
 import type {
   Capability,
   CancelRequest,
@@ -101,6 +102,9 @@ export interface Transport {
   send(message: ClientMessage, bodies: ReadonlyMap<string, Blob>): Promise<void>;
   // Hears R from now on.
   listen(listener: TransportListener): void;
+  // The id of the session that runs, by which telemetry names it, or undefined
+  // while none runs or where the transport names none.
+  sessionId?(): string | undefined;
 }
 
 export interface TransportListener {
@@ -294,7 +298,7 @@ export function createClient(
         // A session may end before R answers its hello, which the next
         // session's hello then starts afresh.
         if ("error" in result) {
-          if (!(result.error instanceof SessionEndedError)) report(result.error);
+          if (!(result.error instanceof SessionEndedError)) log.error(asError(result.error));
           return;
         }
 
@@ -444,13 +448,13 @@ function cancelled(id: string): { reply: Reply; body: null } {
   return { reply: { id, status: "cancelled" }, body: null };
 }
 
-// Calls a caller's function, reporting what it throws without stopping the
+// Calls a caller's function, logging what it throws without stopping the
 // client, which goes on with the rest of R's message.
 function guard(fn: () => void): void {
   try {
     fn();
   } catch (error: unknown) {
-    report(error);
+    log.error(asError(error));
   }
 }
 

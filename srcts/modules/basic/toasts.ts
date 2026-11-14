@@ -231,12 +231,11 @@ export function concerned(
   return link === undefined ? `Link "${about.link}"` : `Link from ${block(link.from)} to ${block(link.to)}`;
 }
 
-// The package that the notification's source names, if any: for one of
-// core's, the package whose module failed, and for a module's, the package
-// whose module raised it.
+// The package that the notification's source names, if any: the package of
+// the module behind it, which made the request that R replied to, whose code
+// failed, or which raised the notification.
 export function sourcePackage(notification: Notification): string | undefined {
-  const { source } = notification;
-  return source.kind === "r" ? undefined : source.package;
+  return notification.source.module?.package;
 }
 
 // Whether the notification is core's request to reload the page, whose toast

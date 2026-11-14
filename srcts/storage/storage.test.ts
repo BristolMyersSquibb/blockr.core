@@ -118,7 +118,7 @@ describe("core's own storage plugin", () => {
         id: expect.any(String) as string,
         severity: "error",
         message: "The file could not be read.",
-        source: { kind: "module", object: { plugin: FILE_STORAGE }, code: "board_open_failed", package: "blockr.core" },
+        source: { kind: "module", module: { object: { plugin: FILE_STORAGE }, package: "blockr.core" }, code: "board_open_failed" },
         about: { plugin: FILE_STORAGE },
       },
     ]);

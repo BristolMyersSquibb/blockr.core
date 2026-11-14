@@ -6,6 +6,7 @@ import { act } from "react";
 import { describe, expect, test } from "vitest";
 import type { Option } from "../store/index.ts";
 import { find } from "../testing/inputs.ts";
+import { logged } from "../testing/logged.ts";
 import { classModule, optionModule } from "../testing/plugins.ts";
 import { withOptions, withPlugins } from "../testing/store.ts";
 // React's act() environment, for the UIs of core's board options.
@@ -112,6 +113,18 @@ describe("the CoreApi for tests", () => {
     await expect(core.request("blockr.dag-dag_plugin", "script")).rejects.toThrow('The app runs no plugin "blockr.dag-dag_plugin"');
     await expect(core.blockrOption("n_rows")).resolves.toBe(25);
     await expect(core.blockrOption("gate_visibility")).resolves.toBeUndefined();
+  });
+
+  test("holds what core and the modules on the page log while it runs, and passes each line on to the logger in place before", async () => {
+    const outer = logged();
+    const s = await stubCore();
+    s.core.log("blockr.test").warn("Careful.");
+    s.stop();
+    s.core.log("blockr.test").info("Stopped.");
+    outer.restore();
+
+    expect(s.logged.map((line) => [line.level, line.package, line.message])).toEqual([["warn", "blockr.test", "Careful."]]);
+    expect(outer.lines().map((line) => line.message)).toEqual(["Careful.", "Stopped."]);
   });
 
   test("draws core's board options with their UIs, as the page does", async () => {

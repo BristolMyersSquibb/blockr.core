@@ -52,7 +52,7 @@ async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
     notes.splice(
       0,
       notes.length,
-      ...all.filter((notification) => notification.source.kind === "module" && "plugin" in notification.source.object && notification.source.object.plugin === EDIT),
+      ...all.filter(({ source }) => source.kind === "module" && "plugin" in source.module.object && source.module.object.plugin === EDIT),
     );
   });
   let end = (): void => undefined;

@@ -1,9 +1,10 @@
 export type { Json, JsonSchema } from "./types/json.ts";
 export type { Block, BlockId, Board, JsonBlock, JsonOption, JsonBoard, Link, LinkId, OptionId, PluginClassId, RegistryId, Stack, StackId, } from "./types/board.ts";
 export type { ArgSpec, RegistryEntry } from "./types/registry.ts";
+export type { Log, LogLevel, LogLine } from "./types/log.ts";
 export type { BlockOutput, OutputFixture, OutputFixtures, OutputRenderer, PlotOutput, TableColumn, TableOutput, TableParams, TextOutput, } from "./types/outputs.ts";
 export type { BlockContext, BlockHost, BlockModule, HostRequestOpts, OptionHost, OptionModule, OutputHost, OutputModule, OutputRequestOpts, Rendered, State, } from "./types/hosts.ts";
-export type { BlockRegistry, BoardObject, CoreApi, CoreCode, CoreSource, EvaluatePhase, FrontendModule, ModuleSource, Notification, NotificationSource, OutputEvents, Plugin, PluginModule, Raised, RequestOpts, RRequest, RSource, Severity, } from "./types/core-api.ts";
+export type { BlockRegistry, BoardObject, CoreApi, CoreCode, CoreSource, EvaluatePhase, FrontendModule, ModuleSource, Notification, NotificationSource, OutputEvents, Plugin, PluginModule, Raised, RequestOpts, RRequest, RSource, Severity, SourceModule, } from "./types/core-api.ts";
 export type { Change, Delta, Dropped, Hints, Migration, Option, Options, Origin, Patch, PluginClass, Plugins, Storage, StorageControl, Store, StoreError, } from "./store/index.ts";
 export type { Command, CommandContext, CommandError, Commands } from "./commands/index.ts";
 export type { BlockStatus, Demand, Scheduler, Status } from "./scheduler/index.ts";

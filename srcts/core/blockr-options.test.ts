@@ -4,7 +4,7 @@
 import { describe, expect, test } from "vitest";
 import { SessionEndedError } from "../protocol/index.ts";
 import type { Client, Reply } from "../protocol/index.ts";
-import { reports } from "../testing/reports.ts";
+import { logged } from "../testing/logged.ts";
 import type { Json } from "../types/json.ts";
 import { createBlockrOptions } from "./index.ts";
 
@@ -119,7 +119,7 @@ describe("reading a blockr option", () => {
     const options = createBlockrOptions(r.client);
     const read = options.read("queue");
     await flush();
-    const reported = reports();
+    const reported = logged();
     r.requests[0]?.settle({ error: new Error("The client sends R nothing.") });
     await expect(read).rejects.toThrow('R sent no values of the blockr options "queue": The client sends R nothing.');
     reported.restore();

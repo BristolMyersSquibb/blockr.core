@@ -17,7 +17,7 @@ import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
 import { held } from "../testing/notifications.ts";
 import { classModule, listedModules, pluginUi } from "../testing/plugins.ts";
-import { reports } from "../testing/reports.ts";
+import { logged } from "../testing/logged.ts";
 import { withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
 import type { CoreApi, Notification, Raised } from "../types/core-api.ts";
@@ -75,7 +75,7 @@ describe("the plugins that run", () => {
     const notes: PluginClass = { id: "blockr.test-notes_plugin", ui: ui.ui };
     // A class whose plugin draws with the ui of the notes' class.
     const report: PluginClass = { id: "blockr.test-report_plugin", ui: ui.ui };
-    const reported = reports();
+    const reported = logged();
     const s = await stubbed([notes, report, saving], {
       [notes.id]: { name: "Notes" },
       [report.id]: { name: "Report" },
@@ -88,7 +88,7 @@ describe("the plugins that run", () => {
     // In the order of the reply, core's own first, but for the plugin whose
     // class's module fails to load, which core names.
     expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT, notes.id, report.id, saving.id]);
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual([
+    expect(reported.errors().map((line) => line.message)).toEqual([
       "The module blockr.gone/blockr.gone-gone_plugin.js of blockr.gone failed to load: The test gives no module blockr.gone/blockr.gone-gone_plugin.js.",
     ]);
     expect(core.plugins.appPlugins()[report.id]).toEqual({ name: "Report" });
@@ -173,7 +173,7 @@ describe("the plugins that run", () => {
   });
 
   test("leave out a class whose module declares another major of core's JS API, or whose class the store refuses", async () => {
-    const reported = reports();
+    const reported = logged();
     const s = await stubCore({
       hello: withPlugins({ "blockr.test-old_plugin": { name: "Old" }, "blockr.test-bad_plugin": { name: "Bad" } }),
       modules: {
@@ -184,7 +184,7 @@ describe("the plugins that run", () => {
     reported.restore();
 
     expect(Object.keys(s.core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT]);
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual([
+    expect(reported.errors().map((line) => line.message)).toEqual([
       "The module blockr.test/blockr.test-old_plugin.js of blockr.test was built against major 2 of core's JS API, where core's is 1.",
       'The plugin class "blockr.test-bad_plugin" has a start that is no function.',
     ]);
@@ -304,7 +304,7 @@ describe("mounting a plugin's UI", () => {
       'The class of the plugin "blockr.core-basic_frontend_plugin" has no ui to mount.',
     );
 
-    const reported = reports();
+    const reported = logged();
     const failing = el();
     s.core.mountPlugin(failing, broken.id);
     await s.settled();
@@ -315,7 +315,11 @@ describe("mounting a plugin's UI", () => {
       {
         severity: "error",
         message: 'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): boom',
-        source: { kind: "core", code: "module_failed", package: "blockr.test" },
+        source: {
+          kind: "core",
+          code: "module_failed",
+          module: { object: { plugin: "blockr.test-broken_plugin" }, package: "blockr.test" },
+        },
         about: { plugin: "blockr.test-broken_plugin" },
       },
     ]);
@@ -333,7 +337,7 @@ describe("mounting a plugin's UI", () => {
     };
     const zoomed: PluginClass = { id: "blockr.test-notes_plugin", ui, options: ["zoom"] };
     const needy: PluginClass = { id: "blockr.test-needy_plugin", ui, options: ["nowhere"] };
-    const reported = reports();
+    const reported = logged();
     const s = await stubbed([zoomed, needy], { [zoomed.id]: { name: "Notes" }, [needy.id]: { name: "Needy" } }, {
       options: [zoom],
     });
@@ -353,7 +357,7 @@ describe("mounting a plugin's UI", () => {
         'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
       ],
       [
-        { kind: "core", code: "module_failed", package: "blockr.test" },
+        { kind: "core", code: "module_failed", module: { object: { plugin: "blockr.test-needy_plugin" }, package: "blockr.test" } },
         { plugin: "blockr.test-needy_plugin" },
         'Without the board option "nowhere", the ui of the plugin class "blockr.test-needy_plugin" cannot draw.',
       ],
@@ -376,7 +380,7 @@ describe("what a frontend offers other plugins", () => {
     core.notifications.notify(FILE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
     core.notifications.notify(FILE, { severity: "warning", code: "quota", message: "Almost full.", about: null });
     const all = core.notifications.get();
-    const source = { kind: "module", object: { plugin: FILE }, package: "blockr.core" } as const;
+    const source = { kind: "module", module: { object: { plugin: FILE }, package: "blockr.core" } } as const;
     expect(all).toHaveLength(before.length + 3);
     expect(all.slice(before.length)).toEqual([
       {
@@ -455,7 +459,7 @@ describe("what a frontend offers other plugins", () => {
     s.stop();
   });
 
-  test("holds nothing of a notification about a block, a link or a stack that the board does not hold, which the work that raises it can outlive, and reports one about a board object that it has never held, and one that a plugin that the app does not run raises", async () => {
+  test("holds nothing of a notification about a block, a link or a stack that the board does not hold, which the work that raises it can outlive, logging it at debug, and logs at error one about a board object that it has never held, and one that a plugin that the app does not run raises", async () => {
     const s = await stubCore();
     const { notifications } = s.core;
     // The link "ab" leaves with its block.
@@ -465,7 +469,7 @@ describe("what a frontend offers other plugins", () => {
     const heard: (readonly Notification[])[] = [];
     notifications.subscribe((all) => heard.push(all));
 
-    const reported = reports();
+    const reported = logged();
     const base = { severity: "error", code: "share_failed", message: "Not shared." } as const;
     const raised = [
       notifications.notify(FILE, { ...base, about: { block: "b" } }),
@@ -477,17 +481,37 @@ describe("what a frontend offers other plugins", () => {
       notifications.notify("blockr.test-session_plugin", base),
     ];
     for (const withdraw of raised) withdraw();
-    const errors = reported.errors();
+    const lines = reported.lines();
     reported.restore();
     expect(notifications.get()).toBe(before);
     expect(heard).toEqual([]);
-    expect(errors.map((error) => (error as Error).message)).toEqual([
+    expect(lines.filter((line) => line.level === "debug").map((line) => line.message)).toEqual([
+      `Core drops a notification that the plugin "${FILE}" raised about the block "b", which has left the board.`,
+      `Core drops a notification that the plugin "${FILE}" raised about the link "ab", which has left the board.`,
+    ]);
+    expect(lines.filter((line) => line.level === "error").map((line) => line.message)).toEqual([
       `Core drops a notification that the plugin "${FILE}" raised about the block "nowhere", which the board has never held.`,
       `Core drops a notification that the plugin "${FILE}" raised about the stack "nowhere", which the board has never held.`,
       `Core drops a notification that the plugin "${FILE}" raised about the board option "nowhere", which no loaded package defines.`,
       `Core drops a notification that the plugin "${FILE}" raised about the plugin "blockr.test-session_plugin", which the app does not run.`,
       'Core drops a notification that the plugin "blockr.test-session_plugin" raised, which the app does not run.',
     ]);
+    s.stop();
+  });
+
+  test("gives a log whose lines name the package given, and refuses one that names no package as R names one", async () => {
+    const s = await stubCore();
+    const reported = logged();
+    s.core.log("blockr.dock").warn("Careful.", { "blockr.block.id": "a" });
+    reported.restore();
+    expect(reported.lines().map(({ level, package: pkg, message, attributes }) => ({ level, package: pkg, message, attributes }))).toEqual([
+      { level: "warn", package: "blockr.dock", message: "Careful.", attributes: { "blockr.block.id": "a" } },
+    ]);
+    for (const pkg of ["", "blockr-dock", "1abc", 1, null]) {
+      expect(() => s.core.log(pkg as string)).toThrow(
+        `A log names the package whose lines it writes, as core.log("blockr.dock"), not ${JSON.stringify(pkg)}.`,
+      );
+    }
     s.stop();
   });
 

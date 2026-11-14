@@ -348,12 +348,14 @@ check_outside_classes <- function(classes) {
 # Core drops what it keeps about logging, so that the app logs as its script
 # set the blockr options, whatever core logged before.
 # It works out the logger afresh, so that a logger that cannot work stops the
-# app here (see `write_log()`).
+# app here, and so does a logger of the client's that cannot (see
+# `write_log()`).
 serve_app <- function(board, registry, data = list(), alone = FALSE,
                       plugins = list(), frontend = as_json_object(list())) {
 
   reset_logging()
   get_logger()
+  check_client_logger()
 
   force(board)
 

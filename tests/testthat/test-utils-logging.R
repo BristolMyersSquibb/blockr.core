@@ -45,7 +45,7 @@ test_that("logging", {
   withr::with_options(
     list(
       blockr.log_level = "info",
-      blockr.logger = cnd_logger
+      blockr.logger = "condition"
     ),
     {
       reset_logging()
@@ -114,19 +114,21 @@ test_that("a logger gets the message as written, with its level and package", {
 
   got <- NULL
 
-  withr::local_options(
-    blockr.log_level = "info",
-    blockr.logger = function(msg, level, pkg, asis, attributes) {
-      got <<- list(
-        msg = msg,
-        level = level,
-        pkg = pkg,
-        asis = asis,
-        attributes = attributes
-      )
+  withr::local_options(blockr.log_level = "info")
+  local_reset_logging()
+  local_mocked_bindings(
+    get_logger = function() {
+      function(msg, level, pkg, asis, attributes) {
+        got <<- list(
+          msg = msg,
+          level = level,
+          pkg = pkg,
+          asis = asis,
+          attributes = attributes
+        )
+      }
     }
   )
-  local_reset_logging()
 
   n <- 2L
   log_warn("{n} lines", attributes = list(blockr.block.id = "a"))
@@ -185,32 +187,67 @@ test_that("the console's logger puts the prefix on each line it wraps", {
 
 test_that("core keeps the logger and the level until reset_logging()", {
 
-  withr::local_envvar(BLOCKR_LOG_LEVEL = "", BLOCKR_LOGGER = "")
-
-  got <- character()
-
+  withr::local_envvar(
+    BLOCKR_LOG_LEVEL = "",
+    BLOCKR_LOGGER = "",
+    BLOCKR_LOG_TIME = ""
+  )
   withr::local_options(
     blockr.log_level = "info",
-    blockr.logger = function(msg, level, pkg, asis, attributes) {
-      got <<- c(got, msg)
-    }
+    blockr.logger = "console",
+    blockr.log_time = FALSE
   )
   local_reset_logging()
 
-  log_info("first")
+  expect_output(log_info("first"), "first$")
 
-  withr::local_options(blockr.log_level = "error", blockr.logger = cnd_logger)
+  withr::local_options(blockr.log_level = "error", blockr.logger = "condition")
 
   expect_identical(get_log_level(), info_log_level)
-  log_info("second")
-  expect_identical(got, c("first", "second"))
+  expect_output(log_info("second"), "second$")
 
   reset_logging()
 
   expect_identical(get_log_level(), error_log_level)
   expect_silent(log_info("third"))
   expect_warning(log_error("fourth"), "fourth")
-  expect_identical(got, c("first", "second"))
+})
+
+test_that("the blockr option logger names one of three loggers by a string", {
+
+  withr::local_envvar(
+    BLOCKR_LOG_LEVEL = "",
+    BLOCKR_LOGGER = "",
+    BLOCKR_LOG_TIME = ""
+  )
+  withr::local_options(blockr.log_level = "info", blockr.log_time = FALSE)
+  local_reset_logging()
+
+  withr::local_options(blockr.logger = "console")
+  reset_logging()
+  expect_output(log_info("abc"), "^\\[INFO\\]\\[blockr\\.core\\] abc$")
+
+  withr::local_options(blockr.logger = "condition")
+  reset_logging()
+  expect_message(log_info("abc"), "abc")
+  expect_warning(log_error("abc"), "abc")
+
+  # An environment variable names the logger as well.
+  withr::local_options(blockr.logger = NULL)
+  withr::local_envvar(BLOCKR_LOGGER = "condition")
+  reset_logging()
+  expect_message(log_info("abc"), "abc")
+
+  # A function is no logger's name, and nor is the name of a function.
+  withr::local_envvar(BLOCKR_LOGGER = "")
+
+  invalid <- list(cat_logger, "cat_logger", "otel_logger", c("console", "otel"))
+
+  for (val in c(invalid, 1)) {
+    withr::local_options(blockr.logger = val)
+    reset_logging()
+    expect_error(log_info("abc"), class = "logger_invalid")
+  }
 })
 
 test_that("core logs through OpenTelemetry where it has set up an exporter", {
@@ -256,12 +293,28 @@ test_that("core logs through OpenTelemetry where it has set up an exporter", {
     list(blockr.package.name = "blockr.core", blockr.block.id = "a")
   )
   expect_identical(logs[[2L]][["severity_text"]], "FATAL")
+
+  # The logger that the blockr option names "otel" writes there too.
+  withr::local_options(blockr.logger = "otel")
+
+  rec <- otelsdk::with_otel_record(
+    {
+      reset_logging()
+      expect_silent(log_warn("named"))
+    },
+    what = "logs"
+  )
+
+  reset_logging()
+
+  expect_identical(rec[["logs"]][[1L]][["body"]], "named")
+  expect_identical(rec[["logs"]][[1L]][["severity_text"]], "WARN")
 })
 
-test_that("a logger named otel_logger() fails where no exporter is set up", {
+test_that("the logger \"otel\" fails where no exporter is set up", {
 
   withr::local_envvar(BLOCKR_LOG_LEVEL = "", BLOCKR_LOGGER = "")
-  withr::local_options(blockr.log_level = "info", blockr.logger = "otel_logger")
+  withr::local_options(blockr.log_level = "info", blockr.logger = "otel")
   local_reset_logging()
 
   expect_error(log_info("abc"), class = "otel_logger_unavailable")

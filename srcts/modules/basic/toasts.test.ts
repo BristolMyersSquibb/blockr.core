@@ -36,7 +36,7 @@ function raised(id: string, severity: Notification["severity"], about?: Notifica
     id,
     severity,
     message: `${severity} ${id}`,
-    source: { kind: "module", object: { plugin: "blockr.core-file_storage_plugin" }, code: "saved", package: "blockr.core" },
+    source: { kind: "module", module: { object: { plugin: "blockr.core-file_storage_plugin" }, package: "blockr.core" }, code: "saved" },
     ...(about === undefined ? {} : { about }),
   };
 }
@@ -236,7 +236,7 @@ describe("what a toast names", () => {
     ]);
   });
 
-  test("beside it, is the package that the notification's source names: the package whose module failed or raised it", () => {
+  test("beside it, is the package that the notification's source names: the package of the module that made the request, failed or raised it", () => {
     // The plugin raised one about itself, one about the board, and one about
     // another plugin.
     const own = raised("own", "error", { plugin: "blockr.core-file_storage_plugin" });
@@ -246,18 +246,37 @@ describe("what a toast names", () => {
       id: "failed",
       severity: "error",
       message: "No module.",
-      source: { kind: "core", code: "module_failed", package: "blockr.dag" },
+      source: { kind: "core", code: "module_failed", module: { object: { plugin: "blockr.dag-dag_plugin" }, package: "blockr.dag" } },
       about: { plugin: "blockr.dag-dag_plugin" },
     };
     const fromR: Notification = {
       id: "r",
       severity: "error",
       message: "No data.",
-      source: { kind: "r", class: ["simpleError", "error", "condition"], request: { type: "plugin", name: "list" } },
+      source: {
+        kind: "r",
+        class: ["simpleError", "error", "condition"],
+        request: { type: "plugin", name: "list" },
+        module: { object: { plugin: "blockr.dag-dag_plugin" }, package: "blockr.dag" },
+      },
       about: { plugin: "blockr.dag-dag_plugin" },
     };
+    // R's notification of an evaluation, which no module asked for.
+    const evaluated: Notification = {
+      id: "e",
+      severity: "error",
+      message: "No rows.",
+      source: { kind: "r", class: ["simpleError", "error", "condition"], request: { type: "evaluate", phase: "block_eval" } },
+    };
 
-    expect([own, theBoard, other, failed, fromR].map(sourcePackage)).toEqual(["blockr.core", "blockr.core", "blockr.core", "blockr.dag", undefined]);
+    expect([own, theBoard, other, failed, fromR, evaluated].map(sourcePackage)).toEqual([
+      "blockr.core",
+      "blockr.core",
+      "blockr.core",
+      "blockr.dag",
+      "blockr.dag",
+      undefined,
+    ]);
   });
 
   test("offers to reload the page for core's page_reload_needed alone, whatever a module's code", () => {
@@ -265,7 +284,7 @@ describe("what a toast names", () => {
     const posing: Notification = {
       ...reload,
       id: "p",
-      source: { kind: "module", object: { plugin: "blockr.core-file_storage_plugin" }, code: "page_reload_needed" },
+      source: { kind: "module", module: { object: { plugin: "blockr.core-file_storage_plugin" }, package: "blockr.core" }, code: "page_reload_needed" },
     };
     expect([reload, posing].map(isReload)).toEqual([true, false]);
   });

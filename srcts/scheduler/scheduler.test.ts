@@ -16,7 +16,7 @@ import type {
 import { createStore } from "../store/index.ts";
 import type { Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
-import { reports } from "../testing/reports.ts";
+import { logged } from "../testing/logged.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { coreOptions, reply as fixtureReply, hello, withPlugins } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
@@ -602,13 +602,13 @@ describe("demand and scheduling", () => {
     await evaluateAll(r);
     expect(r.evaluations().map((request) => request.block)).toEqual(["a", "f"]);
 
-    const reported = reports();
+    const reported = logged();
     store.apply({ name: "Broken" });
     store.apply({ blocks: { mod: { f: { state: { x: "Petal.Length" } } } } });
     await tick(1);
     reported.restore();
-    expect(reported.errors().map(String)).toEqual([
-      "Error: The demand of blockr.io threw, so it demands nothing until it returns: No such state.",
+    expect(reported.errors().map((line) => line.message)).toEqual([
+      "The demand of blockr.io threw, so it demands nothing until it returns: No such state.",
     ]);
     expect(r.pending()).toEqual([]);
 

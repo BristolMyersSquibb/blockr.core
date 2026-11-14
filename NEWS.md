@@ -221,7 +221,7 @@
   A card counts the reason in the pill of the messages, whatever `show_conditions` names, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596).
 * R's `ok` reply to a request or an output carries `conditions`, as its reply to an evaluation does: every message and warning that the request's function or the output's coercion raised.
   R logs each of them.
-  Core raises a notification for each condition of an `ok` reply to a request, and for each warning of an output (#601).
+  Core raises a notification for each condition of an `ok` reply to a request or an output (#601, #606).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
@@ -445,14 +445,14 @@
   The pill of the errors is open from the start, so that a failed block shows its error at once.
   A card grays out its output alone while its block is not ready, so that the pills keep the colors of their severities.
   Neither kind of card leaves room for the output until the block is first ready, so that a block that fails at once shows its pills and its banners alone, as a waiting block does, rather than at the foot of an empty box (#547).
-* The logger that the blockr option `logger` picks gets the message as written, its level, its package, `asis` and `attributes`.
-  Until now, it got one finished line.
-  So `cat_logger()` and `cnd_logger()` put the level, the time and the package in front of the message themselves, and wrap it, as `write_log()` did.
-  A logger written elsewhere has to take the new arguments as well.
-  The new `otel_logger()` writes each line through `otel::log()` as an OpenTelemetry record.
+* The blockr option `logger` names the logger by a string, which core's client reads as well, where it took a function, or the name of one, until now.
+  With `"console"`, R writes an error to standard error and every other line to standard output, as `cat_logger()` did.
+  With `"condition"`, R signals an error or a warning as a warning and every other line as a message, as `cnd_logger()` did.
+  With `"otel"`, R writes each line through `otel::log()` as an OpenTelemetry record.
   The record's severity is the line's level, and its attributes are the package, as `blockr.package.name`, and the `attributes` that `write_log()` takes.
-  Where the blockr option `logger` names no logger, core picks `otel_logger()` where OpenTelemetry has set up an exporter of logs, as the environment variable `OTEL_LOGS_EXPORTER` does, and `cat_logger()` otherwise.
-  Where it names `otel_logger()` and no exporter is set up, writing a line fails, and so does `serve()` (#550).
+  Any other value is an error, and `cat_logger()` and `cnd_logger()` are no longer exported.
+  Where `logger` is not set, R writes through OpenTelemetry where it has set up an exporter of logs, as the environment variable `OTEL_LOGS_EXPORTER` does, and to the console otherwise.
+  Where it is `"otel"` and no exporter is set up, writing a line fails, and so does `serve()` (#550, #551).
 * Only the blockr option `log_level` drops a line: OpenTelemetry's own level, `OTEL_LOG_LEVEL`, drops none of core's records.
   Core works out the logger, the level and the blockr options `log_time` and `log_mem` each when it first needs them, and keeps them for the process, so that writing a line reads no option.
   As it starts an app, `serve()` drops what core keeps and works out the logger afresh.
@@ -489,8 +489,9 @@
 * The `notifications` of `CoreApi` hold every notification of the open board, in the order they came, until each is withdrawn: one for each condition of each block's status, one for each condition of R's reply to a request, those that core raises where it fails at something that the user asked for or that the board needs, and those that the modules of packages raise.
   A frontend reads them through `get()`, which returns the same array until one comes or goes, and follows them through `subscribe()`, so that one raised before the frontend draws still reaches it.
   A `Notification` has an id, a severity and a message, says in `source` who raised it, and names in `about` the board object that it concerns, a block, a link, a stack, a board option or a plugin, or none for the board, so that a frontend places it by either.
-  Its source is R, with the condition's class and what core asked of R, core, with the code of what failed and the package whose module failed, or a package's module, with the board object that the module belongs to, the package's own code for it and the package.
-  A source of core's or of a module names the renderer of a block's output where that is the module that failed or raised it, so that a frontend tells it from the block's UI module.
+  Its source is R, with the condition's class and what core asked of R, core, with the code of what failed, or a package's module, with the package's own code for it.
+  Each source that involves a module names it in `module`, a `SourceModule`: R's source names the module that made the request, core's the module whose code failed, and a module's source the module that raised it.
+  A `SourceModule` holds the module's board object, its package, and the renderer's id where the module is a renderer, so that a frontend tells a renderer from the block's UI module or from the board option's own module (#605).
   A plugin raises one with `notify(plugin, notification)`, a module that core mounts with its host's `notify()`, and a board option's `onChange()` with the `notify` that it gets beside the value, each of which returns what withdraws it and refuses one whose members are of the wrong kind.
   What a module raises holds until its mount ends at the latest, and what an `onChange()` raises until its next call returns.
   One raised about a block, a link or a stack that the board no longer holds holds nothing, and core logs one about a board object that the board has never held, and one from a plugin that the app does not run.
@@ -500,9 +501,9 @@
   Each has a code of its own, as `module_failed`, and core still logs each failure.
   Core draws nothing in the element of a module that cannot draw, which it leaves empty, so that the frontend alone says where a failure shows.
   Where a board option that a block's UI module, a renderer or a plugin's UI requires does not go onto the board, core raises that the module cannot draw, which concerns the block or the plugin, beside the notification about the board option.
-  Where R makes a block's output, core raises one for each warning of the reply, in place of those before.
-  Where R cannot make it, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
-  Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601).
+  Core raises one for each condition of R's reply to an ask of a block's output, ok or error, in place of those before.
+  Where the ask fails without an error from R, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
+  Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601, #606).
 * Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
   A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
   The card of a block that `serve()` serves alone shows every notification of the board.
@@ -521,6 +522,17 @@
   Its `controls()` gets the id of its class beside `core` for that.
   Core's file storage plugin raises a file that Open cannot read as an error of the code `board_open_failed`.
   A frontend logs a button whose `run()` rejects (#549).
+* The client's code logs through a `Log`: a plugin through the `log()` of `CoreApi`, as `core.log("blockr.dock")`, and every other module through its host's `log`, which names the module's package already.
+  A `Log` has `error()`, `warn()`, `info()`, `debug()` and `trace()`, each taking a message and attributes, and `error()` takes an `Error` too, which goes with its stack.
+  The client drops a line below the blockr option `log_level`, as R does.
+  It writes the others to the browser's console, behind the package's name, where the blockr option `logger` is `"console"` or `"condition"`.
+  With `"otel"`, it sends each line as a record, in batches, to the OpenTelemetry collector whose URL the blockr option `otel_client_endpoint` gives, at its path `v1/logs`, which every user's browser must reach.
+  Where `logger` is not set, the client sends to that collector where `otel_client_endpoint` names one, and writes to the console otherwise.
+  Each record names the session by `session.id`, Shiny's token of the session, which R now sends as it starts the session.
+  The page imports core's OpenTelemetry module, `blockr-core-otel.js`, only where it sends records, and that module imports the parts of OpenTelemetry's SDK that it uses from a minified file of their own.
+  The `serve()` function stops where `logger` is `"otel"` and `otel_client_endpoint` names no collector.
+  Core logs every failure that it catches at error, with its stack, and logs at debug each notification that it drops because the board no longer holds what the notification concerns.
+  The stubs of the hosts hold what a module logs in `logged`, and so does `stubCore()`, which passes each line on to the logger that the page would write it with (#551).
 * Where the store or the command registry refuses an edit of the origin `"user"` that a plugin makes through `CoreApi`, a command, a delta, an undo or a redo, core raises a notification of the code `edit_refused`, which concerns the board, and the call still rejects or throws.
   So the user learns why an edit was refused, whichever plugin made it.
   Core's basic frontend and its Edit board plugin raise none of their own.

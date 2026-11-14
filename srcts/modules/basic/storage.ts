@@ -19,7 +19,7 @@
 
 import type { StorageControl } from "../../store/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { errorMessage, quoted, report } from "../../util/index.ts";
+import { asError, errorMessage, quoted } from "../../util/index.ts";
 
 export type Button = Extract<StorageControl, { kind: "button" }>;
 
@@ -75,13 +75,13 @@ export function buttonsOf(controls: readonly StorageControl[]): Button[] {
 // still acts within the user's click or key press, as a browser's file picker
 // needs. The storage plugin tells the user why one of its buttons failed,
 // since it alone knows its backend, and core tells the user why it refused
-// what the button asked of it, such as a board to open. So the frontend
-// reports a run() that rejects for the log alone.
-export async function runButton(button: Button): Promise<void> {
+// what the button asked of it, such as a board to open. So the frontend logs
+// a run() that rejects through the log of `core`, and tells the user nothing.
+export async function runButton(core: Pick<CoreApi, "log">, button: Button): Promise<void> {
   try {
     await button.run();
   } catch (error) {
-    report(error);
+    core.log("blockr.core").error(asError(error));
   }
 }
 

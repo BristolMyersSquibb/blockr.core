@@ -46,7 +46,7 @@ export function bindShortcuts(doc: Document, core: CoreApi): () => void {
     );
     if (button === undefined) return;
     event.preventDefault();
-    if (!event.repeat) void runButton(button);
+    if (!event.repeat) void runButton(core, button);
   }
   doc.addEventListener("keydown", onKey);
   return () => {

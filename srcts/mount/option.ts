@@ -23,22 +23,25 @@
 // error names the board option, since only one package can register its id.
 // Either way, core leaves the element empty, so that the frontend alone says
 // where the failure shows, and raises a notification that concerns the board
-// option, with the package of the renderer or of the board option, which
-// holds until the next board opens.
-// What the module raises through its host's notify() comes from the board
-// option, with the package of the module, and holds until the mount ends at
-// the latest. Each condition of R's reply to a request, ok or error, raises a
-// notification that concerns the board option, which holds until R next
-// replies to a request of the same name.
+// option, which holds until the next board opens. Its source names the module
+// that draws: the renderer, by its id and with its package, or else the board
+// option's own module, with the board option's package.
+// What the module raises through its host's notify() names that module as
+// its source, and holds until the mount ends at the latest. Each condition of
+// R's reply to a request, ok or error, raises a notification that concerns
+// the board option, which holds until R next replies to a request of the same
+// name. Its source names that module too, which made the request.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
+import type { SourceModule } from "../types/core-api.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
+import { createLog, log } from "../log/index.ts";
+import { asError, checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, sourceModule } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
@@ -90,6 +93,11 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
   const chosen = Object.entries(deps.renderers()).find(([, renderer]) => renderer.option === option);
+  const [id, renderer] = chosen ?? [];
+  // The module that draws: the renderer that the app names, with its package,
+  // or else the board option's own module.
+  const module =
+    id === undefined ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id), id);
 
   const controller = new AbortController();
   const ended = (): boolean => controller.signal.aborted;
@@ -145,12 +153,12 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       }
       if (!isObject(args)) return Promise.reject(new TypeError(`The args of the request "${name}" are an object.`));
       if (!bound()) return Promise.reject(unboundError());
-      return optionRequest(deps, option, name, args, opts) as Promise<T | Blob>;
+      return optionRequest(deps, module, option, name, args, opts) as Promise<T | Blob>;
     },
     notify(notification) {
       const given = checkRaised(notification);
       if (ended()) return () => undefined;
-      const withdraw = deps.notify({ object: { option }, package: pkg ?? null }, given);
+      const withdraw = deps.notify(module, given);
       const mine = (): void => {
         notified.delete(mine);
         withdraw();
@@ -158,6 +166,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       notified.add(mine);
       return mine;
     },
+    log: createLog(module.package ?? null),
   };
 
   const offStore = store.subscribe((_change, board) => {
@@ -184,11 +193,6 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     if (cleanup !== undefined) attempt(cleanup);
     el.replaceChildren();
   }
-
-  // The package of the module that draws: the renderer's, or else the board
-  // option's.
-  const [id, renderer] = chosen ?? [];
-  const pkg = id === undefined ? deps.optionPackage(option) : packageFromId(id);
 
   void (async () => {
     let mod: Mountable<OptionArgs>;
@@ -233,8 +237,8 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   // A module that cannot draw, which leaves its element empty.
   function fail(error: unknown): void {
     if (ended()) return;
-    report(error);
-    deps.raise(coreNotification("module_failed", "error", errorMessage(error), { about: { option }, package: pkg }));
+    log.error(asError(error));
+    deps.raise(coreNotification("module_failed", "error", errorMessage(error), { module }));
   }
 
   return end;
@@ -245,6 +249,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
 // of a board option's request.
 async function optionRequest(
   deps: Pick<OptionDeps, "scheduler" | "replied">,
+  module: SourceModule,
   option: OptionId,
   name: string,
   args: Readonly<Record<string, Json>>,
@@ -261,13 +266,13 @@ async function optionRequest(
   const conditions = "conditions" in reply ? reply.conditions : [];
   switch (reply.status) {
     case "ok":
-      deps.replied({ option }, { type: "option", name }, conditions);
+      deps.replied(module, { type: "option", name }, conditions);
       if (body !== null) return body;
       return "value" in reply && reply.value !== undefined ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name}" of the board option "${option}".`, { status: "cancelled" });
     default:
-      deps.replied({ option }, { type: "option", name }, conditions);
+      deps.replied(module, { type: "option", name }, conditions);
       throw new RequestError(`R replied ${reply.status} to the request "${name}" of the board option "${option}".`, {
         status: reply.status,
         conditions,

@@ -4,6 +4,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
+import { logged } from "../testing/logged.ts";
 import { coreOptions, hello, noUi, pluginUrl, reply, withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
 import type { Block, Board } from "../types/board.ts";
@@ -1756,12 +1757,9 @@ describe("applying a delta", () => {
     expect(store.board().name).toBe("Renamed");
   });
 
-  test("tells every subscriber of a change though one throws, and reports what it threw", async () => {
+  test("tells every subscriber of a change though one throws, and logs what it threw", async () => {
     const store = await opened();
-    const reported: (() => void)[] = [];
-    const queue = vi.spyOn(globalThis, "queueMicrotask").mockImplementation((fn) => {
-      reported.push(fn);
-    });
+    const reported = logged();
     const told: string[] = [];
     const failing = store.subscribe(() => {
       throw new Error("A subscriber failed.");
@@ -1769,12 +1767,10 @@ describe("applying a delta", () => {
     const telling = store.subscribe(() => told.push("second"));
 
     store.apply({ name: "Renamed" });
-    queue.mockRestore();
+    reported.restore();
     expect(told).toEqual(["second"]);
-    expect(reported).toHaveLength(1);
-    expect(() => {
-      reported[0]?.();
-    }).toThrow("A subscriber failed.");
+    expect(reported.errors().map((line) => [line.package, line.message])).toEqual([["blockr.core", "A subscriber failed."]]);
+    expect(reported.errors()[0]?.error).toBeInstanceOf(Error);
 
     failing();
     telling();

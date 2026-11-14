@@ -8,30 +8,45 @@
 #' set value (available as `get_log_level()`) and output is only generated if
 #' the message level is greater or equal to the currently set value.
 #'
-#' The blockr option `logger` picks the logger, the function that writes each
-#' line out.
-#' Where it names none, core picks `otel_logger()` where OpenTelemetry has set
-#' up an exporter of logs, as the environment variable `OTEL_LOGS_EXPORTER`
-#' does, and `cat_logger()` otherwise.
-#' Where it names `otel_logger()` and OpenTelemetry has set up no exporter,
-#' writing a line fails.
-#' The function `write_log()` calls the logger with the message as written,
-#' its level, its package, `asis` and `attributes`.
-#' Both `cat_logger()` and `cnd_logger()` put the level, the time and the
+#' The blockr option `logger` names the logger, what writes each line out,
+#' by a string that core's client reads as well:
+#'
+#' * With `"console"`, R writes an error to standard error and any other line
+#'   to standard output.
+#'   The client writes each line to the browser's console.
+#' * With `"otel"`, R writes each line as a record through [otel::log()],
+#'   with its level as the record's severity.
+#'   The record's attributes are the package, as `blockr.package.name`,
+#'   and `attributes`.
+#'   The client sends its lines as records to the OpenTelemetry collector
+#'   whose URL the blockr option `otel_client_endpoint` gives,
+#'   at its path `v1/logs`,
+#'   as an SDK sends to `OTEL_EXPORTER_OTLP_ENDPOINT`.
+#'   Every user's browser must reach that URL.
+#' * With `"condition"`, R signals an error or a warning as a warning and any
+#'   other line as a message, which a test catches as such.
+#'   The client writes to the browser's console,
+#'   since the browser has no conditions.
+#'
+#' For `"console"` and `"condition"`, R puts the level, the time and the
 #' package in front of the message, as the blockr options `log_time` and
 #' `log_mem` set.
-#' They wrap the message to the console's width unless `asis` is `TRUE`.
-#' Then `cat_logger()` writes an error to standard error and any other line to
-#' standard output.
-#' The other, `cnd_logger()`, signals an error or a warning as a warning and
-#' any other line as a message.
-#' The logger `otel_logger()` writes each line as a record through
-#' [otel::log()], with its level as the record's severity.
-#' The record's attributes are the package, as `blockr.package.name`, and
-#' `attributes`.
+#' It wraps the message to the console's width unless `asis` is `TRUE`.
+#' Where `logger` is not set, R writes through OpenTelemetry where it has set
+#' up an exporter of logs, as the environment variable `OTEL_LOGS_EXPORTER`
+#' does, and to the console otherwise.
+#' The client then sends its records to the collector where
+#' `otel_client_endpoint` names one, and writes to the console otherwise.
+#' Where `logger` is `"otel"` and OpenTelemetry has set up no exporter,
+#' writing a line fails.
+#' Where it is `"otel"` and `otel_client_endpoint` names no collector,
+#' [serve()] stops before the app's first session.
+#' Any other value of `logger` is an error, a function among them.
 #' Only the level that `get_log_level()` returns drops a line: OpenTelemetry's
 #' own level, as the environment variable `OTEL_LOG_LEVEL` sets it, drops none
 #' of these records.
+#' The client reads the blockr option `log_level` as well, and drops a line
+#' below it in the browser.
 #' Every logger stops with an error at the level "fatal".
 #'
 #' Core works out the logger, the level and the blockr options `log_time` and
@@ -49,10 +64,9 @@
 #' @param use_glue Flag to disable use of glue
 #' @param pkg Package name
 #' @param attributes Attributes of the line's record, as a named list, such as
-#' `blockr.block.id`, which only `otel_logger()` writes
+#' `blockr.block.id`, which only OpenTelemetry's logger writes
 #'
-#' @return Logging function `write_log()`, wrappers `log_*()` and loggers
-#' provided as `cnd_logger()`, `cat_logger()` and `otel_logger()` all return
+#' @return Logging function `write_log()` and wrappers `log_*()` all return
 #' `NULL` invisibly and are called for their side effect of emitting a
 #' message, as does `reset_logging()` for its side effect. Helpers
 #' `as_log_level()` and `get_log_level()` return a scalar-valued ordered
@@ -313,32 +327,59 @@ make_otel_logger <- function() {
 # where it has set up an exporter, and the console's otherwise.
 resolve_logger <- function() {
 
-  fun <- blockr_option("logger", NULL)
+  name <- blockr_option("logger", NULL)
 
-  if (is.null(fun)) {
+  if (is.null(name)) {
     return(if (is.null(get_otel_logger())) cat_logger else otel_logger)
   }
 
-  if (!is.function(fun)) {
-    fun <- get(fun, mode = "function")
+  if (!is_string(name) || !name %in% c("console", "otel", "condition")) {
+    blockr_abort(
+      "The blockr option `logger` names a logger: \"console\", \"otel\" or ",
+      "\"condition\".",
+      class = "logger_invalid"
+    )
   }
 
-  if (identical(fun, otel_logger) && is.null(get_otel_logger())) {
+  if (identical(name, "otel") && is.null(get_otel_logger())) {
     blockr_abort(
-      "The blockr option `logger` names `otel_logger()`, but OpenTelemetry ",
-      "has set up no exporter of logs. The environment variable ",
-      "`OTEL_LOGS_EXPORTER` sets one up, such as `otlp`, where otelsdk is ",
-      "installed.",
+      "The blockr option `logger` is \"otel\", but OpenTelemetry has set up ",
+      "no exporter of logs. The environment variable `OTEL_LOGS_EXPORTER` ",
+      "sets one up, such as `otlp`, where otelsdk is installed.",
       class = "otel_logger_unavailable"
     )
   }
 
-  fun
+  switch(
+    name,
+    console = cat_logger,
+    otel = otel_logger,
+    condition = cnd_logger
+  )
 }
 
-#' @param msg Message (string)
-#' @rdname write_log
-#' @export
+# Stops where the blockr option `logger` is "otel" and the blockr option
+# `otel_client_endpoint` names no collector, to which the client would send
+# its log records, so that `serve()` stops before a page starts.
+check_client_logger <- function() {
+
+  name <- blockr_option("logger", NULL)
+  endpoint <- blockr_option("otel_client_endpoint", NULL)
+
+  if (identical(name, "otel") && is.null(endpoint)) {
+    blockr_abort(
+      "The blockr option `logger` is \"otel\", but the blockr option ",
+      "`otel_client_endpoint` names no collector that the client sends its ",
+      "log records to.",
+      class = "otel_client_endpoint_missing"
+    )
+  }
+
+  invisible()
+}
+
+# The logger of `"condition"`, which signals an error or a warning as a
+# warning, and any other line as a message.
 cnd_logger <- function(msg, level, pkg, asis, attributes) {
 
   line <- format_log_line(msg, level, pkg, asis)
@@ -356,8 +397,8 @@ cnd_logger <- function(msg, level, pkg, asis, attributes) {
   invisible()
 }
 
-#' @rdname write_log
-#' @export
+# The logger of `"console"`, which writes an error to standard error and any
+# other line to standard output.
 cat_logger <- function(msg, level, pkg, asis, attributes) {
 
   line <- format_log_line(msg, level, pkg, asis)
@@ -377,8 +418,8 @@ cat_logger <- function(msg, level, pkg, asis, attributes) {
   invisible()
 }
 
-#' @rdname write_log
-#' @export
+# The logger of `"otel"`, which writes each line as a record through
+# `otel::log()`.
 otel_logger <- function(msg, level, pkg, asis, attributes) {
 
   otel::log(

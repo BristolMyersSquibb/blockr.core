@@ -17,9 +17,6 @@
 \alias{trace_log_level}
 \alias{get_log_level}
 \alias{reset_logging}
-\alias{cnd_logger}
-\alias{cat_logger}
-\alias{otel_logger}
 \title{Logging}
 \usage{
 write_log(
@@ -61,12 +58,6 @@ trace_log_level
 get_log_level()
 
 reset_logging()
-
-cnd_logger(msg, level, pkg, asis, attributes)
-
-cat_logger(msg, level, pkg, asis, attributes)
-
-otel_logger(msg, level, pkg, asis, attributes)
 }
 \arguments{
 \item{...}{Concatenated as \code{paste0(..., "\\n")}}
@@ -83,13 +74,10 @@ otel_logger(msg, level, pkg, asis, attributes)
 \item{pkg}{Package name}
 
 \item{attributes}{Attributes of the line's record, as a named list, such as
-\code{blockr.block.id}, which only \code{otel_logger()} writes}
-
-\item{msg}{Message (string)}
+\code{blockr.block.id}, which only OpenTelemetry's logger writes}
 }
 \value{
-Logging function \code{write_log()}, wrappers \verb{log_*()} and loggers
-provided as \code{cnd_logger()}, \code{cat_logger()} and \code{otel_logger()} all return
+Logging function \code{write_log()} and wrappers \verb{log_*()} all return
 \code{NULL} invisibly and are called for their side effect of emitting a
 message, as does \code{reset_logging()} for its side effect. Helpers
 \code{as_log_level()} and \code{get_log_level()} return a scalar-valued ordered
@@ -105,30 +93,46 @@ set value (available as \code{get_log_level()}) and output is only generated if
 the message level is greater or equal to the currently set value.
 }
 \details{
-The blockr option \code{logger} picks the logger, the function that writes each
-line out.
-Where it names none, core picks \code{otel_logger()} where OpenTelemetry has set
-up an exporter of logs, as the environment variable \code{OTEL_LOGS_EXPORTER}
-does, and \code{cat_logger()} otherwise.
-Where it names \code{otel_logger()} and OpenTelemetry has set up no exporter,
-writing a line fails.
-The function \code{write_log()} calls the logger with the message as written,
-its level, its package, \code{asis} and \code{attributes}.
-Both \code{cat_logger()} and \code{cnd_logger()} put the level, the time and the
+The blockr option \code{logger} names the logger, what writes each line out,
+by a string that core's client reads as well:
+\itemize{
+\item With \code{"console"}, R writes an error to standard error and any other line
+to standard output.
+The client writes each line to the browser's console.
+\item With \code{"otel"}, R writes each line as a record through \code{\link[otel:log]{otel::log()}},
+with its level as the record's severity.
+The record's attributes are the package, as \code{blockr.package.name},
+and \code{attributes}.
+The client sends its lines as records to the OpenTelemetry collector
+whose URL the blockr option \code{otel_client_endpoint} gives,
+at its path \code{v1/logs},
+as an SDK sends to \code{OTEL_EXPORTER_OTLP_ENDPOINT}.
+Every user's browser must reach that URL.
+\item With \code{"condition"}, R signals an error or a warning as a warning and any
+other line as a message, which a test catches as such.
+The client writes to the browser's console,
+since the browser has no conditions.
+}
+
+For \code{"console"} and \code{"condition"}, R puts the level, the time and the
 package in front of the message, as the blockr options \code{log_time} and
 \code{log_mem} set.
-They wrap the message to the console's width unless \code{asis} is \code{TRUE}.
-Then \code{cat_logger()} writes an error to standard error and any other line to
-standard output.
-The other, \code{cnd_logger()}, signals an error or a warning as a warning and
-any other line as a message.
-The logger \code{otel_logger()} writes each line as a record through
-\code{\link[otel:log]{otel::log()}}, with its level as the record's severity.
-The record's attributes are the package, as \code{blockr.package.name}, and
-\code{attributes}.
+It wraps the message to the console's width unless \code{asis} is \code{TRUE}.
+Where \code{logger} is not set, R writes through OpenTelemetry where it has set
+up an exporter of logs, as the environment variable \code{OTEL_LOGS_EXPORTER}
+does, and to the console otherwise.
+The client then sends its records to the collector where
+\code{otel_client_endpoint} names one, and writes to the console otherwise.
+Where \code{logger} is \code{"otel"} and OpenTelemetry has set up no exporter,
+writing a line fails.
+Where it is \code{"otel"} and \code{otel_client_endpoint} names no collector,
+\code{\link[=serve]{serve()}} stops before the app's first session.
+Any other value of \code{logger} is an error, a function among them.
 Only the level that \code{get_log_level()} returns drops a line: OpenTelemetry's
 own level, as the environment variable \code{OTEL_LOG_LEVEL} sets it, drops none
 of these records.
+The client reads the blockr option \code{log_level} as well, and drops a line
+below it in the browser.
 Every logger stops with an error at the level "fatal".
 
 Core works out the logger, the level and the blockr options \code{log_time} and

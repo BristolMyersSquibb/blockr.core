@@ -3,7 +3,8 @@
 // them as `@blockr/core`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#packaging):
 // the hosts that core gives the modules it mounts, `CoreApi`, the module of a
-// plugin, and the types of the board, of its updates and of core's outputs.
+// plugin, the log that each writes its lines through, and the types of the
+// board, of its updates and of core's outputs.
 // A plugin class defines itself as a `PluginClass`, and types the state of its
 // plugins itself, with `type` rather than `interface`, as
 // `type DockState = { views: ... }`, since only such a type is assignable to
@@ -29,6 +30,7 @@ export type {
   StackId,
 } from "./types/board.ts";
 export type { ArgSpec, RegistryEntry } from "./types/registry.ts";
+export type { Log, LogLevel, LogLine } from "./types/log.ts";
 export type {
   BlockOutput,
   OutputFixture,
@@ -72,6 +74,7 @@ export type {
   RRequest,
   RSource,
   Severity,
+  SourceModule,
 } from "./types/core-api.ts";
 export type {
   Change,
