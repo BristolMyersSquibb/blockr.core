@@ -496,6 +496,7 @@
   A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
   The card of a block that `serve()` serves alone shows every notification of the board.
   A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
+  In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
   Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it.
   The Edit board plugin raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses (#539).
 
