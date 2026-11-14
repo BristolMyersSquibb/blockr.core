@@ -31,7 +31,8 @@ import type { Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { coreNotification, errorMessage, jsonEqual, own, report, sourceModule } from "../util/index.ts";
+import { createLog, log } from "../log/index.ts";
+import { asError, coreNotification, errorMessage, isPackageName, jsonEqual, own, sourceModule } from "../util/index.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
 import type { Holder } from "./notifications.ts";
 import { runPlugins } from "./plugins.ts";
@@ -123,7 +124,7 @@ export function createCore(parts: CoreParts): Core {
         try {
           fn(event);
         } catch (error) {
-          report(error);
+          log.error(asError(error));
         }
       }
     },
@@ -168,6 +169,14 @@ export function createCore(parts: CoreParts): Core {
     lock: parts.lock,
     outputEvents,
     notifications: notifications.api,
+    log(pkg) {
+      // A plugin in plain JS may give something else, which the types refuse.
+      const given: unknown = pkg;
+      if (!isPackageName(given)) {
+        throw new TypeError(`A log names the package whose lines it writes, as core.log("blockr.dock"), not ${JSON.stringify(given)}.`);
+      }
+      return createLog(given);
+    },
     focus: createFocus(store, parts.signal),
     request: <T = Json>(plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
       pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name, args, opts) as Promise<T | Blob>,
@@ -220,7 +229,7 @@ export function createCore(parts: CoreParts): Core {
     try {
       def.onChange(value, api, notify);
     } catch (error) {
-      report(error);
+      log.error(asError(error));
       failure = raise(
         coreNotification("on_change_failed", "error", `The onChange of the board option "${id}" failed: ${errorMessage(error)}`, {
           module,

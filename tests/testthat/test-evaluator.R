@@ -1185,16 +1185,17 @@ test_that("R replies error where answering a request fails in R", {
     answer_request = function(ev, job) stop("R failed.")
   )
 
-  withr::local_options(
-    blockr.logger = cnd_logger,
-    blockr.log_level = "error",
-    width = 500L
-  )
-  local_reset_logging()
-
   session$receive(list(list(id = "2", kind = "blockr_options", names = "a")))
+  session$run()
 
-  expect_warning(session$run(), "R failed to answer request 2: R failed.")
+  failed <- logged_like(session, "R failed to answer request 2")
+
+  expect_identical(chr_xtr(failed, "level"), "error")
+  expect_match(
+    chr_xtr(failed, "message"),
+    "R failed to answer request 2: R failed.",
+    fixed = TRUE
+  )
 
   reply <- last_reply(session)
 
@@ -1217,7 +1218,7 @@ test_that("R replies error where it cannot send a reply", {
   }
 
   withr::local_options(
-    blockr.logger = cnd_logger,
+    blockr.logger = "condition",
     blockr.log_level = "error",
     width = 500L
   )
@@ -1246,13 +1247,6 @@ test_that("R replies error in place of a reply too large to send", {
   session <- local_evaluator()
   hold_result(session, "a", 1L)
 
-  withr::local_options(
-    blockr.logger = cnd_logger,
-    blockr.log_level = "warn",
-    width = 500L
-  )
-  local_reset_logging()
-
   session$send <- function(message) {
     if (identical(message[[1L]][["status"]], "ok")) {
       blockr_abort(
@@ -1264,8 +1258,12 @@ test_that("R replies error in place of a reply too large to send", {
   }
 
   session$receive(list(evaluate_request("21", "a", 2L, sample_recipe("a"))))
+  session$run()
 
-  expect_warning(session$run(), "R failed to send its reply to 21")
+  expect_identical(
+    chr_xtr(logged_like(session, "R failed to send its reply to 21"), "level"),
+    "warn"
+  )
 
   reply <- last_reply(session)
 
@@ -1290,8 +1288,9 @@ test_that("R replies error in place of a reply too large to send", {
   local_reset_logging()
 
   session$receive(list(evaluate_request("22", "a", 3L, sample_recipe("a"))))
+  session$run()
 
-  expect_no_warning(session$run())
+  expect_length(logged_like(session, "R failed to send its reply to 22"), 0L)
   expect_identical(last_reply(session)$status, "error")
 })
 

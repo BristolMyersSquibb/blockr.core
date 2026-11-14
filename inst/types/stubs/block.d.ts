@@ -3,6 +3,7 @@ import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
 import type { Raised } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
+import type { LogLine } from "../types/log.ts";
 export interface BlockFixture {
     readonly states: readonly State[];
     readonly requests: readonly {
@@ -29,6 +30,7 @@ export interface StubBlockHost<S extends State = State> extends BlockHost<S> {
     }[];
     readonly evaluated: readonly Record<string, Json>[];
     readonly notified: readonly Raised[];
+    readonly logged: readonly LogLine[];
     setState(state: S): void;
     setContext(context: Partial<BlockContext>): void;
 }

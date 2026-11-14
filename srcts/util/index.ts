@@ -17,7 +17,6 @@ export {
   packageFromId,
   pathText,
   quoted,
-  report,
   setAt,
   without,
 } from "./util.ts";

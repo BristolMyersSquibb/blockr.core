@@ -10,7 +10,7 @@
 // 3. It keeps the module's `migrate` for the page, since a module loads once
 //    per page, and the store calls it as it opens the board.
 // A module that fails to load, that declares another major of core's JS API,
-// or whose `migrate` is no function gives no migration, which core reports,
+// or whose `migrate` is no function gives no migration, which core logs,
 // so the store keeps the state that the board holds, as for a class without
 // one.
 
@@ -19,7 +19,8 @@ import type { Loader } from "../mount/index.ts";
 import type { Migration } from "../store/index.ts";
 import type { RegistryId } from "../types/board.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { isObject, own, packageFromId, report } from "../util/index.ts";
+import { log } from "../log/index.ts";
+import { asError, isObject, own, packageFromId } from "../util/index.ts";
 
 export interface Migrations {
   // The migration of the class with the registry id, which the store reads as
@@ -43,7 +44,7 @@ export function createMigrations(loader: Loader): Migrations {
     try {
       migration = migrationOf(await loader.load({ module }, pkg), module, pkg);
     } catch (error) {
-      report(error);
+      log.error(asError(error));
     }
     known.set(registryId, { module, migration });
   }

@@ -14,13 +14,15 @@ import { coreOptions } from "../options/index.ts";
 import type { Option, PluginClass, Storage } from "../store/index.ts";
 import { codeOf, held } from "../testing/notifications.ts";
 import { classModule, optionModule } from "../testing/plugins.ts";
-import { reports } from "../testing/reports.ts";
+import { consoleLogger, createLog, currentLogging, resetLogging, setTestLoggersAside } from "../log/index.ts";
+import { logged } from "../testing/logged.ts";
 import { hello, optionUrl, pluginUrl, reply, withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
 import { startPage } from "../page/index.ts";
 import type { JsonBoard, PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Notification, PluginModule } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
+import type { LogLine } from "../types/log.ts";
 import { own } from "../util/index.ts";
 import { pageFrontEnds, start } from "./index.ts";
 import type { StartOptions } from "./index.ts";
@@ -269,7 +271,7 @@ afterEach(() => {
 });
 
 describe("starting the page", () => {
-  test("asks for the blockr options the scheduler reads and rand_id in one request, as soon as R answers hello", async () => {
+  test("asks for the blockr options the scheduler reads, rand_id and those of the page's logger in one request, as soon as R answers hello", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
@@ -277,7 +279,15 @@ describe("starting the page", () => {
 
     expect(s.r.kinds()).toEqual(["hello", "blockr_options"]);
     expect(s.r.sent[1]).toMatchObject({
-      names: ["evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id"],
+      names: [
+        "evaluation_queue",
+        "background_evaluation_delay",
+        "gate_visibility",
+        "rand_id",
+        "log_level",
+        "logger",
+        "otel_client_endpoint",
+      ],
     });
 
     s.r.options({ evaluation_queue: 0 });
@@ -344,7 +354,7 @@ describe("starting the page", () => {
 
     await expect(s.started.ready).rejects.toThrow("Conflicting options set for evaluation_queue");
     expect(failed).toEqual([
-      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility" and "rand_id": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
+      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id", "log_level", "logger" and "otel_client_endpoint": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
     ]);
     expect(s.r.kinds()).toEqual(["hello", "blockr_options"]);
   });
@@ -366,6 +376,105 @@ describe("starting the page", () => {
 
     await expect(s.started.ready).rejects.toThrow('The blockr option rand_id is "counter"');
     expect(failed).toHaveLength(1);
+  });
+
+  test("sets the page's logger up from the blockr options, which then writes the lines that core held, naming the session", async () => {
+    const back = setTestLoggersAside();
+    try {
+      const basic = frontEnd();
+      const lines: LogLine[] = [];
+      const urls: string[] = [];
+      const s = setup(
+        { [BASIC]: basic.exports },
+        {
+          otel: () =>
+            Promise.resolve({
+              otelLogger({ url, sessionId }) {
+                urls.push(url);
+                return (line) => {
+                  lines.push({ ...line, attributes: { ...line.attributes, session: sessionId() ?? null } });
+                };
+              },
+            }),
+        },
+      );
+      Object.assign(s.r.transport, { sessionId: () => "token-1" });
+      createLog("blockr.test").warn("Before R answered.");
+      s.r.session();
+      await tick();
+      s.r.options({ log_level: "debug", logger: "otel", otel_client_endpoint: "https://connect.example.com/otlp/" });
+      await s.started.ready;
+      createLog("blockr.test").debug("Once the board is open.");
+      createLog("blockr.test").trace("Below the level.");
+
+      expect(urls).toEqual(["https://connect.example.com/otlp/v1/logs"]);
+      expect(currentLogging()?.lowest).toBe("debug");
+      expect(lines.filter((line) => line.package === "blockr.test").map((line) => [line.level, line.message, line.attributes.session])).toEqual([
+        ["warn", "Before R answered.", "token-1"],
+        ["debug", "Once the board is open.", "token-1"],
+      ]);
+    } finally {
+      back();
+    }
+  });
+
+  test("writes to the console, and logs why, where it is given no OpenTelemetry module to send to a collector with", async () => {
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports });
+    s.r.session();
+    await tick();
+    const reported = logged();
+    s.r.options({ otel_client_endpoint: "https://connect.example.com/otlp/" });
+    await s.started.ready;
+    await tick();
+    reported.restore();
+
+    expect(currentLogging()).toEqual({ lowest: "info", logger: consoleLogger });
+    expect(reported.errors().map((line) => line.message)).toEqual([
+      "Core could not set up its OpenTelemetry logger, so the page writes its log lines to the console: Core was given no OpenTelemetry module to send log records with.",
+    ]);
+  });
+
+  test("does not start where a blockr option of the page's logger takes no such value, and has the console write why", async () => {
+    for (const [values, why] of [
+      [{ log_level: "verbose" }, 'The blockr option log_level is "verbose", where it takes'],
+      [{ logger: "otel" }, 'The blockr option logger is "otel", but the blockr option otel_client_endpoint names no collector'],
+      [{ otel_client_endpoint: "ftp://example.com" }, 'The blockr option otel_client_endpoint is "ftp://example.com"'],
+    ] as const) {
+      resetLogging();
+      const basic = frontEnd();
+      const failed: string[] = [];
+      const s = setup(
+        { [BASIC]: basic.exports },
+        {
+          fail(error) {
+            failed.push(error.message);
+          },
+        },
+      );
+      s.r.session();
+      await tick();
+      s.r.options(values);
+
+      await expect(s.started.ready).rejects.toThrow(why);
+      expect(failed).toHaveLength(1);
+      expect(currentLogging()).toEqual({ lowest: "info", logger: consoleLogger });
+    }
+  });
+
+  test("logs why it does not start where it is given nothing that shows why", async () => {
+    const basic = frontEnd();
+    const s = setup({ [BASIC]: basic.exports });
+    s.r.session();
+    await tick();
+    const reported = logged();
+    s.r.options({ log_level: "verbose" });
+
+    await expect(s.started.ready).rejects.toThrow("The blockr option log_level is");
+    reported.restore();
+    expect(reported.errors().map((line) => line.message)).toEqual([
+      'The blockr option log_level is "verbose", where it takes "fatal", "error", "warn", "info", "debug" or "trace".',
+    ]);
   });
 
   test("has core's commands mint ids in the shape that the blockr option rand_id names", async () => {
@@ -510,7 +619,7 @@ describe("starting the page", () => {
   ])("keeps the board R sent where %s, naming why in a notification that concerns the storage plugin's package", async (_, load, message) => {
     const storage = session(load);
     const s = setup({ [BASIC]: frontEnd().exports, [pluginUrl(SESSION)]: storage.exports });
-    const reported = reports();
+    const reported = logged();
     s.r.session(withSession());
     await tick();
     s.r.options();
@@ -519,7 +628,7 @@ describe("starting the page", () => {
 
     expect(core.store.board().name).toBe("Iris review");
     expect(storage.loads).toHaveLength(1);
-    const messages = reported.errors().map((error) => (error as Error).message);
+    const messages = reported.errors().map((line) => line.message);
     const named = core.notifications.get().filter((n) => codeOf(n) === "board_open_failed");
     if (message === undefined) {
       expect(messages).toEqual([]);
@@ -540,7 +649,7 @@ describe("starting the page", () => {
   test("keeps the board R sent where the board that load() names fails to open, naming why in a notification", async () => {
     const storage = session(() => Promise.resolve(JSON.stringify({ format: 1 })));
     const s = setup({ [BASIC]: frontEnd().exports, [pluginUrl(SESSION)]: storage.exports });
-    const reported = reports();
+    const reported = logged();
     s.r.session(withSession());
     await tick();
     s.r.options();
@@ -590,7 +699,7 @@ describe("starting the page", () => {
       [optionUrl("zoom")]: optionModule(zoom),
       [optionUrl("gap")]: { api: 1 },
     });
-    const reported = reports();
+    const reported = logged();
     s.r.session(reply);
     await tick();
     s.r.options();
@@ -600,7 +709,7 @@ describe("starting the page", () => {
     expect(core.store.hasBoard()).toBe(true);
     expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC_FRONTEND, FILE_STORAGE, EDIT_BOARD, "blockr.good-good_plugin"]);
     expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode", "zoom"]);
-    expect(reported.errors().map((error) => (error as Error).message).sort()).toEqual([
+    expect(reported.errors().map((line) => line.message).sort()).toEqual([
       "The module blockr.missing/blockr.missing-missing_plugin.js of blockr.missing failed to load: Failed to fetch dynamically imported module: blockr.missing/blockr.missing-missing_plugin.js",
       "The module blockr.test/gap.js of blockr.test has no default export, an object.",
       'The plugin class "blockr.bad-bad_plugin" has a start that is no function.',
@@ -669,7 +778,7 @@ describe("starting the page", () => {
     const r = playedR();
     const el = document.createElement("div");
     const basic = frontEnd();
-    const reported = reports();
+    const reported = logged();
     const started = startPage({
       el,
       transport: r.transport,
@@ -719,6 +828,18 @@ describe("a board opened later", () => {
     s.r.answer(reply);
     return opening;
   }
+
+  test("keeps the page's logger, which core set up as the first board opened", async () => {
+    const basic = frontEnd();
+    const s = await started({ [BASIC]: basic.exports });
+    const before = currentLogging();
+    expect(before).toEqual({ lowest: "info", logger: consoleLogger });
+
+    await reopen(s, s.core, named("Later"));
+
+    expect(s.started.core()?.store.board().name).toBe("Later");
+    expect(currentLogging()).toBe(before);
+  });
 
   test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason", async () => {
     const basic = frontEnd();
@@ -937,7 +1058,7 @@ describe("a board opened later", () => {
       board: { ...hello.board.board, plugins: { "blockr.strict-zoom_plugin": { zoom: "big" } } },
     });
 
-    const reported = reports();
+    const reported = logged();
     const opening = reopen(s, s.core, board, rebuilt);
     await expect(opening).rejects.toThrow('The state of the plugin "blockr.strict-zoom_plugin"');
     reported.restore();
@@ -1101,7 +1222,7 @@ describe("board options", () => {
         if (failing) throw new Error(`No zoom of ${JSON.stringify(value)}.`);
       },
     };
-    const reported = reports();
+    const reported = logged();
     const s = await started(zoom);
     const changes = (): readonly unknown[] =>
       s.core.notifications
@@ -1118,7 +1239,7 @@ describe("board options", () => {
     s.core.store.apply({ options: { set: { zoom: 3 } } });
     expect(changes()).toEqual([]);
     reported.restore();
-    expect(reported.errors().map(String)).toEqual(["Error: No zoom of 1.", "Error: No zoom of 2."]);
+    expect(reported.errors().map((line) => line.message)).toEqual(["No zoom of 1.", "No zoom of 2."]);
   });
 
   test("give their values as the board holds them through value()", async () => {
@@ -1284,7 +1405,7 @@ describe("the frontend and the plugins", () => {
 
   test("shows why in the page's element in place of the board where the app runs no frontend", async () => {
     const basic = frontEnd();
-    const reported = reports();
+    const reported = logged();
     const s = await started({ [BASIC]: basic.exports }, withoutPlugins(hello, BASIC_FRONTEND));
     reported.restore();
 
@@ -1292,12 +1413,12 @@ describe("the frontend and the plugins", () => {
     expect(basic.renders).toHaveLength(0);
     expect(s.el.firstElementChild?.getAttribute("role")).toBe("alert");
     expect(s.el.textContent).toBe(why);
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual([why]);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(s.core.store.board().name).toBe("Iris review");
 
     // So it does where the module of the class of the app's frontend fails to
     // load.
-    const again = reports();
+    const again = logged();
     const t = await started(listed([]), replied({ [GRID]: { name: "Grid" } }, undefined, [BASIC_FRONTEND]));
     again.restore();
     expect(t.el.textContent).toBe(
@@ -1308,7 +1429,7 @@ describe("the frontend and the plugins", () => {
   test("shows why in the page's element in place of the frontend where a board option that it requires does not go onto the board", async () => {
     const front = frontEnd();
     const frontend: PluginClass = { id: GRID, frontend: front.frontend, options: ["zoom", "nowhere"] };
-    const reported = reports();
+    const reported = logged();
     const s = await started(listed([frontend]), replied({ [GRID]: { name: "Grid" } }, {}, [BASIC_FRONTEND]));
     reported.restore();
 
@@ -1316,12 +1437,12 @@ describe("the frontend and the plugins", () => {
     expect(front.renders).toHaveLength(0);
     expect(s.el.firstElementChild?.getAttribute("role")).toBe("alert");
     expect(s.el.textContent).toBe(why);
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual([why]);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
 
     // So it does for core's basic frontend, where no package lists a board
     // option that it requires.
     const basic = frontEnd();
-    const again = reports();
+    const again = logged();
     const lacking = Object.fromEntries(Object.entries(hello.options).filter(([id]) => id !== "show_conditions"));
     const t = await started(
       { [BASIC]: basic.exports },
@@ -1414,7 +1535,7 @@ describe("the frontend and the plugins", () => {
         },
       },
     ];
-    const reported = reports();
+    const reported = logged();
     const s = await started(
       { ...listed(classes), [BASIC]: frontEnd().exports },
       replied({ ...plugin("needy"), ...plugin("broken"), ...plugin("fine") }),
@@ -1423,7 +1544,7 @@ describe("the frontend and the plugins", () => {
 
     expect(events).toEqual(["fine starts with zoom at 1"]);
     expect(s.core.store.board().options.zoom).toBe(1);
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual([
+    expect(reported.errors().map((line) => line.message)).toEqual([
       'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
       'The plugin "blockr.test-needy_plugin" does not start, since board options that its class requires did not go onto the board.',
       'The start of the plugin class "blockr.test-broken_plugin" failed: boom',

@@ -6,7 +6,12 @@
 //   <name>.js on its own, by the build preset of ./preset.ts.
 // - Core's React SDK, srcts/react, its binding, srcts/binding, and its
 //   controls, srcts/controls, are bundled into files of their own,
-//   blockr-core-react.js, blockr-core-binding.js and blockr-core-controls.js.
+//   blockr-core-react.js, blockr-core-binding.js and blockr-core-controls.js,
+//   and so is its OpenTelemetry module, srcts/otel, into blockr-core-otel.js.
+// - The parts of OpenTelemetry's SDK that the OpenTelemetry module uses, which
+//   srcts/otel/sdk.ts names, are bundled, minified, into a file of their own,
+//   opentelemetry-<hash>.js, which the module imports by that name, so that
+//   blockr-core-otel.js holds core's own code alone.
 // - React's entry points, such as `react` and `react-dom/client`, are written
 //   as ES modules of their own, such as react.js and react-dom-client.js,
 //   which read one minified bundle of React, react-<hash>.js.
@@ -14,6 +19,8 @@
 //   their imports of React and of each other imports, which the page that R
 //   serves resolves through its import map, as inst/js/import-map.json lays
 //   it out. So the page runs one copy of each, and so do a package's modules.
+//   The runtime leaves its import of the OpenTelemetry module an import as
+//   well, so that a page loads the module only where it imports it.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
@@ -121,20 +128,19 @@ function reactNames(): Record<string, string[]> {
   return JSON.parse(out) as Record<string, string[]>;
 }
 
-// Writes React's entry points into `out` as ES modules of their own, each
-// exporting the names that the entry point exports, from one minified bundle of
-// React and ReactDOM, so that all of them read one React.
-// The bundle keeps React's license comments, and its name holds a hash of its
-// content, as react-3f2a9c1d.js, so that no browser runs an old React from its
-// cache, since the entry points import it by that name.
-async function reactModules(out: string): Promise<string[]> {
+// Bundles code that core ships from other projects, minified and with its
+// license comments, into one file in `out`, which it resolves from core's
+// repo, and returns the file's name. The name holds a hash of the content, as
+// react-3f2a9c1d.js, so that no browser runs an old copy from its cache, since
+// what imports the file imports it by that name.
+async function vendored(
+  out: string,
+  name: string,
+  input: Pick<esbuild.BuildOptions, "stdin" | "entryPoints" | "nodePaths">,
+): Promise<string> {
   const result = await esbuild.build({
     absWorkingDir: repo,
-    stdin: {
-      contents: REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`).join("\n"),
-      resolveDir: repo,
-      loader: "js",
-    },
+    ...input,
     bundle: true,
     write: false,
     format: "esm",
@@ -150,8 +156,22 @@ async function reactModules(out: string): Promise<string[]> {
   }
 
   const text = result.outputFiles[0]?.text ?? "";
-  const bundle = `react-${createHash("sha256").update(text).digest("hex").slice(0, 8)}.js`;
-  await writeFile(join(out, bundle), text);
+  const file = `${name}-${createHash("sha256").update(text).digest("hex").slice(0, 8)}.js`;
+  await writeFile(join(out, file), text);
+  return file;
+}
+
+// Writes React's entry points into `out` as ES modules of their own, each
+// exporting the names that the entry point exports, from one minified bundle of
+// React and ReactDOM, so that all of them read one React.
+async function reactModules(out: string): Promise<string[]> {
+  const bundle = await vendored(out, "react", {
+    stdin: {
+      contents: REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`).join("\n"),
+      resolveDir: repo,
+      loader: "js",
+    },
+  });
 
   const names = reactNames();
   const written = [bundle];
@@ -174,11 +194,13 @@ async function reactModules(out: string): Promise<string[]> {
 }
 
 // Core's libraries for modules, each by its name in the import map and the
-// directory of its source in srcts.
+// directory of its source in srcts, and its OpenTelemetry module, which the
+// runtime imports by its name too.
 const LIBRARIES = [
   ["@blockr/core/react", "react"],
   ["@blockr/core/binding", "binding"],
   ["@blockr/core/controls", "controls"],
+  ["@blockr/core/otel", "otel"],
 ] as const;
 
 // Maps the imports in core's sources of core's React SDK, its binding and its
@@ -203,6 +225,29 @@ function sourceImports(src: string, own?: Import): esbuild.Plugin {
   };
 }
 
+// Bundles the parts of OpenTelemetry's SDK that srcts/otel/sdk.ts names into
+// one file in `out`, as opentelemetry-3f2a9c1d.js, as it bundles React, and
+// returns its name, or writes nothing where srcts holds no such file.
+async function otelSdk(src: string, out: string): Promise<string | undefined> {
+  const entry = join(src, "otel", "sdk.ts");
+  if (!existsSync(entry)) return undefined;
+  return vendored(out, "opentelemetry", { entryPoints: [entry], nodePaths: [join(repo, "node_modules")] });
+}
+
+// Leaves the OpenTelemetry module's import of srcts/otel/sdk.ts an import of
+// the file that otelSdk() wrote, by its name beside the module.
+function vendoredSdk(src: string, file: string): esbuild.Plugin {
+  const sdk = join(src, "otel", "sdk.ts");
+  return {
+    name: "blockr.core-otel-sdk",
+    setup(build) {
+      build.onResolve({ filter: /^\.\.?\// }, (args) =>
+        resolve(args.resolveDir, args.path) === sdk ? { path: `./${file}`, external: true } : undefined,
+      );
+    },
+  };
+}
+
 export async function build(root: string): Promise<string[]> {
   const out = join(root, "inst", "js");
   const src = join(root, "srcts");
@@ -220,6 +265,7 @@ export async function build(root: string): Promise<string[]> {
   } satisfies esbuild.BuildOptions;
   const plugins = (own?: Import) => [sourceImports(src, own), ...preset.plugins];
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
+  const sdk = await otelSdk(src, out);
 
   const results = [
     await esbuild.build({
@@ -240,7 +286,7 @@ export async function build(root: string): Promise<string[]> {
       libraries.map(([name, dir]) =>
         esbuild.build({
           ...options,
-          plugins: plugins(name),
+          plugins: [...(name === "@blockr/core/otel" && sdk !== undefined ? [vendoredSdk(src, sdk)] : []), ...plugins(name)],
           entryPoints: [{ in: join(src, dir, "index.ts"), out: importFile(name).replace(/\.js$/, "") }],
         }),
       ),
@@ -254,15 +300,17 @@ export async function build(root: string): Promise<string[]> {
   const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
   const react = await reactModules(out);
   written.push(...react.map((file) => relative(root, join(out, file))));
+  if (sdk !== undefined) written.push(relative(root, join(out, sdk)));
 
   // The import map that the page R serves holds, as R reads it: each import by
   // the file in inst/js that it resolves to, and the files that those import in
-  // turn, which R serves beside them.
+  // turn, which R serves beside them: React's bundle and OpenTelemetry's.
   const imports = Object.fromEntries(
     IMPORTS.filter((name) => existsSync(join(out, importFile(name)))).map((name) => [name, importFile(name)]),
   );
   const map = join(out, "import-map.json");
-  await writeJson(map, { imports, files: react.filter((file) => !Object.values(imports).includes(file)) });
+  const files = [...react.filter((file) => !Object.values(imports).includes(file)), ...(sdk === undefined ? [] : [sdk])];
+  await writeJson(map, { imports, files });
   written.push(relative(root, map));
 
   for (const entry of [runtime, ...modules]) {

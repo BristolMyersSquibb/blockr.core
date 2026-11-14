@@ -215,10 +215,8 @@ function own(record, key) {
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
-function report(error) {
-  queueMicrotask(() => {
-    throw error;
-  });
+function asError(error) {
+  return error instanceof Error ? error : new Error(String(error));
 }
 function listing(items) {
   if (items.length <= 1) return items.join("");
@@ -1473,11 +1471,11 @@ function buttonsOf(controls) {
     return [];
   });
 }
-async function runButton(button) {
+async function runButton(core, button) {
   try {
     await button.run();
   } catch (error) {
-    report(error);
+    core.log("blockr.core").error(asError(error));
   }
 }
 function distinct(list, twice) {
@@ -1516,7 +1514,7 @@ function bindShortcuts(doc, front) {
     );
     if (button === void 0) return;
     event.preventDefault();
-    if (!event.repeat) void runButton(button);
+    if (!event.repeat) void runButton(core, button);
   }
   doc.addEventListener("keydown", onKey);
   return () => {
@@ -1657,15 +1655,15 @@ function StorageControls() {
     try {
       return storage.subscribe(redraw);
     } catch (error) {
-      report(error);
+      core.log("blockr.core").error(asError(error));
       return void 0;
     }
-  }, [storage]);
+  }, [core, storage]);
   const drawn = drawnControls(core);
   const problem = drawn?.problem;
   useEffect2(() => {
-    if (problem !== void 0) report(new Error(problem));
-  }, [problem]);
+    if (problem !== void 0) core.log("blockr.core").error(problem);
+  }, [core, problem]);
   if (drawn === void 0) return null;
   if (drawn.failed) {
     return /* @__PURE__ */ jsx12("span", { role: "alert", title: problem, className: "bc:font-sans bc:text-sm bc:text-text-danger", children: "Storage failed" });
@@ -1688,6 +1686,7 @@ function StorageButton({
   role,
   before
 }) {
+  const { core } = useFrontEnd();
   return /* @__PURE__ */ jsx12(
     "button",
     {
@@ -1699,7 +1698,7 @@ function StorageButton({
       "aria-keyshortcuts": ariaShortcuts(button.shortcut),
       onClick: () => {
         before?.();
-        void runButton(button);
+        void runButton(core, button);
       },
       children: button.label
     }

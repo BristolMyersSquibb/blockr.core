@@ -31,7 +31,8 @@ import type {
 } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Json } from "../types/json.ts";
-import { asError, isObject, report } from "../util/index.ts";
+import { log } from "../log/index.ts";
+import { asError, isObject } from "../util/index.ts";
 
 // A request of a block class, as it goes to R but for its id, which the
 // protocol's client gives it.
@@ -132,7 +133,7 @@ export function createAnswers(
             try {
               caller.fn(note);
             } catch (error) {
-              report(error);
+              log.error(asError(error));
             }
           }
         },

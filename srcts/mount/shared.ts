@@ -4,7 +4,8 @@
 
 import type { OptionId } from "../types/board.ts";
 import type { Rendered } from "../types/hosts.ts";
-import { isObject, quoted, report } from "../util/index.ts";
+import { log } from "../log/index.ts";
+import { asError, isObject, quoted } from "../util/index.ts";
 import { API, ModuleError } from "./load.ts";
 
 // What a module that core mounts exports as its default: the board options
@@ -64,12 +65,12 @@ export function showError(el: HTMLElement, message: string): void {
   el.replaceChildren(box);
 }
 
-// Runs a cleanup, reporting what it throws.
+// Runs a cleanup, logging what it throws.
 export function attempt(fn: () => void): void {
   try {
     fn();
   } catch (error) {
-    report(error);
+    log.error(asError(error));
   }
 }
 
@@ -84,7 +85,7 @@ export function onAbort(signal: AbortSignal, fn: () => void): () => void {
 // Why core mounts nothing on a board that another has replaced.
 export const REPLACED = "Another board opened, so core mounts nothing more of the board before.";
 
-// Calls each listener with the args given, reporting what one throws, so that
+// Calls each listener with the args given, logging what one throws, so that
 // the others still hear of it.
 export function announceTo<A extends unknown[]>(listeners: Iterable<(...args: A) => void>, ...args: A): void {
   for (const fn of [...listeners]) {

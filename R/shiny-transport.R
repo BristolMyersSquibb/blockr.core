@@ -85,10 +85,11 @@ shiny_transport <- function(handler, session = get_session()) {
   session$allowReconnect(TRUE)
 
   # Starts the session on the client, which then sends its hello, and gives it
-  # the URL that it posts request bodies to and the limits that it keeps to.
+  # the URL that it posts request bodies to, the session's token and the
+  # limits that it keeps to.
   session$sendCustomMessage(
     "blockr",
-    json_str(session_start(body_url, opts), auto_unbox = TRUE)
+    json_str(session_start(body_url, session$token, opts), auto_unbox = TRUE)
   )
 
   shiny::observeEvent(
@@ -113,9 +114,12 @@ shiny_transport <- function(handler, session = get_session()) {
 # sent the body.
 # Where `max_message_size` sets a limit, the message gives it as well,
 # so that the client refuses to send a larger message.
-session_start <- function(body_url, opts = message_opts()) {
+# The message gives Shiny's token of the session too,
+# by which the client's log records name the session as `session.id`,
+# as Shiny's own records do.
+session_start <- function(body_url, token, opts = message_opts()) {
 
-  res <- list(body_url = body_url)
+  res <- list(body_url = body_url, token = token)
   max <- getOption("shiny.maxRequestSize", 5 * 1024^2)
 
   if (is.numeric(max) && max > 0) {

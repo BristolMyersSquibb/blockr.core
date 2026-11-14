@@ -2,9 +2,11 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#starting-the-page):
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
-//    scheduler reads and for rand_id, the shape of the ids that commands mint,
-//    and creates for the board that it opens the store, the notifications of
-//    the board (./notifications.ts) and the command registry.
+//    scheduler reads, for rand_id, the shape of the ids that commands mint,
+//    and for those that set the page's logger up (../log/settings.ts), sets
+//    the logger up, and creates for the board that it opens the store, the
+//    notifications of the board (./notifications.ts) and the command
+//    registry.
 // 3. It imports the module of the class of each of the app's plugins and of
 //    each board option that R's reply names, each once per page, and
 //    registers the default export of each under the id that the reply gives
@@ -104,7 +106,9 @@ import type { Dropped, Option, PluginClass, Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Notification } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { asError, coreNotification, errorMessage, isObject, own, packageFromId, quoted, report, sourceModule } from "../util/index.ts";
+import { fallBack, log, logSettings, setUpLogging } from "../log/index.ts";
+import type { OtelModule } from "../log/index.ts";
+import { asError, coreNotification, errorMessage, isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Concerns, Raise } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
@@ -170,9 +174,15 @@ export interface StartOptions {
   // Shows why core cannot start, or why it stopped, as where R speaks another
   // major of the protocol in the first session or a later one, or cannot give
   // a blockr option that core reads as it starts, or gives one that the
-  // scheduler or the command registry does not take, or why no board is open
-  // once another failed to open.
+  // scheduler, the command registry or the page's logger does not take, or
+  // why no board is open once another failed to open. Core logs why where it
+  // is not given.
   readonly fail?: (error: Error) => void;
+  // Imports core's OpenTelemetry module, as the page does, where the blockr
+  // options have the page send its log records to a collector
+  // (../log/settings.ts). Where it is not given, core writes to the console,
+  // and logs that it has no such module.
+  readonly otel?: () => Promise<OtelModule>;
 }
 
 export interface Started {
@@ -206,9 +216,17 @@ interface Later {
 export function start(options: StartOptions): Started {
   const page = new AbortController();
   const alone = options.alone === true;
-  const fail = options.fail ?? ((error: Error) => {
-    report(error);
-  });
+  // Says why core cannot start or stopped, and has the console write the log
+  // lines that core holds where it has not set the page's logger up yet, as
+  // where it fails before R gives the blockr options that set it up.
+  const fail = (error: Error): void => {
+    fallBack();
+    if (options.fail === undefined) log.error(error);
+    else options.fail(error);
+  };
+  // Whether core has set the page's logger up, which it does once, as the
+  // first board opens.
+  let logging = false;
 
   // The first reply to hello, whose locks hold for the page. And the latest
   // reply that names no package at another version than the page loaded,
@@ -270,7 +288,7 @@ export function start(options: StartOptions): Started {
         restarting = undefined;
         waiting.reject(error);
       } else {
-        report(error);
+        log.error(error);
       }
       return;
     }
@@ -376,17 +394,28 @@ export function start(options: StartOptions): Started {
       { once: true },
     );
 
-    // The blockr options that the scheduler reads, and rand_id, the shape of
-    // the ids that commands mint, asked at once, in one request, before the
-    // scheduler starts and the commands run, and kept for the page.
+    // The blockr options that the scheduler reads, rand_id, the shape of the
+    // ids that commands mint, and those that set the page's logger up, asked
+    // at once, in one request, before the scheduler starts and the commands
+    // run, and kept for the page.
     // Each goes as R sent it to the scheduler or the command registry, which
     // converts and checks it, and takes its fallback where nothing sets it.
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId] = await Promise.all([
+    // As the first board opens, core sets the page's logger up with the other
+    // three (../log/settings.ts), which hands it the lines that core held.
+    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel, logger, otelClientEndpoint] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
       blockrOptions.read("background_evaluation_delay"),
       blockrOptions.read("gate_visibility"),
       blockrOptions.read("rand_id"),
+      blockrOptions.read("log_level"),
+      blockrOptions.read("logger"),
+      blockrOptions.read("otel_client_endpoint"),
     ]);
+    if (!logging) {
+      const settings = logSettings({ logLevel, logger, otelClientEndpoint }, typeof document === "undefined" ? undefined : document.baseURI);
+      logging = true;
+      setUpLogging(settings, () => options.transport.sessionId?.(), options.otel ?? noOtel);
+    }
 
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
     // The notifications of the board, made before core imports the modules
@@ -443,7 +472,7 @@ export function start(options: StartOptions): Started {
         try {
           dropped = await store.open(instead.text);
         } catch (error) {
-          report(error);
+          log.error(asError(error));
           raise(
             coreNotification(
               "board_open_failed",
@@ -465,7 +494,7 @@ export function start(options: StartOptions): Started {
         try {
           await store.open(later.before);
         } catch (again) {
-          report(again);
+          log.error(asError(again));
           throw failure;
         }
         // The opening has ended the code that called open(), which rejects,
@@ -525,7 +554,7 @@ export function start(options: StartOptions): Started {
     raise: Raise,
   ): Promise<void> {
     const failed = (error: unknown, concerns: Concerns): void => {
-      report(error);
+      log.error(asError(error));
       if (!signal.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
     };
     const [defs, opts] = await Promise.all([
@@ -569,7 +598,7 @@ export function start(options: StartOptions): Started {
         try {
           commands.register(command);
         } catch (error) {
-          report(new Error(`A command of the plugin class "${id}" is refused: ${errorMessage(error)}`, { cause: error }));
+          log.error(new Error(`A command of the plugin class "${id}" is refused: ${errorMessage(error)}`, { cause: error }));
         }
       }
     });
@@ -611,7 +640,7 @@ export function start(options: StartOptions): Started {
     const storage = plugin === undefined ? undefined : own(classes, plugin)?.storage;
     if (plugin === undefined || storage?.load === undefined) return undefined;
     const refuse = (error: Error): void => {
-      report(error);
+      log.error(error);
       raise(coreNotification("board_open_failed", "error", error.message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
     };
     let text: unknown;
@@ -771,4 +800,10 @@ function listedDefault(exports: unknown, module: string, pkg: string | null): Re
     throw new ModuleError(module, pkg, "has no default export, an object.");
   }
   return def;
+}
+
+// What core imports in place of its OpenTelemetry module where it is given
+// none, as in a test.
+function noOtel(): Promise<OtelModule> {
+  return Promise.reject(new Error("Core was given no OpenTelemetry module to send log records with."));
 }

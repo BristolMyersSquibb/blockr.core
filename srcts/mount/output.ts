@@ -70,9 +70,9 @@ import {
   jsonEqual,
   own,
   packageFromId,
-  report,
   sourceModule,
 } from "../util/index.ts";
+import { createLog, log } from "../log/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
 import { ModuleError } from "./load.ts";
@@ -575,7 +575,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by) });
     if (failure instanceof ModuleError) {
       if (!broken.has(failure)) {
-        report(failure);
+        log.error(failure);
         deps.raise(notification);
       }
       broken.add(failure);
@@ -852,6 +852,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         notified.add(mine);
         return mine;
       },
+      log: createLog(module.package ?? null),
       announce() {
         if (following) announceTo(listeners);
       },

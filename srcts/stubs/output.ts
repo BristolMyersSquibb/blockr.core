@@ -9,10 +9,11 @@ import type { Raised } from "../types/core-api.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
+import type { LogLine } from "../types/log.ts";
 import { asError, jsonEqual } from "../util/index.ts";
 import { answer } from "./option.ts";
 import type { Answered } from "./option.ts";
-import { announcer, notifier } from "./util.ts";
+import { announcer, lineHolder, notifier } from "./util.ts";
 
 export interface StubOutputHostOptions {
   // The output it holds, with its body and the parameters it was asked with,
@@ -47,6 +48,9 @@ export interface StubOutputHost extends OutputHost {
   // Each notification that the renderer raised and that holds, in the order
   // they came.
   readonly notified: readonly Raised[];
+  // Each line that the renderer logged through `log`, at every level, in the
+  // order they came, naming no package.
+  readonly logged: readonly LogLine[];
   // Hands the renderer another output, as core does once R sends one, and
   // announces it.
   setOutput(output: Json, body?: Blob | null, params?: Json): void;
@@ -69,6 +73,7 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
   const requested: { name: string; args: Readonly<Record<string, Json>>; scope: "class" | "renderer" }[] = [];
   const on = announcer(["output"] as const);
   const { notified, notify } = notifier();
+  const { logged, log } = lineHolder();
 
   return {
     block: options.block ?? "block",
@@ -84,6 +89,8 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
     requested,
     notified,
     notify,
+    logged,
+    log,
     setParams(next) {
       asked.push(next);
       const found = options.fixtures?.outputs.find(

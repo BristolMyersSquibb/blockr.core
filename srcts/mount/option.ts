@@ -40,7 +40,8 @@ import type { OptionId } from "../types/board.ts";
 import type { SourceModule } from "../types/core-api.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, report, sourceModule } from "../util/index.ts";
+import { createLog, log } from "../log/index.ts";
+import { asError, checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, sourceModule } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
@@ -165,6 +166,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       notified.add(mine);
       return mine;
     },
+    log: createLog(module.package ?? null),
   };
 
   const offStore = store.subscribe((_change, board) => {
@@ -235,7 +237,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   // A module that cannot draw, which leaves its element empty.
   function fail(error: unknown): void {
     if (ended()) return;
-    report(error);
+    log.error(asError(error));
     deps.raise(coreNotification("module_failed", "error", errorMessage(error), { module }));
   }
 

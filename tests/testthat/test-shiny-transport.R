@@ -10,6 +10,7 @@ test_that("the transport starts a session that the page may start anew", {
     decode_message(transport_sent(session)),
     list(
       body_url = "session/mock/dataobj/blockr-bodies?w=&nonce=0",
+      token = session$token,
       max_request_size = 5 * 1024^2,
       max_message_size = 4 * 2^20
     )
@@ -23,7 +24,7 @@ test_that("the transport starts a session that the page may start anew", {
 
   session <- with_transport(function(message, send) NULL)
 
-  expect_named(decode_message(transport_sent(session)), "body_url")
+  expect_named(decode_message(transport_sent(session)), c("body_url", "token"))
 })
 
 test_that("the transport needs a handler and a session", {
@@ -833,7 +834,7 @@ test_that("the transport takes posted bodies that name their request alone", {
 test_that("the transport ignores what it cannot decode and outlives errors", {
 
   withr::local_options(
-    blockr.logger = cnd_logger,
+    blockr.logger = "condition",
     blockr.log_level = "warn",
     width = 500L
   )

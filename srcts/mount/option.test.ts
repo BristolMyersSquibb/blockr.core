@@ -10,7 +10,7 @@ import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
-import { reports } from "../testing/reports.ts";
+import { logged } from "../testing/logged.ts";
 import { coreOptions, hello, noCore } from "../testing/store.ts";
 import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
@@ -228,7 +228,7 @@ describe("the host", () => {
   });
 
   test("leaves its element empty, and renders nothing, where the board lacks the value and the default fails, which the board option's notification says", async () => {
-    const reported = reports();
+    const reported = logged();
     const broken = ui();
     const s = await setup([
       ...options(ui().mod),
@@ -256,7 +256,7 @@ describe("the host", () => {
         about: { option: "broken" },
       },
     ]);
-    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(broken.mounts).toHaveLength(0);
     expect(Object.hasOwn(s.store.board().options, "broken")).toBe(false);
   });
@@ -329,6 +329,19 @@ describe("the host", () => {
     rows.host().notify(given);
     expect(s.notified).toEqual([]);
   });
+
+  test("logs what the module gives its host's log, naming the package that lists the board option", async () => {
+    const rows = ui();
+    const s = await setup(options(rows.mod));
+    s.mounts.mountOption(document.createElement("div"), "n_rows");
+    await tick();
+    const reported = logged();
+    rows.host().log.debug("Paged.", { n: 10 });
+    reported.restore();
+    expect(reported.lines().map(({ level, package: pkg, message, attributes }) => ({ level, package: pkg, message, attributes }))).toEqual([
+      { level: "debug", package: "blockr.core", message: "Paged.", attributes: { n: 10 } },
+    ]);
+  });
 });
 
 describe("a mount", () => {
@@ -381,7 +394,7 @@ describe("a mount", () => {
   });
 
   test("ends its UI and leaves its element empty once a delta removes the value and the default does not go onto the board again, which the board option's notification says", async () => {
-    const reported = reports();
+    const reported = logged();
     const shown = ui();
     let calls = 0;
     const once: Option = {
@@ -408,11 +421,11 @@ describe("a mount", () => {
       [{ kind: "core", code: "board_option_failed", module: { object: { option: "once" } } }, { option: "once" }, why],
     ]);
     expect(shown.cleanups()).toBe(1);
-    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
   });
 
   test("leaves its element empty, and raises why, naming the renderer, where the renderer cannot be used", async () => {
-    const reported = reports();
+    const reported = logged();
     const s = await setup(options(ui().mod), {
       modules: { [DARK]: { api: 2, default: ui().mod } },
       renderers: { "blockr.test-dark": { module: DARK, option: "theme" } },
@@ -434,7 +447,7 @@ describe("a mount", () => {
       ],
     ]);
     expect(s.raised[0]?.message).toContain("The module blockr.test/js/dark.js of blockr.test was built against major 2");
-    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
+    expect(reported.errors().filter((line) => line.error instanceof ModuleError)).toHaveLength(1);
   });
 
   test("names the board option where the UI of its definition fails in render()", async () => {
@@ -443,7 +456,7 @@ describe("a mount", () => {
         throw new Error("boom");
       },
     };
-    const reported = reports();
+    const reported = logged();
     const s = await setup(options(failing));
     const el = document.createElement("div");
     s.mounts.mountOption(el, "n_rows");
@@ -460,7 +473,7 @@ describe("a mount", () => {
         about: { option: "n_rows" },
       },
     ]);
-    expect(reported.errors().map((error) => (error as Error).message)).toEqual([message]);
+    expect(reported.errors().map((line) => line.message)).toEqual([message]);
   });
 
   test("ends once another board opens, after which submit() rejects and core mounts nothing more", async () => {

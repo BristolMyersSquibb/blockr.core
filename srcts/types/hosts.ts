@@ -14,6 +14,7 @@ import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
 import type { Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
+import type { Log } from "./log.ts";
 
 // A block's state: its values for the formals of its class's `expr`.
 export type State = Readonly<Record<string, Json>>;
@@ -79,6 +80,10 @@ export interface BlockHost<S extends State = State> {
   // runs or the mount ends, as CoreApi's notify() raises a plugin's
   // (./core-api.ts).
   notify(notification: Raised): () => void;
+  // A log whose lines name the package of the block's class, or none for a
+  // class that is defined outside a package, as CoreApi's log() gives a
+  // plugin's.
+  readonly log: Log;
 }
 
 export interface BlockContext {
@@ -125,6 +130,9 @@ export interface OptionHost<V extends Json = Json> {
   // unless it names another board object, and holds until the function that
   // it returns runs or the mount ends.
   notify(notification: Raised): () => void;
+  // A log whose lines name the package of the module: the renderer's, or else
+  // the package that defines the board option.
+  readonly log: Log;
 }
 
 export interface OutputHost {
@@ -169,4 +177,6 @@ export interface OutputHost {
   // object, and holds until the function that it returns runs or the renderer
   // is unmounted.
   notify(notification: Raised): () => void;
+  // A log whose lines name the package of the renderer.
+  readonly log: Log;
 }

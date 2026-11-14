@@ -23,15 +23,6 @@ export function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-// Reports an error that nobody waits on, such as what a subscriber threw. It
-// throws the error from a microtask. The page hears of it as of any uncaught
-// error, and the code that reports it goes on.
-export function report(error: unknown): void {
-  queueMicrotask(() => {
-    throw error;
-  });
-}
-
 export function isObject(x: unknown): x is Readonly<Record<string, unknown>> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }

@@ -52,7 +52,9 @@ import type {
 } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { createLog, log } from "../log/index.ts";
 import {
+  asError,
   compile,
   coreNotification,
   errorMessage,
@@ -65,7 +67,6 @@ import {
   quoted,
   raiseNothing,
   repliedNothing,
-  report,
   sourceModule,
 } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
@@ -95,7 +96,7 @@ export interface Mounts {
   mountOption(el: HTMLElement, option: OptionId): () => void;
   // Adds the board options to the board, each with its definition's default
   // where the board lacks it, and resolves with why any did not go onto the
-  // board, as core reports it and raises a notification of it, naming `by`,
+  // board, as core logs it and raises a notification of it, naming `by`,
   // what requires the board option.
   // Mounts that add a board option at once share one call of a default that
   // is a function, and core keeps nothing of a default once the board holds
@@ -105,7 +106,7 @@ export interface Mounts {
   // those that the board lacks now, as addOptions() does, resolving `added`
   // with why any did not go onto the board, and adds again each that a delta
   // removes, until stop() runs. It calls `failed` with why one that a delta
-  // removed did not go onto the board again, as core reports it.
+  // removed did not go onto the board again, as core logs it.
   keepOptions(
     ids: readonly OptionId[],
     by: string,
@@ -179,10 +180,10 @@ export function createMounts(options: MountsOptions): Mounts {
   // mounts that need one at once share one call of a default that is a
   // function.
   const resolving = new Map<OptionId, Promise<Json>>();
-  // What core has reported for the board, each once.
+  // What core has logged for the board, each once.
   const reported = new Set<string>();
 
-  // Reports why a board option did not go onto the board, and raises a
+  // Logs why a board option did not go onto the board, and raises a
   // notification of it that concerns the board option, once for the board.
   // Where a loaded package defines the board option, its default failed or
   // does not fit its schema, so the notification names the board option's
@@ -190,7 +191,7 @@ export function createMounts(options: MountsOptions): Mounts {
   function failure(option: OptionId, message: string): readonly string[] {
     if (!replaced.aborted && !reported.has(message)) {
       reported.add(message);
-      report(new Error(message));
+      log.error(message);
       const concerns = Object.hasOwn(store.options.registered(), option)
         ? { module: sourceModule({ option }, optionPackage(option)) }
         : { about: { option } };
@@ -248,7 +249,7 @@ export function createMounts(options: MountsOptions): Mounts {
   // Keeps the board options on the board while the caller needs them: it adds
   // those that the board lacks now, and adds again each that a delta removes,
   // until stop() runs. It calls `failed` with why one that a delta removed did
-  // not go onto the board again, as core reports it.
+  // not go onto the board again, as core logs it.
   function keepOptions(
     ids: readonly OptionId[],
     by: string,
@@ -277,7 +278,7 @@ export function createMounts(options: MountsOptions): Mounts {
 
   // The defaults of the board options given that the board lacks, by id, which
   // core sends with a request without adding them to the board. It leaves out
-  // each whose default fails or does not fit its schema, which it reports,
+  // each whose default fails or does not fit its schema, which it logs,
   // naming `by`, what requires the board option.
   async function resolveDefaults(ids: readonly OptionId[], by: string): Promise<Readonly<Record<OptionId, Json>>> {
     const found = await Promise.all(
@@ -406,7 +407,7 @@ export function createMounts(options: MountsOptions): Mounts {
     // A module that cannot draw, which leaves its element empty.
     function fail(error: unknown): void {
       if (ended()) return;
-      report(error);
+      log.error(asError(error));
       raise(coreNotification("module_failed", "error", errorMessage(error), { module }));
     }
 
@@ -538,7 +539,7 @@ function blockHost(deps: HostDeps): MountedHost {
       try {
         fn();
       } catch (error) {
-        report(error);
+        log.error(asError(error));
       }
     }
   }
@@ -650,6 +651,7 @@ function blockHost(deps: HostDeps): MountedHost {
       notified.add(mine);
       return mine;
     },
+    log: createLog(deps.module.package ?? null),
     name(options) {
       named = options;
       context = blockContext(mountedBlock(seen));

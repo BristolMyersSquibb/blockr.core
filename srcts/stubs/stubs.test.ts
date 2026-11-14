@@ -117,6 +117,19 @@ describe("the stub of a block's host", () => {
     expect(() => host.on("output" as "state", () => undefined)).toThrow('The host announces "state" and "context", not "output".');
   });
 
+  test("holds what the module logs, at every level, naming the package of its class", () => {
+    const host = stubBlockHost(datasets, { class: "blockr.io-dataset_block" });
+    const failure = new Error("No dataset.");
+    host.log.trace("Called.", { n: 1 });
+    host.log.error(failure);
+
+    expect(host.logged.map(({ level, package: pkg, message, attributes }) => ({ level, package: pkg, message, attributes }))).toEqual([
+      { level: "trace", package: "blockr.io", message: "Called.", attributes: { n: 1 } },
+      { level: "error", package: "blockr.io", message: "No dataset.", attributes: {} },
+    ]);
+    expect(host.logged[1]?.error).toBe(failure);
+  });
+
   test("records each one-time evaluation and gives the modules that other packages offer", async () => {
     const filter = { api: 1 };
     const host = stubBlockHost(datasets, {
@@ -193,6 +206,14 @@ describe("the stub of a board option's host", () => {
       'No answer is given for the request "list_dir" of the board option "data_dir" with the args {"path":"/"}.',
     );
   });
+
+  test("holds what the module logs, naming no package", () => {
+    const host = stubOptionHost({ option: "data_dir", value: "/data" });
+    host.log.warn("No such directory.");
+    expect(host.logged.map(({ level, package: pkg, message }) => ({ level, package: pkg, message }))).toEqual([
+      { level: "warn", package: null, message: "No such directory." },
+    ]);
+  });
 });
 
 describe("the stub of an output's host", () => {
@@ -225,6 +246,14 @@ describe("the stub of an output's host", () => {
     host.setParams({ page: 2 });
     expect(host.error()).toBeNull();
     expect(stubOutputHost({ output: { renderer: "blockr.core-text_output", text: "1" } }).options()).toEqual({});
+  });
+
+  test("holds what the renderer logs, naming no package", () => {
+    const host = stubOutputHost({ output: { renderer: drawnBy("blockr.core-table_output"), columns: [], rows: [], total: 0 } });
+    host.log.info("Drawn.");
+    expect(host.logged.map(({ level, package: pkg, message }) => ({ level, package: pkg, message }))).toEqual([
+      { level: "info", package: null, message: "Drawn." },
+    ]);
   });
 
   test("records what the renderer emits", () => {
