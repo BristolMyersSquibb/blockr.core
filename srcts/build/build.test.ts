@@ -139,6 +139,34 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/)]);
 });
 
+test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {
+  await write({
+    "srcts/otel/sdk.ts": 'export { SeverityNumber } from "@opentelemetry/api";\n',
+    "srcts/otel/index.ts": 'import { SeverityNumber } from "./sdk.ts";\nexport const warn = () => ["the otel module", SeverityNumber.WARN];\n',
+    "srcts/runtime/index.ts": 'export const otel = () => import("../otel/index.ts");\n',
+  });
+
+  const written = await build(root);
+
+  const out = join(root, "inst/js");
+  const sdk = (await readdir(out)).filter((file) => /^opentelemetry-[0-9a-f]{8}\.js$/.test(file));
+  expect(sdk).toHaveLength(1);
+  expect(written).toContain(`inst/js/${sdk[0] ?? ""}`);
+  const vendored = await readFile(join(out, sdk[0] ?? ""), "utf8");
+  // The SDK's enum, minified, without the paths of its sources.
+  expect(vendored).toContain("UNSPECIFIED");
+  expect(vendored).not.toContain("// node_modules/");
+  // The module holds core's code alone, readable, and imports the SDK by the
+  // file's name beside it.
+  const own = await readFile(join(out, "blockr-core-otel.js"), "utf8");
+  expect(own).toContain("the otel module");
+  expect(own).toContain(`from "./${sdk[0] ?? ""}"`);
+  expect(own).not.toContain("UNSPECIFIED");
+  // R serves the file beside the module, as the import map names it.
+  const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { files: string[] };
+  expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/), sdk[0]]);
+});
+
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {
   await write({
     "test.css": `@import "${core}";\n@source inline("bc:flex bc:bg-blue-500 flex");\n`,

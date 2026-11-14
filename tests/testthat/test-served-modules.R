@@ -291,7 +291,9 @@ test_that("the import map names the URL at which R serves each import", {
     expect_true(file.exists(served_copy("blockr.core", "js", file)))
   }
 
-  # The bundle of React that the entry points of React import, by its name.
-  expect_length(shipped$files, 1L)
-  expect_true(file.exists(served_copy("blockr.core", "js", shipped$files)))
+  # The bundle of React that the entry points of React import, and that of
+  # OpenTelemetry's SDK that core's OpenTelemetry module imports, by their
+  # names.
+  expect_length(shipped$files, 2L)
+  expect_true(all(file.exists(served_copy("blockr.core", "js", shipped$files))))
 })

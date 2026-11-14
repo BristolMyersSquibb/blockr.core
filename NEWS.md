@@ -518,7 +518,8 @@
   With `"otel"`, it sends each line as a record, in batches, to the OpenTelemetry collector whose URL the blockr option `otel_client_endpoint` gives, at its path `v1/logs`, which every user's browser must reach.
   Where `logger` is not set, the client sends to that collector where `otel_client_endpoint` names one, and writes to the console otherwise.
   Each record names the session by `session.id`, Shiny's token of the session, which R now sends as it starts the session.
-  The page imports core's OpenTelemetry module, `blockr-core-otel.js`, only where it sends records, and `serve()` stops where `logger` is `"otel"` and `otel_client_endpoint` names no collector.
+  The page imports core's OpenTelemetry module, `blockr-core-otel.js`, only where it sends records, and that module imports the parts of OpenTelemetry's SDK that it uses from a minified file of their own.
+  The `serve()` function stops where `logger` is `"otel"` and `otel_client_endpoint` names no collector.
   Core logs every failure that it catches at error, with its stack, and logs at debug each notification that it drops because the board no longer holds what the notification concerns.
   The stubs of the hosts hold what a module logs in `logged`, and so does `stubCore()`, which passes each line on to the logger that the page would write it with (#551).
 

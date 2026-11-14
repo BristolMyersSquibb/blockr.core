@@ -4,6 +4,8 @@
 // collector, so that a page that sends none loads none of it
 // (../log/settings.ts), as Logging has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#logging).
+// The parts of OpenTelemetry's SDK that it uses come from ./sdk.ts, which the
+// build bundles, minified, into a file of their own.
 //
 // Its logger sends each line as a log record to the collector, over OTLP's
 // HTTP protocol in its JSON encoding, in batches. The SDK's batch processor
@@ -21,12 +23,10 @@
 // The attributes that the module sets win over those of the line with the same
 // name, so that a line names no other package or session.
 
-import { SeverityNumber } from "@opentelemetry/api";
 import type { AnyValue, Attributes } from "@opentelemetry/api";
-import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
-import { BatchLogRecordProcessor, LoggerProvider } from "@opentelemetry/sdk-logs";
 import type { LogRecordExporter } from "@opentelemetry/sdk-logs";
 import type { LogLevel, LogLine } from "../types/log.ts";
+import { BatchLogRecordProcessor, LoggerProvider, OTLPLogExporter, SeverityNumber } from "./sdk.ts";
 
 export interface OtelLoggerOptions {
   // The URL that the records go to, the collector's path v1/logs.

@@ -10,6 +10,7 @@
     "@blockr/core/otel": "blockr-core-otel.js"
   },
   "files": [
-    "react-963521e2.js"
+    "react-963521e2.js",
+    "opentelemetry-ab9396c4.js"
   ]
 }
