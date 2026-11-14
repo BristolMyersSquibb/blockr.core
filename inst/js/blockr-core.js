@@ -7278,7 +7278,7 @@ function createStore(options = {}) {
   let hello = options.hello;
   const registry = y(options.hello?.block_registry ?? {});
   const packages = y(options.hello?.packages ?? {});
-  const history = y(/* @__PURE__ */ new Map());
+  const history = y({ undo: [], redo: [] });
   const subscribers = /* @__PURE__ */ new Set();
   let opening2 = false;
   const ended = () => options.signal?.aborted === true;
@@ -7312,12 +7312,6 @@ function createStore(options = {}) {
         log.error(asError(error));
       }
     }
-  }
-  function steps(origin) {
-    return history.value.get(origin) ?? { undo: [], redo: [] };
-  }
-  function setSteps(origin, steps2) {
-    history.value = new Map([...history.value, [origin, steps2]]);
   }
   function run(start2, deltas, how, refused2) {
     const applied = [];
@@ -7405,7 +7399,7 @@ function createStore(options = {}) {
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start2);
       if (inverses.length > 0 && opts.undo !== false) {
-        setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
+        history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
       }
       for (const { delta: delta2, board: next } of applied) {
         board.value = next;
@@ -7426,10 +7420,11 @@ function createStore(options = {}) {
       busy = was;
     }
   }
-  function revert(origin, back) {
+  function revert(back, origin) {
     guard2();
-    const { undo, redo } = steps(origin);
-    const step2 = back ? undo.at(-1) : redo.at(-1);
+    const { undo, redo } = history.value;
+    const at = back ? lastOf(undo, origin) : redo.length - 1;
+    const step2 = (back ? undo : redo)[at];
     if (step2 === void 0) return;
     busy = true;
     try {
@@ -7437,18 +7432,17 @@ function createStore(options = {}) {
       const start2 = current2(refused2);
       const { applied, inverses } = run(
         start2,
-        step2.map(({ delta }) => delta),
-        { fit: true, places: step2.map(({ places }) => places) },
+        step2.inverses.map(({ delta }) => delta),
+        { fit: true, places: step2.inverses.map(({ places }) => places) },
         refused2
       );
       number(applied, applied.at(-1)?.board ?? start2);
-      setSteps(
-        origin,
-        back ? { undo: undo.slice(0, -1), redo: [...redo, inverses] } : { undo: [...undo, inverses], redo: redo.slice(0, -1) }
-      );
+      const kept = { origin: step2.origin, inverses };
+      history.value = back ? { undo: [...undo.slice(0, at), ...undo.slice(at + 1)], redo: [...redo, kept] } : { undo: [...undo, kept], redo: redo.slice(0, -1) };
+      const asking = origin ?? "user";
       for (const { delta, board: next } of applied) {
         board.value = next;
-        announce2({ delta, origin }, next);
+        announce2({ delta, origin: asking }, next);
       }
     } finally {
       busy = false;
@@ -7598,14 +7592,14 @@ function createStore(options = {}) {
     dryRun,
     open,
     check: checkText,
-    undo: (origin = "user") => {
-      revert(origin, true);
+    undo: (origin) => {
+      revert(true, origin);
     },
-    redo: (origin = "user") => {
-      revert(origin, false);
+    redo: () => {
+      revert(false);
     },
-    canUndo: (origin = "user") => steps(origin).undo.length > 0,
-    canRedo: (origin = "user") => steps(origin).redo.length > 0,
+    canUndo: (origin) => lastOf(history.value.undo, origin) >= 0,
+    canRedo: () => history.value.redo.length > 0,
     plugins: registrations.plugins,
     options: registrations.options,
     jsonBoard,
@@ -7614,6 +7608,9 @@ function createStore(options = {}) {
     packages: () => packages.value,
     editId: (of) => edits.get(target(of))
   };
+}
+function lastOf(steps, origin) {
+  return origin === void 0 ? steps.length - 1 : steps.map((step2) => step2.origin).lastIndexOf(origin);
 }
 function settled(fn) {
   try {

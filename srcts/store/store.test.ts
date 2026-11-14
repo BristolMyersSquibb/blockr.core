@@ -1819,7 +1819,7 @@ describe("applying a delta", () => {
 
     store.apply({ blocks: { mod: { b: { state: { n: 6, direction: "tail" } } } } });
     store.apply({ blocks: { mod: { b: { state: { n: 10 } } } } }, "assistant");
-    store.undo();
+    store.undo("user");
 
     expect(store.board().blocks.b?.state).toEqual({ n: 10, direction: "head" });
   });
@@ -2076,7 +2076,7 @@ describe("edit ids", () => {
 });
 
 describe("undo", () => {
-  test("reverts the origin's last step, and redo applies it again", async () => {
+  test("reverts the last step, and redo applies it again", async () => {
     const store = await opened();
     const seen = changes(store);
     store.apply({ name: "Renamed" });
@@ -2156,17 +2156,18 @@ describe("undo", () => {
     ]);
   });
 
-  test("a step that sets or removes only board option values is no undo step, and leaves the origin's undo and redo steps as they are", async () => {
+  test("a step that sets or removes only board option values is no undo step, and leaves the undo and redo lists as they are, whoever takes it", async () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
     store.apply({ name: "Again" });
     store.undo();
     const seen = changes(store);
 
+    // Core adds the board options that a module requires as such a step.
     const delta: Delta = { options: { set: { n_rows: 20 }, unset: ["show_conditions"] } };
-    store.apply(delta);
-    expect(seen).toEqual([{ delta, origin: "user" }]);
-    expect([store.canUndo(), store.canRedo()]).toEqual([true, true]);
+    store.apply(delta, "blockr.core");
+    expect(seen).toEqual([{ delta, origin: "blockr.core" }]);
+    expect([store.canUndo(), store.canRedo(), store.canUndo("blockr.core")]).toEqual([true, true, false]);
 
     store.redo();
     expect(store.board().name).toBe("Again");
@@ -2177,7 +2178,7 @@ describe("undo", () => {
     expect(store.board().options).toEqual({ n_rows: 20 });
   });
 
-  test("a step applied with undo: false is no undo step: it is applied, announced and numbered as any other, and leaves the origin's undo and redo steps as they are", async () => {
+  test("a step applied with undo: false is no undo step: it is applied, announced and numbered as any other, and leaves the undo and redo lists as they are, whoever takes it", async () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
     store.apply({ name: "Again" });
@@ -2186,10 +2187,10 @@ describe("undo", () => {
     const edit = store.editId({ block: "b" });
 
     const delta: Delta = { blocks: { mod: { b: { state: { n: 7 } } } } };
-    store.apply(delta, "user", { undo: false });
-    expect(seen).toEqual([{ delta, origin: "user" }]);
+    store.apply(delta, "assistant", { undo: false });
+    expect(seen).toEqual([{ delta, origin: "assistant" }]);
     expect(store.editId({ block: "b" })).toBeGreaterThan(edit ?? Infinity);
-    expect([store.canUndo(), store.canRedo()]).toEqual([true, true]);
+    expect([store.canUndo(), store.canRedo(), store.canUndo("assistant")]).toEqual([true, true, false]);
 
     store.redo();
     expect(store.board().name).toBe("Again");
@@ -2287,12 +2288,12 @@ describe("undo", () => {
 
     store.apply({ patches: [{ op: "remove", path: "/plugins/blockr.dock-dock_plugin/views/side" }] });
     store.apply({ patches: [{ op: "add", path: "/plugins/blockr.dock-dock_plugin/views/extra", value: { panels: [] } }] }, "assistant");
-    store.undo();
+    store.undo("user");
     expect(order()).toEqual(["main", "side", "data", "extra"]);
 
     store.apply({ patches: [{ op: "remove", path: "/plugins/blockr.dock-dock_plugin/views/side" }] });
     store.apply({ patches: [{ op: "remove", path: "/plugins/blockr.dock-dock_plugin/views/data" }] }, "assistant");
-    store.undo();
+    store.undo("user");
     expect(order()).toEqual(["main", "extra", "side"]);
   });
 
@@ -2314,7 +2315,7 @@ describe("undo", () => {
       "assistant",
     );
 
-    store.undo();
+    store.undo("user");
     expect(dockViews(store.board())).toEqual({ main: { panels: ["a", "b"] } });
 
     // Redo brings back the board as it was before the undo.
@@ -2328,25 +2329,85 @@ describe("undo", () => {
     store.apply({ patches: [{ op: "remove", path: "/plugins/blockr.dag-dag_plugin/positions/a" }] }, "assistant");
 
     // The user's step changed a position that the assistant has removed since.
-    store.undo();
+    store.undo("user");
     expect(Object.hasOwn(dagPositions(store.board()), "a")).toBe(false);
 
     store.undo("assistant");
     expect(dagPositions(store.board()).a).toEqual({ x: 5, y: 5 });
   });
 
-  test("undoes each origin's steps apart", async () => {
+  test("keeps the steps of every origin in one history, whose last step undo takes back, whoever took it, as a change of the user's", async () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
     store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, "assistant");
+    const seen = changes(store);
+
+    store.undo();
+    expect([store.board().name, store.board().stacks.s1?.name]).toEqual(["Renamed", "Input"]);
+    expect([store.canUndo(), store.canUndo("user"), store.canUndo("assistant")]).toEqual([true, true, false]);
 
     store.undo();
     expect(store.board().name).toBe("Iris review");
-    expect(store.board().stacks.s1?.name).toBe("Inputs");
-    expect(store.canUndo("assistant")).toBe(true);
+    expect(store.canUndo()).toBe(false);
+    expect(seen).toEqual([
+      { delta: { stacks: { mod: { s1: { name: "Input" } } } }, origin: "user" },
+      { delta: { name: "Iris review" }, origin: "user" },
+    ]);
+  });
+
+  test("takes back the last step of the origin given, past the steps of others after it, as a change of that origin", async () => {
+    const store = await opened();
+    store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, "assistant");
+    store.apply({ name: "Renamed" });
+    const seen = changes(store);
 
     store.undo("assistant");
-    expect(store.board().stacks.s1?.name).toBe("Input");
+    expect([store.board().name, store.board().stacks.s1?.name]).toEqual(["Renamed", "Input"]);
+    expect(seen).toEqual([{ delta: { stacks: { mod: { s1: { name: "Input" } } } }, origin: "assistant" }]);
+    expect([store.canUndo(), store.canUndo("assistant")]).toEqual([true, false]);
+
+    // An origin with no step left changes nothing.
+    store.undo("assistant");
+    expect(seen).toHaveLength(1);
+
+    store.undo();
+    expect(store.board().name).toBe("Iris review");
+  });
+
+  test("redoes the step that the last undo took back, whoever took it, as a change of the user's", async () => {
+    const store = await opened();
+    store.apply({ name: "Renamed" });
+    store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, "assistant");
+    store.undo("assistant");
+    store.undo();
+    const seen = changes(store);
+
+    store.redo();
+    expect([store.board().name, store.board().stacks.s1?.name]).toEqual(["Renamed", "Input"]);
+    store.redo();
+    expect(store.board().stacks.s1?.name).toBe("Inputs");
+    expect(store.canRedo()).toBe(false);
+    expect(seen).toEqual([
+      { delta: { name: "Renamed" }, origin: "user" },
+      { delta: { stacks: { mod: { s1: { name: "Inputs" } } } }, origin: "user" },
+    ]);
+  });
+
+  test("keeps the origin of a step through its undo and redo, so that the origin's undo takes it back once redo has applied it again", async () => {
+    const store = await opened();
+    store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, "assistant");
+    // The user takes back the assistant's step and applies it again.
+    store.undo();
+    store.redo();
+    store.apply({ name: "Renamed" });
+
+    store.undo("assistant");
+    expect([store.board().name, store.board().stacks.s1?.name]).toEqual(["Renamed", "Input"]);
+
+    // The redo of that undo is the assistant's step again.
+    store.redo();
+    expect(store.board().stacks.s1?.name).toBe("Inputs");
+    expect(store.canUndo("assistant")).toBe(true);
   });
 
   test("sets back what its step changed over what another origin changed since, as the last writer", async () => {
@@ -2355,7 +2416,7 @@ describe("undo", () => {
     store.apply({ blocks: { mod: { b: { state: { n: 8 } } } } }, "assistant");
     const seen = changes(store);
 
-    store.undo();
+    store.undo("user");
     expect(store.board().blocks.b?.state.n).toBe(6);
     expect(seen).toEqual([{ delta: { blocks: { mod: { b: { state: { n: 6 } } } } }, origin: "user" }]);
     expect(store.canUndo("assistant")).toBe(true);
@@ -2385,7 +2446,7 @@ describe("undo", () => {
     store.apply({ stacks: { mod: { s1: { blocks: ["a", "c"] } } } }, "assistant");
     const before = store.board();
 
-    store.undo();
+    store.undo("user");
     expect(store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
 
     store.redo();
@@ -2399,10 +2460,10 @@ describe("undo", () => {
     const board = store.board();
     const seen = changes(store);
 
-    store.undo();
+    store.undo("user");
     expect(store.board()).toBe(board);
     expect(seen).toEqual([]);
-    expect(store.canUndo()).toBe(false);
+    expect(store.canUndo("user")).toBe(false);
 
     store.redo();
     expect(store.board()).toBe(board);
@@ -2413,14 +2474,14 @@ describe("undo", () => {
     store.apply({ links: { before: { ac: "ab" } } });
     store.apply({ links: { rm: ["bc"] } }, "assistant");
 
-    store.undo();
+    store.undo("user");
     expect(Object.keys(store.board().links)).toEqual(["ab", "ad", "be", "de", "keen_finch", "ac"]);
 
     store.apply({ links: { before: { de: "be" } } });
     store.apply({ links: { rm: ["de"] } }, "assistant");
     const board = store.board();
 
-    store.undo();
+    store.undo("user");
     expect(store.board()).toBe(board);
   });
 
@@ -2429,7 +2490,7 @@ describe("undo", () => {
     store.apply({ blocks: { add: { g: head(3) } } });
     store.apply({ links: { add: { dg: { from: "d", to: "g", input: "data" } } } }, "assistant");
 
-    store.undo();
+    store.undo("user");
     expect(Object.hasOwn(store.board().blocks, "g")).toBe(false);
     expect(Object.hasOwn(store.board().links, "dg")).toBe(false);
   });
@@ -2439,7 +2500,7 @@ describe("undo", () => {
     store.apply({ blocks: { rm: ["b"] } });
     store.apply({ blocks: { rm: ["e"] } }, "assistant");
 
-    store.undo();
+    store.undo("user");
     const board = store.board();
     expect(Object.hasOwn(board.blocks, "b")).toBe(true);
     expect(board.links.ab).toEqual({ from: "a", to: "b", input: "data" });
@@ -2448,15 +2509,16 @@ describe("undo", () => {
     expect(board.stacks.s1?.blocks).toEqual(["a", "b"]);
   });
 
-  test("a new step clears the redo steps of its own origin only", async () => {
+  test("a new step empties the redo list, whoever takes it", async () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
     store.undo();
-    store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, "assistant");
     expect(store.canRedo()).toBe(true);
 
-    store.apply({ name: "Again" });
+    store.apply({ stacks: { mod: { s1: { name: "Inputs" } } } }, "assistant");
     expect(store.canRedo()).toBe(false);
+    store.redo();
+    expect(store.board().name).toBe("Iris review");
   });
 
   test("steps never merge", async () => {

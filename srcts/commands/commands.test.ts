@@ -178,7 +178,7 @@ describe("running a command", () => {
     }, "assistant");
 
     expect(Object.keys(store.board().blocks)).toHaveLength(7);
-    expect(store.canUndo()).toBe(false);
+    expect(store.canUndo("user")).toBe(false);
     expect(store.canUndo("assistant")).toBe(true);
 
     store.undo("assistant");
@@ -186,7 +186,7 @@ describe("running a command", () => {
     expect(Object.keys(store.board().links)).toEqual(Object.keys(board.links));
   });
 
-  test("applies the deltas of a command with undo: false as no undo step, which leaves the origin's undo and redo steps as they are", async () => {
+  test("applies the deltas of a command with undo: false as no undo step, which leaves the undo and redo lists as they are", async () => {
     const { store, commands } = await setup();
     commands.register(renameB({ undo: false }));
     store.apply({ name: "Sepals" });
@@ -543,7 +543,7 @@ describe("running a list", () => {
     expect(store.board().blocks.g?.name).toBe("Top");
     expect(store.board().links.dg).toEqual({ from: "d", to: "g", input: "data" });
     expect(seen).toEqual(["assistant", "assistant", "assistant"]);
-    expect(store.canUndo()).toBe(false);
+    expect(store.canUndo("user")).toBe(false);
     store.undo("assistant");
     expect(store.board()).toEqual(board);
     expect(store.canUndo("assistant")).toBe(false);

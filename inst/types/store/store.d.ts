@@ -25,9 +25,9 @@ export interface Store {
     jsonBoard(): JsonBoard;
     save(): string;
     undo(origin?: Origin): void;
-    redo(origin?: Origin): void;
+    redo(): void;
     canUndo(origin?: Origin): boolean;
-    canRedo(origin?: Origin): boolean;
+    canRedo(): boolean;
     readonly plugins: Plugins;
     readonly options: Options;
     blockRegistry(): Readonly<Record<RegistryId, RegistryEntry>>;
