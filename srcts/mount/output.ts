@@ -33,11 +33,12 @@
 // R made, with what it was asked with, which a mount draws without asking R
 // where it would ask with the same. The shelves go with the mounts, which core
 // makes anew for each board that opens.
-// Where R makes the block's output, core raises a notification for each
-// warning of R's reply, which concerns the block, in place of those before.
-// Where R cannot make it, as where it replies error or an ask gets no reply,
-// core raises one with the condition that the host's `error()` gives instead,
-// until the block's next output arrives. A renderer that cannot draw, as one
+// Core raises a notification for each condition of R's reply to an ask of the
+// block's output, ok or error, which concerns the block, in place of those
+// before. Where an ask fails without an error from R, as where it gets no
+// reply, core raises one of its own with the condition that the host's
+// `error()` gives. A frontend chooses which of them to show: a card shows those
+// whose severity `show_conditions` names. A renderer that cannot draw, as one
 // that fails to load or throws in render(), raises one that concerns the
 // block, with the renderer and its package, which holds until the next board
 // opens or the block leaves the board, and leaves the element empty. Core
@@ -125,8 +126,9 @@ const EMPTY: Readonly<Record<string, Json>> = Object.freeze({});
 interface Shelf {
   params: Readonly<Record<string, Json>>;
   last: Made | undefined;
-  // What withdraws each notification of R's latest reply to an ask of the
-  // output: one for each warning of an output, or why R could not make one.
+  // What withdraws each notification of the latest ask of the output: one for
+  // each condition of R's reply, and one of core's where the ask failed
+  // without an error from R.
   notified: readonly (() => void)[];
   // The mounts of the block's output, which ask again as its parameters change.
   readonly mounts: Set<() => void>;
@@ -227,6 +229,18 @@ interface Announcing extends OutputHost {
 // where R gives none.
 function noOutput(message: string): Condition {
   return { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message };
+}
+
+// Why R could not make the output of the block, from R's error reply: the
+// reply's condition of the severity error. Where the coercion failed, that is
+// the error that stopped it, and the reply holds it after the messages and
+// warnings that the coercion raised before. Where the reply holds no error,
+// core writes its own condition.
+function whyFailed(reply: Reply, block: BlockId): { readonly condition: Condition; readonly by: "r" | "core" } {
+  const conditions = "conditions" in reply ? reply.conditions : [];
+  const error = conditions.find((condition) => condition.severity === "error");
+  if (error !== undefined) return { condition: error, by: "r" };
+  return { condition: noOutput(`R failed to make the output of block "${block}".`), by: "core" };
 }
 
 // Mounts the output of the block in the element until the returned cleanup
@@ -501,11 +515,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       case "ok":
         take({ asked, output: (reply as OutputReply).output, body });
         return;
-      case "error": {
-        const conditions = "conditions" in reply ? reply.conditions : [];
-        failed(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`));
+      case "error":
+        failed(whyFailed(reply, block).condition);
         return;
-      }
       default:
         // A reply of `missing` comes where the block's revision moved on, or
         // where R lost its result, which the scheduler then has evaluated
@@ -517,28 +529,29 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
   // Raises the notifications of R's reply to an ask of the block's output, in
   // place of those before, for the block, whichever mount asked: one for each
-  // warning of an output, or where R could not make the output, one with the
-  // condition that the host's `error()` gives.
+  // condition of the reply, ok or error. Where R could not make the output and
+  // gave no error, core raises one of its own with the condition that the
+  // host's `error()` gives.
   function heard(reply: Reply): void {
     if (deps.replaced.aborted) return;
     if (reply.status === "ok" && "output" in reply) {
-      hold(reply.conditions.filter((condition) => condition.severity === "warning"), "r");
+      hold(reply.conditions);
     } else if (reply.status === "error") {
-      const first = "conditions" in reply ? reply.conditions[0] : undefined;
-      hold([first ?? noOutput(`R failed to make the output of block "${block}".`)], first === undefined ? "core" : "r");
+      const { condition, by } = whyFailed(reply, block);
+      hold("conditions" in reply ? reply.conditions : [], by === "core" ? [condition] : []);
     }
   }
 
   // An ask of the block's output that got no reply.
   function unanswered(message: string): void {
-    if (!deps.replaced.aborted) hold([noOutput(message)], "core");
+    if (!deps.replaced.aborted) hold([], [noOutput(message)]);
   }
 
-  // Raises a notification of each condition, which R wrote or core did, in
-  // place of those before.
-  function hold(conditions: readonly Condition[], by: "r" | "core"): void {
+  // Raises a notification of each condition, those that R wrote and then those
+  // that core did, in place of those before.
+  function hold(byR: readonly Condition[], byCore: readonly Condition[] = []): void {
     const before = shelf.notified;
-    shelf.notified = conditions.map((condition) =>
+    const raise = (condition: Condition, by: "r" | "core") =>
       deps.raise({
         severity: condition.severity,
         message: condition.message,
@@ -547,8 +560,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
             ? { kind: "r", class: condition.class, request: { type: "output" } }
             : { kind: "core", code: "output_unanswered" },
         about: { block },
-      }),
-    );
+      });
+    shelf.notified = [...byR.map((condition) => raise(condition, "r")), ...byCore.map((condition) => raise(condition, "core"))];
     for (const withdraw of before) withdraw();
   }
 
