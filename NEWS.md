@@ -333,7 +333,7 @@
   As a board opens, core adds to it the board options that the classes of the app's plugins name in `options`, core's basic frontend's among them, each with its default where the board lacks it, so that the store no longer writes `show_conditions` and `dark_mode` into every board.
   Where such a board option does not go onto the board, nothing that requires it draws or runs: the element of the frontend or of the plugin's UI shows why, and core calls no `start` of the plugin and reports why.
   The `plugins` of `CoreApi` gain `appPlugins()`, the app's plugins whose classes are registered, by the IDs of their classes, each with its class's name, `pluginClass()`, the class of one of them, and `storage()`, the storage of the app's storage plugin, or `undefined` where the app runs none.
-  Beside them, `CoreApi` gains `notifications`, which hands each note that a plugin sends to the frontend, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
+  Beside them, `CoreApi` gains `notifications`, which hold the notifications of the board, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
   The `CoreApi` for tests runs the app's plugins as the page does, and serves a module that a test gives by its id, such as a plugin's UI (#506, #558).
 * A storage plugin describes its storage controls, and every frontend draws them with its own components.
   The `storage` of a storage plugin's class holds `controls()`, which gives the controls in order, and `subscribe()`, which calls back whenever they change, in place of `save()` and `open()`.
@@ -345,7 +345,7 @@
   It shows the UI of each plugin whose class has a `ui` in a section of its own, beside the board on a wide page and above it on a narrow one.
   The user collapses or expands each plugin's section, and each stack's group of cards.
   A card gives its block focus as the user clicks into it or moves the keyboard's focus into it.
-  Beside the edits that the store refused, the frontend shows the notes that plugins send, in the color of their severity, and the note that core sends as a board opens, which names what the store dropped.
+  Beside the edits that the store refused, the frontend shows the notifications that the modules of packages raise, in the color of their severity, and the one in which core names what the store dropped as a board opened.
   On a locked board, the toolbar keeps the board options and the storage controls (#507, #558, #567).
 * Core's Edit board plugin, which `new_edit_board_plugin()` makes, of class `c("edit_board_plugin", "plugin")`, adds, changes and removes blocks, links and stacks under every frontend, as the plugins `manage_blocks`, `manage_links` and `manage_stacks` did until now.
   It keeps no state, and an app runs it by default, since `available_plugins()` lists it.
@@ -483,6 +483,30 @@
   The block registration roclet writes the id of each class into `blocks.yml`, which it reads off the class's constructor.
   The `register_package_blocks()` function is gone, and core's `.onLoad()` registers no block class, so a block package drops its call of `register_package_blocks()` from its `.onLoad()`.
   Core reads the files of another package, such as its `blocks.yml`, its modules and its JSON Schemas, with `pkg_file()`, which now goes through the package's own `system.file()` and takes a package's name as well as an environment, so that it finds them for a package that `pkgload::load_all()` loaded too (#498, #560).
+* The `notifications` of `CoreApi` hold every notification of the open board, in the order they came, until each is withdrawn: one for each condition of each block's status, one for each condition of R's error reply to a request, those that core raises where it fails at something that the user asked for or that the board needs, and those that the modules of packages raise.
+  A frontend reads them through `get()`, which returns the same array until one comes or goes, and follows them through `subscribe()`, so that one raised before the frontend draws still reaches it.
+  A `Notification` has an id, a severity and a message, says in `source` who raised it, and names in `about` the board object that it concerns, a block, a link, a stack, a board option or a plugin, or none for the board, so that a frontend places it by either.
+  Its source is R, with the condition's class and what core asked of R, core, with the code of what failed and the package whose module failed, or a package's module, with the board object that the module belongs to, the package's own code for it and the package.
+  A source of core's or of a module names the renderer of a block's output where that is the module that failed or raised it, so that a frontend tells it from the block's UI module.
+  A plugin raises one with `notify(plugin, notification)`, a module that core mounts with its host's `notify()`, and a board option's `onChange()` with the `notify` that it gets beside the value, each of which returns what withdraws it and refuses one whose members are of the wrong kind.
+  What a module raises holds until its mount ends at the latest, and what an `onChange()` raises until its next call returns.
+  One raised about a block, a link or a stack that the board no longer holds holds nothing, and core logs one about a board object that the board has never held, and one from a plugin that the app does not run.
+  Core withdraws every notification that concerns a block, a link or a stack as it leaves the board, and every one as the next board opens.
+  The `Note` type is gone (#539).
+* Core raises a notification where a module cannot draw, a block's UI, a renderer, a board option's UI or a plugin's UI, where a module that the reply to `hello` names fails to load or the store refuses its default export, where a board option does not go onto the board, an `onChange` throws or a plugin's `start` throws, where the board that the storage plugin names or a later board fails to open, and where the store dropped something as the board opened.
+  Each has a code of its own, as `module_failed`, and core still logs each failure.
+  Core draws nothing in the element of a module that cannot draw, which it leaves empty, so that the frontend alone says where a failure shows.
+  Where a board option that a block's UI module, a renderer or a plugin's UI requires does not go onto the board, core raises that the module cannot draw, which concerns the block or the plugin, beside the notification about the board option.
+  Where R cannot make a block's output, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
+  Where R replies error to a request, core raises one for each of the reply's conditions, until R next replies to a request of the same name for the same block, board option or plugin (#539).
+* Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
+  Core's basic frontend shows above the board the notifications that concern no block, whoever raised them, until one is withdrawn or the user dismisses it, and offers to reload the page with `page_reload_needed`.
+  A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
+  The card of a block that `serve()` serves alone shows every notification of the board.
+  A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
+  In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
+  Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it.
+  The Edit board plugin raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses (#539).
 
 # blockr.core 0.1.4
 

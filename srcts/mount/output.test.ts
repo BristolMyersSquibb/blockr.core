@@ -15,10 +15,12 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
+import type { Notification, Raised } from "../types/core-api.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import type { From, Notify, Raise, Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Measure, Mounts, OutputEvent } from "./index.ts";
 
@@ -106,6 +108,13 @@ interface Setup {
   imported: string[];
   events: OutputEvent[];
   size: ReturnType<typeof measuring>;
+  // The notifications that the mounts raised, while they hold.
+  raised: Omit<Notification, "id">[];
+  // What the mounts handed on of each of R's replies to a request.
+  replies: Parameters<Replied>[];
+  // The notifications that renderers raised through their hosts, while they
+  // hold.
+  notified: { from: From; notification: Raised }[];
   // Ends what core runs for the board, as core does as another board opens,
   // and opens the board of the reply given in a new store with new mounts, on
   // the same R and the same loader, as core starts again.
@@ -135,6 +144,29 @@ async function setup(
   const events: OutputEvent[] = [];
   const size = measuring(info);
   const page = counter();
+  const raised: Omit<Notification, "id">[] = [];
+  const raise: Raise = (notification) => {
+    raised.push(notification);
+    let holds = true;
+    return () => {
+      const at = raised.indexOf(notification);
+      if (holds && at >= 0) raised.splice(at, 1);
+      holds = false;
+    };
+  };
+  const replies: Parameters<Replied>[] = [];
+  const replied: Replied = (...args) => {
+    replies.push(args);
+  };
+  const notified: { from: From; notification: Raised }[] = [];
+  const notify: Notify = (from, notification) => {
+    const given = { from, notification };
+    notified.push(given);
+    return () => {
+      const at = notified.indexOf(given);
+      if (at >= 0) notified.splice(at, 1);
+    };
+  };
 
   async function open(given: HelloReply): Promise<Setup> {
     const controller = new AbortController();
@@ -154,6 +186,9 @@ async function setup(
       emit: (event) => {
         events.push(event);
       },
+      raise,
+      replied,
+      notify,
       signal,
     });
     return {
@@ -164,6 +199,9 @@ async function setup(
       imported,
       events,
       size,
+      raised,
+      replies,
+      notified,
       next: (after = bare) => {
         controller.abort();
         return open(after);
@@ -344,15 +382,16 @@ describe("asking", () => {
     expect(lastOutput(s.r).params).toEqual({ page: 3 });
   });
 
-  test("keeps an error from R while the renderer keeps what it holds, or shows it where no output came before", async () => {
+  test("keeps an error from R, which error() gives while the renderer keeps what it holds, and draws nothing of it in the element", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });
     const el = await ready(s);
     const failure = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "output" as const, message: "no page 9" };
 
+    // No output came before, so no renderer draws.
     s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [failure] });
     await tick();
-    expect(el.querySelector("[role=alert]")?.textContent).toBe("no page 9");
+    expect(el.textContent).toBe("");
 
     s.scheduler.invalidate("b");
     await evaluateAll(s.r);
@@ -367,6 +406,67 @@ describe("asking", () => {
     await tick();
     expect(table.host().error()).toEqual(failure);
     expect(table.host().output()).toMatchObject({ total: 150 });
+  });
+
+  test("raises a notification with the condition that error() gives, which concerns the block, in place of the one before, until the block's next output arrives", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    const el = await ready(s);
+    s.mounts.mountOutput(document.createElement("div"), "b");
+    await tick();
+    const failure = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "output" as const, message: "no page 9" };
+
+    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [failure] });
+    await tick();
+    // One ask for both mounts, so one notification.
+    expect(s.raised).toEqual([
+      {
+        severity: "error",
+        message: "no page 9",
+        source: { kind: "r", class: failure.class, request: { type: "output" } },
+        about: { block: "b" },
+      },
+    ]);
+
+    // Where R gives no condition, core writes the one that error() gives.
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [] });
+    await tick();
+    expect(el.textContent).toBe("");
+    expect(s.raised).toEqual([
+      {
+        severity: "error",
+        message: 'R failed to make the output of block "b".',
+        source: { kind: "core", code: "output_unanswered" },
+        about: { block: "b" },
+      },
+    ]);
+
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(s.raised).toEqual([]);
+  });
+
+  test("raises that the renderer cannot draw where a board option that it names does not go onto the board, beside the board option's own notification, which says why", async () => {
+    const reported = reports();
+    const table = renderer(["n_rows", "broken"]);
+    const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
+    const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
+    await ready(s);
+    reported.restore();
+    const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
+    expect(s.raised).toEqual([
+      { severity: "error", message: why, source: { kind: "core", code: "board_option_failed" }, about: { option: "broken" } },
+      {
+        severity: "error",
+        message: `Without the board option "broken", the renderer "${TABLE.id}" cannot draw.`,
+        source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id },
+        about: { block: "b" },
+      },
+    ]);
   });
 });
 
@@ -431,7 +531,7 @@ describe("what core keeps", () => {
 });
 
 describe("board options", () => {
-  test("whose default fails show why in the element, and core asks R for no output", async () => {
+  test("whose default fails leave the element empty, and core asks R for no output", async () => {
     const reported = reports();
     const table = renderer(["n_rows", "broken"]);
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
@@ -440,13 +540,13 @@ describe("board options", () => {
     reported.restore();
 
     const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
-    expect(el.querySelector("[role=alert]")?.textContent).toBe(why);
+    expect(el.textContent).toBe("");
     expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
     expect(outputs(s.r)).toHaveLength(0);
     expect(table.mounts).toHaveLength(0);
   });
 
-  test("that the renderer names and that do not go onto the board again reach it through error(), until the board holds a value", async () => {
+  test("that the renderer names and that do not go onto the board again reach it through error(), and raise that it cannot draw, until the board holds a value", async () => {
     const reported = reports();
     const table = renderer(["n_rows", "once"]);
     let calls = 0;
@@ -468,10 +568,15 @@ describe("board options", () => {
     await tick();
     reported.restore();
     const why = `The default of the board option "once", which the renderer "${TABLE.id}" requires, failed: No value any more.`;
-    expect(table.host().error()?.message).toBe(why);
+    const lacking = `Without the board option "once", the renderer "${TABLE.id}" cannot draw.`;
+    expect(table.host().error()?.message).toBe(lacking);
     expect(table.host().output()).toMatchObject({ total: 150 });
     expect(outputs(s.r)).toHaveLength(1);
     expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(s.raised.map((n) => [n.source, n.about, n.message])).toEqual([
+      [{ kind: "core", code: "board_option_failed" }, { option: "once" }, why],
+      [{ kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id }, { block: "b" }, lacking],
+    ]);
 
     // Once the board holds a value, core asks again, and the next output
     // clears the error.
@@ -482,6 +587,7 @@ describe("board options", () => {
     replyTable(s.r, lastOutput(s.r));
     await tick();
     expect(table.host().error()).toBeNull();
+    expect(s.raised.map((n) => n.about)).toEqual([{ option: "once" }]);
   });
 
   test("that the renderer names come onto the board again once a delta removes them, while it draws", async () => {
@@ -544,17 +650,61 @@ describe("the renderer", () => {
     expect(outputs(s.r)).toHaveLength(1);
   });
 
-  test("that fails to load, declares another major or throws shows an error in the element", async () => {
+  test("that fails to load, declares another major or throws leaves the element empty, and raises a notification that concerns the block, with the renderer and its package", async () => {
     const reported = reports();
     const s = await setup({ [TABLE.module]: { api: 2, default: renderer().exports.default } });
     const el = await ready(s);
+    s.mounts.mountOutput(document.createElement("div"), "b");
+    await tick();
     reported.restore();
 
-    expect(el.textContent).toContain(
-      "The module blockr.core/basic-table.js of blockr.core was built against major 2 of core's JS API",
-    );
-    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
+    expect(el.textContent).toBe("");
+    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(2);
     expect(outputs(s.r)).toHaveLength(0);
+    // Each mount raises the same, which core holds once.
+    const raised = s.raised.map((n) => JSON.stringify(n));
+    expect(raised).toHaveLength(2);
+    expect(new Set(raised)).toEqual(
+      new Set([
+        JSON.stringify({
+          severity: "error",
+          message:
+            "The module blockr.core/basic-table.js of blockr.core was built against major 2 of core's JS API, where core's is 1.",
+          source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id },
+          about: { block: "b" },
+        }),
+      ]),
+    );
+  });
+
+  test("that throws in render() leaves the element empty, and raises a notification that concerns the block, with the renderer and its package", async () => {
+    const reported = reports();
+    const s = await setup({
+      [TABLE.module]: {
+        api: 1,
+        default: {
+          render: ({ el }: { el: HTMLElement }) => {
+            el.textContent = "half drawn";
+            throw new Error("boom");
+          },
+        },
+      },
+    });
+    const el = await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    reported.restore();
+
+    expect(el.textContent).toBe("");
+    expect(s.raised).toEqual([
+      {
+        severity: "error",
+        message: "The module blockr.core/basic-table.js of blockr.core failed in render(): boom",
+        source: { kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id },
+        about: { block: "b" },
+      },
+    ]);
+    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
   });
 
   test("hears a new output in place, and is mounted again by a mount after its cleanup ran", async () => {
@@ -674,17 +824,50 @@ describe("a request", () => {
     await expect(download).resolves.toEqual([2]);
   });
 
-  test("rejects with the reply's status and conditions", async () => {
+  test("rejects with the reply's status and conditions, which it hands on as R's latest reply to a request of its name, as it does an ok reply's none", async () => {
     const { s, table } = await drawn();
     const failure = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no xlsx" };
     const download = table.host().request("download", { format: "xlsx" });
     await tick();
     s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "error", conditions: [failure] });
     await expect(download).rejects.toMatchObject({ status: "error", conditions: [failure] });
+
+    const sorted = table.host().request("sort", {}, { scope: "renderer" });
+    await tick();
+    s.r.reply({ id: requests(s.r)[1]?.id ?? "", status: "ok", value: [] });
+    await sorted;
+    expect(s.replies).toEqual([
+      [{ block: "b" }, { type: "output_class", name: "download" }, [failure]],
+      [{ block: "b" }, { type: "renderer", renderer: TABLE.id, name: "sort" }, []],
+    ]);
   });
 });
 
 describe("a mount", () => {
+  test("raises what the renderer gives its host's notify(), from the block, with the renderer's package, until the renderer is unmounted", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    const el = await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    const given: Raised = { severity: "warning", code: "truncated", message: "Only the first 150 rows show." };
+    const withdraw = table.host().notify(given);
+    table.host().notify({ ...given, code: "sorted", message: "Sorted." });
+    expect(s.notified).toEqual([
+      { from: { object: { block: "b" }, package: "blockr.core", renderer: TABLE.id }, notification: given },
+      { from: { object: { block: "b" }, package: "blockr.core", renderer: TABLE.id }, notification: { ...given, code: "sorted", message: "Sorted." } },
+    ]);
+    withdraw();
+    expect(s.notified.map((n) => n.notification.code)).toEqual(["sorted"]);
+    expect(() => table.host().notify({ ...given, code: "" })).toThrow("The code of a notification is a non-empty string");
+
+    s.store.apply({ blocks: { rm: ["b"] } });
+    expect(el.textContent).toBe("");
+    expect(s.notified).toEqual([]);
+    table.host().notify(given);
+    expect(s.notified).toEqual([]);
+  });
+
   test("reports what the renderer emits, by its block", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });

@@ -10,9 +10,10 @@
 //    so core adds no other board option for it.
 // 3. It calls the module's render() with the element, the host and a signal,
 //    which it aborts once the mount ends. Where the default did not go onto
-//    the board, as where it failed, core shows why in the element instead,
-//    and so it does in place of the UI where the default does not go onto the
-//    board again once a delta removed the value.
+//    the board, as where it failed, core leaves the element empty instead,
+//    and ends the UI where the default does not go onto the board again once a
+//    delta removed the value. The notification that concerns the board option
+//    says why, once for the board.
 // The host gives the value as the board holds it, and announces each change of
 // it. A submit runs core's command that sets a board option, and a request goes
 // to the board option's requests in R, whose answers core never keeps. Once
@@ -20,6 +21,15 @@
 // Where the renderer fails in render(), the error names the renderer's module
 // and its package. Where the UI of the board option's definition fails, the
 // error names the board option, since only one package can register its id.
+// Either way, core leaves the element empty, so that the frontend alone says
+// where the failure shows, and raises a notification that concerns the board
+// option, with the package of the renderer or of the board option, which
+// holds until the next board opens.
+// What the module raises through its host's notify() comes from the board
+// option, with the package of the module, and holds until the mount ends at
+// the latest. Each condition of R's error reply to a request raises a
+// notification that concerns the board option, which holds until R next
+// replies to a request of the same name.
 
 import type { Commands } from "../commands/index.ts";
 import type { Renderer } from "../protocol/index.ts";
@@ -28,11 +38,12 @@ import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
+import { checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
+import type { Notify, Raise, Replied } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, mountableModule, onAbort, REPLACED, showError } from "./shared.ts";
+import { announceTo, attempt, mountableModule, onAbort, REPLACED } from "./shared.ts";
 import type { Mountable } from "./shared.ts";
 
 export interface OptionDeps {
@@ -52,6 +63,15 @@ export interface OptionDeps {
     by: string,
     failed: (failures: readonly string[]) => void,
   ) => { readonly added: Promise<readonly string[]>; readonly stop: () => void };
+  // Raises a notification of the board (../core/notifications.ts).
+  readonly raise: Raise;
+  // Holds a notification for each condition of R's latest reply to each of
+  // the board option's requests.
+  readonly replied: Replied;
+  // Raises the notification that the module gives through its host.
+  readonly notify: Notify;
+  // The package that lists a board option, from R's reply to `hello`.
+  readonly optionPackage: (option: OptionId) => string | undefined;
 }
 
 interface OptionArgs {
@@ -79,6 +99,8 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   let cleanup: (() => void) | undefined;
   // Stops keeping the board option on the board, once the module has loaded.
   let stopKeeping: (() => void) | undefined;
+  // What withdraws each notification that the module raised and that holds.
+  const notified = new Set<() => void>();
 
   function bound(): boolean {
     return !ended() && !deps.replaced.aborted;
@@ -125,6 +147,17 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       if (!bound()) return Promise.reject(unboundError());
       return optionRequest(deps, option, name, args, opts) as Promise<T | Blob>;
     },
+    notify(notification) {
+      const given = checkRaised(notification);
+      if (ended()) return () => undefined;
+      const withdraw = deps.notify({ object: { option }, package: pkg ?? null }, given);
+      const mine = (): void => {
+        notified.delete(mine);
+        withdraw();
+      };
+      notified.add(mine);
+      return mine;
+    },
   };
 
   const offStore = store.subscribe((_change, board) => {
@@ -147,39 +180,38 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     offStore();
     stopKeeping?.();
     listeners.clear();
+    for (const withdraw of [...notified]) withdraw();
     if (cleanup !== undefined) attempt(cleanup);
     el.replaceChildren();
   }
 
+  // The package of the module that draws: the renderer's, or else the board
+  // option's.
+  const [id, renderer] = chosen ?? [];
+  const pkg = id === undefined ? deps.optionPackage(option) : packageFromId(id);
+
   void (async () => {
     let mod: Mountable<OptionArgs>;
-    const [id, renderer] = chosen ?? [];
     try {
       if (renderer === undefined || id === undefined) {
         mod = def.ui;
       } else {
-        const pkg = packageFromId(id);
         const source = renderer.css === undefined ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule<OptionArgs>(await loader.load(source, pkg), renderer.module, pkg);
+        mod = mountableModule<OptionArgs>(await loader.load(source, packageFromId(id)), renderer.module, packageFromId(id));
       }
     } catch (error) {
       fail(error);
       return;
     }
     if (ended()) return;
-    // Core has reported why the board holds no value.
-    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, (failures) => {
-      if (ended()) return;
-      end();
-      showError(el, failures.join("\n"));
-    });
+    // Core has reported why the board holds no value, and raised it.
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
     const failures = await kept.added;
     if (ended()) return;
     value = current();
     if (value === undefined && failures.length > 0) {
       kept.stop();
-      showError(el, failures.join("\n"));
       return;
     }
 
@@ -198,10 +230,11 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     }
   })();
 
+  // A module that cannot draw, which leaves its element empty.
   function fail(error: unknown): void {
     if (ended()) return;
-    showError(el, errorMessage(error));
     report(error);
+    deps.raise(coreNotification("module_failed", "error", errorMessage(error), { about: { option }, package: pkg }));
   }
 
   return end;
@@ -211,7 +244,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
 // as R writes it, or with the File of a download. Core never keeps the answer
 // of a board option's request.
 async function optionRequest(
-  deps: Pick<OptionDeps, "scheduler">,
+  deps: Pick<OptionDeps, "scheduler" | "replied">,
   option: OptionId,
   name: string,
   args: Readonly<Record<string, Json>>,
@@ -227,14 +260,18 @@ async function optionRequest(
   );
   switch (reply.status) {
     case "ok":
+      deps.replied({ option }, { type: "option", name }, []);
       if (body !== null) return body;
       return "value" in reply && reply.value !== undefined ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name}" of the board option "${option}".`, { status: "cancelled" });
-    default:
+    default: {
+      const conditions = "conditions" in reply ? reply.conditions : [];
+      deps.replied({ option }, { type: "option", name }, conditions);
       throw new RequestError(`R replied ${reply.status} to the request "${name}" of the board option "${option}".`, {
         status: reply.status,
-        conditions: "conditions" in reply ? reply.conditions : [],
+        conditions,
       });
+    }
   }
 }

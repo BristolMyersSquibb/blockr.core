@@ -3,10 +3,11 @@
 // answers the board option's requests from the answers a test gives.
 
 import type { OptionId } from "../types/board.ts";
+import type { Raised } from "../types/core-api.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { asError, isObject, jsonEqual } from "../util/index.ts";
-import { announcer } from "./util.ts";
+import { announcer, notifier } from "./util.ts";
 
 // What a request answers, given its name and the args it is called with.
 export interface Answered {
@@ -26,6 +27,9 @@ export interface StubOptionHost<V extends Json = Json> extends OptionHost<V> {
   readonly submitted: readonly V[];
   // Each request that the module made, with its args.
   readonly requested: readonly { readonly name: string; readonly args: Readonly<Record<string, Json>> }[];
+  // Each notification that the module raised and that holds, in the order
+  // they came.
+  readonly notified: readonly Raised[];
   // Sets the value from outside the module, as the assistant or another
   // frontend's control does, and announces it.
   setValue(value: V): void;
@@ -36,6 +40,7 @@ export function stubOptionHost<V extends Json = Json>(options: StubOptionHostOpt
   const submitted: V[] = [];
   const requested: { name: string; args: Readonly<Record<string, Json>> }[] = [];
   const on = announcer(["value"] as const);
+  const { notified, notify } = notifier();
 
   return {
     option: options.option,
@@ -43,6 +48,8 @@ export function stubOptionHost<V extends Json = Json>(options: StubOptionHostOpt
     on: on.listen,
     submitted,
     requested,
+    notified,
+    notify,
     submit(next) {
       submitted.push(next);
       value = next;

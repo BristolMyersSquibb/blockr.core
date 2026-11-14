@@ -164,9 +164,11 @@ describe("dark_mode", () => {
   test("switches the page's theme as its value changes, in an attribute of core's own", () => {
     const core = {} as Parameters<NonNullable<Option["onChange"]>>[1];
 
-    darkMode.onChange?.("dark", core);
+    const notify = (): (() => void) => () => undefined;
+
+    darkMode.onChange?.("dark", core, notify);
     expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
-    darkMode.onChange?.("light", core);
+    darkMode.onChange?.("light", core, notify);
     expect(document.documentElement.getAttribute("data-bc-theme")).toBe("light");
 
     setTheme("dark");

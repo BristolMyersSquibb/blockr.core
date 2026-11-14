@@ -1,7 +1,7 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
-import type { RequestOpts } from "./core-api.ts";
+import type { Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 export type State = Readonly<Record<string, Json>>;
 export interface BlockModule<S extends State = State> {
@@ -38,6 +38,7 @@ export interface BlockHost<S extends State = State> {
     request<T = Json>(name: string, args?: Partial<S> & Record<string, Json>, opts?: HostRequestOpts): Promise<T | Blob>;
     evaluate(params: Record<string, Json>): Promise<BlockStatus>;
     module<T = unknown>(id: string): Promise<T>;
+    notify(notification: Raised): () => void;
 }
 export interface BlockContext {
     readonly name: string;
@@ -58,6 +59,7 @@ export interface OptionHost<V extends Json = Json> {
     on(event: "value", fn: () => void): () => void;
     submit(value: V): Promise<void>;
     request<T = Json>(name: string, args?: Record<string, Json>, opts?: HostRequestOpts): Promise<T | Blob>;
+    notify(notification: Raised): () => void;
 }
 export interface OutputHost {
     readonly block: BlockId;
@@ -71,4 +73,5 @@ export interface OutputHost {
     setParams(params: Json): void;
     request<T = Json>(name: string, args?: Record<string, Json>, opts?: OutputRequestOpts): Promise<T | Blob>;
     emit(name: string, payload: Json): void;
+    notify(notification: Raised): () => void;
 }

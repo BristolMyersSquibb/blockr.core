@@ -1,6 +1,6 @@
 // srcts/util/util.ts
-function own(record, key) {
-  return Object.hasOwn(record, key) ? record[key] : void 0;
+function own(record, key2) {
+  return Object.hasOwn(record, key2) ? record[key2] : void 0;
 }
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
@@ -23,14 +23,14 @@ function jsonEqual(a2, b2) {
   }
   if (isObject(a2) && isObject(b2)) {
     const keys = Object.keys(a2);
-    return keys.length === Object.keys(b2).length && keys.every((key) => Object.hasOwn(b2, key) && jsonEqual(a2[key], b2[key]));
+    return keys.length === Object.keys(b2).length && keys.every((key2) => Object.hasOwn(b2, key2) && jsonEqual(a2[key2], b2[key2]));
   }
   return false;
 }
 function without(record, keys) {
-  if (!keys.some((key) => Object.hasOwn(record, key))) return record;
+  if (!keys.some((key2) => Object.hasOwn(record, key2))) return record;
   return Object.fromEntries(
-    Object.entries(record).filter(([key]) => !keys.includes(key))
+    Object.entries(record).filter(([key2]) => !keys.includes(key2))
   );
 }
 function frozenCopy(x2) {
@@ -68,6 +68,61 @@ function asLogical(text) {
   if (["TRUE", "true", "True", "T"].includes(trimmed)) return true;
   if (["FALSE", "false", "False", "F"].includes(trimmed)) return false;
   return void 0;
+}
+
+// srcts/util/notification.ts
+var raiseNothing = () => () => void 0;
+var repliedNothing = () => void 0;
+var notifyNothing = () => () => void 0;
+function coreNotification(code, severity, message, concerns = {}) {
+  const { package: pkg, renderer } = concerns;
+  return {
+    severity,
+    message,
+    source: {
+      kind: "core",
+      code,
+      ...pkg === void 0 || pkg === null ? {} : { package: pkg },
+      ...renderer === void 0 ? {} : { renderer }
+    },
+    ...concerns.about === void 0 ? {} : { about: concerns.about }
+  };
+}
+var SEVERITIES = ["message", "warning", "error"];
+var KINDS = ["block", "link", "stack", "option", "plugin"];
+function isBoardObject(value2) {
+  if (!isObject(value2)) return false;
+  const keys = Object.keys(value2);
+  const [kind] = keys;
+  if (keys.length !== 1 || kind === void 0 || !KINDS.includes(kind)) return false;
+  const id2 = value2[kind];
+  return typeof id2 === "string" && id2 !== "";
+}
+function checkRaised(notification) {
+  const given = notification;
+  if (!isObject(given)) {
+    throw new TypeError(`A notification is an object, not ${JSON.stringify(given)}.`);
+  }
+  if (!SEVERITIES.includes(given.severity)) {
+    throw new TypeError(
+      `The severity of a notification is "message", "warning" or "error", not ${JSON.stringify(given.severity)}.`
+    );
+  }
+  if (typeof given.message !== "string") {
+    throw new TypeError(`The message of a notification is a string, not ${JSON.stringify(given.message)}.`);
+  }
+  if (typeof given.code !== "string" || given.code === "") {
+    throw new TypeError(
+      `The code of a notification is a non-empty string, as "edit_refused", not ${JSON.stringify(given.code)}.`
+    );
+  }
+  const { about } = given;
+  if (about !== void 0 && about !== null && !isBoardObject(about)) {
+    throw new TypeError(
+      `A notification concerns one board object, as { block: "a" }: a block, a link, a stack, a board option or a plugin, or null for the board, not ${JSON.stringify(about)}.`
+    );
+  }
+  return notification;
 }
 
 // node_modules/@cfworker/json-schema/dist/esm/deep-compare-strict.js
@@ -222,20 +277,20 @@ function dereference(schema, lookup = /* @__PURE__ */ Object.create(null), baseU
     const url = new URL("#" + schema.$anchor, baseURI.href);
     lookup[url.href] = schema;
   }
-  for (let key in schema) {
-    if (ignoredKeyword[key]) {
+  for (let key2 in schema) {
+    if (ignoredKeyword[key2]) {
       continue;
     }
-    const keyBase = `${basePointer}/${encodePointer(key)}`;
-    const subSchema = schema[key];
+    const keyBase = `${basePointer}/${encodePointer(key2)}`;
+    const subSchema = schema[key2];
     if (Array.isArray(subSchema)) {
-      if (schemaArrayKeyword[key]) {
+      if (schemaArrayKeyword[key2]) {
         const length = subSchema.length;
         for (let i2 = 0; i2 < length; i2++) {
           dereference(subSchema[i2], lookup, baseURI, `${keyBase}/${i2}`);
         }
       }
-    } else if (schemaMapKeyword[key]) {
+    } else if (schemaMapKeyword[key2]) {
       for (let subKey in subSchema) {
         dereference(subSchema[subKey], lookup, baseURI, `${keyBase}/${encodePointer(subKey)}`);
       }
@@ -370,8 +425,8 @@ function ucs2length(s2) {
 }
 
 // node_modules/@cfworker/json-schema/dist/esm/validate.js
-function hasOwnProperty(instance, key) {
-  return Object.prototype.hasOwnProperty.call(instance, key);
+function hasOwnProperty(instance, key2) {
+  return Object.prototype.hasOwnProperty.call(instance, key2);
 }
 function decimalInteger(value2) {
   const coefficientAndExponent = Math.abs(value2).toString().split("e");
@@ -666,13 +721,13 @@ Known schemas:
   }
   if (instanceType === "object") {
     if ($required !== void 0) {
-      for (const key of $required) {
-        if (!hasOwnProperty(instance, key)) {
+      for (const key2 of $required) {
+        if (!hasOwnProperty(instance, key2)) {
           errors.push({
             instanceLocation,
             keyword: "required",
             keywordLocation: `${schemaLocation}/required`,
-            error: `Instance does not have required property "${key}".`
+            error: `Instance does not have required property "${key2}".`
           });
         }
       }
@@ -696,31 +751,31 @@ Known schemas:
     }
     if ($propertyNames !== void 0) {
       const keywordLocation = `${schemaLocation}/propertyNames`;
-      for (const key in instance) {
-        const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
-        const result = validate(key, $propertyNames, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
+      for (const key2 in instance) {
+        const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
+        const result = validate(key2, $propertyNames, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
         if (!result.valid) {
           errors.push({
             instanceLocation,
             keyword: "propertyNames",
             keywordLocation,
-            error: `Property name "${key}" does not match schema.`
+            error: `Property name "${key2}" does not match schema.`
           }, ...result.errors);
         }
       }
     }
     if ($dependentRequired !== void 0) {
       const keywordLocation = `${schemaLocation}/dependantRequired`;
-      for (const key in $dependentRequired) {
-        if (hasOwnProperty(instance, key)) {
-          const required = $dependentRequired[key];
+      for (const key2 in $dependentRequired) {
+        if (hasOwnProperty(instance, key2)) {
+          const required = $dependentRequired[key2];
           for (const dependantKey of required) {
             if (!hasOwnProperty(instance, dependantKey)) {
               errors.push({
                 instanceLocation,
                 keyword: "dependentRequired",
                 keywordLocation,
-                error: `Instance has "${key}" but does not have "${dependantKey}".`
+                error: `Instance has "${key2}" but does not have "${dependantKey}".`
               });
             }
           }
@@ -728,16 +783,16 @@ Known schemas:
       }
     }
     if ($dependentSchemas !== void 0) {
-      for (const [key, dependentSchema] of Object.entries($dependentSchemas)) {
+      for (const [key2, dependentSchema] of Object.entries($dependentSchemas)) {
         const keywordLocation = `${schemaLocation}/dependentSchemas`;
-        if (hasOwnProperty(instance, key)) {
-          const result = validate(instance, dependentSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${keywordLocation}/${encodePointer(key)}`, evaluated);
+        if (hasOwnProperty(instance, key2)) {
+          const result = validate(instance, dependentSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${keywordLocation}/${encodePointer(key2)}`, evaluated);
           if (!result.valid) {
             errors.push({
               instanceLocation,
               keyword: "dependentSchemas",
               keywordLocation,
-              error: `Instance has "${key}" but does not match dependant schema.`
+              error: `Instance has "${key2}" but does not match dependant schema.`
             }, ...result.errors);
           }
         }
@@ -745,9 +800,9 @@ Known schemas:
     }
     if ($dependencies !== void 0) {
       const keywordLocation = `${schemaLocation}/dependencies`;
-      for (const key in $dependencies) {
-        if (hasOwnProperty(instance, key)) {
-          const propsOrSchema = $dependencies[key];
+      for (const key2 in $dependencies) {
+        if (hasOwnProperty(instance, key2)) {
+          const propsOrSchema = $dependencies[key2];
           if (Array.isArray(propsOrSchema)) {
             for (const dependantKey of propsOrSchema) {
               if (!hasOwnProperty(instance, dependantKey)) {
@@ -755,18 +810,18 @@ Known schemas:
                   instanceLocation,
                   keyword: "dependencies",
                   keywordLocation,
-                  error: `Instance has "${key}" but does not have "${dependantKey}".`
+                  error: `Instance has "${key2}" but does not have "${dependantKey}".`
                 });
               }
             }
           } else {
-            const result = validate(instance, propsOrSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${keywordLocation}/${encodePointer(key)}`);
+            const result = validate(instance, propsOrSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${keywordLocation}/${encodePointer(key2)}`);
             if (!result.valid) {
               errors.push({
                 instanceLocation,
                 keyword: "dependencies",
                 keywordLocation,
-                error: `Instance has "${key}" but does not match dependant schema.`
+                error: `Instance has "${key2}" but does not match dependant schema.`
               }, ...result.errors);
             }
           }
@@ -777,22 +832,22 @@ Known schemas:
     let stop = false;
     if ($properties !== void 0) {
       const keywordLocation = `${schemaLocation}/properties`;
-      for (const [key, propertySchema] of Object.entries($properties)) {
-        if (!hasOwnProperty(instance, key)) {
+      for (const [key2, propertySchema] of Object.entries($properties)) {
+        if (!hasOwnProperty(instance, key2)) {
           continue;
         }
-        const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
-        const result = validate(instance[key], propertySchema, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, `${keywordLocation}/${encodePointer(key)}`);
-        thisEvaluated[key] = true;
+        const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
+        const result = validate(instance[key2], propertySchema, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, `${keywordLocation}/${encodePointer(key2)}`);
+        thisEvaluated[key2] = true;
         if (result.valid) {
-          evaluated[key] = true;
+          evaluated[key2] = true;
         } else {
           stop = shortCircuit;
           errors.push({
             instanceLocation,
             keyword: "properties",
             keywordLocation,
-            error: `Property "${key}" does not match schema.`
+            error: `Property "${key2}" does not match schema.`
           }, ...result.errors);
           if (stop)
             break;
@@ -803,22 +858,22 @@ Known schemas:
       const keywordLocation = `${schemaLocation}/patternProperties`;
       for (const [pattern, subSchema] of Object.entries($patternProperties)) {
         const regex2 = new RegExp(pattern, "u");
-        for (const key in instance) {
-          if (!regex2.test(key)) {
+        for (const key2 in instance) {
+          if (!regex2.test(key2)) {
             continue;
           }
-          const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
-          const result = validate(instance[key], subSchema, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, `${keywordLocation}/${encodePointer(pattern)}`);
-          thisEvaluated[key] = true;
+          const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
+          const result = validate(instance[key2], subSchema, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, `${keywordLocation}/${encodePointer(pattern)}`);
+          thisEvaluated[key2] = true;
           if (result.valid) {
-            evaluated[key] = true;
+            evaluated[key2] = true;
           } else {
             stop = shortCircuit;
             errors.push({
               instanceLocation,
               keyword: "patternProperties",
               keywordLocation,
-              error: `Property "${key}" matches pattern "${pattern}" but does not match associated schema.`
+              error: `Property "${key2}" matches pattern "${pattern}" but does not match associated schema.`
             }, ...result.errors);
           }
         }
@@ -826,38 +881,38 @@ Known schemas:
     }
     if (!stop && $additionalProperties !== void 0) {
       const keywordLocation = `${schemaLocation}/additionalProperties`;
-      for (const key in instance) {
-        if (thisEvaluated[key]) {
+      for (const key2 in instance) {
+        if (thisEvaluated[key2]) {
           continue;
         }
-        const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
-        const result = validate(instance[key], $additionalProperties, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
+        const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
+        const result = validate(instance[key2], $additionalProperties, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
         if (result.valid) {
-          evaluated[key] = true;
+          evaluated[key2] = true;
         } else {
           stop = shortCircuit;
           errors.push({
             instanceLocation,
             keyword: "additionalProperties",
             keywordLocation,
-            error: `Property "${key}" does not match additional properties schema.`
+            error: `Property "${key2}" does not match additional properties schema.`
           }, ...result.errors);
         }
       }
     } else if (!stop && $unevaluatedProperties !== void 0) {
       const keywordLocation = `${schemaLocation}/unevaluatedProperties`;
-      for (const key in instance) {
-        if (!evaluated[key]) {
-          const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
-          const result = validate(instance[key], $unevaluatedProperties, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
+      for (const key2 in instance) {
+        if (!evaluated[key2]) {
+          const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
+          const result = validate(instance[key2], $unevaluatedProperties, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
           if (result.valid) {
-            evaluated[key] = true;
+            evaluated[key2] = true;
           } else {
             errors.push({
               instanceLocation,
               keyword: "unevaluatedProperties",
               keywordLocation,
-              error: `Property "${key}" does not match unevaluated properties schema.`
+              error: `Property "${key2}" does not match unevaluated properties schema.`
             }, ...result.errors);
           }
         }
@@ -1255,6 +1310,22 @@ function announcer(events) {
     }
   };
 }
+function notifier() {
+  const notified = [];
+  return {
+    notified,
+    notify(notification) {
+      const given = checkRaised(notification);
+      notified.push(given);
+      let withdrawn = false;
+      return () => {
+        if (withdrawn) return;
+        withdrawn = true;
+        notified.splice(notified.indexOf(given), 1);
+      };
+    }
+  };
+}
 
 // srcts/stubs/block.ts
 function stubBlockHost(fixture, options = {}) {
@@ -1264,6 +1335,7 @@ function stubBlockHost(fixture, options = {}) {
   const requested = [];
   const evaluated = [];
   const on = announcer(["state", "context"]);
+  const { notified, notify } = notifier();
   return {
     block: options.block ?? "block",
     class: options.class ?? "stub",
@@ -1273,13 +1345,15 @@ function stubBlockHost(fixture, options = {}) {
     submitted,
     requested,
     evaluated,
+    notified,
+    notify,
     submit(change) {
       if (!isObject(change)) {
         return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
       }
       const next = { ...state2, ...defined(change) };
       submitted.push(next);
-      if (!fixture.states.some((listed) => jsonEqual(listed, next))) {
+      if (!fixture.states.some((listed2) => jsonEqual(listed2, next))) {
         return Promise.reject(
           new Error(`The module submitted the state ${JSON.stringify(next)}, which the fixture does not list.`)
         );
@@ -1343,12 +1417,15 @@ function stubOptionHost(options) {
   const submitted = [];
   const requested = [];
   const on = announcer(["value"]);
+  const { notified, notify } = notifier();
   return {
     option: options.option,
     value: () => value2,
     on: on.listen,
     submitted,
     requested,
+    notified,
+    notify,
     submit(next) {
       submitted.push(next);
       value2 = next;
@@ -1387,6 +1464,7 @@ function stubOutputHost(options = {}) {
   const asked = [];
   const requested = [];
   const on = announcer(["output"]);
+  const { notified, notify } = notifier();
   return {
     block: options.block ?? "block",
     output: () => output,
@@ -1399,6 +1477,8 @@ function stubOutputHost(options = {}) {
     emitted,
     asked,
     requested,
+    notified,
+    notify,
     setParams(next) {
       asked.push(next);
       const found = options.fixtures?.outputs.find(
@@ -2040,7 +2120,7 @@ function createClient(transport, options) {
     }
   }
   function sendHello() {
-    const named2 = options.hello();
+    const named3 = options.hello();
     const id2 = mint();
     const call = {
       id: id2,
@@ -2055,15 +2135,15 @@ function createClient(transport, options) {
         }
         const { reply } = result;
         if (reply.status === "ok" && "capabilities" in reply) {
-          if (sameMajor(reply.protocol, named2.protocol)) {
+          if (sameMajor(reply.protocol, named3.protocol)) {
             const theirs = new Set(reply.capabilities);
-            shared = new Set(named2.capabilities.filter((c2) => theirs.has(c2)));
+            shared = new Set(named3.capabilities.filter((c2) => theirs.has(c2)));
             state2 = "ready";
             const outbound = held2;
             held2 = [];
             dispatch(outbound);
           } else {
-            stop(reply.protocol, named2.protocol);
+            stop(reply.protocol, named3.protocol);
           }
         }
         guard(() => {
@@ -2071,7 +2151,7 @@ function createClient(transport, options) {
         });
       }
     };
-    transmit([{ message: { ...named2, id: id2, kind: "hello" }, call }], /* @__PURE__ */ new Map());
+    transmit([{ message: { ...named3, id: id2, kind: "hello" }, call }], /* @__PURE__ */ new Map());
   }
   transport.listen({
     started() {
@@ -2193,6 +2273,10 @@ var PROTOCOL_VERSION = "1.0";
 
 // srcts/scheduler/status.ts
 var NO_CONDITIONS = Object.freeze([]);
+var unsentErrors = /* @__PURE__ */ new WeakSet();
+function isUnsentError(condition) {
+  return unsentErrors.has(condition);
+}
 function replyOutcome(reply, revision) {
   if (reply.status === "cancelled" || reply.status === "missing") return void 0;
   const evaluated = reply;
@@ -2207,18 +2291,18 @@ function replyOutcome(reply, revision) {
   };
 }
 function unsent(revision, message) {
+  const error = {
+    severity: "error",
+    class: ["blockr_error", "error", "condition"],
+    message: `The evaluation could not be sent to R: ${message}`
+  };
+  unsentErrors.add(error);
   return {
     status: "error",
     revision,
     summary: null,
     reason: null,
-    conditions: [
-      {
-        severity: "error",
-        class: ["blockr_error", "error", "condition"],
-        message: `The evaluation could not be sent to R: ${message}`
-      }
-    ],
+    conditions: [error],
     stdout: "",
     stderr: ""
   };
@@ -2334,8 +2418,8 @@ function createOneTime(blocks, params, priority, statuses, inputs) {
   if (blocks.length === 0) return new Error("An evaluation with parameters names no block.");
   const absent = blocks.filter((id2) => !statuses.has(id2));
   if (absent.length > 0) {
-    const named2 = absent.length === 1 ? "block" : "blocks";
-    return new Error(`The board holds no ${named2} ${quoted(absent)} to evaluate.`);
+    const named3 = absent.length === 1 ? "block" : "blocks";
+    return new Error(`The board holds no ${named3} ${quoted(absent)} to evaluate.`);
   }
   const parts = /* @__PURE__ */ new Map();
   for (const id2 of blocks) {
@@ -3196,11 +3280,11 @@ function createAnswers(scheduler, signal) {
     );
   }
   function sweep() {
-    for (const [key, { request }] of kept) {
-      if (!current2(request)) kept.delete(key);
+    for (const [key2, { request }] of kept) {
+      if (!current2(request)) kept.delete(key2);
     }
   }
-  function start2(ask, key) {
+  function start2(ask, key2) {
     const controller = new AbortController();
     const progress = /* @__PURE__ */ new Set();
     const done = scheduler.request(ask.request, {
@@ -3216,19 +3300,19 @@ function createAnswers(scheduler, signal) {
         }
       }
     }).then((answer2) => {
-      if (key !== void 0 && ask.share === "keep" && answer2.reply.status === "ok" && !("volatile" in answer2.reply && answer2.reply.volatile === true) && current2(ask.request)) {
-        kept.set(key, { answer: answer2, request: ask.request });
+      if (key2 !== void 0 && ask.share === "keep" && answer2.reply.status === "ok" && !("volatile" in answer2.reply && answer2.reply.volatile === true) && current2(ask.request)) {
+        kept.set(key2, { answer: answer2, request: ask.request });
       }
       return answer2;
     }).finally(() => {
-      if (key !== void 0 && flights.get(key) === flight) flights.delete(key);
+      if (key2 !== void 0 && flights.get(key2) === flight) flights.delete(key2);
     });
     done.catch(() => void 0);
     const flight = { done, controller, progress, callers: 0 };
-    if (key !== void 0) flights.set(key, flight);
+    if (key2 !== void 0) flights.set(key2, flight);
     return flight;
   }
-  function join(flight, key, signal2, progress) {
+  function join(flight, key2, signal2, progress) {
     flight.callers += 1;
     const listener = progress === void 0 ? void 0 : { fn: progress };
     if (listener !== void 0) flight.progress.add(listener);
@@ -3244,7 +3328,7 @@ function createAnswers(scheduler, signal) {
         leave2();
         reject(asError(signal2?.reason));
         if (flight.callers === 0) {
-          if (key !== void 0 && flights.get(key) === flight) flights.delete(key);
+          if (key2 !== void 0 && flights.get(key2) === flight) flights.delete(key2);
           flight.controller.abort();
         }
       };
@@ -3266,11 +3350,11 @@ function createAnswers(scheduler, signal) {
   return {
     ask(ask, { signal: signal2, progress } = {}) {
       if (signal2?.aborted === true) return Promise.reject(asError(signal2.reason));
-      const key = ask.share === "once" ? void 0 : requestKey(ask.request);
-      const answer2 = key === void 0 ? void 0 : kept.get(key)?.answer;
+      const key2 = ask.share === "once" ? void 0 : requestKey(ask.request);
+      const answer2 = key2 === void 0 ? void 0 : kept.get(key2)?.answer;
       if (answer2 !== void 0) return Promise.resolve(answer2);
-      const flight = (key === void 0 ? void 0 : flights.get(key)) ?? start2(ask, key);
-      return join(flight, key, signal2, progress);
+      const flight = (key2 === void 0 ? void 0 : flights.get(key2)) ?? start2(ask, key2);
+      return join(flight, key2, signal2, progress);
     },
     size: () => kept.size
   };
@@ -3591,6 +3675,7 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
     if (!deps.bound()) throw deps.unboundError();
     switch (reply.status) {
       case "ok":
+        deps.replied({ block }, { type: "block_class", name: name2 }, []);
         if (body !== null) return body;
         return "value" in reply && reply.value !== void 0 ? reply.value : null;
       case "missing":
@@ -3600,11 +3685,14 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
         });
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name2}" of block "${block}".`, { status: "cancelled" });
-      default:
+      default: {
+        const conditions = "conditions" in reply ? reply.conditions : [];
+        deps.replied({ block }, { type: "block_class", name: name2 }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name2}" of block "${block}".`, {
           status: reply.status,
-          conditions: "conditions" in reply ? reply.conditions : []
+          conditions
         });
+      }
     }
   }
 }
@@ -3629,8 +3717,8 @@ async function evaluateReads(deps, block, entry, name2, names, signal) {
     return status === void 0 || status.status === "ready" ? [] : [{ input: input2.input, status }];
   });
   if (unready.length > 0) {
-    const listed = unready.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
-    throw new RequestError(`${what} did not go to R, since an input it reads is not ready: ${listed.join(", ")}.`, {
+    const listed2 = unready.map(({ input: input2, status }) => `"${input2}" reads ${status.status}`);
+    throw new RequestError(`${what} did not go to R, since an input it reads is not ready: ${listed2.join(", ")}.`, {
       inputs: unready
     });
   }
@@ -3658,11 +3746,14 @@ function mountableModule(exports, module, pkg) {
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new ModuleError(module, pkg, "has no default export with a render() function.");
   }
-  const named2 = mod.options;
-  if (named2 !== void 0 && !(Array.isArray(named2) && named2.every((id2) => typeof id2 === "string"))) {
+  const named3 = mod.options;
+  if (named3 !== void 0 && !(Array.isArray(named3) && named3.every((id2) => typeof id2 === "string"))) {
     throw new ModuleError(module, pkg, "names its board options in something other than an array of their ids.");
   }
   return mod;
+}
+function withoutOptions(module, ids2) {
+  return `Without the board option${ids2.length === 1 ? "" : "s"} ${quoted(ids2)}, ${module} cannot draw.`;
 }
 function showError(el, message) {
   const box = document.createElement("div");
@@ -3701,7 +3792,7 @@ function mountOption(deps, el, option) {
   if (def === void 0) {
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
-  const chosen = Object.entries(deps.renderers()).find(([, renderer]) => renderer.option === option);
+  const chosen = Object.entries(deps.renderers()).find(([, renderer2]) => renderer2.option === option);
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
@@ -3709,6 +3800,7 @@ function mountOption(deps, el, option) {
   let seen = store.board().options;
   let cleanup;
   let stopKeeping;
+  const notified = /* @__PURE__ */ new Set();
   function bound() {
     return !ended() && !deps.replaced.aborted;
   }
@@ -3743,6 +3835,17 @@ function mountOption(deps, el, option) {
       if (!isObject(args)) return Promise.reject(new TypeError(`The args of the request "${name2}" are an object.`));
       if (!bound()) return Promise.reject(unboundError());
       return optionRequest(deps, option, name2, args, opts);
+    },
+    notify(notification) {
+      const given = checkRaised(notification);
+      if (ended()) return () => void 0;
+      const withdraw = deps.notify({ object: { option }, package: pkg ?? null }, given);
+      const mine = () => {
+        notified.delete(mine);
+        withdraw();
+      };
+      notified.add(mine);
+      return mine;
     }
   };
   const offStore = store.subscribe((_change, board) => {
@@ -3761,37 +3864,33 @@ function mountOption(deps, el, option) {
     offStore();
     stopKeeping?.();
     listeners.clear();
+    for (const withdraw of [...notified]) withdraw();
     if (cleanup !== void 0) attempt(cleanup);
     el.replaceChildren();
   }
+  const [id2, renderer] = chosen ?? [];
+  const pkg = id2 === void 0 ? deps.optionPackage(option) : packageFromId(id2);
   void (async () => {
     let mod;
-    const [id2, renderer] = chosen ?? [];
     try {
       if (renderer === void 0 || id2 === void 0) {
         mod = def.ui;
       } else {
-        const pkg = packageFromId(id2);
         const source = renderer.css === void 0 ? { module: renderer.module } : { module: renderer.module, css: renderer.css };
-        mod = mountableModule(await loader.load(source, pkg), renderer.module, pkg);
+        mod = mountableModule(await loader.load(source, packageFromId(id2)), renderer.module, packageFromId(id2));
       }
     } catch (error) {
       fail(error);
       return;
     }
     if (ended()) return;
-    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, (failures2) => {
-      if (ended()) return;
-      end();
-      showError(el, failures2.join("\n"));
-    });
+    const kept = deps.keepOptions([option], `the UI of the board option "${option}"`, end);
     stopKeeping = kept.stop;
     const failures = await kept.added;
     if (ended()) return;
     value2 = current2();
     if (value2 === void 0 && failures.length > 0) {
       kept.stop();
-      showError(el, failures.join("\n"));
       return;
     }
     try {
@@ -3808,8 +3907,8 @@ function mountOption(deps, el, option) {
   })();
   function fail(error) {
     if (ended()) return;
-    showError(el, errorMessage(error));
     report(error);
+    deps.raise(coreNotification("module_failed", "error", errorMessage(error), { about: { option }, package: pkg }));
   }
   return end;
 }
@@ -3824,15 +3923,19 @@ async function optionRequest(deps, option, name2, args, opts) {
   );
   switch (reply.status) {
     case "ok":
+      deps.replied({ option }, { type: "option", name: name2 }, []);
       if (body !== null) return body;
       return "value" in reply && reply.value !== void 0 ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name2}" of the board option "${option}".`, { status: "cancelled" });
-    default:
+    default: {
+      const conditions = "conditions" in reply ? reply.conditions : [];
+      deps.replied({ option }, { type: "option", name: name2 }, conditions);
       throw new RequestError(`R replied ${reply.status} to the request "${name2}" of the board option "${option}".`, {
         status: reply.status,
-        conditions: "conditions" in reply ? reply.conditions : []
+        conditions
       });
+    }
   }
 }
 
@@ -3850,7 +3953,7 @@ function createShelves() {
     of(block) {
       let shelf = shelves.get(block);
       if (shelf === void 0) {
-        shelf = { params: {}, last: void 0, mounts: /* @__PURE__ */ new Set(), flights: /* @__PURE__ */ new Map() };
+        shelf = { params: {}, last: void 0, failure: void 0, mounts: /* @__PURE__ */ new Set(), flights: /* @__PURE__ */ new Map() };
         shelves.set(block, shelf);
       }
       return shelf;
@@ -3862,6 +3965,9 @@ function createShelves() {
       shelves.delete(block);
     }
   };
+}
+function noOutput(message) {
+  return { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message };
 }
 function mountOutput(deps, el, block) {
   const { store, scheduler, loader, measure } = deps;
@@ -3887,6 +3993,7 @@ function mountOutput(deps, el, block) {
   let held2;
   let asking;
   let error = null;
+  let unfit;
   let drawing;
   let options = store.board().options;
   const waiting2 = /* @__PURE__ */ new Set();
@@ -3904,10 +4011,10 @@ function mountOutput(deps, el, block) {
         const pkg = packageFromId(given.id);
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
-        const named3 = mod.options ?? [];
-        const failures = await deps.addOptions(named3, `the renderer "${given.id}"`);
-        if (failures.length > 0) throw new Error(failures.join("\n"));
-        return { renderer: given, mod, named: named3 };
+        const named4 = mod.options ?? [];
+        const failures = await deps.addOptions(named4, `the renderer "${given.id}"`);
+        if (failures.length > 0) throw missingOptions(given, named4);
+        return { renderer: given, mod, named: named4 };
       })();
       preparing.set(given.id, loading);
     }
@@ -3922,17 +4029,21 @@ function mountOutput(deps, el, block) {
         if (ended() || renderer?.id !== prepared.renderer.id) return;
         ready = prepared;
         keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, (failures) => {
-          fail(new Error(failures.join("\n")));
+        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, () => {
+          fail(missingOptions(prepared.renderer, prepared.named), prepared.renderer);
         });
         sync();
       },
       (failure) => {
-        fail(failure);
+        fail(failure, given);
       }
     );
   }
-  function named2() {
+  function missingOptions(given, ids2) {
+    const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
+    return new Error(withoutOptions(`the renderer "${given.id}"`, missing2));
+  }
+  function named3() {
     if (renderer === void 0) return null;
     return ready?.renderer.id === renderer.id ? ready.named : void 0;
   }
@@ -3948,7 +4059,7 @@ function mountOutput(deps, el, block) {
   }
   function wanted() {
     if (info === null) return void 0;
-    const ids2 = named2();
+    const ids2 = named3();
     if (ids2 === void 0) return void 0;
     if (ids2?.some((id2) => !Object.hasOwn(store.board().options, id2)) === true) return void 0;
     const status = scheduler.status(block);
@@ -3986,10 +4097,10 @@ function mountOutput(deps, el, block) {
         stopAsking();
         take(shelf.last);
       } else {
-        const key = outputRequestKey(want.asked);
-        if (asking?.key !== key) {
+        const key2 = outputRequestKey(want.asked);
+        if (asking?.key !== key2) {
           stopAsking();
-          asking = join(key, want.asked);
+          asking = join(key2, want.asked);
           announce2();
         }
       }
@@ -4002,8 +4113,8 @@ function mountOutput(deps, el, block) {
     asking = void 0;
     announce2();
   }
-  function join(key, asked) {
-    let flight = shelf.flights.get(key);
+  function join(key2, asked) {
+    let flight = shelf.flights.get(key2);
     if (flight === void 0) {
       const aborted = new AbortController();
       const done = scheduler.request(
@@ -4013,26 +4124,29 @@ function mountOutput(deps, el, block) {
         if (answer2.reply.status === "ok" && "output" in answer2.reply && !deps.replaced.aborted) {
           shelf.last = { asked, output: answer2.reply.output, body: answer2.body };
         }
+        heard(answer2.reply);
         return answer2;
       });
       const started = { done, controller: aborted, callers: 0 };
-      void done.catch(() => void 0).finally(() => {
-        if (shelf.flights.get(key) === started) shelf.flights.delete(key);
+      void done.catch((failure) => {
+        if (!aborted.signal.aborted) unanswered(errorMessage(failure));
+      }).finally(() => {
+        if (shelf.flights.get(key2) === started) shelf.flights.delete(key2);
       });
-      shelf.flights.set(key, started);
+      shelf.flights.set(key2, started);
       flight = started;
     }
     const mine = flight;
     mine.callers += 1;
     let left2 = false;
     const ask = {
-      key,
+      key: key2,
       leave() {
         if (left2) return;
         left2 = true;
         mine.callers -= 1;
         if (mine.callers === 0) {
-          if (shelf.flights.get(key) === mine) shelf.flights.delete(key);
+          if (shelf.flights.get(key2) === mine) shelf.flights.delete(key2);
           mine.controller.abort();
         }
       }
@@ -4050,7 +4164,7 @@ function mountOutput(deps, el, block) {
         left2 = true;
         mine.callers -= 1;
         if (asking === ask) asking = void 0;
-        fail(failure);
+        if (!ended()) failed3(noOutput(errorMessage(failure)));
       }
     );
     return ask;
@@ -4063,55 +4177,81 @@ function mountOutput(deps, el, block) {
         return;
       case "error": {
         const conditions = "conditions" in reply ? reply.conditions : [];
-        failed3(
-          conditions[0] ?? {
-            severity: "error",
-            class: ["blockr_error", "error", "condition"],
-            phase: "output",
-            message: `R failed to make the output of block "${block}".`
-          },
-          conditions
-        );
+        failed3(conditions[0] ?? noOutput(`R failed to make the output of block "${block}".`));
         return;
       }
       default:
         announce2();
     }
   }
-  function failed3(condition, conditions) {
-    error = condition;
-    if (held2 === void 0) {
-      showError(el, conditions.length > 0 ? conditions.map((c2) => c2.message).join("\n") : condition.message);
+  function heard(reply) {
+    if (deps.replaced.aborted) return;
+    if (reply.status === "ok" && "output" in reply) {
+      const before = shelf.failure;
+      shelf.failure = void 0;
+      before?.();
+    } else if (reply.status === "error") {
+      const first = "conditions" in reply ? reply.conditions[0] : void 0;
+      hold(first ?? noOutput(`R failed to make the output of block "${block}".`), first === void 0 ? "core" : "r");
     }
+  }
+  function unanswered(message) {
+    if (!deps.replaced.aborted) hold(noOutput(message), "core");
+  }
+  function hold(condition, by) {
+    const before = shelf.failure;
+    shelf.failure = deps.raise({
+      severity: condition.severity,
+      message: condition.message,
+      source: by === "r" ? { kind: "r", class: condition.class, request: { type: "output" } } : { kind: "core", code: "output_unanswered" },
+      about: { block }
+    });
+    before?.();
+  }
+  function failed3(condition) {
+    error = condition;
     announce2();
   }
-  function fail(failure) {
+  function fail(failure, by) {
     if (ended()) return;
+    const notification = coreNotification("module_failed", "error", errorMessage(failure), {
+      about: { block },
+      package: packageFromId(by.id),
+      renderer: by.id
+    });
     if (failure instanceof ModuleError) {
-      showError(el, failure.message);
-      if (!broken.has(failure)) report(failure);
+      if (!broken.has(failure)) {
+        report(failure);
+        deps.raise(notification);
+      }
       broken.add(failure);
       return;
     }
-    failed3(
-      { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message: errorMessage(failure) },
-      []
-    );
+    const before = unfit;
+    unfit = deps.raise(notification);
+    before?.();
+    failed3(noOutput(errorMessage(failure)));
+  }
+  function fit2() {
+    const before = unfit;
+    unfit = void 0;
+    before?.();
   }
   function take(next) {
     held2 = next;
     error = null;
-    const named3 = next.output.renderer;
-    if (renderer?.id !== named3.id) expect(named3);
-    if (drawing !== void 0 && drawing.prepared.renderer.id !== named3.id) unmountRenderer();
+    fit2();
+    const named4 = next.output.renderer;
+    if (renderer?.id !== named4.id) expect(named4);
+    if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
     if (drawing === void 0) {
-      prepare(named3).then(
+      prepare(named4).then(
         (prepared) => {
           if (ended() || drawing !== void 0 || held2?.output.renderer.id !== prepared.renderer.id) return;
           mountRenderer(prepared);
         },
         (failure) => {
-          fail(failure);
+          fail(failure, named4);
         }
       );
     }
@@ -4135,8 +4275,8 @@ function mountOutput(deps, el, block) {
         const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${errorMessage(failure)}`, {
           cause: failure
         });
-        showError(el, why.message);
-        report(why);
+        el.replaceChildren();
+        fail(why, prepared.renderer);
       }
     })();
   }
@@ -4229,8 +4369,10 @@ function mountOutput(deps, el, block) {
         }
       );
       if (!bound()) throw unboundError();
+      const requested = opts.scope === "renderer" ? { type: "renderer", renderer: prepared.renderer.id, name: name2 } : { type: "output_class", name: name2 };
       switch (reply.status) {
         case "ok":
+          deps.replied({ block }, requested, []);
           if (body !== null) return body;
           return "value" in reply && reply.value !== void 0 ? reply.value : null;
         case "missing":
@@ -4238,11 +4380,14 @@ function mountOutput(deps, el, block) {
           throw new RequestError(`${what} gave up, since R kept lacking the result it reads.`, { status: "missing" });
         case "cancelled":
           throw new RequestError(`R cancelled ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, { status: "cancelled" });
-        default:
+        default: {
+          const conditions = "conditions" in reply ? reply.conditions : [];
+          deps.replied({ block }, requested, conditions);
           throw new RequestError(`R replied ${reply.status} to ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, {
             status: reply.status,
-            conditions: "conditions" in reply ? reply.conditions : []
+            conditions
           });
+        }
       }
     }
   }
@@ -4258,26 +4403,28 @@ function mountOutput(deps, el, block) {
   }
   function outputHost(prepared) {
     const listeners = /* @__PURE__ */ new Set();
-    let named3;
+    let named4;
     let following = true;
+    const notified = /* @__PURE__ */ new Set();
+    const pkg = packageFromId(prepared.renderer.id);
     return {
       block,
       output: () => held2?.output ?? null,
       body: () => held2?.body ?? null,
       params: () => held2?.asked.params ?? EMPTY,
       options() {
-        let memo2 = named3;
+        let memo2 = named4;
         if (memo2 === void 0 || memo2.for !== held2) {
           memo2 = { for: held2, values: optionsFor(prepared, held2?.asked) };
-          named3 = memo2;
+          named4 = memo2;
         }
         return memo2.values;
       },
       loading: () => asking !== void 0,
       error: () => error,
       on(event, fn) {
-        const heard = event;
-        if (heard !== "output") {
+        const heard2 = event;
+        if (heard2 !== "output") {
           throw new Error(`The host of an output announces "output", not ${JSON.stringify(event)}.`);
         }
         const wrapped = () => {
@@ -4301,12 +4448,24 @@ function mountOutput(deps, el, block) {
       emit(name2, payload) {
         if (following && bound()) deps.emit({ block, name: name2, payload });
       },
+      notify(notification) {
+        const given = checkRaised(notification);
+        if (!following || !bound()) return () => void 0;
+        const withdraw = deps.notify({ object: { block }, package: pkg, renderer: prepared.renderer.id }, given);
+        const mine = () => {
+          notified.delete(mine);
+          withdraw();
+        };
+        notified.add(mine);
+        return mine;
+      },
       announce() {
         if (following) announceTo(listeners);
       },
       drop() {
         following = false;
         listeners.clear();
+        for (const withdraw of [...notified]) withdraw();
       }
     };
   }
@@ -4350,6 +4509,7 @@ function mountOutput(deps, el, block) {
     if (settling !== void 0) clearTimeout(settling);
     asking?.leave();
     asking = void 0;
+    fit2();
     unmountRenderer();
     el.replaceChildren();
     wake();
@@ -4384,16 +4544,21 @@ function createMounts(options) {
   const measure = options.measure ?? domMeasure();
   const emit = options.emit ?? (() => void 0);
   const renderers = options.renderers ?? (() => ({}));
+  const raise = options.raise ?? raiseNothing;
+  const replied2 = options.replied ?? repliedNothing;
+  const notify = options.notify ?? notifyNothing;
+  const optionPackage = options.optionPackage ?? (() => void 0);
   store.subscribe((change) => {
     if ("opened" in change) return;
     for (const id2 of change.delta.blocks?.rm ?? []) shelves.drop(id2);
   });
   const resolving = /* @__PURE__ */ new Map();
   const reported = /* @__PURE__ */ new Set();
-  function failure(message) {
+  function failure(option, message) {
     if (!replaced.aborted && !reported.has(message)) {
       reported.add(message);
       report(new Error(message));
+      raise(coreNotification("board_option_failed", "error", message, { about: { option } }));
     }
     return [message];
   }
@@ -4415,19 +4580,20 @@ function createMounts(options) {
         if (Object.hasOwn(store.board().options, id2)) return [];
         const def = own(store.options.registered(), id2);
         if (def === void 0) {
-          return failure(`The board option "${id2}", which ${by} requires, is defined by no package loaded.`);
+          return failure(id2, `The board option "${id2}", which ${by} requires, is defined by no package loaded.`);
         }
         let value2;
         try {
           value2 = await resolveDefault(id2, def);
         } catch (error) {
-          return failure(`The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
+          return failure(id2, `The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
         }
         if (replaced.aborted || Object.hasOwn(store.board().options, id2)) return [];
         try {
           await commands.run("blockr.core-set_option", { id: id2, value: value2 }, CORE);
         } catch (error) {
           return failure(
+            id2,
             `The default of the board option "${id2}", which ${by} requires, did not go onto the board: ${errorMessage(error)}`
           );
         }
@@ -4466,12 +4632,12 @@ function createMounts(options) {
         try {
           value2 = await resolveDefault(id2, def);
         } catch (error) {
-          failure(`The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
+          failure(id2, `The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
           return [];
         }
         const unfit = compile(`the board option "${id2}"`, def.schema)(value2);
         if (unfit.length > 0) {
-          failure(`The default of the board option "${id2}", which ${by} requires, ${unfit.join(" ")}`);
+          failure(id2, `The default of the board option "${id2}", which ${by} requires, ${unfit.join(" ")}`);
           return [];
         }
         return [[id2, value2]];
@@ -4490,6 +4656,7 @@ function createMounts(options) {
       throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
     }
     const pkg = packageFromId(entry.id);
+    const by = `the UI module of block class "${entry.id}"`;
     const controller = new AbortController();
     const { signal } = controller;
     const ended = () => signal.aborted;
@@ -4512,7 +4679,10 @@ function createMounts(options) {
       answers,
       block,
       entry,
+      pkg,
       replaced,
+      replied: replied2,
+      notify,
       unbound: end
     });
     const offEnd = onAbort(replaced, end);
@@ -4533,21 +4703,21 @@ function createMounts(options) {
         fail(error);
         return;
       }
-      const named2 = mod.options ?? [];
-      const kept = keepOptions(named2, `the UI module of block class "${entry.id}"`, (failures2) => {
+      const named3 = mod.options ?? [];
+      const kept = keepOptions(named3, by, () => {
         if (ended()) return;
         end();
-        showError(el, failures2.join("\n"));
+        lacking(named3);
       });
       stopKeeping = kept.stop;
       const failures = await kept.added;
       if (ended()) return;
       if (failures.length > 0) {
         kept.stop();
-        showError(el, failures.join("\n"));
+        lacking(named3);
         return;
       }
-      host.name(named2);
+      host.name(named3);
       try {
         const rendered = await mod.render({ el, host, signal });
         if (typeof rendered !== "function") return;
@@ -4559,27 +4729,31 @@ function createMounts(options) {
     })();
     function fail(error) {
       if (ended()) return;
-      showError(el, errorMessage(error));
       report(error);
+      raise(coreNotification("module_failed", "error", errorMessage(error), { about: { block }, package: pkg }));
+    }
+    function lacking(ids2) {
+      const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      raise(coreNotification("module_failed", "error", withoutOptions(by, missing2), { about: { block }, package: pkg }));
     }
     return end;
   }
   return {
     mountBlock,
     mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit },
+      { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit, raise, replied: replied2, notify },
       el,
       block
     ),
-    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions }, el, option),
+    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions, raise, replied: replied2, notify, optionPackage }, el, option),
     addOptions,
     keepOptions
   };
 }
 function checkOptions(mod, entry, pkg) {
-  const named2 = new Set(mod.options ?? []);
+  const named3 = new Set(mod.options ?? []);
   const gaps = Object.entries(entry.requests).flatMap(([name2, request]) => {
-    const left2 = [...new Set(request.options)].filter((id2) => !named2.has(id2));
+    const left2 = [...new Set(request.options)].filter((id2) => !named3.has(id2));
     if (left2.length === 0) return [];
     return [`- The request "${name2}" reads the board option${left2.length === 1 ? "" : "s"} ${quoted(left2)}.`];
   });
@@ -4590,12 +4764,13 @@ function checkOptions(mod, entry, pkg) {
 function blockHost(deps) {
   const { store, commands, scheduler, block, entry } = deps;
   let seen = store.board();
-  let named2 = [];
+  let named3 = [];
   let state2 = mountedBlock(seen)?.state ?? {};
   let context = blockContext(mountedBlock(seen));
   let following = true;
   let gone = false;
   const listeners = { state: /* @__PURE__ */ new Set(), context: /* @__PURE__ */ new Set() };
+  const notified = /* @__PURE__ */ new Set();
   function mountedBlock(board) {
     return own(board.blocks, block);
   }
@@ -4611,7 +4786,7 @@ function blockHost(deps) {
       ),
       options: Object.freeze(
         Object.fromEntries(
-          named2.flatMap((id2) => {
+          named3.flatMap((id2) => {
             const value2 = own(seen.options, id2);
             return value2 === void 0 ? [] : [[id2, value2]];
           })
@@ -4709,11 +4884,25 @@ function blockHost(deps) {
     module(id2) {
       return deps.loader.module(id2);
     },
+    notify(notification) {
+      const given = checkRaised(notification);
+      if (!following) return () => void 0;
+      const withdraw = deps.notify({ object: { block }, package: deps.pkg }, given);
+      const mine = () => {
+        notified.delete(mine);
+        withdraw();
+      };
+      notified.add(mine);
+      return mine;
+    },
     name(options) {
-      named2 = options;
+      named3 = options;
       context = blockContext(mountedBlock(seen));
     },
-    drop: stop
+    drop() {
+      stop();
+      for (const withdraw of [...notified]) withdraw();
+    }
   };
 }
 function sameContext(a2, b2) {
@@ -6148,12 +6337,12 @@ function step(at, segments, patch2, done, place) {
     }
   }
 }
-function inserted(record, key, value2, before) {
+function inserted(record, key2, value2, before) {
   if (typeof before !== "string" || !Object.hasOwn(record, before)) {
-    return { ...record, [key]: value2 };
+    return { ...record, [key2]: value2 };
   }
   const members = Object.entries(record);
-  members.splice(members.findIndex(([name2]) => name2 === before), 0, [key, value2]);
+  members.splice(members.findIndex(([name2]) => name2 === before), 0, [key2, value2]);
   return Object.fromEntries(members);
 }
 function spliced(items, index, count, ...added) {
@@ -6305,9 +6494,9 @@ function collection(name2, current2, part, modify, places, before, failures) {
     readdPlaces[id2] = after.find((other) => !removed.has(other)) ?? null;
   }
   const kept = order.filter((id2) => !removed.has(id2)).map((id2) => [id2, current2[id2]]);
-  const successorOf = (named2) => named2 === null ? null : removed.has(named2) ? own(readdPlaces, named2) ?? null : named2;
+  const successorOf = (named3) => named3 === null ? null : removed.has(named3) ? own(readdPlaces, named3) ?? null : named3;
   const moves = [];
-  for (const [id2, named2] of Object.entries(before ?? {})) {
+  for (const [id2, named3] of Object.entries(before ?? {})) {
     if (Object.hasOwn(part.add ?? {}, id2)) continue;
     const at = kept.findIndex(([other]) => other === id2);
     const entry = kept[at];
@@ -6315,7 +6504,7 @@ function collection(name2, current2, part, modify, places, before, failures) {
       failures.push(`The board holds no ${name2(id2)} to move.`);
       continue;
     }
-    const to = successorOf(named2);
+    const to = successorOf(named3);
     const was = kept[at + 1]?.[0] ?? null;
     if (to === was || to === id2) continue;
     if (to !== null && !kept.some(([other]) => other === to)) {
@@ -6333,10 +6522,10 @@ function collection(name2, current2, part, modify, places, before, failures) {
       failures.push(`The board holds ${name2(id2)} already.`);
       continue;
     }
-    const named2 = own(before ?? {}, id2);
-    const successor = named2 === void 0 ? own(places ?? {}, id2) ?? null : successorOf(named2);
+    const named3 = own(before ?? {}, id2);
+    const successor = named3 === void 0 ? own(places ?? {}, id2) ?? null : successorOf(named3);
     const at = successor === null ? -1 : kept.findIndex(([other]) => other === successor);
-    if (at < 0 && successor !== null && named2 !== void 0) {
+    if (at < 0 && successor !== null && named3 !== void 0) {
       failures.push(
         `The board holds no ${name2(successor)} for ${name2(id2)} to go before.`
       );
@@ -6630,10 +6819,10 @@ function fit(delta, board) {
   );
   const held2 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
-    Object.entries(delta.links?.before ?? {}).flatMap(([id2, named2]) => {
-      if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named2]];
+    Object.entries(delta.links?.before ?? {}).flatMap(([id2, named3]) => {
+      if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named3]];
       if (!held2(id2)) return [];
-      return [[id2, named2 !== null && Object.hasOwn(board.links, named2) ? named2 : null]];
+      return [[id2, named3 !== null && Object.hasOwn(board.links, named3) ? named3 : null]];
     })
   );
   const stacks = collection2(board.stacks, delta.stacks);
@@ -7106,22 +7295,22 @@ function createStore(options = {}) {
     }
     return { applied, inverses };
   }
-  function exists(next, key) {
-    const [kind, id2] = JSON.parse(key);
+  function exists(next, key2) {
+    const [kind, id2] = JSON.parse(key2);
     return Object.hasOwn(kind === "block" ? next.blocks : next.plugins, id2);
   }
-  function describe2(key) {
-    const [kind, id2] = JSON.parse(key);
+  function describe2(key2) {
+    const [kind, id2] = JSON.parse(key2);
     return kind === "block" ? `block "${id2}"` : `the plugin "${id2}"`;
   }
-  function named2(deltas) {
+  function named3(deltas) {
     const failures = [];
-    const compare = (key, edit) => {
+    const compare = (key2, edit) => {
       if (edit === void 0) return;
-      const id2 = edits.get(key);
+      const id2 = edits.get(key2);
       if (id2 !== edit) {
         failures.push(
-          id2 === void 0 ? `The delta was built on edit ${String(edit)} of ${describe2(key)}, which the board lacks.` : `The delta was built on edit ${String(edit)} of ${describe2(key)}, which another edit has replaced with edit ${String(id2)}.`
+          id2 === void 0 ? `The delta was built on edit ${String(edit)} of ${describe2(key2)}, which the board lacks.` : `The delta was built on edit ${String(edit)} of ${describe2(key2)}, which another edit has replaced with edit ${String(id2)}.`
         );
       }
     };
@@ -7138,9 +7327,9 @@ function createStore(options = {}) {
   }
   function number(applied, last) {
     const step2 = ++lastStep;
-    for (const key of new Set(applied.flatMap(({ changed }) => [...changed.targets]))) {
-      if (exists(last, key)) edits.set(key, step2);
-      else edits.delete(key);
+    for (const key2 of new Set(applied.flatMap(({ changed }) => [...changed.targets]))) {
+      if (exists(last, key2)) edits.set(key2, step2);
+      else edits.delete(key2);
     }
   }
   function apply(delta, origin = "user", opts = {}) {
@@ -7151,7 +7340,7 @@ function createStore(options = {}) {
     try {
       const refused2 = "The store rejected the delta";
       const start2 = current2(refused2);
-      const failures = named2(deltas);
+      const failures = named3(deltas);
       if (failures.length > 0) throw new StoreError(refused2, failures);
       const { applied, inverses } = run(start2, deltas, {}, refused2);
       if (applied.length === 0) return;
@@ -7242,7 +7431,7 @@ function createStore(options = {}) {
         try {
           board.value = opened.board;
           const step2 = ++lastStep;
-          for (const key of everyTarget(opened.board)) edits.set(key, step2);
+          for (const key2 of everyTarget(opened.board)) edits.set(key2, step2);
           announce2({ opened: opened.board, dropped: opened.dropped }, opened.board);
           return opened.dropped;
         } finally {
@@ -7451,7 +7640,9 @@ function runPlugins(deps) {
     try {
       returned = def.start?.({ core: deps.core(), plugin: id2, signal: controller.signal });
     } catch (error) {
-      report(new Error(`The start of the plugin class "${id2}" failed: ${errorMessage(error)}`, { cause: error }));
+      const why = new Error(`The start of the plugin class "${id2}" failed: ${errorMessage(error)}`, { cause: error });
+      report(why);
+      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { about: { plugin: id2 }, package: packageFromId(id2) }));
       return;
     }
     if (typeof returned !== "function") return;
@@ -7482,21 +7673,29 @@ function runPlugins(deps) {
     const offEnd = onAbort(replaced, end);
     function fail(error) {
       if (ended()) return;
-      showError(el, errorMessage(error));
       report(error);
+      cannotDraw(errorMessage(error));
+    }
+    function cannotDraw(message) {
+      deps.raise(coreNotification("module_failed", "error", message, { about: { plugin }, package: packageFromId(plugin) }));
+    }
+    function lacking(ids2) {
+      const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing2));
     }
     void (async () => {
-      const kept = keepOptions(def.options ?? [], `the plugin class "${plugin}"`, (failures2) => {
+      const named3 = def.options ?? [];
+      const kept = keepOptions(named3, `the plugin class "${plugin}"`, () => {
         if (ended()) return;
         end();
-        showError(el, failures2.join("\n"));
+        lacking(named3);
       });
       stopKeeping = kept.stop;
       const failures = await kept.added;
       if (ended()) return;
       if (failures.length > 0) {
         kept.stop();
-        showError(el, failures.join("\n"));
+        lacking(named3);
         return;
       }
       try {
@@ -7545,6 +7744,7 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
     );
     switch (reply.status) {
       case "ok":
+        deps.replied({ plugin }, { type: "plugin", name: name2 }, []);
         if (body !== null) return body;
         return "value" in reply && reply.value !== void 0 ? reply.value : null;
       case "missing":
@@ -7552,11 +7752,14 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
         throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name2}" of the plugin "${plugin}".`, { status: "cancelled" });
-      default:
+      default: {
+        const conditions = "conditions" in reply ? reply.conditions : [];
+        deps.replied({ plugin }, { type: "plugin", name: name2 }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name2}" of the plugin "${plugin}".`, {
           status: reply.status,
-          conditions: "conditions" in reply ? reply.conditions : []
+          conditions
         });
+      }
     }
   }
 }
@@ -7573,8 +7776,8 @@ async function evaluateReads2(deps, what, blocks, signal) {
     return status === void 0 || status.status === "ready" ? [] : [{ block, status }];
   });
   if (unready.length > 0) {
-    const listed = unready.map(({ block, status }) => `"${block}" reads ${status.status}`);
-    throw new RequestError(`${what} did not go to R, since a block it reads is not ready: ${listed.join(", ")}.`, {
+    const listed2 = unready.map(({ block, status }) => `"${block}" reads ${status.status}`);
+    throw new RequestError(`${what} did not go to R, since a block it reads is not ready: ${listed2.join(", ")}.`, {
       blocks: unready
     });
   }
@@ -7587,7 +7790,10 @@ async function evaluateReads2(deps, what, blocks, signal) {
 
 // srcts/core/core.ts
 function createCore(parts) {
-  const { store, commands, scheduler, loader, blockrOptions } = parts;
+  const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const { raise } = notifications;
+  notifications.follow(scheduler);
+  const optionPackage = (id2) => own(parts.options, id2)?.package;
   const listeners = /* @__PURE__ */ new Set();
   parts.signal?.addEventListener(
     "abort",
@@ -7614,6 +7820,10 @@ function createCore(parts) {
     loader,
     core: () => api,
     renderers: parts.renderers,
+    raise,
+    replied: notifications.replied,
+    notify: notifications.notify,
+    optionPackage,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
     emit(event) {
@@ -7631,6 +7841,7 @@ function createCore(parts) {
     keepOptions: (ids2, by, failed3) => mounts.keepOptions(ids2, by, failed3),
     core: () => api,
     plugins: parts.plugins,
+    raise,
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const api = {
@@ -7659,9 +7870,9 @@ function createCore(parts) {
     },
     lock: parts.lock,
     outputEvents,
-    notifications: createNotifications(parts.signal),
+    notifications: notifications.api,
     focus: createFocus(store, parts.signal),
-    request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ plugins, scheduler }, plugin, name2, args, opts),
+    request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name2, args, opts),
     module: (id2) => loader.module(id2),
     blockrOption: (name2) => blockrOptions.read(name2),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
@@ -7684,46 +7895,36 @@ function createCore(parts) {
       if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
     }
   });
+  const failing = /* @__PURE__ */ new Map();
+  const raisedBy = /* @__PURE__ */ new Map();
   function changed(id2, value2) {
     const def = own(store.options.registered(), id2);
     if (def?.onChange === void 0) return;
+    const raisedNow = [];
+    const notify = (notification) => {
+      const withdraw = notifications.notify({ object: { option: id2 }, package: optionPackage(id2) ?? null }, notification);
+      raisedNow.push(withdraw);
+      return withdraw;
+    };
+    let failure;
     try {
-      def.onChange(value2, api);
+      def.onChange(value2, api, notify);
     } catch (error) {
       report(error);
+      failure = raise(
+        coreNotification("on_change_failed", "error", `The onChange of the board option "${id2}" failed: ${errorMessage(error)}`, {
+          about: { option: id2 },
+          package: optionPackage(id2)
+        })
+      );
     }
+    failing.get(id2)?.();
+    if (failure === void 0) failing.delete(id2);
+    else failing.set(id2, failure);
+    for (const withdraw of raisedBy.get(id2) ?? []) withdraw();
+    raisedBy.set(id2, raisedNow);
   }
   return { api, plugins };
-}
-var SEVERITIES = ["message", "warning", "error"];
-function createNotifications(signal) {
-  const listeners = /* @__PURE__ */ new Set();
-  signal?.addEventListener(
-    "abort",
-    () => {
-      listeners.clear();
-    },
-    { once: true }
-  );
-  return {
-    notify(note) {
-      const given = note;
-      if (!isObject(given) || typeof given.message !== "string" || !SEVERITIES.includes(given.severity)) {
-        throw new TypeError('A note holds a message, as a string, and a severity, "message", "warning" or "error".');
-      }
-      const sent2 = Object.freeze({ message: given.message, severity: given.severity });
-      announceTo(listeners, sent2);
-    },
-    subscribe(fn) {
-      const wrapped = (note) => {
-        fn(note);
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    }
-  };
 }
 function createFocus(store, signal) {
   let focused = null;
@@ -8650,6 +8851,304 @@ function migrationOf(exports, module, pkg) {
   return migrate2;
 }
 
+// srcts/core/notifications.ts
+var EVALUATE_PHASES = {
+  expr: true,
+  inputs: true,
+  block_eval: true,
+  result_summary: true
+};
+var NONE2 = Object.freeze([]);
+var nothing = () => void 0;
+function createNotifications(store, options = {}) {
+  const { signal } = options;
+  const plugins = options.plugins ?? {};
+  const held2 = /* @__PURE__ */ new Map();
+  const raised = /* @__PURE__ */ new Map();
+  const replacing = /* @__PURE__ */ new Map();
+  const left2 = /* @__PURE__ */ new Set();
+  const listeners = /* @__PURE__ */ new Set();
+  let all = NONE2;
+  let count = 0;
+  let ended = false;
+  const stops = [];
+  function publish() {
+    all = Object.freeze([...held2.values()]);
+    announceTo(listeners, all);
+  }
+  function present(object2) {
+    if (!("block" in object2 || "link" in object2 || "stack" in object2)) return true;
+    if (!store.hasBoard()) return false;
+    const board = store.board();
+    if ("block" in object2) return Object.hasOwn(board.blocks, object2.block);
+    if ("link" in object2) return Object.hasOwn(board.links, object2.link);
+    return Object.hasOwn(board.stacks, object2.stack);
+  }
+  function known(object2) {
+    if ("option" in object2) {
+      return Object.hasOwn(store.options.registered(), object2.option) || store.hasBoard() && Object.hasOwn(store.board().options, object2.option);
+    }
+    if ("plugin" in object2) return Object.hasOwn(plugins, object2.plugin);
+    return present(object2);
+  }
+  const offStore = store.subscribe((change) => {
+    if ("opened" in change) return;
+    const gone = /* @__PURE__ */ new Set([
+      ...(change.delta.blocks?.rm ?? []).map((block) => key({ block })),
+      ...(change.delta.links?.rm ?? []).map((link) => key({ link })),
+      ...(change.delta.stacks?.rm ?? []).map((stack) => key({ stack }))
+    ]);
+    if (gone.size === 0) return;
+    for (const object2 of gone) left2.add(object2);
+    const goes = (object2) => object2 !== void 0 && gone.has(key(object2));
+    let moved = false;
+    for (const [id2, notification] of held2) {
+      if (!goes(notification.about) && !(notification.source.kind === "module" && goes(notification.source.object))) {
+        continue;
+      }
+      held2.delete(id2);
+      raised.delete(id2);
+      moved = true;
+    }
+    for (const [what, holding] of replacing) {
+      if (goes(holding.object)) replacing.delete(what);
+    }
+    if (moved) publish();
+  });
+  stops.push(offStore);
+  function end() {
+    if (ended) return;
+    ended = true;
+    for (const stop of stops) stop();
+    const had = held2.size > 0;
+    held2.clear();
+    raised.clear();
+    replacing.clear();
+    left2.clear();
+    if (had) publish();
+    listeners.clear();
+  }
+  if (signal?.aborted === true) end();
+  else if (signal !== void 0) onAbort(signal, end);
+  function replace(what, object2, next) {
+    let moved = false;
+    for (const id2 of replacing.get(what)?.ids ?? []) {
+      if (!next.has(id2) && held2.delete(id2)) moved = true;
+    }
+    for (const [id2, notification] of next) {
+      const had = held2.get(id2);
+      if (had !== void 0 && jsonEqual(had, notification)) continue;
+      held2.set(id2, notification);
+      moved = true;
+    }
+    if (next.size === 0) replacing.delete(what);
+    else replacing.set(what, { object: object2, ids: [...next.keys()] });
+    return moved;
+  }
+  function fromStatus(block, status) {
+    const about = { block };
+    const next = /* @__PURE__ */ new Map();
+    if (status !== void 0 && present(about)) {
+      for (const condition of status.conditions) {
+        const source = statusSource(condition);
+        const id2 = JSON.stringify(["status", block, condition.severity, source, condition.message]);
+        if (!next.has(id2)) next.set(id2, frozen(id2, { severity: condition.severity, message: condition.message, source, about }));
+      }
+    }
+    return replace(JSON.stringify(["status", block]), about, next);
+  }
+  const replied2 = (about, request, conditions) => {
+    if (ended) return;
+    const next = /* @__PURE__ */ new Map();
+    if (present(about)) {
+      for (const condition of conditions) {
+        const source = { kind: "r", class: condition.class, request };
+        const id2 = JSON.stringify(["request", about, condition.severity, source, condition.message]);
+        if (!next.has(id2)) next.set(id2, frozen(id2, { severity: condition.severity, message: condition.message, source, about }));
+      }
+    }
+    if (replace(JSON.stringify(["request", about, request]), about, next)) publish();
+  };
+  const raise = (given) => {
+    if (ended || given.about !== void 0 && !present(given.about)) return nothing;
+    const id2 = JSON.stringify([
+      "raised",
+      given.severity,
+      given.message,
+      sourceCopy(given.source),
+      given.about === void 0 ? null : objectCopy(given.about)
+    ]);
+    const token = {};
+    const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
+    tokens.add(token);
+    raised.set(id2, tokens);
+    if (!held2.has(id2)) {
+      held2.set(id2, frozen(id2, given));
+      publish();
+    }
+    return () => {
+      const holding = raised.get(id2);
+      if (holding?.delete(token) !== true || holding.size > 0) return;
+      raised.delete(id2);
+      if (held2.delete(id2)) publish();
+    };
+  };
+  const notify = ({ object: object2, package: pkg, renderer }, notification) => {
+    const given = checkRaised(notification);
+    if (ended) return nothing;
+    const about = given.about === void 0 ? object2 : given.about ?? void 0;
+    if (about !== void 0 && !known(about)) {
+      if (!left2.has(key(about))) {
+        report(new Error(`Core drops a notification that ${raiser(object2)} raised about ${named2(about)}, ${unknown(about)}.`));
+      }
+      return nothing;
+    }
+    const id2 = `module-${String(++count)}`;
+    held2.set(
+      id2,
+      frozen(id2, {
+        severity: given.severity,
+        message: given.message,
+        source: {
+          kind: "module",
+          object: object2,
+          code: given.code,
+          ...pkg === null ? {} : { package: pkg },
+          ...renderer === void 0 ? {} : { renderer }
+        },
+        ...about === void 0 ? {} : { about }
+      })
+    );
+    publish();
+    let withdrawn = false;
+    return () => {
+      if (withdrawn) return;
+      withdrawn = true;
+      if (held2.delete(id2)) publish();
+    };
+  };
+  return {
+    api: {
+      notify(plugin, notification) {
+        if (typeof plugin !== "string" || plugin === "") {
+          throw new TypeError(
+            `A plugin's notification names the plugin by the id of its class, a non-empty string, not ${JSON.stringify(plugin)}.`
+          );
+        }
+        const given = checkRaised(notification);
+        if (ended) return nothing;
+        if (!Object.hasOwn(plugins, plugin)) {
+          report(new Error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`));
+          return nothing;
+        }
+        return notify({ object: { plugin }, package: packageFromId(plugin) }, given);
+      },
+      get: () => all,
+      subscribe(fn) {
+        const wrapped = (notifications) => {
+          fn(notifications);
+        };
+        listeners.add(wrapped);
+        return () => {
+          listeners.delete(wrapped);
+        };
+      }
+    },
+    raise,
+    replied: replied2,
+    notify,
+    follow(scheduler) {
+      if (ended) return;
+      const heard = (blocks) => {
+        let moved = false;
+        for (const block of blocks) {
+          if (fromStatus(block, scheduler.status(block))) moved = true;
+        }
+        if (moved) publish();
+      };
+      stops.push(scheduler.subscribe(heard));
+      if (store.hasBoard()) heard(Object.keys(store.board().blocks));
+    }
+  };
+}
+function statusSource(condition) {
+  if (isUnsentError(condition)) return { kind: "core", code: "evaluation_unsent" };
+  const { phase } = condition;
+  return {
+    kind: "r",
+    class: condition.class,
+    request: { type: "evaluate", ...isEvaluatePhase(phase) ? { phase } : {} }
+  };
+}
+function isEvaluatePhase(phase) {
+  return phase !== void 0 && Object.hasOwn(EVALUATE_PHASES, phase);
+}
+function key(object2) {
+  return JSON.stringify(object2);
+}
+function named2(object2) {
+  if ("block" in object2) return `the block "${object2.block}"`;
+  if ("link" in object2) return `the link "${object2.link}"`;
+  if ("stack" in object2) return `the stack "${object2.stack}"`;
+  if ("option" in object2) return `the board option "${object2.option}"`;
+  return `the plugin "${object2.plugin}"`;
+}
+function raiser(object2) {
+  return "plugin" in object2 ? named2(object2) : `a module of ${named2(object2)}`;
+}
+function unknown(object2) {
+  if ("option" in object2) return "which no loaded package defines";
+  if ("plugin" in object2) return "which the app does not run";
+  return "which the board has never held";
+}
+function frozen(id2, given) {
+  return deepFrozen({
+    id: id2,
+    severity: given.severity,
+    message: given.message,
+    source: sourceCopy(given.source),
+    ...given.about === void 0 ? {} : { about: objectCopy(given.about) }
+  });
+}
+function sourceCopy(source) {
+  switch (source.kind) {
+    case "r":
+      return { kind: "r", class: [...source.class], request: { ...source.request } };
+    case "core":
+      return {
+        kind: "core",
+        code: source.code,
+        ...source.package === void 0 ? {} : { package: source.package },
+        ...source.renderer === void 0 ? {} : { renderer: source.renderer }
+      };
+    case "module":
+      return {
+        kind: "module",
+        object: moduleObjectCopy(source.object),
+        code: source.code,
+        ...source.package === void 0 ? {} : { package: source.package },
+        ...source.renderer === void 0 ? {} : { renderer: source.renderer }
+      };
+  }
+}
+function objectCopy(object2) {
+  if ("link" in object2) return { link: object2.link };
+  if ("stack" in object2) return { stack: object2.stack };
+  return moduleObjectCopy(object2);
+}
+function moduleObjectCopy(object2) {
+  if ("block" in object2) return { block: object2.block };
+  if ("option" in object2) return { option: object2.option };
+  return { plugin: object2.plugin };
+}
+function deepFrozen(value2) {
+  if (typeof value2 === "object" && value2 !== null) {
+    for (const member of Object.values(value2)) deepFrozen(member);
+    Object.freeze(value2);
+  }
+  return value2;
+}
+
 // srcts/core/start.ts
 var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start(options) {
@@ -8662,6 +9161,7 @@ function start(options) {
   let latest;
   const loaded = /* @__PURE__ */ new Map();
   let changed = [];
+  let reloading;
   let running2;
   const holdsBoard = () => running2?.store.hasBoard() === true;
   let restarting;
@@ -8722,11 +9222,8 @@ function start(options) {
       return;
     }
     changed = changedPackages(loaded, hello);
-    if (changed.length > 0) {
-      (options.reload ?? askReload)(changed);
-    } else {
-      adopt(hello);
-    }
+    askReload(running2?.notifications.raise);
+    if (changed.length === 0) adopt(hello);
     if (restarting !== void 0) {
       const waiting2 = restarting;
       restarting = void 0;
@@ -8746,6 +9243,11 @@ function start(options) {
     const waiting2 = restarting;
     restarting = void 0;
     waiting2?.reject(why);
+  }
+  function askReload(raise) {
+    const before = reloading;
+    reloading = changed.length > 0 && raise !== void 0 ? raise(reloadNotification(changed)) : void 0;
+    before?.();
   }
   function halt(error) {
     end(error);
@@ -8774,13 +9276,16 @@ function start(options) {
       blockrOptions.read("rand_id")
     ]);
     const store = createStore({ hello: reply, signal, migration: (id2) => migrations.get(id2) });
+    const notifications = createNotifications(store, { signal, plugins: reply.plugins });
+    const { raise } = notifications;
+    askReload(raise);
     const commands = createCommands(store, {
       signal,
       lock: reply.lock,
       randId,
       blockrOption: (name2) => blockrOptions.read(name2)
     });
-    await register(reply, store, commands, signal);
+    await register(reply, store, commands, signal, raise);
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -8804,22 +9309,32 @@ function start(options) {
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
+      options: reply.options,
+      notifications,
       signal,
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
-    running2 = { store, scheduler, core, controller };
+    running2 = { store, scheduler, core, notifications, controller };
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = alone ? void 0 : await named2(reply, store, core, signal);
-      await migrations.prepare(instead ?? reply.board, reply.block_registry);
+      const instead = alone ? void 0 : await named3(reply, store, core, signal, raise);
+      await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
       if (instead === void 0) {
         dropped = await store.open(reply);
       } else {
         try {
-          dropped = await store.open(instead);
+          dropped = await store.open(instead.text);
         } catch (error) {
           report(error);
+          raise(
+            coreNotification(
+              "board_open_failed",
+              "error",
+              `The board that the storage plugin "${instead.plugin}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
+              { about: { plugin: instead.plugin }, package: packageFromId(instead.plugin) }
+            )
+          );
           await migrations.prepare(reply.board, reply.block_registry);
           dropped = await store.open(reply);
         }
@@ -8836,8 +9351,16 @@ function start(options) {
           report(again);
           throw failure;
         }
+        raise(
+          coreNotification(
+            "board_open_failed",
+            "error",
+            `The board did not open, so core opened the board before it again: ${failure.message}`
+          )
+        );
       }
     }
+    if (dropped.length > 0) raise(droppedNotification(dropped));
     if (alone) {
       try {
         options.frontEnds?.card?.(core, signal);
@@ -8856,25 +9379,40 @@ function start(options) {
       } finally {
         scheduler.start();
       }
-      if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     }
     await plugins.start();
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
-  async function register(reply, store, commands, signal) {
+  async function register(reply, store, commands, signal, raise) {
+    const failed3 = (error, concerns) => {
+      report(error);
+      if (!signal.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
+    };
     const [defs, opts] = await Promise.all([
-      Promise.all(Object.entries(reply.plugins).map(([id2, entry]) => listed(entry, packageFromId(id2)))),
-      Promise.all(Object.values(reply.options).map((entry) => listed(entry, entry.package)))
+      Promise.all(
+        Object.entries(reply.plugins).map(
+          ([id2, entry]) => listed2(entry, packageFromId(id2), (error) => {
+            failed3(error, { about: { plugin: id2 }, package: packageFromId(id2) });
+          })
+        )
+      ),
+      Promise.all(
+        Object.entries(reply.options).map(
+          ([id2, entry]) => listed2(entry, entry.package, (error) => {
+            failed3(error, { about: { option: id2 }, package: entry.package });
+          })
+        )
+      )
     ]);
     if (signal.aborted) return;
-    Object.keys(reply.options).forEach((id2, i2) => {
+    Object.entries(reply.options).forEach(([id2, entry], i2) => {
       const def = opts[i2];
       if (def === void 0) return;
       try {
         store.options.register({ ...def, id: id2 });
       } catch (error) {
-        report(error);
+        failed3(error, { about: { option: id2 }, package: entry.package });
       }
     });
     Object.keys(reply.plugins).forEach((id2, i2) => {
@@ -8885,7 +9423,7 @@ function start(options) {
         cls = { ...def, id: id2 };
         store.plugins.register(cls);
       } catch (error) {
-        report(error);
+        failed3(error, { about: { plugin: id2 }, package: packageFromId(id2) });
         return;
       }
       for (const command2 of cls.commands ?? []) {
@@ -8897,40 +9435,54 @@ function start(options) {
       }
     });
   }
-  async function listed(source, pkg) {
+  async function listed2(source, pkg, failed3) {
     try {
       const at = source.css === void 0 ? { module: source.module } : { module: source.module, css: source.css };
       return listedDefault(await loader.load(at, pkg), source.module, pkg);
     } catch (error) {
-      report(error);
+      failed3(error);
       return void 0;
     }
   }
-  async function named2(reply, store, core, signal) {
+  async function named3(reply, store, core, signal, raise) {
     if (reply.lock.load) return void 0;
     const classes2 = store.plugins.registered();
     const plugin = Object.keys(reply.plugins).find((id2) => own(classes2, id2)?.storage !== void 0);
     const storage = plugin === void 0 ? void 0 : own(classes2, plugin)?.storage;
     if (plugin === void 0 || storage?.load === void 0) return void 0;
+    const refuse = (error) => {
+      report(error);
+      raise(coreNotification("board_open_failed", "error", error.message, { about: { plugin }, package: packageFromId(plugin) }));
+    };
     let text;
     try {
       text = await storage.load({ core, plugin, signal });
     } catch (error) {
-      report(new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, { cause: error }));
+      refuse(
+        new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
+          cause: error
+        })
+      );
       return void 0;
     }
     if (text === void 0) return void 0;
     if (typeof text !== "string") {
-      report(new Error(`The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`));
+      refuse(
+        new Error(
+          `The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`
+        )
+      );
       return void 0;
     }
     try {
       JSON.parse(text);
     } catch (error) {
-      report(new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
+      refuse(
+        new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`)
+      );
       return void 0;
     }
-    return text;
+    return { text, plugin };
   }
   let queue = Promise.resolve();
   function reopen(given, of) {
@@ -8998,21 +9550,22 @@ function changedPackages(loaded, reply) {
     return before === void 0 || before === now ? [] : [{ package: pkg, loaded: before, now }];
   });
 }
-function askReload(changed) {
-  report(
-    new Error(
-      `R now runs ${changed.map((c2) => `${c2.package} ${c2.now}`).join(", ")}, where the page loaded ${changed.map((c2) => `${c2.package} ${c2.loaded}`).join(", ")}. Reload the page.`
-    )
+function reloadNotification(changed) {
+  const versions = changed.map((c2) => `${c2.package} ${c2.loaded} to ${c2.now}`).join(", ");
+  return coreNotification(
+    "page_reload_needed",
+    "warning",
+    `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`
   );
 }
-function droppedNote(dropped) {
+function droppedNotification(dropped) {
   const lines = dropped.map((item) => {
     if ("option" in item) return `- board option "${item.option}"`;
     if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
     if ("plugin" in item) return `- plugin "${item.plugin}"`;
     return `- package ${item.package} ${item.version}`;
   });
-  return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
+  return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
 }
 function listedDefault(exports, module, pkg) {
   const def = moduleExports(exports, module, pkg).default;
@@ -9027,7 +9580,7 @@ import { flushSync as flushSync2 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback7, useMemo as useMemo3, useState as useState10 } from "react";
+import { useCallback as useCallback7, useMemo as useMemo4, useState as useState10 } from "react";
 
 // srcts/picker/picker.tsx
 import { useMemo as useMemo2, useState as useState4 } from "react";
@@ -9734,8 +10287,8 @@ function filled(arg, value2) {
   const trimmed = value2.trim();
   return trimmed === "" ? {} : { [arg]: trimmed };
 }
-function optional(key, error) {
-  return error === void 0 ? {} : { [key]: error };
+function optional(key2, error) {
+  return error === void 0 ? {} : { [key2]: error };
 }
 function focusFirstInvalid(form) {
   form.querySelector('[aria-invalid="true"]')?.focus();
@@ -9750,8 +10303,8 @@ function idError(value2, what, taken) {
   if (taken(id2)) return `The board holds a ${what} "${id2}" already.`;
   return void 0;
 }
-function without3(errors, key) {
-  return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key));
+function without3(errors, key2) {
+  return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key2));
 }
 
 // srcts/modules/basic/card.tsx
@@ -9761,7 +10314,7 @@ import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5,
 import { useCallback as useCallback2, useId as useId3, useState as useState5 } from "react";
 import { Fragment, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
-function useFooter(status, severities = SEVERITIES2) {
+function useFooter(status, notifications, severities = SEVERITIES2) {
   const shown2 = useShown(status);
   const [open, setOpen] = useState5(OPEN_AT_START);
   const panel = useId3();
@@ -9772,7 +10325,7 @@ function useFooter(status, severities = SEVERITIES2) {
       return next;
     });
   }, []);
-  return { status, shown: shown2, severities, open, toggle, panel };
+  return { status, shown: shown2, notifications, severities, open, toggle, panel };
 }
 function Footer({ status, shown: shown2 }) {
   return /* @__PURE__ */ jsx6(
@@ -9785,10 +10338,9 @@ function Footer({ status, shown: shown2 }) {
     }
   );
 }
-function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
-  if (shown2 === void 0) return null;
+function Pills({ status, shown: shown2, notifications, severities, open, toggle, panel }) {
   const pills = SEVERITIES2.flatMap((severity) => {
-    const n2 = counted(shown2, severities, severity);
+    const n2 = counted(shown2, notifications, severities, severity);
     return n2 === 0 ? [] : [{ severity, n: n2 }];
   });
   if (pills.length === 0) return null;
@@ -9822,21 +10374,21 @@ function Pills({ status, shown: shown2, severities, open, toggle, panel }) {
     }
   );
 }
-function Banners({ shown: shown2, severities, open, panel }) {
-  if (shown2 === void 0) return null;
-  const listed = shown2.conditions.filter(
-    (condition) => severities.includes(condition.severity) && open.has(condition.severity)
+function Banners({ shown: shown2, notifications, severities, open, panel }) {
+  const listed2 = notifications.filter(
+    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
   );
-  if (shown2.reason !== null && open.has("message")) listed.push({ severity: "message", message: shown2.reason });
-  if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i2) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i2)) });
+  const reason = shown2?.reason ?? null;
+  if (reason !== null && open.has("message")) listed2.push({ severity: "message", message: reason });
+  if (listed2.length === 0) return null;
+  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed2.map(({ severity, message }, i2) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i2)) });
 }
 function settled2(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
-function counted(status, severities, severity) {
-  const conditions = severities.includes(severity) ? status.conditions.filter((condition) => condition.severity === severity).length : 0;
-  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
+function counted(status, notifications, severities, severity) {
+  const n2 = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+  return severity === "message" && (status?.reason ?? null) !== null ? n2 + 1 : n2;
 }
 var MARKS = {
   error: {
@@ -9930,7 +10482,7 @@ function Mounted({
 }
 
 // srcts/card/status.ts
-import { useCallback as useCallback3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useCallback as useCallback3, useMemo as useMemo3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
 function useStatus(core, block) {
   const subscribe = useCallback3(
     (notify) => core.scheduler.subscribe((changed) => {
@@ -9939,6 +10491,19 @@ function useStatus(core, block) {
     [core, block]
   );
   return useSyncExternalStore2(subscribe, () => core.scheduler.status(block));
+}
+function useNotified(core, block) {
+  const subscribe = useCallback3(
+    (notify) => core.notifications.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  const all = useSyncExternalStore2(subscribe, () => core.notifications.get());
+  return useMemo3(
+    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
+    [all, block]
+  );
 }
 function useSized(status) {
   const ready = status?.status === "ready";
@@ -10070,7 +10635,8 @@ var BlockCard = memo(function BlockCard2({
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
-  const footer = useFooter(status, severities);
+  const notified = useNotified(core, id2);
+  const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState8(false);
   const ref = useRef5(null);
@@ -10238,25 +10804,76 @@ function stackBlocks(board, stack) {
 
 // srcts/modules/basic/notices.ts
 import { useSyncExternalStore as useSyncExternalStore3 } from "react";
-function createNotices() {
+function listed(notification) {
+  const { about } = notification;
+  return about === void 0 || !("block" in about);
+}
+function isReload(notification) {
+  return notification.source.kind === "core" && notification.source.code === "page_reload_needed";
+}
+function createNotices(notifications) {
   let notices = [];
+  let own2 = [];
+  const made = /* @__PURE__ */ new Map();
+  const order = /* @__PURE__ */ new Map();
+  const dismissed = /* @__PURE__ */ new Set();
   let last = 0;
+  let heard = notifications.get();
   const listeners = /* @__PURE__ */ new Set();
-  function set(next) {
+  function update() {
+    const holding = new Set(heard.map((notification) => notification.id));
+    for (const [id2, notice] of made) {
+      if (holding.has(id2)) continue;
+      made.delete(id2);
+      order.delete(notice.key);
+      dismissed.delete(id2);
+    }
+    const shown2 = [];
+    for (const notification of heard) {
+      if (!listed(notification) || dismissed.has(notification.id)) continue;
+      let notice = made.get(notification.id);
+      if (notice?.notification !== notification) {
+        notice = {
+          key: notice?.key ?? `notification-${String(++last)}`,
+          text: notification.message,
+          severity: notification.severity,
+          notification
+        };
+        made.set(notification.id, notice);
+        if (!order.has(notice.key)) order.set(notice.key, last);
+      }
+      shown2.push(notice);
+    }
+    const at = (notice) => order.get(notice.key) ?? 0;
+    const next = [...shown2, ...own2].sort((a2, b2) => at(a2) - at(b2));
+    if (next.length === notices.length && next.every((notice, i2) => notice === notices[i2])) return;
     notices = next;
     for (const fn of [...listeners]) fn();
   }
-  function add(note) {
-    set([...notices, { id: ++last, text: note.message, severity: note.severity }]);
-  }
+  const off = notifications.subscribe((all) => {
+    heard = all;
+    update();
+  });
+  update();
   return {
     list: () => notices,
     failed(error) {
-      add({ message: errorMessage(error), severity: "error" });
+      const key2 = `own-${String(++last)}`;
+      order.set(key2, last);
+      own2 = [...own2, { key: key2, text: errorMessage(error), severity: "error" }];
+      update();
     },
-    add,
-    dismiss(id2) {
-      if (notices.some((notice) => notice.id === id2)) set(notices.filter((notice) => notice.id !== id2));
+    dismiss(key2) {
+      const mine = own2.find((notice) => notice.key === key2);
+      if (mine !== void 0) {
+        own2 = own2.filter((notice) => notice !== mine);
+        order.delete(key2);
+      } else {
+        for (const [id2, notice] of made) {
+          if (notice.key === key2) dismissed.add(id2);
+        }
+      }
+      update();
     },
     subscribe(fn) {
       const wrapped = () => {
@@ -10266,7 +10883,8 @@ function createNotices() {
       return () => {
         listeners.delete(wrapped);
       };
-    }
+    },
+    stop: off
   };
 }
 function useNotices(notices) {
@@ -10332,7 +10950,7 @@ function PluginSection({ id: id2, plugin }) {
 import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState9 } from "react";
 
 // srcts/modules/basic/storage.ts
-var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
+var KINDS2 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
 function drawnControls(core) {
   const storage = core.plugins.storage();
   if (storage === void 0) return void 0;
@@ -10366,7 +10984,7 @@ function distinct(list, twice) {
   const seen = /* @__PURE__ */ new Set();
   const kept = [];
   for (const control of list) {
-    if (!KINDS.has(control.kind)) continue;
+    if (!KINDS2.has(control.kind)) continue;
     if (seen.has(control.id)) {
       twice.add(control.id);
       continue;
@@ -10406,8 +11024,8 @@ function bindShortcuts(doc, core, failed3) {
 }
 function matchesShortcut(text, event) {
   const shortcut = readShortcut(text);
-  const key = event.key;
-  if (shortcut === void 0 || typeof key !== "string" || key.toLowerCase() !== shortcut.key.toLowerCase()) {
+  const key2 = event.key;
+  if (shortcut === void 0 || typeof key2 !== "string" || key2.toLowerCase() !== shortcut.key.toLowerCase()) {
     return false;
   }
   if (event.altKey !== shortcut.alt || event.shiftKey !== shortcut.shift) return false;
@@ -10424,20 +11042,20 @@ function ariaShortcuts(text) {
 var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
 function readShortcut(text) {
   const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
-  const key = text.slice(at + 1);
+  const key2 = text.slice(at + 1);
   const names = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
-  if (key === "" || new Set(names).size < names.length || !names.every((name2) => MODIFIERS.includes(name2))) {
+  if (key2 === "" || new Set(names).size < names.length || !names.every((name2) => MODIFIERS.includes(name2))) {
     return void 0;
   }
   const has = (name2) => names.includes(name2);
   if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
-  return { key, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
+  return { key: key2, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
 }
 function undoOrRedo(event) {
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
-  const key = event.key.toLowerCase();
-  if (key === "z") return event.shiftKey ? "redo" : "undo";
-  if (key === "y" && !event.shiftKey) return "redo";
+  const key2 = event.key.toLowerCase();
+  if (key2 === "z") return event.shiftKey ? "redo" : "undo";
+  if (key2 === "y" && !event.shiftKey) return "redo";
   return void 0;
 }
 function editable(target2) {
@@ -10643,9 +11261,9 @@ function BasicBoard({ front }) {
 function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
-  const items = useMemo3(() => layoutItems(board), [board]);
+  const items = useMemo4(() => layoutItems(board), [board]);
   const shown2 = board.options.show_conditions;
-  const severities = useMemo3(() => asSeverities(shown2), [shown2]);
+  const severities = useMemo4(() => asSeverities(shown2), [shown2]);
   const [dialog, setDialog] = useState10(null);
   const add = useCallback7((mode) => {
     setDialog({ kind: "add", mode });
@@ -10720,20 +11338,31 @@ function Notices() {
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${NOTICE_TONES[notice.severity]}`,
       children: [
         /* @__PURE__ */ jsx13("span", { className: "bc:flex-1 bc:whitespace-pre-wrap", children: notice.text }),
+        notice.notification !== void 0 && isReload(notice.notification) ? /* @__PURE__ */ jsx13(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            onClick: () => {
+              location.reload();
+            },
+            children: "Reload"
+          }
+        ) : null,
         /* @__PURE__ */ jsx13(
           "button",
           {
             type: "button",
             className: classes.quiet,
             onClick: () => {
-              notices.dismiss(notice.id);
+              notices.dismiss(notice.key);
             },
             children: "Dismiss"
           }
         )
       ]
     },
-    notice.id
+    notice.key
   )) });
 }
 function asSeverities(value2) {
@@ -10806,10 +11435,7 @@ var basic_default = {
 function render({ el, core }) {
   const doc = el.ownerDocument;
   const shown2 = demandShown(core, doc.defaultView ?? window);
-  const notices = createNotices();
-  const unnotify = core.notifications.subscribe((note) => {
-    notices.add(note);
-  });
+  const notices = createNotices(core.notifications);
   const front = { core, notices, inView: shown2 };
   const root = createRoot(el);
   flushSync2(() => {
@@ -10821,7 +11447,7 @@ function render({ el, core }) {
   });
   return () => {
     unbind();
-    unnotify();
+    notices.stop();
     shown2.release();
     root.unmount();
   };
@@ -10838,11 +11464,12 @@ import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect6, useRe
 import { useCallback as useCallback8, useState as useState11 } from "react";
 
 // srcts/modules/edit-board/run.ts
+var EDIT_BOARD = "blockr.core-edit_board_plugin";
 function runCommand2(core, id2, args) {
   return core.commands.run(id2, args).then(
     () => true,
     (error) => {
-      core.notifications.notify({ message: errorMessage(error), severity: "error" });
+      core.notifications.notify(EDIT_BOARD, { severity: "error", code: "edit_refused", message: errorMessage(error) });
       return false;
     }
   );
@@ -11247,8 +11874,8 @@ function withoutLink(board, id2) {
   const links = Object.fromEntries(Object.entries(board.links).filter(([other]) => other !== id2));
   return { ...board, links };
 }
-function optional2(key, error) {
-  return error === void 0 ? {} : { [key]: error };
+function optional2(key2, error) {
+  return error === void 0 ? {} : { [key2]: error };
 }
 function blockName(board, block) {
   return own(board.blocks, block)?.name ?? block;
@@ -11697,24 +12324,24 @@ import { useState as useState15 } from "react";
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
-function bind2(host, key, show, options = {}) {
+function bind2(host, key2, show, options = {}) {
   const source = createSource(host);
-  source.check(key);
+  source.check(key2);
   let shown2;
   let typed;
   let timer;
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
-    const value2 = source.get(key);
+    const value2 = source.get(key2);
     if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
     shown2 = { value: value2 };
     show(value2);
   };
   const submit = async (value2) => {
-    if (jsonEqual(source.get(key), value2)) return true;
+    if (jsonEqual(source.get(key2), value2)) return true;
     try {
-      await source.submit(key, value2);
+      await source.submit(key2, value2);
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -11738,7 +12365,7 @@ function bind2(host, key, show, options = {}) {
   });
   display(true);
   return {
-    get: () => source.get(key),
+    get: () => source.get(key2),
     async commit(value2) {
       const took = await submit(value2);
       if (!took) display(true);
@@ -11764,19 +12391,19 @@ function bind2(host, key, show, options = {}) {
 }
 function createSource(host) {
   if ("option" in host) {
-    const check2 = (key) => {
-      if (key !== host.option) {
-        throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
+    const check2 = (key2) => {
+      if (key2 !== host.option) {
+        throw new Error(`The host of the board option "${host.option}" holds no value "${key2}".`);
       }
     };
     return {
       check: check2,
-      get(key) {
-        check2(key);
+      get(key2) {
+        check2(key2);
         return host.value();
       },
-      submit(key, value2) {
-        check2(key);
+      submit(key2, value2) {
+        check2(key2);
         return host.submit(value2);
       },
       onValues: (fn) => host.on("value", fn),
@@ -11787,8 +12414,8 @@ function createSource(host) {
   }
   return {
     check: () => void 0,
-    get: (key) => own(host.state(), key),
-    submit: (key, value2) => host.submit({ [key]: value2 }),
+    get: (key2) => own(host.state(), key2),
+    submit: (key2, value2) => host.submit({ [key2]: value2 }),
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input2) => ({ input: input2.input, revision: input2.revision })),
@@ -11959,9 +12586,9 @@ function useTyped(bound) {
 }
 
 // srcts/react/hooks.ts
-import { useCallback as useCallback10, useLayoutEffect as useLayoutEffect7, useMemo as useMemo4, useRef as useRef8, useState as useState16, useSyncExternalStore as useSyncExternalStore4 } from "react";
-function useValue(host, key) {
-  const name2 = key ?? ("option" in host ? host.option : "");
+import { useCallback as useCallback10, useLayoutEffect as useLayoutEffect7, useMemo as useMemo5, useRef as useRef8, useState as useState16, useSyncExternalStore as useSyncExternalStore4 } from "react";
+function useValue(host, key2) {
+  const name2 = key2 ?? ("option" in host ? host.option : "");
   const [value2, setValue] = useState16(() => held(host, name2));
   const [error, setError] = useState16(null);
   const binding = useRef8(null);
@@ -11977,7 +12604,7 @@ function useValue(host, key) {
       bound.release();
     };
   }, [host, name2]);
-  return useMemo4(
+  return useMemo5(
     () => ({
       value: value2,
       error,
@@ -11993,15 +12620,15 @@ function useValue(host, key) {
     [value2, error, host, name2]
   );
 }
-function held(host, key) {
-  return "option" in host ? host.value() : own(host.state(), key);
+function held(host, key2) {
+  return "option" in host ? host.value() : own(host.state(), key2);
 }
 
 // srcts/react/module.tsx
 import { Component } from "react";
 import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
-import { jsx as jsx21, jsxs as jsxs17 } from "react/jsx-runtime";
+import { jsx as jsx21 } from "react/jsx-runtime";
 function reactModule(Draw, options = {}) {
   return {
     ...options.options === void 0 ? {} : { options: options.options },
@@ -12992,16 +13619,16 @@ async function stubCore(options = {}) {
     ...base,
     modules: { ...base.modules, ...Object.fromEntries(offered.map((id2) => [id2, { module: moduleUrl(id2) }])) }
   };
-  const named2 = (url) => {
+  const named3 = (url) => {
     if (Object.hasOwn(given, url)) return given[url];
     const ids2 = [
       ...Object.entries(hello.plugins).filter(([, entry]) => entry.module === url).map(([id3]) => id3),
       ...Object.entries(hello.options).filter(([, entry]) => entry.module === url).map(([id3]) => id3),
       ...Object.entries(hello.modules).filter(([, source]) => source.module === url).map(([id3]) => id3)
     ];
-    const id2 = ids2.find((key) => Object.hasOwn(given, key));
+    const id2 = ids2.find((key2) => Object.hasOwn(given, key2));
     if (id2 !== void 0) return given[id2];
-    const own2 = ids2.find((key) => Object.hasOwn(CORE_CLASSES, key) || Object.hasOwn(coreOptions, key));
+    const own2 = ids2.find((key2) => Object.hasOwn(CORE_CLASSES, key2) || Object.hasOwn(coreOptions, key2));
     if (own2 === void 0) return void 0;
     return Object.hasOwn(CORE_CLASSES, own2) ? CORE_CLASSES[own2] : { api: 1, default: coreOptions[own2] };
   };
@@ -13010,7 +13637,7 @@ async function stubCore(options = {}) {
     transport: r2.transport,
     loader: {
       importer(url) {
-        const exports = named2(url);
+        const exports = named3(url);
         if (exports !== void 0) return Promise.resolve(exports);
         return Promise.reject(new TypeError(`The test gives no module ${url}.`));
       },
@@ -13040,8 +13667,8 @@ async function stubCore(options = {}) {
 function moduleUrl(id2) {
   return `${packageFromId(id2) ?? "app"}/${id2}.js`;
 }
-function isModuleId(key) {
-  return packageFromId(key) !== null && !key.includes("/");
+function isModuleId(key2) {
+  return packageFromId(key2) !== null && !key2.includes("/");
 }
 function fixtureR(hello, options) {
   const sent2 = [];
@@ -13050,6 +13677,9 @@ function fixtureR(hello, options) {
   const results = /* @__PURE__ */ new Map();
   const transport = {
     send(message, bodies) {
+      if (message.some((request) => options.refuse?.includes(request.kind) === true)) {
+        return Promise.reject(new Error("The transport is closed."));
+      }
       sent2.push(...message);
       for (const request of message) {
         if (request.kind === "cancel" || request.kind === "forget") {

@@ -12,7 +12,7 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
-import type { RequestOpts } from "./core-api.ts";
+import type { Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 
 // A block's state: its values for the formals of its class's `expr`.
@@ -74,6 +74,11 @@ export interface BlockHost<S extends State = State> {
   evaluate(params: Record<string, Json>): Promise<BlockStatus>;
   // A module another package offers, by id, such as "blockr.dplyr-filter".
   module<T = unknown>(id: string): Promise<T>;
+  // Raises a notification of the module's, which concerns the block unless it
+  // names another board object, and holds until the function that it returns
+  // runs or the mount ends, as CoreApi's notify() raises a plugin's
+  // (./core-api.ts).
+  notify(notification: Raised): () => void;
 }
 
 export interface BlockContext {
@@ -116,6 +121,10 @@ export interface OptionHost<V extends Json = Json> {
     args?: Record<string, Json>,
     opts?: HostRequestOpts,
   ): Promise<T | Blob>;
+  // Raises a notification of the module's, which concerns the board option
+  // unless it names another board object, and holds until the function that
+  // it returns runs or the mount ends.
+  notify(notification: Raised): () => void;
 }
 
 export interface OutputHost {
@@ -133,7 +142,9 @@ export interface OutputHost {
   options(): Readonly<Record<OptionId, Json>>;
   // Whether core is asking R for a newer output.
   loading(): boolean;
-  // Why the latest ask failed, while output() keeps what it held.
+  // Why the latest ask failed, while output() keeps what it held. Core raises
+  // it as a notification about the block too, which the frontend places, so a
+  // renderer need not show it.
   error(): Condition | null;
   on(event: "output", fn: () => void): () => void;
   // Asks R for an output made with these, which params() returns once it
@@ -153,4 +164,9 @@ export interface OutputHost {
   // Reports what the user did on the output, such as a selection, for a
   // plugin to act on.
   emit(name: string, payload: Json): void;
+  // Raises a notification of the renderer's, which comes from the block,
+  // naming the renderer, concerns the block unless it names another board
+  // object, and holds until the function that it returns runs or the renderer
+  // is unmounted.
+  notify(notification: Raised): () => void;
 }

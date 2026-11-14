@@ -16,21 +16,24 @@
 //
 // It also holds what the frontend offers other plugins, as Plugins has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#what-a-frontend-offers-other-plugins):
-// the notes that plugins send, which the frontend draws, and which block has
-// focus, which the frontend sets. Both are the page's, outside the board, and
-// end with the board.
+// the notifications of the board, which the frontend draws (./notifications.ts),
+// and which block has focus, which the frontend sets. Both are the page's,
+// outside the board, and end with the board. Where an onChange() throws, core
+// raises a notification that holds until its next call returns, and so do
+// those that the call raises through its `notify`.
 
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
-import type { Lock, PluginEntry, Renderer } from "../protocol/index.ts";
+import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, Note, OutputEvents } from "../types/core-api.ts";
+import type { CoreApi, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { isObject, jsonEqual, own, report } from "../util/index.ts";
+import { coreNotification, errorMessage, jsonEqual, own, report } from "../util/index.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
+import type { Holder } from "./notifications.ts";
 import { runPlugins } from "./plugins.ts";
 import type { RunningPlugins } from "./plugins.ts";
 import { pluginRequest } from "./requests.ts";
@@ -51,6 +54,12 @@ export interface CoreParts {
   // The app's plugins, which run on the board, from the reply to `hello` that
   // core starts with for it, by the ids of their classes.
   readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
+  // The board options that the loaded packages list, from the same reply, by
+  // id, which name the package of each.
+  readonly options: Readonly<Record<OptionId, OptionEntry>>;
+  // The notifications of the board, which core made with its store before it
+  // imported the modules that the reply names (./notifications.ts).
+  readonly notifications: Holder;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
   // Ends what CoreApi runs as it aborts, as another board opens: every mount,
@@ -67,7 +76,14 @@ export interface Core {
 }
 
 export function createCore(parts: CoreParts): Core {
-  const { store, commands, scheduler, loader, blockrOptions } = parts;
+  const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const { raise } = notifications;
+  // The notifications follow the scheduler ahead of any frontend, so that
+  // what a frontend reads of them as the scheduler announces a status holds
+  // that status's conditions.
+  notifications.follow(scheduler);
+  // The package that lists a board option, from R's reply.
+  const optionPackage = (id: OptionId): string | undefined => own(parts.options, id)?.package;
 
   const listeners = new Set<(event: OutputEvent) => void>();
   parts.signal?.addEventListener(
@@ -96,6 +112,10 @@ export function createCore(parts: CoreParts): Core {
     loader,
     core: () => api,
     renderers: parts.renderers,
+    raise,
+    replied: notifications.replied,
+    notify: notifications.notify,
+    optionPackage,
     ...(parts.measure === undefined ? {} : { measure: parts.measure }),
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
     emit(event) {
@@ -117,6 +137,7 @@ export function createCore(parts: CoreParts): Core {
     keepOptions: (ids, by, failed) => mounts.keepOptions(ids, by, failed),
     core: () => api,
     plugins: parts.plugins,
+    raise,
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
   });
 
@@ -146,10 +167,10 @@ export function createCore(parts: CoreParts): Core {
     },
     lock: parts.lock,
     outputEvents,
-    notifications: createNotifications(parts.signal),
+    notifications: notifications.api,
     focus: createFocus(store, parts.signal),
     request: <T = Json>(plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
-      pluginRequest({ plugins, scheduler }, plugin, name, args, opts) as Promise<T | Blob>,
+      pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name, args, opts) as Promise<T | Blob>,
     module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
     blockrOption: (name) => blockrOptions.read(name),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
@@ -177,52 +198,42 @@ export function createCore(parts: CoreParts): Core {
     }
   });
 
+  // The notification of each onChange() that threw, by its board option's id,
+  // which holds until its next call returns.
+  const failing = new Map<OptionId, () => void>();
+  // What withdraws each notification that the last call of each onChange()
+  // raised, by its board option's id, which runs as its next call returns.
+  const raisedBy = new Map<OptionId, (() => void)[]>();
+
   function changed(id: OptionId, value: Json): void {
     const def = own(store.options.registered(), id);
     if (def?.onChange === undefined) return;
+    const raisedNow: (() => void)[] = [];
+    const notify = (notification: Raised): (() => void) => {
+      const withdraw = notifications.notify({ object: { option: id }, package: optionPackage(id) ?? null }, notification);
+      raisedNow.push(withdraw);
+      return withdraw;
+    };
+    let failure: (() => void) | undefined;
     try {
-      def.onChange(value, api);
+      def.onChange(value, api, notify);
     } catch (error) {
       report(error);
+      failure = raise(
+        coreNotification("on_change_failed", "error", `The onChange of the board option "${id}" failed: ${errorMessage(error)}`, {
+          about: { option: id },
+          package: optionPackage(id),
+        }),
+      );
     }
+    failing.get(id)?.();
+    if (failure === undefined) failing.delete(id);
+    else failing.set(id, failure);
+    for (const withdraw of raisedBy.get(id) ?? []) withdraw();
+    raisedBy.set(id, raisedNow);
   }
 
   return { api, plugins };
-}
-
-const SEVERITIES: readonly unknown[] = ["message", "warning", "error"];
-
-// The notes that plugins and core send, which reach each subscriber, as the
-// frontend that draws them, until the board ends.
-function createNotifications(signal: AbortSignal | undefined): CoreApi["notifications"] {
-  const listeners = new Set<(note: Note) => void>();
-  signal?.addEventListener(
-    "abort",
-    () => {
-      listeners.clear();
-    },
-    { once: true },
-  );
-  return {
-    notify(note) {
-      // A plugin in plain JS may send something else, which the types refuse.
-      const given: unknown = note;
-      if (!isObject(given) || typeof given.message !== "string" || !SEVERITIES.includes(given.severity)) {
-        throw new TypeError('A note holds a message, as a string, and a severity, "message", "warning" or "error".');
-      }
-      const sent: Note = Object.freeze({ message: given.message, severity: given.severity as Note["severity"] });
-      announceTo(listeners, sent);
-    },
-    subscribe(fn) {
-      const wrapped = (note: Note): void => {
-        fn(note);
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    },
-  };
 }
 
 // Which block has focus, which starts with none as the board opens and goes

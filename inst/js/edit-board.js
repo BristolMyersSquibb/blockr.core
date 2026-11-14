@@ -923,11 +923,12 @@ function without2(errors, key) {
 }
 
 // srcts/modules/edit-board/run.ts
+var EDIT_BOARD = "blockr.core-edit_board_plugin";
 function runCommand(core, id2, args) {
   return core.commands.run(id2, args).then(
     () => true,
     (error) => {
-      core.notifications.notify({ message: errorMessage(error), severity: "error" });
+      core.notifications.notify(EDIT_BOARD, { severity: "error", code: "edit_refused", message: errorMessage(error) });
       return false;
     }
   );

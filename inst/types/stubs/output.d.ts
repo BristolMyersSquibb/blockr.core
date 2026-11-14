@@ -1,5 +1,6 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
+import type { Raised } from "../types/core-api.ts";
 import type { OutputHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
@@ -26,6 +27,7 @@ export interface StubOutputHost extends OutputHost {
         readonly args: Readonly<Record<string, Json>>;
         readonly scope: "class" | "renderer";
     }[];
+    readonly notified: readonly Raised[];
     setOutput(output: Json, body?: Blob | null, params?: Json): void;
     setLoading(loading: boolean): void;
     setError(error: Condition | null): void;

@@ -3,36 +3,37 @@
 // 1. The protocol's client sends each session's hello as R starts the session.
 // 2. Once R has answered the first, core asks R for the blockr options that its
 //    scheduler reads and for rand_id, the shape of the ids that commands mint,
-//    and creates for the board that it opens the store and the command
-//    registry.
+//    and creates for the board that it opens the store, the notifications of
+//    the board (./notifications.ts) and the command registry.
 // 3. It imports the module of the class of each of the app's plugins and of
 //    each board option that R's reply names, each once per page, and
 //    registers the default export of each under the id that the reply gives
-//    it, with the commands of each plugin class. It names a module that fails
-//    to load, or whose class or board option the store refuses, and carries
-//    on, so that the board opens without what that module defines.
+//    it, with the commands of each plugin class. It raises a notification for
+//    a module that fails to load, or whose class or board option the store
+//    refuses, and carries on, so that the board opens without what that module
+//    defines.
 // 4. It creates the scheduler and CoreApi.
 // 5. Unless the load lock is on, it calls the load() of the storage of the
 //    app's storage plugin, where it has one, which may resolve with the text of
 //    a board to open in place of the one that R sent, such as the board that
 //    the page's URL names. Where it rejects, or resolves with no JSON board,
-//    core names why and keeps R's.
+//    or that board fails to open, core raises a notification of why and opens
+//    R's.
 // 6. It imports the UI module of each block class of which that board holds a
 //    block below the class's version, for the class's migration
 //    (./migrations.ts).
 // 7. It opens the board that R sent, or the one that load() named in its
 //    place, and either runs the app's plugins, which R names in its reply, each
-//    with the state that the board holds for it.
+//    with the state that the board holds for it. Where the store dropped
+//    anything as the board opened, core raises a notification that names it.
 // 8. As the store opens the board, core adds to it the board options that the
 //    classes of the app's plugins require (./plugins.ts).
 // 9. Once the board options that the app's frontend requires are on the
 //    board, core calls the render() of the frontend, the plugin that runs whose
 //    class has `frontend`, such as core's basic frontend, with what R's reply
 //    holds in `frontend`, and starts the scheduler once render() has returned,
-//    so that the scheduler sends R nothing before. It then sends, through
-//    `notifications`, the note that names what the store dropped, which the
-//    frontend shows. Where the app runs no frontend, the page shows why in
-//    place of the board.
+//    so that the scheduler sends R nothing before. Where the app runs no
+//    frontend, the page shows why in place of the board.
 // 10. Core then calls the start of each plugin whose class has one, so that
 //    what the frontend first shows comes before what the plugins ask for as
 //    they start.
@@ -66,7 +67,7 @@
 // 4. Once R has answered it, core starts as the page does, from step 2 on,
 //    with the board given in place of R's, which no load() replaces. Where that
 //    board fails to open after all, core opens the board before in the new
-//    store, and open() rejects with the reason.
+//    store, raises a notification of why, and open() rejects with the reason.
 // Only what is fixed for the page outlives an opening: the code and
 // stylesheets that have loaded, the page's element, the transport with its
 // session, the protocol's client, the blockr options that core has read, the
@@ -80,11 +81,12 @@
 //    Core then ends what it runs for the board, as stop() does, and says what
 //    to do, as for the first reply.
 // 2. Where it names a package at another version than the page loaded, core
-//    asks for the page to be reloaded, and goes on with the reply it used
-//    before: for the modules and renderers it loads, and for the board that
-//    opens next. So it loads no module of that package from the new reply. The
-//    loader imports no module of that package that it has not imported
-//    already, rather than load a second copy of the package.
+//    asks for the page to be reloaded, through a notification that each board
+//    that opens raises again while the versions differ, and goes on with the
+//    reply it used before: for the modules and renderers it loads, and for the
+//    board that opens next. So it loads no module of that package from the new
+//    reply. The loader imports no module of that package that it has not
+//    imported already, rather than load a second copy of the package.
 // 3. Otherwise core goes on with the new reply.
 // The reply to a later session's hello also has the scheduler give every block
 // a new revision, since the new session holds no results.
@@ -100,12 +102,15 @@ import type { Scheduler } from "../scheduler/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, PluginClass, Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { CoreApi, FrontendModule, Note } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, Notification } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { asError, errorMessage, isObject, own, packageFromId, quoted, report } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, isObject, own, packageFromId, quoted, report } from "../util/index.ts";
+import type { Concerns, Raise } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
 import { createMigrations } from "./migrations.ts";
+import { createNotifications } from "./notifications.ts";
+import type { Holder } from "./notifications.ts";
 
 // The capabilities that core's client speaks.
 const CAPABILITIES: Capability[] = ["cancel", "interrupt", "progress"];
@@ -162,9 +167,6 @@ export interface StartOptions {
   // draws, but the card that `frontEnds` gives.
   readonly alone?: boolean;
   readonly measure?: Measure;
-  // Asks for the page to be reloaded, where a reply names a loaded package at
-  // another version, rather than load a second copy of it.
-  readonly reload?: (changed: readonly Changed[]) => void;
   // Shows why core cannot start, or why it stopped, as where R speaks another
   // major of the protocol in the first session or a later one, or cannot give
   // a blockr option that core reads as it starts, or gives one that the
@@ -190,6 +192,7 @@ interface Running {
   readonly store: Store;
   readonly scheduler: Scheduler;
   readonly core: CoreApi;
+  readonly notifications: Holder;
   readonly controller: AbortController;
 }
 
@@ -220,6 +223,9 @@ export function start(options: StartOptions): Started {
   // loaded. The loader imports no module of them that it has not imported
   // already.
   let changed: readonly Changed[] = [];
+  // What withdraws the notification that asks for the page to be reloaded,
+  // while the open board holds one.
+  let reloading: (() => void) | undefined;
   // What core runs for the board that is open.
   let running: Running | undefined;
   const holdsBoard = (): boolean => running?.store.hasBoard() === true;
@@ -291,11 +297,10 @@ export function start(options: StartOptions): Started {
       return;
     }
     changed = changedPackages(loaded, hello);
-    if (changed.length > 0) {
-      (options.reload ?? askReload)(changed);
-    } else {
-      adopt(hello);
-    }
+    // The board that opens next raises the notification itself, since none is
+    // open while core starts again.
+    askReload(running?.notifications.raise);
+    if (changed.length === 0) adopt(hello);
     if (restarting !== undefined) {
       const waiting = restarting;
       restarting = undefined;
@@ -326,6 +331,16 @@ export function start(options: StartOptions): Started {
     waiting?.reject(why);
   }
 
+  // Asks for the page to be reloaded through a notification of the open
+  // board, in place of the one before, while the last reply names packages at
+  // other versions than the page loaded, and withdraws the one before
+  // otherwise.
+  function askReload(raise: Raise | undefined): void {
+    const before = reloading;
+    reloading = changed.length > 0 && raise !== undefined ? raise(reloadNotification(changed)) : undefined;
+    before?.();
+  }
+
   // Stops core where R speaks another major of the protocol, to which the
   // protocol's client sends nothing more: core ends what it started, as stop()
   // does, and says what to do.
@@ -336,14 +351,14 @@ export function start(options: StartOptions): Started {
   }
 
   // Starts core for one board, with what R's reply to hello holds, as the page
-  // starts and as each later board opens: the store, the command registry, the
-  // scheduler and CoreApi, each of which the abort of the opening's controller
-  // ends. It registers the plugin classes and board options that the reply
-  // names, opens the board in the store, or as the page starts the one that the
-  // app's storage plugin names in its place, draws it with its frontend, starts
-  // the scheduler, sends the note that names what the store dropped, then
-  // starts the app's plugins, and resolves with CoreApi and what the store
-  // dropped.
+  // starts and as each later board opens: the store, the notifications of the
+  // board, the command registry, the scheduler and CoreApi, each of which the
+  // abort of the opening's controller ends. It registers the plugin classes and
+  // board options that the reply names, opens the board in the store, or as the
+  // page starts the one that the app's storage plugin names in its place,
+  // raises the notification that names what the store dropped, draws the board
+  // with its frontend, starts the scheduler, then starts the app's plugins, and
+  // resolves with CoreApi and what the store dropped.
   async function boot(reply: HelloReply, later: Later | undefined): Promise<{ core: CoreApi; dropped: Dropped[] }> {
     // The opening ends as the next board opens, or as the page stops.
     const controller = new AbortController();
@@ -374,13 +389,18 @@ export function start(options: StartOptions): Started {
     ]);
 
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
+    // The notifications of the board, made before core imports the modules
+    // that the reply names, so that the frontend hears of one that fails.
+    const notifications = createNotifications(store, { signal, plugins: reply.plugins });
+    const { raise } = notifications;
+    askReload(raise);
     const commands = createCommands(store, {
       signal,
       lock: reply.lock,
       randId,
       blockrOption: (name) => blockrOptions.read(name),
     });
-    await register(reply, store, commands, signal);
+    await register(reply, store, commands, signal, raise);
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;
     const scheduler = createScheduler({
@@ -405,23 +425,33 @@ export function start(options: StartOptions): Started {
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
+      options: reply.options,
+      notifications,
       signal,
       ...(options.measure === undefined ? {} : { measure: options.measure }),
     });
-    running = { store, scheduler, core, controller };
+    running = { store, scheduler, core, notifications, controller };
 
     let dropped: Dropped[] = [];
     let failure: Error | undefined;
     if (later === undefined) {
-      const instead = alone ? undefined : await named(reply, store, core, signal);
-      await migrations.prepare(instead ?? reply.board, reply.block_registry);
+      const instead = alone ? undefined : await named(reply, store, core, signal, raise);
+      await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
       if (instead === undefined) {
         dropped = await store.open(reply);
       } else {
         try {
-          dropped = await store.open(instead);
+          dropped = await store.open(instead.text);
         } catch (error) {
           report(error);
+          raise(
+            coreNotification(
+              "board_open_failed",
+              "error",
+              `The board that the storage plugin "${instead.plugin}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
+              { about: { plugin: instead.plugin }, package: packageFromId(instead.plugin) },
+            ),
+          );
           await migrations.prepare(reply.board, reply.block_registry);
           dropped = await store.open(reply);
         }
@@ -438,8 +468,18 @@ export function start(options: StartOptions): Started {
           report(again);
           throw failure;
         }
+        // The opening has ended the code that called open(), which rejects,
+        // so core tells the user itself.
+        raise(
+          coreNotification(
+            "board_open_failed",
+            "error",
+            `The board did not open, so core opened the board before it again: ${failure.message}`,
+          ),
+        );
       }
     }
+    if (dropped.length > 0) raise(droppedNotification(dropped));
 
     if (alone) {
       try {
@@ -463,9 +503,6 @@ export function start(options: StartOptions): Started {
       } finally {
         scheduler.start();
       }
-      // The frontend subscribes to the notes as it draws, so this one reaches
-      // it.
-      if (dropped.length > 0) core.notifications.notify(droppedNote(dropped));
     }
     await plugins.start();
     if (failure !== undefined) throw failure;
@@ -475,22 +512,46 @@ export function start(options: StartOptions): Started {
   // Registers in the store the class of each of the app's plugins and each
   // board option that the reply names, from the module that R serves for it,
   // which the loader imports once per page, and the commands of each plugin
-  // class in the command registry. It names a module that fails to load, a
-  // default export that the store refuses and a command that the registry
-  // refuses, and carries on, so that the board opens without them.
-  async function register(reply: HelloReply, store: Store, commands: Commands, signal: AbortSignal): Promise<void> {
+  // class in the command registry. It raises a notification for a module that
+  // fails to load and for a default export that the store refuses, which
+  // concerns the plugin class or the board option, with the module's package,
+  // names a command that the registry refuses, and carries on, so that the
+  // board opens without them.
+  async function register(
+    reply: HelloReply,
+    store: Store,
+    commands: Commands,
+    signal: AbortSignal,
+    raise: Raise,
+  ): Promise<void> {
+    const failed = (error: unknown, concerns: Concerns): void => {
+      report(error);
+      if (!signal.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
+    };
     const [defs, opts] = await Promise.all([
-      Promise.all(Object.entries(reply.plugins).map(([id, entry]) => listed(entry, packageFromId(id)))),
-      Promise.all(Object.values(reply.options).map((entry) => listed(entry, entry.package))),
+      Promise.all(
+        Object.entries(reply.plugins).map(([id, entry]) =>
+          listed(entry, packageFromId(id), (error) => {
+            failed(error, { about: { plugin: id }, package: packageFromId(id) });
+          }),
+        ),
+      ),
+      Promise.all(
+        Object.entries(reply.options).map(([id, entry]) =>
+          listed(entry, entry.package, (error) => {
+            failed(error, { about: { option: id }, package: entry.package });
+          }),
+        ),
+      ),
     ]);
     if (signal.aborted) return;
-    Object.keys(reply.options).forEach((id, i) => {
+    Object.entries(reply.options).forEach(([id, entry], i) => {
       const def = opts[i];
       if (def === undefined) return;
       try {
         store.options.register({ ...(def as unknown as Option), id });
       } catch (error) {
-        report(error);
+        failed(error, { about: { option: id }, package: entry.package });
       }
     });
     Object.keys(reply.plugins).forEach((id, i) => {
@@ -501,7 +562,7 @@ export function start(options: StartOptions): Started {
         cls = { ...(def as unknown as PluginClass), id };
         store.plugins.register(cls);
       } catch (error) {
-        report(error);
+        failed(error, { about: { plugin: id }, package: packageFromId(id) });
         return;
       }
       for (const command of cls.commands ?? []) {
@@ -516,49 +577,72 @@ export function start(options: StartOptions): Started {
 
   // The default export of the module that R serves for a plugin class or a
   // board option, or undefined where it fails to load or exports none, which
-  // core reports.
+  // `failed` hears.
   async function listed(
     source: { readonly module: string; readonly css?: string },
     pkg: string | null,
+    failed: (error: unknown) => void,
   ): Promise<Readonly<Record<string, unknown>> | undefined> {
     try {
       const at = source.css === undefined ? { module: source.module } : { module: source.module, css: source.css };
       return listedDefault(await loader.load(at, pkg), source.module, pkg);
     } catch (error) {
-      report(error);
+      failed(error);
       return undefined;
     }
   }
 
   // The text of the board that the app's storage plugin names in place of the
-  // one that R sent, as the page starts, or undefined for R's: core asks for
-  // none under the load lock, which fixes the app to R's board, and keeps R's
-  // where load() rejects or resolves with no JSON board, naming why.
-  async function named(reply: HelloReply, store: Store, core: CoreApi, signal: AbortSignal): Promise<string | undefined> {
+  // one that R sent, as the page starts, with the id of the plugin's class, or
+  // undefined for R's: core asks for none under the load lock, which fixes the
+  // app to R's board, and keeps R's where load() rejects or resolves with no
+  // JSON board, raising a notification of why, which concerns the package of
+  // the plugin's class.
+  async function named(
+    reply: HelloReply,
+    store: Store,
+    core: CoreApi,
+    signal: AbortSignal,
+    raise: Raise,
+  ): Promise<{ readonly text: string; readonly plugin: PluginClassId } | undefined> {
     if (reply.lock.load) return undefined;
     const classes = store.plugins.registered();
     const plugin = Object.keys(reply.plugins).find((id) => own(classes, id)?.storage !== undefined);
     const storage = plugin === undefined ? undefined : own(classes, plugin)?.storage;
     if (plugin === undefined || storage?.load === undefined) return undefined;
+    const refuse = (error: Error): void => {
+      report(error);
+      raise(coreNotification("board_open_failed", "error", error.message, { about: { plugin }, package: packageFromId(plugin) }));
+    };
     let text: unknown;
     try {
       text = await storage.load({ core, plugin, signal });
     } catch (error) {
-      report(new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, { cause: error }));
+      refuse(
+        new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
+          cause: error,
+        }),
+      );
       return undefined;
     }
     if (text === undefined) return undefined;
     if (typeof text !== "string") {
-      report(new Error(`The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`));
+      refuse(
+        new Error(
+          `The load() of the storage plugin "${plugin}" resolved with something other than the text of a JSON board, so core opens the board that R sent.`,
+        ),
+      );
       return undefined;
     }
     try {
       JSON.parse(text);
     } catch (error) {
-      report(new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`));
+      refuse(
+        new Error(`The storage plugin "${plugin}" named a board that holds no JSON, so core opens the board that R sent: ${errorMessage(error)}`),
+      );
       return undefined;
     }
-    return text;
+    return { text, plugin };
   }
 
   // Openings run one at a time.
@@ -651,27 +735,32 @@ function changedPackages(loaded: ReadonlyMap<string, string>, reply: HelloReply)
   });
 }
 
-// Asks the user to reload the page, as R now runs other versions of packages
-// whose code the page holds.
-function askReload(changed: readonly Changed[]): void {
-  report(
-    new Error(
-      `R now runs ${changed.map((c) => `${c.package} ${c.now}`).join(", ")}, where the page loaded ${changed.map((c) => `${c.package} ${c.loaded}`).join(", ")}. Reload the page.`,
-    ),
+// The notification that asks the user to reload the page, as R now runs other
+// versions of packages whose code the page holds, which concerns the board and
+// names the packages. A frontend offers to reload the page, which then loads
+// the code that R serves, rather than load a second copy beside the first. The
+// page carries on meanwhile, since a reload loses the board unless it is saved.
+function reloadNotification(changed: readonly Changed[]): Omit<Notification, "id"> {
+  const versions = changed.map((c) => `${c.package} ${c.loaded} to ${c.now}`).join(", ");
+  return coreNotification(
+    "page_reload_needed",
+    "warning",
+    `R now runs other versions of packages than this page loaded (${versions}). Save the board, then reload the page.`,
   );
 }
 
-// The note that names what the store dropped as a board opened, one line for
-// each, as Board objects has it
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt).
-function droppedNote(dropped: readonly Dropped[]): Note {
+// The notification that names what the store dropped as a board opened, one
+// line for each, with the package of each that names one, as Board objects has
+// it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.1#objects-that-cannot-be-rebuilt).
+// One notification covers the whole opening, which concerns the board.
+function droppedNotification(dropped: readonly Dropped[]): Omit<Notification, "id"> {
   const lines = dropped.map((item) => {
     if ("option" in item) return `- board option "${item.option}"`;
     if ("block" in item) return `- block "${item.block}" (${item.registry_id})`;
     if ("plugin" in item) return `- plugin "${item.plugin}"`;
     return `- package ${item.package} ${item.version}`;
   });
-  return { message: ["The board opened without:", ...lines].join("\n"), severity: "warning" };
+  return coreNotification("board_objects_dropped", "warning", ["The board opened without:", ...lines].join("\n"));
 }
 
 // The default export of a module that R serves for a plugin class or a board

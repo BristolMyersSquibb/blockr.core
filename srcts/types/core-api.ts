@@ -9,10 +9,10 @@
 // CoreApi.
 
 import type { Commands } from "../commands/index.ts";
-import type { Lock } from "../protocol/index.ts";
+import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
-import type { BlockId, OptionId, PluginClassId, RegistryId } from "./board.ts";
+import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
 import type { RegistryEntry } from "./registry.ts";
@@ -64,13 +64,32 @@ export interface CoreApi {
   // What renderers report that the user did, such as a selection, for
   // plugins to act on.
   readonly outputEvents: OutputEvents;
-  // The notes that plugins send, and the one in which core names what the
-  // store dropped as a board opened, which the frontend hears and draws.
+  // Every notification of the open board, whoever raised it, which a frontend
+  // draws as it chooses, as Notifications has it
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications):
+  // one for each condition of each block's status, one for each condition of
+  // R's reply to a request that fails, those that core raises where it fails
+  // at something that the user asked for or that the board needs, and those
+  // that the modules of packages raise, a plugin's through notify() and one
+  // that core mounts through its host. Core holds them outside the board, in
+  // the order they came, so that one raised before the frontend draws still
+  // reaches it. It withdraws those that concern a block, a link or a stack as
+  // that leaves the board, and every one as the next board opens.
   readonly notifications: {
-    // Hands the note to each subscriber. Core keeps no note, so a note sent
-    // before anything subscribes reaches nobody.
-    notify(note: Note): void;
-    subscribe(fn: (note: Note) => void): () => void;
+    // Raises a notification of the plugin of the class `plugin`, which
+    // concerns the plugin unless it names another board object, and holds
+    // until the function that it returns runs. It throws for one whose members
+    // are of the wrong kind. One about a block, a link or a stack that the
+    // board no longer holds holds nothing, since the work that raises it can
+    // outlive what it concerns, and core reports one from a plugin that the
+    // app does not run or about a board object that the board has never held,
+    // since only a mistake in the plugin names one.
+    notify(plugin: PluginClassId, notification: Raised): () => void;
+    // Those that hold, the same array until one comes or goes.
+    get(): readonly Notification[];
+    // Calls `fn` with those that hold whenever one comes or goes, as React's
+    // useSyncExternalStore follows a store with get().
+    subscribe(fn: (all: readonly Notification[]) => void): () => void;
   };
   // Which block has focus, which the frontend sets as the user moves into a
   // block, and which a plugin such as the assistant reads to tell which block
@@ -118,10 +137,127 @@ export interface Plugin {
   readonly name: string;
 }
 
-// A note that a plugin sends, which the frontend draws.
-export interface Note {
+// A message, warning or error that the user should see, whoever raised it.
+// It says who raised it and what it concerns apart, so that a frontend places
+// it by either as it chooses: on the card of the block it concerns, next to
+// the plugin that raised it, or as a toast whatever it concerns.
+// The browser has a global of the same name, for desktop notifications, whose
+// constructor a module that imports this type still calls as
+// `new Notification()`, since the type has no value.
+export interface Notification {
+  // The same while it holds, so that a frontend knows which it has shown.
+  readonly id: string;
+  readonly severity: Severity;
   readonly message: string;
-  readonly severity: "message" | "warning" | "error";
+  // Who raised it.
+  readonly source: NotificationSource;
+  // The board object that it concerns, or none for the board as a whole.
+  readonly about?: BoardObject;
+}
+
+export type Severity = "message" | "warning" | "error";
+
+// A board object, by its id: a block, a link, a stack, a board option, or one
+// of the app's plugins, by the id of its class.
+export type BoardObject =
+  | { readonly block: BlockId }
+  | { readonly link: LinkId }
+  | { readonly stack: StackId }
+  | { readonly option: OptionId }
+  | { readonly plugin: PluginClassId };
+
+// Who raised a notification: R, core or a package's module in the client.
+export type NotificationSource = RSource | CoreSource | ModuleSource;
+
+// R, in a condition of its reply to what core asked of it for the board object
+// that the notification concerns.
+export interface RSource {
+  readonly kind: "r";
+  // The condition's class vector, as ["simpleWarning", "warning", "condition"].
+  readonly class: readonly string[];
+  readonly request: RRequest;
+}
+
+// What core asked of R: a block's evaluation or its output, or a request, by
+// its type and name.
+export type RRequest =
+  // The phase that raised the condition, which one that R raises itself, as
+  // for an evaluation that a lock refuses, lacks.
+  | { readonly type: "evaluate"; readonly phase?: EvaluatePhase }
+  | { readonly type: "output" }
+  | { readonly type: "block_class" | "output_class" | "option" | "plugin"; readonly name: string }
+  // A request of a renderer's own, which names the renderer by its id.
+  | { readonly type: "renderer"; readonly renderer: string; readonly name: string };
+
+// The phases of a block's evaluation, of which R names one in each condition
+// it raises there.
+export type EvaluatePhase = Extract<Phase, "expr" | "inputs" | "block_eval" | "result_summary">;
+
+// Core, where it fails at something that the user asked for or that the board
+// needs.
+export interface CoreSource {
+  readonly kind: "core";
+  readonly code: CoreCode;
+  // The package whose module failed, where core knows it.
+  readonly package?: string;
+  // The renderer of the block's output, by its id, where it is the module that
+  // failed. A module of a block that fails without it is the block's UI
+  // module.
+  readonly renderer?: string;
+}
+
+// What core's own notification is of.
+export type CoreCode =
+  // A module that fails to load or to draw.
+  | "module_failed"
+  // A board option that does not go onto the board.
+  | "board_option_failed"
+  // A board option's onChange() that throws.
+  | "on_change_failed"
+  // A plugin's start that throws.
+  | "plugin_start_failed"
+  // A board that does not open.
+  | "board_open_failed"
+  // What the store dropped as the board opened.
+  | "board_objects_dropped"
+  // A package that R runs at another version than the page loaded.
+  | "page_reload_needed"
+  // An evaluation that the transport could not send to R.
+  | "evaluation_unsent"
+  // An ask of a block's output that got no reply, or an error reply to one
+  // that holds no condition.
+  | "output_unanswered";
+
+// A package's module in the client: a plugin class's, one that core mounts for
+// a block or a board option, its UI module or a renderer, or a board option's,
+// whose onChange() raises it.
+export interface ModuleSource {
+  readonly kind: "module";
+  // The board object whose module raised it: a plugin, a block or a board
+  // option.
+  readonly object: { readonly plugin: PluginClassId } | { readonly block: BlockId } | { readonly option: OptionId };
+  // The package's own code for what it is of, as "edit_refused".
+  readonly code: string;
+  // The package whose module raised it, where core knows it, which it does
+  // but for a block class defined outside a package.
+  readonly package?: string;
+  // The renderer of the block's output, by its id, where it raised the
+  // notification. One that a block's module raises without it comes from the
+  // block's UI module.
+  readonly renderer?: string;
+}
+
+// What a package's module gives to raise a notification, from which core
+// makes the notification, naming who raised it.
+export interface Raised {
+  readonly severity: Severity;
+  readonly message: string;
+  // The package's own code for what it is of, as "edit_refused", by which a
+  // frontend that knows the package draws it.
+  readonly code: string;
+  // The board object that it concerns: the one whose module raises it unless
+  // given, or null for the board as a whole.
+  readonly about?: BoardObject | null;
 }
 
 // What a plugin's module exports as its default, beside the JS API major it

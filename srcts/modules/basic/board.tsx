@@ -22,7 +22,7 @@ import { BlockCard, StackGroup } from "./card.tsx";
 import { FrontEndContext, runCommand, useFrontEnd } from "./context.ts";
 import type { FrontEnd } from "./context.ts";
 import { layoutItems } from "./layout.ts";
-import { useNotices } from "./notices.ts";
+import { isReload, useNotices } from "./notices.ts";
 import type { Severity } from "./notices.ts";
 import { OptionsDialog } from "./options.tsx";
 import { Plugins } from "./plugins.tsx";
@@ -126,8 +126,9 @@ const NOTICE_TONES: Readonly<Record<Severity, string>> = {
 };
 
 // What the frontend tells the user, each in the colour of its severity until
-// the user dismisses it. An error or a warning is an alert, which a screen
-// reader reads out at once.
+// it no longer holds or the user dismisses it. An error or a warning is an
+// alert, which a screen reader reads out at once. Where core asks for the page
+// to be reloaded, the notice offers to reload it.
 function Notices(): ReactElement | null {
   const { notices } = useFrontEnd();
   const list = useNotices(notices);
@@ -136,17 +137,28 @@ function Notices(): ReactElement | null {
     <ul aria-label="Notices" className={classes.list}>
       {list.map((notice) => (
         <li
-          key={notice.id}
+          key={notice.key}
           role={notice.severity === "message" ? "status" : "alert"}
           data-severity={notice.severity}
           className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${NOTICE_TONES[notice.severity]}`}
         >
           <span className="bc:flex-1 bc:whitespace-pre-wrap">{notice.text}</span>
+          {notice.notification !== undefined && isReload(notice.notification) ? (
+            <button
+              type="button"
+              className={classes.quiet}
+              onClick={() => {
+                location.reload();
+              }}
+            >
+              Reload
+            </button>
+          ) : null}
           <button
             type="button"
             className={classes.quiet}
             onClick={() => {
-              notices.dismiss(notice.id);
+              notices.dismiss(notice.key);
             }}
           >
             Dismiss

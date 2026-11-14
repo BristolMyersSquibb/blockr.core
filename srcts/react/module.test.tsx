@@ -66,8 +66,12 @@ describe("outputRenderer()", () => {
     expect(el.querySelector("pre")?.textContent).toBe("two");
   });
 
-  test("marks itself busy and dims what its component drew while a newer output loads, and shows why the latest ask failed over it", async () => {
-    const renderer = outputRenderer<TextOutput>(({ output }) => <pre>{output.text}</pre>);
+  test("marks itself busy and dims what its component drew while a newer output loads, and draws nothing of why the latest ask failed, which its component gets", async () => {
+    const seen: (string | undefined)[] = [];
+    const renderer = outputRenderer<TextOutput>(({ output, error }) => {
+      seen.push(error?.message);
+      return <pre>{output.text}</pre>;
+    });
     const host = stubOutputHost({ output: { ...text("one") } });
     const { el } = await mountReact({ api: 1, default: renderer }, host);
     const frame = el.firstElementChild;
@@ -80,38 +84,88 @@ describe("outputRenderer()", () => {
     expect(frame?.getAttribute("aria-busy")).toBe("true");
     expect(el.querySelector("pre")?.closest(".bc\\:opacity-60")).not.toBeNull();
 
+    // Core raises why the ask failed as a notification about the block, which
+    // the frontend places.
     await step(() => {
       host.setError({ severity: "error", class: ["simpleError", "error", "condition"], message: "boom" });
     });
-    expect(el.querySelector('[role="alert"]')?.textContent).toBe("boom");
+    expect(el.querySelector('[role="alert"]')).toBeNull();
+    expect(seen.at(-1)).toBe("boom");
     expect(el.querySelector("pre")?.textContent).toBe("one");
   });
 
-  test("shows the error of a component that throws in its place, and draws it again once another output comes", async () => {
+  test("draws nothing in place of a component that throws, raises why through the host, and draws it again once another output comes", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const renderer = outputRenderer<TextOutput>(({ output }) => {
+      if (output.text.startsWith("bad")) throw new Error(`cannot show ${output.text}`);
+      return <pre>{output.text}</pre>;
+    });
+    const host = stubOutputHost({ output: { ...text("bad one") } });
+    const failed = (what: string) => ({
+      severity: "error",
+      code: "render_failed",
+      message: `The renderer failed to draw the output: cannot show ${what}`,
+    });
+    const reported = reports();
+    let errors: unknown[];
+    try {
+      const { el } = await mountReact({ api: 1, default: renderer }, host);
+      expect(el.textContent).toBe("");
+      expect(el.querySelector('[role="alert"]')).toBeNull();
+      expect(host.notified).toEqual([failed("bad one")]);
+
+      // Another output that it cannot draw replaces the notification.
+      await step(() => {
+        host.setOutput({ ...text("bad two") });
+      });
+      expect(el.textContent).toBe("");
+      expect(host.notified).toEqual([failed("bad two")]);
+
+      await step(() => {
+        host.setOutput({ ...text("good") });
+      });
+      expect(el.querySelector("pre")?.textContent).toBe("good");
+      expect(host.notified).toEqual([]);
+    } finally {
+      reported.restore();
+      errors = reported.errors();
+    }
+    // What the capture holds besides the reported errors are React's own
+    // microtasks, which throw nothing.
+    expect(errors.filter((error) => error instanceof Error).map((error) => error.message)).toEqual([
+      "cannot show bad one",
+      "cannot show bad two",
+    ]);
+  });
+
+  test("raises one notification where its component throws on an output that comes later, which holds until the renderer is unmounted", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const renderer = outputRenderer<TextOutput>(({ output }) => {
       if (output.text === "bad") throw new Error("no text to show");
       return <pre>{output.text}</pre>;
     });
-    const host = stubOutputHost({ output: { ...text("bad") } });
+    const host = stubOutputHost({ output: { ...text("good") } });
     const reported = reports();
     let errors: unknown[];
     try {
-      const { el } = await mountReact({ api: 1, default: renderer }, host);
-      expect(el.querySelector('[role="alert"]')?.textContent).toBe("The renderer failed to draw the output: no text to show");
-      expect(el.querySelector("pre")).toBeNull();
+      const mounted = await mountReact({ api: 1, default: renderer }, host);
+      expect(mounted.el.querySelector("pre")?.textContent).toBe("good");
+      expect(host.notified).toEqual([]);
 
       await step(() => {
-        host.setOutput({ ...text("good") });
+        host.setOutput({ ...text("bad") });
       });
-      expect(el.querySelector('[role="alert"]')).toBeNull();
-      expect(el.querySelector("pre")?.textContent).toBe("good");
+      expect(mounted.el.textContent).toBe("");
+      expect(host.notified.map((notification) => notification.code)).toEqual(["render_failed"]);
+
+      await step(() => {
+        mounted.unmount();
+      });
+      expect(host.notified).toEqual([]);
     } finally {
       reported.restore();
       errors = reported.errors();
     }
-    // What the capture holds besides the reported error are React's own
-    // microtasks, which throw nothing.
     expect(errors.filter((error) => error instanceof Error).map((error) => error.message)).toEqual(["no text to show"]);
   });
 });

@@ -3,7 +3,7 @@ import { flushSync as flushSync2 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback7, useMemo as useMemo3, useState as useState10 } from "react";
+import { useCallback as useCallback7, useMemo as useMemo4, useState as useState10 } from "react";
 
 // srcts/util/util.ts
 function own(record, key) {
@@ -747,7 +747,7 @@ import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5,
 import { useCallback as useCallback2, useId as useId3, useState as useState5 } from "react";
 import { Fragment, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 var SEVERITIES = ["error", "warning", "message"];
-function useFooter(status, severities = SEVERITIES) {
+function useFooter(status, notifications, severities = SEVERITIES) {
   const shown = useShown(status);
   const [open, setOpen] = useState5(OPEN_AT_START);
   const panel = useId3();
@@ -758,7 +758,7 @@ function useFooter(status, severities = SEVERITIES) {
       return next;
     });
   }, []);
-  return { status, shown, severities, open, toggle, panel };
+  return { status, shown, notifications, severities, open, toggle, panel };
 }
 function Footer({ status, shown }) {
   return /* @__PURE__ */ jsx6(
@@ -771,10 +771,9 @@ function Footer({ status, shown }) {
     }
   );
 }
-function Pills({ status, shown, severities, open, toggle, panel }) {
-  if (shown === void 0) return null;
+function Pills({ status, shown, notifications, severities, open, toggle, panel }) {
   const pills = SEVERITIES.flatMap((severity) => {
-    const n = counted(shown, severities, severity);
+    const n = counted(shown, notifications, severities, severity);
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
@@ -808,21 +807,21 @@ function Pills({ status, shown, severities, open, toggle, panel }) {
     }
   );
 }
-function Banners({ shown, severities, open, panel }) {
-  if (shown === void 0) return null;
-  const listed = shown.conditions.filter(
-    (condition) => severities.includes(condition.severity) && open.has(condition.severity)
+function Banners({ shown, notifications, severities, open, panel }) {
+  const listed2 = notifications.filter(
+    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
   );
-  if (shown.reason !== null && open.has("message")) listed.push({ severity: "message", message: shown.reason });
-  if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i)) });
+  const reason = shown?.reason ?? null;
+  if (reason !== null && open.has("message")) listed2.push({ severity: "message", message: reason });
+  if (listed2.length === 0) return null;
+  return /* @__PURE__ */ jsx6("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed2.map(({ severity, message }, i) => /* @__PURE__ */ jsx6(Banner, { severity, message }, i)) });
 }
 function settled(status, shown) {
   return status !== void 0 && status === shown && !status.running;
 }
-function counted(status, severities, severity) {
-  const conditions = severities.includes(severity) ? status.conditions.filter((condition) => condition.severity === severity).length : 0;
-  return severity === "message" && status.reason !== null ? conditions + 1 : conditions;
+function counted(status, notifications, severities, severity) {
+  const n = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 var MARKS = {
   error: {
@@ -916,7 +915,7 @@ function Mounted({
 }
 
 // srcts/card/status.ts
-import { useCallback as useCallback3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useCallback as useCallback3, useMemo as useMemo3, useState as useState6, useSyncExternalStore as useSyncExternalStore2 } from "react";
 function useStatus(core, block) {
   const subscribe = useCallback3(
     (notify) => core.scheduler.subscribe((changed) => {
@@ -925,6 +924,19 @@ function useStatus(core, block) {
     [core, block]
   );
   return useSyncExternalStore2(subscribe, () => core.scheduler.status(block));
+}
+function useNotified(core, block) {
+  const subscribe = useCallback3(
+    (notify) => core.notifications.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  const all = useSyncExternalStore2(subscribe, () => core.notifications.get());
+  return useMemo3(
+    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
+    [all, block]
+  );
 }
 function useSized(status) {
   const ready = status?.status === "ready";
@@ -1056,7 +1068,8 @@ var BlockCard = memo(function BlockCard2({
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
-  const footer = useFooter(status, severities);
+  const notified = useNotified(core, id2);
+  const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState8(false);
   const ref = useRef5(null);
@@ -1224,25 +1237,76 @@ function stackBlocks(board, stack) {
 
 // srcts/modules/basic/notices.ts
 import { useSyncExternalStore as useSyncExternalStore3 } from "react";
-function createNotices() {
+function listed(notification) {
+  const { about } = notification;
+  return about === void 0 || !("block" in about);
+}
+function isReload(notification) {
+  return notification.source.kind === "core" && notification.source.code === "page_reload_needed";
+}
+function createNotices(notifications) {
   let notices = [];
+  let own2 = [];
+  const made = /* @__PURE__ */ new Map();
+  const order = /* @__PURE__ */ new Map();
+  const dismissed = /* @__PURE__ */ new Set();
   let last = 0;
+  let heard = notifications.get();
   const listeners = /* @__PURE__ */ new Set();
-  function set(next) {
+  function update() {
+    const holding = new Set(heard.map((notification) => notification.id));
+    for (const [id2, notice] of made) {
+      if (holding.has(id2)) continue;
+      made.delete(id2);
+      order.delete(notice.key);
+      dismissed.delete(id2);
+    }
+    const shown = [];
+    for (const notification of heard) {
+      if (!listed(notification) || dismissed.has(notification.id)) continue;
+      let notice = made.get(notification.id);
+      if (notice?.notification !== notification) {
+        notice = {
+          key: notice?.key ?? `notification-${String(++last)}`,
+          text: notification.message,
+          severity: notification.severity,
+          notification
+        };
+        made.set(notification.id, notice);
+        if (!order.has(notice.key)) order.set(notice.key, last);
+      }
+      shown.push(notice);
+    }
+    const at = (notice) => order.get(notice.key) ?? 0;
+    const next = [...shown, ...own2].sort((a, b) => at(a) - at(b));
+    if (next.length === notices.length && next.every((notice, i) => notice === notices[i])) return;
     notices = next;
     for (const fn of [...listeners]) fn();
   }
-  function add(note) {
-    set([...notices, { id: ++last, text: note.message, severity: note.severity }]);
-  }
+  const off = notifications.subscribe((all) => {
+    heard = all;
+    update();
+  });
+  update();
   return {
     list: () => notices,
     failed(error) {
-      add({ message: errorMessage(error), severity: "error" });
+      const key = `own-${String(++last)}`;
+      order.set(key, last);
+      own2 = [...own2, { key, text: errorMessage(error), severity: "error" }];
+      update();
     },
-    add,
-    dismiss(id2) {
-      if (notices.some((notice) => notice.id === id2)) set(notices.filter((notice) => notice.id !== id2));
+    dismiss(key) {
+      const mine = own2.find((notice) => notice.key === key);
+      if (mine !== void 0) {
+        own2 = own2.filter((notice) => notice !== mine);
+        order.delete(key);
+      } else {
+        for (const [id2, notice] of made) {
+          if (notice.key === key) dismissed.add(id2);
+        }
+      }
+      update();
     },
     subscribe(fn) {
       const wrapped = () => {
@@ -1252,7 +1316,8 @@ function createNotices() {
       return () => {
         listeners.delete(wrapped);
       };
-    }
+    },
+    stop: off
   };
 }
 function useNotices(notices) {
@@ -1629,9 +1694,9 @@ function BasicBoard({ front }) {
 function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
-  const items = useMemo3(() => layoutItems(board), [board]);
+  const items = useMemo4(() => layoutItems(board), [board]);
   const shown = board.options.show_conditions;
-  const severities = useMemo3(() => asSeverities(shown), [shown]);
+  const severities = useMemo4(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState10(null);
   const add = useCallback7((mode) => {
     setDialog({ kind: "add", mode });
@@ -1706,20 +1771,31 @@ function Notices() {
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${NOTICE_TONES[notice.severity]}`,
       children: [
         /* @__PURE__ */ jsx13("span", { className: "bc:flex-1 bc:whitespace-pre-wrap", children: notice.text }),
+        notice.notification !== void 0 && isReload(notice.notification) ? /* @__PURE__ */ jsx13(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            onClick: () => {
+              location.reload();
+            },
+            children: "Reload"
+          }
+        ) : null,
         /* @__PURE__ */ jsx13(
           "button",
           {
             type: "button",
             className: classes.quiet,
             onClick: () => {
-              notices.dismiss(notice.id);
+              notices.dismiss(notice.key);
             },
             children: "Dismiss"
           }
         )
       ]
     },
-    notice.id
+    notice.key
   )) });
 }
 function asSeverities(value2) {
@@ -1793,10 +1869,7 @@ var basic_default = {
 function render({ el, core }) {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
-  const notices = createNotices();
-  const unnotify = core.notifications.subscribe((note) => {
-    notices.add(note);
-  });
+  const notices = createNotices(core.notifications);
   const front = { core, notices, inView: shown };
   const root = createRoot(el);
   flushSync2(() => {
@@ -1808,7 +1881,7 @@ function render({ el, core }) {
   });
   return () => {
     unbind();
-    unnotify();
+    notices.stop();
     shown.release();
     root.unmount();
   };

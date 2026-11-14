@@ -3,6 +3,7 @@ import type { PluginEntry } from "../protocol/index.ts";
 import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Plugin, PluginModule } from "../types/core-api.ts";
+import type { Raise } from "../util/index.ts";
 export type PluginArgs = Parameters<PluginModule["render"]>[0];
 export interface Frontend {
     readonly frontend: FrontendModule;
@@ -22,6 +23,7 @@ export interface RunningDeps {
     readonly keepOptions: Mounts["keepOptions"];
     readonly core: () => CoreApi;
     readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
+    readonly raise: Raise;
     readonly signal?: AbortSignal;
 }
 export declare function runPlugins(deps: RunningDeps): RunningPlugins;

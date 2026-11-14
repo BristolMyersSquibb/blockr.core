@@ -131,6 +131,9 @@ export interface StubCoreOptions {
   readonly el?: HTMLElement;
   // Measures an output's element, as INFO for every element unless given.
   readonly measure?: Measure;
+  // The kinds of request that the transport refuses to send, with an error, as
+  // a closed transport does. It sends every kind unless given.
+  readonly refuse?: readonly Request["kind"][];
 }
 
 export interface StubCore {
@@ -233,6 +236,9 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
 
   const transport: Transport = {
     send(message: ClientMessage, bodies) {
+      if (message.some((request) => options.refuse?.includes(request.kind) === true)) {
+        return Promise.reject(new Error("The transport is closed."));
+      }
       sent.push(...message);
       for (const request of message) {
         if (request.kind === "cancel" || request.kind === "forget") {

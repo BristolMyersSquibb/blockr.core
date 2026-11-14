@@ -1,16 +1,18 @@
-import type { Note } from "../../types/core-api.ts";
-export type Severity = Note["severity"];
+import type { CoreApi, Notification } from "../../types/core-api.ts";
+export type Severity = Notification["severity"];
 export interface Notice {
-    readonly id: number;
+    readonly key: string;
     readonly text: string;
     readonly severity: Severity;
+    readonly notification?: Notification;
 }
 export interface Notices {
     readonly list: () => readonly Notice[];
     readonly failed: (error: unknown) => void;
-    readonly add: (note: Note) => void;
-    readonly dismiss: (id: number) => void;
+    readonly dismiss: (key: string) => void;
     readonly subscribe: (fn: () => void) => () => void;
+    readonly stop: () => void;
 }
-export declare function createNotices(): Notices;
+export declare function isReload(notification: Notification): boolean;
+export declare function createNotices(notifications: CoreApi["notifications"]): Notices;
 export declare function useNotices(notices: Notices): readonly Notice[];

@@ -73,10 +73,12 @@ test("shows the body of each output that core hands it, and lets the URL of the 
   expect([img()?.width, img()?.height]).toEqual([640, 400]);
   expect(revoked).toEqual(["blob:plot-1"]);
 
+  // An ask that fails leaves the image as it is, and the renderer draws
+  // nothing of why, which core raises as a notification about the block.
   await step(() => {
     host.setError({ severity: "error", class: ["simpleError", "error", "condition"], phase: "output", message: "boom" });
   });
-  expect(el.querySelector('[role="alert"]')?.textContent).toBe("boom");
+  expect(el.querySelector('[role="alert"]')).toBeNull();
   expect(img()?.getAttribute("src")).toBe("blob:plot-2");
 
   await step(() => {

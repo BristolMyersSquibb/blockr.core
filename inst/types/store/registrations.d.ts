@@ -1,6 +1,6 @@
 import type { Command } from "../commands/index.ts";
 import type { Block, Board, OptionId, PluginClassId, RegistryId } from "../types/board.ts";
-import type { CoreApi, FrontendModule, PluginModule } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, PluginModule, Raised } from "../types/core-api.ts";
 import type { OptionModule } from "../types/hosts.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { Validate } from "../util/index.ts";
@@ -68,7 +68,7 @@ export interface Option {
     readonly schema: JsonSchema;
     readonly default: Json | ((core: CoreApi) => Promise<Json>);
     readonly ui: OptionModule;
-    onChange?(value: Json, core: CoreApi): void;
+    onChange?(value: Json, core: CoreApi, notify: (notification: Raised) => () => void): void;
     migrate?(value: Json, version: number): Json;
 }
 export interface Options {

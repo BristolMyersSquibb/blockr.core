@@ -18,19 +18,14 @@ var styles = {
   alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
 };
 
-// srcts/util/util.ts
-function errorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-
 // srcts/modules/upload-block/index.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 function UploadBlock({ host }) {
   const path = useValue(host, "file_path");
   const [uploading, setUploading] = useState(null);
-  const [failed, setFailed] = useState(null);
   const sending = useRef(null);
+  const unanswered = useRef(null);
   useEffect(
     () => () => {
       sending.current?.abort();
@@ -41,19 +36,25 @@ function UploadBlock({ host }) {
     const controller = new AbortController();
     sending.current = controller;
     setUploading(file.name);
-    setFailed(null);
+    unanswered.current?.();
+    unanswered.current = null;
     try {
       const [kept] = strings(await host.request("upload", {}, { file, signal: controller.signal }));
-      if (kept === void 0) throw new Error(`R kept ${file.name} but gave no path for it.`);
-      await path.commit(kept);
-    } catch (error2) {
-      if (!controller.signal.aborted) setFailed(errorMessage(error2));
+      if (kept === void 0) {
+        unanswered.current = host.notify({
+          severity: "error",
+          code: "upload_unanswered",
+          message: `R kept ${file.name} but gave no path for it.`
+        });
+      } else {
+        await path.commit(kept);
+      }
+    } catch {
     } finally {
       setUploading(null);
     }
   }
   const held = typeof path.value === "string" && path.value !== "" ? path.value : void 0;
-  const error = failed ?? path.error;
   const said = uploading !== null ? `Uploading ${uploading}\u2026` : held === void 0 ? null : `Uploaded ${basename(held)}`;
   return /* @__PURE__ */ jsxs(Stack, { children: [
     /* @__PURE__ */ jsx(Field, { label: "Upload data", children: /* @__PURE__ */ jsx(
@@ -70,7 +71,7 @@ function UploadBlock({ host }) {
       }
     ) }),
     said !== null && /* @__PURE__ */ jsx("p", { className: styles.hint, children: said }),
-    error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: error })
+    path.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: path.error })
   ] });
 }
 var upload_block_default = reactModule(UploadBlock);

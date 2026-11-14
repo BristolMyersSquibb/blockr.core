@@ -8,6 +8,7 @@ import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import { READY } from "../stubs/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { Plugin } from "../types/core-api.ts";
+import type { Replied } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
 import { pluginRequest } from "./index.ts";
 
@@ -47,7 +48,12 @@ function setup(replies: Reply[], statuses: Record<BlockId, BlockStatus> = { a: R
     },
   };
   const plugins = { appPlugins: () => APP_PLUGINS };
-  return { deps: { plugins, scheduler }, sent, options, evaluated };
+  // What the request handed on of each of R's replies.
+  const handed: Parameters<Replied>[] = [];
+  const replied: Replied = (...args) => {
+    handed.push(args);
+  };
+  return { deps: { plugins, scheduler, replied }, sent, options, evaluated, handed };
 }
 
 const ok = (value: unknown): Reply => ({ id: "1", status: "ok", value: value as never });
@@ -103,12 +109,18 @@ describe("a plugin's request", () => {
     expect(s.sent).toEqual([]);
   });
 
-  test("rejects with the reply's status and conditions", async () => {
+  test("rejects with the reply's status and conditions, which it hands on as R's latest reply to a request of the plugin of its name, as it does an ok reply's none", async () => {
     const condition = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no" };
-    const s = setup([{ id: "1", status: "error", conditions: [condition] }]);
+    const s = setup([{ id: "1", status: "error", conditions: [condition] }, ok("done")]);
     const sent = pluginRequest(s.deps, CODE, "script", {}, {});
     await expect(sent).rejects.toMatchObject({ status: "error", conditions: [condition] });
     await expect(sent).rejects.toThrow('R replied error to the request "script" of the plugin "blockr.code-code_plugin".');
+    await pluginRequest(s.deps, CODE, "script", {}, {});
+
+    expect(s.handed).toEqual([
+      [{ plugin: CODE }, { type: "plugin", name: "script" }, [condition]],
+      [{ plugin: CODE }, { type: "plugin", name: "script" }, []],
+    ]);
   });
 
   test.each([

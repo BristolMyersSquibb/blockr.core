@@ -13,7 +13,6 @@ import type { OptionId } from "../types/board.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
-import { styles } from "../styles/index.ts";
 import { errorMessage, report } from "../util/index.ts";
 import { useOutput } from "./hooks.ts";
 
@@ -69,10 +68,13 @@ export interface OutputProps<O extends BlockOutput = BlockOutput, P = Json> {
 // output as its class's contract types it, since R writes every output by its
 // class's schema. Around the component, the renderer:
 // - marks itself busy and dims what the component drew while core asks R for
-//   a newer output,
-// - shows why the latest ask failed, above the output it holds, and
-// - shows the error of a component that throws in place of what it drew, until
-//   another output comes.
+//   a newer output, and
+// - draws nothing in place of a component that throws, and raises why through
+//   the host's notify(), with the code "render_failed", until the component
+//   draws another output or the renderer is unmounted.
+// It draws nothing of why the latest ask failed, which the component gets as
+// `error`, since core raises it as a notification about the block, which the
+// frontend places.
 export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
   Draw: ComponentType<OutputProps<O, P>>,
   options: ModuleOptions = {},
@@ -81,8 +83,7 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
     const now = useOutput(host);
     return (
       <div className="bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default" aria-busy={now.loading}>
-        {now.error === null ? null : <Alert message={now.error.message} />}
-        <Boundary output={now.output}>
+        <Boundary host={host} output={now.output}>
           <div className={`bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`}>
             <Draw
               output={now.output as unknown as O}
@@ -101,36 +102,52 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
   return reactModule(Renderer, options);
 }
 
-function Alert({ message }: { message: string }): ReactElement {
-  return (
-    <p role="alert" className={styles.alert}>
-      {message}
-    </p>
-  );
-}
+// Draws nothing in place of a renderer's component that throws, and raises a
+// notification of why through the host, which concerns the block. It draws the
+// component again once another output comes, and withdraws the notification
+// once the component draws, or replaces it where the component throws again.
+// It reports what it caught too, so that the page hears of it.
+class Boundary extends Component<{ host: OutputHost; output: Json; children?: ReactNode }, { failed: boolean }> {
+  override state: { failed: boolean } = { failed: false };
+  // What withdraws the notification of the latest throw, while one holds.
+  private failure: (() => void) | undefined;
 
-// Shows why a renderer's component threw, in place of what it drew, and draws
-// the component again once another output comes. It reports what it caught,
-// so that the page hears of it.
-class Boundary extends Component<{ output: Json; children?: ReactNode }, { failed: string | null }> {
-  override state: { failed: string | null } = { failed: null };
-
-  static getDerivedStateFromError(error: unknown): { failed: string } {
-    return { failed: errorMessage(error) };
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
   }
 
   override componentDidCatch(error: unknown): void {
     report(error);
+    const before = this.failure;
+    this.failure = this.props.host.notify({
+      severity: "error",
+      code: "render_failed",
+      message: `The renderer failed to draw the output: ${errorMessage(error)}`,
+    });
+    before?.();
   }
 
-  override componentDidUpdate(before: { output: Json }): void {
-    if (this.state.failed !== null && before.output !== this.props.output) {
-      this.setState({ failed: null });
+  // Another output draws the component again, but not the one that it threw
+  // on, which may have come with the update in which it threw.
+  override componentDidUpdate(before: { output: Json }, was: { failed: boolean }): void {
+    if (this.state.failed) {
+      if (was.failed && before.output !== this.props.output) this.setState({ failed: false });
+    } else {
+      this.withdrawFailure();
     }
   }
 
+  override componentWillUnmount(): void {
+    this.withdrawFailure();
+  }
+
+  private withdrawFailure(): void {
+    const before = this.failure;
+    this.failure = undefined;
+    before?.();
+  }
+
   override render(): ReactNode {
-    const { failed } = this.state;
-    return failed === null ? this.props.children : <Alert message={`The renderer failed to draw the output: ${failed}`} />;
+    return this.state.failed ? null : this.props.children;
   }
 }

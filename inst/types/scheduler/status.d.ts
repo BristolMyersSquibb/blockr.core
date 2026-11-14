@@ -23,6 +23,7 @@ export interface Outcome {
     readonly stdout: string;
     readonly stderr: string;
 }
+export declare function isUnsentError(condition: Condition): boolean;
 export declare function replyOutcome(reply: Reply, revision: number): Outcome | undefined;
 export declare function unsent(revision: number, message: string): Outcome;
 export declare function unevaluated(revision: number, running: boolean): BlockStatus;

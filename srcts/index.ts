@@ -55,13 +55,23 @@ export type {
 } from "./types/hosts.ts";
 export type {
   BlockRegistry,
+  BoardObject,
   CoreApi,
+  CoreCode,
+  CoreSource,
+  EvaluatePhase,
   FrontendModule,
-  Note,
+  ModuleSource,
+  Notification,
+  NotificationSource,
   OutputEvents,
   Plugin,
   PluginModule,
+  Raised,
   RequestOpts,
+  RRequest,
+  RSource,
+  Severity,
 } from "./types/core-api.ts";
 export type {
   Change,

@@ -1,8 +1,10 @@
 // What the mounts of block UIs, outputs and board options share: checking what
-// a module exports, showing why a module cannot draw, and running a cleanup.
+// a module exports, saying why a module cannot draw without its board options,
+// showing why core cannot draw the page, and running a cleanup.
 
+import type { OptionId } from "../types/board.ts";
 import type { Rendered } from "../types/hosts.ts";
-import { isObject, report } from "../util/index.ts";
+import { isObject, quoted, report } from "../util/index.ts";
 import { API, ModuleError } from "./load.ts";
 
 // What a module that core mounts exports as its default: the board options
@@ -43,7 +45,16 @@ export function mountableModule<A>(exports: unknown, module: string, pkg: string
   return mod as unknown as Mountable<A>;
 }
 
-// Shows why a module cannot draw in its element, in place of what it drew.
+// Why a module cannot draw while board options that it requires are not on
+// the board, as core's notification about what the module belongs to says it,
+// beside the notification about each board option, which says why that is not
+// on the board.
+export function withoutOptions(module: string, ids: readonly OptionId[]): string {
+  return `Without the board option${ids.length === 1 ? "" : "s"} ${quoted(ids)}, ${module} cannot draw.`;
+}
+
+// Shows why core cannot draw the page in the page's element, in place of
+// what it held, where no frontend draws.
 export function showError(el: HTMLElement, message: string): void {
   const box = document.createElement("div");
   box.setAttribute("role", "alert");

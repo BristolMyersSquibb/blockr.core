@@ -1,7 +1,9 @@
 // What the stubs of the hosts share.
 
 import type { BlockStatus } from "../scheduler/index.ts";
+import type { Raised } from "../types/core-api.ts";
 import type { BlockContext } from "../types/hosts.ts";
+import { checkRaised } from "../util/index.ts";
 
 // The status of a block that R evaluated at its first revision, with no
 // conditions.
@@ -50,6 +52,25 @@ export function announcer<E extends string>(
     },
     announce: (event) => {
       for (const fn of [...(listeners.get(event) ?? [])]) fn();
+    },
+  };
+}
+
+// The notifications that a module raised through a stub's notify(), each
+// while it holds, in the order they came, checked as core checks them.
+export function notifier(): { notified: readonly Raised[]; notify: (notification: Raised) => () => void } {
+  const notified: Raised[] = [];
+  return {
+    notified,
+    notify(notification) {
+      const given = checkRaised(notification);
+      notified.push(given);
+      let withdrawn = false;
+      return () => {
+        if (withdrawn) return;
+        withdrawn = true;
+        notified.splice(notified.indexOf(given), 1);
+      };
     },
   };
 }

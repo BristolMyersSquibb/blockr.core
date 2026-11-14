@@ -1,5 +1,6 @@
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
+import type { Raised } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 export interface BlockFixture {
@@ -27,6 +28,7 @@ export interface StubBlockHost<S extends State = State> extends BlockHost<S> {
         readonly file?: File;
     }[];
     readonly evaluated: readonly Record<string, Json>[];
+    readonly notified: readonly Raised[];
     setState(state: S): void;
     setContext(context: Partial<BlockContext>): void;
 }

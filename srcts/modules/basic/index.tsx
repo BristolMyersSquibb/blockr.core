@@ -4,7 +4,7 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
 // An app runs it unless another of its plugins is a frontend, and it draws
 // every board that the app opens. Its class requires the severities of the
-// conditions that its cards show and the theme that it draws in.
+// notifications that its cards show and the theme that it draws in.
 // It does what today's frontend does wherever core's commands and store do
 // the work, so it only draws. It works on the board through CoreApi alone,
 // and shows each plugin whose class has a `ui` beside the board, reading no
@@ -15,8 +15,10 @@
 // Its render() takes four steps:
 // 1. It demands every block, and the blocks in view higher still, from the
 //    board, so that the scheduler evaluates first what the page first shows.
-// 2. It shows each note that a plugin sends, and the one in which core names
-//    what the store dropped as the board opened.
+// 2. It shows above the board the notifications of the board that concern no
+//    block, whoever raised them, such as the one in which core names what the
+//    store dropped as the board opened, until one is withdrawn or the user
+//    dismisses it. Each block's card shows those about the block.
 // 3. It draws the board that the store holds, and then demands the blocks in
 //    view as the page lays out their cards.
 // 4. It binds undo, redo and the buttons among the storage controls to their
@@ -43,10 +45,7 @@ export default {
 function render({ el, core }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }): () => void {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
-  const notices = createNotices();
-  const unnotify = core.notifications.subscribe((note) => {
-    notices.add(note);
-  });
+  const notices = createNotices(core.notifications);
   const front: FrontEnd = { core, notices, inView: shown };
   const root = createRoot(el);
   flushSync(() => {
@@ -59,7 +58,7 @@ function render({ el, core }: { el: HTMLElement; core: CoreApi; signal: AbortSig
   });
   return () => {
     unbind();
-    unnotify();
+    notices.stop();
     shown.release();
     root.unmount();
   };

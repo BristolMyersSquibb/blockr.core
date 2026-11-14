@@ -65,6 +65,18 @@ export interface Outcome {
 
 const NO_CONDITIONS: readonly Condition[] = Object.freeze([]);
 
+// The errors of the evaluations that the transport could not send, the one
+// condition that the scheduler writes itself, rather than R. A condition of
+// R's may have no phase either, as where a lock refuses an evaluation, so the
+// phase does not tell them apart.
+const unsentErrors = new WeakSet<Condition>();
+
+// Whether the scheduler wrote the condition itself, as the error of an
+// evaluation that the transport could not send.
+export function isUnsentError(condition: Condition): boolean {
+  return unsentErrors.has(condition);
+}
+
 // The outcome of an evaluation of a revision, from R's reply to it. A reply of
 // `cancelled` or `missing` counts as none and gives undefined.
 export function replyOutcome(reply: Reply, revision: number): Outcome | undefined {
@@ -84,18 +96,18 @@ export function replyOutcome(reply: Reply, revision: number): Outcome | undefine
 // The outcome of an evaluation that the transport could not send. It fails with
 // the transport's error, as it would with R's.
 export function unsent(revision: number, message: string): Outcome {
+  const error: Condition = {
+    severity: "error",
+    class: ["blockr_error", "error", "condition"],
+    message: `The evaluation could not be sent to R: ${message}`,
+  };
+  unsentErrors.add(error);
   return {
     status: "error",
     revision,
     summary: null,
     reason: null,
-    conditions: [
-      {
-        severity: "error",
-        class: ["blockr_error", "error", "condition"],
-        message: `The evaluation could not be sent to R: ${message}`,
-      },
-    ],
+    conditions: [error],
     stdout: "",
     stderr: "",
   };

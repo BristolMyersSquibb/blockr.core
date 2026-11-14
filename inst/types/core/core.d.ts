@@ -1,11 +1,12 @@
 import type { Commands } from "../commands/index.ts";
 import type { Loader, Measure } from "../mount/index.ts";
-import type { Lock, PluginEntry, Renderer } from "../protocol/index.ts";
+import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
-import type { PluginClassId } from "../types/board.ts";
+import type { OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
+import type { Holder } from "./notifications.ts";
 import type { RunningPlugins } from "./plugins.ts";
 export interface CoreParts {
     readonly store: Store;
@@ -16,6 +17,8 @@ export interface CoreParts {
     readonly lock: Lock;
     readonly renderers: () => Readonly<Record<string, Renderer>>;
     readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
+    readonly options: Readonly<Record<OptionId, OptionEntry>>;
+    readonly notifications: Holder;
     readonly measure?: Measure;
     readonly signal?: AbortSignal;
 }

@@ -17,8 +17,10 @@ import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
+import type { Notification, Raised } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, BlockModule } from "../types/hosts.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import type { From, Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
 import type { Mounts, Source } from "./index.ts";
 
@@ -97,6 +99,13 @@ interface Setup {
   mounts: Mounts;
   imported: string[];
   sheets: string[];
+  // What the mounts handed on of each of R's replies to a request.
+  replies: Parameters<Replied>[];
+  // The notifications that modules raised through their hosts, while they
+  // hold.
+  notified: { from: From; notification: Raised }[];
+  // Each of core's notifications that the mounts raised, while it holds.
+  raised: Omit<Notification, "id">[];
   // Ends what core runs for the board, as core does as another board opens,
   // and opens the board of the reply given in a new store with new mounts, on
   // the same R and the same loader, as core starts again.
@@ -139,7 +148,35 @@ async function setup(
     const commands = createCommands(store, { signal });
     const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
     scheduler.start();
-    const mounts = createMounts({ core: noCore, store, commands, scheduler, loader, signal });
+    const replies: Parameters<Replied>[] = [];
+    const notified: { from: From; notification: Raised }[] = [];
+    const raised: Omit<Notification, "id">[] = [];
+    const mounts = createMounts({
+      core: noCore,
+      store,
+      commands,
+      scheduler,
+      loader,
+      signal,
+      raise: (notification) => {
+        raised.push(notification);
+        return () => {
+          const at = raised.indexOf(notification);
+          if (at >= 0) raised.splice(at, 1);
+        };
+      },
+      replied: (...args) => {
+        replies.push(args);
+      },
+      notify: (from, notification) => {
+        const given = { from, notification };
+        notified.push(given);
+        return () => {
+          const at = notified.indexOf(given);
+          if (at >= 0) notified.splice(at, 1);
+        };
+      },
+    });
     return {
       r,
       store,
@@ -147,6 +184,9 @@ async function setup(
       mounts,
       imported,
       sheets,
+      replies,
+      notified,
+      raised,
       next: (after = hello) => {
         controller.abort();
         return open(after);
@@ -155,6 +195,17 @@ async function setup(
   }
 
   return open(reply);
+}
+
+// Core's notification that a module of block b's class cannot draw.
+function cannotDraw(message: string): Omit<Notification, "id"> {
+  return { severity: "error", message, source: { kind: "core", code: "module_failed", package: "blockr.core" }, about: { block: "b" } };
+}
+
+// The codes of core's notifications that the mounts raised, in order, each
+// with the board object that it concerns.
+function raisedCodes(raised: readonly Omit<Notification, "id">[]): [string, unknown][] {
+  return raised.map((notification) => [notification.source.kind === "core" ? notification.source.code : "", notification.about]);
 }
 
 // Lets the time pass, running the scheduler's passes, the replies that are due
@@ -232,9 +283,9 @@ describe("loading", () => {
     ["has no render()", { api: 1, default: {} }, "of blockr.core has no default export with a render() function."],
     ["throws in render()", { api: 1, default: { render: () => { throw new Error("boom"); } } }, "of blockr.core failed in render(): boom"],
     ["rejects in render()", { api: 1, default: { render: () => Promise.reject(new Error("later")) } }, "of blockr.core failed in render(): later"],
-  ])("shows an error in the element that names the module and its package, where the module %s", async (_, exports, message) => {
+  ])("leaves the element empty, and raises a notification that names the module and its package, where the module %s", async (_, exports, message) => {
     const reported = reports();
-    const { mounts, scheduler, r } = await setup({ [HEAD]: exports, [MERGE]: recorder().exports });
+    const { mounts, scheduler, r, raised } = await setup({ [HEAD]: exports, [MERGE]: recorder().exports });
     const el = document.createElement("div");
     const other = document.createElement("div");
     mounts.mountBlock(el, "b");
@@ -243,16 +294,17 @@ describe("loading", () => {
     await evaluateAll(r);
     reported.restore();
 
-    expect(el.querySelector("[role=alert]")?.textContent).toContain(`The module blockr.core/head-block.js ${message}`);
+    expect(el.textContent).toBe("");
+    expect(raised).toEqual([cannotDraw(expect.stringContaining(`The module blockr.core/head-block.js ${message}`) as string)]);
     expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
     // The rest of the page, the block's evaluation included, carries on.
     expect(other.textContent).toBe("n = undefined");
     expect(scheduler.status("b")?.status).toBe("ready");
   });
 
-  test("shows an error where the module fails to load, and every later mount of it shows it too", async () => {
+  test("raises why the module fails to load, as every later mount of it does too, and leaves each element empty", async () => {
     const reported = reports();
-    const { mounts, imported } = await setup();
+    const { mounts, imported, raised } = await setup();
     const els = [document.createElement("div"), document.createElement("div")];
     mounts.mountBlock(els[0] as HTMLElement, "b");
     await tick();
@@ -261,11 +313,11 @@ describe("loading", () => {
     reported.restore();
 
     expect(imported).toEqual([HEAD]);
-    for (const el of els) {
-      expect(el.textContent).toBe(
-        "The module blockr.core/head-block.js of blockr.core failed to load: Failed to fetch dynamically imported module: blockr.core/head-block.js?v=9a41f2c7",
-      );
-    }
+    for (const el of els) expect(el.textContent).toBe("");
+    const why = cannotDraw(
+      "The module blockr.core/head-block.js of blockr.core failed to load: Failed to fetch dynamically imported module: blockr.core/head-block.js?v=9a41f2c7",
+    );
+    expect(raised).toEqual([why, why]);
   });
 
   test("throws for a block that the board lacks", async () => {
@@ -397,12 +449,12 @@ describe("board options", () => {
     expect(Object.hasOwn(store.board().options, "zoom")).toBe(false);
   });
 
-  test("whose default fails or does not go onto the board show why in the block's element, in place of the module", async () => {
+  test("whose default fails or does not go onto the board leave the block's element empty, in place of the module, and raise why about each board option, and that the module cannot draw about the block", async () => {
     const reported = reports();
     const ui = recorder(["broken", "unfit", "zoom"]);
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No zoom today.")) };
     const unfit: Option = { ...zoom, id: "unfit", default: () => Promise.resolve("big") };
-    const { store, mounts, scheduler, r } = await setup({ [HEAD]: ui.exports }, { options: [zoom, broken, unfit] });
+    const { store, mounts, scheduler, r, raised } = await setup({ [HEAD]: ui.exports }, { options: [zoom, broken, unfit] });
     const els = [document.createElement("div"), document.createElement("div")];
     for (const el of els) mounts.mountBlock(el, "b");
     scheduler.demand("test", ["b"]);
@@ -412,10 +464,15 @@ describe("board options", () => {
     const what = 'which the UI module of block class "blockr.core-head_block" requires';
     const failed = `The default of the board option "broken", ${what}, failed: No zoom today.`;
     const refused = `The default of the board option "unfit", ${what}, did not go onto the board: `;
-    for (const el of els) {
-      expect(el.querySelector("[role=alert]")?.textContent).toContain(failed);
-      expect(el.querySelector("[role=alert]")?.textContent).toContain(refused);
-    }
+    for (const el of els) expect(el.textContent).toBe("");
+    const lacking = cannotDraw('Without the board options "broken" and "unfit", the UI module of block class "blockr.core-head_block" cannot draw.');
+    expect(raisedCodes(raised)).toEqual([
+      ["board_option_failed", { option: "broken" }],
+      ["board_option_failed", { option: "unfit" }],
+      ["module_failed", { block: "b" }],
+      ["module_failed", { block: "b" }],
+    ]);
+    expect(raised.slice(2)).toEqual([lacking, lacking]);
     // Each is reported once, however many mounts require it.
     expect(reported.errors().map(String)).toEqual([`Error: ${failed}`, expect.stringMatching(new RegExp(`^Error: ${refused}`))]);
     expect(ui.mounts).toHaveLength(0);
@@ -425,17 +482,21 @@ describe("board options", () => {
     expect(scheduler.status("b")?.status).toBe("ready");
   });
 
-  test("that no package defines show why in the block's element, in place of the module", async () => {
+  test("that no package defines leave the block's element empty, in place of the module, and raise why", async () => {
     const reported = reports();
     const ui = recorder(["nowhere"]);
-    const { mounts } = await setup({ [HEAD]: ui.exports });
+    const { mounts, raised } = await setup({ [HEAD]: ui.exports });
     const el = document.createElement("div");
     mounts.mountBlock(el, "b");
     await tick();
     reported.restore();
 
     const why = 'The board option "nowhere", which the UI module of block class "blockr.core-head_block" requires, is defined by no package loaded.';
-    expect(el.querySelector("[role=alert]")?.textContent).toBe(why);
+    expect(el.textContent).toBe("");
+    expect(raised).toEqual([
+      { severity: "error", message: why, source: { kind: "core", code: "board_option_failed" }, about: { option: "nowhere" } },
+      cannotDraw('Without the board option "nowhere", the UI module of block class "blockr.core-head_block" cannot draw.'),
+    ]);
     expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
     expect(ui.mounts).toHaveLength(0);
   });
@@ -448,7 +509,7 @@ describe("board options", () => {
       ...zoom,
       default: () => (++calls === 1 ? Promise.resolve(1) : Promise.reject(new Error("No zoom any more."))),
     };
-    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [once] });
+    const { store, mounts, raised } = await setup({ [HEAD]: ui.exports }, { options: [once] });
     const el = document.createElement("div");
     mounts.mountBlock(el, "b");
     await tick();
@@ -459,16 +520,21 @@ describe("board options", () => {
     reported.restore();
 
     const why = 'The default of the board option "zoom", which the UI module of block class "blockr.core-head_block" requires, failed: No zoom any more.';
-    expect(el.querySelector("[role=alert]")?.textContent).toBe(why);
+    expect(el.textContent).toBe("");
+    expect(raisedCodes(raised)).toEqual([
+      ["board_option_failed", { option: "zoom" }],
+      ["module_failed", { block: "b" }],
+    ]);
+    expect(raised[1]).toEqual(cannotDraw('Without the board option "zoom", the UI module of block class "blockr.core-head_block" cannot draw.'));
     expect(ui.cleanups()).toBe(1);
     expect(ui.mounts[0]?.signal.aborted).toBe(true);
     expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
   });
 
-  test("that a request of the class reads refuse a module that leaves one out, with an error in its element, while the page carries on", async () => {
+  test("that a request of the class reads refuse a module that leaves one out, which core raises, while the page carries on", async () => {
     const reported = reports();
     const ui = recorder(["zoom"]);
-    const { store, mounts, scheduler, r } = await setup(
+    const { store, mounts, scheduler, r, raised } = await setup(
       { [HEAD]: ui.exports, [MERGE]: recorder().exports },
       { reply: withRequests, options: [zoom] },
     );
@@ -480,10 +546,13 @@ describe("board options", () => {
     await evaluateAll(r);
     reported.restore();
 
-    expect(el.querySelector("[role=alert]")?.textContent).toBe(
-      'The module blockr.core/head-block.js of blockr.core leaves out of its `options` board options that requests of block class "blockr.core-head_block" read:\n' +
-        '- The request "columns" reads the board option "n_rows".',
-    );
+    expect(el.textContent).toBe("");
+    expect(raised).toEqual([
+      cannotDraw(
+        'The module blockr.core/head-block.js of blockr.core leaves out of its `options` board options that requests of block class "blockr.core-head_block" read:\n' +
+          '- The request "columns" reads the board option "n_rows".',
+      ),
+    ]);
     expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
     // Core calls no render() and adds none of the module's board options,
     // though the board holds a value for the one it leaves out.
@@ -510,17 +579,17 @@ describe("board options", () => {
         },
       },
     };
-    const { mounts } = await setup({ [HEAD]: recorder().exports }, { reply, options: [zoom] });
+    const { mounts, raised } = await setup({ [HEAD]: recorder().exports }, { reply, options: [zoom] });
     const el = document.createElement("div");
     mounts.mountBlock(el, "b");
     await tick();
     reported.restore();
 
-    expect(el.textContent).toBe(
+    expect(raised.map((notification) => notification.message)).toEqual([
       'The module blockr.core/head-block.js of blockr.core leaves out of its `options` board options that requests of block class "blockr.core-head_block" read:\n' +
         '- The request "columns" reads the board option "n_rows".\n' +
         '- The request "page" reads the board options "n_rows" and "zoom".',
-    );
+    ]);
   });
 
   test("that a request reads are checked against the class of each block that a module mounts for", async () => {
@@ -532,14 +601,16 @@ describe("board options", () => {
       ...withRequests,
       block_registry: { ...withRequests.block_registry, [merge.id]: { ...merge, module: HEAD } },
     };
-    const { mounts } = await setup({ [HEAD]: ui.exports }, { reply });
+    const { mounts, raised } = await setup({ [HEAD]: ui.exports }, { reply });
     const [b, c] = [document.createElement("div"), document.createElement("div")];
     mounts.mountBlock(b, "b");
     mounts.mountBlock(c, "c");
     await tick();
     reported.restore();
 
-    expect(b.querySelector("[role=alert]")?.textContent).toContain('The request "columns" reads the board option "n_rows".');
+    expect(raised.map((notification) => [notification.about, notification.message])).toEqual([
+      [{ block: "b" }, expect.stringContaining('The request "columns" reads the board option "n_rows".')],
+    ]);
     expect(ui.mounts.map(({ host }) => host.block)).toEqual(["c"]);
   });
 });
@@ -683,6 +754,34 @@ describe("the host", () => {
 });
 
 describe("a mount", () => {
+  test("raises what the module gives its host's notify(), from the block, with the package of its class, until the mount ends", async () => {
+    const ui = recorder();
+    const { mounts, notified, store } = await setup({ [HEAD]: ui.exports });
+    const cleanup = mounts.mountBlock(document.createElement("div"), "b");
+    mounts.mountBlock(document.createElement("div"), "b");
+    await tick();
+    const given: Raised = { severity: "warning", code: "few_rows", message: "Few rows.", about: { block: "a" } };
+    const withdraw = ui.host(0).notify(given);
+    ui.host(1).notify({ ...given, code: "other" });
+    expect(notified).toEqual([
+      { from: { object: { block: "b" }, package: "blockr.core" }, notification: given },
+      { from: { object: { block: "b" }, package: "blockr.core" }, notification: { ...given, code: "other" } },
+    ]);
+    withdraw();
+    expect(notified.map((n) => n.notification.code)).toEqual(["other"]);
+    expect(() => ui.host(0).notify({ ...given, message: 1 } as unknown as Raised)).toThrow(
+      "The message of a notification is a string, not 1.",
+    );
+
+    // The first mount ends, and the second as its block leaves the board.
+    ui.host(0).notify(given);
+    cleanup();
+    expect(notified.map((n) => n.notification.code)).toEqual(["other"]);
+    ui.host(0).notify(given);
+    store.apply({ blocks: { rm: ["b"] } });
+    expect(notified).toEqual([]);
+  });
+
   test("ends as the frontend calls its cleanup, which aborts the signal, runs the module's cleanup and empties the element", async () => {
     const ui = recorder();
     const { mounts } = await setup({ [HEAD]: ui.exports });
@@ -1001,6 +1100,24 @@ describe("a request", () => {
       conditions: [failure],
       message: `R replied error to the request "listing" of block "b".\n- ${failure.message}`,
     });
+  });
+
+  test("hands on each of R's replies as its latest to a request of the block of its name, with the conditions of an error and none of an ok", async () => {
+    const { r, host, replies } = await mounted();
+
+    const failing = host.request("listing");
+    await tick();
+    r.reply({ id: lastRequest(r).id, status: "error", conditions: [failure] });
+    await expect(failing).rejects.toBeInstanceOf(RequestError);
+    const listing = host.request("listing");
+    await tick();
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [] });
+    await listing;
+
+    expect(replies).toEqual([
+      [{ block: "b" }, { type: "block_class", name: "listing" }, [failure]],
+      [{ block: "b" }, { type: "block_class", name: "listing" }, []],
+    ]);
   });
 
   test("rejects with the statuses of the inputs that could not be evaluated, and does not go to R", async () => {

@@ -4,12 +4,15 @@
 // A card shows these, top to bottom:
 // - The block's name, its class and its status, and a menu to rename or
 //   remove the block or to add a block before or after it.
-// - The block's UI and its output, which core mounts.
+// - The block's UI and its output, which core mounts, and in whose elements
+//   core draws nothing of its own, not even where they fail.
 // - The footer, the last line of the output's box, which shows a ready
 //   block's summary.
 // - Below the box, the pills: one for the reason of an invalid or a waiting
-//   block, and one for each severity of the conditions of R's reply that the
-//   board option show_conditions names.
+//   block, and one for each severity of the notifications about the block
+//   that the board option show_conditions names, whoever raised them, as the
+//   conditions of R's reply, what failed of the block's UI module, its output
+//   and its requests, and what its modules raise.
 // - The banners of the pills that are open.
 // The footer, the pills and the banners are those of srcts/card, which the
 // card of a block that serve() serves alone draws as well.
@@ -40,7 +43,7 @@
 
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
-import { Banners, Footer, Mounted, Pills, useFooter, useSized, useStatus } from "../../card/index.ts";
+import { Banners, Footer, Mounted, Pills, useFooter, useNotified, useSized, useStatus } from "../../card/index.ts";
 import type { Condition } from "../../protocol/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
@@ -73,7 +76,8 @@ export const BlockCard = memo(function BlockCard({
   const front = useFrontEnd();
   const { core, inView } = front;
   const status = useStatus(core, id);
-  const footer = useFooter(status, severities);
+  const notified = useNotified(core, id);
+  const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState(false);
   const ref = useRef<HTMLElement>(null);

@@ -11,10 +11,11 @@
 
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
+import type { Raised } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, HostRequestOpts, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { asError, isObject, jsonEqual, own } from "../util/index.ts";
-import { announcer, stubBlockContext } from "./util.ts";
+import { announcer, notifier, stubBlockContext } from "./util.ts";
 
 // A block class's fixture file: the states that a block of the class may
 // hold, each as the block holds it, and what the class's requests answered in
@@ -57,6 +58,9 @@ export interface StubBlockHost<S extends State = State> extends BlockHost<S> {
   }[];
   // The parameters of each one-time evaluation that the module asked for.
   readonly evaluated: readonly Record<string, Json>[];
+  // Each notification that the module raised and that holds, in the order
+  // they came.
+  readonly notified: readonly Raised[];
   // Sets the block's state from outside the module, as undo, the assistant or
   // a plugin does, and announces it.
   setState(state: S): void;
@@ -75,6 +79,7 @@ export function stubBlockHost<S extends State = State>(
   const requested: { name: string; args: Readonly<Record<string, Json>>; file?: File }[] = [];
   const evaluated: Record<string, Json>[] = [];
   const on = announcer(["state", "context"] as const);
+  const { notified, notify } = notifier();
 
   return {
     block: options.block ?? "block",
@@ -85,6 +90,8 @@ export function stubBlockHost<S extends State = State>(
     submitted,
     requested,
     evaluated,
+    notified,
+    notify,
     submit(change) {
       if (!isObject(change)) {
         return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));

@@ -1,8 +1,8 @@
 // The app's plugins on the CoreApi for tests: which run and of which class, as
 // R's reply to hello names them, each from the module of its class, the
 // storage whose controls a frontend draws, mounting a plugin's UI where a
-// frontend places it, and what a frontend offers other plugins, the notes they
-// send and which block has focus.
+// frontend places it, and what a frontend offers other plugins, the
+// notifications they raise and which block has focus.
 
 import { describe, expect, test } from "vitest";
 // The modules of core's own plugin classes, which the build bundles on their
@@ -15,11 +15,12 @@ import type { HelloReply, Lock } from "../protocol/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
+import { held } from "../testing/notifications.ts";
 import { classModule, listedModules, pluginUi } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
-import type { CoreApi, Note } from "../types/core-api.ts";
+import type { CoreApi, Notification, Raised } from "../types/core-api.ts";
 
 // The classes of core's own plugins, which the app of the fixture hello runs.
 const BASIC = "blockr.core-basic_frontend_plugin";
@@ -276,7 +277,7 @@ describe("mounting a plugin's UI", () => {
     s.stop();
   });
 
-  test("throws for a plugin that the app does not run or whose class has no ui, and shows why in the element where its ui fails", async () => {
+  test("throws for a plugin that the app does not run or whose class has no ui, and leaves the element empty where its ui fails, raising why", async () => {
     const broken: PluginClass = {
       id: "blockr.test-broken_plugin",
       ui: {
@@ -309,12 +310,20 @@ describe("mounting a plugin's UI", () => {
     await s.settled();
     reported.restore();
 
-    expect(failing.textContent).toBe('The ui of the plugin class "blockr.test-broken_plugin" failed in render(): boom');
+    expect(failing.textContent).toBe("");
+    expect(held(s.core, (n) => n.about !== undefined && "plugin" in n.about)).toEqual([
+      {
+        severity: "error",
+        message: 'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): boom',
+        source: { kind: "core", code: "module_failed", package: "blockr.test" },
+        about: { plugin: "blockr.test-broken_plugin" },
+      },
+    ]);
     expect(reported.errors()).toHaveLength(1);
     s.stop();
   });
 
-  test("adds the board options that the plugin's class requires before render(), and shows why in place of the UI where one does not go onto the board", async () => {
+  test("adds the board options that the plugin's class requires before render(), and where one does not go onto the board, leaves the UI's element empty and raises why about the board option, and that the UI cannot draw about the plugin", async () => {
     const seen: unknown[] = [];
     const ui = {
       render({ core }: { core: CoreApi }) {
@@ -336,38 +345,149 @@ describe("mounting a plugin's UI", () => {
     reported.restore();
 
     expect(seen).toEqual([1]);
-    expect(failing.textContent).toBe(
-      'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
-    );
+    expect(failing.textContent).toBe("");
+    expect(held(s.core, (n) => n.source.kind === "core").map((n) => [n.source, n.about, n.message])).toEqual([
+      [
+        { kind: "core", code: "board_option_failed" },
+        { option: "nowhere" },
+        'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
+      ],
+      [
+        { kind: "core", code: "module_failed", package: "blockr.test" },
+        { plugin: "blockr.test-needy_plugin" },
+        'Without the board option "nowhere", the ui of the plugin class "blockr.test-needy_plugin" cannot draw.',
+      ],
+    ]);
     s.stop();
   });
 });
 
 describe("what a frontend offers other plugins", () => {
-  test("hands each note that a plugin sends to every subscriber, refuses what is no note, and hands on nothing once the next board opens", async () => {
+  test("holds each notification that a plugin raises until it withdraws it, from the plugin and about the plugin unless it names another board object, hands every subscriber those that hold, and holds none once the next board opens", async () => {
     const s = await stubCore();
-    const heard: Note[] = [];
     const { core } = s;
-    core.notifications.subscribe((note) => heard.push(note));
-    const off = core.notifications.subscribe((note) => heard.push(note));
+    const heard: (readonly Notification[])[] = [];
+    core.notifications.subscribe((all) => heard.push(all));
+    const off = core.notifications.subscribe((all) => heard.push(all));
+    const before = core.notifications.get();
 
-    core.notifications.notify({ message: "Saved.", severity: "message" });
+    const saved = core.notifications.notify(FILE, { severity: "message", code: "saved", message: "Saved." });
     off();
-    core.notifications.notify({ message: "Not saved.", severity: "error" });
-    expect(heard).toEqual([
-      { message: "Saved.", severity: "message" },
-      { message: "Saved.", severity: "message" },
-      { message: "Not saved.", severity: "error" },
+    core.notifications.notify(FILE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
+    core.notifications.notify(FILE, { severity: "warning", code: "quota", message: "Almost full.", about: null });
+    const all = core.notifications.get();
+    const source = { kind: "module", object: { plugin: FILE }, package: "blockr.core" } as const;
+    expect(all).toHaveLength(before.length + 3);
+    expect(all.slice(before.length)).toEqual([
+      {
+        id: expect.any(String) as string,
+        severity: "message",
+        message: "Saved.",
+        source: { ...source, code: "saved" },
+        about: { plugin: FILE },
+      },
+      {
+        id: expect.any(String) as string,
+        severity: "error",
+        message: "Not shared.",
+        source: { ...source, code: "share_failed" },
+        about: { block: "b" },
+      },
+      {
+        id: expect.any(String) as string,
+        severity: "warning",
+        message: "Almost full.",
+        source: { ...source, code: "quota" },
+      },
     ]);
-    expect(Object.isFrozen(heard[0])).toBe(true);
+    expect(heard.map((notifications) => notifications.length)).toEqual([
+      before.length + 1,
+      before.length + 1,
+      before.length + 2,
+      before.length + 3,
+    ]);
+    expect(Object.isFrozen(all)).toBe(true);
+    expect(Object.isFrozen(all.at(-1))).toBe(true);
+    expect(Object.isFrozen(all.at(-1)?.source)).toBe(true);
+    expect(Object.isFrozen(all.at(-2)?.about)).toBe(true);
+    expect(core.notifications.get()).toBe(all);
 
-    expect(() => {
-      core.notifications.notify({ message: "Loud", severity: "fatal" } as unknown as Note);
-    }).toThrow('A note holds a message, as a string, and a severity, "message", "warning" or "error".');
+    saved();
+    saved();
+    expect(core.notifications.get().map((n) => n.message).slice(before.length)).toEqual(["Not shared.", "Almost full."]);
+    expect(heard).toHaveLength(5);
 
     await reopen(s);
-    core.notifications.notify({ message: "Late.", severity: "warning" });
-    expect(heard).toHaveLength(3);
+    expect(heard.at(-1)).toEqual([]);
+    expect(s.core.notifications.get().some((n) => n.source.kind === "module")).toBe(false);
+    // The board before ends with its notifications, so a plugin raises none
+    // there.
+    const late = core.notifications.notify(FILE, { severity: "warning", code: "late", message: "Late." });
+    late();
+    expect(core.notifications.get()).toEqual([]);
+    s.stop();
+  });
+
+  test("refuses a notification whose members are of the wrong kind", async () => {
+    const s = await stubCore();
+    const { notifications } = s.core;
+    const base = { severity: "message", code: "saved", message: "Saved." } as const;
+    const refused =
+      (given: unknown, plugin: unknown = FILE): (() => void) =>
+      () => {
+        notifications.notify(plugin as string, given as Raised);
+      };
+    expect(refused({ ...base, severity: "fatal" })).toThrow(
+      'The severity of a notification is "message", "warning" or "error", not "fatal".',
+    );
+    expect(refused({ ...base, message: 1 })).toThrow("The message of a notification is a string, not 1.");
+    expect(refused({ ...base, code: "" })).toThrow('The code of a notification is a non-empty string, as "edit_refused", not "".');
+    const part =
+      "A notification concerns one board object, as { block: \"a\" }: a block, a link, a stack, a board option or a plugin, or null for the board, not";
+    expect(refused({ ...base, about: { block: "b", link: "ab" } })).toThrow(`${part} {"block":"b","link":"ab"}.`);
+    expect(refused({ ...base, about: { row: "b" } })).toThrow(`${part} {"row":"b"}.`);
+    expect(refused({ ...base, about: { block: "" } })).toThrow(`${part} {"block":""}.`);
+    expect(refused({ ...base, about: "b" })).toThrow(`${part} "b".`);
+    expect(refused("Saved.")).toThrow('A notification is an object, not "Saved.".');
+    expect(refused(base, "")).toThrow(
+      'A plugin\'s notification names the plugin by the id of its class, a non-empty string, not "".',
+    );
+    s.stop();
+  });
+
+  test("holds nothing of a notification about a block, a link or a stack that the board does not hold, which the work that raises it can outlive, and reports one about a board object that it has never held, and one that a plugin that the app does not run raises", async () => {
+    const s = await stubCore();
+    const { notifications } = s.core;
+    // The link "ab" leaves with its block.
+    s.core.store.apply({ blocks: { rm: ["b"] } });
+    await s.settled();
+    const before = notifications.get();
+    const heard: (readonly Notification[])[] = [];
+    notifications.subscribe((all) => heard.push(all));
+
+    const reported = reports();
+    const base = { severity: "error", code: "share_failed", message: "Not shared." } as const;
+    const raised = [
+      notifications.notify(FILE, { ...base, about: { block: "b" } }),
+      notifications.notify(FILE, { ...base, about: { link: "ab" } }),
+      notifications.notify(FILE, { ...base, about: { block: "nowhere" } }),
+      notifications.notify(FILE, { ...base, about: { stack: "nowhere" } }),
+      notifications.notify(FILE, { ...base, about: { option: "nowhere" } }),
+      notifications.notify(FILE, { ...base, about: { plugin: "blockr.test-session_plugin" } }),
+      notifications.notify("blockr.test-session_plugin", base),
+    ];
+    for (const withdraw of raised) withdraw();
+    const errors = reported.errors();
+    reported.restore();
+    expect(notifications.get()).toBe(before);
+    expect(heard).toEqual([]);
+    expect(errors.map((error) => (error as Error).message)).toEqual([
+      `Core drops a notification that the plugin "${FILE}" raised about the block "nowhere", which the board has never held.`,
+      `Core drops a notification that the plugin "${FILE}" raised about the stack "nowhere", which the board has never held.`,
+      `Core drops a notification that the plugin "${FILE}" raised about the board option "nowhere", which no loaded package defines.`,
+      `Core drops a notification that the plugin "${FILE}" raised about the plugin "blockr.test-session_plugin", which the app does not run.`,
+      'Core drops a notification that the plugin "blockr.test-session_plugin" raised, which the app does not run.',
+    ]);
     s.stop();
   });
 

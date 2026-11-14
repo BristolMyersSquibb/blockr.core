@@ -6,6 +6,10 @@
 // own.
 // It starts at the directory of the block's file, where the file lies in a
 // volume, and otherwise at the root of the first volume.
+// The module draws only its own state, and why the host refused a path. Where
+// R fails to list a directory, core raises a notification of each condition of
+// R's error reply, so that the frontend says where it shows, and the module
+// lists nothing.
 
 import { Fragment, useState } from "react";
 import type { ReactElement } from "react";
@@ -62,8 +66,8 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
   // While R lists the place, the last listing is of another place,
   // or of the place before the volumes changed.
   const loading = listed.loading;
-  const listing = listed.error === null ? asListing(listed.answer) : { dirs: [], files: [] };
-  const error = (loading ? null : listed.error) ?? file.error;
+  const failed = listed.error !== null;
+  const listing = failed ? { dirs: [], files: [] } : asListing(listed.answer);
 
   // Shows another place, which it asks R to list.
   const go = (next: Place): void => {
@@ -147,15 +151,15 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
                 />
               );
             })}
-            {listing.dirs.length + listing.files.length === 0 && <Note text="This directory is empty." />}
+            {!failed && listing.dirs.length + listing.files.length === 0 && <Note text="This directory is empty." />}
           </>
         )}
       </ul>
       {/* Before a file is chosen, the block's status says what is missing. */}
       {held !== undefined && <p className={styles.hint}>{`Chosen: ${held}`}</p>}
-      {error !== null && (
+      {file.error !== null && (
         <p role="alert" className={styles.alert}>
-          {error}
+          {file.error}
         </p>
       )}
     </Stack>
