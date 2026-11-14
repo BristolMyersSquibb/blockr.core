@@ -63,7 +63,7 @@ export type BoardObject = {
     readonly plugin: PluginClassId;
 };
 export type NotificationSource = RSource | CoreSource | ModuleSource;
-export interface PackageModule {
+export interface SourceModule {
     readonly object: {
         readonly plugin: PluginClassId;
     } | {
@@ -78,7 +78,7 @@ export interface RSource {
     readonly kind: "r";
     readonly class: readonly string[];
     readonly request: RRequest;
-    readonly module?: PackageModule;
+    readonly module?: SourceModule;
 }
 export type RRequest = {
     readonly type: "evaluate";
@@ -93,12 +93,12 @@ export type EvaluatePhase = Extract<Phase, "expr" | "inputs" | "block_eval" | "r
 export interface CoreSource {
     readonly kind: "core";
     readonly code: CoreCode;
-    readonly module?: PackageModule;
+    readonly module?: SourceModule;
 }
 export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered";
 export interface ModuleSource {
     readonly kind: "module";
-    readonly module: PackageModule;
+    readonly module: SourceModule;
     readonly code: string;
 }
 export interface Raised {

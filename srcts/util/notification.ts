@@ -6,7 +6,7 @@
 // what the modules of packages raise.
 
 import type { Condition } from "../protocol/index.ts";
-import type { BoardObject, CoreCode, Notification, PackageModule, Raised, RRequest } from "../types/core-api.ts";
+import type { BoardObject, CoreCode, Notification, Raised, RRequest, SourceModule } from "../types/core-api.ts";
 import { isObject } from "./util.ts";
 
 // Raises a notification of the open board, and returns what withdraws it.
@@ -19,14 +19,14 @@ export type Raise = (notification: Omit<Notification, "id">) => () => void;
 // them. They concern the board object that the module belongs to, for which
 // the request was made.
 export type Replied = (
-  module: PackageModule,
+  module: SourceModule,
   request: Extract<RRequest, { readonly name: string }>,
   conditions: readonly Condition[],
 ) => void;
 
 // Raises a notification that a package's module gives, from the module, and
 // returns what withdraws the notification.
-export type Notify = (module: PackageModule, notification: Raised) => () => void;
+export type Notify = (module: SourceModule, notification: Raised) => () => void;
 
 // Raise nothing, for code that runs outside an opening, as in a test.
 export const raiseNothing: Raise = () => () => undefined;
@@ -37,11 +37,11 @@ export const notifyNothing: Notify = () => () => undefined;
 // object whose module it is, its package and, where the module is a renderer,
 // the renderer's id. A package of null or undefined, as of a block class
 // defined outside a package, leaves the module without one.
-export function packageModule(
-  object: PackageModule["object"],
+export function sourceModule(
+  object: SourceModule["object"],
   pkg: string | null | undefined,
   renderer?: string,
-): PackageModule {
+): SourceModule {
   return {
     object,
     ...(renderer === undefined ? {} : { renderer }),
@@ -54,7 +54,7 @@ export function packageModule(
 // a module concerns the module's board object unless `about` names another.
 export interface Concerns {
   readonly about?: BoardObject;
-  readonly module?: PackageModule;
+  readonly module?: SourceModule;
 }
 
 // One of core's notifications, of `code`.

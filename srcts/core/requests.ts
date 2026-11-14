@@ -20,7 +20,7 @@ import type { Scheduler } from "../scheduler/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { RequestOpts } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { isObject, own, packageFromId, packageModule, quoted } from "../util/index.ts";
+import { isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
 import type { RunningPlugins } from "./plugins.ts";
@@ -66,7 +66,7 @@ export async function pluginRequest(
   }
   const what = `The request "${name}" of the plugin "${plugin}"`;
   // The plugin class's module, which made the request.
-  const module = packageModule({ plugin }, packageFromId(plugin));
+  const module = sourceModule({ plugin }, packageFromId(plugin));
 
   for (let attempt = 1; ; attempt++) {
     const revisions = await evaluateReads(deps, what, reads, opts.signal);

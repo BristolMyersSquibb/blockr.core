@@ -74,7 +74,7 @@ function asLogical(text) {
 var raiseNothing = () => () => void 0;
 var repliedNothing = () => void 0;
 var notifyNothing = () => () => void 0;
-function packageModule(object2, pkg, renderer) {
+function sourceModule(object2, pkg, renderer) {
   return {
     object: object2,
     ...renderer === void 0 ? {} : { renderer },
@@ -3639,7 +3639,7 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
   }
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name2}" of block "${block}"`;
-  const module = packageModule({ block }, packageFromId(entry.id));
+  const module = sourceModule({ block }, packageFromId(entry.id));
   for (let attempt3 = 1; ; attempt3++) {
     const reads = await evaluateReads(deps, block, entry, name2, spec.inputs, opts.signal);
     if (!deps.bound()) throw deps.unboundError();
@@ -3797,7 +3797,7 @@ function mountOption(deps, el, option) {
   }
   const chosen = Object.entries(deps.renderers()).find(([, renderer2]) => renderer2.option === option);
   const [id2, renderer] = chosen ?? [];
-  const module = id2 === void 0 ? packageModule({ option }, deps.optionPackage(option)) : packageModule({ option }, packageFromId(id2), id2);
+  const module = id2 === void 0 ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id2), id2);
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const listeners = /* @__PURE__ */ new Set();
@@ -4006,7 +4006,7 @@ function mountOutput(deps, el, block) {
   const unboundError = () => new Error(
     deps.replaced.aborted ? `Another board opened, so the host of the output of block "${block}" no longer asks R.` : `Block "${block}" left the board, so the host of its output no longer asks R.`
   );
-  const rendererModule = (renderer2) => packageModule({ block }, packageFromId(renderer2.id), renderer2.id);
+  const rendererModule = (renderer2) => sourceModule({ block }, packageFromId(renderer2.id), renderer2.id);
   function prepare(given) {
     let loading = preparing.get(given.id);
     if (loading === void 0) {
@@ -4557,7 +4557,7 @@ function createMounts(options) {
     if (!replaced.aborted && !reported.has(message)) {
       reported.add(message);
       report(new Error(message));
-      const concerns = Object.hasOwn(store.options.registered(), option) ? { module: packageModule({ option }, optionPackage(option)) } : { about: { option } };
+      const concerns = Object.hasOwn(store.options.registered(), option) ? { module: sourceModule({ option }, optionPackage(option)) } : { about: { option } };
       raise(coreNotification("board_option_failed", "error", message, concerns));
     }
     return [message];
@@ -4656,7 +4656,7 @@ function createMounts(options) {
       throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
     }
     const pkg = packageFromId(entry.id);
-    const module = packageModule({ block }, pkg);
+    const module = sourceModule({ block }, pkg);
     const by = `the UI module of block class "${entry.id}"`;
     const controller = new AbortController();
     const { signal } = controller;
@@ -7643,7 +7643,7 @@ function runPlugins(deps) {
     } catch (error) {
       const why = new Error(`The start of the plugin class "${id2}" failed: ${errorMessage(error)}`, { cause: error });
       report(why);
-      const module = packageModule({ plugin: id2 }, packageFromId(id2));
+      const module = sourceModule({ plugin: id2 }, packageFromId(id2));
       deps.raise(coreNotification("plugin_start_failed", "error", why.message, { module }));
       return;
     }
@@ -7679,7 +7679,7 @@ function runPlugins(deps) {
       cannotDraw(errorMessage(error));
     }
     function cannotDraw(message) {
-      deps.raise(coreNotification("module_failed", "error", message, { module: packageModule({ plugin }, packageFromId(plugin)) }));
+      deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
     }
     function lacking(ids2) {
       const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
@@ -7734,7 +7734,7 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
     throw new TypeError(`The blocks that the request "${name2}" of the plugin "${plugin}" reads are an array of their ids.`);
   }
   const what = `The request "${name2}" of the plugin "${plugin}"`;
-  const module = packageModule({ plugin }, packageFromId(plugin));
+  const module = sourceModule({ plugin }, packageFromId(plugin));
   for (let attempt3 = 1; ; attempt3++) {
     const revisions = await evaluateReads2(deps, what, reads, opts.signal);
     const { reply, body } = await deps.scheduler.request(
@@ -7903,7 +7903,7 @@ function createCore(parts) {
     const def = own(store.options.registered(), id2);
     if (def?.onChange === void 0) return;
     const raisedNow = [];
-    const module = packageModule({ option: id2 }, optionPackage(id2));
+    const module = sourceModule({ option: id2 }, optionPackage(id2));
     const notify = (notification) => {
       const withdraw = notifications.notify(module, notification);
       raisedNow.push(withdraw);
@@ -9037,7 +9037,7 @@ function createNotifications(store, options = {}) {
           report(new Error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`));
           return nothing;
         }
-        return notify(packageModule({ plugin }, packageFromId(plugin)), given);
+        return notify(sourceModule({ plugin }, packageFromId(plugin)), given);
       },
       get: () => all,
       subscribe(fn) {
@@ -9122,7 +9122,7 @@ function sourceCopy(source) {
   }
 }
 function moduleCopy(module) {
-  return packageModule(moduleObjectCopy(module.object), module.package, module.renderer);
+  return sourceModule(moduleObjectCopy(module.object), module.package, module.renderer);
 }
 function objectCopy(object2) {
   if ("link" in object2) return { link: object2.link };
@@ -9325,7 +9325,7 @@ function start(options) {
               "board_open_failed",
               "error",
               `The board that the storage plugin "${instead.plugin}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
-              { module: packageModule({ plugin: instead.plugin }, packageFromId(instead.plugin)) }
+              { module: sourceModule({ plugin: instead.plugin }, packageFromId(instead.plugin)) }
             )
           );
           await migrations.prepare(reply.board, reply.block_registry);
@@ -9386,14 +9386,14 @@ function start(options) {
       Promise.all(
         Object.entries(reply.plugins).map(
           ([id2, entry]) => listed(entry, packageFromId(id2), (error) => {
-            failed3(error, { module: packageModule({ plugin: id2 }, packageFromId(id2)) });
+            failed3(error, { module: sourceModule({ plugin: id2 }, packageFromId(id2)) });
           })
         )
       ),
       Promise.all(
         Object.entries(reply.options).map(
           ([id2, entry]) => listed(entry, entry.package, (error) => {
-            failed3(error, { module: packageModule({ option: id2 }, entry.package) });
+            failed3(error, { module: sourceModule({ option: id2 }, entry.package) });
           })
         )
       )
@@ -9405,7 +9405,7 @@ function start(options) {
       try {
         store.options.register({ ...def, id: id2 });
       } catch (error) {
-        failed3(error, { module: packageModule({ option: id2 }, entry.package) });
+        failed3(error, { module: sourceModule({ option: id2 }, entry.package) });
       }
     });
     Object.keys(reply.plugins).forEach((id2, i2) => {
@@ -9416,7 +9416,7 @@ function start(options) {
         cls = { ...def, id: id2 };
         store.plugins.register(cls);
       } catch (error) {
-        failed3(error, { module: packageModule({ plugin: id2 }, packageFromId(id2)) });
+        failed3(error, { module: sourceModule({ plugin: id2 }, packageFromId(id2)) });
         return;
       }
       for (const command2 of cls.commands ?? []) {
@@ -9445,7 +9445,7 @@ function start(options) {
     if (plugin === void 0 || storage?.load === void 0) return void 0;
     const refuse = (error) => {
       report(error);
-      raise(coreNotification("board_open_failed", "error", error.message, { module: packageModule({ plugin }, packageFromId(plugin)) }));
+      raise(coreNotification("board_open_failed", "error", error.message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
     };
     let text;
     try {

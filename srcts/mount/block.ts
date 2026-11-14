@@ -42,7 +42,7 @@ import { unevaluated } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Option, Store } from "../store/index.ts";
 import type { Block, BlockId, OptionId } from "../types/board.ts";
-import type { CoreApi, PackageModule } from "../types/core-api.ts";
+import type { CoreApi, SourceModule } from "../types/core-api.ts";
 import type {
   BlockContext,
   BlockHost,
@@ -62,11 +62,11 @@ import {
   checkRaised,
   notifyNothing,
   packageFromId,
-  packageModule,
   quoted,
   raiseNothing,
   repliedNothing,
   report,
+  sourceModule,
 } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
@@ -192,7 +192,7 @@ export function createMounts(options: MountsOptions): Mounts {
       reported.add(message);
       report(new Error(message));
       const concerns = Object.hasOwn(store.options.registered(), option)
-        ? { module: packageModule({ option }, optionPackage(option)) }
+        ? { module: sourceModule({ option }, optionPackage(option)) }
         : { about: { option } };
       raise(coreNotification("board_option_failed", "error", message, concerns));
     }
@@ -314,7 +314,7 @@ export function createMounts(options: MountsOptions): Mounts {
     }
     const pkg = packageFromId(entry.id);
     // The block's UI module, with the package of its class.
-    const module = packageModule({ block }, pkg);
+    const module = sourceModule({ block }, pkg);
     const by = `the UI module of block class "${entry.id}"`;
 
     // The mount ends as its signal aborts, which may happen whenever the
@@ -464,7 +464,7 @@ interface HostDeps {
   readonly entry: RegistryEntry;
   // The block's UI module, with the package of its class, which a class
   // defined outside a package lacks.
-  readonly module: PackageModule;
+  readonly module: SourceModule;
   // Aborts as another board opens in place of the host's.
   readonly replaced: AbortSignal;
   readonly replied: Replied;

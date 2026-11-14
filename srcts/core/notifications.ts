@@ -37,8 +37,8 @@ import { isUnsentError } from "../scheduler/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
-import type { BoardObject, CoreApi, EvaluatePhase, Notification, NotificationSource, PackageModule } from "../types/core-api.ts";
-import { checkRaised, jsonEqual, packageFromId, packageModule, report } from "../util/index.ts";
+import type { BoardObject, CoreApi, EvaluatePhase, Notification, NotificationSource, SourceModule } from "../types/core-api.ts";
+import { checkRaised, jsonEqual, packageFromId, report, sourceModule } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 
 export interface Holder {
@@ -287,7 +287,7 @@ export function createNotifications(
           report(new Error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`));
           return nothing;
         }
-        return notify(packageModule({ plugin }, packageFromId(plugin)), given);
+        return notify(sourceModule({ plugin }, packageFromId(plugin)), given);
       },
       get: () => all,
       subscribe(fn) {
@@ -350,7 +350,7 @@ function named(object: BoardObject): string {
 }
 
 // Who raised a notification of a package's module, as a message names them.
-function raiser(object: PackageModule["object"]): string {
+function raiser(object: SourceModule["object"]): string {
   return "plugin" in object ? named(object) : `a module of ${named(object)}`;
 }
 
@@ -392,8 +392,8 @@ function sourceCopy(source: NotificationSource): NotificationSource {
 // A copy of the module with its members in one order, so that a
 // notification's id does not depend on the order in which the code that
 // raised the notification wrote them.
-function moduleCopy(module: PackageModule): PackageModule {
-  return packageModule(moduleObjectCopy(module.object), module.package, module.renderer);
+function moduleCopy(module: SourceModule): SourceModule {
+  return sourceModule(moduleObjectCopy(module.object), module.package, module.renderer);
 }
 
 function objectCopy(object: BoardObject): BoardObject {
@@ -402,7 +402,7 @@ function objectCopy(object: BoardObject): BoardObject {
   return moduleObjectCopy(object);
 }
 
-function moduleObjectCopy(object: PackageModule["object"]): PackageModule["object"] {
+function moduleObjectCopy(object: SourceModule["object"]): SourceModule["object"] {
   if ("block" in object) return { block: object.block };
   if ("option" in object) return { option: object.option };
   return { plugin: object.plugin };

@@ -37,10 +37,10 @@ import type { Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
-import type { PackageModule } from "../types/core-api.ts";
+import type { SourceModule } from "../types/core-api.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, packageModule, report } from "../util/index.ts";
+import { checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, report, sourceModule } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
@@ -96,7 +96,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   // The module that draws: the renderer that the app names, with its package,
   // or else the board option's own module.
   const module =
-    id === undefined ? packageModule({ option }, deps.optionPackage(option)) : packageModule({ option }, packageFromId(id), id);
+    id === undefined ? sourceModule({ option }, deps.optionPackage(option)) : sourceModule({ option }, packageFromId(id), id);
 
   const controller = new AbortController();
   const ended = (): boolean => controller.signal.aborted;
@@ -247,7 +247,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
 // of a board option's request.
 async function optionRequest(
   deps: Pick<OptionDeps, "scheduler" | "replied">,
-  module: PackageModule,
+  module: SourceModule,
   option: OptionId,
   name: string,
   args: Readonly<Record<string, Json>>,

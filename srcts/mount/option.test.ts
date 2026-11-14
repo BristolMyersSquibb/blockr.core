@@ -12,7 +12,7 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore } from "../testing/store.ts";
-import type { Notification, PackageModule, Raised } from "../types/core-api.ts";
+import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { Replied } from "../util/index.ts";
@@ -64,7 +64,7 @@ interface Setup {
   replies: Parameters<Replied>[];
   // The notifications that modules raised through their hosts, while they
   // hold.
-  notified: { module: PackageModule; notification: Raised }[];
+  notified: { module: SourceModule; notification: Raised }[];
   // Each of core's notifications that the mounts raised, while it holds.
   raised: Omit<Notification, "id">[];
   // Ends what core runs for the board, as core does as another board opens.
@@ -96,7 +96,7 @@ async function setup(
     stylesheet: () => Promise.resolve(),
   });
   const replies: Parameters<Replied>[] = [];
-  const notified: { module: PackageModule; notification: Raised }[] = [];
+  const notified: { module: SourceModule; notification: Raised }[] = [];
   const raised: Omit<Notification, "id">[] = [];
   const mounts = createMounts({
     core: noCore,

@@ -56,7 +56,7 @@ import type { Store } from "../store/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Condition, OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { PackageModule } from "../types/core-api.ts";
+import type { SourceModule } from "../types/core-api.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
@@ -70,8 +70,8 @@ import {
   jsonEqual,
   own,
   packageFromId,
-  packageModule,
   report,
+  sourceModule,
 } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
@@ -294,8 +294,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     );
 
   // The renderer as the module of the block's output, with its package.
-  const rendererModule = (renderer: OutputRenderer): PackageModule =>
-    packageModule({ block }, packageFromId(renderer.id), renderer.id);
+  const rendererModule = (renderer: OutputRenderer): SourceModule =>
+    sourceModule({ block }, packageFromId(renderer.id), renderer.id);
 
   // Loads a renderer and adds the board options that it names to the board.
   function prepare(given: OutputRenderer): Promise<Prepared> {

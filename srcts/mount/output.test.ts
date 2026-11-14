@@ -15,7 +15,7 @@ import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
-import type { Notification, PackageModule, Raised } from "../types/core-api.ts";
+import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
@@ -114,7 +114,7 @@ interface Setup {
   replies: Parameters<Replied>[];
   // The notifications that renderers raised through their hosts, while they
   // hold.
-  notified: { module: PackageModule; notification: Raised }[];
+  notified: { module: SourceModule; notification: Raised }[];
   // Ends what core runs for the board, as core does as another board opens,
   // and opens the board of the reply given in a new store with new mounts, on
   // the same R and the same loader, as core starts again.
@@ -158,7 +158,7 @@ async function setup(
   const replied: Replied = (...args) => {
     replies.push(args);
   };
-  const notified: { module: PackageModule; notification: Raised }[] = [];
+  const notified: { module: SourceModule; notification: Raised }[] = [];
   const notify: Notify = (module, notification) => {
     const given = { module, notification };
     notified.push(given);

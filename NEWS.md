@@ -490,8 +490,8 @@
   A frontend reads them through `get()`, which returns the same array until one comes or goes, and follows them through `subscribe()`, so that one raised before the frontend draws still reaches it.
   A `Notification` has an id, a severity and a message, says in `source` who raised it, and names in `about` the board object that it concerns, a block, a link, a stack, a board option or a plugin, or none for the board, so that a frontend places it by either.
   Its source is R, with the condition's class and what core asked of R, core, with the code of what failed, or a package's module, with the package's own code for it.
-  Each source that involves a module names it in `module`, a `PackageModule`: R's source names the module that made the request, core's the module whose code failed, and a module's source the module that raised it.
-  A `PackageModule` holds the module's board object, its package, and the renderer's id where the module is a renderer, so that a frontend tells a renderer from the block's UI module or from the board option's own module (#605).
+  Each source that involves a module names it in `module`, a `SourceModule`: R's source names the module that made the request, core's the module whose code failed, and a module's source the module that raised it.
+  A `SourceModule` holds the module's board object, its package, and the renderer's id where the module is a renderer, so that a frontend tells a renderer from the block's UI module or from the board option's own module (#605).
   A plugin raises one with `notify(plugin, notification)`, a module that core mounts with its host's `notify()`, and a board option's `onChange()` with the `notify` that it gets beside the value, each of which returns what withdraws it and refuses one whose members are of the wrong kind.
   What a module raises holds until its mount ends at the latest, and what an `onChange()` raises until its next call returns.
   One raised about a block, a link or a stack that the board no longer holds holds nothing, and core logs one about a board object that the board has never held, and one from a plugin that the app does not run.

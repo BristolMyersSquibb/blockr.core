@@ -17,7 +17,7 @@ import type { PlayedR } from "../testing/r.ts";
 import { reports } from "../testing/reports.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
-import type { Notification, PackageModule, Raised } from "../types/core-api.ts";
+import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, BlockModule } from "../types/hosts.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Replied } from "../util/index.ts";
@@ -103,7 +103,7 @@ interface Setup {
   replies: Parameters<Replied>[];
   // The notifications that modules raised through their hosts, while they
   // hold.
-  notified: { module: PackageModule; notification: Raised }[];
+  notified: { module: SourceModule; notification: Raised }[];
   // Each of core's notifications that the mounts raised, while it holds.
   raised: Omit<Notification, "id">[];
   // Ends what core runs for the board, as core does as another board opens,
@@ -149,7 +149,7 @@ async function setup(
     const scheduler = createScheduler({ store, client: r.client, nextRevision: page, signal });
     scheduler.start();
     const replies: Parameters<Replied>[] = [];
-    const notified: { module: PackageModule; notification: Raised }[] = [];
+    const notified: { module: SourceModule; notification: Raised }[] = [];
     const raised: Omit<Notification, "id">[] = [];
     const mounts = createMounts({
       core: noCore,

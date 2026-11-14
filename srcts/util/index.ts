@@ -26,9 +26,9 @@ export {
   coreNotification,
   isBoardObject,
   notifyNothing,
-  packageModule,
   raiseNothing,
   repliedNothing,
+  sourceModule,
 } from "./notification.ts";
 export type { Concerns, Notify, Raise, Replied } from "./notification.ts";
 export { compile } from "./validate.ts";

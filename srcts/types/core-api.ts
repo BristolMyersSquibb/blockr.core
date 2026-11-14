@@ -177,7 +177,7 @@ export type NotificationSource = RSource | CoreSource | ModuleSource;
 // option. A block has two modules, the UI module of its class and the renderer
 // of its output. A board option has two as well: its own module, and the
 // renderer that the app may name to draw its value in place of its UI.
-export interface PackageModule {
+export interface SourceModule {
   // The board object whose module it is: a plugin, a block or a board option.
   readonly object: { readonly plugin: PluginClassId } | { readonly block: BlockId } | { readonly option: OptionId };
   // The renderer, by its id, where the module is the renderer of the block's
@@ -204,7 +204,7 @@ export interface RSource {
   //   draws it.
   // - Of a plugin, the plugin class's module.
   // An evaluation and an output have none, since core asks R for them.
-  readonly module?: PackageModule;
+  readonly module?: SourceModule;
 }
 
 // What core asked of R: a block's evaluation or its output, or a request, by
@@ -233,7 +233,7 @@ export interface CoreSource {
   // - The plugin class's module, whose start threw.
   // - The storage plugin's module, whose load() failed or named a board that
   //   does not open.
-  readonly module?: PackageModule;
+  readonly module?: SourceModule;
 }
 
 // What core's own notification is of.
@@ -264,7 +264,7 @@ export type CoreCode =
 export interface ModuleSource {
   readonly kind: "module";
   // The module that raised it.
-  readonly module: PackageModule;
+  readonly module: SourceModule;
   // The package's own code for what it is of, as "edit_refused".
   readonly code: string;
 }

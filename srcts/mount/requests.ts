@@ -22,7 +22,7 @@ import type { BlockId } from "../types/board.ts";
 import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { isObject, own, packageFromId, packageModule, quoted } from "../util/index.ts";
+import { isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import type { Answers, ClassRequest } from "./answers.ts";
 
@@ -96,7 +96,7 @@ export async function blockRequest(
   const what = `The request "${name}" of block "${block}"`;
   // The block's UI module, which made the request, with the package of its
   // class.
-  const module = packageModule({ block }, packageFromId(entry.id));
+  const module = sourceModule({ block }, packageFromId(entry.id));
 
   for (let attempt = 1; ; attempt++) {
     const reads = await evaluateReads(deps, block, entry, name, spec.inputs, opts.signal);
