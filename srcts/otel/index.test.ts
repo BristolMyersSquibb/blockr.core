@@ -1,12 +1,14 @@
-// Core's OpenTelemetry logger: what each record holds of the line it sends,
-// with an exporter that holds the records in place of the one that sends them
-// to the collector.
+// Core's OpenTelemetry module: what each record of its logger holds of the
+// line it sends, and what its tracing records, with exporters that hold the
+// records and the spans in place of those that send them to the collector.
 
-import { SeverityNumber } from "@opentelemetry/api";
+import { context, SeverityNumber, trace } from "@opentelemetry/api";
 import { InMemoryLogRecordExporter } from "@opentelemetry/sdk-logs";
+import { InMemorySpanExporter } from "@opentelemetry/sdk-trace";
 import { describe, expect, test } from "vitest";
+import { stopRecording } from "../testing/spans.ts";
 import type { LogLine } from "../types/log.ts";
-import { otelLogger } from "./index.ts";
+import { otelLogger, otelTracing } from "./index.ts";
 
 const URL = "https://connect.example.com/otlp/v1/logs";
 
@@ -65,5 +67,47 @@ describe("the OpenTelemetry logger", () => {
       "session.id": "token-1",
       n: 2,
     });
+  });
+});
+
+describe("the OpenTelemetry tracing", () => {
+  test("has the spans that start from then on record, each naming the session in which it started, and sends them through its exporter", async () => {
+    const exporter = new InMemorySpanExporter();
+    let session: string | undefined = "token-1";
+    const tracer = trace.getTracer("blockr.test");
+    const before = tracer.startSpan("before");
+
+    const tracing = otelTracing({ url: "https://connect.example.com/otlp/v1/traces", sessionId: () => session, exporter });
+    const named = tracer.startSpan("named", { attributes: { "session.id": "token-2", n: 1 } });
+    session = undefined;
+    const unnamed = tracer.startSpan("unnamed");
+    for (const span of [before, named, unnamed]) span.end();
+    await tracing.flush();
+
+    expect(before.isRecording()).toBe(false);
+    expect(exporter.getFinishedSpans().map((span) => [span.name, span.attributes])).toEqual([
+      ["named", { "session.id": "token-1", n: 1 }],
+      ["unnamed", {}],
+    ]);
+    stopRecording();
+  });
+
+  test("keeps a span active through synchronous calls alone, as the StackContextManager does", async () => {
+    const exporter = new InMemorySpanExporter();
+    const tracing = otelTracing({ url: "https://connect.example.com/otlp/v1/traces", sessionId: () => undefined, exporter });
+    const tracer = trace.getTracer("blockr.test");
+    const outer = tracer.startSpan("outer");
+    const active: (string | undefined)[] = [];
+
+    await context.with(trace.setSpan(context.active(), outer), async () => {
+      active.push(trace.getActiveSpan()?.spanContext().spanId);
+      await Promise.resolve();
+      active.push(trace.getActiveSpan()?.spanContext().spanId);
+    });
+    outer.end();
+    await tracing.flush();
+
+    expect(active).toEqual([outer.spanContext().spanId, undefined]);
+    stopRecording();
   });
 });

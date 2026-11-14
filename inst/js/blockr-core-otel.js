@@ -1,5 +1,14 @@
 // srcts/otel/index.ts
-import { BatchLogRecordProcessor, LoggerProvider, OTLPLogExporter, SeverityNumber } from "./opentelemetry-ab9396c4.js";
+import { context, SeverityNumber, trace } from "@opentelemetry/api";
+import {
+  BatchLogRecordProcessor,
+  BatchSpanProcessor,
+  LoggerProvider,
+  OTLPLogExporter,
+  OTLPTraceExporter,
+  StackContextManager,
+  TracerProvider
+} from "./opentelemetry-f97c2de3.js";
 var SEVERITIES = {
   error: SeverityNumber.ERROR,
   warn: SeverityNumber.WARN,
@@ -29,6 +38,26 @@ function otelLogger(options) {
   };
   return Object.assign(write, { flush: () => provider.forceFlush() });
 }
+function otelTracing(options) {
+  const exporter = options.exporter ?? new OTLPTraceExporter({ url: options.url });
+  const provider = new TracerProvider({
+    spanProcessors: [sessionNamer(options.sessionId), new BatchSpanProcessor({ exporter })]
+  });
+  context.setGlobalContextManager(new StackContextManager().enable());
+  trace.setGlobalTracerProvider(provider);
+  return { flush: () => provider.forceFlush() };
+}
+function sessionNamer(sessionId) {
+  return {
+    onStart(span) {
+      const session = sessionId();
+      if (session !== void 0) span.setAttribute("session.id", session);
+    },
+    onEnd: () => void 0,
+    forceFlush: () => Promise.resolve(),
+    shutdown: () => Promise.resolve()
+  };
+}
 function exception(error) {
   return {
     "exception.type": error.name,
@@ -48,5 +77,6 @@ function stackTrace(error) {
   return traces.join("\nCaused by: ");
 }
 export {
-  otelLogger
+  otelLogger,
+  otelTracing
 };

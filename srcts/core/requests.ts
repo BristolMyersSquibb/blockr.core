@@ -13,12 +13,16 @@
 // scheduler sends it to no later session, since it may have run. Each
 // condition of R's reply, ok or error, raises a notification that concerns
 // the plugin, which holds until R next replies to a request of the same name.
+// The request's span goes under the span that was active as the caller called
+// `CoreApi.request()`, though core sends the request only once the blocks it
+// reads are evaluated (../trace/index.ts).
 
 import type { BlockRevision } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { RequestOpts } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
+import { keepContext } from "../trace/index.ts";
 import { isObject, own, quoted } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
@@ -64,16 +68,19 @@ export async function pluginRequest(
     throw new TypeError(`The blocks that the request "${name}" of the plugin "${plugin}" reads are an array of their ids.`);
   }
   const what = `The request "${name}" of the plugin "${plugin}"`;
+  const inCaller = keepContext();
 
   for (let attempt = 1; ; attempt++) {
     const revisions = await evaluateReads(deps, what, reads, opts.signal);
-    const { reply, body } = await deps.scheduler.request(
-      { kind: "request", type: "plugin", plugin, name, args: { ...args }, reads: revisions },
-      {
-        ...(opts.file === undefined ? {} : { body: opts.file }),
-        ...(opts.signal === undefined ? {} : { signal: opts.signal }),
-        ...(opts.progress === undefined ? {} : { progress: opts.progress.bind(opts) }),
-      },
+    const { reply, body } = await inCaller(() =>
+      deps.scheduler.request(
+        { kind: "request", type: "plugin", plugin, name, args: { ...args }, reads: revisions },
+        {
+          ...(opts.file === undefined ? {} : { body: opts.file }),
+          ...(opts.signal === undefined ? {} : { signal: opts.signal }),
+          ...(opts.progress === undefined ? {} : { progress: opts.progress.bind(opts) }),
+        },
+      ),
     );
 
     const conditions = "conditions" in reply ? reply.conditions : [];

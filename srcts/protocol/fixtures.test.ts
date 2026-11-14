@@ -28,6 +28,7 @@ const types: Record<string, string> = {
   "hello-declared": "Fixture<[HelloRequest], [[HelloReply]]>",
   "blockr-options": "Fixture<[BlockrOptionsRequest], [[BlockrOptionsReply]]>",
   evaluate: "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
+  "evaluate-traced": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-warning": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-variadic": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",
   "evaluate-error": "Fixture<[EvaluateRequest], [[EvaluateReply]]>",

@@ -36,6 +36,12 @@ A reply's `status` belongs to its request alone, so that a request or an output 
 | `cancelled` | R dropped or stopped the request, after a `cancel` or a `forget` | none |
 | `missing` | the request names a result that R does not hold ([Missing results](#missing-results)) | `missing` |
 
+While the client records spans, an `evaluate`, a `request` and an `output` carry the context of the client's span of the request in `traceparent`, as W3C's [Trace Context](https://www.w3.org/TR/trace-context/) writes it in its header of that name, such as `"00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"` ([`evaluate-traced`](fixtures/evaluate-traced.json)).
+So R's span of the request is a child of the client's, and one trace runs from the client through R.
+The client sends `traceparent` on no other kind, since R records spans of these three alone.
+R ignores it while R records no spans, and ignores one that the Trace Context does not write, which leaves R's span without a parent.
+No reply carries it.
+
 ## The handshake
 
 A connection starts with a `hello`, after MCP's `initialize`: the client names the protocol version and the capabilities it speaks, and R answers with its own and with everything the client needs before it draws a board.
@@ -407,6 +413,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`hello-declared`](fixtures/hello-declared.json) | the handshake of an app whose script loaded a package that declares modules, with what R builds from what is registered and declared, and the URLs it serves each file at |
 | [`blockr-options`](fixtures/blockr-options.json) | reading blockr options, one set as an R option, one through an environment variable and two not set |
 | [`evaluate`](fixtures/evaluate.json) | an evaluation of a block with two inputs |
+| [`evaluate-traced`](fixtures/evaluate-traced.json) | the evaluation of `evaluate`, sent while the client records spans, with the context of the client's span in `traceparent` |
 | [`evaluate-warning`](fixtures/evaluate-warning.json) | an evaluation that raises a warning |
 | [`evaluate-variadic`](fixtures/evaluate-variadic.json) | an evaluation of a variadic block |
 | [`evaluate-error`](fixtures/evaluate-error.json) | an evaluation that fails |

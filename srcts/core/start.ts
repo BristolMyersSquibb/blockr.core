@@ -92,6 +92,18 @@
 // 3. Otherwise core goes on with the new reply.
 // The reply to a later session's hello also has the scheduler give every block
 // a new revision, since the new session holds no results.
+//
+// Core records a span of the page's start and of each later opening, as
+// Tracing has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#tracing),
+// `start` and `open`, with a span inside for each step: `hello`, from sending
+// the hello to R's reply, `modules`, importing the modules of the plugin
+// classes and board options that the reply names, `storage.load`, the load()
+// of the storage plugin, `store.open`, each call of the store's open(), and
+// `render`, the frontend's render(). It notes when each step starts and ends,
+// and records the spans once the opening is done, and once the page's tracing
+// is set up, which it sets up with the page's logger as the first board opens
+// (../trace/settings.ts). The span of a later opening goes under the span that
+// was active as the store's open() was called.
 
 import { createCommands } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
@@ -108,6 +120,8 @@ import type { CoreApi, FrontendModule, Notification } from "../types/core-api.ts
 import type { Json } from "../types/json.ts";
 import { fallBack, log, logSettings, setUpLogging } from "../log/index.ts";
 import type { OtelModule } from "../log/index.ts";
+import { setUpTracing, steps, tracesUrl } from "../trace/index.ts";
+import type { Steps } from "../trace/index.ts";
 import { asError, coreNotification, errorMessage, isObject, own, packageFromId, quoted } from "../util/index.ts";
 import type { Concerns, Raise } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
@@ -179,9 +193,10 @@ export interface StartOptions {
   // is not given.
   readonly fail?: (error: Error) => void;
   // Imports core's OpenTelemetry module, as the page does, where the blockr
-  // options have the page send its log records to a collector
-  // (../log/settings.ts). Where it is not given, core writes to the console,
-  // and logs that it has no such module.
+  // options have the page send its log records or its spans to a collector
+  // (../log/settings.ts, ../trace/settings.ts). Where it is not given, core
+  // writes to the console, records no spans, and logs that it has no such
+  // module.
   readonly otel?: () => Promise<OtelModule>;
 }
 
@@ -216,6 +231,15 @@ interface Later {
 export function start(options: StartOptions): Started {
   const page = new AbortController();
   const alone = options.alone === true;
+  // The steps of the page's start, whose span runs from now on.
+  const starting = steps("start");
+  // When the protocol's client last sent a hello, and when R last answered
+  // one, which the steps of an opening note as its hello.
+  let helloSent: number | undefined;
+  let helloAnswered: number | undefined;
+  // Settles once the page's tracing is set up, or once core knows that the
+  // page records no spans, which core sets up with the page's logger.
+  let tracing: Promise<void> = Promise.resolve();
   // Says why core cannot start or stopped, and has the console write the log
   // lines that core holds where it has not set the page's logger up yet, as
   // where it fails before R gives the blockr options that set it up.
@@ -261,7 +285,10 @@ export function start(options: StartOptions): Started {
   ready.catch(() => undefined);
 
   const client = createClient(options.transport, {
-    hello: () => ({ protocol: PROTOCOL_VERSION, capabilities: CAPABILITIES }),
+    hello: () => {
+      helloSent = performance.now();
+      return { protocol: PROTOCOL_VERSION, capabilities: CAPABILITIES };
+    },
     session(reply) {
       heard(reply);
     },
@@ -277,6 +304,7 @@ export function start(options: StartOptions): Started {
   const migrations = createMigrations(loader);
 
   function heard(reply: Reply): void {
+    helloAnswered = performance.now();
     if (page.signal.aborted) return;
     const error = helloError(reply);
     if (error !== undefined) {
@@ -304,9 +332,14 @@ export function start(options: StartOptions): Started {
     if (first === undefined) {
       first = hello;
       adopt(hello);
-      boot(hello, undefined).then(
-        ({ core }) => settle?.resolve(core),
+      noteHello(starting);
+      boot(hello, undefined, starting).then(
+        ({ core }) => {
+          starting.record(tracing);
+          settle?.resolve(core);
+        },
         (failure: unknown) => {
+          starting.record(tracing, failure);
           settle?.reject(failure);
           // Core has said why already where it stopped.
           if (!page.signal.aborted) fail(asError(failure));
@@ -327,6 +360,13 @@ export function start(options: StartOptions): Started {
     }
     // A new session holds no results.
     running?.scheduler.session();
+  }
+
+  // Notes the hello that R answered last as a step of the opening, from when
+  // the client sent it.
+  function noteHello(opening: Steps): void {
+    const end = helloAnswered ?? performance.now();
+    opening.noted("hello", helloSent ?? end, end);
   }
 
   // Makes the reply the one whose modules and renderers core uses, and with
@@ -376,8 +416,13 @@ export function start(options: StartOptions): Started {
   // page starts the one that the app's storage plugin names in its place,
   // raises the notification that names what the store dropped, draws the board
   // with its frontend, starts the scheduler, then starts the app's plugins, and
-  // resolves with CoreApi and what the store dropped.
-  async function boot(reply: HelloReply, later: Later | undefined): Promise<{ core: CoreApi; dropped: Dropped[] }> {
+  // resolves with CoreApi and what the store dropped. It notes its steps in
+  // `opening`.
+  async function boot(
+    reply: HelloReply,
+    later: Later | undefined,
+    opening: Steps,
+  ): Promise<{ core: CoreApi; dropped: Dropped[] }> {
     // The opening ends as the next board opens, or as the page stops.
     const controller = new AbortController();
     const { signal } = controller;
@@ -412,9 +457,12 @@ export function start(options: StartOptions): Started {
       blockrOptions.read("otel_client_endpoint"),
     ]);
     if (!logging) {
-      const settings = logSettings({ logLevel, logger, otelClientEndpoint }, typeof document === "undefined" ? undefined : document.baseURI);
+      const base = typeof document === "undefined" ? undefined : document.baseURI;
+      const settings = logSettings({ logLevel, logger, otelClientEndpoint }, base);
+      const sessionId = (): string | undefined => options.transport.sessionId?.();
       logging = true;
-      setUpLogging(settings, () => options.transport.sessionId?.(), options.otel ?? noOtel);
+      setUpLogging(settings, sessionId, options.otel ?? noOtel);
+      tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), sessionId, options.otel ?? noOtel);
     }
 
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });
@@ -429,7 +477,7 @@ export function start(options: StartOptions): Started {
       randId,
       blockrOption: (name) => blockrOptions.read(name),
     });
-    await register(reply, store, commands, signal, raise);
+    await opening.step("modules", () => register(reply, store, commands, signal, raise));
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;
     const scheduler = createScheduler({
@@ -464,13 +512,13 @@ export function start(options: StartOptions): Started {
     let dropped: Dropped[] = [];
     let failure: Error | undefined;
     if (later === undefined) {
-      const instead = alone ? undefined : await named(reply, store, core, signal, raise);
+      const instead = alone ? undefined : await named(reply, store, core, signal, raise, opening);
       await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
       if (instead === undefined) {
-        dropped = await store.open(reply);
+        dropped = await opening.step("store.open", () => store.open(reply));
       } else {
         try {
-          dropped = await store.open(instead.text);
+          dropped = await opening.step("store.open", () => store.open(instead.text));
         } catch (error) {
           log.error(asError(error));
           raise(
@@ -482,17 +530,17 @@ export function start(options: StartOptions): Started {
             ),
           );
           await migrations.prepare(reply.board, reply.block_registry);
-          dropped = await store.open(reply);
+          dropped = await opening.step("store.open", () => store.open(reply));
         }
       }
     } else {
       try {
         await migrations.prepare(later.text, reply.block_registry);
-        dropped = await store.open(later.text);
+        dropped = await opening.step("store.open", () => store.open(later.text));
       } catch (error) {
         failure = asError(error);
         try {
-          await store.open(later.before);
+          await opening.step("store.open", () => store.open(later.before));
         } catch (again) {
           log.error(asError(again));
           throw failure;
@@ -528,7 +576,7 @@ export function start(options: StartOptions): Started {
       );
       const failures = await (front?.added ?? []);
       try {
-        await options.frontEnds?.render(core, signal, failures);
+        await opening.step("render", async () => options.frontEnds?.render(core, signal, failures));
       } finally {
         scheduler.start();
       }
@@ -633,6 +681,7 @@ export function start(options: StartOptions): Started {
     core: CoreApi,
     signal: AbortSignal,
     raise: Raise,
+    opening: Steps,
   ): Promise<{ readonly text: string; readonly plugin: PluginClassId } | undefined> {
     if (reply.lock.load) return undefined;
     const classes = store.plugins.registered();
@@ -645,7 +694,7 @@ export function start(options: StartOptions): Started {
     };
     let text: unknown;
     try {
-      text = await storage.load({ core, plugin, signal });
+      text = await opening.step("storage.load", async () => storage.load?.({ core, plugin, signal }));
     } catch (error) {
       refuse(
         new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
@@ -680,33 +729,48 @@ export function start(options: StartOptions): Started {
   // Opens a board in place of the one that the store of the opening holds,
   // whose controller is given, by starting core again for it.
   function reopen(given: string | HelloReply, of: AbortController): Promise<Dropped[]> {
-    const run = queue.then(() => reopening(given, of));
+    // The span of the opening runs from now, under the span active now.
+    const opening = steps("open");
+    const run = queue.then(() => reopening(given, of, opening));
     queue = run.catch(() => undefined);
     return run;
   }
 
-  async function reopening(given: string | HelloReply, of: AbortController): Promise<Dropped[]> {
+  async function reopening(given: string | HelloReply, of: AbortController, opening: Steps): Promise<Dropped[]> {
     const refused = "The store refused to open the board";
     const current = running;
     if (current?.controller !== of || of.signal.aborted) {
-      throw new StoreError(refused, ["Another board opened since, so this store opens no board."]);
+      const error = new StoreError(refused, ["Another board opened since, so this store opens no board."]);
+      opening.record(tracing, error);
+      throw error;
     }
     if (!current.store.hasBoard()) {
-      throw new StoreError(refused, ["The store holds no board yet, so it opens none in place of it."]);
+      const error = new StoreError(refused, ["The store holds no board yet, so it opens none in place of it."]);
+      opening.record(tracing, error);
+      throw error;
     }
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
 
-    await migrations.prepare(text, current.store.blockRegistry());
-    await current.store.check(text);
-    const before = current.store.save();
+    let before: string;
+    try {
+      await migrations.prepare(text, current.store.blockRegistry());
+      await current.store.check(text);
+      before = current.store.save();
+    } catch (error) {
+      opening.record(tracing, error);
+      throw error;
+    }
 
     of.abort();
     running = undefined;
     try {
       const reply = await afresh();
-      const { dropped } = await boot(reply, { text, before });
+      noteHello(opening);
+      const { dropped } = await boot(reply, { text, before }, opening);
+      opening.record(tracing);
       return dropped;
     } catch (error) {
+      opening.record(tracing, error);
       if (!page.signal.aborted && !holdsBoard()) fail(asError(error));
       throw error;
     }
@@ -805,5 +869,5 @@ function listedDefault(exports: unknown, module: string, pkg: string | null): Re
 // What core imports in place of its OpenTelemetry module where it is given
 // none, as in a test.
 function noOtel(): Promise<OtelModule> {
-  return Promise.reject(new Error("Core was given no OpenTelemetry module to send log records with."));
+  return Promise.reject(new Error("Core was given no OpenTelemetry module to send log records or spans with."));
 }

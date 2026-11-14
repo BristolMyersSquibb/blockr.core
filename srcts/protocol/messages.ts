@@ -53,6 +53,15 @@ export type Reply =
   | CancelledReply
   | MissingReply;
 
+// Every request that asks R for work that R records a span of, an evaluate, a
+// request and an output, carries the context of the client's span of it in
+// `traceparent`, as W3C's Trace Context writes it in its header of that name,
+// while the client records spans. So R's span of it is a child of the
+// client's. R ignores it while R records no spans.
+export interface Traced {
+  traceparent?: string;
+}
+
 // A note that R sends for a request while it runs, by the request's id.
 export interface Progress {
   id: string;
@@ -172,7 +181,7 @@ export interface BlockrOptionsReply {
 
 // Evaluating a block
 
-export interface EvaluateRequest {
+export interface EvaluateRequest extends Traced {
   id: string;
   kind: "evaluate";
   block: BlockId;
@@ -244,7 +253,7 @@ export type Phase = "expr" | "inputs" | "block_eval" | "result_summary" | "outpu
 // A block class's request, which R resolves by registry id. Its `block` names
 // the block that asks. It carries no `locked`, since R runs every request as on
 // any board, whatever the locks.
-export interface BlockClassRequest {
+export interface BlockClassRequest extends Traced {
   id: string;
   kind: "request";
   type: "block_class";
@@ -267,7 +276,7 @@ export interface BlockClassRequest {
 
 // A board option's request, which R finds among the requests that
 // board_option_requests() returns for the board option's class.
-export interface BoardOptionRequest {
+export interface BoardOptionRequest extends Traced {
   id: string;
   kind: "request";
   type: "option";
@@ -284,7 +293,7 @@ export interface BoardOptionRequest {
 // plugin_requests() returns for the plugin's class. It names the class by the
 // class's id, as "blockr.md-md_plugin", since R holds no board. R calls the
 // request's function with its args by name, and with the results it reads.
-export interface PluginRequest {
+export interface PluginRequest extends Traced {
   id: string;
   kind: "request";
   type: "plugin";
@@ -303,7 +312,7 @@ export interface PluginRequest {
 
 // A request of an output class, which R resolves against the class vector of
 // the output it belongs to.
-export interface OutputClassRequest {
+export interface OutputClassRequest extends Traced {
   id: string;
   kind: "request";
   type: "output_class";
@@ -322,7 +331,7 @@ export interface OutputClassRequest {
 // A renderer's own request, which R resolves among that renderer's requests
 // alone and runs as it runs a request of the output class, with the result of
 // the output it belongs to.
-export interface RendererRequest {
+export interface RendererRequest extends Traced {
   id: string;
   kind: "request";
   type: "renderer";
@@ -349,7 +358,7 @@ export type RequestReply =
 
 // Outputs
 
-export interface OutputRequest {
+export interface OutputRequest extends Traced {
   id: string;
   kind: "output";
   block: BlockId;

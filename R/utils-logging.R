@@ -17,6 +17,8 @@
 #' * With `"otel"`, R writes each line as a record through [otel::log()],
 #'   with its level as the record's severity.
 #'   The record's attributes are the package, as `blockr.package.name`,
+#'   the session whose message R handles as it writes the line, if any,
+#'   as `session.id`, Shiny's token of the session,
 #'   and `attributes`.
 #'   The client sends its lines as records to the OpenTelemetry collector
 #'   whose URL the blockr option `otel_client_endpoint` gives,
@@ -48,6 +50,22 @@
 #' The client reads the blockr option `log_level` as well, and drops a line
 #' below it in the browser.
 #' Every logger stops with an error at the level "fatal".
+#'
+#' Beside log records, both sides record spans through OpenTelemetry.
+#' Where OpenTelemetry exports traces, as the environment variable
+#' `OTEL_TRACES_EXPORTER` sets it up, R records a span of each evaluation,
+#' request and output that the client asks for, with a span inside it for each
+#' phase of an evaluation.
+#' Where `otel_client_endpoint` names a collector, whatever `logger` says,
+#' the client records its spans and sends them to the collector's path
+#' `v1/traces`: a span of each command, of each evaluation, request and output
+#' that it sends, and of the page's start and each opening of a board.
+#' Each request carries the context of the client's span in `traceparent`,
+#' so that R's span of it is a child of the client's, in one trace.
+#' The span of an evaluation links to the span of the command that changed the
+#' block's recipe.
+#' Spans name the session by `session.id` and hold ids and revisions,
+#' never a block's state or data.
 #'
 #' Core works out the logger, the level and the blockr options `log_time` and
 #' `log_mem` each when it first needs them, and keeps them for the process.
@@ -378,6 +396,26 @@ check_client_logger <- function() {
   invisible()
 }
 
+# The id of the session whose message R handles, which the records of
+# `otel_logger()` name as `session.id`, or `NULL` outside the handling of a
+# message, as while the app starts.
+logged_session <- new.env(parent = emptyenv())
+
+# Evaluates `expr` as R handles a message of the session `id`,
+# Shiny's token of the session, so that the log records that R writes
+# meanwhile name the session.
+# The evaluator handles each message of a session in a few steps,
+# as it reads the message, as it answers it and as it sends the reply,
+# each of which runs in a call of its own.
+with_log_session <- function(id, expr) {
+
+  prev <- logged_session$id
+  logged_session$id <- id
+  on.exit(logged_session$id <- prev)
+
+  expr
+}
+
 # The logger of `"condition"`, which signals an error or a warning as a
 # warning, and any other line as a message.
 cnd_logger <- function(msg, level, pkg, asis, attributes) {
@@ -420,6 +458,9 @@ cat_logger <- function(msg, level, pkg, asis, attributes) {
 
 # The logger of `"otel"`, which writes each line as a record through
 # `otel::log()`.
+# A line that R writes while it handles a message of a session names the
+# session by `session.id`, as R's spans of the messages do
+# (see `with_log_session()`).
 otel_logger <- function(msg, level, pkg, asis, attributes) {
 
   otel::log(
@@ -428,6 +469,7 @@ otel_logger <- function(msg, level, pkg, asis, attributes) {
     logger = get_otel_logger(),
     attributes = c(
       if (not_null(pkg)) list(blockr.package.name = pkg),
+      if (not_null(logged_session$id)) list(session.id = logged_session$id),
       attributes
     )
   )

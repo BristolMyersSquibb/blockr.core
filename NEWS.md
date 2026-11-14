@@ -534,6 +534,12 @@
   The `serve()` function stops where `logger` is `"otel"` and `otel_client_endpoint` names no collector.
   Core logs every failure that it catches at error, with its stack, and logs at debug each notification that it drops because the board no longer holds what the notification concerns.
   The stubs of the hosts hold what a module logs in `logged`, and so does `stubCore()`, which passes each line on to the logger that the page would write it with (#551).
+* Core records spans through OpenTelemetry on both sides, joined into one trace by the `traceparent` that each request carries.
+  Where OpenTelemetry exports traces, as the environment variable `OTEL_TRACES_EXPORTER` sets it up, R records a span of each `evaluate`, `request` and `output` that it handles, from reading the message until it has sent the reply, with a span inside it for each phase of an evaluation: `expr`, `inputs`, `block_eval` and `result_summary`.
+  Where the blockr option `otel_client_endpoint` names a collector, the client records a span of each command, from `run()` until the store has applied its deltas, of each evaluation, request and output that it sends, until R replies, and of the page's start and each opening of a board, with a span for each step, and sends them to the collector's path `v1/traces`.
+  A request carries the context of the client's span of it in `traceparent`, so that R's span of it is a child of the client's, and the span of an evaluation links to the span of the command that changed the block's recipe.
+  The spans name the session by `session.id`, and so do R's log records that R writes while it handles a message of the session.
+  The page's import map names `@opentelemetry/api`, which core ships as a file of its own, so that the modules of packages record spans into the same traces, and the types of `@blockr/core` name it as their peer (#552).
 
 # blockr.core 0.1.4
 

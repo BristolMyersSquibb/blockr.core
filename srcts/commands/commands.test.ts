@@ -3,10 +3,12 @@
 // The command registry, on the board of a core app from the wire protocol's
 // fixtures.
 
+import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { describe, expect, test, vi } from "vitest";
 import type { Lock } from "../protocol/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
+import { recordSpans } from "../testing/spans.ts";
 import { openedStore, withPlugins } from "../testing/store.ts";
 import type { Json } from "../types/json.ts";
 import { CommandError, createCommands } from "./index.ts";
@@ -474,5 +476,48 @@ describe("planning", () => {
     expect(await commands.plan("test.pkg-rename_b", { name: "Top" })).toEqual([
       { blocks: { mod: { b: { edit: 99, name: "Top" } } } },
     ]);
+  });
+});
+
+describe("spans", () => {
+  test("record each command from run() until the store announces its deltas, under the span active at the call, and active while the store announces them", async () => {
+    const { store, commands } = await setup();
+    commands.register(renameB({ prepare: (_board, args) => Promise.resolve(args) }));
+    const recorded = recordSpans();
+    const tracer = trace.getTracer("blockr.test");
+    const announced: (string | undefined)[] = [];
+    store.subscribe(() => {
+      announced.push(trace.getActiveSpan()?.spanContext().spanId);
+    });
+
+    const tool = tracer.startSpan("execute_tool edit");
+    await context.with(trace.setSpan(context.active(), tool), () =>
+      commands.run("test.pkg-rename_b", { name: "Bee" }, "assistant"),
+    );
+    tool.end();
+
+    const span = recorded.span("command test.pkg-rename_b");
+    expect(span.parentSpanContext?.spanId).toBe(tool.spanContext().spanId);
+    expect(span.attributes).toEqual({ "blockr.command.id": "test.pkg-rename_b", "blockr.delta.origin": "assistant" });
+    expect(span.status.code).toBe(SpanStatusCode.UNSET);
+    // The command prepared before the store applied its delta, after an
+    // await, and the span was active as the store announced it all the same.
+    expect(announced).toEqual([span.spanContext().spanId]);
+    recorded.restore();
+  });
+
+  test("mark a command that is refused, or that fails, as failed", async () => {
+    const { commands } = await setup();
+    const recorded = recordSpans();
+
+    await expect(commands.run("test.pkg-nothing")).rejects.toBeInstanceOf(CommandError);
+
+    const span = recorded.span("command test.pkg-nothing");
+    expect(span.status).toEqual({
+      code: SpanStatusCode.ERROR,
+      message: 'The command "test.pkg-nothing" refused to run\n- No command "test.pkg-nothing" is registered.',
+    });
+    expect(span.attributes["blockr.delta.origin"]).toBe("user");
+    recorded.restore();
   });
 });
