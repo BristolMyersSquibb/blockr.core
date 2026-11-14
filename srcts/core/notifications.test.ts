@@ -567,10 +567,11 @@ describe("core's notifications", () => {
     s.stop();
   });
 
-  test("of an edit of the user that the command registry or the store refuses concern the board, whatever block the edit names, and the edit still rejects or throws", async () => {
+  test("of an edit of the user that the command registry or the store refuses concern the board, whatever block the edit names, and the edit still rejects or throws, with the reason logged at debug", async () => {
     const s = await stubCore();
     await s.settled();
     const unknownInput = { links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } };
+    const reported = logged();
 
     // A command that the command registry refuses, and a delta that the store
     // refuses.
@@ -599,6 +600,7 @@ describe("core's notifications", () => {
       s.core.store.redo();
     }).toThrow("The store refused to redo the step");
     await s.settled();
+    reported.restore();
 
     const refused = held(s.core, (n) => codeOf(n) === "edit_refused");
     expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual(
@@ -610,6 +612,9 @@ describe("core's notifications", () => {
       expect.stringMatching(/^The store refused to undo the step/),
       expect.stringMatching(/^The store refused to redo the step/),
     ]);
+    expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual(
+      refused.map((n) => ["debug", "blockr.core", n.message]),
+    );
     s.stop();
   });
 
@@ -633,7 +638,7 @@ describe("core's notifications", () => {
     s.stop();
   });
 
-  test("of an edit of another origin are none: the assistant's, whose tool hands the refusal to its model, and core's own, which puts the default of a board option on the board", async () => {
+  test("of an edit of another origin are none, and core logs no line of it: the assistant's, whose tool hands the refusal to its model, and core's own, which puts the default of a board option on the board", async () => {
     const reported = logged();
     const unfit: Option = { id: "unfit", label: "Unfit", category: "View options", schema: { type: "number" }, default: "big", ui: { render: () => undefined } };
     const needy: PluginClass = { id: "blockr.test-needy_plugin", options: ["unfit"], ui: pluginUi().ui };
@@ -644,12 +649,15 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
+    const quiet = logged();
     await expect(s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "assistant")).rejects.toThrow();
     expect(() => {
       s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant");
     }).toThrow();
+    quiet.restore();
 
     expect(held(s.core, (n) => codeOf(n) === "edit_refused")).toEqual([]);
+    expect(quiet.lines()).toEqual([]);
     // The store refused core's edit of the default, which core names as the
     // board option's failure alone.
     expect(held(s.core, (n) => codeOf(n) === "board_option_failed").map((n) => n.about)).toEqual([{ option: "unfit" }]);

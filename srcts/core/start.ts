@@ -497,15 +497,12 @@ export function start(options: StartOptions): Started {
           log.error(asError(again));
           throw failure;
         }
-        // Core tells the user why, as it does where the store on the page
-        // refuses the board (reopening(), below), and open() rejects.
-        raise(
-          coreNotification(
-            "board_open_failed",
-            "error",
-            `The board did not open, so core opened the board before it again: ${failure.message}`,
-          ),
-        );
+        // Core tells the user why, and logs why at debug alone, as it does
+        // where the store on the page refuses the board (reopening(), below),
+        // and open() rejects.
+        const why = `The board did not open, so core opened the board before it again: ${failure.message}`;
+        log.debug(why);
+        raise(coreNotification("board_open_failed", "error", why));
       }
     }
     if (dropped.length > 0) raise(droppedNotification(dropped));
@@ -702,8 +699,11 @@ export function start(options: StartOptions): Started {
     } catch (error) {
       // The board on the page stays open. Core tells the user why the store
       // refused the board, anew for each refusal, so that no caller of open()
-      // needs to. Then open() rejects with the reason.
-      current.notifications.raiseAgain(coreNotification("board_open_failed", "error", errorMessage(error)));
+      // needs to, and logs why at debug alone, as it logs a refused edit
+      // (./core.ts). Then open() rejects with the reason.
+      const why = errorMessage(error);
+      log.debug(why);
+      current.notifications.raiseAgain(coreNotification("board_open_failed", "error", why));
       throw error;
     }
     const before = current.store.save();

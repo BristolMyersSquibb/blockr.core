@@ -8128,7 +8128,10 @@ function createCore(parts) {
 }
 function refusing(store, commands, raiseAgain) {
   function refused2(origin, error) {
-    if ((origin ?? "user") === "user") raiseAgain(coreNotification("edit_refused", "error", errorMessage(error)));
+    if ((origin ?? "user") !== "user") return;
+    const why = errorMessage(error);
+    log.debug(why);
+    raiseAgain(coreNotification("edit_refused", "error", why));
   }
   function edit(origin, fn) {
     try {
@@ -9619,13 +9622,9 @@ function start(options) {
           log.error(asError(again));
           throw failure;
         }
-        raise(
-          coreNotification(
-            "board_open_failed",
-            "error",
-            `The board did not open, so core opened the board before it again: ${failure.message}`
-          )
-        );
+        const why = `The board did not open, so core opened the board before it again: ${failure.message}`;
+        log.debug(why);
+        raise(coreNotification("board_open_failed", "error", why));
       }
     }
     if (dropped.length > 0) raise(droppedNotification(dropped));
@@ -9772,7 +9771,9 @@ function start(options) {
     try {
       await current2.store.check(text);
     } catch (error) {
-      current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", errorMessage(error)));
+      const why = errorMessage(error);
+      log.debug(why);
+      current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", why));
       throw error;
     }
     const before = current2.store.save();

@@ -841,7 +841,7 @@ describe("a board opened later", () => {
     expect(currentLogging()).toBe(before);
   });
 
-  test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason, which core tells the user", async () => {
+  test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason, which core tells the user and logs at debug", async () => {
     const basic = frontEnd();
     // The app runs a plugin of a class whose state must hold a zoom, as R's
     // board does.
@@ -855,6 +855,7 @@ describe("a board opened later", () => {
       withPlugins({ "test.pkg-strict_plugin": { name: "Strict", state: { zoom: 1 } } }),
     );
     const sent = s.r.sent.length;
+    const reported = logged();
 
     await expect(s.core.store.open("{")).rejects.toThrow("The store refused to open the board\n- The text holds no JSON");
     const strict = JSON.stringify({
@@ -870,6 +871,7 @@ describe("a board opened later", () => {
       heard.push(all.filter((n) => codeOf(n) === "board_open_failed").map((n) => n.message));
     });
     await expect(s.core.store.open("{")).rejects.toThrow("The store refused to open the board\n- The text holds no JSON");
+    reported.restore();
 
     expect(s.r.sent.slice(sent)).toEqual([]);
     expect(basic.renders).toHaveLength(1);
@@ -889,6 +891,10 @@ describe("a board opened later", () => {
       expect.stringMatching(/^The store refused to open the board\n- The text holds no JSON/),
     ]);
     expect(heard.map((messages) => messages.length)).toEqual([2, 3]);
+    // Core logs each refusal at debug, in the order the boards came.
+    expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual(
+      [failed[2], failed[0], failed[1], failed[2]].map((n) => ["debug", "blockr.core", n?.message]),
+    );
     s.core.store.apply({ name: "Still open" });
     expect(s.core.store.board().name).toBe("Still open");
   });
@@ -1052,7 +1058,7 @@ describe("a board opened later", () => {
     expect(s.r.kinds().filter((kind) => kind === "hello")).toHaveLength(2);
   });
 
-  test("that fails to open after all opens the board before in the new store, and open() rejects with the reason", async () => {
+  test("that fails to open after all opens the board before in the new store, and open() rejects with the reason, which core tells the user and logs at debug", async () => {
     // A plugin class whose module the first session serves with a schema that
     // a zoom of any kind fits, and the next, as after R restarts with the
     // package rebuilt, with one that only a number fits, so that the board
@@ -1094,6 +1100,7 @@ describe("a board opened later", () => {
     expect(failed[0]?.message).toMatch(
       /^The board did not open, so core opened the board before it again: .*The state of the plugin "blockr\.strict-zoom_plugin"/s,
     );
+    expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual([["debug", "blockr.core", failed[0]?.message]]);
   });
 
   test("migrates a block's state by the migrate that its class's UI module exports, which core imports before the board opens", async () => {

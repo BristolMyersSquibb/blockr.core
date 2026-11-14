@@ -539,6 +539,7 @@
   An edit of another origin only rejects or throws, as the assistant's, whose tool hands the refusal to its model.
   A refused `submit()` of a block's or a board option's UI module only rejects, since the module says why, as core's inputs do below themselves.
   Where the store refuses a board that `open()` is given, core raises `board_open_failed`, which concerns the board, and `open()` still rejects with the reason.
+  Core logs each of these refusals at debug, since the call hands the reason to its caller.
   Core raises a refusal anew each time it comes again, so that a frontend that has shown it shows it again (#616).
 
 # blockr.core 0.1.4

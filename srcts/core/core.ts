@@ -273,6 +273,8 @@ export function createCore(parts: CoreParts): Core {
 //   deltas through the store. So core raises each refusal once.
 // - Core raises the same refusal anew each time, so that a frontend that has
 //   shown it shows it again.
+// - Core logs the reason at debug alone, since the call hands it to its
+//   caller.
 // - An edit of another origin only rejects or throws. The assistant's edit
 //   tool hands each refusal to its model, which edits again
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.4.2#how-failures-reach-the-model).
@@ -281,7 +283,10 @@ export function createCore(parts: CoreParts): Core {
 //   (../mount/block.ts).
 function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAgain"]): { store: Store; commands: Commands } {
   function refused(origin: Origin | undefined, error: unknown): void {
-    if ((origin ?? "user") === "user") raiseAgain(coreNotification("edit_refused", "error", errorMessage(error)));
+    if ((origin ?? "user") !== "user") return;
+    const why = errorMessage(error);
+    log.debug(why);
+    raiseAgain(coreNotification("edit_refused", "error", why));
   }
   // Makes an edit through the store, and tells the user why the store refused
   // it.
