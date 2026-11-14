@@ -7382,17 +7382,20 @@ function createStore(options = {}) {
       else edits.delete(key2);
     }
   }
+  function runOnBoard(deltas) {
+    const refused2 = "The store rejected the delta";
+    const start2 = current2(refused2);
+    const failures = named3(deltas);
+    if (failures.length > 0) throw new StoreError(refused2, failures);
+    return { start: start2, ...run(start2, deltas, {}, refused2) };
+  }
   function apply(delta, origin = "user", opts = {}) {
     guard2();
     const deltas = isDeltas(delta) ? delta : [delta];
     if (deltas.length === 0) return;
     busy = true;
     try {
-      const refused2 = "The store rejected the delta";
-      const start2 = current2(refused2);
-      const failures = named3(deltas);
-      if (failures.length > 0) throw new StoreError(refused2, failures);
-      const { applied, inverses } = run(start2, deltas, {}, refused2);
+      const { start: start2, applied, inverses } = runOnBoard(deltas);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start2);
       if (inverses.length > 0 && opts.undo !== false) {
@@ -7404,6 +7407,17 @@ function createStore(options = {}) {
       }
     } finally {
       busy = false;
+    }
+  }
+  function dryRun(delta) {
+    const deltas = isDeltas(delta) ? delta : [delta];
+    const was = busy;
+    busy = true;
+    try {
+      const { start: start2, applied } = runOnBoard(deltas);
+      return applied.at(-1)?.board ?? start2;
+    } finally {
+      busy = was;
     }
   }
   function revert(back, origin) {
@@ -7575,6 +7589,7 @@ function createStore(options = {}) {
       };
     },
     apply,
+    dryRun,
     open,
     check: checkText,
     undo: (origin) => {
@@ -8678,15 +8693,25 @@ function command(def) {
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
   failures;
+  // The command's place in the list that run() or plan() was given, counted
+  // from 0, where the command refused as one of a list.
+  index;
+  // False where the command's enabled() returned false, and left out
+  // otherwise, as a command's `undo` is false only where it takes no undo
+  // step. The assistant's edit tool reads it to tell the model what to check.
+  enabled;
   constructor(message, failures, options) {
     super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
     this.name = "CommandError";
     this.failures = failures;
+    if (options?.index !== void 0) this.index = options.index;
+    if (options?.enabled === false) this.enabled = false;
   }
 };
-function refusal(id2, failures) {
-  return new CommandError(`The command "${id2}" refused to run`, failures);
+function refusal(id2, failures, options) {
+  return new CommandError(`The command "${id2}" refused to run`, failures, options);
 }
+var DROPPED = "A board opened while it prepared, which drops it.";
 function createCommands(store, options = {}) {
   const commands = y(/* @__PURE__ */ new Map());
   const registered = O(
@@ -8749,9 +8774,11 @@ function createCommands(store, options = {}) {
   function allow(command2, board, args) {
     const enabled = attempt2(command2, () => command2.enabled?.(board, args, context) ?? true);
     if (!enabled) {
-      throw refusal(command2.id, [
-        `It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`
-      ]);
+      throw refusal(
+        command2.id,
+        [`It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`],
+        { enabled: false }
+      );
     }
   }
   function build(command2, board, args) {
@@ -8766,18 +8793,67 @@ function createCommands(store, options = {}) {
     return prepared(command2, board, args);
   }
   async function prepared(command2, board, args) {
-    let input2;
-    try {
-      input2 = await command2.prepare?.(board, args, context);
-    } catch (error) {
-      throw failed(command2, error);
-    }
-    if (ended()) {
-      throw refusal(command2.id, ["A board opened while it prepared, which drops it."]);
-    }
+    const input2 = await prepare(command2, board, args);
+    if (ended()) throw refusal(command2.id, [DROPPED]);
     const now = current2(command2.id);
     allow(command2, now, args);
     return build(command2, now, input2);
+  }
+  async function prepare(command2, board, args) {
+    try {
+      return await command2.prepare?.(board, args, context);
+    } catch (error) {
+      throw failed(command2, error);
+    }
+  }
+  async function planned(list, then) {
+    const checked2 = list.map(({ id: id2, args }, index) => {
+      try {
+        return lookup(id2, args);
+      } catch (error) {
+        throw inList(index, id2, error);
+      }
+    });
+    const [first] = checked2;
+    if (first === void 0) return then([], []);
+    const inputs = /* @__PURE__ */ new Map();
+    let built = [];
+    let again = true;
+    while (again) {
+      again = false;
+      built = [];
+      let start2;
+      try {
+        start2 = current2(first.command.id);
+      } catch (error) {
+        throw inList(0, first.command.id, error);
+      }
+      let board = start2;
+      for (const [index, { command: command2, args }] of checked2.entries()) {
+        try {
+          allow(command2, board, args);
+          if (command2.prepare !== void 0 && !inputs.has(index)) {
+            inputs.set(index, await prepare(command2, board, args));
+            if (ended()) throw refusal(command2.id, [DROPPED]);
+            if (store.board() !== start2) {
+              again = true;
+              break;
+            }
+          }
+          built.push(...build(command2, board, inputs.has(index) ? inputs.get(index) : args));
+          board = store.dryRun(built);
+        } catch (error) {
+          throw inList(index, command2.id, error);
+        }
+      }
+    }
+    return then(built, checked2.map(({ command: command2 }) => command2));
+  }
+  function runList(list, origin) {
+    return planned(list, (built, listed) => {
+      const undo = listed.every((command2) => command2.undo === false) ? false : void 0;
+      store.apply(built, origin, { undo });
+    });
   }
   function withEdits(delta) {
     const blocks = delta.blocks?.mod;
@@ -8817,13 +8893,16 @@ function createCommands(store, options = {}) {
         return false;
       }
     },
-    async run(id2, given, origin = "user") {
-      const { command: command2, args } = lookup(id2, given);
+    // A list comes with its origin second, in place of the args.
+    async run(target2, given, origin = "user") {
+      if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
+      const { command: command2, args } = lookup(target2, given);
       const step2 = deltas(command2, args);
       store.apply(Array.isArray(step2) ? step2 : await step2, origin, { undo: command2.undo });
     },
-    async plan(id2, given) {
-      const { command: command2, args } = lookup(id2, given);
+    async plan(target2, given) {
+      if (typeof target2 !== "string") return planned(target2, (built) => built);
+      const { command: command2, args } = lookup(target2, given);
       return deltas(command2, args);
     }
   };
@@ -8839,6 +8918,14 @@ function asRandId(randId) {
 function isCommandId(id2) {
   const pkg = packageFromId(id2);
   return pkg !== null && id2.length > pkg.length + 1;
+}
+function inList(index, id2, error) {
+  const named3 = error instanceof CommandError || error instanceof StoreError;
+  return new CommandError(
+    `The list of commands was refused at command ${String(index + 1)}, "${id2}"`,
+    named3 ? error.failures : [errorMessage(error)],
+    { cause: error, index, enabled: error instanceof CommandError ? error.enabled : void 0 }
+  );
 }
 function failed(command2, error) {
   if (error instanceof CommandError) return error;

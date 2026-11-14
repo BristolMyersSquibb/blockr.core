@@ -8,6 +8,7 @@ import type { Lock } from "../protocol/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
 import { openedStore, withPlugins } from "../testing/store.ts";
+import type { Board } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import { CommandError, createCommands } from "./index.ts";
 import type { Command, Commands } from "./index.ts";
@@ -55,6 +56,44 @@ const placed: PluginClass = {
     default: { positions: {} },
   },
 };
+
+// A command of another package that names block "b" after the board, which
+// reads the board that it is planned on.
+function nameB(run = vi.fn((board: Board) => ({ blocks: { mod: { b: { name: board.name } } } }))): Command {
+  return { id: "test.pkg-name_b", label: "Name b after the board", run };
+}
+
+// A command of another package that renames the board once its prepare()
+// resolves with what to add to the board's name.
+function later(prepare: () => Promise<string>): Command<Json, string> {
+  return {
+    id: "test.pkg-later",
+    label: "Later",
+    prepare,
+    run: (board, suffix) => ({ name: `${board.name}${suffix}` }),
+  };
+}
+
+// What a promise rejects with, which has to be a CommandError.
+async function rejection(promise: Promise<unknown>): Promise<CommandError> {
+  const error: unknown = await promise.then(
+    () => undefined,
+    (reason: unknown) => reason,
+  );
+  if (!(error instanceof CommandError)) {
+    throw new Error(`Expected a CommandError, but got ${String(error)}.`);
+  }
+  return error;
+}
+
+// The origins of the changes that the store announces from now on.
+function origins(store: Store): string[] {
+  const seen: string[] = [];
+  store.subscribe((change) => {
+    if ("delta" in change) seen.push(change.origin);
+  });
+  return seen;
+}
 
 const move: Command<{ readonly id: string; readonly x: number }> = {
   id: "test.pkg-move",
@@ -213,6 +252,13 @@ describe("running a command", () => {
       'It is not enabled on the board as it is, with the args {"id":"zz"}.',
     );
     expect(store.board()).toBe(board);
+
+    // Its CommandError says that its enabled() refused it, and has no index,
+    // since the command ran alone.
+    const error = await rejection(commands.run("blockr.core-remove_block", { id: "zz" }));
+    expect([error.enabled, error.index]).toEqual([false, undefined]);
+    const failed = await rejection(commands.run("blockr.core-rename_board", { name: 1 }));
+    expect(failed.enabled).toBeUndefined();
   });
 
   test("rejects with what the store refused, having changed nothing", async () => {
@@ -474,5 +520,315 @@ describe("planning", () => {
     expect(await commands.plan("test.pkg-rename_b", { name: "Top" })).toEqual([
       { blocks: { mod: { b: { edit: 99, name: "Top" } } } },
     ]);
+  });
+});
+
+describe("running a list", () => {
+  test("applies the commands in order as one step of the origin, each planned on the board that those before it leave, which one undo takes back", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+    const seen = origins(store);
+    // Alone, the link is not enabled, since the board lacks block "g".
+    expect(commands.enabled("blockr.core-add_link", { from: "d", to: "g" })).toBe(false);
+
+    await commands.run(
+      [
+        { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "g" } },
+        { id: "blockr.core-add_link", args: { from: "d", to: "g", id: "dg" } },
+        { id: "blockr.core-rename_block", args: { id: "g", name: "Top" } },
+      ],
+      "assistant",
+    );
+
+    expect(store.board().blocks.g?.name).toBe("Top");
+    expect(store.board().links.dg).toEqual({ from: "d", to: "g", input: "data" });
+    expect(seen).toEqual(["assistant", "assistant", "assistant"]);
+    expect(store.canUndo("user")).toBe(false);
+    store.undo("assistant");
+    expect(store.board()).toEqual(board);
+    expect(store.canUndo("assistant")).toBe(false);
+  });
+
+  test("applies a list whose commands do not prepare before run() returns", async () => {
+    const { store, commands } = await setup();
+
+    const done = commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }]);
+    expect(store.board().name).toBe("Sepals");
+    await done;
+  });
+
+  test("takes no undo step where every command of the list has undo: false, and one where any lacks it", async () => {
+    const { store, commands } = await setup();
+    commands.register(renameB({ undo: false }));
+
+    await commands.run([
+      { id: "test.pkg-rename_b", args: { name: "One" } },
+      { id: "test.pkg-rename_b", args: { name: "Two" } },
+    ]);
+    expect(store.board().blocks.b?.name).toBe("Two");
+    expect(store.canUndo()).toBe(false);
+
+    await commands.run([
+      { id: "test.pkg-rename_b", args: { name: "Three" } },
+      { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+    ]);
+    expect(store.canUndo()).toBe(true);
+    store.undo();
+    expect(store.board().name).toBe("Iris review");
+    expect(store.board().blocks.b?.name).toBe("Two");
+  });
+
+  test("applies nothing for no commands", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+
+    await commands.run([], "assistant");
+    expect(store.board()).toBe(board);
+    expect(store.canUndo("assistant")).toBe(false);
+  });
+});
+
+describe("refusing a list", () => {
+  test("applies none of it where a command is not enabled, and rejects with the command's index and that its enabled() refused it", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+    const seen = origins(store);
+
+    const error = await rejection(
+      commands.run(
+        [
+          { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+          { id: "blockr.core-remove_block", args: { id: "zz" } },
+        ],
+        "assistant",
+      ),
+    );
+
+    expect(error.message).toBe(
+      'The list of commands was refused at command 2, "blockr.core-remove_block"\n- It is not enabled on the board as it is, with the args {"id":"zz"}.',
+    );
+    expect([error.index, error.enabled]).toEqual([1, false]);
+    expect(error.failures).toEqual(['It is not enabled on the board as it is, with the args {"id":"zz"}.']);
+    expect(error.cause).toBeInstanceOf(CommandError);
+    expect(store.board()).toBe(board);
+    expect(store.canUndo("assistant")).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  test("checks the args of every command against its schema before it plans any", async () => {
+    const { commands } = await setup();
+    const prepare = vi.fn(() => Promise.resolve("!"));
+    commands.register(later(prepare));
+
+    const error = await rejection(
+      commands.run([{ id: "test.pkg-later" }, { id: "blockr.core-rename_board", args: { name: 1 } }]),
+    );
+    expect(error.index).toBe(1);
+    expect(error.enabled).toBeUndefined();
+    expect(error.failures).toEqual([expect.stringMatching(/^The args fail their schema at \/name:/)]);
+    expect(prepare).not.toHaveBeenCalled();
+
+    const missing = await rejection(commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "test.pkg-nothing" }]));
+    expect(missing.index).toBe(1);
+    expect(missing.failures).toEqual(['No command "test.pkg-nothing" is registered.']);
+  });
+
+  test("rejects with the failures with which the store refused a command's deltas, and with its StoreError as the cause", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+
+    const error = await rejection(
+      commands.run([
+        { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+        { id: "blockr.core-add_link", args: { from: "e", to: "e" } },
+        { id: "blockr.core-rename_block", args: { id: "b", name: "Top" } },
+      ]),
+    );
+
+    expect(error.index).toBe(1);
+    expect(error.enabled).toBeUndefined();
+    expect(error.cause).toBeInstanceOf(StoreError);
+    expect(error.failures).toEqual([expect.stringContaining('The links form a cycle through the blocks "e".')]);
+    expect(store.board()).toBe(board);
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("rejects with what a command's own code threw, naming the command", async () => {
+    const { commands } = await setup();
+    commands.register(
+      renameB({
+        run: () => {
+          throw new Error("No layout.");
+        },
+      }),
+    );
+
+    const error = await rejection(commands.run([{ id: "test.pkg-rename_b", args: { name: "Top" } }]));
+    expect(error.index).toBe(0);
+    expect(error.failures).toEqual(["No layout."]);
+    expect(String(error.cause)).toContain('The command "test.pkg-rename_b" failed');
+  });
+
+  test("refuses a list at its first command before the store opens a board", async () => {
+    const commands = createCommands(createStore());
+
+    const error = await rejection(commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }]));
+    expect(error.index).toBe(0);
+    expect(error.failures).toEqual(["The store holds no board until it opens one."]);
+  });
+});
+
+describe("a list with a command that prepares", () => {
+  test("prepares the command on the board that the commands before it leave, and plans those after it on the board that it leaves", async () => {
+    const { store, commands } = await setup();
+    const ready = Promise.withResolvers<string>();
+    const read: string[][] = [];
+    commands.register<Json, string>({
+      id: "test.pkg-later",
+      label: "Later",
+      prepare(board) {
+        read.push(Object.keys(board.blocks));
+        return ready.promise;
+      },
+      run: (_board, name) => ({ blocks: { mod: { g: { name } } } }),
+    });
+    const run = vi.fn((board: Board) => ({ blocks: { mod: { b: { name: board.blocks.g?.name ?? "" } } } }));
+    commands.register(nameB(run));
+
+    const done = commands.run([
+      { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "g" } },
+      { id: "test.pkg-later" },
+      { id: "test.pkg-name_b" },
+    ]);
+    expect(store.board().blocks.g).toBeUndefined();
+    ready.resolve("Later");
+    await done;
+
+    expect(read).toEqual([["a", "b", "c", "d", "e", "f", "g"]]);
+    expect(store.board().blocks.g?.name).toBe("Later");
+    expect(store.board().blocks.b?.name).toBe("Later");
+    // The board did not change while the command prepared, so the registry
+    // planned the list once.
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  test("plans the list again from its first command where the board changes while a command prepares, with what each prepare() gave", async () => {
+    const { store, commands } = await setup();
+    const ready = Promise.withResolvers<string>();
+    const prepare = vi.fn(() => ready.promise);
+    commands.register(nameB());
+    commands.register(later(prepare));
+
+    const done = commands.run([{ id: "test.pkg-name_b" }, { id: "test.pkg-later" }], "assistant");
+    store.apply({ name: "Sepals" });
+    ready.resolve("!");
+    await done;
+
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(store.board().blocks.b?.name).toBe("Sepals");
+    expect(store.board().name).toBe("Sepals!");
+    store.undo("assistant");
+    expect(store.board().name).toBe("Sepals");
+    expect(store.board().blocks.b?.name).toBe("Head");
+  });
+
+  test("checks each command again with its enabled() as it plans the list again", async () => {
+    const { store, commands } = await setup();
+    const ready = Promise.withResolvers<string>();
+    commands.register(later(() => ready.promise));
+
+    const done = commands.run([
+      { id: "blockr.core-rename_block", args: { id: "c", name: "Joined" } },
+      { id: "test.pkg-later" },
+    ]);
+    store.apply({ blocks: { rm: ["c"] } });
+    const board = store.board();
+    ready.resolve("!");
+
+    const error = await rejection(done);
+    expect([error.index, error.enabled]).toEqual([0, false]);
+    expect(store.board()).toBe(board);
+  });
+
+  test("drops the list where another board opens while a command prepares, applying none of it", async () => {
+    const store = await openedStore();
+    const controller = new AbortController();
+    const commands = createCommands(store, { signal: controller.signal });
+    const ready = Promise.withResolvers<string>();
+    commands.register(later(() => ready.promise));
+
+    const done = commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "test.pkg-later" }]);
+    controller.abort();
+    ready.resolve("!");
+
+    const error = await rejection(done);
+    expect(error.index).toBe(1);
+    expect(error.failures).toEqual(["A board opened while it prepared, which drops it."]);
+    expect(store.board().name).toBe("Iris review");
+  });
+
+  test("names the command where its prepare() rejects", async () => {
+    const { commands } = await setup();
+    commands.register(later(() => Promise.reject(new Error("No layout."))));
+
+    const error = await rejection(commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "test.pkg-later" }]));
+    expect(error.index).toBe(1);
+    expect(error.failures).toEqual(["No layout."]);
+    expect(String(error.cause)).toContain('The command "test.pkg-later" failed');
+  });
+});
+
+describe("planning a list", () => {
+  test("returns the deltas of the commands in order without applying them, with the edit ids of the board it was planned on, and none for a block that an earlier command adds", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+    const b = store.editId({ block: "b" });
+
+    const planned = await commands.plan([
+      { id: "blockr.core-set_block", args: { id: "b", state: { n: 7 } } },
+      { id: "blockr.core-rename_block", args: { id: "b", name: "Top" } },
+      { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "g" } },
+      { id: "blockr.core-set_block", args: { id: "g", state: { n: 3 } } },
+    ]);
+
+    expect(planned).toEqual([
+      { blocks: { mod: { b: { edit: b, state: { n: 7 } } } } },
+      { blocks: { mod: { b: { edit: b, name: "Top" } } } },
+      { blocks: { add: { g: expect.objectContaining({ registry_id: "blockr.core-head_block" }) as unknown } } },
+      { blocks: { mod: { g: { state: { n: 3 } } } } },
+    ]);
+    expect(store.board()).toBe(board);
+    expect(store.canUndo()).toBe(false);
+
+    store.apply(planned, "assistant");
+    expect(store.board().blocks.b).toMatchObject({ state: { n: 7 }, name: "Top" });
+    expect(store.board().blocks.g?.state).toMatchObject({ n: 3 });
+  });
+
+  test("leaves the store to refuse a planned list once another edit came first", async () => {
+    const { store, commands } = await setup();
+
+    const planned = await commands.plan([
+      { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+      { id: "blockr.core-set_block", args: { id: "b", state: { n: 10 } } },
+    ]);
+    await commands.run("blockr.core-set_block", { id: "b", state: { n: 20 } });
+
+    expect(() => {
+      store.apply(planned, "assistant");
+    }).toThrow(/The delta was built on edit \d+ of block "b", which another edit has replaced/);
+  });
+
+  test("refuses as running the list would, and plans no deltas for no commands", async () => {
+    const { commands } = await setup();
+
+    const error = await rejection(
+      commands.plan([
+        { id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "g" } },
+        { id: "blockr.core-add_link", args: { from: "zz", to: "g" } },
+      ]),
+    );
+    expect([error.index, error.enabled]).toEqual([1, false]);
+    expect(await commands.plan([])).toEqual([]);
   });
 });
