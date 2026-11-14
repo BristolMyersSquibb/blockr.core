@@ -5,8 +5,7 @@
 // about the block.
 // - The toasts sit in the window's bottom right corner, one above the other,
 //   in the order that their notifications came. The first line of each names
-//   what its notification concerns, with the package that its source names
-//   for it (packageShown(), below).
+//   what its notification concerns, with the package that its source names.
 // - A message's toast fades after five seconds, but not while the pointer
 //   rests on it or the keyboard's focus is in it. Its five seconds start again
 //   once neither is. A warning's or an error's toast stays until the user
@@ -24,7 +23,7 @@
 import { useSyncExternalStore } from "react";
 import type { Board } from "../../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../../types/core-api.ts";
-import { jsonEqual, own } from "../../util/index.ts";
+import { own } from "../../util/index.ts";
 
 // How long a message's toast shows before it fades, and how long it takes to
 // fade, in milliseconds.
@@ -232,17 +231,12 @@ export function concerned(
   return link === undefined ? `Link "${about.link}"` : `Link from ${block(link.from)} to ${block(link.to)}`;
 }
 
-// The package that a toast names beside what its notification concerns, if
-// any: for one of core's, the package whose module failed, and for a module's,
-// the package whose module raised it. A module that raises a notification
-// about another board object than its own, as the frontend does about the
-// storage plugin whose button failed, may be of another package than that
-// object, so the toast names none there.
-export function packageShown(notification: Notification): string | undefined {
-  const { source, about } = notification;
-  if (source.kind === "r") return undefined;
-  if (source.kind === "core" || about === undefined || jsonEqual(about, source.object)) return source.package;
-  return undefined;
+// The package that the notification's source names, if any: for one of
+// core's, the package whose module failed, and for a module's, the package
+// whose module raised it.
+export function sourcePackage(notification: Notification): string | undefined {
+  const { source } = notification;
+  return source.kind === "r" ? undefined : source.package;
 }
 
 // Whether the notification is core's request to reload the page, whose toast

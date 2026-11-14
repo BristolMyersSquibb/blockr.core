@@ -11005,11 +11005,9 @@ function concerned(about, core, board) {
   const link = own(board.links, about.link);
   return link === void 0 ? `Link "${about.link}"` : `Link from ${block(link.from)} to ${block(link.to)}`;
 }
-function packageShown(notification) {
-  const { source, about } = notification;
-  if (source.kind === "r") return void 0;
-  if (source.kind === "core" || about === void 0 || jsonEqual(about, source.object)) return source.package;
-  return void 0;
+function sourcePackage(notification) {
+  const { source } = notification;
+  return source.kind === "r" ? void 0 : source.package;
 }
 function isReload(notification) {
   return notification.source.kind === "core" && notification.source.code === "page_reload_needed";
@@ -11022,10 +11020,11 @@ import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as use
 var KINDS2 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
 function drawnControls(core) {
   const storage = core.plugins.storage();
-  if (storage === void 0) return void 0;
+  const plugin = storage === void 0 ? void 0 : Object.keys(core.plugins.appPlugins()).find((id2) => core.plugins.pluginClass(id2).storage === storage);
+  if (storage === void 0 || plugin === void 0) return void 0;
   try {
     const twice = /* @__PURE__ */ new Set();
-    const controls = distinct(storage.controls({ core }), twice);
+    const controls = distinct(storage.controls({ core, plugin }), twice);
     return {
       controls: [...controls.filter((c2) => c2.placement !== "end"), ...controls.filter((c2) => c2.placement === "end")],
       failed: false,
@@ -11042,23 +11041,12 @@ function buttonsOf(controls) {
     return [];
   });
 }
-async function runButton(front, button) {
+async function runButton(button) {
   try {
     await button.run();
   } catch (error) {
-    const storage = storagePlugin(front.core);
-    front.core.notifications.notify(front.plugin, {
-      severity: "error",
-      code: "storage_control_failed",
-      message: errorMessage(error),
-      ...storage === void 0 ? {} : { about: { plugin: storage } }
-    });
+    report(error);
   }
-}
-function storagePlugin(core) {
-  const storage = core.plugins.storage();
-  if (storage === void 0) return void 0;
-  return Object.keys(core.plugins.appPlugins()).find((id2) => core.plugins.pluginClass(id2).storage === storage);
 }
 function distinct(list, twice) {
   const seen = /* @__PURE__ */ new Set();
@@ -11096,7 +11084,7 @@ function bindShortcuts(doc, front) {
     );
     if (button === void 0) return;
     event.preventDefault();
-    if (!event.repeat) void runButton(front, button);
+    if (!event.repeat) void runButton(button);
   }
   doc.addEventListener("keydown", onKey);
   return () => {
@@ -11268,7 +11256,6 @@ function StorageButton({
   role,
   before
 }) {
-  const front = useFrontEnd();
   return /* @__PURE__ */ jsx12(
     "button",
     {
@@ -11280,7 +11267,7 @@ function StorageButton({
       "aria-keyshortcuts": ariaShortcuts(button.shortcut),
       onClick: () => {
         before?.();
-        void runButton(front, button);
+        void runButton(button);
       },
       children: button.label
     }
@@ -11423,7 +11410,7 @@ function ToastItem({ toast, title }) {
   const { notification, fading } = toast;
   const { id: id2, severity } = notification;
   const mark = MARKS[severity];
-  const pkg = packageShown(notification);
+  const pkg = sourcePackage(notification);
   useEffect3(
     () => () => {
       toasts.release(id2, "pointer");
@@ -12333,7 +12320,7 @@ var edit_board_default = {
 // srcts/storage/storage.ts
 function coreStorage(doc) {
   return {
-    controls({ core }) {
+    controls({ core, plugin }) {
       const save = {
         kind: "button",
         id: "save",
@@ -12344,7 +12331,7 @@ function coreStorage(doc) {
         kind: "button",
         id: "open",
         label: "Open",
-        run: () => openBoard(core, doc ?? document)
+        run: () => openBoard(core, plugin, doc ?? document)
       };
       return core.lock.load ? [save] : [save, open];
     }
@@ -12358,9 +12345,13 @@ function saveBoard(core, doc) {
     return Promise.reject(asError(error));
   }
 }
-async function openBoard(core, doc) {
-  const text = await pickFile(doc);
-  if (text !== null) await core.store.open(text);
+async function openBoard(core, plugin, doc) {
+  try {
+    const text = await pickFile(doc);
+    if (text !== null) await core.store.open(text);
+  } catch (error) {
+    core.notifications.notify(plugin, { severity: "error", code: "board_open_failed", message: errorMessage(error) });
+  }
 }
 function fileName(board, now = /* @__PURE__ */ new Date()) {
   const two = (n2) => String(n2).padStart(2, "0");

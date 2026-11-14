@@ -27,7 +27,7 @@ import type { FrontEnd } from "./context.ts";
 import { layoutItems } from "./layout.ts";
 import { OptionsDialog } from "./options.tsx";
 import { Plugins } from "./plugins.tsx";
-import { concerned, isReload, packageShown, useShownIn, useToasts } from "./toasts.ts";
+import { concerned, isReload, sourcePackage, useShownIn, useToasts } from "./toasts.ts";
 import type { Toast } from "./toasts.ts";
 import { Toolbar } from "./toolbar.tsx";
 import { Dialog } from "./ui.tsx";
@@ -149,8 +149,8 @@ function Toasts(): ReactElement | null {
 }
 
 // A toast, in the colour of its notification's severity: what it concerns,
-// with the package that its source names for it, its message, and a button
-// that closes it. Where core asks for the page to be reloaded, it also offers
+// with the package that its source names, its message, and a button that
+// closes it. Where core asks for the page to be reloaded, it also offers
 // to reload it.
 // A toast that moves between the page and a dialog is drawn anew, and the
 // browser may send its old element no blur and no pointerleave as it goes. So
@@ -160,7 +160,7 @@ function ToastItem({ toast, title }: { toast: Toast; title: string }): ReactElem
   const { notification, fading } = toast;
   const { id, severity } = notification;
   const mark = MARKS[severity];
-  const pkg = packageShown(notification);
+  const pkg = sourcePackage(notification);
   useEffect(
     () => () => {
       toasts.release(id, "pointer");

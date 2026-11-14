@@ -190,7 +190,6 @@ function StorageButton({
   role?: "menuitem";
   before?: () => void;
 }): ReactElement {
-  const front = useFrontEnd();
   return (
     <button
       type="button"
@@ -201,7 +200,7 @@ function StorageButton({
       aria-keyshortcuts={ariaShortcuts(button.shortcut)}
       onClick={() => {
         before?.();
-        void runButton(front, button);
+        void runButton(button);
       }}
     >
       {button.label}

@@ -27,6 +27,7 @@ export interface PluginClass {
 export interface Storage {
     controls(args: {
         readonly core: CoreApi;
+        readonly plugin: PluginClassId;
     }): readonly StorageControl[];
     subscribe?(listener: () => void): () => void;
     load?(args: {

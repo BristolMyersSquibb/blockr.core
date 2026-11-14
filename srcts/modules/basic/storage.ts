@@ -5,7 +5,8 @@
 // The frontend reads them afresh as it draws the toolbar and as the user
 // presses a key, so that it draws and runs what controls() gives at that
 // moment:
-// 1. It calls controls() with its CoreApi.
+// 1. It calls controls() with its CoreApi and the id of the storage plugin's
+//    class.
 // 2. Of the controls of one list that share an id, it keeps the first, since
 //    it keys each control by its id.
 // 3. It leaves out a control of a kind that it does not know.
@@ -17,10 +18,8 @@
 // throws (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.2.5#notes-for-implementers).
 
 import type { StorageControl } from "../../store/index.ts";
-import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { errorMessage, quoted } from "../../util/index.ts";
-import type { FrontEnd } from "./context.ts";
+import { errorMessage, quoted, report } from "../../util/index.ts";
 
 export type Button = Extract<StorageControl, { kind: "button" }>;
 
@@ -41,10 +40,15 @@ const KINDS: ReadonlySet<string> = new Set(["button", "menu", "status"]);
 // or undefined where the app runs no storage plugin.
 export function drawnControls(core: CoreApi): Drawn | undefined {
   const storage = core.plugins.storage();
-  if (storage === undefined) return undefined;
+  // The app's storage plugin, whose class gives that storage.
+  const plugin =
+    storage === undefined
+      ? undefined
+      : Object.keys(core.plugins.appPlugins()).find((id) => core.plugins.pluginClass(id).storage === storage);
+  if (storage === undefined || plugin === undefined) return undefined;
   try {
     const twice = new Set<string>();
-    const controls = distinct(storage.controls({ core }), twice);
+    const controls = distinct(storage.controls({ core, plugin }), twice);
     return {
       controls: [...controls.filter((c) => c.placement !== "end"), ...controls.filter((c) => c.placement === "end")],
       failed: false,
@@ -69,31 +73,15 @@ export function buttonsOf(controls: readonly StorageControl[]): Button[] {
 
 // Runs the button. It calls run() before it awaits anything, so that run()
 // still acts within the user's click or key press, as a browser's file picker
-// needs. Where run() rejects, the frontend tells the user why through a
-// notification, as Plugins has it
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#storage):
-// an error of the code `storage_control_failed`, which concerns the app's
-// storage plugin, whose button it is, so that its toast names that plugin.
-export async function runButton(front: Pick<FrontEnd, "core" | "plugin">, button: Button): Promise<void> {
+// needs. The storage plugin tells the user why one of its buttons failed,
+// since it alone knows its backend, so the frontend reports a run() that
+// rejects as a fault of the plugin, for the log alone.
+export async function runButton(button: Button): Promise<void> {
   try {
     await button.run();
   } catch (error) {
-    const storage = storagePlugin(front.core);
-    front.core.notifications.notify(front.plugin, {
-      severity: "error",
-      code: "storage_control_failed",
-      message: errorMessage(error),
-      ...(storage === undefined ? {} : { about: { plugin: storage } }),
-    });
+    report(error);
   }
-}
-
-// The id of the class of the app's storage plugin, whose storage
-// `core.plugins.storage()` gives, or undefined where the app runs none.
-function storagePlugin(core: Pick<CoreApi, "plugins">): PluginClassId | undefined {
-  const storage = core.plugins.storage();
-  if (storage === undefined) return undefined;
-  return Object.keys(core.plugins.appPlugins()).find((id) => core.plugins.pluginClass(id).storage === storage);
 }
 
 // The controls of a list that the toolbar draws: the first of those that share

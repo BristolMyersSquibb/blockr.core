@@ -47,7 +47,7 @@ export function bindShortcuts(doc: Document, front: Pick<FrontEnd, "core" | "plu
     );
     if (button === undefined) return;
     event.preventDefault();
-    if (!event.repeat) void runButton(front, button);
+    if (!event.repeat) void runButton(button);
   }
   doc.addEventListener("keydown", onKey);
   return () => {

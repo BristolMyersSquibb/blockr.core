@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
-import { concerned, createToasts, FADES_FOR, isReload, packageShown, SHOWN_FOR } from "./toasts.ts";
+import { concerned, createToasts, FADES_FOR, isReload, SHOWN_FOR, sourcePackage } from "./toasts.ts";
 import type { Toasts } from "./toasts.ts";
 
 // Notifications that hold what the test sets, the same array until it sets
@@ -236,7 +236,7 @@ describe("what a toast names", () => {
     ]);
   });
 
-  test("beside it, is the package whose module failed or raised the notification, but none where a module raised it about another board object than its own", () => {
+  test("beside it, is the package that the notification's source names: the package whose module failed or raised it", () => {
     // The plugin raised one about itself, one about the board, and one about
     // another plugin.
     const own = raised("own", "error", { plugin: "blockr.core-file_storage_plugin" });
@@ -257,7 +257,7 @@ describe("what a toast names", () => {
       about: { plugin: "blockr.dag-dag_plugin" },
     };
 
-    expect([own, theBoard, other, failed, fromR].map(packageShown)).toEqual(["blockr.core", "blockr.core", undefined, "blockr.dag", undefined]);
+    expect([own, theBoard, other, failed, fromR].map(sourcePackage)).toEqual(["blockr.core", "blockr.core", "blockr.core", "blockr.dag", undefined]);
   });
 
   test("offers to reload the page for core's page_reload_needed alone, whatever a module's code", () => {

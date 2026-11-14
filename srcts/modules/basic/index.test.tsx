@@ -654,7 +654,9 @@ describe("the toolbar", () => {
     await click(button(page.el, "Open"));
     await page.settled();
     expect(page.board().name).toBe("Opened");
-    expect(toasts(page.el)).toEqual([["error", 'Plugin "File storage"', expect.stringContaining("The store refused to open the board")]]);
+    expect(toasts(page.el)).toEqual([
+      ["error", 'Plugin "File storage" · blockr.core', expect.stringContaining("The store refused to open the board")],
+    ]);
   });
 
   test("draws no storage control where the app runs no storage plugin", async () => {
@@ -668,13 +670,13 @@ describe("the toolbar", () => {
 // The class of a storage plugin whose controls the test sets, which calls back
 // through subscribe() whenever the test changes them, with what the test gives
 // core for an app that runs it in place of core's own storage plugin.
-function storagePlugin(controls: () => readonly StorageControl[]) {
+function storagePlugin(controls: (args: { core: CoreApi; plugin: PluginClassId }) => readonly StorageControl[]) {
   let current = controls;
   const listeners = new Set<() => void>();
   const cls: PluginClass = {
     id: "blockr.test-session_plugin",
     storage: {
-      controls: () => current(),
+      controls: (args) => current(args),
       subscribe(listener) {
         listeners.add(listener);
         return () => {
@@ -685,7 +687,7 @@ function storagePlugin(controls: () => readonly StorageControl[]) {
   };
   return {
     options: withClasses([cls], plugin(cls, "Session"), withoutPlugins(HELLO, FILE_STORAGE)),
-    set(next: () => readonly StorageControl[]): void {
+    set(next: (args: { core: CoreApi; plugin: PluginClassId }) => readonly StorageControl[]): void {
       current = next;
       for (const listener of [...listeners]) listener();
     },
@@ -856,29 +858,44 @@ describe("the storage controls", () => {
     expect(runs).toEqual(["save", "save", "publish"]);
   });
 
-  test("tell the user why a button failed, run by a click or by its shortcut, through an error of the code storage_control_failed about the storage plugin", async () => {
+  test("are given the id of the storage plugin's class, under which the plugin tells the user why one of its buttons failed", async () => {
+    const storage = storagePlugin(({ core, plugin }) => [
+      {
+        kind: "button",
+        id: "save",
+        label: "Save",
+        run: () => {
+          core.notifications.notify(plugin, { severity: "error", code: "save_failed", message: "Connect is down." });
+          return Promise.resolve();
+        },
+      },
+    ]);
+    const { el } = await drawn(storage.options);
+
+    await click(button(toolbar(el), "Save"));
+    expect(toasts(el)).toEqual([["error", 'Plugin "Session" · blockr.test', "Connect is down."]]);
+  });
+
+  test("log a button whose run() rejects, run by a click or by its shortcut, as a fault of the plugin, which raises no notification", async () => {
     const storage = storagePlugin(() => [
       { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: () => Promise.reject(new Error("Connect is down.")) },
     ]);
     const { el, core } = await drawn(storage.options);
-
-    await click(button(toolbar(el), "Save"));
-    await step(() => {
-      press(document.body, "s", { ctrlKey: true });
-    });
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
-    // The frontend raised them, so the toasts name no package beside the
-    // storage plugin, which may be of another.
-    expect(toasts(el)).toEqual([
-      ["error", 'Plugin "Session"', "Connect is down."],
-      ["error", 'Plugin "Session"', "Connect is down."],
-    ]);
-    expect(core.notifications.get().map(({ source, about }) => [source, about])).toEqual(
-      Array(2).fill([
-        { kind: "module", object: { plugin: BASIC }, code: "storage_control_failed", package: "blockr.core" },
-        { plugin: "blockr.test-session_plugin" },
-      ]),
-    );
+    const reported = reports();
+    let errors: unknown[];
+    try {
+      await click(button(toolbar(el), "Save"));
+      await step(() => {
+        press(document.body, "s", { ctrlKey: true });
+      });
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    } finally {
+      reported.restore();
+      errors = reported.errors();
+    }
+    expect(errors.filter((error) => error instanceof Error).map((error) => error.message)).toEqual(["Connect is down.", "Connect is down."]);
+    expect(core.notifications.get()).toEqual([]);
+    expect(toasts(el)).toEqual([]);
   });
 
   test("draw the first of the controls of one list that share an id, and a warning in their place where controls() fails, of which the page hears once", async () => {

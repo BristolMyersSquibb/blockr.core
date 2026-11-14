@@ -23,5 +23,5 @@ export declare function concerned(about: BoardObject | undefined, core: {
     readonly options: Pick<CoreApi["options"], "registered">;
     readonly plugins: Pick<CoreApi["plugins"], "appPlugins">;
 }, board: Board): string;
-export declare function packageShown(notification: Notification): string | undefined;
+export declare function sourcePackage(notification: Notification): string | undefined;
 export declare function isReload(notification: Notification): boolean;

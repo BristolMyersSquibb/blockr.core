@@ -220,20 +220,6 @@ function report(error) {
     throw error;
   });
 }
-function isObject(x) {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
-}
-function jsonEqual(a, b) {
-  if (a === b) return true;
-  if (Array.isArray(a)) {
-    return Array.isArray(b) && a.length === b.length && a.every((x, i) => jsonEqual(x, b[i]));
-  }
-  if (isObject(a) && isObject(b)) {
-    const keys = Object.keys(a);
-    return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && jsonEqual(a[key], b[key]));
-  }
-  return false;
-}
 function listing(items) {
   if (items.length <= 1) return items.join("");
   return `${items.slice(0, -1).join(", ")} and ${items.at(-1) ?? ""}`;
@@ -1452,11 +1438,9 @@ function concerned(about, core, board) {
   const link = own(board.links, about.link);
   return link === void 0 ? `Link "${about.link}"` : `Link from ${block(link.from)} to ${block(link.to)}`;
 }
-function packageShown(notification) {
-  const { source, about } = notification;
-  if (source.kind === "r") return void 0;
-  if (source.kind === "core" || about === void 0 || jsonEqual(about, source.object)) return source.package;
-  return void 0;
+function sourcePackage(notification) {
+  const { source } = notification;
+  return source.kind === "r" ? void 0 : source.package;
 }
 function isReload(notification) {
   return notification.source.kind === "core" && notification.source.code === "page_reload_needed";
@@ -1469,10 +1453,11 @@ import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as use
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
 function drawnControls(core) {
   const storage = core.plugins.storage();
-  if (storage === void 0) return void 0;
+  const plugin = storage === void 0 ? void 0 : Object.keys(core.plugins.appPlugins()).find((id2) => core.plugins.pluginClass(id2).storage === storage);
+  if (storage === void 0 || plugin === void 0) return void 0;
   try {
     const twice = /* @__PURE__ */ new Set();
-    const controls = distinct(storage.controls({ core }), twice);
+    const controls = distinct(storage.controls({ core, plugin }), twice);
     return {
       controls: [...controls.filter((c) => c.placement !== "end"), ...controls.filter((c) => c.placement === "end")],
       failed: false,
@@ -1489,23 +1474,12 @@ function buttonsOf(controls) {
     return [];
   });
 }
-async function runButton(front, button) {
+async function runButton(button) {
   try {
     await button.run();
   } catch (error) {
-    const storage = storagePlugin(front.core);
-    front.core.notifications.notify(front.plugin, {
-      severity: "error",
-      code: "storage_control_failed",
-      message: errorMessage(error),
-      ...storage === void 0 ? {} : { about: { plugin: storage } }
-    });
+    report(error);
   }
-}
-function storagePlugin(core) {
-  const storage = core.plugins.storage();
-  if (storage === void 0) return void 0;
-  return Object.keys(core.plugins.appPlugins()).find((id2) => core.plugins.pluginClass(id2).storage === storage);
 }
 function distinct(list, twice) {
   const seen = /* @__PURE__ */ new Set();
@@ -1543,7 +1517,7 @@ function bindShortcuts(doc, front) {
     );
     if (button === void 0) return;
     event.preventDefault();
-    if (!event.repeat) void runButton(front, button);
+    if (!event.repeat) void runButton(button);
   }
   doc.addEventListener("keydown", onKey);
   return () => {
@@ -1715,7 +1689,6 @@ function StorageButton({
   role,
   before
 }) {
-  const front = useFrontEnd();
   return /* @__PURE__ */ jsx12(
     "button",
     {
@@ -1727,7 +1700,7 @@ function StorageButton({
       "aria-keyshortcuts": ariaShortcuts(button.shortcut),
       onClick: () => {
         before?.();
-        void runButton(front, button);
+        void runButton(button);
       },
       children: button.label
     }
@@ -1870,7 +1843,7 @@ function ToastItem({ toast, title }) {
   const { notification, fading } = toast;
   const { id: id2, severity } = notification;
   const mark = MARKS[severity];
-  const pkg = packageShown(notification);
+  const pkg = sourcePackage(notification);
   useEffect3(
     () => () => {
       toasts.release(id2, "pointer");
