@@ -21,13 +21,18 @@
 // outside the board, and end with the board. Where an onChange() throws, core
 // raises a notification that holds until its next call returns, and so do
 // those that the call raises through its `notify`.
+//
+// Where the store or the command registry refuses an edit of the origin
+// "user" that a plugin makes through CoreApi, core tells the user why, as an
+// error of the code `edit_refused`, whichever plugin made the edit. The call
+// still rejects or throws with the reason (refusing(), below).
 
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
 import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Store } from "../store/index.ts";
+import type { Origin, Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
@@ -41,7 +46,9 @@ import { pluginRequest } from "./requests.ts";
 
 export interface CoreParts {
   // The store as frontends and plugins see it, whose open() starts core
-  // again for the board it opens (./start.ts).
+  // again for the board it opens (./start.ts), and the command registry.
+  // CoreApi hands out both with what tells the user why they refused an edit
+  // (refusing(), below).
   readonly store: Store;
   readonly commands: Commands;
   readonly scheduler: Scheduler;
@@ -106,6 +113,11 @@ export function createCore(parts: CoreParts): Core {
     },
   };
 
+  // A host's submit() runs its command through the command registry itself,
+  // not through CoreApi. So where the store refuses it, submit() only
+  // rejects. The inputs of core's React SDK and its controls say below
+  // themselves why the host refused what they submitted, and a module that
+  // draws its own inputs says why itself.
   const mounts = createMounts({
     store,
     commands,
@@ -142,9 +154,10 @@ export function createCore(parts: CoreParts): Core {
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
   });
 
+  const edits = refusing(store, commands, notifications.raiseAgain);
   const api: CoreApi = {
-    store,
-    commands,
+    store: edits.store,
+    commands: edits.commands,
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
       evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),
@@ -244,6 +257,77 @@ export function createCore(parts: CoreParts): Core {
   }
 
   return { api, plugins };
+}
+
+// The store and the command registry as plugins see them, through CoreApi.
+// Where either refuses an edit of the origin "user", a command, a delta, an
+// undo or a redo, core tells the user why through a notification of the code
+// `edit_refused`, and the call still rejects or throws with the reason, as
+// Notifications has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications).
+// - The notification concerns the board, since core knows the origin of an
+//   edit but not the plugin that made it, so a frontend does not show it on a
+//   block's card, which the dialog that made the edit may cover.
+// - Core raises it where an edit enters through CoreApi, rather than in the
+//   command registry and in the store, since the command registry applies its
+//   deltas through the store. So core raises each refusal once.
+// - Core raises the same refusal anew each time, so that a frontend that has
+//   shown it shows it again.
+// - Core logs the reason at debug alone, since the call hands it to its
+//   caller.
+// - An edit of another origin only rejects or throws. The assistant's edit
+//   tool hands each refusal to its model, which edits again
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.4.2#how-failures-reach-the-model).
+//   And where the store refuses the default of a board option, which core
+//   puts on the board as an edit of its own, core raises board_option_failed
+//   (../mount/block.ts).
+function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAgain"]): { store: Store; commands: Commands } {
+  function refused(origin: Origin | undefined, error: unknown): void {
+    if ((origin ?? "user") !== "user") return;
+    const why = errorMessage(error);
+    log.debug(why);
+    raiseAgain(coreNotification("edit_refused", "error", why));
+  }
+  // Makes an edit through the store, and tells the user why the store refused
+  // it.
+  function edit(origin: Origin | undefined, fn: () => void): void {
+    try {
+      fn();
+    } catch (error) {
+      refused(origin, error);
+      throw error;
+    }
+  }
+  return {
+    store: {
+      ...store,
+      apply(delta, origin, opts) {
+        edit(origin, () => {
+          store.apply(delta, origin, opts);
+        });
+      },
+      undo(origin) {
+        edit(origin, () => {
+          store.undo(origin);
+        });
+      },
+      // A redo names no origin, so it is the user's, as the store announces
+      // it.
+      redo() {
+        edit(undefined, () => {
+          store.redo();
+        });
+      },
+    },
+    commands: {
+      ...commands,
+      run: (id, args, origin) =>
+        commands.run(id, args, origin).catch((error: unknown) => {
+          refused(origin, error);
+          throw error;
+        }),
+    },
+  };
 }
 
 // Which block has focus, which starts with none as the board opens and goes

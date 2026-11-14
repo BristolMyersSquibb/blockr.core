@@ -14,6 +14,7 @@ import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import { labelled, optionOf, optionsOf } from "../../testing/combobox.ts";
 import { find, pick, press, texts, type } from "../../testing/inputs.ts";
+import { codeOf, held } from "../../testing/notifications.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
@@ -621,7 +622,7 @@ describe("each edit", () => {
     expect(core.store.canUndo()).toBe(false);
   });
 
-  test("that the command registry or the store refuses, the plugin tells the user of through a notification", async () => {
+  test("that the command registry or the store refuses, core tells the user of through a notification, and the plugin raises none", async () => {
     const { el, core, board, notes } = await mounted();
     const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
     await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
@@ -633,16 +634,14 @@ describe("each edit", () => {
     await click(button(add(), "Add link"));
 
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
-    expect(notes).toHaveLength(1);
-    expect(notes[0]?.severity).toBe("error");
-    expect(notes[0]?.source).toEqual({
-      kind: "module",
-      module: { object: { plugin: EDIT }, package: "blockr.core" },
-      code: "edit_refused",
-    });
-    // It concerns the plugin, whatever block the edit names.
-    expect(notes[0]?.about).toEqual({ plugin: EDIT });
-    expect(notes[0]?.message).toContain('The command "blockr.core-add_link" refused to run');
+    const refused = held(core, (n) => codeOf(n) === "edit_refused");
+    expect(refused).toHaveLength(1);
+    expect(refused[0]?.severity).toBe("error");
+    expect(refused[0]?.source).toEqual({ kind: "core", code: "edit_refused" });
+    // It concerns the board, whatever block the edit names.
+    expect(refused[0]?.about).toBeUndefined();
+    expect(refused[0]?.message).toContain('The command "blockr.core-add_link" refused to run');
+    expect(notes).toEqual([]);
   });
 });
 

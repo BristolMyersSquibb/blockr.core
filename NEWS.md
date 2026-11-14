@@ -514,8 +514,7 @@
   The card of a block that `serve()` serves alone shows every notification of the board.
   A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
   In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
-  Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it.
-  The Edit board plugin raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses (#539).
+  Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it (#539).
 * Core's basic frontend shows each notification that concerns no block as a toast, whatever its severity and whoever raised it, in place of its list above the board.
   The toasts sit in the window's bottom right corner.
   Each names what it concerns, such as a board option or a plugin, and the package that its source names.
@@ -523,12 +522,11 @@
   A warning's or an error's toast stays until the user closes it.
   A toast goes as soon as core withdraws its notification, and one that faded or that the user closed does not come back while its notification holds.
   While a dialog of the frontend is open, the toasts show inside it, so that the user can still close them.
-  The toast of `page_reload_needed` offers to reload the page.
-  The frontend raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses, which concerns its plugin (#549).
+  The toast of `page_reload_needed` offers to reload the page (#549).
 * A storage plugin tells the user why one of its buttons failed, through a notification of its own, since it alone knows its backend and when the failure is over.
   Its `controls()` gets the id of its class beside `core` for that.
-  Core's file storage plugin raises an Open that fails as an error of the code `board_open_failed`.
-  A frontend logs a button whose `run()` rejects, as a fault of the plugin (#549).
+  Core's file storage plugin raises a file that Open cannot read as an error of the code `board_open_failed`.
+  A frontend logs a button whose `run()` rejects (#549).
 * The client's code logs through a `Log`: a plugin through the `log()` of `CoreApi`, as `core.log("blockr.dock")`, and every other module through its host's `log`, which names the module's package already.
   A `Log` has `error()`, `warn()`, `info()`, `debug()` and `trace()`, each taking a message and attributes, and `error()` takes an `Error` too, which goes with its stack.
   The client drops a line below the blockr option `log_level`, as R does.
@@ -540,6 +538,14 @@
   The `serve()` function stops where `logger` is `"otel"` and `otel_client_endpoint` names no collector.
   Core logs every failure that it catches at error, with its stack, and logs at debug each notification that it drops because the board no longer holds what the notification concerns.
   The stubs of the hosts hold what a module logs in `logged`, and so does `stubCore()`, which passes each line on to the logger that the page would write it with (#551).
+* Where the store or the command registry refuses an edit of the origin `"user"` that a plugin makes through `CoreApi`, a command, a delta, an undo or a redo, core raises a notification of the code `edit_refused`, which concerns the board, and the call still rejects or throws.
+  So the user learns why an edit was refused, whichever plugin made it.
+  Core's basic frontend and its Edit board plugin raise none of their own.
+  An edit of another origin only rejects or throws, as the assistant's, whose tool hands the refusal to its model.
+  A refused `submit()` of a block's or a board option's UI module only rejects, since the module says why, as core's inputs do below themselves.
+  Where the store refuses a board that `open()` is given, core raises `board_open_failed`, which concerns the board, and `open()` still rejects with the reason.
+  Core logs each of these refusals at debug, since the call hands the reason to its caller.
+  Core raises a refusal anew each time it comes again, so that a frontend that has shown it shows it again (#616).
 
 # blockr.core 0.1.4
 

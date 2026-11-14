@@ -39,11 +39,10 @@ import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import type { RegistryEntry } from "../../types/registry.ts";
-import { classes, Combobox, Pager, TableSearch, TextField, useTableView } from "../../ui/index.ts";
+import { classes, Combobox, Pager, runCommand, TableSearch, TextField, useTableView } from "../../ui/index.ts";
 import type { ComboOption } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
-import { runCommand } from "./run.ts";
 
 type Registry = Readonly<Record<string, RegistryEntry>>;
 

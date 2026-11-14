@@ -22,9 +22,17 @@ export interface CoreApi {
   // The store of the board. Its open() starts core again in place for the
   // board given, which opens with a CoreApi of its own, once this store has
   // checked the board, and a reply to `hello` given opens its board as a JSON
-  // board's text would.
+  // board's text would. Where this store refuses the board, core tells the
+  // user why through a notification of the code `board_open_failed`, and
+  // open() rejects with the reason. Where it refuses a delta, an undo or a
+  // redo of the origin "user", core tells the user why through a notification
+  // of the code `edit_refused`, and the call still throws the reason.
   readonly store: Store;
-  // The command registry, for menus and shortcuts.
+  // The command registry, for menus and shortcuts. Where it or the store
+  // refuses a command of the origin "user", core tells the user why through a
+  // notification of the code `edit_refused`, and run() still rejects with the
+  // reason. An edit of another origin, such as the assistant's, only rejects
+  // or throws.
   readonly commands: Commands;
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
@@ -255,6 +263,9 @@ export type CoreCode =
   | "plugin_start_failed"
   // A board that does not open.
   | "board_open_failed"
+  // An edit of the origin "user" that the store or the command registry
+  // refuses.
+  | "edit_refused"
   // What the store dropped as the board opened.
   | "board_objects_dropped"
   // A package that R runs at another version than the page loaded.
@@ -272,7 +283,7 @@ export interface ModuleSource {
   readonly kind: "module";
   // The module that raised it.
   readonly module: SourceModule;
-  // The package's own code for what it is of, as "edit_refused".
+  // The package's own code for what it is of, as "render_failed".
   readonly code: string;
 }
 
@@ -281,7 +292,7 @@ export interface ModuleSource {
 export interface Raised {
   readonly severity: Severity;
   readonly message: string;
-  // The package's own code for what it is of, as "edit_refused", by which a
+  // The package's own code for what it is of, as "render_failed", by which a
   // frontend that knows the package draws it.
   readonly code: string;
   // The board object that it concerns: the one whose module raises it unless

@@ -106,18 +106,40 @@ describe("core's own storage plugin", () => {
     s.stop();
   });
 
-  test("tells the user why the store refused the board in the file that the user picks, through an error of the code board_open_failed about the plugin, and leaves the board open", async () => {
+  test("tells the user why it cannot read the file that the user picks, through an error of the code board_open_failed about the plugin, and leaves the board open", async () => {
     const s = await stubCore();
-    picking(new File(["{}"], "board.json"));
+    const file = new File(["{}"], "board.json");
+    file.text = () => Promise.reject(new Error("The file could not be read."));
+    picking(file);
 
     await button(coreStorage().controls({ core: s.core, plugin: FILE_STORAGE }), "open").run();
     expect(s.core.notifications.get()).toEqual([
       {
         id: expect.any(String) as string,
         severity: "error",
-        message: expect.stringContaining("The store refused to open the board") as string,
+        message: "The file could not be read.",
         source: { kind: "module", module: { object: { plugin: FILE_STORAGE }, package: "blockr.core" }, code: "board_open_failed" },
         about: { plugin: FILE_STORAGE },
+      },
+    ]);
+    expect(s.core.store.board().name).toBe("Iris review");
+    s.stop();
+  });
+
+  test("rejects where the store refuses the board in the file that the user picks, which core tells the user of, and leaves the board open", async () => {
+    const s = await stubCore();
+    picking(new File(["{}"], "board.json"));
+
+    await expect(button(coreStorage().controls({ core: s.core, plugin: FILE_STORAGE }), "open").run()).rejects.toThrow(
+      "The store refused to open the board",
+    );
+    // Core raised the notification, and the plugin raised none.
+    expect(s.core.notifications.get()).toEqual([
+      {
+        id: expect.any(String) as string,
+        severity: "error",
+        message: expect.stringContaining("The store refused to open the board") as string,
+        source: { kind: "core", code: "board_open_failed" },
       },
     ]);
     expect(s.core.store.board().name).toBe("Iris review");

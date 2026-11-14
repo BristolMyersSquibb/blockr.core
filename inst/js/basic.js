@@ -658,16 +658,10 @@ function safe(text) {
 }
 
 // srcts/ui/edits.ts
-function refused(by, error) {
-  by.core.notifications.notify(by.plugin, { severity: "error", code: "edit_refused", message: errorMessage(error) });
-}
-function runCommand(by, id2, args) {
-  return by.core.commands.run(id2, args).then(
+function runCommand(core, id2, args) {
+  return core.commands.run(id2, args).then(
     () => true,
-    (error) => {
-      refused(by, error);
-      return false;
-    }
+    () => false
   );
 }
 
@@ -1114,7 +1108,7 @@ var BlockCard = memo(function BlockCard2({
               label: "Block name",
               name: block.name,
               onSubmit: (name2) => {
-                void runCommand(front, "blockr.core-rename_block", { id: id2, name: name2 });
+                void runCommand(core, "blockr.core-rename_block", { id: id2, name: name2 });
               },
               onDone: () => {
                 setRenaming(false);
@@ -1150,7 +1144,7 @@ var BlockCard = memo(function BlockCard2({
                 {
                   label: "Remove",
                   onSelect: () => {
-                    void runCommand(front, "blockr.core-remove_block", { id: id2 });
+                    void runCommand(core, "blockr.core-remove_block", { id: id2 });
                   }
                 }
               ]
@@ -1494,8 +1488,7 @@ function distinct(list, twice) {
 }
 
 // srcts/modules/basic/shortcuts.ts
-function bindShortcuts(doc, front) {
-  const { core } = front;
+function bindShortcuts(doc, core) {
   function onKey(event) {
     if (event.defaultPrevented || editable(event.target)) return;
     const step = undoOrRedo(event);
@@ -1504,8 +1497,7 @@ function bindShortcuts(doc, front) {
       try {
         if (step === "undo") core.store.undo();
         else core.store.redo();
-      } catch (error) {
-        refused(front, error);
+      } catch {
       }
       return;
     }
@@ -1565,8 +1557,7 @@ function editable(target2) {
 // srcts/modules/basic/toolbar.tsx
 import { Fragment as Fragment2, jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
 function Toolbar({ board, showOptions }) {
-  const front = useFrontEnd();
-  const { core } = front;
+  const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState9(false);
   const locked2 = core.lock.board;
@@ -1574,8 +1565,7 @@ function Toolbar({ board, showOptions }) {
     try {
       if (back) core.store.undo();
       else core.store.redo();
-    } catch (error) {
-      refused(front, error);
+    } catch {
     }
   }
   return /* @__PURE__ */ jsxs10("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border-default bc:pb-3", children: [
@@ -1585,7 +1575,7 @@ function Toolbar({ board, showOptions }) {
         label: "Board name",
         name: board.name,
         onSubmit: (name2) => {
-          void runCommand(front, "blockr.core-rename_board", { name: name2 });
+          void runCommand(core, "blockr.core-rename_board", { name: name2 });
         },
         onDone: () => {
           setRenaming(false);
@@ -1817,7 +1807,7 @@ function AddBlockDialog({ mode, onClose }) {
   const board = useBoard(front.core);
   const target2 = mode.kind === "add" ? void 0 : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target2 === void 0 ? "Add block" : `Add block ${mode.kind} "${target2.name}"`;
-  const run = useCallback7((command, args) => runCommand(front, command, args), [front]);
+  const run = useCallback7((command, args) => runCommand(front.core, command, args), [front.core]);
   return /* @__PURE__ */ jsx13(Dialog, { title, onClose, children: /* @__PURE__ */ jsx13(BlockPicker, { core: front.core, mode, run, onAdded: onClose, autofocus: true }) });
 }
 function Toasts() {
@@ -1976,17 +1966,17 @@ var basic_default = {
   options: ["show_conditions", "dark_mode"],
   frontend: { render }
 };
-function render({ el, core, plugin }) {
+function render({ el, core }) {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
   const toasts = createToasts(core.notifications);
-  const front = { core, plugin, toasts, inView: shown };
+  const front = { core, toasts, inView: shown };
   const root = createRoot(el);
   flushSync2(() => {
     root.render(/* @__PURE__ */ jsx14(BasicBoard, { front }));
   });
   shown.measure();
-  const unbind = bindShortcuts(doc, front);
+  const unbind = bindShortcuts(doc, core);
   return () => {
     unbind();
     toasts.stop();

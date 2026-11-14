@@ -18,10 +18,9 @@
 // 2. It shows as a toast each notification of the board that concerns no
 //    block, whoever raised it, such as the one in which core names what the
 //    store dropped as the board opened (./toasts.ts). Each block's card shows
-//    those about the block. The frontend raises its own notifications under
-//    the id of its plugin class, which render() gets: why the store or the
-//    command registry refused one of its edits, and why a storage control's
-//    button failed.
+//    those about the block. The frontend raises none of its own: core tells
+//    the user why the store or the command registry refused one of its edits,
+//    and a storage plugin why one of its buttons failed.
 // 3. It draws the board that the store holds, and then demands the blocks in
 //    view as the page lays out their cards.
 // 4. It binds undo, redo and the buttons among the storage controls to their
@@ -46,18 +45,18 @@ export default {
   frontend: { render },
 } satisfies Omit<PluginClass, "id">;
 
-function render({ el, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }): () => void {
+function render({ el, core }: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }): () => void {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
   const toasts = createToasts(core.notifications);
-  const front: FrontEnd = { core, plugin, toasts, inView: shown };
+  const front: FrontEnd = { core, toasts, inView: shown };
   const root = createRoot(el);
   flushSync(() => {
     root.render(<BasicBoard front={front} />);
   });
   shown.measure();
 
-  const unbind = bindShortcuts(doc, front);
+  const unbind = bindShortcuts(doc, core);
   return () => {
     unbind();
     toasts.stop();

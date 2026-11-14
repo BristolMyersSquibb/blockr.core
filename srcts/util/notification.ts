@@ -106,7 +106,7 @@ export function checkRaised(notification: Raised): Raised {
   }
   if (typeof given.code !== "string" || given.code === "") {
     throw new TypeError(
-      `The code of a notification is a non-empty string, as "edit_refused", not ${JSON.stringify(given.code)}.`,
+      `The code of a notification is a non-empty string, as "render_failed", not ${JSON.stringify(given.code)}.`,
     );
   }
   const { about } = given;

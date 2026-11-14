@@ -111,7 +111,7 @@ function checkRaised(notification) {
   }
   if (typeof given.code !== "string" || given.code === "") {
     throw new TypeError(
-      `The code of a notification is a non-empty string, as "edit_refused", not ${JSON.stringify(given.code)}.`
+      `The code of a notification is a non-empty string, as "render_failed", not ${JSON.stringify(given.code)}.`
     );
   }
   const { about } = given;
@@ -7438,10 +7438,10 @@ function createStore(options = {}) {
       );
     }
   }
-  function current2(refused3) {
-    if (ended()) throw new StoreError(refused3, [ENDED]);
+  function current2(refused2) {
+    if (ended()) throw new StoreError(refused2, [ENDED]);
     if (board.value !== void 0) return board.value;
-    throw new StoreError(refused3, ["The store holds no board until it opens one."]);
+    throw new StoreError(refused2, ["The store holds no board until it opens one."]);
   }
   function announce2(change, next) {
     for (const fn of [...subscribers]) {
@@ -7452,13 +7452,13 @@ function createStore(options = {}) {
       }
     }
   }
-  function run(start2, deltas, how, refused3) {
+  function run(start2, deltas, how, refused2) {
     const applied = [];
     const inverses = [];
     let current3 = start2;
     for (const [i2, given] of deltas.entries()) {
       const prefix = deltas.length > 1 ? `Delta ${String(i2 + 1)}: ` : "";
-      const fail = (failures2) => new StoreError(refused3, failures2.map((failure) => prefix + failure));
+      const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
       const delta = how.fit === true ? fit(given, current3) : given;
       if (how.fit === true && isEmpty(delta)) continue;
       const expanded = expand(delta, current3, registrations);
@@ -7527,11 +7527,11 @@ function createStore(options = {}) {
     if (deltas.length === 0) return;
     busy = true;
     try {
-      const refused3 = "The store rejected the delta";
-      const start2 = current2(refused3);
+      const refused2 = "The store rejected the delta";
+      const start2 = current2(refused2);
       const failures = named3(deltas);
-      if (failures.length > 0) throw new StoreError(refused3, failures);
-      const { applied, inverses } = run(start2, deltas, {}, refused3);
+      if (failures.length > 0) throw new StoreError(refused2, failures);
+      const { applied, inverses } = run(start2, deltas, {}, refused2);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start2);
       if (inverses.length > 0 && opts.undo !== false) {
@@ -7553,13 +7553,13 @@ function createStore(options = {}) {
     if (step2 === void 0) return;
     busy = true;
     try {
-      const refused3 = back ? "The store refused to undo the step" : "The store refused to redo the step";
-      const start2 = current2(refused3);
+      const refused2 = back ? "The store refused to undo the step" : "The store refused to redo the step";
+      const start2 = current2(refused2);
       const { applied, inverses } = run(
         start2,
         step2.inverses.map(({ delta }) => delta),
         { fit: true, places: step2.inverses.map(({ places }) => places) },
-        refused3
+        refused2
       );
       number(applied, applied.at(-1)?.board ?? start2);
       const kept = { origin: step2.origin, inverses };
@@ -8033,9 +8033,10 @@ function createCore(parts) {
     raise,
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
+  const edits = refusing(store, commands, notifications.raiseAgain);
   const api = {
-    store,
-    commands,
+    store: edits.store,
+    commands: edits.commands,
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
       evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),
@@ -8121,6 +8122,51 @@ function createCore(parts) {
     raisedBy.set(id2, raisedNow);
   }
   return { api, plugins };
+}
+function refusing(store, commands, raiseAgain) {
+  function refused2(origin, error) {
+    if ((origin ?? "user") !== "user") return;
+    const why = errorMessage(error);
+    log.debug(why);
+    raiseAgain(coreNotification("edit_refused", "error", why));
+  }
+  function edit(origin, fn) {
+    try {
+      fn();
+    } catch (error) {
+      refused2(origin, error);
+      throw error;
+    }
+  }
+  return {
+    store: {
+      ...store,
+      apply(delta, origin, opts) {
+        edit(origin, () => {
+          store.apply(delta, origin, opts);
+        });
+      },
+      undo(origin) {
+        edit(origin, () => {
+          store.undo(origin);
+        });
+      },
+      // A redo names no origin, so it is the user's, as the store announces
+      // it.
+      redo() {
+        edit(void 0, () => {
+          store.redo();
+        });
+      }
+    },
+    commands: {
+      ...commands,
+      run: (id2, args, origin) => commands.run(id2, args, origin).catch((error) => {
+        refused2(origin, error);
+        throw error;
+      })
+    }
+  };
 }
 function createFocus(store, signal) {
   let focused = null;
@@ -9061,6 +9107,7 @@ function createNotifications(store, options = {}) {
   const plugins = options.plugins ?? {};
   const held3 = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
+  const again = /* @__PURE__ */ new Map();
   const replacing = /* @__PURE__ */ new Map();
   const left2 = /* @__PURE__ */ new Set();
   const listeners = /* @__PURE__ */ new Set();
@@ -9117,6 +9164,7 @@ function createNotifications(store, options = {}) {
     const had = held3.size > 0;
     held3.clear();
     raised.clear();
+    again.clear();
     replacing.clear();
     left2.clear();
     if (had) publish();
@@ -9173,13 +9221,7 @@ function createNotifications(store, options = {}) {
       log.debug(`Core drops a notification that core raised about ${named2(given.about)}, which the board does not hold.`);
       return nothing;
     }
-    const id2 = JSON.stringify([
-      "raised",
-      given.severity,
-      given.message,
-      sourceCopy(given.source),
-      given.about === void 0 ? null : objectCopy(given.about)
-    ]);
+    const id2 = raisedId(given);
     const token = {};
     const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
     tokens.add(token);
@@ -9194,6 +9236,12 @@ function createNotifications(store, options = {}) {
       raised.delete(id2);
       if (held3.delete(id2)) publish();
     };
+  };
+  const raiseAgain = (given) => {
+    const id2 = raisedId(given);
+    again.get(id2)?.();
+    const withdraw = raise(given);
+    if (!ended) again.set(id2, withdraw);
   };
   const notify = (module, notification) => {
     const given = checkRaised(notification);
@@ -9253,6 +9301,7 @@ function createNotifications(store, options = {}) {
       }
     },
     raise,
+    raiseAgain,
     replied: replied2,
     notify,
     follow(scheduler) {
@@ -9268,6 +9317,15 @@ function createNotifications(store, options = {}) {
       if (store.hasBoard()) heard(Object.keys(store.board().blocks));
     }
   };
+}
+function raisedId(given) {
+  return JSON.stringify([
+    "raised",
+    given.severity,
+    given.message,
+    sourceCopy(given.source),
+    given.about === void 0 ? null : objectCopy(given.about)
+  ]);
 }
 function statusSource(condition) {
   if (isUnsentError(condition)) return { kind: "core", code: "evaluation_unsent" };
@@ -9563,13 +9621,9 @@ function start(options) {
           log.error(asError(again));
           throw failure;
         }
-        raise(
-          coreNotification(
-            "board_open_failed",
-            "error",
-            `The board did not open, so core opened the board before it again: ${failure.message}`
-          )
-        );
+        const why = `The board did not open, so core opened the board before it again: ${failure.message}`;
+        log.debug(why);
+        raise(coreNotification("board_open_failed", "error", why));
       }
     }
     if (dropped.length > 0) raise(droppedNotification(dropped));
@@ -9703,17 +9757,24 @@ function start(options) {
     return run;
   }
   async function reopening(given, of) {
-    const refused3 = "The store refused to open the board";
+    const refused2 = "The store refused to open the board";
     const current2 = running2;
     if (current2?.controller !== of || of.signal.aborted) {
-      throw new StoreError(refused3, ["Another board opened since, so this store opens no board."]);
+      throw new StoreError(refused2, ["Another board opened since, so this store opens no board."]);
     }
     if (!current2.store.hasBoard()) {
-      throw new StoreError(refused3, ["The store holds no board yet, so it opens none in place of it."]);
+      throw new StoreError(refused2, ["The store holds no board yet, so it opens none in place of it."]);
     }
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
     await migrations.prepare(text, current2.store.blockRegistry());
-    await current2.store.check(text);
+    try {
+      await current2.store.check(text);
+    } catch (error) {
+      const why = errorMessage(error);
+      log.debug(why);
+      current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", why));
+      throw error;
+    }
     const before = current2.store.save();
     of.abort();
     running2 = void 0;
@@ -10361,16 +10422,10 @@ function safe(text) {
 }
 
 // srcts/ui/edits.ts
-function refused2(by, error) {
-  by.core.notifications.notify(by.plugin, { severity: "error", code: "edit_refused", message: errorMessage(error) });
-}
-function runCommand(by, id2, args) {
-  return by.core.commands.run(id2, args).then(
+function runCommand(core, id2, args) {
+  return core.commands.run(id2, args).then(
     () => true,
-    (error) => {
-      refused2(by, error);
-      return false;
-    }
+    () => false
   );
 }
 
@@ -10898,7 +10953,7 @@ var BlockCard = memo(function BlockCard2({
               label: "Block name",
               name: block.name,
               onSubmit: (name2) => {
-                void runCommand(front, "blockr.core-rename_block", { id: id2, name: name2 });
+                void runCommand(core, "blockr.core-rename_block", { id: id2, name: name2 });
               },
               onDone: () => {
                 setRenaming(false);
@@ -10934,7 +10989,7 @@ var BlockCard = memo(function BlockCard2({
                 {
                   label: "Remove",
                   onSelect: () => {
-                    void runCommand(front, "blockr.core-remove_block", { id: id2 });
+                    void runCommand(core, "blockr.core-remove_block", { id: id2 });
                   }
                 }
               ]
@@ -11278,8 +11333,7 @@ function distinct(list, twice) {
 }
 
 // srcts/modules/basic/shortcuts.ts
-function bindShortcuts(doc, front) {
-  const { core } = front;
+function bindShortcuts(doc, core) {
   function onKey(event) {
     if (event.defaultPrevented || editable(event.target)) return;
     const step2 = undoOrRedo(event);
@@ -11288,8 +11342,7 @@ function bindShortcuts(doc, front) {
       try {
         if (step2 === "undo") core.store.undo();
         else core.store.redo();
-      } catch (error) {
-        refused2(front, error);
+      } catch {
       }
       return;
     }
@@ -11349,8 +11402,7 @@ function editable(target2) {
 // srcts/modules/basic/toolbar.tsx
 import { Fragment as Fragment2, jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
 function Toolbar({ board, showOptions }) {
-  const front = useFrontEnd();
-  const { core } = front;
+  const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState9(false);
   const locked2 = core.lock.board;
@@ -11358,8 +11410,7 @@ function Toolbar({ board, showOptions }) {
     try {
       if (back) core.store.undo();
       else core.store.redo();
-    } catch (error) {
-      refused2(front, error);
+    } catch {
     }
   }
   return /* @__PURE__ */ jsxs10("header", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:border-b bc:border-border-default bc:pb-3", children: [
@@ -11369,7 +11420,7 @@ function Toolbar({ board, showOptions }) {
         label: "Board name",
         name: board.name,
         onSubmit: (name2) => {
-          void runCommand(front, "blockr.core-rename_board", { name: name2 });
+          void runCommand(core, "blockr.core-rename_board", { name: name2 });
         },
         onDone: () => {
           setRenaming(false);
@@ -11601,7 +11652,7 @@ function AddBlockDialog({ mode, onClose }) {
   const board = useBoard(front.core);
   const target2 = mode.kind === "add" ? void 0 : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target2 === void 0 ? "Add block" : `Add block ${mode.kind} "${target2.name}"`;
-  const run = useCallback7((command2, args) => runCommand(front, command2, args), [front]);
+  const run = useCallback7((command2, args) => runCommand(front.core, command2, args), [front.core]);
   return /* @__PURE__ */ jsx13(Dialog, { title, onClose, children: /* @__PURE__ */ jsx13(BlockPicker, { core: front.core, mode, run, onAdded: onClose, autofocus: true }) });
 }
 function Toasts() {
@@ -11759,17 +11810,17 @@ var basic_default = {
   options: ["show_conditions", "dark_mode"],
   frontend: { render }
 };
-function render({ el, core, plugin }) {
+function render({ el, core }) {
   const doc = el.ownerDocument;
   const shown2 = demandShown(core, doc.defaultView ?? window);
   const toasts = createToasts(core.notifications);
-  const front = { core, plugin, toasts, inView: shown2 };
+  const front = { core, toasts, inView: shown2 };
   const root = createRoot(el);
   flushSync2(() => {
     root.render(/* @__PURE__ */ jsx14(BasicBoard, { front }));
   });
   shown2.measure();
-  const unbind = bindShortcuts(doc, front);
+  const unbind = bindShortcuts(doc, core);
   return () => {
     unbind();
     toasts.stop();
@@ -11787,18 +11838,10 @@ import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect6, useRe
 
 // srcts/modules/edit-board/blocks.tsx
 import { useCallback as useCallback8, useState as useState11 } from "react";
-
-// srcts/modules/edit-board/run.ts
-var EDIT_BOARD = "blockr.core-edit_board_plugin";
-function runCommand2(core, id2, args) {
-  return runCommand({ core, plugin: EDIT_BOARD }, id2, args);
-}
-
-// srcts/modules/edit-board/blocks.tsx
 import { Fragment as Fragment3, jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 var ADD = { kind: "add" };
 function BlocksSection({ core, board }) {
-  const run = useCallback8((command2, args) => runCommand2(core, command2, args), [core]);
+  const run = useCallback8((command2, args) => runCommand(core, command2, args), [core]);
   const registry = core.blockRegistry();
   const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
@@ -11830,7 +11873,7 @@ function BlockRow({ core, id: id2, block, className }) {
         label: "Block name",
         name: block.name,
         onSubmit: (name2) => {
-          void runCommand2(core, "blockr.core-rename_block", { id: id2, name: name2 });
+          void runCommand(core, "blockr.core-rename_block", { id: id2, name: name2 });
         },
         onDone: () => {
           setRenaming(false);
@@ -11859,7 +11902,7 @@ function BlockRow({ core, id: id2, block, className }) {
           className: classes.quiet,
           "aria-label": `Remove the block ${block.name}`,
           onClick: () => {
-            void runCommand2(core, "blockr.core-remove_block", { id: id2 });
+            void runCommand(core, "blockr.core-remove_block", { id: id2 });
           },
           children: "Remove"
         }
@@ -11942,7 +11985,7 @@ function LinkRow({
           className: classes.quiet,
           "aria-label": `Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
           onClick: () => {
-            void runCommand2(core, "blockr.core-remove_link", { id: id2 });
+            void runCommand(core, "blockr.core-remove_link", { id: id2 });
           },
           children: "Remove"
         }
@@ -12021,10 +12064,10 @@ function LinkForm({
     const linkInput = variadic2 ? name2.trim() : chosen;
     const args = { from: source, to: target2, ...linkInput === void 0 ? {} : { input: linkInput } };
     setBusy(true);
-    let ran = editing === void 0 ? await runCommand2(core, "blockr.core-add_link", args) : await runCommand2(core, "blockr.core-change_link", { id: editing.id, ...args });
+    let ran = editing === void 0 ? await runCommand(core, "blockr.core-add_link", args) : await runCommand(core, "blockr.core-change_link", { id: editing.id, ...args });
     if (ran && editing !== void 0 && among !== void 0 && position !== void 0 && position !== among.place) {
       const before = placeAmong(core.store.board(), editing.id, target2).others[position - 1];
-      ran = await runCommand2(core, "blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
+      ran = await runCommand(core, "blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
     }
     setBusy(false);
     if (!ran) return;
@@ -12279,7 +12322,7 @@ function StackRow({
           className: classes.quiet,
           "aria-label": `Remove the stack ${stack.name}`,
           onClick: () => {
-            void runCommand2(core, "blockr.core-remove_stack", { id: id2 });
+            void runCommand(core, "blockr.core-remove_stack", { id: id2 });
           },
           children: "Remove"
         }
@@ -12347,7 +12390,7 @@ function StackForm({
     let ran;
     if (editing === void 0) {
       const args = { blocks: kept, color: color2, name: trimmed === "" ? fallbackName : trimmed };
-      ran = await runCommand2(core, "blockr.core-add_stack", args);
+      ran = await runCommand(core, "blockr.core-add_stack", args);
     } else {
       const { id: id2, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
@@ -12355,8 +12398,8 @@ function StackForm({
         ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
         ...color2 === stack.color ? {} : { color: color2 }
       };
-      ran = !renamed || await runCommand2(core, "blockr.core-rename_stack", { id: id2, name: trimmed });
-      if (ran && Object.keys(changed).length > 0) ran = await runCommand2(core, "blockr.core-change_stack", { id: id2, ...changed });
+      ran = !renamed || await runCommand(core, "blockr.core-rename_stack", { id: id2, name: trimmed });
+      if (ran && Object.keys(changed).length > 0) ran = await runCommand(core, "blockr.core-change_stack", { id: id2, ...changed });
     }
     setBusy(false);
     if (!ran) return;
@@ -12561,12 +12604,14 @@ function saveBoard(core, doc) {
   }
 }
 async function openBoard(core, plugin, doc) {
+  let text;
   try {
-    const text = await pickFile(doc);
-    if (text !== null) await core.store.open(text);
+    text = await pickFile(doc);
   } catch (error) {
     core.notifications.notify(plugin, { severity: "error", code: "board_open_failed", message: errorMessage(error) });
+    return;
   }
+  if (text !== null) await core.store.open(text);
 }
 function fileName(board, now = /* @__PURE__ */ new Date()) {
   const two = (n2) => String(n2).padStart(2, "0");
@@ -12917,8 +12962,8 @@ function useValue(host, key2) {
   const binding = useRef8(null);
   useLayoutEffect7(() => {
     const bound = bind2(host, name2, setValue, {
-      settled: (refused3) => {
-        setError(refused3 === null ? null : errorMessage(refused3));
+      settled: (refused2) => {
+        setError(refused2 === null ? null : errorMessage(refused2));
       }
     });
     binding.current = bound;
