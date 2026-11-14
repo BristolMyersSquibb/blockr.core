@@ -227,7 +227,7 @@ describe("the plugins that run", () => {
     // upload, where the app runs no other.
     const t = await stubCore();
     const own = t.core.plugins.storage();
-    expect(own?.controls({ core: t.core }).map((control) => control.id)).toEqual(["save", "open"]);
+    expect(own?.controls({ core: t.core, plugin: FILE }).map((control) => control.id)).toEqual(["save", "open"]);
     expect(t.core.plugins.storage()).toBe(own);
     expect(Object.keys(t.core.plugins.appPlugins())).toEqual([BASIC, FILE, EDIT]);
     t.stop();

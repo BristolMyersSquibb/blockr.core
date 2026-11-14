@@ -12,6 +12,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// The class of core's own storage plugin, which the app of the fixture hello
+// runs.
+const FILE_STORAGE = "blockr.core-file_storage_plugin";
+
 // The downloads that the browser starts, by their name, with what each holds.
 function downloads() {
   const started: { name: string; blob: Blob }[] = [];
@@ -45,7 +49,7 @@ describe("core's own storage plugin", () => {
   test("gives two buttons, Save and Open, and leaves Open out under the load lock alone", async () => {
     const open = await stubCore();
     // Neither button has a tooltip, a shortcut or a hint.
-    const given = coreStorage().controls({ core: open.core });
+    const given = coreStorage().controls({ core: open.core, plugin: FILE_STORAGE });
     expect(given.map((control) => Object.keys(control))).toEqual([
       ["kind", "id", "label", "run"],
       ["kind", "id", "label", "run"],
@@ -58,7 +62,7 @@ describe("core's own storage plugin", () => {
 
     const ids = async (lock: { board: boolean; load: boolean }): Promise<string[]> => {
       const s = await stubCore({ hello: { ...HELLO, lock } });
-      const given = coreStorage().controls({ core: s.core }).map((control) => control.id);
+      const given = coreStorage().controls({ core: s.core, plugin: FILE_STORAGE }).map((control) => control.id);
       s.stop();
       return given;
     };
@@ -70,7 +74,7 @@ describe("core's own storage plugin", () => {
     const { core, stop } = await stubCore();
     const started = downloads();
 
-    await button(coreStorage().controls({ core }), "save").run();
+    await button(coreStorage().controls({ core, plugin: FILE_STORAGE }), "save").run();
 
     expect(started.map((download) => download.name)).toEqual([
       expect.stringMatching(/^brisk_otter_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/),
@@ -82,7 +86,7 @@ describe("core's own storage plugin", () => {
 
   test("opens the board in the file that the user picks, opens none where the user picks none, and leaves no picker on the page", async () => {
     const s = await stubCore();
-    const open = button(coreStorage().controls({ core: s.core }), "open");
+    const open = button(coreStorage().controls({ core: s.core, plugin: FILE_STORAGE }), "open");
     const picker = { accept: ".json,application/json", connected: true };
 
     const cancelled = picking(undefined);
@@ -102,13 +106,20 @@ describe("core's own storage plugin", () => {
     s.stop();
   });
 
-  test("rejects with why the store refused the board in the file that the user picks, which leaves the board open", async () => {
+  test("tells the user why the store refused the board in the file that the user picks, through an error of the code board_open_failed about the plugin, and leaves the board open", async () => {
     const s = await stubCore();
     picking(new File(["{}"], "board.json"));
 
-    await expect(button(coreStorage().controls({ core: s.core }), "open").run()).rejects.toThrow(
-      "The store refused to open the board",
-    );
+    await button(coreStorage().controls({ core: s.core, plugin: FILE_STORAGE }), "open").run();
+    expect(s.core.notifications.get()).toEqual([
+      {
+        id: expect.any(String) as string,
+        severity: "error",
+        message: expect.stringContaining("The store refused to open the board") as string,
+        source: { kind: "module", module: { object: { plugin: FILE_STORAGE }, package: "blockr.core" }, code: "board_open_failed" },
+        about: { plugin: FILE_STORAGE },
+      },
+    ]);
     expect(s.core.store.board().name).toBe("Iris review");
     s.stop();
   });

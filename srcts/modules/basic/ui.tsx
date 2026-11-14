@@ -9,11 +9,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { classes } from "../../ui/index.ts";
+import { useFrontEnd } from "./context.ts";
 
 // A modal dialog, open while it is drawn, which closes on Escape, on its
 // Close button and once its owner stops drawing it. It puts the focus on the
 // element of its content marked data-autofocus, if any, as the browser would
 // otherwise put it on the Close button.
+// While it is open, the frontend's toasts show in an element at its end, since
+// showModal() puts the dialog in the top layer and makes the rest of the page
+// inert. The toasts stay fixed to the window's corner there, and the user can
+// still close them.
 export function Dialog({
   title,
   onClose,
@@ -23,16 +28,21 @@ export function Dialog({
   onClose: () => void;
   children: ReactNode;
 }): ReactElement {
+  const { toasts } = useFrontEnd();
   const ref = useRef<HTMLDialogElement>(null);
+  const toastsRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const dialog = ref.current;
-    if (dialog === null) return;
+    const inside = toastsRef.current;
+    if (dialog === null || inside === null) return;
     if (!dialog.open) dialog.showModal();
     dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+    const back = toasts.showIn(inside);
     return () => {
+      back();
       if (dialog.open) dialog.close();
     };
-  }, []);
+  }, [toasts]);
   return (
     <dialog
       ref={ref}
@@ -49,6 +59,7 @@ export function Dialog({
         </div>
         {children}
       </div>
+      <div ref={toastsRef} />
     </dialog>
   );
 }

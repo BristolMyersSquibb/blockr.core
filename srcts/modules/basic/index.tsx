@@ -15,10 +15,13 @@
 // Its render() takes four steps:
 // 1. It demands every block, and the blocks in view higher still, from the
 //    board, so that the scheduler evaluates first what the page first shows.
-// 2. It shows above the board the notifications of the board that concern no
-//    block, whoever raised them, such as the one in which core names what the
-//    store dropped as the board opened, until one is withdrawn or the user
-//    dismisses it. Each block's card shows those about the block.
+// 2. It shows as a toast each notification of the board that concerns no
+//    block, whoever raised it, such as the one in which core names what the
+//    store dropped as the board opened (./toasts.ts). Each block's card shows
+//    those about the block. The frontend raises its own notifications under
+//    the id of its plugin class, which render() gets: why the store or the
+//    command registry refused one of its edits, and why a storage control's
+//    button failed.
 // 3. It draws the board that the store holds, and then demands the blocks in
 //    view as the page lays out their cards.
 // 4. It binds undo, redo and the buttons among the storage controls to their
@@ -28,12 +31,13 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { PluginClass } from "../../store/index.ts";
+import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { BasicBoard } from "./board.tsx";
 import type { FrontEnd } from "./context.ts";
 import { demandShown } from "./demand.ts";
-import { createNotices } from "./notices.ts";
 import { bindShortcuts } from "./shortcuts.ts";
+import { createToasts } from "./toasts.ts";
 
 export const api = 1;
 
@@ -42,23 +46,21 @@ export default {
   frontend: { render },
 } satisfies Omit<PluginClass, "id">;
 
-function render({ el, core }: { el: HTMLElement; core: CoreApi; signal: AbortSignal }): () => void {
+function render({ el, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }): () => void {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
-  const notices = createNotices(core.notifications);
-  const front: FrontEnd = { core, notices, inView: shown };
+  const toasts = createToasts(core.notifications);
+  const front: FrontEnd = { core, plugin, toasts, inView: shown };
   const root = createRoot(el);
   flushSync(() => {
     root.render(<BasicBoard front={front} />);
   });
   shown.measure();
 
-  const unbind = bindShortcuts(doc, core, (error) => {
-    notices.failed(error);
-  });
+  const unbind = bindShortcuts(doc, front);
   return () => {
     unbind();
-    notices.stop();
+    toasts.stop();
     shown.release();
     root.unmount();
   };

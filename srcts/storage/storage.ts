@@ -9,17 +9,19 @@
 // another of its plugins is a storage plugin.
 // The store writes the text of the board's file and opens such a text, so core
 // only moves the text between the page and the user's disk.
+// Where Open fails, the plugin tells the user why through a notification of
+// its own, since a frontend only logs a button that rejects.
 
 import type { Storage, StorageControl } from "../store/index.ts";
-import type { Board } from "../types/board.ts";
+import type { Board, PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import { asError } from "../util/index.ts";
+import { asError, errorMessage } from "../util/index.ts";
 
 // The storage of core's own storage plugin. Its buttons reach for the document
 // given, or else for the page's, only as they run.
 export function coreStorage(doc?: Document): Storage {
   return {
-    controls({ core }) {
+    controls({ core, plugin }) {
       const save: StorageControl = {
         kind: "button",
         id: "save",
@@ -30,7 +32,7 @@ export function coreStorage(doc?: Document): Storage {
         kind: "button",
         id: "open",
         label: "Open",
-        run: () => openBoard(core, doc ?? document),
+        run: () => openBoard(core, plugin, doc ?? document),
       };
       return core.lock.load ? [save] : [save, open];
     },
@@ -54,9 +56,17 @@ function saveBoard(core: Pick<CoreApi, "store">, doc: Document): Promise<void> {
 // Core starts again for the board that opens, so what the store's open()
 // resolves with goes unread here: core names what the store dropped in a note
 // to the frontend that draws the board.
-async function openBoard(core: Pick<CoreApi, "store">, doc: Document): Promise<void> {
-  const text = await pickFile(doc);
-  if (text !== null) await core.store.open(text);
+// Where the file cannot be read, or the store refuses the board in it, the
+// board stays as it was. The plugin of the class `plugin` then tells the user
+// why through a notification: an error of the code `board_open_failed`, the
+// name core gives a board that fails to open, which concerns the plugin.
+async function openBoard(core: Pick<CoreApi, "store" | "notifications">, plugin: PluginClassId, doc: Document): Promise<void> {
+  try {
+    const text = await pickFile(doc);
+    if (text !== null) await core.store.open(text);
+  } catch (error) {
+    core.notifications.notify(plugin, { severity: "error", code: "board_open_failed", message: errorMessage(error) });
+  }
 }
 
 // The name of the board's file, as today's: the board's id and the local time
