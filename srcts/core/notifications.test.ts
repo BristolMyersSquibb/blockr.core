@@ -2,8 +2,10 @@
 // condition of each block's status, one for each condition of R's error reply
 // to a request, those that core raises where a block's UI, a board option's UI
 // or a plugin fails, those that a module raises through its host or an
-// onChange() through its `notify`, and their withdrawal as the board object
-// that they concern leaves the board (./notifications.ts). The checks of what a plugin raises
+// onChange() through its `notify`, those that core raises where the store or
+// the command registry refuses an edit of the user that a plugin makes, and
+// their withdrawal as the board object that they concern leaves the board
+// (./notifications.ts, ./core.ts). The checks of what a plugin raises
 // are tested with the other members that reach plugins (./plugins.test.ts),
 // and what core raises as it starts the page and opens a board with the start
 // (./start.test.ts).
@@ -18,7 +20,7 @@ import { listedModules, pluginUi } from "../testing/plugins.ts";
 import { reports } from "../testing/reports.ts";
 import { withOptions, withPlugins } from "../testing/store.ts";
 import type { Notification } from "../types/core-api.ts";
-import type { BlockHost, OutputHost } from "../types/hosts.ts";
+import type { BlockHost, OptionHost, OutputHost } from "../types/hosts.ts";
 
 const FILE = "blockr.core-file_storage_plugin";
 
@@ -387,6 +389,137 @@ describe("core's notifications", () => {
         about: { option: "nowhere" },
       },
     ]);
+    s.stop();
+  });
+
+  test("of an edit of the user that the command registry or the store refuses concern the board, whatever block the edit names, and the edit still rejects or throws", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const unknownInput = { links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } };
+
+    // A command that the command registry refuses, and a delta that the store
+    // refuses.
+    await expect(s.core.commands.run("blockr.core-remove_block", { id: "nowhere" })).rejects.toThrow(
+      'The command "blockr.core-remove_block" refused to run',
+    );
+    expect(() => {
+      s.core.store.apply(unknownInput);
+    }).toThrow("The store rejected the delta");
+    // The user removes the link from block a to block b, and the assistant
+    // then feeds b's one input from block d, which an undo would give a second
+    // link.
+    await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
+    await s.core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" }, "assistant");
+    expect(() => {
+      s.core.store.undo();
+    }).toThrow("The store refused to undo the step");
+    // The user feeds block f's one input from block d, in place of block a,
+    // and takes that back. The assistant then feeds it from block b, which a
+    // redo would give a second link.
+    await s.core.commands.run("blockr.core-remove_link", { id: "keen_finch" });
+    await s.core.commands.run("blockr.core-add_link", { id: "df", from: "d", to: "f", input: "data" });
+    s.core.store.undo();
+    await s.core.commands.run("blockr.core-add_link", { from: "b", to: "f", input: "data" }, "assistant");
+    expect(() => {
+      s.core.store.redo();
+    }).toThrow("The store refused to redo the step");
+    await s.settled();
+
+    const refused = held(s.core, (n) => codeOf(n) === "edit_refused");
+    expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual(
+      Array.from({ length: 4 }, () => ["error", { kind: "core", code: "edit_refused" }, undefined]),
+    );
+    expect(refused.map((n) => n.message)).toEqual([
+      expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/),
+      expect.stringMatching(/^The store rejected the delta/),
+      expect.stringMatching(/^The store refused to undo the step/),
+      expect.stringMatching(/^The store refused to redo the step/),
+    ]);
+    s.stop();
+  });
+
+  test("of an edit that the user makes again are raised anew, so that a frontend that has shown one shows it again", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const heard: string[][] = [];
+    s.core.notifications.subscribe((all) => {
+      heard.push(all.filter((n) => codeOf(n) === "edit_refused").map((n) => n.message));
+    });
+    const remove = (): Promise<void> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" });
+
+    await expect(remove()).rejects.toThrow();
+    const [first] = s.core.notifications.get().filter((n) => codeOf(n) === "edit_refused");
+    await expect(remove()).rejects.toThrow();
+
+    // Core withdrew the notification, and raised it again with the same id.
+    const message = first?.message ?? "";
+    expect(heard).toEqual([[message], [], [message]]);
+    expect(s.core.notifications.get().filter((n) => codeOf(n) === "edit_refused")).toEqual([first]);
+    s.stop();
+  });
+
+  test("of an edit of another origin are none: the assistant's, whose tool hands the refusal to its model, and core's own, which puts the default of a board option on the board", async () => {
+    const reported = reports();
+    const unfit: Option = { id: "unfit", label: "Unfit", category: "View options", schema: { type: "number" }, default: "big", ui: { render: () => undefined } };
+    const needy: PluginClass = { id: "blockr.test-needy_plugin", options: ["unfit"], ui: pluginUi().ui };
+    const s = await stubCore({
+      hello: withOptions(["unfit"], withPlugins({ [needy.id]: { name: "Needy" } })),
+      modules: listedModules([needy], [unfit]),
+    });
+    await s.settled();
+    reported.restore();
+
+    await expect(s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "assistant")).rejects.toThrow();
+    expect(() => {
+      s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant");
+    }).toThrow();
+
+    expect(held(s.core, (n) => codeOf(n) === "edit_refused")).toEqual([]);
+    // The store refused core's edit of the default, which core names as the
+    // board option's failure alone.
+    expect(held(s.core, (n) => codeOf(n) === "board_option_failed").map((n) => n.about)).toEqual([{ option: "unfit" }]);
+    s.stop();
+  });
+
+  test("of a block's or a board option's UI module whose submit() the store refuses are none, since the module says why itself, as core's inputs do below themselves, and submit() rejects with the reason", async () => {
+    const blocks: BlockHost[] = [];
+    const options: OptionHost[] = [];
+    const rows = HELLO.options.n_rows?.module ?? "";
+    const s = await stubCore({
+      modules: {
+        [HEAD]: {
+          api: 1,
+          default: {
+            render: ({ host }: { host: BlockHost }) => {
+              blocks.push(host);
+            },
+          },
+        },
+        [rows]: {
+          api: 1,
+          default: {
+            id: "n_rows",
+            label: "Rows",
+            category: "Table options",
+            schema: { type: "integer", minimum: 1 },
+            default: 50,
+            ui: {
+              render: ({ host }: { host: OptionHost }) => {
+                options.push(host);
+              },
+            },
+          },
+        },
+      },
+    });
+    s.core.mountBlock(document.createElement("div"), "b");
+    s.core.mountOption(document.createElement("div"), "n_rows");
+    await s.settled();
+
+    await expect(blocks[0]?.submit({ n: -1 })).rejects.toThrow('The state of block "b" fails its schema at /n');
+    await expect(options[0]?.submit(0)).rejects.toThrow('The value of the board option "n_rows" fails its schema');
+
+    expect(held(s.core, (n) => codeOf(n) === "edit_refused")).toEqual([]);
     s.stop();
   });
 });

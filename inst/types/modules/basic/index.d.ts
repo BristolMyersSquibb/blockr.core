@@ -8,7 +8,7 @@ declare const _default: {
     };
 };
 export default _default;
-declare function render({ el, core, plugin }: {
+declare function render({ el, core }: {
     el: HTMLElement;
     core: CoreApi;
     plugin: PluginClassId;

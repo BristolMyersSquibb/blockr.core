@@ -710,7 +710,7 @@ describe("a board opened later", () => {
     return opening;
   }
 
-  test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason", async () => {
+  test("is checked by the store on the page first, so that a board it refuses leaves the page as it was, with the reason, which core tells the user", async () => {
     const basic = frontEnd();
     // The app runs a plugin of a class whose state must hold a zoom, as R's
     // board does.
@@ -732,12 +732,32 @@ describe("a board opened later", () => {
     });
     await expect(s.core.store.open(strict)).rejects.toThrow('The state of the plugin "test.pkg-strict_plugin"');
     await expect(s.core.store.open(JSON.stringify(unfit()))).rejects.toThrow(unfitness);
+    // The same board again, whose refusal core raises anew, so that a
+    // frontend that has shown it shows it again.
+    const heard: string[][] = [];
+    s.core.notifications.subscribe((all) => {
+      heard.push(all.filter((n) => codeOf(n) === "board_open_failed").map((n) => n.message));
+    });
+    await expect(s.core.store.open("{")).rejects.toThrow("The store refused to open the board\n- The text holds no JSON");
 
     expect(s.r.sent.slice(sent)).toEqual([]);
     expect(basic.renders).toHaveLength(1);
     expect(basic.renders[0]?.signal.aborted).toBe(false);
     expect(s.el.textContent).toBe("Iris review");
     expect(s.started.core()).toBe(s.core);
+    // Core tells the user why it refused each board, in a notification that
+    // concerns the board, with the reason that open() rejects with.
+    const failed = s.core.notifications.get().filter((n) => codeOf(n) === "board_open_failed");
+    expect(failed.map((n) => [n.severity, n.source, n.about])).toEqual(
+      Array.from({ length: 3 }, () => ["error", { kind: "core", code: "board_open_failed" }, undefined]),
+    );
+    // The board that holds no JSON comes last, since core raised it anew.
+    expect(failed.map((n) => n.message)).toEqual([
+      expect.stringContaining('The state of the plugin "test.pkg-strict_plugin"'),
+      expect.stringContaining(unfitness),
+      expect.stringMatching(/^The store refused to open the board\n- The text holds no JSON/),
+    ]);
+    expect(heard.map((messages) => messages.length)).toEqual([2, 3]);
     s.core.store.apply({ name: "Still open" });
     expect(s.core.store.board().name).toBe("Still open");
   });

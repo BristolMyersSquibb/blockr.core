@@ -74,8 +74,9 @@ export function buttonsOf(controls: readonly StorageControl[]): Button[] {
 // Runs the button. It calls run() before it awaits anything, so that run()
 // still acts within the user's click or key press, as a browser's file picker
 // needs. The storage plugin tells the user why one of its buttons failed,
-// since it alone knows its backend, so the frontend reports a run() that
-// rejects as a fault of the plugin, for the log alone.
+// since it alone knows its backend, and core tells the user why it refused
+// what the button asked of it, such as a board to open. So the frontend
+// reports a run() that rejects for the log alone.
 export async function runButton(button: Button): Promise<void> {
   try {
     await button.run();

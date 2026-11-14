@@ -112,7 +112,7 @@ export const BlockCard = memo(function BlockCard({
             label="Block name"
             name={block.name}
             onSubmit={(name) => {
-              void runCommand(front, "blockr.core-rename_block", { id, name });
+              void runCommand(core, "blockr.core-rename_block", { id, name });
             }}
             onDone={() => {
               setRenaming(false);
@@ -150,7 +150,7 @@ export const BlockCard = memo(function BlockCard({
                 {
                   label: "Remove",
                   onSelect: () => {
-                    void runCommand(front, "blockr.core-remove_block", { id });
+                    void runCommand(core, "blockr.core-remove_block", { id });
                   },
                 },
               ]}

@@ -649,13 +649,23 @@ describe("the toolbar", () => {
     expect(page.el.querySelectorAll("article")).toHaveLength(6);
     expect(document.querySelectorAll('input[type="file"]')).toHaveLength(0);
 
+    // Where the store refuses the board in the file, core tells the user why,
+    // and the frontend logs the Open that rejects.
     vi.restoreAllMocks();
     picking(new File(["{}"], "board.json"));
-    await click(button(page.el, "Open"));
-    await page.settled();
+    const reported = reports();
+    let errors: unknown[];
+    try {
+      await click(button(page.el, "Open"));
+      await page.settled();
+    } finally {
+      reported.restore();
+      errors = reported.errors();
+    }
     expect(page.board().name).toBe("Opened");
-    expect(toasts(page.el)).toEqual([
-      ["error", 'Plugin "File storage" · blockr.core', expect.stringContaining("The store refused to open the board")],
+    expect(toasts(page.el)).toEqual([["error", "Board", expect.stringContaining("The store refused to open the board")]]);
+    expect(errors.filter((error) => error instanceof Error).map((error) => error.message)).toEqual([
+      expect.stringContaining("The store refused to open the board"),
     ]);
   });
 
@@ -876,7 +886,7 @@ describe("the storage controls", () => {
     expect(toasts(el)).toEqual([["error", 'Plugin "Session" · blockr.test', "Connect is down."]]);
   });
 
-  test("log a button whose run() rejects, run by a click or by its shortcut, as a fault of the plugin, which raises no notification", async () => {
+  test("log a button whose run() rejects, run by a click or by its shortcut, and raise no notification", async () => {
     const storage = storagePlugin(() => [
       { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: () => Promise.reject(new Error("Connect is down.")) },
     ]);
@@ -1153,28 +1163,39 @@ describe("what the user learns", () => {
     expect(toastsIn(el).map((t) => t.closest("dialog"))).toEqual([null]);
   });
 
-  test("is why the store or the command registry refused an edit of the frontend's, an error of the code edit_refused about the frontend's plugin, whatever block the edit names", async () => {
+  test("is why the store or the command registry refused an edit, an error of the code edit_refused that core raises about the board, whatever block the edit names, which shows again as the same refusal comes again", async () => {
     const { el, core } = await drawn();
-    vi.spyOn(core.commands, "run").mockRejectedValueOnce(new Error("The store refused the edit."));
-    await menu(el, "Head", "Remove");
-    await act(() => core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
-    vi.spyOn(core.store, "undo").mockImplementation(() => {
-      throw new Error("The store refused to undo the step.");
-    });
+    // The user removes the link from Iris to Head, and the assistant then
+    // feeds Head's one input from Wide sepals. So the store refuses to undo
+    // the user's step, which would give that input a second link.
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
+    await act(() => core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" }, "assistant"));
     await click(button(el, "Undo"));
+    const refusal = core.notifications.get()[0]?.message ?? "";
+    expect(refusal).toMatch(/^The store refused to undo the step/);
+    expect(toasts(el)).toEqual([["error", "Board", refusal]]);
+
+    // The user closes the toast and presses the shortcut, whose undo the
+    // store refuses alike. Core raises the refusal anew, so its toast shows
+    // again.
+    await click(find(toast(el, refusal), 'button[aria-label="Close"]'));
+    expect(toasts(el)).toEqual([]);
     await step(() => {
       press(document.body, "z", { ctrlKey: true });
     });
+    expect(toasts(el)).toEqual([["error", "Board", refusal]]);
 
-    const title = 'Plugin "Basic frontend" · blockr.core';
+    // A command that the command registry refuses shows alike.
+    await act(() => expect(core.commands.run("blockr.core-remove_block", { id: "nowhere" })).rejects.toThrow());
     expect(toasts(el)).toEqual([
-      ["error", title, "The store refused the edit."],
-      ["error", title, "The store refused to undo the step."],
-      ["error", title, "The store refused to undo the step."],
+      ["error", "Board", refusal],
+      ["error", "Board", expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/)],
     ]);
-    expect(new Set(core.notifications.get().map(({ source, about }) => JSON.stringify([source, about])))).toEqual(
-      new Set([JSON.stringify([{ kind: "module", object: { plugin: BASIC }, code: "edit_refused", package: "blockr.core" }, { plugin: BASIC }])]),
-    );
+    // The frontend raises none of its own.
+    expect(core.notifications.get().map(({ source, about }) => [source, about])).toEqual([
+      [{ kind: "core", code: "edit_refused" }, undefined],
+      [{ kind: "core", code: "edit_refused" }, undefined],
+    ]);
     expect(pills(card(el, "Head"))).toEqual([]);
   });
 

@@ -114,7 +114,7 @@ function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void 
   const board = useBoard(front.core);
   const target = mode.kind === "add" ? undefined : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target === undefined ? "Add block" : `Add block ${mode.kind} "${target.name}"`;
-  const run = useCallback((command: string, args: Json) => runCommand(front, command, args), [front]);
+  const run = useCallback((command: string, args: Json) => runCommand(front.core, command, args), [front.core]);
   return (
     <Dialog title={title} onClose={onClose}>
       <BlockPicker core={front.core} mode={mode} run={run} onAdded={onClose} autofocus />

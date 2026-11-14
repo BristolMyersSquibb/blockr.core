@@ -609,7 +609,7 @@ function checkRaised(notification) {
   }
   if (typeof given.code !== "string" || given.code === "") {
     throw new TypeError(
-      `The code of a notification is a non-empty string, as "edit_refused", not ${JSON.stringify(given.code)}.`
+      `The code of a notification is a non-empty string, as "render_failed", not ${JSON.stringify(given.code)}.`
     );
   }
   const { about } = given;
@@ -7723,9 +7723,10 @@ function createCore(parts) {
     raise,
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
+  const edits = refusing(store, commands, notifications.raiseAgain);
   const api = {
-    store,
-    commands,
+    store: edits.store,
+    commands: edits.commands,
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
       evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),
@@ -7804,6 +7805,46 @@ function createCore(parts) {
     raisedBy.set(id2, raisedNow);
   }
   return { api, plugins };
+}
+function refusing(store, commands, raiseAgain) {
+  function refused2(origin, error) {
+    if ((origin ?? "user") === "user") raiseAgain(coreNotification("edit_refused", "error", errorMessage(error)));
+  }
+  function edit(origin, fn) {
+    try {
+      fn();
+    } catch (error) {
+      refused2(origin, error);
+      throw error;
+    }
+  }
+  return {
+    store: {
+      ...store,
+      apply(delta, origin, opts) {
+        edit(origin, () => {
+          store.apply(delta, origin, opts);
+        });
+      },
+      undo(origin) {
+        edit(origin, () => {
+          store.undo(origin);
+        });
+      },
+      redo(origin) {
+        edit(origin, () => {
+          store.redo(origin);
+        });
+      }
+    },
+    commands: {
+      ...commands,
+      run: (id2, args, origin) => commands.run(id2, args, origin).catch((error) => {
+        refused2(origin, error);
+        throw error;
+      })
+    }
+  };
 }
 function createFocus(store, signal) {
   let focused = null;
@@ -8744,6 +8785,7 @@ function createNotifications(store, options = {}) {
   const plugins = options.plugins ?? {};
   const held = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
+  const again = /* @__PURE__ */ new Map();
   const replacing = /* @__PURE__ */ new Map();
   const left2 = /* @__PURE__ */ new Set();
   const listeners = /* @__PURE__ */ new Set();
@@ -8802,6 +8844,7 @@ function createNotifications(store, options = {}) {
     const had = held.size > 0;
     held.clear();
     raised.clear();
+    again.clear();
     replacing.clear();
     left2.clear();
     if (had) publish();
@@ -8850,13 +8893,7 @@ function createNotifications(store, options = {}) {
   };
   const raise = (given) => {
     if (ended || given.about !== void 0 && !present(given.about)) return nothing;
-    const id2 = JSON.stringify([
-      "raised",
-      given.severity,
-      given.message,
-      sourceCopy(given.source),
-      given.about === void 0 ? null : objectCopy(given.about)
-    ]);
+    const id2 = raisedId(given);
     const token = {};
     const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
     tokens.add(token);
@@ -8871,6 +8908,12 @@ function createNotifications(store, options = {}) {
       raised.delete(id2);
       if (held.delete(id2)) publish();
     };
+  };
+  const raiseAgain = (given) => {
+    const id2 = raisedId(given);
+    again.get(id2)?.();
+    const withdraw = raise(given);
+    if (!ended) again.set(id2, withdraw);
   };
   const notify = ({ object: object2, package: pkg, renderer }, notification) => {
     const given = checkRaised(notification);
@@ -8934,6 +8977,7 @@ function createNotifications(store, options = {}) {
       }
     },
     raise,
+    raiseAgain,
     replied: replied2,
     notify,
     follow(scheduler) {
@@ -8949,6 +8993,15 @@ function createNotifications(store, options = {}) {
       if (store.hasBoard()) heard(Object.keys(store.board().blocks));
     }
   };
+}
+function raisedId(given) {
+  return JSON.stringify([
+    "raised",
+    given.severity,
+    given.message,
+    sourceCopy(given.source),
+    given.about === void 0 ? null : objectCopy(given.about)
+  ]);
 }
 function statusSource(condition) {
   if (isUnsentError(condition)) return { kind: "core", code: "evaluation_unsent" };
@@ -9380,7 +9433,12 @@ function start(options) {
     }
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
     await migrations.prepare(text, current2.store.blockRegistry());
-    await current2.store.check(text);
+    try {
+      await current2.store.check(text);
+    } catch (error) {
+      current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", errorMessage(error)));
+      throw error;
+    }
     const before = current2.store.save();
     of.abort();
     running2 = void 0;

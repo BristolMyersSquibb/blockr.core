@@ -441,7 +441,7 @@ describe("what a frontend offers other plugins", () => {
       'The severity of a notification is "message", "warning" or "error", not "fatal".',
     );
     expect(refused({ ...base, message: 1 })).toThrow("The message of a notification is a string, not 1.");
-    expect(refused({ ...base, code: "" })).toThrow('The code of a notification is a non-empty string, as "edit_refused", not "".');
+    expect(refused({ ...base, code: "" })).toThrow('The code of a notification is a non-empty string, as "render_failed", not "".');
     const part =
       "A notification concerns one board object, as { block: \"a\" }: a block, a link, a stack, a board option or a plugin, or null for the board, not";
     expect(refused({ ...base, about: { block: "b", link: "ab" } })).toThrow(`${part} {"block":"b","link":"ab"}.`);

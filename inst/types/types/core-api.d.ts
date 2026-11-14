@@ -88,7 +88,7 @@ export interface CoreSource {
     readonly package?: string;
     readonly renderer?: string;
 }
-export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered";
+export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "edit_refused" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered";
 export interface ModuleSource {
     readonly kind: "module";
     readonly object: {

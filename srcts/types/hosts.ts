@@ -59,7 +59,9 @@ export interface BlockHost<S extends State = State> {
   context(): BlockContext;
   on(event: "state" | "context", fn: () => void): () => void;
   // One edit, on a user's action only, through core's command that sets the
-  // block's state. It rejects with what refused it.
+  // block's state. It rejects with what refused it. Core raises no
+  // notification of that, so the module shows the user why, as core's inputs
+  // do below themselves.
   submit(change: Partial<S>): Promise<void>;
   // A request of the block class, with state args and parameters. It resolves
   // with the answer as R writes it, every vector as an array, or with a File
@@ -113,7 +115,8 @@ export interface OptionHost<V extends Json = Json> {
   // lacks it. The host announces each change of it through "value".
   value(): V;
   on(event: "value", fn: () => void): () => void;
-  // Runs core's command that sets a board option.
+  // Runs core's command that sets a board option. It rejects with what
+  // refused it, and the module shows the user why, as for a block's submit().
   submit(value: V): Promise<void>;
   // A request of the board option, never kept.
   request<T = Json>(
