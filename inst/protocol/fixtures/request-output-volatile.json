@@ -18,6 +18,7 @@
         "id": "36",
         "status": "ok",
         "value": ["corporate.potx", "plain.potx"],
+        "conditions": [],
         "volatile": true
       }
     ]

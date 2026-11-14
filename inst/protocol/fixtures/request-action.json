@@ -14,6 +14,13 @@
     }
   ],
   "r": [
-    [{ "id": "25", "status": "ok", "value": ["uploads/3f9a2c/sales.csv"] }]
+    [
+      {
+        "id": "25",
+        "status": "ok",
+        "value": ["uploads/3f9a2c/sales.csv"],
+        "conditions": []
+      }
+    ]
   ]
 }

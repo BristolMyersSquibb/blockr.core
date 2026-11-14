@@ -588,6 +588,41 @@ test_that("an output that fails replies error with the phase output", {
   expect_fixture_replies(session, "output-error")
 })
 
+test_that("an output that warns replies ok with the warning, which R logs", {
+
+  cls <- test_block_class(
+    "count_block",
+    expr = function() quote(data.frame(n = c("3", "n/a"))),
+    ui = js_module("count-block.js", package = NULL),
+    output = function(result, ...) {
+      result$n <- as.integer(result$n)
+      as_table_output(result, ...)
+    }
+  )
+
+  local_block_class(cls)
+  local_fixture_renderer_urls()
+
+  session <- local_evaluator()
+
+  hold_result(
+    session, "n", 3L,
+    recipe = list(registry_id = "count_block", state = obj(), inputs = list())
+  )
+
+  expect_fixture_replies(session, "output-warning")
+
+  expect_identical(chr_xtr(session$logged, "level"), "warn")
+  expect_identical(
+    chr_xtr(session$logged, "message"),
+    "Block n at revision 3: NAs introduced by coercion"
+  )
+  expect_identical(
+    lst_xtr(session$logged, "attributes"),
+    list(list(blockr.block.id = "n", blockr.block.revision = 3L))
+  )
+})
+
 test_that("R shows a result as text where its class names no output", {
 
   session <- local_evaluator()
@@ -623,6 +658,64 @@ test_that("R answers a block class's request, as the fixtures have it", {
   skip_if_not(l10n_info()[["UTF-8"]])
 
   expect_fixture_replies(session, "request-error")
+})
+
+test_that("a request that succeeds replies ok with what its function raised", {
+
+  cls <- test_block_class(
+    "count_block",
+    expr = function() quote(data.frame(n = c("3", "n/a"))),
+    ui = js_module("count-block.js", package = NULL),
+    requests = list(
+      counts = function() {
+        message("Counting.")
+        as.integer(c("3", "n/a"))
+      }
+    )
+  )
+
+  local_block_class(cls)
+
+  session <- local_evaluator()
+
+  session$receive(
+    list(
+      list(
+        id = "2",
+        kind = "request",
+        type = "block_class",
+        registry_id = "count_block",
+        block = "n",
+        name = "counts",
+        args = obj(),
+        reads = list()
+      )
+    )
+  )
+
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "ok")
+  expect_identical(
+    chr_xtr(reply$conditions, "severity"),
+    c("message", "warning")
+  )
+  expect_identical(chr_xtr(reply$conditions, "phase"), c("request", "request"))
+  expect_identical(
+    chr_xtr(reply$conditions, "message"),
+    c("Counting.", "NAs introduced by coercion")
+  )
+
+  expect_identical(chr_xtr(session$logged, "level"), c("info", "warn"))
+  expect_identical(
+    chr_xtr(session$logged, "message"),
+    paste0(
+      "Request counts of block class count_block: ",
+      c("Counting.", "NAs introduced by coercion")
+    )
+  )
 })
 
 test_that("an action receives the request's body in file", {

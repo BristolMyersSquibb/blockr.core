@@ -3,7 +3,7 @@
 // a scheduler whose evaluations and replies the test gives.
 
 import { describe, expect, test } from "vitest";
-import type { Reply } from "../protocol/index.ts";
+import type { Condition, Reply } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import { READY } from "../stubs/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
@@ -56,7 +56,7 @@ function setup(replies: Reply[], statuses: Record<BlockId, BlockStatus> = { a: R
   return { deps: { plugins, scheduler, replied }, sent, options, evaluated, handed };
 }
 
-const ok = (value: unknown): Reply => ({ id: "1", status: "ok", value: value as never });
+const ok = (value: unknown, conditions: Condition[] = []): Reply => ({ id: "1", status: "ok", value: value as never, conditions });
 
 describe("a plugin's request", () => {
   test("has the blocks it reads evaluated first, and goes to R with their revisions and the plugin's class", async () => {
@@ -109,9 +109,10 @@ describe("a plugin's request", () => {
     expect(s.sent).toEqual([]);
   });
 
-  test("rejects with the reply's status and conditions, which it hands on as R's latest reply to a request of the plugin of its name, as it does an ok reply's none", async () => {
+  test("rejects with the reply's status and conditions, which it hands on as R's latest reply to a request of the plugin of its name, as it does an ok reply's", async () => {
     const condition = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no" };
-    const s = setup([{ id: "1", status: "error", conditions: [condition] }, ok("done")]);
+    const warning = { severity: "warning" as const, class: ["simpleWarning", "warning", "condition"], phase: "request" as const, message: "NAs introduced by coercion" };
+    const s = setup([{ id: "1", status: "error", conditions: [condition] }, ok("done", [warning])]);
     const sent = pluginRequest(s.deps, CODE, "script", {}, {});
     await expect(sent).rejects.toMatchObject({ status: "error", conditions: [condition] });
     await expect(sent).rejects.toThrow('R replied error to the request "script" of the plugin "blockr.code-code_plugin".');
@@ -119,7 +120,7 @@ describe("a plugin's request", () => {
 
     expect(s.handed).toEqual([
       [{ plugin: CODE }, { type: "plugin", name: "script" }, [condition]],
-      [{ plugin: CODE }, { type: "plugin", name: "script" }, []],
+      [{ plugin: CODE }, { type: "plugin", name: "script" }, [warning]],
     ]);
   });
 

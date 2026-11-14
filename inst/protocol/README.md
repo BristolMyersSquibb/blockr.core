@@ -238,6 +238,7 @@ R passes the body that a request carries in the argument `file`, to a block clas
 That argument is a list of the path of the file that R wrote the bytes to, in `datapath`, and the file's `name`, `type` and `size`.
 
 R replies `ok` with the answer in `value`, which no schema describes, so that R writes it with every vector as an array, a length-one vector included, as `[150]`, and a module reads a single value as `answer[0]`. An answer that is a file, as a download is, comes as the reply's binary body, with no `value`.
+The reply also carries `conditions`: every message and warning that the request's function raised, with the phase `request` ([Conditions](#conditions)).
 
 Where R resolves a request of an output class to one that the class makes volatile, it marks its reply with `"volatile": true`, and the client keeps no answer so marked. The client cannot tell such a request before it asks: an output carries its renderer rather than its class vector, and a subclass may replace a volatile request of its class with one that is not. A renderer's own request is never volatile, and a block class's request needs no mark, since the block registry says which of them are volatile.
 
@@ -273,6 +274,7 @@ An `output` asks for the output that the coercion its block's class names in `ou
 | `params` | the output's parameters, which its renderer keeps, such as a table's `{ "page": 2, "sort": { "column": "x" } }`, in the shape that the output class's contract gives |
 
 R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, as the method of `output_renderer()` for the most specific class in the output's class vector that has one gives it, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client loads the first time an output names it and mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other properties its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. A coercion that fails makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
+An `ok` reply carries `conditions` as well: every message and warning that the coercion raised, with the phase `output`.
 
 R also names a renderer before any output exists: in the `renderer` of each block class's entry in the block registry, the renderer of the output class whose coercion the class names, as the method of `output_coercion()` for that output class gives the coercion.
 The client loads that renderer, and adds the board options it names to the board, before it asks for a block's first output, so that the request carries every board option that the coercion reads, such as the `n_rows` by which a table output pages.
@@ -425,6 +427,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`request-renderer`](fixtures/request-renderer.json) | a renderer's own request |
 | [`output`](fixtures/output.json) | a table output |
 | [`output-plot`](fixtures/output-plot.json) | a plot output with its PNG |
+| [`output-warning`](fixtures/output-warning.json) | an output whose coercion warns |
 | [`output-error`](fixtures/output-error.json) | an output that fails |
 | [`cancel`](fixtures/cancel.json) | cancelling a request |
 | [`forget`](fixtures/forget.json) | forgetting blocks |

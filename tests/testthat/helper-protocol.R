@@ -334,12 +334,20 @@ protocol_r_values <- function() {
         obj(
           id = "13",
           status = "ok",
-          output = proto_table_output(utils::head(datasets::iris, n = 6L))
+          output = proto_table_output(utils::head(datasets::iris, n = 6L)),
+          conditions = list()
         )
       )
     ),
     request = list(
-      list(obj(id = "23", status = "ok", value = encode_answer(150L)))
+      list(
+        obj(
+          id = "23",
+          status = "ok",
+          value = encode_answer(150L),
+          conditions = list()
+        )
+      )
     ),
     `request-error` = list(
       list(
@@ -359,7 +367,8 @@ protocol_r_values <- function() {
         obj(
           id = "25",
           status = "ok",
-          value = encode_answer("uploads/3f9a2c/sales.csv")
+          value = encode_answer("uploads/3f9a2c/sales.csv"),
+          conditions = list()
         )
       )
     ),
@@ -370,7 +379,8 @@ protocol_r_values <- function() {
           status = "ok",
           value = encode_answer(
             list(path = "/home/analyst", dirs = c("data", "projects"))
-          )
+          ),
+          conditions = list()
         )
       )
     ),
@@ -381,7 +391,8 @@ protocol_r_values <- function() {
           status = "ok",
           value = encode_answer(
             c("a <- datasets::iris", "b <- utils::head(a, n = 6L)")
-          )
+          ),
+          conditions = list()
         )
       )
     ),
@@ -402,7 +413,8 @@ protocol_r_values <- function() {
         obj(
           id = "28",
           status = "ok",
-          body = obj(type = proto_pptx(), name = "report.pptx")
+          body = obj(type = proto_pptx(), name = "report.pptx"),
+          conditions = list()
         )
       )
     ),
@@ -411,7 +423,8 @@ protocol_r_values <- function() {
         obj(
           id = "29",
           status = "ok",
-          body = obj(type = proto_pptx(), name = "chart.pptx")
+          body = obj(type = proto_pptx(), name = "chart.pptx"),
+          conditions = list()
         )
       )
     ),
@@ -421,6 +434,7 @@ protocol_r_values <- function() {
           id = "36",
           status = "ok",
           value = encode_answer(c("corporate.potx", "plain.potx")),
+          conditions = list(),
           volatile = TRUE
         )
       )
@@ -432,7 +446,8 @@ protocol_r_values <- function() {
           status = "ok",
           value = encode_answer(
             list(USUBJID = "Unique Subject Identifier", AGE = "Age")
-          )
+          ),
+          conditions = list()
         )
       )
     ),
@@ -452,7 +467,8 @@ protocol_r_values <- function() {
             page = 2L,
             page_size = 2L,
             sort = list(column = "Sepal.Length.x", desc = TRUE)
-          )
+          ),
+          conditions = list()
         )
       )
     ),
@@ -462,6 +478,24 @@ protocol_r_values <- function() {
           obj(id = "32", status = "ok"),
           proto_output(
             new_plot_output(new_reply_body(raw(), "image/png"), 640L, 400L)
+          ),
+          list(conditions = list())
+        )
+      )
+    ),
+    `output-warning` = list(
+      list(
+        obj(
+          id = "37",
+          status = "ok",
+          output = proto_table_output(data.frame(n = c(3L, NA))),
+          conditions = list(
+            proto_condition(
+              "warning",
+              c("simpleWarning", "warning", "condition"),
+              "NAs introduced by coercion",
+              phase = "output"
+            )
           )
         )
       )

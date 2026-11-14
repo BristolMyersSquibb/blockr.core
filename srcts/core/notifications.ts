@@ -12,9 +12,9 @@
 //   evaluation that the transport could not send, which the scheduler writes
 //   itself.
 // - One for each condition of R's latest reply to each request that a module
-//   or a plugin made, in place of those of the request's reply before, so that
-//   a request that fails again keeps its notifications, and one that succeeds
-//   withdraws them.
+//   or a plugin made, ok or error, in place of those of the request's reply
+//   before, so that a request that fails again keeps its notifications, and
+//   one that succeeds with no condition withdraws them.
 // - Those that core raises, each with an id from what it holds, so that a
 //   failure raised twice, as by two mounts of one module, is one notification,
 //   which holds until each raise of it is withdrawn.

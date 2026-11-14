@@ -935,7 +935,7 @@ describe("a request", () => {
       args: {},
       reads: [{ input: "data", block: "a", revision: blockRevision(scheduler, "a") }],
     });
-    r.reply({ id: lastRequest(r).id, status: "ok", value: [150] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [150], conditions: [] });
     await expect(max).resolves.toEqual([150]);
   });
 
@@ -973,7 +973,7 @@ describe("a request", () => {
 
     const first = host.request("n_max");
     await evaluateAll(r);
-    r.reply({ id: lastRequest(r).id, status: "ok", value: [150] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [150], conditions: [] });
     await expect(first).resolves.toEqual([150]);
 
     await expect(ui.host(1).request("n_max")).resolves.toEqual([150]);
@@ -994,7 +994,7 @@ describe("a request", () => {
     const two = host.request("n_max");
     await evaluateAll(r);
     expect(requests(r)).toHaveLength(1);
-    r.reply({ id: lastRequest(r).id, status: "ok", value: [150] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [150], conditions: [] });
 
     await expect(Promise.all([one, two])).resolves.toEqual([[150], [150]]);
   });
@@ -1003,7 +1003,7 @@ describe("a request", () => {
     const { r, scheduler, host } = await mounted();
     const first = host.request("n_max");
     await evaluateAll(r);
-    r.reply({ id: lastRequest(r).id, status: "ok", value: [150] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [150], conditions: [] });
     await first;
 
     scheduler.invalidate("a");
@@ -1011,7 +1011,7 @@ describe("a request", () => {
     await evaluateAll(r);
     expect(requests(r)).toHaveLength(2);
     expect(lastRequest(r).reads).toEqual([{ input: "data", block: "a", revision: blockRevision(scheduler, "a") }]);
-    r.reply({ id: lastRequest(r).id, status: "ok", value: [120] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [120], conditions: [] });
     await expect(second).resolves.toEqual([120]);
   });
 
@@ -1022,7 +1022,7 @@ describe("a request", () => {
     const two = host.request("listing");
     await tick();
     expect(requests(r)).toHaveLength(1);
-    r.reply({ id: lastRequest(r).id, status: "ok", value: ["a.csv"] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: ["a.csv"], conditions: [] });
     await expect(Promise.all([one, two])).resolves.toEqual([["a.csv"], ["a.csv"]]);
 
     void host.request("listing");
@@ -1059,7 +1059,7 @@ describe("a request", () => {
       { type: "text/csv", name: "sales.csv" },
       { type: "text/csv", name: "sales.csv" },
     ]);
-    for (const request of requests(r)) r.reply({ id: request.id, status: "ok", value: ["uploads/sales.csv"] });
+    for (const request of requests(r)) r.reply({ id: request.id, status: "ok", value: ["uploads/sales.csv"], conditions: [] });
     await expect(Promise.all([one, two])).resolves.toEqual([["uploads/sales.csv"], ["uploads/sales.csv"]]);
   });
 
@@ -1069,7 +1069,7 @@ describe("a request", () => {
 
     const download = host.request("listing");
     await tick();
-    r.reply({ id: lastRequest(r).id, status: "ok", body: { type: file.type, name: file.name } }, file);
+    r.reply({ id: lastRequest(r).id, status: "ok", body: { type: file.type, name: file.name }, conditions: [] }, file);
 
     await expect(download).resolves.toBe(file);
   });
@@ -1081,7 +1081,7 @@ describe("a request", () => {
     const listing = host.request("listing", {}, { progress: (note) => notes.push(note) });
     await tick();
     r.note(lastRequest(r).id, { value: 0.5, message: "Listing" });
-    r.reply({ id: lastRequest(r).id, status: "ok", value: [] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [], conditions: [] });
     await listing;
 
     expect(notes).toEqual([{ value: 0.5, message: "Listing" }]);
@@ -1102,8 +1102,9 @@ describe("a request", () => {
     });
   });
 
-  test("hands on each of R's replies as its latest to a request of the block of its name, with the conditions of an error and none of an ok", async () => {
+  test("hands on each of R's replies as its latest to a request of the block of its name, with its conditions, of an error as of an ok", async () => {
     const { r, host, replies } = await mounted();
+    const warning = { severity: "warning" as const, class: ["simpleWarning", "warning", "condition"], phase: "request" as const, message: "NAs introduced by coercion" };
 
     const failing = host.request("listing");
     await tick();
@@ -1111,12 +1112,12 @@ describe("a request", () => {
     await expect(failing).rejects.toBeInstanceOf(RequestError);
     const listing = host.request("listing");
     await tick();
-    r.reply({ id: lastRequest(r).id, status: "ok", value: [] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [], conditions: [warning] });
     await listing;
 
     expect(replies).toEqual([
       [{ block: "b" }, { type: "block_class", name: "listing" }, [failure]],
-      [{ block: "b" }, { type: "block_class", name: "listing" }, []],
+      [{ block: "b" }, { type: "block_class", name: "listing" }, [warning]],
     ]);
   });
 
@@ -1158,7 +1159,7 @@ describe("a request", () => {
 
     expect(requests(r)).toHaveLength(2);
     expect(lastRequest(r).reads[0]?.revision).toBeGreaterThan(first.reads[0]?.revision ?? 0);
-    r.reply({ id: lastRequest(r).id, status: "ok", value: [150] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: [150], conditions: [] });
     await expect(max).resolves.toEqual([150]);
   });
 
@@ -1196,7 +1197,7 @@ describe("a request", () => {
     await tick();
     const first = dataset.host().request("datasets");
     await tick();
-    r.reply({ id: lastRequest(r).id, status: "ok", value: ["iris"] });
+    r.reply({ id: lastRequest(r).id, status: "ok", value: ["iris"], conditions: [] });
     await first;
     await expect(dataset.host().request("datasets")).resolves.toEqual(["iris"]);
     expect(requests(r)).toHaveLength(1);

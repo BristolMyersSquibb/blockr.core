@@ -15,7 +15,7 @@ export type Raise = (notification: Omit<Notification, "id">) => () => void;
 // Holds a notification for each condition of R's latest reply to a request,
 // which concern the board object that the request was made for, in place of
 // those of the request's reply before, so that a request that fails again
-// keeps its notifications and one that succeeds, with no conditions, withdraws
+// keeps its notifications and one that succeeds with no condition withdraws
 // them.
 export type Replied = (about: BoardObject, request: Extract<RRequest, { readonly name: string }>, conditions: readonly Condition[]) => void;
 

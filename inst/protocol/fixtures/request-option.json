@@ -15,7 +15,8 @@
       {
         "id": "26",
         "status": "ok",
-        "value": { "path": ["/home/analyst"], "dirs": ["data", "projects"] }
+        "value": { "path": ["/home/analyst"], "dirs": ["data", "projects"] },
+        "conditions": []
       }
     ]
   ]

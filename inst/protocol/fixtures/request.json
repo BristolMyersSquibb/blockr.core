@@ -12,5 +12,5 @@
       "reads": [{ "input": "data", "block": "a", "revision": 2 }]
     }
   ],
-  "r": [[{ "id": "23", "status": "ok", "value": [150] }]]
+  "r": [[{ "id": "23", "status": "ok", "value": [150], "conditions": [] }]]
 }

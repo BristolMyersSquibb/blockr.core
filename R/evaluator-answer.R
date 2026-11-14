@@ -147,6 +147,9 @@ answer_evaluate <- function(ev, job) {
 # the `info` and the parameters that the request carries.
 # The output carries the renderer that draws it, with where R serves the
 # renderer's module.
+# Its reply carries every message and warning raised while R made it,
+# as an evaluation's reply does.
+# R logs each of them (see `log_reply()`).
 answer_output <- function(ev, job) {
 
   req <- job[["req"]]
@@ -195,7 +198,8 @@ answer_output <- function(ev, job) {
         parts[["output"]]
       )
     ),
-    if (not_null(parts[["body"]])) list(body = parts[["body"]])
+    if (not_null(parts[["body"]])) list(body = parts[["body"]]),
+    list(conditions = lapply(made[["conditions"]], condition_reply))
   )
 }
 
@@ -223,6 +227,8 @@ answer_object_request <- function(ev, job) {
 # Runs a request's function with the arguments that R bound for it,
 # and replies with its answer.
 # The answer is a value, written with every vector as an array, or a reply body.
+# The reply carries every message and warning that the function raised.
+# R logs each of them (see `log_reply()`).
 # R marks a reply volatile where it resolved the request to one that its output
 # class makes volatile.
 answer_call <- function(id, call, volatile = FALSE) {
@@ -246,6 +252,7 @@ answer_call <- function(id, call, volatile = FALSE) {
     } else {
       list(value = ran[["value"]])
     },
+    list(conditions = lapply(ran[["conditions"]], condition_reply)),
     if (isTRUE(volatile)) list(volatile = TRUE)
   )
 }

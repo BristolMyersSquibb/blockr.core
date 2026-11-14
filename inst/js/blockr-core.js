@@ -3427,9 +3427,10 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
       }
     );
     if (!deps.bound()) throw deps.unboundError();
+    const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
       case "ok":
-        deps.replied({ block }, { type: "block_class", name: name3 }, []);
+        deps.replied({ block }, { type: "block_class", name: name3 }, conditions);
         if (body !== null) return body;
         return "value" in reply && reply.value !== void 0 ? reply.value : null;
       case "missing":
@@ -3439,14 +3440,12 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
         });
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name3}" of block "${block}".`, { status: "cancelled" });
-      default: {
-        const conditions = "conditions" in reply ? reply.conditions : [];
+      default:
         deps.replied({ block }, { type: "block_class", name: name3 }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name3}" of block "${block}".`, {
           status: reply.status,
           conditions
         });
-      }
     }
   }
 }
@@ -3675,21 +3674,20 @@ async function optionRequest(deps, option, name3, args, opts) {
       ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
     }
   );
+  const conditions = "conditions" in reply ? reply.conditions : [];
   switch (reply.status) {
     case "ok":
-      deps.replied({ option }, { type: "option", name: name3 }, []);
+      deps.replied({ option }, { type: "option", name: name3 }, conditions);
       if (body !== null) return body;
       return "value" in reply && reply.value !== void 0 ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name3}" of the board option "${option}".`, { status: "cancelled" });
-    default: {
-      const conditions = "conditions" in reply ? reply.conditions : [];
+    default:
       deps.replied({ option }, { type: "option", name: name3 }, conditions);
       throw new RequestError(`R replied ${reply.status} to the request "${name3}" of the board option "${option}".`, {
         status: reply.status,
         conditions
       });
-    }
   }
 }
 
@@ -3707,7 +3705,7 @@ function createShelves() {
     of(block) {
       let shelf = shelves.get(block);
       if (shelf === void 0) {
-        shelf = { params: {}, last: void 0, failure: void 0, mounts: /* @__PURE__ */ new Set(), flights: /* @__PURE__ */ new Map() };
+        shelf = { params: {}, last: void 0, notified: [], mounts: /* @__PURE__ */ new Set(), flights: /* @__PURE__ */ new Map() };
         shelves.set(block, shelf);
       }
       return shelf;
@@ -3941,26 +3939,26 @@ function mountOutput(deps, el, block) {
   function heard(reply) {
     if (deps.replaced.aborted) return;
     if (reply.status === "ok" && "output" in reply) {
-      const before = shelf.failure;
-      shelf.failure = void 0;
-      before?.();
+      hold(reply.conditions.filter((condition) => condition.severity === "warning"), "r");
     } else if (reply.status === "error") {
       const first = "conditions" in reply ? reply.conditions[0] : void 0;
-      hold(first ?? noOutput(`R failed to make the output of block "${block}".`), first === void 0 ? "core" : "r");
+      hold([first ?? noOutput(`R failed to make the output of block "${block}".`)], first === void 0 ? "core" : "r");
     }
   }
   function unanswered(message) {
-    if (!deps.replaced.aborted) hold(noOutput(message), "core");
+    if (!deps.replaced.aborted) hold([noOutput(message)], "core");
   }
-  function hold(condition, by) {
-    const before = shelf.failure;
-    shelf.failure = deps.raise({
-      severity: condition.severity,
-      message: condition.message,
-      source: by === "r" ? { kind: "r", class: condition.class, request: { type: "output" } } : { kind: "core", code: "output_unanswered" },
-      about: { block }
-    });
-    before?.();
+  function hold(conditions, by) {
+    const before = shelf.notified;
+    shelf.notified = conditions.map(
+      (condition) => deps.raise({
+        severity: condition.severity,
+        message: condition.message,
+        source: by === "r" ? { kind: "r", class: condition.class, request: { type: "output" } } : { kind: "core", code: "output_unanswered" },
+        about: { block }
+      })
+    );
+    for (const withdraw of before) withdraw();
   }
   function failed2(condition) {
     error = condition;
@@ -4124,9 +4122,10 @@ function mountOutput(deps, el, block) {
       );
       if (!bound()) throw unboundError();
       const requested = opts.scope === "renderer" ? { type: "renderer", renderer: prepared.renderer.id, name: name3 } : { type: "output_class", name: name3 };
+      const conditions = "conditions" in reply ? reply.conditions : [];
       switch (reply.status) {
         case "ok":
-          deps.replied({ block }, requested, []);
+          deps.replied({ block }, requested, conditions);
           if (body !== null) return body;
           return "value" in reply && reply.value !== void 0 ? reply.value : null;
         case "missing":
@@ -4134,14 +4133,12 @@ function mountOutput(deps, el, block) {
           throw new RequestError(`${what} gave up, since R kept lacking the result it reads.`, { status: "missing" });
         case "cancelled":
           throw new RequestError(`R cancelled ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, { status: "cancelled" });
-        default: {
-          const conditions = "conditions" in reply ? reply.conditions : [];
+        default:
           deps.replied({ block }, requested, conditions);
           throw new RequestError(`R replied ${reply.status} to ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, {
             status: reply.status,
             conditions
           });
-        }
       }
     }
   }
@@ -7625,9 +7622,10 @@ async function pluginRequest(deps, plugin, name3, args, opts) {
         ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
       }
     );
+    const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
       case "ok":
-        deps.replied({ plugin }, { type: "plugin", name: name3 }, []);
+        deps.replied({ plugin }, { type: "plugin", name: name3 }, conditions);
         if (body !== null) return body;
         return "value" in reply && reply.value !== void 0 ? reply.value : null;
       case "missing":
@@ -7635,14 +7633,12 @@ async function pluginRequest(deps, plugin, name3, args, opts) {
         throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name3}" of the plugin "${plugin}".`, { status: "cancelled" });
-      default: {
-        const conditions = "conditions" in reply ? reply.conditions : [];
+      default:
         deps.replied({ plugin }, { type: "plugin", name: name3 }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name3}" of the plugin "${plugin}".`, {
           status: reply.status,
           conditions
         });
-      }
     }
   }
 }

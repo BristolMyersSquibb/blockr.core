@@ -1040,7 +1040,7 @@ describe("evaluation in the background", () => {
 
     r.reply({ id: a.id, status: "cancelled" });
     const [asked] = r.asked("request");
-    r.reply({ id: asked?.id ?? "", status: "ok", value: ["data"] });
+    r.reply({ id: asked?.id ?? "", status: "ok", value: ["data"], conditions: [] });
     await expect(listing).resolves.toMatchObject({ reply: { status: "ok" } });
     await tick(999);
     expect(r.pending()).toEqual([]);
@@ -1119,6 +1119,7 @@ describe("requests", () => {
       id: sent?.id ?? "",
       status: "ok",
       output: { renderer: { id: "blockr.core-table_output", module: "blockr.core/js/basic-table.js" } },
+      conditions: [],
     });
     await expect(asking).resolves.toMatchObject({ reply: { status: "ok" } });
   });
@@ -1204,7 +1205,7 @@ describe("requests", () => {
     await tick();
     const resent = asked().slice(before);
     expect(resent).toHaveLength(3);
-    for (const id of resent) r.reply({ id, status: "ok", value: [1] });
+    for (const id of resent) r.reply({ id, status: "ok", value: [1], conditions: [] });
     for (const asking of again) {
       await expect(asking).resolves.toMatchObject({ reply: { status: "ok" } });
     }

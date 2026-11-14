@@ -10,8 +10,8 @@
 //    request, the host has the inputs evaluated again and asks again.
 // Once another board opens or the block leaves the board, the request stops,
 // whichever step it is at, so that nothing of it reaches the next board. Each
-// condition of R's error reply raises a notification that concerns the block,
-// which holds until R next replies to a request of the same name.
+// condition of R's reply, ok or error, raises a notification that concerns the
+// block, which holds until R next replies to a request of the same name.
 // What core keeps of the answers is ./answers.ts's.
 
 import type { Condition, ReplyStatus } from "../protocol/index.ts";
@@ -137,9 +137,10 @@ export async function blockRequest(
     );
     if (!deps.bound()) throw deps.unboundError();
 
+    const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
       case "ok":
-        deps.replied({ block }, { type: "block_class", name }, []);
+        deps.replied({ block }, { type: "block_class", name }, conditions);
         if (body !== null) return body;
         return "value" in reply && reply.value !== undefined ? reply.value : null;
       case "missing":
@@ -149,14 +150,12 @@ export async function blockRequest(
         });
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name}" of block "${block}".`, { status: "cancelled" });
-      default: {
-        const conditions = "conditions" in reply ? reply.conditions : [];
+      default:
         deps.replied({ block }, { type: "block_class", name }, conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name}" of block "${block}".`, {
           status: reply.status,
           conditions,
         });
-      }
     }
   }
 }

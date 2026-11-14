@@ -18,7 +18,8 @@
       {
         "id": "35",
         "status": "ok",
-        "value": { "USUBJID": ["Unique Subject Identifier"], "AGE": ["Age"] }
+        "value": { "USUBJID": ["Unique Subject Identifier"], "AGE": ["Age"] },
+        "conditions": []
       }
     ]
   ]
