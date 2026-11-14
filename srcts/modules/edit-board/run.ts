@@ -4,7 +4,7 @@
 
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { errorMessage } from "../../util/index.ts";
+import { runCommand as runAs } from "../../ui/index.ts";
 
 // The id of the plugin's class, which raises its notifications.
 const EDIT_BOARD = "blockr.core-edit_board_plugin";
@@ -16,11 +16,5 @@ const EDIT_BOARD = "blockr.core-edit_board_plugin";
 // Edit board plugin has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
 export function runCommand(core: Pick<CoreApi, "commands" | "notifications">, id: string, args?: Json): Promise<boolean> {
-  return core.commands.run(id, args).then(
-    () => true,
-    (error: unknown) => {
-      core.notifications.notify(EDIT_BOARD, { severity: "error", code: "edit_refused", message: errorMessage(error) });
-      return false;
-    },
-  );
+  return runAs({ core, plugin: EDIT_BOARD }, id, args);
 }

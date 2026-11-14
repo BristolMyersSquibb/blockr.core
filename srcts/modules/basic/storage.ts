@@ -5,7 +5,8 @@
 // The frontend reads them afresh as it draws the toolbar and as the user
 // presses a key, so that it draws and runs what controls() gives at that
 // moment:
-// 1. It calls controls() with its CoreApi.
+// 1. It calls controls() with its CoreApi and the id of the storage plugin's
+//    class.
 // 2. Of the controls of one list that share an id, it keeps the first, since
 //    it keys each control by its id.
 // 3. It leaves out a control of a kind that it does not know.
@@ -18,7 +19,7 @@
 
 import type { StorageControl } from "../../store/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { errorMessage, quoted } from "../../util/index.ts";
+import { errorMessage, quoted, report } from "../../util/index.ts";
 
 export type Button = Extract<StorageControl, { kind: "button" }>;
 
@@ -39,10 +40,15 @@ const KINDS: ReadonlySet<string> = new Set(["button", "menu", "status"]);
 // or undefined where the app runs no storage plugin.
 export function drawnControls(core: CoreApi): Drawn | undefined {
   const storage = core.plugins.storage();
-  if (storage === undefined) return undefined;
+  // The app's storage plugin, whose class gives that storage.
+  const plugin =
+    storage === undefined
+      ? undefined
+      : Object.keys(core.plugins.appPlugins()).find((id) => core.plugins.pluginClass(id).storage === storage);
+  if (storage === undefined || plugin === undefined) return undefined;
   try {
     const twice = new Set<string>();
-    const controls = distinct(storage.controls({ core }), twice);
+    const controls = distinct(storage.controls({ core, plugin }), twice);
     return {
       controls: [...controls.filter((c) => c.placement !== "end"), ...controls.filter((c) => c.placement === "end")],
       failed: false,
@@ -65,14 +71,16 @@ export function buttonsOf(controls: readonly StorageControl[]): Button[] {
   });
 }
 
-// Runs the button, and hands why it failed to `failed`. It calls run() before
-// it awaits anything, so that run() still acts within the user's click or key
-// press, as a browser's file picker needs.
-export async function runButton(button: Button, failed: (error: unknown) => void): Promise<void> {
+// Runs the button. It calls run() before it awaits anything, so that run()
+// still acts within the user's click or key press, as a browser's file picker
+// needs. The storage plugin tells the user why one of its buttons failed,
+// since it alone knows its backend, so the frontend reports a run() that
+// rejects as a fault of the plugin, for the log alone.
+export async function runButton(button: Button): Promise<void> {
   try {
     await button.run();
   } catch (error) {
-    failed(error);
+    report(error);
   }
 }
 

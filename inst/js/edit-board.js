@@ -361,6 +361,37 @@ function safe(text) {
   return text.replace(/[^A-Za-z0-9_-]/g, (c) => `_${c.charCodeAt(0).toString(16)}`);
 }
 
+// srcts/util/util.ts
+function own(record, key) {
+  return Object.hasOwn(record, key) ? record[key] : void 0;
+}
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function packageFromId(id2) {
+  const at = id2.indexOf("-");
+  if (at < 0) return null;
+  const pkg = id2.slice(0, at);
+  return isPackageName(pkg) ? pkg : null;
+}
+function isPackageName(name2) {
+  return typeof name2 === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name2);
+}
+
+// srcts/ui/edits.ts
+function refused(by, error) {
+  by.core.notifications.notify(by.plugin, { severity: "error", code: "edit_refused", message: errorMessage(error) });
+}
+function runCommand(by, id2, args) {
+  return by.core.commands.run(id2, args).then(
+    () => true,
+    (error) => {
+      refused(by, error);
+      return false;
+    }
+  );
+}
+
 // srcts/ui/fields.tsx
 import { useId as useId2 } from "react";
 import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
@@ -509,23 +540,6 @@ import { useCallback as useCallback2, useState as useState5 } from "react";
 // srcts/picker/picker.tsx
 import { useMemo as useMemo2, useState as useState4 } from "react";
 import { flushSync } from "react-dom";
-
-// srcts/util/util.ts
-function own(record, key) {
-  return Object.hasOwn(record, key) ? record[key] : void 0;
-}
-function errorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-function packageFromId(id2) {
-  const at = id2.indexOf("-");
-  if (at < 0) return null;
-  const pkg = id2.slice(0, at);
-  return isPackageName(pkg) ? pkg : null;
-}
-function isPackageName(name2) {
-  return typeof name2 === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name2);
-}
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -924,21 +938,15 @@ function without2(errors, key) {
 
 // srcts/modules/edit-board/run.ts
 var EDIT_BOARD = "blockr.core-edit_board_plugin";
-function runCommand(core, id2, args) {
-  return core.commands.run(id2, args).then(
-    () => true,
-    (error) => {
-      core.notifications.notify(EDIT_BOARD, { severity: "error", code: "edit_refused", message: errorMessage(error) });
-      return false;
-    }
-  );
+function runCommand2(core, id2, args) {
+  return runCommand({ core, plugin: EDIT_BOARD }, id2, args);
 }
 
 // srcts/modules/edit-board/blocks.tsx
 import { Fragment, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 var ADD = { kind: "add" };
 function BlocksSection({ core, board }) {
-  const run = useCallback2((command, args) => runCommand(core, command, args), [core]);
+  const run = useCallback2((command, args) => runCommand2(core, command, args), [core]);
   const registry = core.blockRegistry();
   const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
@@ -970,7 +978,7 @@ function BlockRow({ core, id: id2, block, className }) {
         label: "Block name",
         name: block.name,
         onSubmit: (name2) => {
-          void runCommand(core, "blockr.core-rename_block", { id: id2, name: name2 });
+          void runCommand2(core, "blockr.core-rename_block", { id: id2, name: name2 });
         },
         onDone: () => {
           setRenaming(false);
@@ -999,7 +1007,7 @@ function BlockRow({ core, id: id2, block, className }) {
           className: classes.quiet,
           "aria-label": `Remove the block ${block.name}`,
           onClick: () => {
-            void runCommand(core, "blockr.core-remove_block", { id: id2 });
+            void runCommand2(core, "blockr.core-remove_block", { id: id2 });
           },
           children: "Remove"
         }
@@ -1082,7 +1090,7 @@ function LinkRow({
           className: classes.quiet,
           "aria-label": `Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
           onClick: () => {
-            void runCommand(core, "blockr.core-remove_link", { id: id2 });
+            void runCommand2(core, "blockr.core-remove_link", { id: id2 });
           },
           children: "Remove"
         }
@@ -1161,10 +1169,10 @@ function LinkForm({
     const linkInput = variadic ? name2.trim() : chosen;
     const args = { from: source, to: target2, ...linkInput === void 0 ? {} : { input: linkInput } };
     setBusy(true);
-    let ran = editing === void 0 ? await runCommand(core, "blockr.core-add_link", args) : await runCommand(core, "blockr.core-change_link", { id: editing.id, ...args });
+    let ran = editing === void 0 ? await runCommand2(core, "blockr.core-add_link", args) : await runCommand2(core, "blockr.core-change_link", { id: editing.id, ...args });
     if (ran && editing !== void 0 && among !== void 0 && position !== void 0 && position !== among.place) {
       const before = placeAmong(core.store.board(), editing.id, target2).others[position - 1];
-      ran = await runCommand(core, "blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
+      ran = await runCommand2(core, "blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
     }
     setBusy(false);
     if (!ran) return;
@@ -1419,7 +1427,7 @@ function StackRow({
           className: classes.quiet,
           "aria-label": `Remove the stack ${stack.name}`,
           onClick: () => {
-            void runCommand(core, "blockr.core-remove_stack", { id: id2 });
+            void runCommand2(core, "blockr.core-remove_stack", { id: id2 });
           },
           children: "Remove"
         }
@@ -1487,7 +1495,7 @@ function StackForm({
     let ran;
     if (editing === void 0) {
       const args = { blocks: kept, color: color2, name: trimmed === "" ? fallbackName : trimmed };
-      ran = await runCommand(core, "blockr.core-add_stack", args);
+      ran = await runCommand2(core, "blockr.core-add_stack", args);
     } else {
       const { id: id2, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
@@ -1495,8 +1503,8 @@ function StackForm({
         ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
         ...color2 === stack.color ? {} : { color: color2 }
       };
-      ran = !renamed || await runCommand(core, "blockr.core-rename_stack", { id: id2, name: trimmed });
-      if (ran && Object.keys(changed).length > 0) ran = await runCommand(core, "blockr.core-change_stack", { id: id2, ...changed });
+      ran = !renamed || await runCommand2(core, "blockr.core-rename_stack", { id: id2, name: trimmed });
+      if (ran && Object.keys(changed).length > 0) ran = await runCommand2(core, "blockr.core-change_stack", { id: id2, ...changed });
     }
     setBusy(false);
     if (!ran) return;

@@ -1,4 +1,7 @@
 // srcts/util/util.ts
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 function asError(error) {
   return error instanceof Error ? error : new Error(String(error));
 }
@@ -6,7 +9,7 @@ function asError(error) {
 // srcts/storage/storage.ts
 function coreStorage(doc) {
   return {
-    controls({ core }) {
+    controls({ core, plugin }) {
       const save = {
         kind: "button",
         id: "save",
@@ -17,7 +20,7 @@ function coreStorage(doc) {
         kind: "button",
         id: "open",
         label: "Open",
-        run: () => openBoard(core, doc ?? document)
+        run: () => openBoard(core, plugin, doc ?? document)
       };
       return core.lock.load ? [save] : [save, open];
     }
@@ -31,9 +34,13 @@ function saveBoard(core, doc) {
     return Promise.reject(asError(error));
   }
 }
-async function openBoard(core, doc) {
-  const text = await pickFile(doc);
-  if (text !== null) await core.store.open(text);
+async function openBoard(core, plugin, doc) {
+  try {
+    const text = await pickFile(doc);
+    if (text !== null) await core.store.open(text);
+  } catch (error) {
+    core.notifications.notify(plugin, { severity: "error", code: "board_open_failed", message: errorMessage(error) });
+  }
 }
 function fileName(board, now = /* @__PURE__ */ new Date()) {
   const two = (n) => String(n).padStart(2, "0");

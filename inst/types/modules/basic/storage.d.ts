@@ -10,4 +10,4 @@ export interface Drawn {
 }
 export declare function drawnControls(core: CoreApi): Drawn | undefined;
 export declare function buttonsOf(controls: readonly StorageControl[]): Button[];
-export declare function runButton(button: Button, failed: (error: unknown) => void): Promise<void>;
+export declare function runButton(button: Button): Promise<void>;

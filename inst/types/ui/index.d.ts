@@ -1,4 +1,5 @@
 export { Combobox, MultiCombobox } from "./combobox.tsx";
+export { refused, runCommand } from "./edits.ts";
 export type { ComboOption } from "./combobox.tsx";
 export { TextField } from "./fields.tsx";
 export { useBoard, useHistory } from "./hooks.ts";
