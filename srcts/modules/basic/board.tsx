@@ -1,14 +1,17 @@
-// The page that core's basic frontend draws: the toolbar, the notices, the
-// board's blocks, each stack as a group of its blocks' cards, which the user
-// collapses, and the plugins that it shows. One dialog at a time shows over
-// the page: the picker that a card's menu opens, or the board options.
+// The page that core's basic frontend draws: the toolbar, the board's blocks,
+// each stack as a group of its blocks' cards, which the user collapses, the
+// plugins that it shows, and the toasts (./toasts.ts). One dialog at a time
+// shows over the page: the picker that a card's menu opens, or the board
+// options.
 // The page follows the board through the store, so a removed block's card
 // goes because the board changed.
 // Adding a block on its own and editing links and stacks are the Edit board
 // plugin's, which the page shows as it shows any plugin.
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
+import { createPortal } from "react-dom";
+import { MARKS, SeverityIcon } from "../../card/index.ts";
 import { freeInputs } from "../../commands/index.ts";
 import { BlockPicker } from "../../picker/index.ts";
 import type { AddMode } from "../../picker/index.ts";
@@ -16,16 +19,16 @@ import type { Condition } from "../../protocol/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, useBoard } from "../../ui/index.ts";
+import { classes, runCommand, useBoard } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { BlockCard, StackGroup } from "./card.tsx";
-import { FrontEndContext, runCommand, useFrontEnd } from "./context.ts";
+import { FrontEndContext, useFrontEnd } from "./context.ts";
 import type { FrontEnd } from "./context.ts";
 import { layoutItems } from "./layout.ts";
-import { isReload, useNotices } from "./notices.ts";
-import type { Severity } from "./notices.ts";
 import { OptionsDialog } from "./options.tsx";
 import { Plugins } from "./plugins.tsx";
+import { concerned, isReload, packageShown, useShownIn, useToasts } from "./toasts.ts";
+import type { Toast } from "./toasts.ts";
 import { Toolbar } from "./toolbar.tsx";
 import { Dialog } from "./ui.tsx";
 
@@ -78,7 +81,6 @@ function Page(): ReactElement {
           setDialog({ kind: "options" });
         }}
       />
-      <Notices />
       {/* The plugins come before the board, so that a narrow page shows them
           above the board and the keyboard reaches them first. A wide page
           shows them beside the board. */}
@@ -100,6 +102,7 @@ function Page(): ReactElement {
       </div>
       {dialog?.kind === "add" ? <AddBlockDialog mode={dialog.mode} onClose={close} /> : null}
       {dialog?.kind === "options" ? <OptionsDialog onClose={close} /> : null}
+      <Toasts />
     </div>
   );
 }
@@ -119,53 +122,106 @@ function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void 
   );
 }
 
-const NOTICE_TONES: Readonly<Record<Severity, string>> = {
-  error: "bc:border-border-danger bc:text-text-danger",
-  warning: "bc:border-border-warning bc:text-text-warning",
-  message: "bc:border-border-default bc:text-text-default",
-};
-
-// What the frontend tells the user, each in the colour of its severity until
-// it no longer holds or the user dismisses it. An error or a warning is an
-// alert, which a screen reader reads out at once. Where core asks for the page
-// to be reloaded, the notice offers to reload it.
-function Notices(): ReactElement | null {
-  const { notices } = useFrontEnd();
-  const list = useNotices(notices);
+// The toasts that show, one above the other in the window's bottom right
+// corner, the latest lowest. While a dialog is open, they show inside it.
+// The column scrolls where the toasts outgrow the window. Its padding keeps
+// their shadows from being cut off there, and it lets clicks through between
+// the toasts, so that the board below takes them. Core's stylesheet leaves
+// out Tailwind's reset, so the column counts its padding into its width
+// itself.
+function Toasts(): ReactElement | null {
+  const { core, toasts } = useFrontEnd();
+  const list = useToasts(toasts);
+  const inside = useShownIn(toasts);
+  const board = useBoard(core);
   if (list.length === 0) return null;
+  const shown = (
+    <section
+      aria-label="Notifications"
+      className="bc:pointer-events-none bc:fixed bc:right-2 bc:bottom-2 bc:z-50 bc:m-0 bc:box-border bc:grid bc:max-h-[calc(100dvh-1rem)] bc:w-[21rem] bc:max-w-[calc(100vw-1rem)] bc:gap-2 bc:overflow-y-auto bc:p-2 bc:font-sans"
+    >
+      {list.map((toast) => (
+        <ToastItem key={toast.notification.id} toast={toast} title={concerned(toast.notification.about, core, board)} />
+      ))}
+    </section>
+  );
+  return inside === null ? shown : createPortal(shown, inside);
+}
+
+// A toast, in the colour of its notification's severity: what it concerns,
+// with the package that its source names for it, its message, and a button
+// that closes it. Where core asks for the page to be reloaded, it also offers
+// to reload it.
+// A toast that moves between the page and a dialog is drawn anew, and the
+// browser may send its old element no blur and no pointerleave as it goes. So
+// the toast lets go of what kept it from fading once its element goes.
+function ToastItem({ toast, title }: { toast: Toast; title: string }): ReactElement {
+  const { toasts } = useFrontEnd();
+  const { notification, fading } = toast;
+  const { id, severity } = notification;
+  const mark = MARKS[severity];
+  const pkg = packageShown(notification);
+  useEffect(
+    () => () => {
+      toasts.release(id, "pointer");
+      toasts.release(id, "focus");
+    },
+    [toasts, id],
+  );
   return (
-    <ul aria-label="Notices" className={classes.list}>
-      {list.map((notice) => (
-        <li
-          key={notice.key}
-          role={notice.severity === "message" ? "status" : "alert"}
-          data-severity={notice.severity}
-          className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:p-2 bc:text-sm ${NOTICE_TONES[notice.severity]}`}
-        >
-          <span className="bc:flex-1 bc:whitespace-pre-wrap">{notice.text}</span>
-          {notice.notification !== undefined && isReload(notice.notification) ? (
+    <div
+      role={severity === "message" ? "status" : "alert"}
+      data-severity={severity}
+      onPointerEnter={() => {
+        toasts.keep(id, "pointer");
+      }}
+      onPointerLeave={() => {
+        toasts.release(id, "pointer");
+      }}
+      onFocus={() => {
+        toasts.keep(id, "focus");
+      }}
+      onBlur={(event) => {
+        if (!(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) {
+          toasts.release(id, "focus");
+        }
+      }}
+      className={`${classes.surface} bc:pointer-events-auto bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 bc:shadow-lg bc:transition-opacity bc:duration-300 bc:motion-reduce:transition-none ${mark.border} ${fading ? "bc:opacity-0" : ""}`}
+    >
+      <span className={`bc:mt-0.5 ${mark.text}`}>
+        <SeverityIcon severity={severity} />
+      </span>
+      <div className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-1">
+        <p className="bc:m-0 bc:text-xs bc:font-semibold">
+          {title}
+          {pkg === undefined ? null : <span className="bc:font-normal bc:text-text-muted"> · {pkg}</span>}
+        </p>
+        <p className="bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap">{notification.message}</p>
+        {isReload(notification) ? (
+          <div>
             <button
               type="button"
-              className={classes.quiet}
+              className={classes.button}
               onClick={() => {
                 location.reload();
               }}
             >
               Reload
             </button>
-          ) : null}
-          <button
-            type="button"
-            className={classes.quiet}
-            onClick={() => {
-              notices.dismiss(notice.key);
-            }}
-          >
-            Dismiss
-          </button>
-        </li>
-      ))}
-    </ul>
+          </div>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        aria-label="Close"
+        className={classes.quiet}
+        onClick={() => {
+          toasts.close(id);
+        }}
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+    </div>
   );
 }
 

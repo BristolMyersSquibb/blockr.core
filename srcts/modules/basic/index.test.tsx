@@ -156,13 +156,29 @@ function toolbar(el: HTMLElement): HTMLElement {
   return find(el, '[role="toolbar"]');
 }
 
-// The severity and the text of each notice that the page shows.
-function notices(el: HTMLElement): [string | null, string][] {
-  return [...el.querySelectorAll('ul[aria-label="Notices"] > li')].map((li) => [
-    li.getAttribute("data-severity"),
-    li.querySelector("span")?.textContent ?? "",
-  ]);
+// The toasts that the page shows, inside the dialog that is open or not.
+const toastsIn = (el: ParentNode): HTMLElement[] => [
+  ...el.querySelectorAll<HTMLElement>('section[aria-label="Notifications"] > [data-severity]'),
+];
+
+// The severity, the first line and the message of each toast that the page
+// shows, in order.
+function toasts(el: ParentNode): [string | null, string, string][] {
+  return toastsIn(el).map((toast) => {
+    const [title, message] = [...toast.querySelectorAll("p")].map((p) => p.textContent);
+    return [toast.getAttribute("data-severity"), title ?? "", message ?? ""];
+  });
 }
+
+// The toast whose message is the one given.
+function toast(el: ParentNode, message: string): HTMLElement {
+  const found = toastsIn(el).find((t) => t.querySelectorAll("p")[1]?.textContent === message);
+  if (found === undefined) throw new Error(`Found no toast "${message}".`);
+  return found;
+}
+
+// The class of core's basic frontend, which raises its own notifications.
+const BASIC = "blockr.core-basic_frontend_plugin";
 
 // The class of core's own storage plugin, which the app of the fixture hello
 // runs.
@@ -638,7 +654,7 @@ describe("the toolbar", () => {
     await click(button(page.el, "Open"));
     await page.settled();
     expect(page.board().name).toBe("Opened");
-    expect(notices(page.el)).toEqual([["error", expect.stringContaining("The store refused to open the board")]]);
+    expect(toasts(page.el)).toEqual([["error", 'Plugin "File storage"', expect.stringContaining("The store refused to open the board")]]);
   });
 
   test("draws no storage control where the app runs no storage plugin", async () => {
@@ -840,20 +856,29 @@ describe("the storage controls", () => {
     expect(runs).toEqual(["save", "save", "publish"]);
   });
 
-  test("tell the user why a button failed, run by a click or by its shortcut", async () => {
+  test("tell the user why a button failed, run by a click or by its shortcut, through an error of the code storage_control_failed about the storage plugin", async () => {
     const storage = storagePlugin(() => [
       { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: () => Promise.reject(new Error("Connect is down.")) },
     ]);
-    const { el } = await drawn(storage.options);
+    const { el, core } = await drawn(storage.options);
 
     await click(button(toolbar(el), "Save"));
     await step(() => {
       press(document.body, "s", { ctrlKey: true });
     });
-    expect(notices(el)).toEqual([
-      ["error", "Connect is down."],
-      ["error", "Connect is down."],
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    // The frontend raised them, so the toasts name no package beside the
+    // storage plugin, which may be of another.
+    expect(toasts(el)).toEqual([
+      ["error", 'Plugin "Session"', "Connect is down."],
+      ["error", 'Plugin "Session"', "Connect is down."],
     ]);
+    expect(core.notifications.get().map(({ source, about }) => [source, about])).toEqual(
+      Array(2).fill([
+        { kind: "module", object: { plugin: BASIC }, code: "storage_control_failed", package: "blockr.core" },
+        { plugin: "blockr.test-session_plugin" },
+      ]),
+    );
   });
 
   test("draw the first of the controls of one list that share an id, and a warning in their place where controls() fails, of which the page hears once", async () => {
@@ -1014,12 +1039,13 @@ function droppingHello(): HelloReply {
 }
 
 describe("what the user learns", () => {
-  test("is what the store dropped as the board opened, the opening board included", async () => {
+  test("is what the store dropped as the board opened, the opening board included, in a toast about the board", async () => {
     const page = await drawn({ hello: droppingHello() });
 
-    expect(notices(page.el)).toEqual([
+    expect(toasts(page.el)).toEqual([
       [
         "warning",
+        "Board",
         [
           "The board opened without:",
           "- package blockr.dplyr 0.3.0",
@@ -1029,24 +1055,24 @@ describe("what the user learns", () => {
         ].join("\n"),
       ],
     ]);
-    expect(find(page.el, '[data-severity="warning"]').getAttribute("role")).toBe("alert");
+    expect(toastsIn(page.el)[0]?.getAttribute("role")).toBe("alert");
 
     // A board that opens later starts core and the frontend again, which shows
-    // only the note of what that board dropped.
+    // only the toast of what that board dropped.
     picking(new File([savedAs(page.core, (json) => ({ ...json, packages: { ...json.packages, "blockr.io": "0.1.0" } }))], "board.json"));
     await click(button(page.el, "Open"));
     await page.settled();
-    expect(notices(page.el)).toEqual([["warning", "The board opened without:\n- package blockr.io 0.1.0"]]);
+    expect(toasts(page.el)).toEqual([["warning", "Board", "The board opened without:\n- package blockr.io 0.1.0"]]);
 
     vi.restoreAllMocks();
     picking(new File([savedAs(page.core, renamed("Clean"))], "board.json"));
     await click(button(page.el, "Open"));
     await page.settled();
     expect(page.board().name).toBe("Clean");
-    expect(notices(page.el)).toEqual([]);
+    expect(toasts(page.el)).toEqual([]);
   });
 
-  test("is each notification of the board that concerns no block, whoever raised it, in the colour of its severity, until it is withdrawn or the user dismisses it, while a block's card shows those about the block", async () => {
+  test("is each notification of the board that concerns no block, whoever raised it, as a toast in the colour of its severity, until it is withdrawn or the user closes it, while a block's card shows those about the block", async () => {
     const { el, core } = await drawn({
       evaluate: (request) =>
         request.block === "b"
@@ -1055,31 +1081,147 @@ describe("what the user learns", () => {
     });
 
     let shared: () => void = () => undefined;
+    let expiring: () => void = () => undefined;
     await step(() => {
       core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved to Connect." });
-      core.notifications.notify(FILE_STORAGE, { severity: "warning", code: "token_expiring", message: "The token expires soon." });
+      expiring = core.notifications.notify(FILE_STORAGE, { severity: "warning", code: "token_expiring", message: "The token expires soon." });
       shared = core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
+      core.notifications.notify(FILE_STORAGE, { severity: "message", code: "shown", message: "Shown on the board.", about: null });
     });
     // The condition of block b and what the plugin raised about b show on b's
-    // card, whoever raised them, and not in the list.
+    // card, whoever raised them, and in no toast.
     expect(core.notifications.get().some((n) => n.message === "Few rows." && n.source.kind === "r")).toBe(true);
-    expect(notices(el)).toEqual([
-      ["message", "Saved to Connect."],
-      ["warning", "The token expires soon."],
+    expect(toasts(el)).toEqual([
+      ["message", 'Plugin "File storage" · blockr.core', "Saved to Connect."],
+      ["warning", 'Plugin "File storage" · blockr.core', "The token expires soon."],
+      ["message", "Board · blockr.core", "Shown on the board."],
     ]);
-    expect(texts(el, 'ul[aria-label="Notices"] > li[role="alert"] span')).toEqual(["The token expires soon."]);
-    expect(find(el, '[data-severity="message"]').getAttribute("role")).toBe("status");
+    expect(toast(el, "Saved to Connect.").getAttribute("role")).toBe("status");
+    expect(toast(el, "The token expires soon.").getAttribute("role")).toBe("alert");
     const head = card(el, "Head");
     expect(pills(head)).toEqual(["error", "1 warning"]);
     expect(banners(head)).toEqual([["error", "Not shared."]]);
 
-    await click(button(find(el, '[data-severity="message"]'), "Dismiss"));
-    expect(notices(el)).toEqual([["warning", "The token expires soon."]]);
+    await click(find(toast(el, "Saved to Connect."), 'button[aria-label="Close"]'));
+    expect(toasts(el).map(([, , message]) => message)).toEqual(["The token expires soon.", "Shown on the board."]);
     await step(() => {
       shared();
+      expiring();
     });
     expect(pills(head)).toEqual(["1 warning"]);
+    expect(toasts(el).map(([, , message]) => message)).toEqual(["Shown on the board."]);
     expect(core.notifications.get().some((n) => n.message === "Saved to Connect.")).toBe(true);
+  });
+
+  test("shows its toasts inside the dialog that is open, the rest of the page being inert, and in the page once the dialog closes", async () => {
+    const { el, core, settled } = await drawn();
+    await step(() => {
+      core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared." });
+    });
+    expect(toastsIn(el).map((t) => t.closest("dialog"))).toEqual([null]);
+
+    await click(button(el, "Options"));
+    await settled();
+    await step(() => {
+      core.notifications.notify(FILE_STORAGE, { severity: "warning", code: "token_expiring", message: "The token expires soon." });
+    });
+    // The toasts come after what the dialog holds.
+    expect(toasts(dialog(el)).map(([, , message]) => message)).toEqual(["Not shared.", "The token expires soon."]);
+    expect(dialog(el).lastElementChild?.contains(toast(el, "Not shared."))).toBe(true);
+    await click(find(toast(dialog(el), "Not shared."), 'button[aria-label="Close"]'));
+
+    await click(button(dialog(el), "Close"));
+    expect(el.querySelector("dialog[open]")).toBeNull();
+    expect(toasts(el).map(([, , message]) => message)).toEqual(["The token expires soon."]);
+    expect(toastsIn(el).map((t) => t.closest("dialog"))).toEqual([null]);
+  });
+
+  test("is why the store or the command registry refused an edit of the frontend's, an error of the code edit_refused about the frontend's plugin, whatever block the edit names", async () => {
+    const { el, core } = await drawn();
+    vi.spyOn(core.commands, "run").mockRejectedValueOnce(new Error("The store refused the edit."));
+    await menu(el, "Head", "Remove");
+    await act(() => core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
+    vi.spyOn(core.store, "undo").mockImplementation(() => {
+      throw new Error("The store refused to undo the step.");
+    });
+    await click(button(el, "Undo"));
+    await step(() => {
+      press(document.body, "z", { ctrlKey: true });
+    });
+
+    const title = 'Plugin "Basic frontend" · blockr.core';
+    expect(toasts(el)).toEqual([
+      ["error", title, "The store refused the edit."],
+      ["error", title, "The store refused to undo the step."],
+      ["error", title, "The store refused to undo the step."],
+    ]);
+    expect(new Set(core.notifications.get().map(({ source, about }) => JSON.stringify([source, about])))).toEqual(
+      new Set([JSON.stringify([{ kind: "module", object: { plugin: BASIC }, code: "edit_refused", package: "blockr.core" }, { plugin: BASIC }])]),
+    );
+    expect(pills(card(el, "Head"))).toEqual([]);
+  });
+
+  test("fades from a message's toast after five seconds, but not while the pointer rests on it or the keyboard's focus is in it", async () => {
+    const { el, core } = await drawn();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await step(() => {
+        core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved." });
+        core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared." });
+      });
+      const saved = toast(el, "Saved.");
+      await step(() => {
+        saved.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+        vi.advanceTimersByTime(60_000);
+      });
+      await step(() => {
+        find(saved, 'button[aria-label="Close"]').focus();
+        saved.dispatchEvent(new PointerEvent("pointerout", { bubbles: true }));
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved.", "Not shared."]);
+
+      await step(() => {
+        find(saved, 'button[aria-label="Close"]').blur();
+        vi.advanceTimersByTime(5000);
+      });
+      expect(toast(el, "Saved.").className).toContain("bc:opacity-0");
+      await step(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(toasts(el).map(([, , message]) => message)).toEqual(["Not shared."]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("fades from a message's toast that moves out of a dialog as it closes, though the pointer rested on it there", async () => {
+    const { el, core, settled } = await drawn();
+    await click(button(el, "Options"));
+    await settled();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await step(() => {
+        core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved." });
+      });
+      await step(() => {
+        toast(dialog(el), "Saved.").dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(toasts(dialog(el)).map(([, , message]) => message)).toEqual(["Saved."]);
+
+      await step(() => {
+        button(dialog(el), "Close").click();
+      });
+      expect(el.querySelector("dialog[open]")).toBeNull();
+      expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved."]);
+      await step(() => {
+        vi.advanceTimersByTime(5300);
+      });
+      expect(toasts(el)).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test("that core raises to ask for the page to be reloaded offers to reload it, which none of a plugin's does, whatever its code", async () => {
@@ -1105,13 +1247,13 @@ describe("what the user learns", () => {
     const controller = new AbortController();
     let cleanup: () => void = () => undefined;
     act(() => {
-      cleanup = basic.default.frontend.render({ el, core: { ...core, notifications }, signal: controller.signal });
+      cleanup = basic.default.frontend.render({ el, core: { ...core, notifications }, plugin: BASIC, signal: controller.signal });
     });
 
-    expect(buttons(find(el, '[data-severity="warning"]'))).toEqual(["Reload", "Dismiss"]);
-    expect(buttons(find(el, '[data-severity="error"]'))).toEqual(["Dismiss"]);
+    expect(buttons(toast(el, message))).toEqual(["Reload", "Close"]);
+    expect(buttons(toast(el, "Reload, please."))).toEqual(["Close"]);
     const reload = vi.spyOn(window.location, "reload").mockImplementation(() => undefined);
-    await click(button(find(el, '[data-severity="warning"]'), "Reload"));
+    await click(button(toast(el, message), "Reload"));
     expect(reload).toHaveBeenCalledTimes(1);
     reload.mockRestore();
     act(() => {
@@ -1222,7 +1364,7 @@ describe("the cleanup that render() returns", () => {
     document.body.append(el);
     let cleanup = (): void => undefined;
     act(() => {
-      cleanup = basic.default.frontend.render({ el, core: stubbed.core, signal: new AbortController().signal });
+      cleanup = basic.default.frontend.render({ el, core: stubbed.core, plugin: BASIC, signal: new AbortController().signal });
     });
     await act(() => stubbed.settled());
     expect(el.querySelectorAll("article")).toHaveLength(6);

@@ -25,9 +25,9 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
-import { classes, NameField, useHistory } from "../../ui/index.ts";
+import { classes, NameField, refused, runCommand, useHistory } from "../../ui/index.ts";
 import { report } from "../../util/index.ts";
-import { runCommand, useFrontEnd } from "./context.ts";
+import { useFrontEnd } from "./context.ts";
 import { ariaShortcuts } from "./shortcuts.ts";
 import { drawnControls, runButton } from "./storage.ts";
 import type { Button } from "./storage.ts";
@@ -41,7 +41,7 @@ export interface ToolbarProps {
 
 export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
   const front = useFrontEnd();
-  const { core, notices } = front;
+  const { core } = front;
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState(false);
   const locked = core.lock.board;
@@ -51,7 +51,7 @@ export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
       if (back) core.store.undo();
       else core.store.redo();
     } catch (error) {
-      notices.failed(error);
+      refused(front, error);
     }
   }
 
@@ -190,7 +190,7 @@ function StorageButton({
   role?: "menuitem";
   before?: () => void;
 }): ReactElement {
-  const { notices } = useFrontEnd();
+  const front = useFrontEnd();
   return (
     <button
       type="button"
@@ -201,7 +201,7 @@ function StorageButton({
       aria-keyshortcuts={ariaShortcuts(button.shortcut)}
       onClick={() => {
         before?.();
-        void runButton(button, notices.failed);
+        void runButton(front, button);
       }}
     >
       {button.label}

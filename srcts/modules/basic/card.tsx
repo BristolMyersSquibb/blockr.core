@@ -48,9 +48,9 @@ import type { Condition } from "../../protocol/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
 import type { AddMode } from "../../picker/index.ts";
-import { classes, NameField } from "../../ui/index.ts";
+import { classes, NameField, runCommand } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
-import { runCommand, useFrontEnd } from "./context.ts";
+import { useFrontEnd } from "./context.ts";
 import { Menu } from "./ui.tsx";
 
 type Severity = Condition["severity"];

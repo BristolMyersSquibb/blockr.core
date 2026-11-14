@@ -1,5 +1,6 @@
 import type { StorageControl } from "../../store/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
+import type { FrontEnd } from "./context.ts";
 export type Button = Extract<StorageControl, {
     kind: "button";
 }>;
@@ -10,4 +11,4 @@ export interface Drawn {
 }
 export declare function drawnControls(core: CoreApi): Drawn | undefined;
 export declare function buttonsOf(controls: readonly StorageControl[]): Button[];
-export declare function runButton(button: Button, failed: (error: unknown) => void): Promise<void>;
+export declare function runButton(front: Pick<FrontEnd, "core" | "plugin">, button: Button): Promise<void>;

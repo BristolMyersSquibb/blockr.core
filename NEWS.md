@@ -500,13 +500,22 @@
   Where R cannot make a block's output, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
   Where R replies error to a request, core raises one for each of the reply's conditions, until R next replies to a request of the same name for the same block, board option or plugin (#539).
 * Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
-  Core's basic frontend shows above the board the notifications that concern no block, whoever raised them, until one is withdrawn or the user dismisses it, and offers to reload the page with `page_reload_needed`.
   A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
   The card of a block that `serve()` serves alone shows every notification of the board.
   A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
   In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
   Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it.
   The Edit board plugin raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses (#539).
+* Core's basic frontend shows each notification that concerns no block as a toast, whatever its severity and whoever raised it, in place of its list above the board.
+  The toasts sit in the window's bottom right corner.
+  Each names what it concerns, such as a board option or a plugin, and the package that its source names for it.
+  A message's toast fades after five seconds, but not while the pointer rests on it or the keyboard's focus is in it.
+  A warning's or an error's toast stays until the user closes it.
+  A toast goes as soon as core withdraws its notification, and one that faded or that the user closed does not come back while its notification holds.
+  While a dialog of the frontend is open, the toasts show inside it, so that the user can still close them.
+  The toast of `page_reload_needed` offers to reload the page.
+  The frontend raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses, which concerns its plugin.
+  Where a button of the storage controls fails, it raises one of the code `storage_control_failed`, which concerns the storage plugin (#549).
 
 # blockr.core 0.1.4
 

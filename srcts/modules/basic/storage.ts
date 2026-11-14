@@ -17,8 +17,10 @@
 // throws (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.2.5#notes-for-implementers).
 
 import type { StorageControl } from "../../store/index.ts";
+import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { errorMessage, quoted } from "../../util/index.ts";
+import type { FrontEnd } from "./context.ts";
 
 export type Button = Extract<StorageControl, { kind: "button" }>;
 
@@ -65,15 +67,33 @@ export function buttonsOf(controls: readonly StorageControl[]): Button[] {
   });
 }
 
-// Runs the button, and hands why it failed to `failed`. It calls run() before
-// it awaits anything, so that run() still acts within the user's click or key
-// press, as a browser's file picker needs.
-export async function runButton(button: Button, failed: (error: unknown) => void): Promise<void> {
+// Runs the button. It calls run() before it awaits anything, so that run()
+// still acts within the user's click or key press, as a browser's file picker
+// needs. Where run() rejects, the frontend tells the user why through a
+// notification, as Plugins has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#storage):
+// an error of the code `storage_control_failed`, which concerns the app's
+// storage plugin, whose button it is, so that its toast names that plugin.
+export async function runButton(front: Pick<FrontEnd, "core" | "plugin">, button: Button): Promise<void> {
   try {
     await button.run();
   } catch (error) {
-    failed(error);
+    const storage = storagePlugin(front.core);
+    front.core.notifications.notify(front.plugin, {
+      severity: "error",
+      code: "storage_control_failed",
+      message: errorMessage(error),
+      ...(storage === undefined ? {} : { about: { plugin: storage } }),
+    });
   }
+}
+
+// The id of the class of the app's storage plugin, whose storage
+// `core.plugins.storage()` gives, or undefined where the app runs none.
+function storagePlugin(core: Pick<CoreApi, "plugins">): PluginClassId | undefined {
+  const storage = core.plugins.storage();
+  if (storage === undefined) return undefined;
+  return Object.keys(core.plugins.appPlugins()).find((id) => core.plugins.pluginClass(id).storage === storage);
 }
 
 // The controls of a list that the toolbar draws: the first of those that share

@@ -148,7 +148,9 @@ test("keeps core's utilities under its prefix and outside layers, without Prefli
   expect(css).not.toMatch(/^\s*\.flex \{/m);
   expect(css).not.toContain("@layer utilities");
   expect(css).not.toContain("@layer base");
-  expect(css).not.toContain("box-sizing");
+  // Preflight sets box-sizing on every element, while a utility such as
+  // bc:box-border sets it on its own element alone.
+  expect(css).not.toMatch(/^\s*\*[^{]*\{[^}]*box-sizing/m);
 });
 
 test("names the colors of core's UIs as variables of its theme, which follow the text around them", async () => {

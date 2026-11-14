@@ -1,3 +1,4 @@
+import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 export declare const api = 1;
 declare const _default: {
@@ -7,8 +8,9 @@ declare const _default: {
     };
 };
 export default _default;
-declare function render({ el, core }: {
+declare function render({ el, core, plugin }: {
     el: HTMLElement;
     core: CoreApi;
+    plugin: PluginClassId;
     signal: AbortSignal;
 }): () => void;
