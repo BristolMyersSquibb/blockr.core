@@ -221,7 +221,7 @@
   A card counts the reason in the pill of the messages, whatever `show_conditions` names, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596).
 * R's `ok` reply to a request or an output carries `conditions`, as its reply to an evaluation does: every message and warning that the request's function or the output's coercion raised.
   R logs each of them.
-  Core raises a notification for each condition of an `ok` reply to a request, and for each warning of an output (#601).
+  Core raises a notification for each condition of an `ok` reply to a request or an output (#601, #606).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
@@ -500,9 +500,9 @@
   Each has a code of its own, as `module_failed`, and core still logs each failure.
   Core draws nothing in the element of a module that cannot draw, which it leaves empty, so that the frontend alone says where a failure shows.
   Where a board option that a block's UI module, a renderer or a plugin's UI requires does not go onto the board, core raises that the module cannot draw, which concerns the block or the plugin, beside the notification about the board option.
-  Where R makes a block's output, core raises one for each warning of the reply, in place of those before.
-  Where R cannot make it, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
-  Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601).
+  Core raises one for each condition of R's reply to an ask of a block's output, ok or error, in place of those before.
+  Where the ask fails without an error from R, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
+  Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601, #606).
 * Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
   Core's basic frontend shows above the board the notifications that concern no block, whoever raised them, until one is withdrawn or the user dismisses it, and offers to reload the page with `page_reload_needed`.
   A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.

@@ -4189,25 +4189,24 @@ function mountOutput(deps, el, block) {
   function heard(reply) {
     if (deps.replaced.aborted) return;
     if (reply.status === "ok" && "output" in reply) {
-      hold(reply.conditions.filter((condition) => condition.severity === "warning"), "r");
+      hold(reply.conditions);
     } else if (reply.status === "error") {
       const { condition, by } = whyFailed(reply, block);
-      hold([condition], by);
+      hold("conditions" in reply ? reply.conditions : [], by === "core" ? [condition] : []);
     }
   }
   function unanswered(message) {
-    if (!deps.replaced.aborted) hold([noOutput(message)], "core");
+    if (!deps.replaced.aborted) hold([], [noOutput(message)]);
   }
-  function hold(conditions, by) {
+  function hold(byR, byCore = []) {
     const before = shelf.notified;
-    shelf.notified = conditions.map(
-      (condition) => deps.raise({
-        severity: condition.severity,
-        message: condition.message,
-        source: by === "r" ? { kind: "r", class: condition.class, request: { type: "output" } } : { kind: "core", code: "output_unanswered" },
-        about: { block }
-      })
-    );
+    const raise = (condition, by) => deps.raise({
+      severity: condition.severity,
+      message: condition.message,
+      source: by === "r" ? { kind: "r", class: condition.class, request: { type: "output" } } : { kind: "core", code: "output_unanswered" },
+      about: { block }
+    });
+    shelf.notified = [...byR.map((condition) => raise(condition, "r")), ...byCore.map((condition) => raise(condition, "core"))];
     for (const withdraw of before) withdraw();
   }
   function failed3(condition) {

@@ -450,7 +450,7 @@ describe("asking", () => {
     expect(s.raised).toEqual([]);
   });
 
-  test("takes why an output failed from the error of R's reply, not from a warning that came before it, in error() and in the notification", async () => {
+  test("takes why an output failed from the error of R's reply, not from a warning that came before it, and raises a notification for each condition of the reply", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });
     await ready(s);
@@ -470,6 +470,12 @@ describe("asking", () => {
       phase: "output",
       message: "A table output takes its page size from the parameter `page_size` or the board option `n_rows`, but neither is given.",
     };
+    const fromR = (condition: Condition) => ({
+      severity: condition.severity,
+      message: condition.message,
+      source: { kind: "r", class: condition.class, request: { type: "output" } },
+      about: { block: "b" },
+    });
 
     s.scheduler.invalidate("b");
     await evaluateAll(s.r);
@@ -477,17 +483,10 @@ describe("asking", () => {
     await tick();
     expect(table.host().error()).toEqual(failure);
     expect(table.host().output()).toMatchObject({ total: 150 });
-    expect(s.raised).toEqual([
-      {
-        severity: "error",
-        message: failure.message,
-        source: { kind: "r", class: failure.class, request: { type: "output" } },
-        about: { block: "b" },
-      },
-    ]);
+    expect(s.raised).toEqual([fromR(warning), fromR(failure)]);
 
     // Where the reply holds no error, core writes the condition, as where it
-    // holds none.
+    // holds none, and raises it beside the reply's.
     s.scheduler.invalidate("b");
     await evaluateAll(s.r);
     s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [warning] });
@@ -495,11 +494,12 @@ describe("asking", () => {
     const written = 'R failed to make the output of block "b".';
     expect(table.host().error()).toMatchObject({ severity: "error", message: written });
     expect(s.raised).toEqual([
+      fromR(warning),
       { severity: "error", message: written, source: { kind: "core", code: "output_unanswered" }, about: { block: "b" } },
     ]);
   });
 
-  test("raises a notification for each warning of an output, and none for its messages, which concerns the block, in place of those before", async () => {
+  test("raises a notification for each condition of an output, which concerns the block, in place of those before", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });
     await ready(s);
@@ -510,30 +510,28 @@ describe("asking", () => {
       message,
     });
     const output = { renderer: TABLE, columns: [], rows: [], total: 150 };
-    const warned = (message: string) => ({
-      severity: "warning",
-      message,
-      source: { kind: "r", class: ["simpleWarning", "warning", "condition"], request: { type: "output" } },
+    const fromR = (given: Condition) => ({
+      severity: given.severity,
+      message: given.message,
+      source: { kind: "r", class: given.class, request: { type: "output" } },
       about: { block: "b" },
     });
 
-    s.r.reply({
-      id: lastOutput(s.r).id,
-      status: "ok",
-      output,
-      conditions: [condition("message", "Paging by 50 rows"), condition("warning", "NAs introduced by coercion")],
-    });
+    const paging = condition("message", "Paging by 50 rows");
+    const coercion = condition("warning", "NAs introduced by coercion");
+    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output, conditions: [paging, coercion] });
     await tick();
     expect(table.host().error()).toBeNull();
-    expect(s.raised).toEqual([warned("NAs introduced by coercion")]);
+    expect(s.raised).toEqual([fromR(paging), fromR(coercion)]);
 
     s.scheduler.invalidate("b");
     await evaluateAll(s.r);
-    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output, conditions: [condition("warning", "Dropped 2 rows")] });
+    const dropped = condition("warning", "Dropped 2 rows");
+    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output, conditions: [dropped] });
     await tick();
-    expect(s.raised).toEqual([warned("Dropped 2 rows")]);
+    expect(s.raised).toEqual([fromR(dropped)]);
 
-    // An output with no warning withdraws them.
+    // An output with no condition withdraws them.
     s.scheduler.invalidate("b");
     await evaluateAll(s.r);
     replyTable(s.r, lastOutput(s.r));
