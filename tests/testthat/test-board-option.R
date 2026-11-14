@@ -70,6 +70,12 @@ test_that("a board option made without a value has none", {
   expect_null(board_option_value(opt))
 })
 
+test_that("a board option prints a value of length 0", {
+
+  expect_identical(format(new_board_option("test", NULL)), "test: NULL")
+  expect_identical(format(new_board_option("test", list())), "test: list()")
+})
+
 test_that("core's board options take their value alone and compute nothing", {
 
   ctors <- list(
