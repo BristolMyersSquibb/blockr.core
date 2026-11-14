@@ -19,6 +19,7 @@ export interface Store {
     apply(delta: Delta | readonly Delta[], origin?: Origin, opts?: {
         readonly undo?: false;
     }): void;
+    dryRun(delta: Delta | readonly Delta[]): Board;
     open(given: string | HelloReply): Promise<Dropped[]>;
     check(text: string): Promise<Dropped[]>;
     jsonBoard(): JsonBoard;
