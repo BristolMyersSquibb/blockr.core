@@ -65,34 +65,7 @@ export type BoardObject = {
     readonly plugin: PluginClassId;
 };
 export type NotificationSource = RSource | CoreSource | ModuleSource;
-export interface RSource {
-    readonly kind: "r";
-    readonly class: readonly string[];
-    readonly request: RRequest;
-}
-export type RRequest = {
-    readonly type: "evaluate";
-    readonly phase?: EvaluatePhase;
-} | {
-    readonly type: "output";
-} | {
-    readonly type: "block_class" | "output_class" | "option" | "plugin";
-    readonly name: string;
-} | {
-    readonly type: "renderer";
-    readonly renderer: string;
-    readonly name: string;
-};
-export type EvaluatePhase = Extract<Phase, "expr" | "inputs" | "block_eval" | "result_summary">;
-export interface CoreSource {
-    readonly kind: "core";
-    readonly code: CoreCode;
-    readonly package?: string;
-    readonly renderer?: string;
-}
-export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered";
-export interface ModuleSource {
-    readonly kind: "module";
+export interface SourceModule {
     readonly object: {
         readonly plugin: PluginClassId;
     } | {
@@ -100,9 +73,35 @@ export interface ModuleSource {
     } | {
         readonly option: OptionId;
     };
-    readonly code: string;
-    readonly package?: string;
     readonly renderer?: string;
+    readonly package?: string;
+}
+export interface RSource {
+    readonly kind: "r";
+    readonly class: readonly string[];
+    readonly request: RRequest;
+    readonly module?: SourceModule;
+}
+export type RRequest = {
+    readonly type: "evaluate";
+    readonly phase?: EvaluatePhase;
+} | {
+    readonly type: "output";
+} | {
+    readonly type: "block_class" | "output_class" | "renderer" | "option" | "plugin";
+    readonly name: string;
+};
+export type EvaluatePhase = Extract<Phase, "expr" | "inputs" | "block_eval" | "result_summary">;
+export interface CoreSource {
+    readonly kind: "core";
+    readonly code: CoreCode;
+    readonly module?: SourceModule;
+}
+export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered";
+export interface ModuleSource {
+    readonly kind: "module";
+    readonly module: SourceModule;
+    readonly code: string;
 }
 export interface Raised {
     readonly severity: Severity;

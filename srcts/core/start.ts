@@ -108,7 +108,7 @@ import type { CoreApi, FrontendModule, Notification } from "../types/core-api.ts
 import type { Json } from "../types/json.ts";
 import { fallBack, log, logSettings, setUpLogging } from "../log/index.ts";
 import type { OtelModule } from "../log/index.ts";
-import { asError, coreNotification, errorMessage, isObject, own, packageFromId, quoted } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Concerns, Raise } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
@@ -478,7 +478,7 @@ export function start(options: StartOptions): Started {
               "board_open_failed",
               "error",
               `The board that the storage plugin "${instead.plugin}" named did not open, so core opens the board that R sent: ${errorMessage(error)}`,
-              { about: { plugin: instead.plugin }, package: packageFromId(instead.plugin) },
+              { module: sourceModule({ plugin: instead.plugin }, packageFromId(instead.plugin)) },
             ),
           );
           await migrations.prepare(reply.board, reply.block_registry);
@@ -561,14 +561,14 @@ export function start(options: StartOptions): Started {
       Promise.all(
         Object.entries(reply.plugins).map(([id, entry]) =>
           listed(entry, packageFromId(id), (error) => {
-            failed(error, { about: { plugin: id }, package: packageFromId(id) });
+            failed(error, { module: sourceModule({ plugin: id }, packageFromId(id)) });
           }),
         ),
       ),
       Promise.all(
         Object.entries(reply.options).map(([id, entry]) =>
           listed(entry, entry.package, (error) => {
-            failed(error, { about: { option: id }, package: entry.package });
+            failed(error, { module: sourceModule({ option: id }, entry.package) });
           }),
         ),
       ),
@@ -580,7 +580,7 @@ export function start(options: StartOptions): Started {
       try {
         store.options.register({ ...(def as unknown as Option), id });
       } catch (error) {
-        failed(error, { about: { option: id }, package: entry.package });
+        failed(error, { module: sourceModule({ option: id }, entry.package) });
       }
     });
     Object.keys(reply.plugins).forEach((id, i) => {
@@ -591,7 +591,7 @@ export function start(options: StartOptions): Started {
         cls = { ...(def as unknown as PluginClass), id };
         store.plugins.register(cls);
       } catch (error) {
-        failed(error, { about: { plugin: id }, package: packageFromId(id) });
+        failed(error, { module: sourceModule({ plugin: id }, packageFromId(id)) });
         return;
       }
       for (const command of cls.commands ?? []) {
@@ -641,7 +641,7 @@ export function start(options: StartOptions): Started {
     if (plugin === undefined || storage?.load === undefined) return undefined;
     const refuse = (error: Error): void => {
       log.error(error);
-      raise(coreNotification("board_open_failed", "error", error.message, { about: { plugin }, package: packageFromId(plugin) }));
+      raise(coreNotification("board_open_failed", "error", error.message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
     };
     let text: unknown;
     try {

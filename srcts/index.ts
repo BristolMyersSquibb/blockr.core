@@ -74,6 +74,7 @@ export type {
   RRequest,
   RSource,
   Severity,
+  SourceModule,
 } from "./types/core-api.ts";
 export type {
   Change,

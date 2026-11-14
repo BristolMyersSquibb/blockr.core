@@ -174,7 +174,28 @@ export type BoardObject =
   | { readonly plugin: PluginClassId };
 
 // Who raised a notification: R, core or a package's module in the client.
+// Each kind names the package's module behind the notification in `module`,
+// where a module is behind it, so that a frontend reads which module a
+// notification is of in one way, whoever raised it.
 export type NotificationSource = RSource | CoreSource | ModuleSource;
+
+// A package's module in the client, as a notification's source names it: a
+// plugin class's module, or one that core mounts for a block or a board
+// option. A block has two modules, the UI module of its class and the renderer
+// of its output. A board option has two as well: its own module, and the
+// renderer that the app may name to draw its value in place of its UI.
+export interface SourceModule {
+  // The board object whose module it is: a plugin, a block or a board option.
+  readonly object: { readonly plugin: PluginClassId } | { readonly block: BlockId } | { readonly option: OptionId };
+  // The renderer, by its id, where the module is the renderer of the block's
+  // output or the renderer that draws the board option. A module without it
+  // is the block's UI module, the board option's own module or the plugin
+  // class's module.
+  readonly renderer?: string;
+  // The module's package, where core knows it, which it does but for a block
+  // class defined outside a package.
+  readonly package?: string;
+}
 
 // R, in a condition of its reply to what core asked of it for the board object
 // that the notification concerns.
@@ -183,18 +204,25 @@ export interface RSource {
   // The condition's class vector, as ["simpleWarning", "warning", "condition"].
   readonly class: readonly string[];
   readonly request: RRequest;
+  // The module that made the request, for a request:
+  // - Of a block class, the block's UI module.
+  // - Of an output class or of a renderer, the renderer of the block's output.
+  // - Of a board option, the board option's own module or the renderer that
+  //   draws it.
+  // - Of a plugin, the plugin class's module.
+  // An evaluation and an output have none, since core asks R for them.
+  readonly module?: SourceModule;
 }
 
 // What core asked of R: a block's evaluation or its output, or a request, by
-// its type and name.
+// its type and name. The module of the source names the renderer of a
+// renderer's own request.
 export type RRequest =
   // The phase that raised the condition, which one that R raises itself, as
   // for an evaluation that a lock refuses, lacks.
   | { readonly type: "evaluate"; readonly phase?: EvaluatePhase }
   | { readonly type: "output" }
-  | { readonly type: "block_class" | "output_class" | "option" | "plugin"; readonly name: string }
-  // A request of a renderer's own, which names the renderer by its id.
-  | { readonly type: "renderer"; readonly renderer: string; readonly name: string };
+  | { readonly type: "block_class" | "output_class" | "renderer" | "option" | "plugin"; readonly name: string };
 
 // The phases of a block's evaluation, of which R names one in each condition
 // it raises there.
@@ -205,12 +233,14 @@ export type EvaluatePhase = Extract<Phase, "expr" | "inputs" | "block_eval" | "r
 export interface CoreSource {
   readonly kind: "core";
   readonly code: CoreCode;
-  // The package whose module failed, where core knows it.
-  readonly package?: string;
-  // The renderer of the block's output, by its id, where it is the module that
-  // failed. A module of a block that fails without it is the block's UI
-  // module.
-  readonly renderer?: string;
+  // The module whose code failed, where a module's code failed:
+  // - A module that cannot load or draw.
+  // - The board option's own module, whose default failed or does not fit its
+  //   schema, or whose onChange() threw.
+  // - The plugin class's module, whose start threw.
+  // - The storage plugin's module, whose load() failed or named a board that
+  //   does not open.
+  readonly module?: SourceModule;
 }
 
 // What core's own notification is of.
@@ -240,18 +270,10 @@ export type CoreCode =
 // whose onChange() raises it.
 export interface ModuleSource {
   readonly kind: "module";
-  // The board object whose module raised it: a plugin, a block or a board
-  // option.
-  readonly object: { readonly plugin: PluginClassId } | { readonly block: BlockId } | { readonly option: OptionId };
+  // The module that raised it.
+  readonly module: SourceModule;
   // The package's own code for what it is of, as "edit_refused".
   readonly code: string;
-  // The package whose module raised it, where core knows it, which it does
-  // but for a block class defined outside a package.
-  readonly package?: string;
-  // The renderer of the block's output, by its id, where it raised the
-  // notification. One that a block's module raises without it comes from the
-  // block's UI module.
-  readonly renderer?: string;
 }
 
 // What a package's module gives to raise a notification, from which core

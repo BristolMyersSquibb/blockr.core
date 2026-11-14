@@ -22,16 +22,17 @@
 // default fails: the module goes without none of them, and core ends a module
 // that it has drawn once one does not go onto the board again. The
 // notification that concerns the board option says why it is not on the
-// board, once for the board.
+// board, once for the board, and names the board option's module where a
+// loaded package defines the board option.
 //
 // A host keeps nothing of its own: the state is the store's, the status the
 // scheduler's and the answers core's, so one block mounts in several places
 // at once, each with a host of its own. A host is bound to the board it was
 // made on and to its block. Once another board opens or the block leaves the
 // board, core ends the mount, and the host's submit() and evaluate() reject.
-// What the module raises through its host's notify() comes from the block,
-// with the package of its class, and holds until the mount ends at the
-// latest.
+// What the module raises through its host's notify() names the block's UI
+// module as its source, with the package of the block's class, and holds
+// until the mount ends at the latest.
 // Core makes the mounts anew for each board that opens, with a signal that
 // aborts as the next board opens, which ends every mount.
 
@@ -41,7 +42,7 @@ import { unevaluated } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Option, Store } from "../store/index.ts";
 import type { Block, BlockId, OptionId } from "../types/board.ts";
-import type { CoreApi } from "../types/core-api.ts";
+import type { CoreApi, SourceModule } from "../types/core-api.ts";
 import type {
   BlockContext,
   BlockHost,
@@ -66,6 +67,7 @@ import {
   quoted,
   raiseNothing,
   repliedNothing,
+  sourceModule,
 } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
@@ -141,7 +143,7 @@ export interface MountsOptions {
   // raises none unless given.
   readonly notify?: Notify;
   // The package that lists a board option, from R's reply to `hello`, which
-  // the notification of the board option's failing UI names.
+  // the notifications of the board option's module name.
   readonly optionPackage?: (option: OptionId) => string | undefined;
 }
 
@@ -183,11 +185,17 @@ export function createMounts(options: MountsOptions): Mounts {
 
   // Logs why a board option did not go onto the board, and raises a
   // notification of it that concerns the board option, once for the board.
+  // Where a loaded package defines the board option, its default failed or
+  // does not fit its schema, so the notification names the board option's
+  // module.
   function failure(option: OptionId, message: string): readonly string[] {
     if (!replaced.aborted && !reported.has(message)) {
       reported.add(message);
       log.error(message);
-      raise(coreNotification("board_option_failed", "error", message, { about: { option } }));
+      const concerns = Object.hasOwn(store.options.registered(), option)
+        ? { module: sourceModule({ option }, optionPackage(option)) }
+        : { about: { option } };
+      raise(coreNotification("board_option_failed", "error", message, concerns));
     }
     return [message];
   }
@@ -306,6 +314,8 @@ export function createMounts(options: MountsOptions): Mounts {
       throw new Error(`The block registry has no class "${found.registry_id}" for block "${block}".`);
     }
     const pkg = packageFromId(entry.id);
+    // The block's UI module, with the package of its class.
+    const module = sourceModule({ block }, pkg);
     const by = `the UI module of block class "${entry.id}"`;
 
     // The mount ends as its signal aborts, which may happen whenever the
@@ -338,7 +348,7 @@ export function createMounts(options: MountsOptions): Mounts {
       answers,
       block,
       entry,
-      pkg,
+      module,
       replaced,
       replied,
       notify,
@@ -398,7 +408,7 @@ export function createMounts(options: MountsOptions): Mounts {
     function fail(error: unknown): void {
       if (ended()) return;
       log.error(asError(error));
-      raise(coreNotification("module_failed", "error", errorMessage(error), { about: { block }, package: pkg }));
+      raise(coreNotification("module_failed", "error", errorMessage(error), { module }));
     }
 
     // Raises that the module cannot draw without the board options that it
@@ -406,7 +416,7 @@ export function createMounts(options: MountsOptions): Mounts {
     // notification about each board option.
     function lacking(ids: readonly OptionId[]): void {
       const missing = ids.filter((id) => !Object.hasOwn(store.board().options, id));
-      raise(coreNotification("module_failed", "error", withoutOptions(by, missing), { about: { block }, package: pkg }));
+      raise(coreNotification("module_failed", "error", withoutOptions(by, missing), { module }));
     }
 
     return end;
@@ -453,8 +463,9 @@ interface HostDeps {
   readonly answers: Answers;
   readonly block: BlockId;
   readonly entry: RegistryEntry;
-  // The package of the block's class, null for one defined outside a package.
-  readonly pkg: string | null;
+  // The block's UI module, with the package of its class, which a class
+  // defined outside a package lacks.
+  readonly module: SourceModule;
   // Aborts as another board opens in place of the host's.
   readonly replaced: AbortSignal;
   readonly replied: Replied;
@@ -632,7 +643,7 @@ function blockHost(deps: HostDeps): MountedHost {
     notify(notification) {
       const given = checkRaised(notification);
       if (!following) return () => undefined;
-      const withdraw = deps.notify({ object: { block }, package: deps.pkg }, given);
+      const withdraw = deps.notify(deps.module, given);
       const mine = (): void => {
         notified.delete(mine);
         withdraw();
@@ -640,7 +651,7 @@ function blockHost(deps: HostDeps): MountedHost {
       notified.add(mine);
       return mine;
     },
-    log: createLog(deps.pkg),
+    log: createLog(deps.module.package ?? null),
     name(options) {
       named = options;
       context = blockContext(mountedBlock(seen));

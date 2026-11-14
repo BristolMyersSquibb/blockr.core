@@ -315,7 +315,11 @@ describe("mounting a plugin's UI", () => {
       {
         severity: "error",
         message: 'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): boom',
-        source: { kind: "core", code: "module_failed", package: "blockr.test" },
+        source: {
+          kind: "core",
+          code: "module_failed",
+          module: { object: { plugin: "blockr.test-broken_plugin" }, package: "blockr.test" },
+        },
         about: { plugin: "blockr.test-broken_plugin" },
       },
     ]);
@@ -353,7 +357,7 @@ describe("mounting a plugin's UI", () => {
         'The board option "nowhere", which the plugin class "blockr.test-needy_plugin" requires, is defined by no package loaded.',
       ],
       [
-        { kind: "core", code: "module_failed", package: "blockr.test" },
+        { kind: "core", code: "module_failed", module: { object: { plugin: "blockr.test-needy_plugin" }, package: "blockr.test" } },
         { plugin: "blockr.test-needy_plugin" },
         'Without the board option "nowhere", the ui of the plugin class "blockr.test-needy_plugin" cannot draw.',
       ],
@@ -376,7 +380,7 @@ describe("what a frontend offers other plugins", () => {
     core.notifications.notify(FILE, { severity: "error", code: "share_failed", message: "Not shared.", about: { block: "b" } });
     core.notifications.notify(FILE, { severity: "warning", code: "quota", message: "Almost full.", about: null });
     const all = core.notifications.get();
-    const source = { kind: "module", object: { plugin: FILE }, package: "blockr.core" } as const;
+    const source = { kind: "module", module: { object: { plugin: FILE }, package: "blockr.core" } } as const;
     expect(all).toHaveLength(before.length + 3);
     expect(all.slice(before.length)).toEqual([
       {

@@ -42,7 +42,7 @@ import type { PluginClass, Storage, Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Plugin, PluginModule } from "../types/core-api.ts";
 import { log } from "../log/index.ts";
-import { asError, coreNotification, errorMessage, own, packageFromId } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, own, packageFromId, sourceModule } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 
 // What the render() of the `ui` of a plugin's class gets.
@@ -204,7 +204,8 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     } catch (error) {
       const why = new Error(`The start of the plugin class "${id}" failed: ${errorMessage(error)}`, { cause: error });
       log.error(why);
-      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { about: { plugin: id }, package: packageFromId(id) }));
+      const module = sourceModule({ plugin: id }, packageFromId(id));
+      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { module }));
       return;
     }
     if (typeof returned !== "function") return;
@@ -251,7 +252,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
 
     // Raises that the ui cannot draw, which concerns the plugin.
     function cannotDraw(message: string): void {
-      deps.raise(coreNotification("module_failed", "error", message, { about: { plugin }, package: packageFromId(plugin) }));
+      deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
     }
 
     // Raises that the ui cannot draw without the board options that the class
