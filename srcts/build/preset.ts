@@ -21,7 +21,7 @@ import { IMPORTS } from "../import-map/index.ts";
 const imports: Plugin = {
   name: "blockr.core-imports",
   setup(build) {
-    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls))$/ }, (args) => {
+    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel))$/ }, (args) => {
       if (!(IMPORTS as readonly string[]).includes(args.path)) {
         return {
           errors: [

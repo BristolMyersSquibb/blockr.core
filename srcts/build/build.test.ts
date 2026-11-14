@@ -87,7 +87,7 @@ test("writes each of React's entry points as an ES module, exporting what the en
   }
 });
 
-test("builds the SDK, the binding and the controls on their own, which the runtime and the modules import by name", async () => {
+test("builds the SDK, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
   const imports = (up: string) =>
     [
       `import { sdk } from "${up}/react/index.ts";`,
@@ -102,7 +102,8 @@ test("builds the SDK, the binding and the controls on their own, which the runti
     "srcts/inputs/index.ts": "export const input = 'the input';\n",
     "srcts/binding/index.ts": "export const binding = 'the binding';\n",
     "srcts/controls/index.ts": 'import { input } from "../inputs/index.ts";\nexport const controls = "the controls " + input;\n',
-    "srcts/runtime/index.ts": imports(".."),
+    "srcts/otel/index.ts": "export const otel = 'the otel module';\n",
+    "srcts/runtime/index.ts": `${imports("..")}export const otel = () => import("../otel/index.ts");\n`,
     "srcts/modules/head-block/index.ts": imports("../.."),
   });
 
@@ -125,12 +126,45 @@ test("builds the SDK, the binding and the controls on their own, which the runti
   // The controls take the inputs from the SDK.
   expect(await read("blockr-core-controls.js")).toContain('from "@blockr/core/react"');
   expect(await read("blockr-core-controls.js")).not.toContain("the input");
+  // The runtime imports the OpenTelemetry module by its name, as it loads it,
+  // which the build bundles on its own.
+  expect(await read("blockr-core.js")).toContain('import("@blockr/core/otel")');
+  expect(await read("blockr-core.js")).not.toContain("the otel module");
+  expect(await read("blockr-core-otel.js")).toContain("the otel module");
 
   // The import map names each import by its file, and the bundle of React,
   // which the entry points of React import, beside them.
   const map = JSON.parse(await read("import-map.json")) as { imports: Record<string, string>; files: string[] };
   expect(map.imports).toEqual(Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])));
   expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/)]);
+});
+
+test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {
+  await write({
+    "srcts/otel/sdk.ts": 'export { SeverityNumber } from "@opentelemetry/api";\n',
+    "srcts/otel/index.ts": 'import { SeverityNumber } from "./sdk.ts";\nexport const warn = () => ["the otel module", SeverityNumber.WARN];\n',
+    "srcts/runtime/index.ts": 'export const otel = () => import("../otel/index.ts");\n',
+  });
+
+  const written = await build(root);
+
+  const out = join(root, "inst/js");
+  const sdk = (await readdir(out)).filter((file) => /^opentelemetry-[0-9a-f]{8}\.js$/.test(file));
+  expect(sdk).toHaveLength(1);
+  expect(written).toContain(`inst/js/${sdk[0] ?? ""}`);
+  const vendored = await readFile(join(out, sdk[0] ?? ""), "utf8");
+  // The SDK's enum, minified, without the paths of its sources.
+  expect(vendored).toContain("UNSPECIFIED");
+  expect(vendored).not.toContain("// node_modules/");
+  // The module holds core's code alone, readable, and imports the SDK by the
+  // file's name beside it.
+  const own = await readFile(join(out, "blockr-core-otel.js"), "utf8");
+  expect(own).toContain("the otel module");
+  expect(own).toContain(`from "./${sdk[0] ?? ""}"`);
+  expect(own).not.toContain("UNSPECIFIED");
+  // R serves the file beside the module, as the import map names it.
+  const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { files: string[] };
+  expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/), sdk[0]]);
 });
 
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {

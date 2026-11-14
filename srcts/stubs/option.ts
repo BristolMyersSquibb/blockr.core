@@ -6,8 +6,9 @@ import type { OptionId } from "../types/board.ts";
 import type { Raised } from "../types/core-api.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
+import type { LogLine } from "../types/log.ts";
 import { asError, isObject, jsonEqual } from "../util/index.ts";
-import { announcer, notifier } from "./util.ts";
+import { announcer, lineHolder, notifier } from "./util.ts";
 
 // What a request answers, given its name and the args it is called with.
 export interface Answered {
@@ -30,6 +31,9 @@ export interface StubOptionHost<V extends Json = Json> extends OptionHost<V> {
   // Each notification that the module raised and that holds, in the order
   // they came.
   readonly notified: readonly Raised[];
+  // Each line that the module logged through `log`, at every level, in the
+  // order they came, naming no package.
+  readonly logged: readonly LogLine[];
   // Sets the value from outside the module, as the assistant or another
   // frontend's control does, and announces it.
   setValue(value: V): void;
@@ -41,6 +45,7 @@ export function stubOptionHost<V extends Json = Json>(options: StubOptionHostOpt
   const requested: { name: string; args: Readonly<Record<string, Json>> }[] = [];
   const on = announcer(["value"] as const);
   const { notified, notify } = notifier();
+  const { logged, log } = lineHolder();
 
   return {
     option: options.option,
@@ -50,6 +55,8 @@ export function stubOptionHost<V extends Json = Json>(options: StubOptionHostOpt
     requested,
     notified,
     notify,
+    logged,
+    log,
     submit(next) {
       submitted.push(next);
       value = next;

@@ -45,7 +45,7 @@ export function createBlockrOptions(client: Pick<Client, "request">): BlockrOpti
         if (batch === undefined) {
           const sending = new Map<string, Settle>();
           batch = sending;
-          // A promise rather than a microtask, which core reports errors from.
+          // The batch goes once the code of this task has run.
           void Promise.resolve().then(() => {
             if (batch === sending) batch = undefined;
             void send(sending);

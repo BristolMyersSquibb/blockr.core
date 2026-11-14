@@ -23,21 +23,24 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
   session$sent <- list()
   session$logged <- list()
 
-  withr::local_options(
-    blockr.log_level = "info",
-    blockr.logger = function(msg, level, pkg, asis, attributes) {
-      session$logged[[length(session$logged) + 1L]] <- list(
-        level = as.character(level),
-        message = msg,
-        attributes = attributes
-      )
-      invisible()
-    },
-    .local_envir = frame
-  )
+  withr::local_options(blockr.log_level = "info", .local_envir = frame)
 
   reset_logging()
   withr::defer(reset_logging(), envir = frame)
+
+  testthat::local_mocked_bindings(
+    get_logger = function() {
+      function(msg, level, pkg, asis, attributes) {
+        session$logged[[length(session$logged) + 1L]] <- list(
+          level = as.character(level),
+          message = msg,
+          attributes = attributes
+        )
+        invisible()
+      }
+    },
+    .env = frame
+  )
 
   session$evaluator <- new_evaluator(
     board = board,
@@ -579,4 +582,12 @@ evaluated <- function(session, ...) {
   session$receive(list(evaluate_request(...)))
   session$run()
   last_reply(session)
+}
+
+# The lines that the session's evaluator logged whose message holds `text`.
+logged_like <- function(session, text) {
+  Filter(
+    function(line) grepl(text, line[["message"]], fixed = TRUE),
+    session$logged
+  )
 }

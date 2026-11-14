@@ -4,14 +4,15 @@ var IMPORTS = [
   ...REACT_ENTRIES,
   "@blockr/core/react",
   "@blockr/core/binding",
-  "@blockr/core/controls"
+  "@blockr/core/controls",
+  "@blockr/core/otel"
 ];
 
 // srcts/build/preset.ts
 var imports = {
   name: "blockr.core-imports",
   setup(build) {
-    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls))$/ }, (args) => {
+    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel))$/ }, (args) => {
       if (!IMPORTS.includes(args.path)) {
         return {
           errors: [

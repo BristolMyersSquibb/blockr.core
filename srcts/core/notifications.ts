@@ -26,9 +26,11 @@
 // announces.
 // It holds none that is raised about a block, a link or a stack that the board
 // does not hold, since the work that raises one can outlive what it concerns,
-// and it reports one that a package's module raises about a board object that
-// the board has never held, or that a plugin that the app does not run raises,
-// since only a mistake in the module names such a board object or plugin.
+// and logs each that it drops so at debug, naming who raised it and what it
+// concerns. It logs at error one that a package's module raises about a board
+// object that the board has never held, or that a plugin that the app does not
+// run raises, since only a mistake in the module names such a board object or
+// plugin.
 
 import { announceTo, onAbort } from "../mount/index.ts";
 import type { Condition } from "../protocol/index.ts";
@@ -36,8 +38,9 @@ import { isUnsentError } from "../scheduler/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
-import type { BoardObject, CoreApi, EvaluatePhase, ModuleSource, Notification, NotificationSource } from "../types/core-api.ts";
-import { checkRaised, jsonEqual, packageFromId, report } from "../util/index.ts";
+import type { BoardObject, CoreApi, EvaluatePhase, ModuleSource, Notification, NotificationSource, RRequest } from "../types/core-api.ts";
+import { log } from "../log/index.ts";
+import { checkRaised, jsonEqual, packageFromId } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 
 export interface Holder {
@@ -93,7 +96,7 @@ export function createNotifications(
   // The blocks, links and stacks that have left the board, by key. A
   // notification raised about one of them holds nothing, and so does one that
   // a package's module raises about a board object that the board has never
-  // held, which core reports as well.
+  // held, which core logs at error as well.
   const left = new Set<string>();
   const listeners = new Set<(all: readonly Notification[]) => void>();
   let all = NONE;
@@ -214,12 +217,18 @@ export function createNotifications(
         const id = JSON.stringify(["request", about, condition.severity, source, condition.message]);
         if (!next.has(id)) next.set(id, frozen(id, { severity: condition.severity, message: condition.message, source, about }));
       }
+    } else if (conditions.length > 0) {
+      log.debug(`Core drops the notifications of R's reply to ${requested(request)} about ${named(about)}, which the board does not hold.`);
     }
     if (replace(JSON.stringify(["request", about, request]), about, next)) publish();
   };
 
   const raise: Raise = (given) => {
-    if (ended || (given.about !== undefined && !present(given.about))) return nothing;
+    if (ended) return nothing;
+    if (given.about !== undefined && !present(given.about)) {
+      log.debug(`Core drops a notification that core raised about ${named(given.about)}, which the board does not hold.`);
+      return nothing;
+    }
     const id = JSON.stringify([
       "raised",
       given.severity,
@@ -248,8 +257,10 @@ export function createNotifications(
     if (ended) return nothing;
     const about = given.about === undefined ? object : (given.about ?? undefined);
     if (about !== undefined && !known(about)) {
-      if (!left.has(key(about))) {
-        report(new Error(`Core drops a notification that ${raiser(object)} raised about ${named(about)}, ${unknown(about)}.`));
+      if (left.has(key(about))) {
+        log.debug(`Core drops a notification that ${raiser(object)} raised about ${named(about)}, which has left the board.`);
+      } else {
+        log.error(`Core drops a notification that ${raiser(object)} raised about ${named(about)}, ${unknown(about)}.`);
       }
       return nothing;
     }
@@ -289,7 +300,7 @@ export function createNotifications(
         const given = checkRaised(notification);
         if (ended) return nothing;
         if (!Object.hasOwn(plugins, plugin)) {
-          report(new Error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`));
+          log.error(`Core drops a notification that the plugin "${plugin}" raised, which the app does not run.`);
           return nothing;
         }
         return notify({ object: { plugin }, package: packageFromId(plugin) }, given);
@@ -352,6 +363,14 @@ function named(object: BoardObject): string {
   if ("stack" in object) return `the stack "${object.stack}"`;
   if ("option" in object) return `the board option "${object.option}"`;
   return `the plugin "${object.plugin}"`;
+}
+
+// What core asked of R, as a message names it.
+function requested(request: RRequest): string {
+  if (request.type === "evaluate") return "an evaluation";
+  if (request.type === "output") return "an output";
+  if (request.type === "renderer") return `the request "${request.name}" of the renderer "${request.renderer}"`;
+  return `the request "${request.name}"`;
 }
 
 // Who raised a notification of a package's module, as a message names them.

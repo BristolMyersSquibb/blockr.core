@@ -68,8 +68,8 @@ import {
   jsonEqual,
   own,
   packageFromId,
-  report,
 } from "../util/index.ts";
+import { createLog, log } from "../log/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
 import { ModuleError } from "./load.ts";
@@ -572,7 +572,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     });
     if (failure instanceof ModuleError) {
       if (!broken.has(failure)) {
-        report(failure);
+        log.error(failure);
         deps.raise(notification);
       }
       broken.add(failure);
@@ -850,6 +850,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         notified.add(mine);
         return mine;
       },
+      log: createLog(pkg),
       announce() {
         if (following) announceTo(listeners);
       },

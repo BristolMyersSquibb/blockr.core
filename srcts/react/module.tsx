@@ -13,7 +13,7 @@ import type { OptionId } from "../types/board.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { BlockOutput } from "../types/outputs.ts";
-import { errorMessage, report } from "../util/index.ts";
+import { asError, errorMessage } from "../util/index.ts";
 import { useOutput } from "./hooks.ts";
 
 // What a module that reactModule() makes hands its component: the host that
@@ -66,12 +66,13 @@ export interface OutputProps<O extends BlockOutput = BlockOutput, P = Json> {
 
 // A renderer of an output class, drawn by a React component, which gets the
 // output as its class's contract types it, since R writes every output by its
-// class's schema. Around the component, the renderer:
-// - marks itself busy and dims what the component drew while core asks R for
-//   a newer output, and
-// - draws nothing in place of a component that throws, and raises why through
-//   the host's notify(), with the code "render_failed", until the component
-//   draws another output or the renderer is unmounted.
+// class's schema. Around the component, the renderer does two things:
+// - It marks itself busy and dims what the component drew while core asks R
+//   for a newer output.
+// - It draws nothing in place of a component that throws, and raises why
+//   through the host's notify(), with the code "render_failed", until the
+//   component draws another output or the renderer is unmounted. It logs what
+//   the component threw through the host's log, at error.
 // It draws nothing of why the latest ask failed, which the component gets as
 // `error`, since core raises it as a notification about the block, which the
 // frontend places.
@@ -106,7 +107,7 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
 // notification of why through the host, which concerns the block. It draws the
 // component again once another output comes, and withdraws the notification
 // once the component draws, or replaces it where the component throws again.
-// It reports what it caught too, so that the page hears of it.
+// It logs what it caught too, at error, through the host's log.
 class Boundary extends Component<{ host: OutputHost; output: Json; children?: ReactNode }, { failed: boolean }> {
   override state: { failed: boolean } = { failed: false };
   // What withdraws the notification of the latest throw, while one holds.
@@ -117,7 +118,7 @@ class Boundary extends Component<{ host: OutputHost; output: Json; children?: Re
   }
 
   override componentDidCatch(error: unknown): void {
-    report(error);
+    this.props.host.log.error(asError(error));
     const before = this.failure;
     this.failure = this.props.host.notify({
       severity: "error",

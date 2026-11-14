@@ -9,9 +9,10 @@
 // R starts each session with a message of its own, an object rather than an
 // array, which gives the URL that the client posts request bodies to, in
 // `body_url`, the largest body that Shiny takes there, in `max_request_size`,
-// and the largest message that either side sends, in `max_message_size`, so
-// that the transport has to listen before Shiny connects, as core does when the
-// page starts. A session ends when Shiny's websocket closes, which Shiny's
+// the largest message that either side sends, in `max_message_size`, and
+// Shiny's token of the session, in `token`, by which telemetry names the
+// session, so that the transport has to listen before Shiny connects, as core
+// does when the page starts. A session ends when Shiny's websocket closes, which Shiny's
 // shiny:disconnected event on the document says.
 //
 // R sends no message larger than its blockr option `max_message_size` says,
@@ -110,6 +111,10 @@ export function shinyTransport(options: ShinyTransportOptions = {}): Transport {
 
       shiny.setInputValue(name, text, { priority: "event" });
     },
+    sessionId() {
+      const token: unknown = start?.token;
+      return typeof token === "string" ? token : undefined;
+    },
     listen(listener) {
       shiny.addCustomMessageHandler(name, (message: unknown) => {
         if (message instanceof ArrayBuffer) {
@@ -154,11 +159,12 @@ function disconnected(
 
 // R's message that starts a session, with the limit to a request's size where
 // Shiny's option shiny.maxRequestSize sets one, and to a message's where R's
-// blockr option max_message_size does.
+// blockr option max_message_size does, and Shiny's token of the session.
 interface SessionStart {
   body_url: string;
   max_request_size?: number;
   max_message_size?: number;
+  token?: string;
 }
 
 function isSessionStart(message: unknown): message is SessionStart {

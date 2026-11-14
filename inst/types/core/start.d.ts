@@ -3,6 +3,7 @@ import type { Transport } from "../protocol/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
+import type { OtelModule } from "../log/index.ts";
 export type Front = {
     readonly frontend: FrontendModule;
     readonly plugin: PluginClassId;
@@ -27,6 +28,7 @@ export interface StartOptions {
     readonly alone?: boolean;
     readonly measure?: Measure;
     readonly fail?: (error: Error) => void;
+    readonly otel?: () => Promise<OtelModule>;
 }
 export interface Started {
     readonly ready: Promise<CoreApi>;

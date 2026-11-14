@@ -3,7 +3,7 @@
 // as failed where a test says so.
 
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { reports } from "../testing/reports.ts";
+import { logged } from "../testing/logged.ts";
 import { createLoader, ModuleError } from "./index.ts";
 
 interface HappyDom {
@@ -36,7 +36,7 @@ test("puts a module's stylesheet on the page once", async () => {
 
 test("reports a stylesheet that fails to load, and loads the module regardless", async () => {
   stylesheetsLoad(false);
-  const reported = reports();
+  const reported = logged();
   const loader = createLoader({ importer: () => Promise.resolve({ api: 1 }) });
 
   await expect(loader.load(head, "blockr.core")).resolves.toEqual({ api: 1 });
@@ -44,8 +44,8 @@ test("reports a stylesheet that fails to load, and loads the module regardless",
 
   const errors = reported.errors();
   expect(errors).toHaveLength(1);
-  expect(errors[0]).toBeInstanceOf(ModuleError);
-  expect(String(errors[0])).toBe(
+  expect(errors[0]?.error).toBeInstanceOf(ModuleError);
+  expect(String(errors[0]?.error)).toBe(
     "ModuleError: The module blockr.core/head-block.js of blockr.core has a stylesheet that failed to load: blockr.core/head-block.css?v=2 could not be loaded.",
   );
 });

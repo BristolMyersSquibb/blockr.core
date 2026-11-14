@@ -38,7 +38,8 @@ import type { Store } from "../store/index.ts";
 import type { OptionId } from "../types/board.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, report } from "../util/index.ts";
+import { createLog, log } from "../log/index.ts";
+import { asError, checkRaised, coreNotification, errorMessage, isObject, own, packageFromId } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
@@ -90,6 +91,10 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     throw new Error(`No package registers the board option "${option}" whose UI to mount.`);
   }
   const chosen = Object.entries(deps.renderers()).find(([, renderer]) => renderer.option === option);
+  // The package of the module that draws: the renderer's, or else the board
+  // option's.
+  const [id, renderer] = chosen ?? [];
+  const pkg = id === undefined ? deps.optionPackage(option) : packageFromId(id);
 
   const controller = new AbortController();
   const ended = (): boolean => controller.signal.aborted;
@@ -158,6 +163,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
       notified.add(mine);
       return mine;
     },
+    log: createLog(pkg ?? null),
   };
 
   const offStore = store.subscribe((_change, board) => {
@@ -184,11 +190,6 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
     if (cleanup !== undefined) attempt(cleanup);
     el.replaceChildren();
   }
-
-  // The package of the module that draws: the renderer's, or else the board
-  // option's.
-  const [id, renderer] = chosen ?? [];
-  const pkg = id === undefined ? deps.optionPackage(option) : packageFromId(id);
 
   void (async () => {
     let mod: Mountable<OptionArgs>;
@@ -233,7 +234,7 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
   // A module that cannot draw, which leaves its element empty.
   function fail(error: unknown): void {
     if (ended()) return;
-    report(error);
+    log.error(asError(error));
     deps.raise(coreNotification("module_failed", "error", errorMessage(error), { about: { option }, package: pkg }));
   }
 

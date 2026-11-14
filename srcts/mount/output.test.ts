@@ -13,7 +13,7 @@ import { createStore } from "../store/index.ts";
 import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
-import { reports } from "../testing/reports.ts";
+import { logged } from "../testing/logged.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { Notification, Raised } from "../types/core-api.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
@@ -493,7 +493,7 @@ describe("asking", () => {
   });
 
   test("raises that the renderer cannot draw where a board option that it names does not go onto the board, beside the board option's own notification, which says why", async () => {
-    const reported = reports();
+    const reported = logged();
     const table = renderer(["n_rows", "broken"]);
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
     const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
@@ -574,7 +574,7 @@ describe("what core keeps", () => {
 
 describe("board options", () => {
   test("whose default fails leave the element empty, and core asks R for no output", async () => {
-    const reported = reports();
+    const reported = logged();
     const table = renderer(["n_rows", "broken"]);
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
     const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
@@ -583,13 +583,13 @@ describe("board options", () => {
 
     const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
     expect(el.textContent).toBe("");
-    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(outputs(s.r)).toHaveLength(0);
     expect(table.mounts).toHaveLength(0);
   });
 
   test("that the renderer names and that do not go onto the board again reach it through error(), and raise that it cannot draw, until the board holds a value", async () => {
-    const reported = reports();
+    const reported = logged();
     const table = renderer(["n_rows", "once"]);
     let calls = 0;
     const once: Option = {
@@ -614,7 +614,7 @@ describe("board options", () => {
     expect(table.host().error()?.message).toBe(lacking);
     expect(table.host().output()).toMatchObject({ total: 150 });
     expect(outputs(s.r)).toHaveLength(1);
-    expect(reported.errors().map(String)).toEqual([`Error: ${why}`]);
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(s.raised.map((n) => [n.source, n.about, n.message])).toEqual([
       [{ kind: "core", code: "board_option_failed" }, { option: "once" }, why],
       [{ kind: "core", code: "module_failed", package: "blockr.core", renderer: TABLE.id }, { block: "b" }, lacking],
@@ -693,7 +693,7 @@ describe("the renderer", () => {
   });
 
   test("that fails to load, declares another major or throws leaves the element empty, and raises a notification that concerns the block, with the renderer and its package", async () => {
-    const reported = reports();
+    const reported = logged();
     const s = await setup({ [TABLE.module]: { api: 2, default: renderer().exports.default } });
     const el = await ready(s);
     s.mounts.mountOutput(document.createElement("div"), "b");
@@ -701,7 +701,7 @@ describe("the renderer", () => {
     reported.restore();
 
     expect(el.textContent).toBe("");
-    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(2);
+    expect(reported.errors().filter((line) => line.error instanceof ModuleError)).toHaveLength(2);
     expect(outputs(s.r)).toHaveLength(0);
     // Each mount raises the same, which core holds once.
     const raised = s.raised.map((n) => JSON.stringify(n));
@@ -720,7 +720,7 @@ describe("the renderer", () => {
   });
 
   test("that throws in render() leaves the element empty, and raises a notification that concerns the block, with the renderer and its package", async () => {
-    const reported = reports();
+    const reported = logged();
     const s = await setup({
       [TABLE.module]: {
         api: 1,
@@ -746,7 +746,7 @@ describe("the renderer", () => {
         about: { block: "b" },
       },
     ]);
-    expect(reported.errors().filter((error) => error instanceof ModuleError)).toHaveLength(1);
+    expect(reported.errors().filter((line) => line.error instanceof ModuleError)).toHaveLength(1);
   });
 
   test("hears a new output in place, and is mounted again by a mount after its cleanup ran", async () => {
@@ -909,6 +909,22 @@ describe("a mount", () => {
     expect(s.notified).toEqual([]);
     table.host().notify(given);
     expect(s.notified).toEqual([]);
+  });
+
+  test("logs what the renderer gives its host's log, naming the renderer's package", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    const reported = logged();
+    const failure = new Error("No column.");
+    table.host().log.error(failure, { column: "x" });
+    reported.restore();
+    expect(reported.lines().map(({ level, package: pkg, message, attributes }) => ({ level, package: pkg, message, attributes }))).toEqual([
+      { level: "error", package: "blockr.core", message: "No column.", attributes: { column: "x" } },
+    ]);
+    expect(reported.errors()[0]?.error).toBe(failure);
   });
 
   test("reports what the renderer emits, by its block", async () => {

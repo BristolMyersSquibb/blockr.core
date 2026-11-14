@@ -20,6 +20,7 @@
 // what the test gives.
 
 import { pageFrontEnds, start } from "../core/index.ts";
+import { replaceLogger } from "../log/index.ts";
 // The stubs serve the modules of core's own plugin classes, which the build
 // bundles on their own, as the page imports them.
 // eslint-disable-next-line no-restricted-imports
@@ -47,6 +48,7 @@ import type {
 import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
+import type { LogLine } from "../types/log.ts";
 import type { BlockOutput, OutputFixtures } from "../types/outputs.ts";
 import { errorMessage, isObject, own, packageFromId } from "../util/index.ts";
 // The stubs ship the fixtures that R and both test suites read from inst/.
@@ -146,7 +148,12 @@ export interface StubCore {
   // sent nothing more for a few turns of the event loop, as the scheduler
   // sends what it plans with a timer. It needs real timers.
   readonly settled: () => Promise<void>;
-  // Ends what core started.
+  // Each line that core and the modules on the page logged while the stub ran,
+  // at every level, in the order they came. Each goes on to the logger that
+  // the page would write it with too, the console unless a test put another
+  // in its place.
+  readonly logged: readonly LogLine[];
+  // Ends what core started, and what the stub logged with it.
   readonly stop: () => void;
 }
 
@@ -179,6 +186,10 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     return Object.hasOwn(CORE_CLASSES, own) ? CORE_CLASSES[own] : { api: 1, default: coreOptions[own] };
   };
 
+  const logged: LogLine[] = [];
+  const restore = replaceLogger((line) => {
+    logged.push(line);
+  }, true);
   const r = fixtureR(hello, options);
   const started = start({
     transport: r.transport,
@@ -194,7 +205,13 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     measure: options.measure ?? { info: () => INFO, watch: () => () => undefined },
   });
 
-  const first = await started.ready;
+  let first: CoreApi;
+  try {
+    first = await started.ready;
+  } catch (error) {
+    restore();
+    throw error;
+  }
   return {
     get core() {
       return started.core() ?? first;
@@ -207,8 +224,10 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
         quiet = r.pending() === 0 && r.sent.length === before ? quiet + 1 : 0;
       }
     },
+    logged,
     stop: () => {
       started.stop();
+      restore();
     },
   };
 }
