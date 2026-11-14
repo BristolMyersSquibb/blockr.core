@@ -101,9 +101,12 @@ export interface PluginClass {
 // under the load lock, since controls() reads core.lock.
 export interface Storage {
   // The storage controls, in the order in which a frontend draws them. A
-  // frontend calls it with its CoreApi as it draws, and again whenever
-  // subscribe() calls back.
-  controls(args: { readonly core: CoreApi }): readonly StorageControl[];
+  // frontend calls it with its CoreApi and the id of the storage plugin's
+  // class as it draws, and again whenever subscribe() calls back. The plugin
+  // raises the failures of its controls under that id, through
+  // core.notifications.notify(), since it alone knows its backend and when a
+  // failure is over.
+  controls(args: { readonly core: CoreApi; readonly plugin: PluginClassId }): readonly StorageControl[];
   // Calls the listener whenever controls() would give something else, such as
   // another save status, until the cleanup that it returns runs.
   subscribe?(listener: () => void): () => void;
@@ -131,8 +134,9 @@ export type StorageControl = Hints &
         // binds, for a button inside a menu too.
         readonly shortcut?: string;
         readonly disabled?: boolean;
-        // What the button does. A frontend shows why it rejected as a
-        // notification.
+        // What the button does. The plugin tells the user why it failed,
+        // through a notification of its own. A frontend logs a run() that
+        // rejects, as a fault of the plugin.
         run(): Promise<void>;
       }
     | {

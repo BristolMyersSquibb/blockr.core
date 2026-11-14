@@ -7,6 +7,8 @@
 # computes from the same data.
 # They take the place of the shinytest2 tests that went with the board server
 # (#418), for what is still core's.
+# Each app that serves a board names core's plugins in `plugins`.
+# The mock of setup-listings.R does not reach the app's process.
 
 ready <- function(...) {
   set_names(rep("ready", ...length()), c(...))
@@ -88,7 +90,14 @@ test_that("an rbind block served alone binds the data it is given", {
 
 test_that("a board built up from an empty one evaluates its blocks", {
 
-  app <- local_app(quote(serve(new_board())))
+  app <- local_app(
+    quote(
+      serve(
+        new_board(),
+        plugins = subset(available_plugins(), package == "blockr.core")
+      )
+    )
+  )
 
   expect_length(app_statuses(app), 0L)
 
@@ -188,7 +197,8 @@ test_that("the user edits the stacks of a board", {
             bc = new_link("b", "c", "y")
           ),
           stacks = list(ac = c("a", "c"))
-        )
+        ),
+        plugins = subset(available_plugins(), package == "blockr.core")
       )
     )
   )
@@ -266,7 +276,8 @@ test_that("a block of a collapsed stack evaluates again as its data changes", {
           c(a = new_dataset_block("BOD"), b = new_head_block(n = 3L)),
           list(from = "a", to = "b"),
           stacks = list(s = "b")
-        )
+        ),
+        plugins = subset(available_plugins(), package == "blockr.core")
       )
     )
   )

@@ -175,9 +175,10 @@ function counted(
 }
 
 // How a card marks a notification of each severity, in its pill and in its
-// banner: in the theme's danger colour for an error, its warning colour for a
-// warning, and its accent, blue, for a message.
-const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: string; tint: string; border: string }>> = {
+// banner, as the basic frontend's toasts do: in the theme's danger colour for
+// an error, its warning colour for a warning, and its accent, blue, for a
+// message.
+export const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: string; tint: string; border: string }>> = {
   error: {
     label: "Error",
     noun: "error",
@@ -224,7 +225,7 @@ function Banner({ severity, message }: { severity: Severity; message: string }):
 // The icon of a severity, drawn in the colour of the text around it: a cross in
 // a circle for an error, an exclamation mark in a triangle for a warning, and
 // an i in a circle for a message.
-function SeverityIcon({ severity }: { severity: Severity }): ReactElement {
+export function SeverityIcon({ severity }: { severity: Severity }): ReactElement {
   return (
     <svg
       aria-hidden="true"

@@ -504,13 +504,25 @@
   Where R cannot make it, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
   Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601).
 * Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
-  Core's basic frontend shows above the board the notifications that concern no block, whoever raised them, until one is withdrawn or the user dismisses it, and offers to reload the page with `page_reload_needed`.
   A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
   The card of a block that `serve()` serves alone shows every notification of the board.
   A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
   In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
   Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it.
   The Edit board plugin raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses (#539).
+* Core's basic frontend shows each notification that concerns no block as a toast, whatever its severity and whoever raised it, in place of its list above the board.
+  The toasts sit in the window's bottom right corner.
+  Each names what it concerns, such as a board option or a plugin, and the package that its source names.
+  A message's toast fades after five seconds, but not while the pointer rests on it or the keyboard's focus is in it.
+  A warning's or an error's toast stays until the user closes it.
+  A toast goes as soon as core withdraws its notification, and one that faded or that the user closed does not come back while its notification holds.
+  While a dialog of the frontend is open, the toasts show inside it, so that the user can still close them.
+  The toast of `page_reload_needed` offers to reload the page.
+  The frontend raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses, which concerns its plugin (#549).
+* A storage plugin tells the user why one of its buttons failed, through a notification of its own, since it alone knows its backend and when the failure is over.
+  Its `controls()` gets the id of its class beside `core` for that.
+  Core's file storage plugin raises an Open that fails as an error of the code `board_open_failed`.
+  A frontend logs a button whose `run()` rejects, as a fault of the plugin (#549).
 * The client's code logs through a `Log`: a plugin through the `log()` of `CoreApi`, as `core.log("blockr.dock")`, and every other module through its host's `log`, which names the module's package already.
   A `Log` has `error()`, `warn()`, `info()`, `debug()` and `trace()`, each taking a message and attributes, and `error()` takes an `Error` too, which goes with its stack.
   The client drops a line below the blockr option `log_level`, as R does.

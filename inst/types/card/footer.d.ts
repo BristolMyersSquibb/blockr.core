@@ -14,3 +14,13 @@ export declare function useFooter(status: BlockStatus | undefined, notifications
 export declare function Footer({ status, shown }: FooterProps): ReactElement;
 export declare function Pills({ status, shown, notifications, severities, open, toggle, panel }: FooterProps): ReactElement | null;
 export declare function Banners({ shown, notifications, severities, open, panel }: FooterProps): ReactElement | null;
+export declare const MARKS: Readonly<Record<Severity, {
+    label: string;
+    noun: string;
+    text: string;
+    tint: string;
+    border: string;
+}>>;
+export declare function SeverityIcon({ severity }: {
+    severity: Severity;
+}): ReactElement;

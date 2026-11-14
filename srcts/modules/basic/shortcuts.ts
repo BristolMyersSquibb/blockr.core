@@ -20,12 +20,15 @@
 // and names neither Ctrl nor Meta beside Mod. The frontend binds no shortcut
 // that it cannot read.
 
-import type { CoreApi } from "../../types/core-api.ts";
+import { refused } from "../../ui/index.ts";
+import type { FrontEnd } from "./context.ts";
 import { buttonsOf, drawnControls, runButton } from "./storage.ts";
 
-// Listens for the shortcuts on the document, until the returned cleanup runs,
-// and hands to `failed` what the store refused and why a button failed.
-export function bindShortcuts(doc: Document, core: CoreApi, failed: (error: unknown) => void): () => void {
+// Listens for the shortcuts on the document, until the returned cleanup runs.
+// The frontend tells the user why the store refused an undo or a redo, and
+// why a button failed, as it does where the user clicks.
+export function bindShortcuts(doc: Document, front: Pick<FrontEnd, "core" | "plugin">): () => void {
+  const { core } = front;
   function onKey(event: KeyboardEvent): void {
     if (event.defaultPrevented || editable(event.target)) return;
     const step = undoOrRedo(event);
@@ -35,7 +38,7 @@ export function bindShortcuts(doc: Document, core: CoreApi, failed: (error: unkn
         if (step === "undo") core.store.undo();
         else core.store.redo();
       } catch (error) {
-        failed(error);
+        refused(front, error);
       }
       return;
     }
@@ -44,7 +47,7 @@ export function bindShortcuts(doc: Document, core: CoreApi, failed: (error: unkn
     );
     if (button === undefined) return;
     event.preventDefault();
-    if (!event.repeat) void runButton(button, failed);
+    if (!event.repeat) void runButton(core, button);
   }
   doc.addEventListener("keydown", onKey);
   return () => {
