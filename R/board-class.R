@@ -16,10 +16,21 @@
 #' board option only once something sets it (see [new_board_options()]).
 #'
 #' A board gives only the state of its plugins, which `new_board()` takes in
-#' `plugins` as a list of plugins with no names, and holds each under the ID of
-#' its class, as `blockr.dag-dag_plugin`.
+#' `plugins` as a list of plugins, and holds each under the ID of its class, as
+#' `blockr.dag-dag_plugin`.
 #' It holds one plugin of each class, so the constructor refuses two of one
 #' class.
+#' A script may give a plugin a name in that list, as `dag` in
+#' `list(new_dock_plugin(), dag = new_dag_plugin())`.
+#' The state of another plugin may then refer to the plugin by that name, as a
+#' grid of the dock places the panel of the DAG with `plg("dag")`.
+#' The constructor refuses a name that the list gives to more than one plugin.
+#' The board keeps no name.
+#' Once the board is valid, the constructor calls [complete_plugin()] on each of
+#' its plugins, with the board and the names, and the board holds what each call
+#' returns.
+#' So the method of a plugin's class can turn each name in the plugin's state
+#' into the ID of a class, as `plg("dag")` into `plg("blockr.dag-dag_plugin")`.
 #' Which plugins run is the app's choice, never the board's: [serve()] takes
 #' the app's plugins in `plugins`, and refuses a board that holds a plugin of a
 #' class that the app does not run.
@@ -42,7 +53,7 @@
 #' @param stacks Set of stacks
 #' @param options Board options, with the values the script gives
 #' @param plugins The state of the board's plugins, a list of plugins made by
-#'   their packages' constructors, with no names
+#'   their packages' constructors, in which a script may name a plugin
 #' @param id Board ID, which [rand_names()] draws where it is `NULL`
 #' @param name Board name, which is made from the ID where it is `NULL`
 #'
@@ -73,7 +84,10 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
   links <- as_links(links)
   stacks <- as_stacks(stacks)
   options <- as_board_options(options)
-  plugins <- as_board_plugins(plugins)
+  plugins <- as_plugin_list(plugins)
+
+  aliases <- plugin_aliases(plugins)
+  plugins <- set_names(plugins, chr_ply(plugins, plugin_class_id))
 
   links <- complete_unary_inputs(links, blocks)
 
@@ -83,7 +97,7 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
     name <- id_to_sentence_case(id)
   }
 
-  validate_board(
+  board <- validate_board(
     structure(
       list(
         blocks = blocks,
@@ -97,11 +111,13 @@ new_board <- function(blocks = list(), links = list(), stacks = list(),
       class = "board"
     )
   )
+
+  complete_board_plugins(board, aliases)
 }
 
-# The plugins of a board, each under the ID of its class, from a list of
-# plugins with no names, or a plugin alone.
-as_board_plugins <- function(x) {
+# A list of plugins, from a list of plugins or a plugin alone, with the names
+# that the script gives them.
+as_plugin_list <- function(x) {
 
   if (is_plugin(x)) {
     x <- list(x)
@@ -114,19 +130,57 @@ as_board_plugins <- function(x) {
     )
   }
 
-  nms <- coal(names(x), rep("", length(x)), fail_all = FALSE)
-  named <- nms[!is.na(nms) & nzchar(nms)]
+  x
+}
 
-  if (length(named)) {
+# The names that a script gives the plugins of a board, each mapped to the ID
+# of its plugin's class, as `c(dag = "blockr.dag-dag_plugin")` for
+# `list(new_dock_plugin(), dag = new_dag_plugin())`.
+# A name names one plugin, so a name given to two is refused.
+plugin_aliases <- function(x) {
+
+  nms <- coal(names(x), rep("", length(x)), fail_all = FALSE)
+  named <- !is.na(nms) & nzchar(nms)
+
+  twice <- unique(nms[named][duplicated(nms[named])])
+
+  if (length(twice)) {
     blockr_abort(
-      "A board holds each plugin under the ID of its class, so the list of ",
-      "its plugins takes no names, while it gives the ",
-      "{qty(named)}name{?s} {named}.",
+      "A name in the list of a board's plugins names one plugin, while the ",
+      "list gives {qty(twice)}the name{?s} {twice} to more than one plugin.",
       class = "board_plugins_invalid"
     )
   }
 
-  set_names(x, chr_ply(x, plugin_class_id))
+  set_names(chr_ply(x[named], plugin_class_id), nms[named])
+}
+
+# The board, with each of its plugins replaced by what the method of
+# `complete_plugin()` for the plugin's class returns. Each method gets the
+# board as `validate_board()` passed it, before any plugin completed its
+# state, so the order of the plugins does not matter.
+complete_board_plugins <- function(board, aliases) {
+
+  plugins <- board_plugins(board)
+
+  for (id in names(plugins)) {
+
+    res <- complete_plugin(plugins[[id]], board, aliases)
+
+    if (!is_plugin(res) || !identical(plugin_class_id(res), id)) {
+      blockr_abort(
+        "The method of `complete_plugin()` for plugin class {id} returns no ",
+        "plugin of that class.",
+        class = "plugin_complete_invalid"
+      )
+    }
+
+    plugins[[id]] <- res
+  }
+
+  board[["plugins"]] <- plugins
+
+  board
 }
 
 validate_board_plugins <- function(plugins) {

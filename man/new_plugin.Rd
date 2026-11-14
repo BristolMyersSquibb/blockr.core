@@ -12,6 +12,8 @@
 \alias{plugin_version.plugin}
 \alias{frontend_args}
 \alias{frontend_args.frontend_plugin}
+\alias{complete_plugin}
+\alias{complete_plugin.plugin}
 \alias{available_plugins}
 \title{Plugins}
 \usage{
@@ -37,6 +39,10 @@ frontend_args(x, ...)
 
 \method{frontend_args}{frontend_plugin}(x, ...)
 
+complete_plugin(x, board, aliases, ...)
+
+\method{complete_plugin}{plugin}(x, board, aliases, ...)
+
 available_plugins()
 }
 \arguments{
@@ -53,6 +59,12 @@ first, as \code{c("dock_plugin", "frontend_plugin")}, which defaults to \code{id
 
 \item{...}{For \code{frontend_args()}, the arguments that \code{\link[=serve]{serve()}} hands the
 app's frontend, and generic consistency otherwise}
+
+\item{board}{For \code{complete_plugin()}, the board that holds the plugin, as
+\code{\link[=validate_board]{validate_board()}} passed it}
+
+\item{aliases}{For \code{complete_plugin()}, the names that the script gives the
+board's plugins, as a character vector of the IDs of their classes by name}
 }
 \value{
 The constructors \code{new_plugin()}, \code{new_basic_frontend_plugin()},
@@ -63,7 +75,8 @@ full, a string, and \code{plugin_state()} the state, a list by name.
 The generic \code{plugin_version()} returns a whole number, and
 \code{available_plugins()} a data frame with a row for each plugin class.
 The generic \code{frontend_args()} returns what the frontend reads of the
-arguments, a list by name.
+arguments, a list by name, and \code{complete_plugin()} the plugin with its state
+completed.
 }
 \description{
 A plugin extends a board as a whole, such as a frontend that draws the page,
@@ -152,6 +165,26 @@ Core's method for \code{frontend_plugin} takes no argument and returns an empty
 list.
 So core's basic frontend refuses every argument, and so does a frontend
 whose class has no method of its own.
+
+A plugin class may complete the state of its plugins on the board that a
+script builds, through its method of \code{complete_plugin()}.
+Once the board is valid, \code{\link[=new_board]{new_board()}} calls the method on each of the
+board's plugins.
+The method gets the board in \code{board}.
+In \code{aliases}, it gets the names that the script gives the board's plugins,
+each mapped to the ID of its plugin's class, as
+\code{c(dag = "blockr.dag-dag_plugin")}.
+It returns the plugin with its state completed, such as with each such name
+turned into the ID of a class, and the board holds what it returns.
+It may refuse a state that names what the board lacks, such as a block, so
+that a script's mistake fails where the script builds its board.
+Each method gets the board as \code{\link[=validate_board]{validate_board()}} passed it, before any
+plugin completed its state, so the order of the plugins does not matter.
+Core's method for \code{plugin} returns the plugin as it is.
+The board holds each plugin under the ID of its class, so \code{new_board()}
+refuses a result that is not a plugin of the same class.
+R reads nothing of a JSON board but its format, so only \code{new_board()} calls
+\code{complete_plugin()}, and the names exist only there.
 }
 \examples{
 \dontrun{
@@ -170,6 +203,16 @@ frontend_args.grid_plugin <- function(x, ..., title = "Grid") {
     stop("The Grid frontend takes no argument of `serve()` but `title`.")
   }
   list(title = title)
+}
+
+# In a package whose plugin class, notes_plugin, keeps the plugin that its
+# notes are about, which a script may give by a name, as in
+# list(dag = new_dag_plugin(), new_notes_plugin(about = "dag"))
+complete_plugin.notes_plugin <- function(x, board, aliases, ...) {
+  if (x[["about"]] \%in\% names(aliases)) {
+    x[["about"]] <- aliases[[x[["about"]]]]
+  }
+  x
 }
 }
 

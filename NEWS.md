@@ -299,7 +299,7 @@
   A package's constructor `new_{name}_plugin()` makes a plugin with `new_plugin()`, of class `c("{name}_plugin", ..., "plugin")`, from its args, which are the plugin's state, and the id of its class, as `new_plugin(list(positions = positions), "dag_plugin")`, whose class vector defaults to the id and serves S3 dispatch alone.
   The plugin's class has the ID `{pkg}-{id}`, so `new_plugin()` refuses a constructor that lives outside a package.
   Core defines the plugin classes `frontend_plugin` and `storage_plugin` beside `plugin`.
-  The board constructor `new_board()` takes the state of a board's plugins in `plugins`, as a list of plugins with no names, holds each under the ID of its class and refuses two plugins of one class, while it loses `class` and `...`, so that every board is of class `board`.
+  The board constructor `new_board()` takes the state of a board's plugins in `plugins`, as a list of plugins, holds each under the ID of its class and refuses two plugins of one class, while it loses `class` and `...`, so that every board is of class `board`.
   The generics `board_front_end()` and `board_version()` go.
   The generic `plugin_version()` gives the version of a plugin class's state, which R calls on the plugin that the class's constructor makes, and sends with each of the app's plugins in its reply to `hello`, in place of `board_classes`.
   Beside the module that it lists for each of its plugin classes and board options, a package ships the schema of the class's state or of the board option's value, as `dag.schema.json` beside `dag.js`, where it shipped one schema laid out like the board before.
@@ -308,6 +308,14 @@
   It keeps an edit ID for each plugin, checks a plugin's state against the schema of its class after every change, and calls the `update` of the class of each plugin whose state the board holds.
   The app's plugins, which R sends in its reply to `hello`, are the plugins of every board that the app opens: opening a board keeps the state that it holds for each of them, migrating it by its class's `migrate`, drops every other state and names its plugin, and gives each other plugin of the app whose class has `state` its class's default state.
   So no patch adds or removes what the board holds for a plugin, and core's command `blockr.core-set_plugin_state` changes a plugin's state (#504, #558, #560).
+* A script may give a plugin a name in the `plugins` of `new_board()`, as `dag` in `list(new_dock_plugin(), dag = new_dag_plugin())`.
+  The state of another plugin may then refer to the plugin by that name, as a grid of the dock places the panel of the DAG with `plg("dag")`.
+  The board keeps no name, and the constructor refuses a name that the list gives to more than one plugin.
+  Once the board is valid, `new_board()` calls the new generic `complete_plugin()` on each of the board's plugins, with the board and the names, each mapped to the ID of its plugin's class, as `c(dag = "blockr.dag-dag_plugin")`.
+  The method of a plugin's class returns the plugin with its state completed, such as with each name turned into the ID of a class.
+  It may refuse a state that names what the board lacks, such as a block, so that a script's mistake fails where the script builds its board.
+  Each method gets the board before any plugin completed its state, so the order of the plugins does not matter.
+  Core's method for `plugin` returns the plugin as it is, and `new_board()` refuses a result that is no plugin of the same class (#603).
 * The methods of `serve()` for a board and for the path of a JSON board take the app's plugins in `plugins`, as rows that give each plugin's class by its package in `package` and its id in `id`.
   They default to `available_plugins()`, the plugin classes that the available packages list in their `._BLOCKR_MODULES_`, among them core's: its basic frontend, which `new_basic_frontend_plugin()` makes, its storage plugin, which `new_file_storage_plugin()` makes, and its Edit board plugin, which `new_edit_board_plugin()` makes.
   Core's basic frontend runs only where no other row is a frontend, and core's storage plugin only where no other row is a storage plugin.
