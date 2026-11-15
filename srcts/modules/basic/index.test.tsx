@@ -1311,7 +1311,7 @@ describe("undo and redo", () => {
     expect(board().name).toBe("Sepals");
   });
 
-  test("are on the toolbar, each while the user has a step for it", async () => {
+  test("are on the toolbar, each while the history holds a step for it", async () => {
     const { el, core, board } = await drawn();
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([true, true]);
 
@@ -1321,6 +1321,19 @@ describe("undo and redo", () => {
     await click(button(el, "Undo"));
     expect(board().name).toBe("Iris review");
     expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([true, false]);
+  });
+
+  test("take back and apply again the steps of every origin, the assistant's among them", async () => {
+    const { el, core, board } = await drawn();
+    await act(() => core.commands.run("blockr.core-rename_board", { name: "Sepals" }, "assistant"));
+    expect([button(el, "Undo").disabled, button(el, "Redo").disabled]).toEqual([false, true]);
+
+    await click(button(el, "Undo"));
+    expect(board().name).toBe("Iris review");
+    await step(() => {
+      press(document.body, "z", { ctrlKey: true, shiftKey: true });
+    });
+    expect(board().name).toBe("Sepals");
   });
 });
 

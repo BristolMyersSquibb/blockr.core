@@ -2,8 +2,9 @@
 // document:
 // - Undo and redo, as Board updates leaves them to a frontend
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#undo):
-//   Mod+Z takes the user's last step back, and Mod+Shift+Z or Mod+Y applies it
-//   again, with Mod either Ctrl or Cmd.
+//   Mod+Z takes back the board's last step, whoever took it, and Mod+Shift+Z
+//   or Mod+Y applies again the step that the last undo took back, with Mod
+//   either Ctrl or Cmd.
 // - The shortcut of each button among the storage controls, those inside a
 //   menu too (./storage.ts). A key press runs the first button, in the order
 //   in which the toolbar draws them, whose shortcut it matches, unless that

@@ -16,7 +16,10 @@ import type { Json } from "../types/json.ts";
 
 // Who made a change: "user" unless its maker names another, such as a
 // plugin like the assistant, or a peer once a package syncs boards between
-// people. Each origin undoes its own steps.
+// people.
+// The store keeps the steps of every origin in one undo history, so that the
+// user's Undo takes back the assistant's edits too.
+// An undo given an origin takes back that origin's last step (./store.ts).
 export type Origin = string;
 
 // Within each collection, `rm` applies before `add`,

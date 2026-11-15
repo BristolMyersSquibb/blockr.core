@@ -396,7 +396,12 @@
   Core's own commands read the board lock and mint IDs through the context too.
   A command with `undo: false` takes no undo step.
   That suits a command that changes only what the user looks at, such as which of the dock's views shows.
-  The command registry passes `{ undo: false }` on to `store.apply()`, which applies and announces such a step as any other, but keeps no inverse of it and leaves the origin's undo and redo steps as they are (#600).
+  The command registry passes `{ undo: false }` on to `store.apply()`, which applies and announces such a step as any other, but keeps no inverse of it and leaves the undo and redo steps as they are (#600).
+* The client's store keeps one undo history for the steps of every origin, in the order the board took them, so that a frontend's Undo takes back the assistant's edits as it takes back the user's own.
+  Its `undo()` takes back the history's last step, whoever took it, or, given an origin, that origin's last step, past the steps of others after it.
+  Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
+  A new step empties the redo steps, whoever takes it.
+  An undo or a redo is a change of the origin that asks for it, `"user"` where none is given (#608).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.

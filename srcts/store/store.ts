@@ -54,8 +54,10 @@ export interface Store {
   // them, having changed nothing. What changes nothing makes no step: a delta
   // that changes nothing is no delta, and a step keeps of the others only what
   // they change.
+  // The step goes onto the end of the undo list with its origin, and empties
+  // the redo list, whoever took the steps there.
   // A step that sets or removes only board option values is no undo step:
-  // it leaves the origin's undo and redo lists as they are.
+  // it leaves the undo and redo lists as they are.
   // Nor is a step applied with `{ undo: false }`, as the command registry
   // applies the deltas of a command with `undo: false`. The store applies and
   // announces such a step as any other, but keeps no inverse of it.
@@ -100,20 +102,36 @@ export interface Store {
   // It asks R for nothing, so a board saves while R is busy or gone.
   save(): string;
 
-  // Undo takes back that origin's last step, and redo applies again the last
-  // step that undo took back.
+  // The store keeps one undo list and one redo list for the steps of every
+  // origin, in the order the board took them, so that the user's Undo takes
+  // back the assistant's edits as it takes back the user's own
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#undo).
+  // With no origin, undo() takes back the undo list's last step,
+  // whoever took it.
+  // Given an origin, it takes back that origin's last step instead, past the
+  // steps of others after it, as the assistant's tool `undo_edit` does.
+  // Either way, the step goes onto the end of the redo list.
+  // The method redo() applies again the redo list's last step, the one that
+  // the last undo took back, and puts it back onto the end of the undo list.
+  // A step keeps its origin through both, so that once redo() has applied
+  // the assistant's step again, undo("assistant") still takes it back.
+  // An undo or a redo is a change of the origin that asks for it, "user"
+  // where none is given, so that the assistant hears the user's undo of its
+  // edit as the user's.
   // Each is a new edit on the board as it is: it applies over what another
   // origin has changed since, the last writer winning, and does nothing where
-  // what the step changed is gone
-  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#undo).
+  // what the step changed is gone.
   // Each throws a StoreError, having changed nothing, where the board it would
   // make fails a check, such as a fixed input that takes two links.
   // Neither changes a board option's value, since a board option never changes
   // what the board computes.
+  // Whether there is a step to take back or to apply again: canUndo() says
+  // whether the undo list holds a step, of the origin given if any, and
+  // canRedo() whether the redo list holds one.
   undo(origin?: Origin): void;
-  redo(origin?: Origin): void;
+  redo(): void;
   canUndo(origin?: Origin): boolean;
-  canRedo(origin?: Origin): boolean;
+  canRedo(): boolean;
 
   // The plugin classes packages define, by id.
   readonly plugins: Plugins;
@@ -152,13 +170,17 @@ export interface StoreOptions {
 // Why an ended store refuses a change.
 const ENDED = "Another board opened in a new store, so this store changes its board no more.";
 
-// What takes one step back, on an origin's undo list, or applies it again, on
-// its redo list: the deltas to apply, each with where what it adds back goes,
-// taken from the board the step replaced, so that applying them sets back what
-// the step changed.
+// What takes one step back, on the undo list, or applies it again, on the redo
+// list: the origin that took the step, and the deltas to apply, each with
+// where what it adds back goes, taken from the board the step replaced, so
+// that applying them sets back what the step changed.
 // The deltas hold no board option values (./commit.ts).
-type Step = readonly Inverse[];
+interface Step {
+  readonly origin: Origin;
+  readonly inverses: readonly Inverse[];
+}
 
+// The steps of every origin, in the order the board took them.
 interface History {
   readonly undo: readonly Step[];
   readonly redo: readonly Step[];
@@ -181,7 +203,7 @@ export function createStore(options: StoreOptions = {}): Store {
   let hello: HelloReply | undefined = options.hello;
   const registry = signal<Readonly<Record<RegistryId, RegistryEntry>>>(options.hello?.block_registry ?? {});
   const packages = signal<Readonly<Record<string, string>>>(options.hello?.packages ?? {});
-  const history = signal<ReadonlyMap<Origin, History>>(new Map());
+  const history = signal<History>({ undo: [], redo: [] });
   const subscribers = new Set<(change: Change, board: Board) => void>();
   // Whether the store opens a board, or has opened one, which it does once.
   let opening = false;
@@ -234,14 +256,6 @@ export function createStore(options: StoreOptions = {}): Store {
         log.error(asError(error));
       }
     }
-  }
-
-  function steps(origin: Origin): History {
-    return history.value.get(origin) ?? { undo: [], redo: [] };
-  }
-
-  function setSteps(origin: Origin, steps: History): void {
-    history.value = new Map([...history.value, [origin, steps]]);
   }
 
   // Applies deltas in order as one step, expanding and checking each on the
@@ -366,7 +380,7 @@ export function createStore(options: StoreOptions = {}): Store {
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start);
       if (inverses.length > 0 && opts.undo !== false) {
-        setSteps(origin, { undo: [...steps(origin).undo, inverses], redo: [] });
+        history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
       }
 
       for (const { delta, board: next } of applied) {
@@ -378,14 +392,19 @@ export function createStore(options: StoreOptions = {}): Store {
     }
   }
 
-  // Takes the origin's last step back, or applies the last it took back again,
-  // as a new edit on the board as it is, and keeps what would take that edit
-  // back on the other list, so that undoing and redoing leaves the board as it
-  // was, whatever another origin changed in between.
-  function revert(origin: Origin, back: boolean): void {
+  // Takes back the undo list's last step, or the origin's last step where an
+  // undo names one, or applies again the redo list's last step, as a new edit
+  // on the board as it is.
+  // It keeps what would take that edit back on the other list, with the
+  // step's origin, so that undoing and redoing leaves the board as it was,
+  // whatever another origin changed in between.
+  // It announces the edit as a change of the origin that asks for it, "user"
+  // where none is given.
+  function revert(back: boolean, origin?: Origin): void {
     guard();
-    const { undo, redo } = steps(origin);
-    const step = back ? undo.at(-1) : redo.at(-1);
+    const { undo, redo } = history.value;
+    const at = back ? lastOf(undo, origin) : redo.length - 1;
+    const step = (back ? undo : redo)[at];
     if (step === undefined) return;
 
     busy = true;
@@ -394,21 +413,20 @@ export function createStore(options: StoreOptions = {}): Store {
       const start = current(refused);
       const { applied, inverses } = run(
         start,
-        step.map(({ delta }) => delta),
-        { fit: true, places: step.map(({ places }) => places) },
+        step.inverses.map(({ delta }) => delta),
+        { fit: true, places: step.inverses.map(({ places }) => places) },
         refused,
       );
       number(applied, applied.at(-1)?.board ?? start);
-      setSteps(
-        origin,
-        back
-          ? { undo: undo.slice(0, -1), redo: [...redo, inverses] }
-          : { undo: [...undo, inverses], redo: redo.slice(0, -1) },
-      );
+      const kept: Step = { origin: step.origin, inverses };
+      history.value = back
+        ? { undo: [...undo.slice(0, at), ...undo.slice(at + 1)], redo: [...redo, kept] }
+        : { undo: [...undo, kept], redo: redo.slice(0, -1) };
 
+      const asking = origin ?? "user";
       for (const { delta, board: next } of applied) {
         board.value = next;
-        announce({ delta, origin }, next);
+        announce({ delta, origin: asking }, next);
       }
     } finally {
       busy = false;
@@ -575,14 +593,14 @@ export function createStore(options: StoreOptions = {}): Store {
     apply,
     open,
     check: checkText,
-    undo: (origin = "user") => {
-      revert(origin, true);
+    undo: (origin) => {
+      revert(true, origin);
     },
-    redo: (origin = "user") => {
-      revert(origin, false);
+    redo: () => {
+      revert(false);
     },
-    canUndo: (origin = "user") => steps(origin).undo.length > 0,
-    canRedo: (origin = "user") => steps(origin).redo.length > 0,
+    canUndo: (origin) => lastOf(history.value.undo, origin) >= 0,
+    canRedo: () => history.value.redo.length > 0,
     plugins: registrations.plugins,
     options: registrations.options,
     jsonBoard,
@@ -591,6 +609,12 @@ export function createStore(options: StoreOptions = {}): Store {
     packages: () => packages.value,
     editId: (of) => edits.get(target(of)),
   };
+}
+
+// The index of the list's last step, or of the origin's last step where one is
+// given, or -1 where the list holds no such step.
+function lastOf(steps: readonly Step[], origin: Origin | undefined): number {
+  return origin === undefined ? steps.length - 1 : steps.map((step) => step.origin).lastIndexOf(origin);
 }
 
 // What `fn` returns, as a promise that rejects with what it throws, for a
