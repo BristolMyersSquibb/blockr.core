@@ -12,9 +12,28 @@
 // 2. It hands R's reply to its session(), so that core says what to do.
 // 3. It sends R nothing from then on, not even the hello of a later session,
 //    and rejects each request that it is asked to send.
+//
+// The client records a span of each evaluate, request and output that it is
+// asked to send, as Tracing has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#tracing),
+// from the call of request() until the request settles, as with R's reply.
+// The span goes under the span that is active as request() is called, unless
+// the caller names another parent, as the scheduler names none for an
+// evaluation, which links to the span of the edit that caused it instead.
+// While the span records, the request carries its context in `traceparent`,
+// so that R's span of the request is a child of it.
+// The span holds the block's id, its revision and its class's registry id,
+// where the request names them, and a request's type and name, with what it
+// belongs to, never a block's state or data. It holds R's status of the reply
+// once R replies, and is marked failed where R replies error or no reply
+// comes. The client records no span of a hello, nor of the other kinds, of
+// which R records none.
 
+import { context, SpanKind, SpanStatusCode } from "@opentelemetry/api";
+import type { Attributes, Context, Link, Span } from "@opentelemetry/api";
 import type { BlockId } from "../types/board.ts";
 import { log } from "../log/index.ts";
+import { failSpan, traceparent, tracer } from "../trace/index.ts";
 import { asError } from "../util/index.ts";
 import type {
   Capability,
@@ -44,7 +63,24 @@ export interface RequestOptions {
   // ended it, and one that R holds is cancelled in R where both sides named
   // `cancel`, and ends with whatever R replies to it.
   signal?: AbortSignal;
+  // What the request's span goes under, the span that is active as request()
+  // is called unless given, the spans that it links to, and attributes of the
+  // span beside those that the client takes from the request.
+  span?: RequestSpan;
 }
+
+export interface RequestSpan {
+  readonly parent?: Context;
+  readonly links?: readonly Link[];
+  readonly attributes?: Attributes;
+}
+
+// A request as a caller gives it to request(), without the id, the body's
+// announcement and the traceparent, which the client gives it.
+export type Asked = DistributiveOmit<
+  Exclude<Request, HelloRequest | CancelRequest | ForgetRequest>,
+  "id" | "body" | "traceparent"
+>;
 
 export interface Client {
   // Sends a request, which the client gives its id and the announcement of its
@@ -56,13 +92,7 @@ export interface Client {
   // error where the transport could not send it, such as where R refused its
   // body, and with why the client stopped where R speaks another major of the
   // protocol, as for a request that the client held.
-  request(
-    request: DistributiveOmit<
-      Exclude<Request, HelloRequest | CancelRequest | ForgetRequest>,
-      "id" | "body"
-    >,
-    options?: RequestOptions,
-  ): Promise<{ reply: Reply; body: Blob | null }>;
+  request(request: Asked, options?: RequestOptions): Promise<{ reply: Reply; body: Blob | null }>;
   // Has R forget blocks that left the board, which gets no reply.
   forget(blocks: BlockId[]): void;
   // The capabilities that both sides named in the hello of the current
@@ -370,11 +400,14 @@ export function createClient(
   });
 
   return {
-    request(request, { body, progress, signal } = {}) {
+    request(request, { body, progress, signal, span: spanned } = {}) {
       const id = mint();
+      const span = requestSpan(request, spanned);
+      const parent = span === undefined ? undefined : traceparent(span);
       const message = {
         ...request,
         id,
+        ...(parent === undefined ? {} : { traceparent: parent }),
         ...(body === undefined ? {} : { body: announce(body) }),
       } as Request;
 
@@ -391,6 +424,7 @@ export function createClient(
           aborted: false,
           settle(result) {
             signal?.removeEventListener("abort", onAbort);
+            if (span !== undefined) endRequestSpan(span, result);
             if ("error" in result) {
               reject(result.error);
             } else {
@@ -436,6 +470,93 @@ export function createClient(
       });
     },
   };
+}
+
+// The span of a request that the client is asked to send, as it starts, or
+// undefined for a kind of which R records no span.
+function requestSpan(request: Asked, given: RequestSpan = {}): Span | undefined {
+  const named = spanName(request);
+  if (named === undefined) return undefined;
+  return tracer().startSpan(
+    named,
+    {
+      kind: SpanKind.CLIENT,
+      attributes: { ...requestAttributes(request), ...given.attributes },
+      links: [...(given.links ?? [])],
+    },
+    given.parent ?? context.active(),
+  );
+}
+
+// The name of a request's span, as R names its own span of the request:
+// `evaluate`, `output`, or `request` with the request's name, as
+// "request columns", or undefined for a kind of which R records none.
+function spanName(request: Pick<Asked, "kind"> & { readonly name?: string }): string | undefined {
+  switch (request.kind) {
+    case "evaluate":
+    case "output":
+      return request.kind;
+    case "request":
+      return `request ${request.name ?? ""}`;
+    default:
+      return undefined;
+  }
+}
+
+// The attributes of a request's span that the request gives: the block's id,
+// its revision and its class's registry id where the request names them, and
+// a request's type, its name and what it belongs to.
+function requestAttributes(request: Asked): Attributes {
+  switch (request.kind) {
+    case "evaluate":
+      return {
+        "blockr.block.id": request.block,
+        "blockr.block.revision": request.revision,
+        "blockr.block.registry_id": request.recipe.registry_id,
+      };
+    case "output":
+      return { "blockr.block.id": request.block, "blockr.block.revision": request.revision };
+    case "request": {
+      const named = { "blockr.request.type": request.type, "blockr.request.name": request.name };
+      switch (request.type) {
+        case "block_class":
+          return { ...named, "blockr.block.id": request.block, "blockr.block.registry_id": request.registry_id };
+        case "option":
+          return { ...named, "blockr.option.id": request.option };
+        case "plugin":
+          return { ...named, "blockr.plugin.class_id": request.plugin };
+        case "output_class":
+          return { ...named, "blockr.block.id": request.output.block, "blockr.block.revision": request.output.revision };
+        case "renderer":
+          return {
+            ...named,
+            "blockr.block.id": request.output.block,
+            "blockr.block.revision": request.output.revision,
+            "blockr.renderer.id": request.renderer,
+          };
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return {};
+}
+
+// Ends a request's span as the request settles: with R's status of the reply,
+// marked failed where R replied error, or where no reply came.
+function endRequestSpan(span: Span, result: { reply: Reply; body: Blob | null } | { error: Error }): void {
+  if ("error" in result) {
+    failSpan(span, result.error);
+  } else {
+    span.setAttribute("blockr.reply.status", result.reply.status);
+    if (result.reply.status === "error") {
+      const conditions = "conditions" in result.reply ? result.reply.conditions : [];
+      const message = conditions.find((condition) => condition.severity === "error")?.message;
+      span.setStatus({ code: SpanStatusCode.ERROR, ...(message === undefined ? {} : { message }) });
+    }
+  }
+  span.end();
 }
 
 // A body's announcement, by its MIME type and, for a File, its name.

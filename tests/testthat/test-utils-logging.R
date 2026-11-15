@@ -311,6 +311,35 @@ test_that("core logs through OpenTelemetry where it has set up an exporter", {
   expect_identical(rec[["logs"]][[1L]][["severity_text"]], "WARN")
 })
 
+test_that("a record that R writes as it handles a message names its session", {
+
+  withr::local_envvar(BLOCKR_LOG_LEVEL = "", BLOCKR_LOGGER = "")
+  withr::local_options(blockr.log_level = "info", blockr.logger = NULL)
+  local_reset_logging()
+
+  skip_if_not_installed("otelsdk")
+
+  rec <- otelsdk::with_otel_record(
+    {
+      reset_logging()
+      with_log_session("token-1", log_info("handled"))
+      log_info("outside")
+    },
+    what = "logs"
+  )
+
+  reset_logging()
+
+  logs <- rec[["logs"]]
+
+  expect_identical(chr_xtr(logs, "body"), c("handled", "outside"))
+  expect_identical(
+    unclass(logs[[1L]][["attributes"]])[["session.id"]],
+    "token-1"
+  )
+  expect_null(unclass(logs[[2L]][["attributes"]])[["session.id"]])
+})
+
 test_that("the logger \"otel\" fails where no exporter is set up", {
 
   withr::local_envvar(BLOCKR_LOG_LEVEL = "", BLOCKR_LOGGER = "")

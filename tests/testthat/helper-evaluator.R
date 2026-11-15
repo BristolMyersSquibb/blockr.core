@@ -4,7 +4,8 @@
 # and `sent` holds the messages that R sent,
 # in their order, each a list of replies and progress notes.
 # The session's `logged` holds the lines that R logs from info up, in their
-# order, each with its level, its message and its attributes.
+# order, each with its level, its message, its attributes and the session that
+# `otel_logger()` would name in its record.
 # R writes none of them out.
 # The session starts with the client's hello, unless `hello` is `FALSE`.
 # Its lock is what `lock_board()` reads of the board unless given, as `serve()`
@@ -13,11 +14,14 @@
 # What the app's frontend reads of the arguments of `serve()` is likewise what
 # `serve()` sends where the script passes it none, or nothing for a block
 # served alone.
+# The evaluator knows its session by `session_id`, as by Shiny's token of the
+# session, and knows none unless given.
 local_evaluator <- function(board = list(blocks = list()), data = list(),
                             lock = lock_board(board, data),
                             plugins = default_app_plugins(data),
                             frontend = default_frontend(plugins),
-                            hello = TRUE, frame = parent.frame()) {
+                            hello = TRUE, session_id = NULL,
+                            frame = parent.frame()) {
 
   session <- new.env()
   session$sent <- list()
@@ -34,7 +38,8 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
         session$logged[[length(session$logged) + 1L]] <- list(
           level = as.character(level),
           message = msg,
-          attributes = attributes
+          attributes = attributes,
+          session = logged_session$id
         )
         invisible()
       }
@@ -47,7 +52,8 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
     data = data,
     lock = lock,
     plugins = plugins,
-    frontend = frontend
+    frontend = frontend,
+    session_id = session_id
   )
 
   session$send <- function(message) {

@@ -1,3 +1,6 @@
+// srcts/scheduler/scheduler.ts
+import { ROOT_CONTEXT } from "@opentelemetry/api";
+
 // node_modules/@preact/signals-core/dist/signals-core.module.js
 var i = /* @__PURE__ */ Symbol.for("preact-signals");
 function t() {
@@ -441,12 +444,12 @@ function createGraph(board) {
 function once(ends) {
   return new Map([...ends].map(([id2, blocks]) => [id2, [...new Set(blocks)]]));
 }
-function closure(ids2, steps) {
+function closure(ids2, steps2) {
   const reached = /* @__PURE__ */ new Set();
-  const todo = [...ids2].filter((id2) => steps.has(id2));
+  const todo = [...ids2].filter((id2) => steps2.has(id2));
   for (const id2 of todo) reached.add(id2);
   for (const id2 of todo) {
-    for (const next of steps.get(id2) ?? []) {
+    for (const next of steps2.get(id2) ?? []) {
       if (reached.has(next)) continue;
       reached.add(next);
       todo.push(next);
@@ -493,6 +496,9 @@ function findCycle(board, targets) {
   }
   return void 0;
 }
+
+// srcts/protocol/client.ts
+import { context as context3, SpanKind, SpanStatusCode as SpanStatusCode2 } from "@opentelemetry/api";
 
 // srcts/util/util.ts
 function own(record, key2) {
@@ -1869,7 +1875,7 @@ function consoleWriter(level) {
 var LOGGERS = ["console", "otel", "condition"];
 function logSettings(values2, base) {
   const lowest = logLevel(values2.logLevel);
-  const endpoint = values2.otelClientEndpoint === void 0 ? void 0 : logsUrl(values2.otelClientEndpoint, base);
+  const endpoint = values2.otelClientEndpoint === void 0 ? void 0 : collectorUrl(values2.otelClientEndpoint, "v1/logs", base);
   const logger = values2.logger;
   if (logger !== void 0 && (typeof logger !== "string" || !LOGGERS.includes(logger))) {
     throw new TypeError(`The blockr option logger is ${JSON.stringify(logger)}, where it takes "console", "otel" or "condition".`);
@@ -1891,7 +1897,7 @@ function logLevel(value2) {
     `The blockr option log_level is ${JSON.stringify(value2)}, where it takes "fatal", "error", "warn", "info", "debug" or "trace".`
   );
 }
-function logsUrl(value2, base) {
+function collectorUrl(value2, path, base) {
   let url;
   try {
     url = typeof value2 === "string" && value2 !== "" ? new URL(value2, base) : void 0;
@@ -1903,10 +1909,19 @@ function logsUrl(value2, base) {
       `The blockr option otel_client_endpoint is ${JSON.stringify(value2)}, where it takes the URL of an OpenTelemetry collector, over HTTP or HTTPS.`
     );
   }
-  url.pathname = `${url.pathname.replace(/\/$/, "")}/v1/logs`;
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/${path}`;
   return url.href;
 }
-function setUpLogging(settings, sessionId, load) {
+function serviceName(value2) {
+  if (value2 === void 0) return "blockr";
+  if (typeof value2 !== "string" || value2 === "") {
+    throw new TypeError(
+      `The blockr option otel_client_service_name is ${JSON.stringify(value2)}, where it takes the name of a service, as a string that is not empty.`
+    );
+  }
+  return value2;
+}
+function setUpLogging(settings, serviceName2, sessionId, load) {
   const { lowest, url } = settings;
   if (url === void 0) {
     setLogging(lowest, consoleLogger);
@@ -1916,7 +1931,7 @@ function setUpLogging(settings, sessionId, load) {
   void (async () => {
     let logger;
     try {
-      logger = (await load()).otelLogger({ url, sessionId });
+      logger = (await load()).otelLogger({ url, serviceName: serviceName2, sessionId });
     } catch (error) {
       setLogging(lowest, consoleLogger);
       log.error(
@@ -1928,6 +1943,92 @@ function setUpLogging(settings, sessionId, load) {
     }
     setLogging(lowest, logger);
   })();
+}
+
+// srcts/trace/trace.ts
+import { context, isSpanContextValid, SpanStatusCode, trace } from "@opentelemetry/api";
+var SCOPE = "blockr.core";
+function tracer() {
+  return trace.getTracer(SCOPE);
+}
+function traceparent(span) {
+  if (!span.isRecording()) return void 0;
+  const { traceId, spanId, traceFlags } = span.spanContext();
+  if (!isSpanContextValid({ traceId, spanId, traceFlags })) return void 0;
+  return `00-${traceId}-${spanId}-${(traceFlags & 255).toString(16).padStart(2, "0")}`;
+}
+function keepContext() {
+  const kept = context.active();
+  return (fn) => context.with(kept, fn);
+}
+function activeSpanContext() {
+  const span = trace.getActiveSpan();
+  if (span?.isRecording() !== true) return void 0;
+  const spanContext = span.spanContext();
+  return isSpanContextValid(spanContext) ? spanContext : void 0;
+}
+function failSpan(span, error) {
+  const failure = asError(error);
+  span.recordException(failure);
+  span.setStatus({ code: SpanStatusCode.ERROR, message: failure.message });
+}
+
+// srcts/trace/steps.ts
+import { context as context2, trace as trace2 } from "@opentelemetry/api";
+function steps(name3, start2 = performance.now(), parent = context2.active()) {
+  const taken = [];
+  let recorded = false;
+  return {
+    async step(stepName, fn) {
+      const step2 = { name: stepName, start: performance.now() };
+      taken.push(step2);
+      try {
+        return await fn();
+      } catch (error) {
+        step2.error = error;
+        throw error;
+      } finally {
+        step2.end = performance.now();
+      }
+    },
+    noted(stepName, stepStart, end) {
+      taken.push({ name: stepName, start: stepStart, end });
+    },
+    record(ready, failure) {
+      if (recorded) return;
+      recorded = true;
+      const end = performance.now();
+      const write2 = () => {
+        const whole = tracer().startSpan(name3, { startTime: start2 }, parent);
+        const inside = trace2.setSpan(parent, whole);
+        for (const step2 of taken) {
+          const span = tracer().startSpan(step2.name, { startTime: step2.start }, inside);
+          if (step2.error !== void 0) failSpan(span, step2.error);
+          span.end(step2.end ?? end);
+        }
+        if (failure !== void 0) failSpan(whole, failure);
+        whole.end(end);
+      };
+      void ready.then(write2, write2);
+    }
+  };
+}
+
+// srcts/trace/settings.ts
+function tracesUrl(otelClientEndpoint, base) {
+  return otelClientEndpoint === void 0 ? void 0 : collectorUrl(otelClientEndpoint, "v1/traces", base);
+}
+async function setUpTracing(url, serviceName2, sessionId, load) {
+  if (url === void 0) return;
+  try {
+    (await load()).otelTracing({ url, serviceName: serviceName2, sessionId });
+  } catch (error) {
+    log.error(
+      new Error(`Core could not set up its OpenTelemetry tracing, so the page records no spans: ${errorMessage(error)}`, {
+        cause: error
+      })
+    );
+  }
 }
 
 // srcts/protocol/client.ts
@@ -2108,11 +2209,14 @@ function createClient(transport, options) {
     }
   });
   return {
-    request(request, { body, progress, signal } = {}) {
+    request(request, { body, progress, signal, span: spanned } = {}) {
       const id2 = mint();
+      const span = requestSpan(request, spanned);
+      const parent = span === void 0 ? void 0 : traceparent(span);
       const message = {
         ...request,
         id: id2,
+        ...parent === void 0 ? {} : { traceparent: parent },
         ...body === void 0 ? {} : { body: announce(body) }
       };
       return new Promise((resolve, reject) => {
@@ -2127,6 +2231,7 @@ function createClient(transport, options) {
           aborted: false,
           settle(result) {
             signal?.removeEventListener("abort", onAbort2);
+            if (span !== void 0) endRequestSpan(span, result);
             if ("error" in result) {
               reject(result.error);
             } else {
@@ -2168,6 +2273,79 @@ function createClient(transport, options) {
       });
     }
   };
+}
+function requestSpan(request, given = {}) {
+  const named3 = spanName(request);
+  if (named3 === void 0) return void 0;
+  return tracer().startSpan(
+    named3,
+    {
+      kind: SpanKind.CLIENT,
+      attributes: { ...requestAttributes(request), ...given.attributes },
+      links: [...given.links ?? []]
+    },
+    given.parent ?? context3.active()
+  );
+}
+function spanName(request) {
+  switch (request.kind) {
+    case "evaluate":
+    case "output":
+      return request.kind;
+    case "request":
+      return `request ${request.name ?? ""}`;
+    default:
+      return void 0;
+  }
+}
+function requestAttributes(request) {
+  switch (request.kind) {
+    case "evaluate":
+      return {
+        "blockr.block.id": request.block,
+        "blockr.block.revision": request.revision,
+        "blockr.block.registry_id": request.recipe.registry_id
+      };
+    case "output":
+      return { "blockr.block.id": request.block, "blockr.block.revision": request.revision };
+    case "request": {
+      const named3 = { "blockr.request.type": request.type, "blockr.request.name": request.name };
+      switch (request.type) {
+        case "block_class":
+          return { ...named3, "blockr.block.id": request.block, "blockr.block.registry_id": request.registry_id };
+        case "option":
+          return { ...named3, "blockr.option.id": request.option };
+        case "plugin":
+          return { ...named3, "blockr.plugin.class_id": request.plugin };
+        case "output_class":
+          return { ...named3, "blockr.block.id": request.output.block, "blockr.block.revision": request.output.revision };
+        case "renderer":
+          return {
+            ...named3,
+            "blockr.block.id": request.output.block,
+            "blockr.block.revision": request.output.revision,
+            "blockr.renderer.id": request.renderer
+          };
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return {};
+}
+function endRequestSpan(span, result) {
+  if ("error" in result) {
+    failSpan(span, result.error);
+  } else {
+    span.setAttribute("blockr.reply.status", result.reply.status);
+    if (result.reply.status === "error") {
+      const conditions = "conditions" in result.reply ? result.reply.conditions : [];
+      const message = conditions.find((condition) => condition.severity === "error")?.message;
+      span.setStatus({ code: SpanStatusCode2.ERROR, ...message === void 0 ? {} : { message } });
+    }
+  }
+  span.end();
 }
 function announce(body) {
   const type = body.type === "" ? "application/octet-stream" : body.type;
@@ -2761,6 +2939,7 @@ function createScheduler(options) {
   const controllers = /* @__PURE__ */ new Map();
   const settles = /* @__PURE__ */ new Map();
   const subscribers = /* @__PURE__ */ new Set();
+  const causes = /* @__PURE__ */ new Map();
   let ids2 = 0;
   const count = options.nextRevision ?? counter();
   let stopped;
@@ -2778,10 +2957,23 @@ function createScheduler(options) {
       throw error;
     }
   }
+  function setRevisions(next) {
+    const before = revisions.peek();
+    revisions.value = next;
+    const cause = activeSpanContext();
+    for (const [id2, at] of next) {
+      if (before.get(id2) === at) continue;
+      if (cause === void 0) causes.delete(id2);
+      else causes.set(id2, cause);
+    }
+    for (const id2 of [...causes.keys()]) {
+      if (!next.has(id2)) causes.delete(id2);
+    }
+  }
   const opened = E((next) => {
     registry.value = store.blockRegistry();
     board.value = next;
-    revisions.value = opening(graph.value, revision);
+    setRevisions(opening(graph.value, revision));
   });
   const applied = E((delta, next) => {
     const before = { board: board.value ?? next, inputs: inputs.value };
@@ -2793,7 +2985,7 @@ function createScheduler(options) {
       new Set(delta.blocks?.rm ?? []),
       revision
     );
-    revisions.value = revised.revisions;
+    setRevisions(revised.revisions);
     if (revised.gone.length === 0) return;
     const gone = new Set(revised.gone);
     outcomes.value = new Map([...outcomes.value].filter(([id2]) => !gone.has(id2)));
@@ -2807,7 +2999,7 @@ function createScheduler(options) {
         lost.add(block);
       }
     }
-    if (lost.size > 0) revisions.value = bump(graph.value, revisions.value, lost, revision);
+    if (lost.size > 0) setRevisions(bump(graph.value, revisions.value, lost, revision));
   });
   function update(next) {
     oneTimes.value = next.oneTimes;
@@ -2861,6 +3053,7 @@ function createScheduler(options) {
     }
     const controller = new AbortController();
     controllers.set(id2, controller);
+    const cause = causes.get(item.block);
     client.request(
       {
         kind: "evaluate",
@@ -2870,7 +3063,10 @@ function createScheduler(options) {
         recipe,
         ...oneTime === void 0 ? {} : { params: oneTime.params }
       },
-      { signal: controller.signal }
+      {
+        signal: controller.signal,
+        span: { parent: ROOT_CONTEXT, ...cause === void 0 ? {} : { links: [{ context: cause }] } }
+      }
     ).then(
       ({ reply }) => {
         answered2(id2, reply);
@@ -3093,7 +3289,7 @@ function createScheduler(options) {
     }),
     invalidate: E((id2) => {
       if (!revisions.value.has(id2)) return;
-      revisions.value = bump(graph.value, revisions.value, /* @__PURE__ */ new Set([id2]), revision);
+      setRevisions(bump(graph.value, revisions.value, /* @__PURE__ */ new Set([id2]), revision));
     }),
     status: (id2) => statuses.peek().get(id2),
     subscribe(fn) {
@@ -3106,12 +3302,21 @@ function createScheduler(options) {
       };
     },
     async request(request, requestOptions = {}) {
+      const inCaller = keepContext();
+      const block = request.kind === "output" ? own(board.peek()?.blocks ?? {}, request.block) : void 0;
+      const span = {
+        ...requestOptions.span,
+        attributes: {
+          ...block === void 0 ? {} : { "blockr.block.registry_id": block.registry_id },
+          ...requestOptions.span?.attributes
+        }
+      };
       for (; ; ) {
         if (ended()) throw endedError();
         const id2 = ++ids2;
         asked.value = new Map(asked.peek()).set(id2, { id: id2, at: Date.now() });
         try {
-          const result = await client.request(request, requestOptions);
+          const result = await inCaller(() => client.request(request, { ...requestOptions, span }));
           if (result.reply.status === "missing") lacking(result.reply.missing);
           return result;
         } catch (error) {
@@ -3129,7 +3334,7 @@ function createScheduler(options) {
       holding.value = false;
     }),
     session: E(() => {
-      revisions.value = bump(graph.value, revisions.value, new Set(revisions.value.keys()), revision);
+      setRevisions(bump(graph.value, revisions.value, new Set(revisions.value.keys()), revision));
     })
   };
 }
@@ -3516,12 +3721,12 @@ function hex([r2, g2, b2]) {
 }
 function drawn(colour) {
   try {
-    const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
-    if (context === null) return null;
-    context.fillStyle = "#000000";
-    context.fillStyle = colour;
-    context.fillRect(0, 0, 1, 1);
-    const [r2 = 0, g2 = 0, b2 = 0, alpha = 0] = context.getImageData(0, 0, 1, 1).data;
+    const context4 = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    if (context4 === null) return null;
+    context4.fillStyle = "#000000";
+    context4.fillStyle = colour;
+    context4.fillRect(0, 0, 1, 1);
+    const [r2 = 0, g2 = 0, b2 = 0, alpha = 0] = context4.getImageData(0, 0, 1, 1).data;
     return [r2, g2, b2, alpha / 255];
   } catch {
     return null;
@@ -3556,6 +3761,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name3}" of block "${block}"`;
   const module = sourceModule({ block }, packageFromId(entry.id));
+  const inCaller = keepContext();
   for (let attempt3 = 1; ; attempt3++) {
     const reads = await evaluateReads(deps, block, entry, name3, spec.inputs, opts.signal);
     if (!deps.bound()) throw deps.unboundError();
@@ -3585,12 +3791,14 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
       reads,
       ...spec.options.length === 0 ? {} : { options }
     };
-    const { reply, body } = await deps.answers.ask(
-      { request, share, ...opts.file === void 0 ? {} : { body: opts.file } },
-      {
-        ...opts.signal === void 0 ? {} : { signal: opts.signal },
-        ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
-      }
+    const { reply, body } = await inCaller(
+      () => deps.answers.ask(
+        { request, share, ...opts.file === void 0 ? {} : { body: opts.file } },
+        {
+          ...opts.signal === void 0 ? {} : { signal: opts.signal },
+          ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
+        }
+      )
     );
     if (!deps.bound()) throw deps.unboundError();
     const conditions = "conditions" in reply ? reply.conditions : [];
@@ -4277,17 +4485,20 @@ function mountOutput(deps, el, block) {
     const what = `The request "${name3}" of the output of block "${block}"`;
     const module = rendererModule(prepared.renderer);
     const requested2 = { type: opts.scope === "renderer" ? "renderer" : "output_class", name: name3 };
+    const inCaller = keepContext();
     for (let attempt3 = 1; ; attempt3++) {
       const target2 = await current2(name3, opts.signal);
       const output = { block, revision: target2.asked.revision };
       const fields = { output, name: name3, args: { ...args }, options: target2.asked.options, params: target2.asked.params };
       const asked = opts.scope === "renderer" ? { kind: "request", type: "renderer", renderer: prepared.renderer.id, ...fields } : { kind: "request", type: "output_class", ...fields };
-      const { reply, body } = await deps.answers.ask(
-        { request: asked, share: opts.file === void 0 ? "keep" : "once", ...opts.file === void 0 ? {} : { body: opts.file } },
-        {
-          ...opts.signal === void 0 ? {} : { signal: opts.signal },
-          ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
-        }
+      const { reply, body } = await inCaller(
+        () => deps.answers.ask(
+          { request: asked, share: opts.file === void 0 ? "keep" : "once", ...opts.file === void 0 ? {} : { body: opts.file } },
+          {
+            ...opts.signal === void 0 ? {} : { signal: opts.signal },
+            ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
+          }
+        )
       );
       if (!bound()) throw unboundError();
       const conditions = "conditions" in reply ? reply.conditions : [];
@@ -4688,7 +4899,7 @@ function blockHost(deps) {
   let seen = store.board();
   let named3 = [];
   let state2 = mountedBlock(seen)?.state ?? {};
-  let context = blockContext(mountedBlock(seen));
+  let context4 = blockContext(mountedBlock(seen));
   let following = true;
   let gone = false;
   const listeners = { state: /* @__PURE__ */ new Set(), context: /* @__PURE__ */ new Set() };
@@ -4737,8 +4948,8 @@ function blockHost(deps) {
     const stateChanged = now.state !== state2;
     if (stateChanged) state2 = now.state;
     const next = blockContext(now);
-    const contextChanged = !sameContext(context, next);
-    if (contextChanged) context = next;
+    const contextChanged = !sameContext(context4, next);
+    if (contextChanged) context4 = next;
     if (stateChanged) announce2("state");
     if (contextChanged) announce2("context");
   }
@@ -4767,7 +4978,7 @@ function blockHost(deps) {
     block,
     class: entry.id,
     state: () => state2,
-    context: () => context,
+    context: () => context4,
     on(event, fn) {
       const heard = own(listeners, event);
       if (heard === void 0) {
@@ -4820,7 +5031,7 @@ function blockHost(deps) {
     log: createLog(deps.module.package ?? null),
     name(options) {
       named3 = options;
-      context = blockContext(mountedBlock(seen));
+      context4 = blockContext(mountedBlock(seen));
     },
     drop() {
       stop();
@@ -7594,8 +7805,8 @@ function createStore(options = {}) {
     editId: (of) => edits.get(target(of))
   };
 }
-function lastOf(steps, origin) {
-  return origin === void 0 ? steps.length - 1 : steps.map((step2) => step2.origin).lastIndexOf(origin);
+function lastOf(steps2, origin) {
+  return origin === void 0 ? steps2.length - 1 : steps2.map((step2) => step2.origin).lastIndexOf(origin);
 }
 function settled(fn) {
   try {
@@ -7783,15 +7994,18 @@ async function pluginRequest(deps, plugin, name3, args, opts) {
   }
   const what = `The request "${name3}" of the plugin "${plugin}"`;
   const module = sourceModule({ plugin }, packageFromId(plugin));
+  const inCaller = keepContext();
   for (let attempt3 = 1; ; attempt3++) {
     const revisions = await evaluateReads2(deps, what, reads, opts.signal);
-    const { reply, body } = await deps.scheduler.request(
-      { kind: "request", type: "plugin", plugin, name: name3, args: { ...args }, reads: revisions },
-      {
-        ...opts.file === void 0 ? {} : { body: opts.file },
-        ...opts.signal === void 0 ? {} : { signal: opts.signal },
-        ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
-      }
+    const { reply, body } = await inCaller(
+      () => deps.scheduler.request(
+        { kind: "request", type: "plugin", plugin, name: name3, args: { ...args }, reads: revisions },
+        {
+          ...opts.file === void 0 ? {} : { body: opts.file },
+          ...opts.signal === void 0 ? {} : { signal: opts.signal },
+          ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
+        }
+      )
     );
     const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
@@ -8185,6 +8399,9 @@ function pageFrontEnds(el) {
     }
   };
 }
+
+// srcts/commands/commands.ts
+import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
 
 // srcts/commands/schemas.ts
 var id = { type: "string", pattern: "\\D" };
@@ -8781,7 +8998,7 @@ function createCommands(store, options = {}) {
   );
   const ended = () => options.signal?.aborted === true;
   const randId = options.randId === void 0 ? "adjective_animal" : asRandId(options.randId);
-  const context = {
+  const context4 = {
     lock: options.lock ?? { board: false, load: false },
     mintId: (taken) => mintId(taken, randId),
     blockrOption: options.blockrOption ?? (() => Promise.resolve(void 0))
@@ -8834,7 +9051,7 @@ function createCommands(store, options = {}) {
     return store.board();
   }
   function allow(command2, board, args) {
-    const enabled = attempt2(command2, () => command2.enabled?.(board, args, context) ?? true);
+    const enabled = attempt2(command2, () => command2.enabled?.(board, args, context4) ?? true);
     if (!enabled) {
       throw refusal(command2.id, [
         `It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`
@@ -8842,7 +9059,7 @@ function createCommands(store, options = {}) {
     }
   }
   function build(command2, board, args) {
-    const returned = attempt2(command2, () => command2.run(board, args, context));
+    const returned = attempt2(command2, () => command2.run(board, args, context4));
     const deltas2 = isDeltas(returned) ? returned : [returned];
     return deltas2.map(withEdits);
   }
@@ -8855,7 +9072,7 @@ function createCommands(store, options = {}) {
   async function prepared(command2, board, args) {
     let input2;
     try {
-      input2 = await command2.prepare?.(board, args, context);
+      input2 = await command2.prepare?.(board, args, context4);
     } catch (error) {
       throw failed(command2, error);
     }
@@ -8905,9 +9122,23 @@ function createCommands(store, options = {}) {
       }
     },
     async run(id2, given, origin = "user") {
-      const { command: command2, args } = lookup(id2, given);
-      const step2 = deltas(command2, args);
-      store.apply(Array.isArray(step2) ? step2 : await step2, origin, { undo: command2.undo });
+      const span = tracer().startSpan(`command ${id2}`, {
+        attributes: { "blockr.command.id": id2, "blockr.delta.origin": origin }
+      });
+      const active = trace3.setSpan(otelContext.active(), span);
+      try {
+        const { command: command2, args } = otelContext.with(active, () => lookup(id2, given));
+        const step2 = otelContext.with(active, () => deltas(command2, args));
+        const ready = Array.isArray(step2) ? step2 : await step2;
+        otelContext.with(active, () => {
+          store.apply(ready, origin, { undo: command2.undo });
+        });
+      } catch (error) {
+        failSpan(span, error);
+        throw error;
+      } finally {
+        span.end();
+      }
     },
     async plan(id2, given) {
       const { command: command2, args } = lookup(id2, given);
@@ -9303,6 +9534,10 @@ var CAPABILITIES = ["cancel", "interrupt", "progress"];
 function start(options) {
   const page = new AbortController();
   const alone = options.alone === true;
+  const starting = steps("start");
+  let helloSent;
+  let helloAnswered;
+  let tracing = Promise.resolve();
   const fail = (error) => {
     fallBack();
     if (options.fail === void 0) log.error(error);
@@ -9324,7 +9559,10 @@ function start(options) {
   });
   ready.catch(() => void 0);
   const client = createClient(options.transport, {
-    hello: () => ({ protocol: PROTOCOL_VERSION, capabilities: CAPABILITIES }),
+    hello: () => {
+      helloSent = performance.now();
+      return { protocol: PROTOCOL_VERSION, capabilities: CAPABILITIES };
+    },
     session(reply) {
       heard(reply);
     }
@@ -9337,6 +9575,7 @@ function start(options) {
   });
   const migrations = createMigrations(loader);
   function heard(reply) {
+    helloAnswered = performance.now();
     if (page.signal.aborted) return;
     const error = helloError(reply);
     if (error !== void 0) {
@@ -9364,9 +9603,14 @@ function start(options) {
     if (first === void 0) {
       first = hello;
       adopt(hello);
-      boot(hello, void 0).then(
-        ({ core }) => settle2?.resolve(core),
+      noteHello(starting);
+      boot(hello, void 0, starting).then(
+        ({ core }) => {
+          starting.record(tracing);
+          settle2?.resolve(core);
+        },
         (failure) => {
+          starting.record(tracing, failure);
           settle2?.reject(failure);
           if (!page.signal.aborted) fail(asError(failure));
         }
@@ -9383,6 +9627,10 @@ function start(options) {
       return;
     }
     running2?.scheduler.session();
+  }
+  function noteHello(opening2) {
+    const end2 = helloAnswered ?? performance.now();
+    opening2.noted("hello", helloSent ?? end2, end2);
   }
   function adopt(reply) {
     latest = reply;
@@ -9406,7 +9654,7 @@ function start(options) {
     settle2?.reject(error);
     fail(error);
   }
-  async function boot(reply, later) {
+  async function boot(reply, later, opening2) {
     const controller = new AbortController();
     const { signal } = controller;
     const ending = () => {
@@ -9421,19 +9669,24 @@ function start(options) {
       },
       { once: true }
     );
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel2, logger, otelClientEndpoint] = await Promise.all([
+    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel2, logger, otelClientEndpoint, otelClientServiceName] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
       blockrOptions.read("background_evaluation_delay"),
       blockrOptions.read("gate_visibility"),
       blockrOptions.read("rand_id"),
       blockrOptions.read("log_level"),
       blockrOptions.read("logger"),
-      blockrOptions.read("otel_client_endpoint")
+      blockrOptions.read("otel_client_endpoint"),
+      blockrOptions.read("otel_client_service_name")
     ]);
     if (!logging2) {
-      const settings = logSettings({ logLevel: logLevel2, logger, otelClientEndpoint }, typeof document === "undefined" ? void 0 : document.baseURI);
+      const base = typeof document === "undefined" ? void 0 : document.baseURI;
+      const settings = logSettings({ logLevel: logLevel2, logger, otelClientEndpoint }, base);
+      const service = serviceName(otelClientServiceName);
+      const sessionId = () => options.transport.sessionId?.();
       logging2 = true;
-      setUpLogging(settings, () => options.transport.sessionId?.(), options.otel ?? noOtel);
+      setUpLogging(settings, service, sessionId, options.otel ?? noOtel);
+      tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), service, sessionId, options.otel ?? noOtel);
     }
     const store = createStore({ hello: reply, signal, migration: (id2) => migrations.get(id2) });
     const notifications = createNotifications(store, { signal, plugins: reply.plugins });
@@ -9445,7 +9698,7 @@ function start(options) {
       randId,
       blockrOption: (name3) => blockrOptions.read(name3)
     });
-    await register(reply, store, commands, signal, raise);
+    await opening2.step("modules", () => register(reply, store, commands, signal, raise));
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -9479,13 +9732,13 @@ function start(options) {
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = alone ? void 0 : await named3(reply, store, core, signal, raise);
+      const instead = alone ? void 0 : await named3(reply, store, core, signal, raise, opening2);
       await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
       if (instead === void 0) {
-        dropped = await store.open(reply);
+        dropped = await opening2.step("store.open", () => store.open(reply));
       } else {
         try {
-          dropped = await store.open(instead.text);
+          dropped = await opening2.step("store.open", () => store.open(instead.text));
         } catch (error) {
           log.error(asError(error));
           raise(
@@ -9497,17 +9750,17 @@ function start(options) {
             )
           );
           await migrations.prepare(reply.board, reply.block_registry);
-          dropped = await store.open(reply);
+          dropped = await opening2.step("store.open", () => store.open(reply));
         }
       }
     } else {
       try {
         await migrations.prepare(later.text, reply.block_registry);
-        dropped = await store.open(later.text);
+        dropped = await opening2.step("store.open", () => store.open(later.text));
       } catch (error) {
         failure = asError(error);
         try {
-          await store.open(later.before);
+          await opening2.step("store.open", () => store.open(later.before));
         } catch (again) {
           log.error(asError(again));
           throw failure;
@@ -9536,7 +9789,7 @@ function start(options) {
       );
       const failures = await (front?.added ?? []);
       try {
-        await options.frontEnds?.render(core, signal, failures);
+        await opening2.step("render", async () => options.frontEnds?.render(core, signal, failures));
       } finally {
         scheduler.start();
       }
@@ -9605,7 +9858,7 @@ function start(options) {
       return void 0;
     }
   }
-  async function named3(reply, store, core, signal, raise) {
+  async function named3(reply, store, core, signal, raise, opening2) {
     if (reply.lock.load) return void 0;
     const classes = store.plugins.registered();
     const plugin = Object.keys(reply.plugins).find((id2) => own(classes, id2)?.storage !== void 0);
@@ -9617,7 +9870,7 @@ function start(options) {
     };
     let text;
     try {
-      text = await storage.load({ core, plugin, signal });
+      text = await opening2.step("storage.load", async () => storage.load?.({ core, plugin, signal }));
     } catch (error) {
       refuse(
         new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
@@ -9647,30 +9900,44 @@ function start(options) {
   }
   let queue = Promise.resolve();
   function reopen(given, of) {
-    const run = queue.then(() => reopening(given, of));
+    const opening2 = steps("open");
+    const run = queue.then(() => reopening(given, of, opening2));
     queue = run.catch(() => void 0);
     return run;
   }
-  async function reopening(given, of) {
+  async function reopening(given, of, opening2) {
     const refused2 = "The store refused to open the board";
     const current2 = running2;
     if (current2?.controller !== of || of.signal.aborted) {
-      throw new StoreError(refused2, ["Another board opened since, so this store opens no board."]);
+      const error = new StoreError(refused2, ["Another board opened since, so this store opens no board."]);
+      opening2.record(tracing, error);
+      throw error;
     }
     if (!current2.store.hasBoard()) {
-      throw new StoreError(refused2, ["The store holds no board yet, so it opens none in place of it."]);
+      const error = new StoreError(refused2, ["The store holds no board yet, so it opens none in place of it."]);
+      opening2.record(tracing, error);
+      throw error;
     }
     const text = typeof given === "string" ? given : JSON.stringify(given.board);
-    await migrations.prepare(text, current2.store.blockRegistry());
-    await current2.store.check(text);
-    const before = current2.store.save();
+    let before;
+    try {
+      await migrations.prepare(text, current2.store.blockRegistry());
+      await current2.store.check(text);
+      before = current2.store.save();
+    } catch (error) {
+      opening2.record(tracing, error);
+      throw error;
+    }
     of.abort();
     running2 = void 0;
     try {
       const reply = await afresh();
-      const { dropped } = await boot(reply, { text, before });
+      noteHello(opening2);
+      const { dropped } = await boot(reply, { text, before }, opening2);
+      opening2.record(tracing);
       return dropped;
     } catch (error) {
+      opening2.record(tracing, error);
       if (!page.signal.aborted && !holdsBoard()) fail(asError(error));
       throw error;
     }
@@ -9736,7 +10003,7 @@ function listedDefault(exports, module, pkg) {
   return def;
 }
 function noOtel() {
-  return Promise.reject(new Error("Core was given no OpenTelemetry module to send log records with."));
+  return Promise.reject(new Error("Core was given no OpenTelemetry module to send log records or spans with."));
 }
 
 // srcts/page/card.tsx

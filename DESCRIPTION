@@ -115,6 +115,7 @@ Collate:
     'evaluator-class.R'
     'evaluator-lock.R'
     'evaluator-read.R'
+    'evaluator-trace.R'
     'file-browser.R'
     'file-upload.R'
     'js-types.R'

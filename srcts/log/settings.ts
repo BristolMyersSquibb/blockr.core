@@ -1,6 +1,6 @@
 // Setting the page's logger up as the page starts, as Logging has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#logging),
-// from three blockr options, which core reads with those that its scheduler
+// from four blockr options, which core reads with those that its scheduler
 // reads (../core/start.ts):
 // - The blockr option log_level names the lowest level that the page writes,
 //   info unless it names another, as in R, which also takes a level by the
@@ -14,7 +14,14 @@
 //   has set up an exporter.
 // - The blockr option otel_client_endpoint gives the URL of that collector,
 //   which every user's browser must reach, as OTEL_EXPORTER_OTLP_ENDPOINT
-//   gives an SDK the URL of one. Core sends the records to its path v1/logs.
+//   gives an SDK the URL of one. Core sends the records to its path v1/logs,
+//   and its spans, wherever that option names a collector, to its path
+//   v1/traces (../trace/settings.ts).
+// - The blockr option otel_client_service_name names the page's service in
+//   the records, and in the spans, as OTEL_SERVICE_NAME names an SDK's, and is
+//   blockr unless it names another. R's records take their name from
+//   OTEL_SERVICE_NAME, which names Shiny's records as well, so this option
+//   names the page's alone.
 // A value that none of these takes stops the page, as a value of the
 // scheduler's blockr options does that the scheduler does not take.
 //
@@ -47,16 +54,20 @@ export interface LogOptions {
 }
 
 // What core's OpenTelemetry module gives: a logger that sends each line as a
-// record to the URL, naming the session in which it was logged.
+// record to the URL, naming the session in which it was logged, and the setup
+// of the page's tracing, which sends each span to the URL, naming the session
+// in which it started (../trace/settings.ts). Both name the page's service by
+// `serviceName`.
 export interface OtelModule {
-  otelLogger(options: { url: string; sessionId: () => string | undefined }): Logger;
+  otelLogger(options: { url: string; serviceName: string; sessionId: () => string | undefined }): Logger;
+  otelTracing(options: { url: string; serviceName: string; sessionId: () => string | undefined }): unknown;
 }
 
 // The settings that the values give, with a relative URL read against `base`,
 // the page's. It throws for a value that none of the options takes.
 export function logSettings(values: LogOptions, base?: string): LogSettings {
   const lowest = logLevel(values.logLevel);
-  const endpoint = values.otelClientEndpoint === undefined ? undefined : logsUrl(values.otelClientEndpoint, base);
+  const endpoint = values.otelClientEndpoint === undefined ? undefined : collectorUrl(values.otelClientEndpoint, "v1/logs", base);
   const logger = values.logger;
   if (logger !== undefined && (typeof logger !== "string" || !(LOGGERS as readonly string[]).includes(logger))) {
     throw new TypeError(`The blockr option logger is ${JSON.stringify(logger)}, where it takes "console", "otel" or "condition".`);
@@ -83,10 +94,12 @@ function logLevel(value: Json | undefined): Threshold {
   );
 }
 
-// The URL that core sends log records to: the path v1/logs below the
-// collector's URL, which may be relative to the page, as an SDK appends
-// v1/logs to OTEL_EXPORTER_OTLP_ENDPOINT.
-function logsUrl(value: Json, base: string | undefined): string {
+// The URL that core sends log records or spans to: the path given, v1/logs or
+// v1/traces, below the URL of the collector that the blockr option
+// otel_client_endpoint gives, which may be relative to the page, as an SDK
+// appends those paths to OTEL_EXPORTER_OTLP_ENDPOINT. It throws for a value
+// that is no URL over HTTP or HTTPS.
+export function collectorUrl(value: Json, path: string, base?: string): string {
   let url: URL | undefined;
   try {
     url = typeof value === "string" && value !== "" ? new URL(value, base) : undefined;
@@ -98,14 +111,33 @@ function logsUrl(value: Json, base: string | undefined): string {
       `The blockr option otel_client_endpoint is ${JSON.stringify(value)}, where it takes the URL of an OpenTelemetry collector, over HTTP or HTTPS.`,
     );
   }
-  url.pathname = `${url.pathname.replace(/\/$/, "")}/v1/logs`;
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/${path}`;
   return url.href;
+}
+
+// The name of the page's service that the blockr option
+// otel_client_service_name gives, blockr where it is not set. It throws for a
+// value that is no string, or an empty one.
+export function serviceName(value: Json | undefined): string {
+  if (value === undefined) return "blockr";
+  if (typeof value !== "string" || value === "") {
+    throw new TypeError(
+      `The blockr option otel_client_service_name is ${JSON.stringify(value)}, where it takes the name of a service, as a string that is not empty.`,
+    );
+  }
+  return value;
 }
 
 // Sets the page's logger up: the console's at once, or, where the settings
 // name a URL, OpenTelemetry's once `load` has imported core's module, which
-// names the session of each record by `sessionId`.
-export function setUpLogging(settings: LogSettings, sessionId: () => string | undefined, load: () => Promise<OtelModule>): void {
+// names the page's service in the records by `serviceName`, and the session of
+// each record by `sessionId`.
+export function setUpLogging(
+  settings: LogSettings,
+  serviceName: string,
+  sessionId: () => string | undefined,
+  load: () => Promise<OtelModule>,
+): void {
   const { lowest, url } = settings;
   if (url === undefined) {
     setLogging(lowest, consoleLogger);
@@ -115,7 +147,7 @@ export function setUpLogging(settings: LogSettings, sessionId: () => string | un
   void (async () => {
     let logger: Logger;
     try {
-      logger = (await load()).otelLogger({ url, sessionId });
+      logger = (await load()).otelLogger({ url, serviceName, sessionId });
     } catch (error) {
       setLogging(lowest, consoleLogger);
       log.error(

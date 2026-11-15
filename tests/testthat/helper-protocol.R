@@ -222,6 +222,14 @@ protocol_r_values <- function() {
         )
       )
     ),
+    `evaluate-traced` = list(
+      list(
+        proto_evaluated(
+          "17", "c", 4L,
+          summary = "<data.frame> [300 × 9]"
+        )
+      )
+    ),
     `evaluate-warning` = list(
       list(
         proto_evaluated(

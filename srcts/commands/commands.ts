@@ -10,13 +10,29 @@
 // Core creates a command registry for each store and hands it to plugins,
 // a frontend among them, through `CoreApi`. It ends with the store, as another
 // board opens.
+//
+// The command registry records a span of each command that it runs, as
+// Tracing has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#tracing),
+// from the call of run() until the store has committed and announced the
+// command's deltas, or until the command is refused or fails, which marks the
+// span failed. The span goes under the span that is active as run() is called,
+// so that a plugin that runs a command inside a span of its own, as the
+// assistant's tools do, holds the command in its trace. It names the command
+// by its id and the step's origin, as "assistant". The span is active while
+// the command prepares and runs, and while the store applies its deltas, so
+// that the scheduler takes it as what gave each block that the deltas change
+// its revision, and the span of the block's evaluation links to it.
 
+// The API's context is named apart from the context that the command registry
+// hands every command.
+import { context as otelContext, trace } from "@opentelemetry/api";
 import { computed, signal } from "@preact/signals-core";
 import type { Lock } from "../protocol/index.ts";
 import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
+import { failSpan, tracer } from "../trace/index.ts";
 import { compile, errorMessage, packageFromId, quoted } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
@@ -297,9 +313,23 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       }
     },
     async run(id, given, origin = "user") {
-      const { command, args } = lookup(id, given);
-      const step = deltas(command, args);
-      store.apply(Array.isArray(step) ? step : await step, origin, { undo: command.undo });
+      const span = tracer().startSpan(`command ${id}`, {
+        attributes: { "blockr.command.id": id, "blockr.delta.origin": origin },
+      });
+      const active = trace.setSpan(otelContext.active(), span);
+      try {
+        const { command, args } = otelContext.with(active, () => lookup(id, given));
+        const step = otelContext.with(active, () => deltas(command, args));
+        const ready = Array.isArray(step) ? step : await step;
+        otelContext.with(active, () => {
+          store.apply(ready, origin, { undo: command.undo });
+        });
+      } catch (error) {
+        failSpan(span, error);
+        throw error;
+      } finally {
+        span.end();
+      }
     },
     async plan(id, given) {
       const { command, args } = lookup(id, given);

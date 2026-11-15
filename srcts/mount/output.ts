@@ -74,6 +74,7 @@ import {
   sourceModule,
 } from "../util/index.ts";
 import { createLog, log } from "../log/index.ts";
+import { keepContext } from "../trace/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import type { Answers, OutputAsk } from "./answers.ts";
 import { ModuleError } from "./load.ts";
@@ -752,6 +753,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     // The renderer, which made the request, whichever scope the request has.
     const module = rendererModule(prepared.renderer);
     const requested = { type: opts.scope === "renderer" ? ("renderer" as const) : ("output_class" as const), name };
+    // The request's span goes under the span that was active as the module
+    // called the host's request(), though the host sends it only once the
+    // block's output is there (../trace/index.ts).
+    const inCaller = keepContext();
     for (let attempt = 1; ; attempt++) {
       const target = await current(name, opts.signal);
       const output = { block, revision: target.asked.revision };
@@ -760,12 +765,14 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         opts.scope === "renderer"
           ? { kind: "request", type: "renderer", renderer: prepared.renderer.id, ...fields }
           : { kind: "request", type: "output_class", ...fields };
-      const { reply, body } = await deps.answers.ask(
-        { request: asked, share: opts.file === undefined ? "keep" : "once", ...(opts.file === undefined ? {} : { body: opts.file }) },
-        {
-          ...(opts.signal === undefined ? {} : { signal: opts.signal }),
-          ...(opts.progress === undefined ? {} : { progress: opts.progress.bind(opts) }),
-        },
+      const { reply, body } = await inCaller(() =>
+        deps.answers.ask(
+          { request: asked, share: opts.file === undefined ? "keep" : "once", ...(opts.file === undefined ? {} : { body: opts.file }) },
+          {
+            ...(opts.signal === undefined ? {} : { signal: opts.signal }),
+            ...(opts.progress === undefined ? {} : { progress: opts.progress.bind(opts) }),
+          },
+        ),
       );
       if (!bound()) throw unboundError();
       const conditions = "conditions" in reply ? reply.conditions : [];

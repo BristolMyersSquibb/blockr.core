@@ -20,7 +20,18 @@
 // One effect tells the subscribers which statuses changed, and has a pass work
 // out what to send. The parts that decide are plain functions in the files
 // beside this one.
+//
+// The span of each evaluation, which the protocol's client records, starts a
+// trace of its own, and links to the span that was active as the block got its
+// revision, where one was, as Tracing has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#tracing).
+// That is the span of the command whose delta changed the block's recipe, or
+// the recipe of a block upstream of it, since the store announces the delta
+// while the command's span is active. So a trace leads from an edit to every
+// evaluation that it caused.
 
+import { ROOT_CONTEXT } from "@opentelemetry/api";
+import type { SpanContext } from "@opentelemetry/api";
 import { action, batch, computed, effect, signal, untracked } from "@preact/signals-core";
 import type { ReadonlySignal } from "@preact/signals-core";
 import { createGraph } from "../graph/index.ts";
@@ -37,6 +48,7 @@ import type { BlockId, Board, RegistryId } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { log } from "../log/index.ts";
+import { activeSpanContext, keepContext } from "../trace/index.ts";
 import { asError, asLogical, asNumber, errorMessage, own } from "../util/index.ts";
 import * as evaluations from "./evaluations.ts";
 import type { OneTime, Settled } from "./evaluations.ts";
@@ -260,10 +272,13 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   ]);
 
   // What the scheduler holds beside what it knows: what stops each evaluation
-  // sent, and what settles the promise of each one-time evaluation.
+  // sent, what settles the promise of each one-time evaluation, and the
+  // context of the span that was active as each block got its revision, to
+  // which the span of the block's evaluation links.
   const controllers = new Map<number, AbortController>();
   const settles = new Map<number, (result: Settled) => void>();
   const subscribers = new Set<(changed: readonly BlockId[]) => void>();
+  const causes = new Map<BlockId, SpanContext>();
 
   // One count gives ids to demands, one-time evaluations, and what the
   // scheduler sends. So the ids of what it sends go up in the order it sends
@@ -292,6 +307,22 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     }
   }
 
+  // Gives the blocks their revisions, and keeps for each block that gets a new
+  // one the context of the span that is active now, or none, where none is.
+  function setRevisions(next: ReadonlyMap<BlockId, number>): void {
+    const before = revisions.peek();
+    revisions.value = next;
+    const cause = activeSpanContext();
+    for (const [id, at] of next) {
+      if (before.get(id) === at) continue;
+      if (cause === undefined) causes.delete(id);
+      else causes.set(id, cause);
+    }
+    for (const id of [...causes.keys()]) {
+      if (!next.has(id)) causes.delete(id);
+    }
+  }
+
   // Following the board
 
   // The board that the store opens holds no result in R, since R's session
@@ -301,7 +332,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   const opened = action((next: Board) => {
     registry.value = store.blockRegistry();
     board.value = next;
-    revisions.value = opening(graph.value, revision);
+    setRevisions(opening(graph.value, revision));
   });
 
   // A change to the board moves the revisions of the blocks whose recipe it
@@ -316,7 +347,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       new Set(delta.blocks?.rm ?? []),
       revision,
     );
-    revisions.value = revised.revisions;
+    setRevisions(revised.revisions);
     if (revised.gone.length === 0) return;
 
     const gone = new Set(revised.gone);
@@ -335,7 +366,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
         lost.add(block);
       }
     }
-    if (lost.size > 0) revisions.value = bump(graph.value, revisions.value, lost, revision);
+    if (lost.size > 0) setRevisions(bump(graph.value, revisions.value, lost, revision));
   });
 
   // One-time evaluations
@@ -410,6 +441,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
     const controller = new AbortController();
     controllers.set(id, controller);
+    const cause = causes.get(item.block);
     client
       .request(
         {
@@ -420,7 +452,10 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
           recipe,
           ...(oneTime === undefined ? {} : { params: oneTime.params }),
         },
-        { signal: controller.signal },
+        {
+          signal: controller.signal,
+          span: { parent: ROOT_CONTEXT, ...(cause === undefined ? {} : { links: [{ context: cause }] }) },
+        },
       )
       .then(
         ({ reply }) => {
@@ -712,7 +747,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
     invalidate: action((id) => {
       if (!revisions.value.has(id)) return;
-      revisions.value = bump(graph.value, revisions.value, new Set([id]), revision);
+      setRevisions(bump(graph.value, revisions.value, new Set([id]), revision));
     }),
 
     status: (id) => statuses.peek().get(id),
@@ -728,12 +763,24 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     },
 
     async request(request, requestOptions = {}) {
+      // The request's span goes under the span that was active as the caller
+      // called, in every session that the request goes to. The span of an
+      // output names the registry id of its block's class too.
+      const inCaller = keepContext();
+      const block = request.kind === "output" ? own(board.peek()?.blocks ?? {}, request.block) : undefined;
+      const span = {
+        ...requestOptions.span,
+        attributes: {
+          ...(block === undefined ? {} : { "blockr.block.registry_id": block.registry_id }),
+          ...requestOptions.span?.attributes,
+        },
+      };
       for (;;) {
         if (ended()) throw endedError();
         const id = ++ids;
         asked.value = new Map(asked.peek()).set(id, { id, at: Date.now() });
         try {
-          const result = await client.request(request, requestOptions);
+          const result = await inCaller(() => client.request(request, { ...requestOptions, span }));
           if (result.reply.status === "missing") lacking(result.reply.missing);
           return result;
         } catch (error) {
@@ -754,7 +801,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     }),
 
     session: action(() => {
-      revisions.value = bump(graph.value, revisions.value, new Set(revisions.value.keys()), revision);
+      setRevisions(bump(graph.value, revisions.value, new Set(revisions.value.keys()), revision));
     }),
   };
 }

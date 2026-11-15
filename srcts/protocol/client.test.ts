@@ -3,7 +3,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { context, ROOT_CONTEXT, SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import { describe, expect, test, vi } from "vitest";
+import { recordSpans } from "../testing/spans.ts";
 import type {
   ClientMessage,
   Fixture,
@@ -651,7 +653,8 @@ describe("the protocol's fixtures", () => {
     ) as T;
   }
 
-  // What a caller hands the client for a request of a fixture.
+  // What a caller hands the client for a request of a fixture, which names no
+  // traceparent, since the client writes it.
   function outgoing(
     request: Request,
   ): [Parameters<Client["request"]>[0], Blob | undefined] {
@@ -663,9 +666,22 @@ describe("the protocol's fixtures", () => {
           ? new Blob(["bytes"], { type: body.type })
           : new File(["bytes"], body.name, { type: body.type });
     return [
-      without(request, "id", "body") as Parameters<Client["request"]>[0],
+      without(request, "id", "body", "traceparent") as Parameters<Client["request"]>[0],
       blob,
     ];
+  }
+
+  // Where a fixture's request carries a traceparent, the client records spans
+  // with the ids that it names, so that it writes that traceparent itself.
+  function recordFor(fx: Fixture): (() => void) | undefined {
+    const given = fx.client.flatMap((request) => ("traceparent" in request && request.traceparent !== undefined ? [request.traceparent] : []));
+    const [traceparent] = given;
+    if (traceparent === undefined) return undefined;
+    const [, traceId = "", spanId = ""] = traceparent.split("-");
+    const recorded = recordSpans({ traceId, spanId });
+    return () => {
+      recorded.restore();
+    };
   }
 
   // Plays R's messages, handing a reply that announces a body its bytes.
@@ -706,6 +722,7 @@ describe("the protocol's fixtures", () => {
     const t = setup();
     ready(t);
     const before = t.sent.length;
+    const restore = recordFor(fx);
 
     const notes: unknown[] = [];
     const pendings = fx.client.map((request) => {
@@ -738,6 +755,7 @@ describe("the protocol's fixtures", () => {
     expect(notes).toEqual(
       fx.r.flat().flatMap((item) => ("progress" in item ? [item.progress] : [])),
     );
+    restore?.();
   });
 
   test("several-requests, as one message while R has not answered the hello", () => {
@@ -785,5 +803,158 @@ describe("the protocol's fixtures", () => {
     const ids = new Map([["34", lastRequestId(t.sent, "output")]]);
     play(t, swap(fx.r, ids));
     expect((await pending).reply).toEqual(swap(fx.r[0]?.[0], ids));
+  });
+});
+
+describe("spans", () => {
+  const okEvaluation = (id: string): Reply => ({
+    id,
+    status: "ok",
+    block: "a",
+    revision: 2,
+    summary: "<data.frame> [150 × 5]",
+    reason: null,
+    conditions: [],
+    stdout: "",
+    stderr: "",
+  });
+
+  test("record each evaluation from the call until R replies, and send its context in traceparent", async () => {
+    const recorded = recordSpans();
+    const t = setup();
+    ready(t);
+
+    const pending = t.client.request(evaluate);
+    const sent = only(t.messages().at(-1) ?? []) as Request & { traceparent?: string };
+    // The span has not ended, so none has been recorded.
+    expect(recorded.spans()).toEqual([]);
+
+    t.receive(okEvaluation(sent.id ?? ""));
+    await pending;
+
+    const span = recorded.span("evaluate");
+    const { traceId, spanId } = span.spanContext();
+    expect(sent.traceparent).toBe(`00-${traceId}-${spanId}-01`);
+    expect(span.kind).toBe(SpanKind.CLIENT);
+    expect(span.parentSpanContext).toBeUndefined();
+    expect(span.attributes).toEqual({
+      "blockr.block.id": "a",
+      "blockr.block.revision": 2,
+      "blockr.block.registry_id": "blockr.core-dataset_block",
+      "blockr.reply.status": "ok",
+    });
+    expect(span.status.code).toBe(SpanStatusCode.UNSET);
+    recorded.restore();
+  });
+
+  test("send no traceparent while the page records no spans", async () => {
+    const t = setup();
+    ready(t);
+
+    const pending = t.client.request(evaluate);
+    const sent = only(t.messages().at(-1) ?? []);
+    expect(sent).not.toHaveProperty("traceparent");
+
+    t.receive(okEvaluation(sent.id ?? ""));
+    await pending;
+  });
+
+  test("go under the span active as request() is called, or under the parent that the caller names, with the links it names", async () => {
+    const recorded = recordSpans();
+    const t = setup();
+    ready(t);
+    const tracer = trace.getTracer("blockr.test");
+
+    const outer = tracer.startSpan("tool");
+    const pending = context.with(trace.setSpan(context.active(), outer), () => t.client.request(echo));
+    const linked = tracer.startSpan("edit");
+    const rooted = context.with(trace.setSpan(context.active(), outer), () =>
+      t.client.request(evaluate, { span: { parent: ROOT_CONTEXT, links: [{ context: linked.spanContext() }] } }),
+    );
+    for (const message of t.messages().slice(-2).flat()) {
+      t.receive(message.kind === "evaluate" ? okEvaluation(message.id) : { id: message.id ?? "", status: "ok", value: null, conditions: [] });
+    }
+    await Promise.all([pending, rooted]);
+    outer.end();
+    linked.end();
+
+    const request = recorded.span("request echo");
+    expect(request.parentSpanContext?.spanId).toBe(outer.spanContext().spanId);
+    expect(request.spanContext().traceId).toBe(outer.spanContext().traceId);
+    expect(request.attributes).toEqual({
+      "blockr.request.type": "plugin",
+      "blockr.request.name": "echo",
+      "blockr.plugin.class_id": "blockr.test-echo_plugin",
+      "blockr.reply.status": "ok",
+    });
+
+    const evaluation = recorded.span("evaluate");
+    expect(evaluation.parentSpanContext).toBeUndefined();
+    expect(evaluation.spanContext().traceId).not.toBe(outer.spanContext().traceId);
+    expect(evaluation.links.map((link) => link.context.spanId)).toEqual([linked.spanContext().spanId]);
+    recorded.restore();
+  });
+
+  test("are marked failed where R replies error, or where no reply comes", async () => {
+    const recorded = recordSpans();
+    const t = setup();
+    ready(t);
+
+    const failing = t.client.request(echo);
+    t.receive({
+      id: lastRequestId(t.sent, "request"),
+      status: "error",
+      conditions: [
+        { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "request", message: "Careful." },
+        { severity: "error", class: ["simpleError", "error", "condition"], phase: "request", message: "No notes." },
+      ],
+    });
+    await failing;
+
+    const lost = t.client.request(evaluate);
+    t.end();
+    await expect(lost).rejects.toBeInstanceOf(SessionEndedError);
+
+    const request = recorded.span("request echo");
+    expect(request.status).toEqual({ code: SpanStatusCode.ERROR, message: "No notes." });
+    expect(request.attributes["blockr.reply.status"]).toBe("error");
+
+    const evaluation = recorded.span("evaluate");
+    expect(evaluation.status.code).toBe(SpanStatusCode.ERROR);
+    expect(evaluation.events.map((event) => [event.name, event.attributes?.["exception.type"]])).toEqual([
+      ["exception", "SessionEndedError"],
+    ]);
+    recorded.restore();
+  });
+
+  test("of an output name its block and revision, and none is recorded of a hello or of reading blockr options", async () => {
+    const recorded = recordSpans();
+    const t = setup();
+    ready(t);
+
+    const options = t.client.request({ kind: "blockr_options", names: ["rand_id"] });
+    const output = t.client.request({
+      kind: "output",
+      block: "a",
+      revision: 2,
+      options: {},
+      info: { width: 640, height: 400, pixel_ratio: 2, bg: "#fff", fg: "#000", accent: "#00f", font: "Inter" },
+      params: {},
+    });
+    const [read, made] = t.messages().slice(-2).flat();
+    expect(read).not.toHaveProperty("traceparent");
+    expect(made).toHaveProperty("traceparent");
+    t.receive({ id: read?.id ?? "", status: "ok", values: {} });
+    t.receive({ id: made?.id ?? "", status: "error", conditions: [] });
+    await Promise.all([options, output]);
+
+    expect(recorded.spans().map((span) => span.name)).toEqual(["output"]);
+    expect(recorded.span("output").attributes).toEqual({
+      "blockr.block.id": "a",
+      "blockr.block.revision": 2,
+      "blockr.reply.status": "error",
+    });
+    expect(recorded.span("output").status).toEqual({ code: SpanStatusCode.ERROR });
+    recorded.restore();
   });
 });

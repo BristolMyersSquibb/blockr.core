@@ -12,13 +12,18 @@
 //   srcts/otel/sdk.ts names, are bundled, minified, into a file of their own,
 //   opentelemetry-<hash>.js, which the module imports by that name, so that
 //   blockr-core-otel.js holds core's own code alone.
+// - OpenTelemetry's API is bundled, minified, into opentelemetry-api.js, where
+//   one of the files above imports it, as core's runtime and that bundle of
+//   the SDK do. So the page runs one copy of the API, through which the
+//   modules of packages record spans as well.
 // - React's entry points, such as `react` and `react-dom/client`, are written
 //   as ES modules of their own, such as react.js and react-dom-client.js,
 //   which read one minified bundle of React, react-<hash>.js.
 // - The runtime, the modules and the SDK, the binding and the controls leave
-//   their imports of React and of each other imports, which the page that R
-//   serves resolves through its import map, as inst/js/import-map.json lays
-//   it out. So the page runs one copy of each, and so do a package's modules.
+//   their imports of React, of OpenTelemetry's API and of each other imports,
+//   which the page that R serves resolves through its import map, as
+//   inst/js/import-map.json lays it out. So the page runs one copy of each,
+//   and so do a package's modules.
 //   The runtime leaves its import of the OpenTelemetry module an import as
 //   well, so that a page loads the module only where it imports it.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
@@ -59,9 +64,8 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import tailwindcss from "@tailwindcss/postcss";
@@ -69,7 +73,7 @@ import * as esbuild from "esbuild";
 import postcss from "postcss";
 import { createGenerator } from "ts-json-schema-generator";
 import ts from "typescript";
-import { IMPORTS, importFile, REACT_ENTRIES } from "../import-map/index.ts";
+import { IMPORTS, importFile, OTEL_API, REACT_ENTRIES } from "../import-map/index.ts";
 import type { Import } from "../import-map/index.ts";
 import { preset } from "./preset.ts";
 
@@ -130,19 +134,24 @@ function reactNames(): Record<string, string[]> {
 
 // Bundles code that core ships from other projects, minified and with its
 // license comments, into one file in `out`, which it resolves from core's
-// repo, and returns the file's name. The name holds a hash of the content, as
-// react-3f2a9c1d.js, so that no browser runs an old copy from its cache, since
-// what imports the file imports it by that name.
+// repo, and returns the file's name and the imports that the file leaves to
+// the page's import map, those that `input` names external. The name holds a
+// hash of the content, as react-3f2a9c1d.js, so that no browser runs an old
+// copy from its cache, since what imports the file imports it by that name.
+// A file that the import map names, which R serves at a URL that holds a hash
+// of the content, is named as given instead.
 async function vendored(
   out: string,
   name: string,
-  input: Pick<esbuild.BuildOptions, "stdin" | "entryPoints" | "nodePaths">,
-): Promise<string> {
+  input: Pick<esbuild.BuildOptions, "stdin" | "entryPoints" | "nodePaths" | "external">,
+  hashed = true,
+): Promise<{ file: string; imports: string[] }> {
   const result = await esbuild.build({
     absWorkingDir: repo,
     ...input,
     bundle: true,
     write: false,
+    metafile: true,
     format: "esm",
     platform: "browser",
     target: preset.target,
@@ -156,16 +165,23 @@ async function vendored(
   }
 
   const text = result.outputFiles[0]?.text ?? "";
-  const file = `${name}-${createHash("sha256").update(text).digest("hex").slice(0, 8)}.js`;
+  const file = hashed ? `${name}-${createHash("sha256").update(text).digest("hex").slice(0, 8)}.js` : `${name}.js`;
   await writeFile(join(out, file), text);
-  return file;
+  return { file, imports: externalImports(result.metafile) };
+}
+
+// The imports that the files of a build leave imports, by their specifiers.
+function externalImports(metafile: esbuild.Metafile): string[] {
+  return Object.values(metafile.outputs).flatMap((output) =>
+    output.imports.flatMap((entry) => (entry.external === true ? [entry.path] : [])),
+  );
 }
 
 // Writes React's entry points into `out` as ES modules of their own, each
 // exporting the names that the entry point exports, from one minified bundle of
 // React and ReactDOM, so that all of them read one React.
 async function reactModules(out: string): Promise<string[]> {
-  const bundle = await vendored(out, "react", {
+  const { file: bundle } = await vendored(out, "react", {
     stdin: {
       contents: REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`).join("\n"),
       resolveDir: repo,
@@ -227,11 +243,33 @@ function sourceImports(src: string, own?: Import): esbuild.Plugin {
 
 // Bundles the parts of OpenTelemetry's SDK that srcts/otel/sdk.ts names into
 // one file in `out`, as opentelemetry-3f2a9c1d.js, as it bundles React, and
-// returns its name, or writes nothing where srcts holds no such file.
-async function otelSdk(src: string, out: string): Promise<string | undefined> {
+// returns its name with the imports that it leaves to the import map, or
+// writes nothing where srcts holds no such file. The bundle leaves its
+// imports of OpenTelemetry's API imports, so that the SDK records through the
+// API that core's runtime and the modules of packages use.
+async function otelSdk(src: string, out: string): Promise<{ file: string; imports: string[] } | undefined> {
   const entry = join(src, "otel", "sdk.ts");
   if (!existsSync(entry)) return undefined;
-  return vendored(out, "opentelemetry", { entryPoints: [entry], nodePaths: [join(repo, "node_modules")] });
+  return vendored(out, "opentelemetry", { entryPoints: [entry], nodePaths: [join(repo, "node_modules")], external: [OTEL_API] });
+}
+
+// Bundles OpenTelemetry's API into the file in `out` that the import map names
+// for it, opentelemetry-api.js, with its default export too, and returns the
+// file's name.
+async function otelApi(out: string): Promise<string> {
+  const { file } = await vendored(
+    out,
+    importFile(OTEL_API).replace(/\.js$/, ""),
+    {
+      stdin: {
+        contents: `export * from ${JSON.stringify(OTEL_API)};\nexport { default } from ${JSON.stringify(OTEL_API)};\n`,
+        resolveDir: repo,
+        loader: "js",
+      },
+    },
+    false,
+  );
+  return file;
 }
 
 // Leaves the OpenTelemetry module's import of srcts/otel/sdk.ts an import of
@@ -265,7 +303,8 @@ export async function build(root: string): Promise<string[]> {
   } satisfies esbuild.BuildOptions;
   const plugins = (own?: Import) => [sourceImports(src, own), ...preset.plugins];
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
-  const sdk = await otelSdk(src, out);
+  const otel = await otelSdk(src, out);
+  const sdk = otel?.file;
 
   const results = [
     await esbuild.build({
@@ -301,6 +340,11 @@ export async function build(root: string): Promise<string[]> {
   const react = await reactModules(out);
   written.push(...react.map((file) => relative(root, join(out, file))));
   if (sdk !== undefined) written.push(relative(root, join(out, sdk)));
+  // OpenTelemetry's API, where core's runtime, a module, a library or the
+  // bundle of the SDK imports it.
+  if ([...results.flatMap((result) => externalImports(result.metafile)), ...(otel?.imports ?? [])].includes(OTEL_API)) {
+    written.push(relative(root, join(out, await otelApi(out))));
+  }
 
   // The import map that the page R serves holds, as R reads it: each import by
   // the file in inst/js that it resolves to, and the files that those import in
@@ -528,9 +572,11 @@ async function writeJson(file: string, value: unknown): Promise<void> {
   await writeFile(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-// The version of a package that core's build resolves.
+// The version of a package that core's build resolves, from the package.json
+// in core's node_modules, which the exports of a package such as
+// OpenTelemetry's API do not name.
 function packageVersion(name: string): string {
-  return (createRequire(import.meta.url)(`${name}/package.json`) as { version: string }).version;
+  return (JSON.parse(readFileSync(join(repo, "node_modules", name, "package.json"), "utf8")) as { version: string }).version;
 }
 
 // The package that inst/types is: the types modules are written against, as
@@ -544,6 +590,11 @@ function packageVersion(name: string): string {
 // one copy of the app's React, the stubs drawing core's UIs with it, while a
 // package's build leaves its imports of React, and of the SDK, the binding
 // and the controls, to the page's import map.
+// It names OpenTelemetry's API, which the page's import map names, as its peer
+// too, at the version that core ships, since core's declarations name the
+// API's types and its bundles leave the API an import. So a package's modules
+// type their spans, and its tests record core's spans and its own, through
+// the API of the page.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -558,7 +609,11 @@ export const TYPES_PACKAGE = {
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
     "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
-  peerDependencies: { react: packageVersion("react"), "react-dom": packageVersion("react-dom") },
+  peerDependencies: {
+    react: packageVersion("react"),
+    "react-dom": packageVersion("react-dom"),
+    [OTEL_API]: packageVersion(OTEL_API),
+  },
 };
 
 // The modules of srcts that the types package bundles,
@@ -619,9 +674,9 @@ export async function types(root: string): Promise<string[]> {
       platform: "neutral",
       target: "es2022",
       jsx: "automatic",
-      // React stays an import, which a package's tests resolve to the React
-      // that npm installs with `@blockr/core`.
-      external: ["react", "react/*", "react-dom", "react-dom/*"],
+      // React and OpenTelemetry's API stay imports, which a package's tests
+      // resolve to those that npm installs with `@blockr/core`.
+      external: ["react", "react/*", "react-dom", "react-dom/*", OTEL_API],
       logLevel: "warning",
       metafile: true,
     });
