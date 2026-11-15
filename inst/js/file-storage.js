@@ -35,12 +35,14 @@ function saveBoard(core, doc) {
   }
 }
 async function openBoard(core, plugin, doc) {
+  let text;
   try {
-    const text = await pickFile(doc);
-    if (text !== null) await core.store.open(text);
+    text = await pickFile(doc);
   } catch (error) {
     core.notifications.notify(plugin, { severity: "error", code: "board_open_failed", message: errorMessage(error) });
+    return;
   }
+  if (text !== null) await core.store.open(text);
 }
 function fileName(board, now = /* @__PURE__ */ new Date()) {
   const two = (n) => String(n).padStart(2, "0");

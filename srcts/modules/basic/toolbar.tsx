@@ -19,13 +19,13 @@
 // A control's tooltip shows as the browser's tooltip.
 // The toolbar draws the controls again whenever the storage's subscribe()
 // calls back, and as the board changes. Where a button's run() rejects, the
-// frontend tells the user why, as it does for an edit that the store refused.
+// frontend logs it, since the storage plugin or core tells the user why.
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
-import { classes, NameField, refused, runCommand, useHistory } from "../../ui/index.ts";
+import { classes, NameField, runCommand, useHistory } from "../../ui/index.ts";
 import { asError } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
 import { ariaShortcuts } from "./shortcuts.ts";
@@ -40,8 +40,7 @@ export interface ToolbarProps {
 }
 
 export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
-  const front = useFrontEnd();
-  const { core } = front;
+  const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
   const [renaming, setRenaming] = useState(false);
   const locked = core.lock.board;
@@ -50,8 +49,8 @@ export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
     try {
       if (back) core.store.undo();
       else core.store.redo();
-    } catch (error) {
-      refused(front, error);
+    } catch {
+      // Core has told the user why the store refused it.
     }
   }
 
@@ -62,7 +61,7 @@ export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
           label="Board name"
           name={board.name}
           onSubmit={(name) => {
-            void runCommand(front, "blockr.core-rename_board", { name });
+            void runCommand(core, "blockr.core-rename_board", { name });
           }}
           onDone={() => {
             setRenaming(false);

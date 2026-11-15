@@ -18,7 +18,10 @@
 //   module that made the request.
 // - Those that core raises, each with an id from what it holds, so that a
 //   failure raised twice, as by two mounts of one module, is one notification,
-//   which holds until each raise of it is withdrawn.
+//   which holds until each raise of it is withdrawn. Core raises each refusal
+//   of what the user asked for anew instead, such as an edit that the store
+//   refuses: it withdraws the notification that holds already, so that a
+//   frontend that has shown it shows it again.
 // - Those that the modules of packages raise, a plugin's through notify() and
 //   one that core mounts through its host, each with an id of its own.
 // It withdraws every notification that concerns a block, a link or a stack as
@@ -49,6 +52,12 @@ export interface Holder {
   readonly api: CoreApi["notifications"];
   // Raises one of core's own notifications, and returns what withdraws it.
   readonly raise: Raise;
+  // Raises one of core's own notifications of a refusal of what the user
+  // asked for, such as an edit that the store refuses. It holds until the
+  // board ends. Where the same notification holds already, it withdraws that
+  // one first, so that a frontend that has shown it shows it again. Otherwise
+  // the same refusal would be one notification, which a frontend shows once.
+  readonly raiseAgain: (notification: Omit<Notification, "id">) => void;
   // Holds the notifications of the conditions of R's latest reply to a
   // request, in place of those of the request's reply before.
   readonly replied: Replied;
@@ -90,6 +99,8 @@ export function createNotifications(
   const held = new Map<string, Notification>();
   // The raises that hold each of core's notifications, by its id.
   const raised = new Map<string, Set<object>>();
+  // What withdraws each notification that raiseAgain() raised, by its id.
+  const again = new Map<string, () => void>();
   // The ids of what holds in place of what held before, by what they replace
   // each other for, a block's status or a request, with the board object that
   // it concerns.
@@ -166,6 +177,7 @@ export function createNotifications(
     const had = held.size > 0;
     held.clear();
     raised.clear();
+    again.clear();
     replacing.clear();
     left.clear();
     if (had) publish();
@@ -230,13 +242,7 @@ export function createNotifications(
       log.debug(`Core drops a notification that core raised about ${named(given.about)}, which the board does not hold.`);
       return nothing;
     }
-    const id = JSON.stringify([
-      "raised",
-      given.severity,
-      given.message,
-      sourceCopy(given.source),
-      given.about === undefined ? null : objectCopy(given.about),
-    ]);
+    const id = raisedId(given);
     const token = {};
     const tokens = raised.get(id) ?? new Set<object>();
     tokens.add(token);
@@ -251,6 +257,13 @@ export function createNotifications(
       raised.delete(id);
       if (held.delete(id)) publish();
     };
+  };
+
+  const raiseAgain = (given: Omit<Notification, "id">): void => {
+    const id = raisedId(given);
+    again.get(id)?.();
+    const withdraw = raise(given);
+    if (!ended) again.set(id, withdraw);
   };
 
   const notify: Notify = (module, notification) => {
@@ -312,6 +325,7 @@ export function createNotifications(
       },
     },
     raise,
+    raiseAgain,
     replied,
     notify,
     follow(scheduler) {
@@ -327,6 +341,18 @@ export function createNotifications(
       if (store.hasBoard()) heard(Object.keys(store.board().blocks));
     },
   };
+}
+
+// The id of one of core's own notifications, from what it holds, so that the
+// same failure raised twice is one notification.
+function raisedId(given: Omit<Notification, "id">): string {
+  return JSON.stringify([
+    "raised",
+    given.severity,
+    given.message,
+    sourceCopy(given.source),
+    given.about === undefined ? null : objectCopy(given.about),
+  ]);
 }
 
 // Who raised a condition of a block's status: R, or core for the error of an
