@@ -13,8 +13,16 @@ export interface LogOptions {
 export interface OtelModule {
     otelLogger(options: {
         url: string;
+        serviceName: string;
         sessionId: () => string | undefined;
     }): Logger;
+    otelTracing(options: {
+        url: string;
+        serviceName: string;
+        sessionId: () => string | undefined;
+    }): unknown;
 }
 export declare function logSettings(values: LogOptions, base?: string): LogSettings;
-export declare function setUpLogging(settings: LogSettings, sessionId: () => string | undefined, load: () => Promise<OtelModule>): void;
+export declare function collectorUrl(value: Json, path: string, base?: string): string;
+export declare function serviceName(value: Json | undefined): string;
+export declare function setUpLogging(settings: LogSettings, serviceName: string, sessionId: () => string | undefined, load: () => Promise<OtelModule>): void;

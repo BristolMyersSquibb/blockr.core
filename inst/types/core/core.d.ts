@@ -21,9 +21,12 @@ export interface CoreParts {
     readonly notifications: Holder;
     readonly measure?: Measure;
     readonly signal?: AbortSignal;
+    readonly show: (object: ShownObject) => Promise<void>;
 }
+type ShownObject = Parameters<CoreApi["show"]>[0];
 export interface Core {
     readonly api: CoreApi;
     readonly plugins: Pick<RunningPlugins, "frontend" | "start">;
 }
 export declare function createCore(parts: CoreParts): Core;
+export {};

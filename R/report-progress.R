@@ -1,5 +1,7 @@
 # The request that R is answering.
-# A request's function sends its progress notes through it while it runs.
+# A request's function sends its progress notes through it while it runs,
+# and `run_phase()` reads from it whether R records spans of an evaluation's
+# phases, as it does where it records a span of the evaluation's message.
 answering <- new.env(parent = emptyenv())
 
 with_answering <- function(ev, job, expr) {
@@ -9,7 +11,8 @@ with_answering <- function(ev, job, expr) {
   answering$job <- list(
     id = job[["id"]],
     send = job[["send"]],
-    progress = "progress" %in% ev$shared
+    progress = "progress" %in% ev$shared,
+    traced = not_null(job[["span"]])
   )
 
   on.exit(answering$job <- prev)

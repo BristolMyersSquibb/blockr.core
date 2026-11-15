@@ -14,6 +14,12 @@
 //   the arguments that `serve()` hands it, which R's reply to `hello` holds in
 //   `frontend`. Where a board option that the frontend requires did not go
 //   onto the board, the element shows why in place of the frontend.
+// - As a plugin asks to show a block or a plugin through CoreApi's show(),
+//   core calls the show() of the module of the frontend that draws the board,
+//   where it has one, with the board object, the element and CoreApi, and
+//   rejects with why where it fails, naming the frontend's class, so that the
+//   plugin that asked hears of it
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#showing-a-block-or-a-plugin).
 // - As the signal aborts, core runs the cleanup that render() returned, and the
 //   element says that the board is loading until the next frontend draws.
 // A frontend releases what it holds as its signal aborts, as a module does as
@@ -22,13 +28,19 @@
 
 import { attempt, showError } from "../mount/index.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { FrontendModule } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { log } from "../log/index.ts";
 import { errorMessage } from "../util/index.ts";
 import type { FrontEnds } from "./start.ts";
 
 interface Drawn {
+  readonly frontend: FrontendModule;
+  readonly plugin: PluginClassId;
+  readonly core: CoreApi;
+  // The signal of the board that the frontend draws, which aborts as the next
+  // board opens.
+  readonly board: AbortSignal;
   readonly controller: AbortController;
   readonly off: () => void;
   cleanup: (() => void) | undefined;
@@ -90,6 +102,10 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       };
       signal.addEventListener("abort", ending, { once: true });
       const current: Drawn = {
+        frontend: prepared.frontend,
+        plugin: prepared.plugin,
+        core,
+        board: signal,
         controller,
         off: () => {
           signal.removeEventListener("abort", ending);
@@ -115,6 +131,17 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         });
         showError(el, why.message);
         log.error(why);
+      }
+    },
+    async show(object, signal) {
+      const current = drawn;
+      if (current?.board !== signal || current.frontend.show === undefined) return;
+      try {
+        await current.frontend.show({ object, el, core: current.core });
+      } catch (error) {
+        // A frontend that ended meanwhile has nothing left to show.
+        if (current.controller.signal.aborted) return;
+        throw new Error(`The frontend of the plugin class "${current.plugin}" failed in show(): ${errorMessage(error)}`, { cause: error });
       }
     },
   };

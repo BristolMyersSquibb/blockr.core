@@ -14,6 +14,9 @@
 // block, which holds until R next replies to a request of the same name. Its
 // source names the block's UI module, which made the request.
 // What core keeps of the answers is ./answers.ts's.
+// The request's span goes under the span that was active as the module called
+// the host's request(), though the host sends the request only once its inputs
+// are evaluated (../trace/index.ts).
 
 import type { Condition, ReplyStatus } from "../protocol/index.ts";
 import type { BlockStatus, Inputs, Scheduler } from "../scheduler/index.ts";
@@ -22,6 +25,7 @@ import type { BlockId } from "../types/board.ts";
 import type { HostRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
+import { keepContext } from "../trace/index.ts";
 import { isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import type { Answers, ClassRequest } from "./answers.ts";
@@ -97,6 +101,7 @@ export async function blockRequest(
   // The block's UI module, which made the request, with the package of its
   // class.
   const module = sourceModule({ block }, packageFromId(entry.id));
+  const inCaller = keepContext();
 
   for (let attempt = 1; ; attempt++) {
     const reads = await evaluateReads(deps, block, entry, name, spec.inputs, opts.signal);
@@ -132,12 +137,14 @@ export async function blockRequest(
       reads,
       ...(spec.options.length === 0 ? {} : { options }),
     };
-    const { reply, body } = await deps.answers.ask(
-      { request, share, ...(opts.file === undefined ? {} : { body: opts.file }) },
-      {
-        ...(opts.signal === undefined ? {} : { signal: opts.signal }),
-        ...(opts.progress === undefined ? {} : { progress: opts.progress.bind(opts) }),
-      },
+    const { reply, body } = await inCaller(() =>
+      deps.answers.ask(
+        { request, share, ...(opts.file === undefined ? {} : { body: opts.file }) },
+        {
+          ...(opts.signal === undefined ? {} : { signal: opts.signal }),
+          ...(opts.progress === undefined ? {} : { progress: opts.progress.bind(opts) }),
+        },
+      ),
     );
     if (!deps.bound()) throw deps.unboundError();
 

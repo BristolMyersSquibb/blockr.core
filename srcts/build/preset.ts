@@ -3,8 +3,9 @@
 // bundles its modules alike
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#react).
 // It holds esbuild's options for a module: an ES module for the browser, whose
-// imports of React and of core's React SDK, its binding and its controls stay
-// imports, which the page that R serves resolves through its import map.
+// imports of React, of core's React SDK, its binding and its controls, and of
+// OpenTelemetry's API stay imports, which the page that R serves resolves
+// through its import map.
 // So the module's bundle holds none of them.
 // A package's build adds its entry points and where they go, as in
 // `esbuild.build({ ...preset, entryPoints: ["srcts/head-block.tsx"], outdir: "inst/js" })`.
@@ -12,16 +13,19 @@
 // Node runs it as core's build and a package's build load it.
 
 import type { BuildOptions, Plugin } from "esbuild";
-import { IMPORTS } from "../import-map/index.ts";
+import { IMPORTS, OTEL_API } from "../import-map/index.ts";
 
 // Leaves each import in a module that the page's import map names an import,
 // so that every module imports the one copy of each that blockr.core ships.
 // An entry point of React that the map does not name fails the build, rather
 // than bundling a second copy of React.
+// OpenTelemetry's API has no side effects, as its package says, so a module
+// that imports none of its names, as from code of core's that it bundles,
+// keeps no import of it.
 const imports: Plugin = {
   name: "blockr.core-imports",
   setup(build) {
-    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel))$/ }, (args) => {
+    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
       if (!(IMPORTS as readonly string[]).includes(args.path)) {
         return {
           errors: [
@@ -31,7 +35,7 @@ const imports: Plugin = {
           ],
         };
       }
-      return { path: args.path, external: true };
+      return { path: args.path, external: true, ...(args.path === OTEL_API ? { sideEffects: false } : {}) };
     });
   },
 };

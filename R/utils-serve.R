@@ -369,7 +369,10 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
     ui = function(req) serve_page(alone),
     server = function(input, output, session) {
 
-      ev <- new_evaluator(board, data, lock, registry, plugins, frontend)
+      ev <- new_evaluator(
+        board, data, lock, registry, plugins, frontend,
+        session_id = session$token
+      )
 
       shiny::exportTestValues(result = latest_results(ev, alone))
 
