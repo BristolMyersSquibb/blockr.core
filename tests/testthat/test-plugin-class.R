@@ -432,7 +432,7 @@ test_that("a plugin prints its class's id and its state", {
   expect_output(str(plugin), "<notes_plugin> blockr.test-notes_plugin")
 })
 
-test_that("a plugin prints fields that are empty or lists of lists", {
+test_that("a plugin prints fields that are empty or nested", {
 
   views <- plugin_ctor(
     function(views = list(), active = NULL, tags = character()) NULL,
@@ -454,8 +454,51 @@ test_that("a plugin prints fields that are empty or lists of lists", {
       main = list(name = "Main", panels = list()),
       side = list(name = "Side", panels = list("b", "c"))
     ),
-    "main"
+    "main",
+    1:5
   )
 
-  expect_identical(format(plugin)[2L], "views: Main, list(), Side, b, c")
+  # The views nest three deep, so their lines go below the field, while each
+  # view nests two deep or less and stays on a line
+  expect_identical(
+    format(plugin),
+    c(
+      "<views_plugin> blockr.test-views_plugin",
+      "views:",
+      "  main: {name: Main, panels: list()}",
+      "  side: {name: Side, panels: [b, c]}",
+      "active: main",
+      "tags: 1, 2, 3, ..."
+    )
+  )
+})
+
+test_that("a plugin prints a list too deep or too wide below its field", {
+
+  grid <- plugin_ctor(
+    function(children = list(), tags = list()) NULL,
+    "grid_plugin"
+  )
+
+  plugin <- grid(
+    list(
+      list(panels = list(list(block = "a")), active = list(block = "a"))
+    ),
+    list(strrep("x", 40L), list(strrep("y", 40L), 1:5))
+  )
+
+  # A list without names gives an item for each element, whose first line
+  # holds the first field of an element that has names
+  expect_identical(
+    format(plugin),
+    c(
+      "<grid_plugin> blockr.test-grid_plugin",
+      "children:",
+      "  - panels: [{block: a}]",
+      "    active: {block: a}",
+      "tags:",
+      paste0("  - ", strrep("x", 40L)),
+      paste0("  - [", strrep("y", 40L), ", [1, 2, 3, ...]]")
+    )
+  )
 })

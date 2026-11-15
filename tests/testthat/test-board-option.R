@@ -76,6 +76,16 @@ test_that("a board option prints a value of length 0", {
   expect_identical(format(new_board_option("test", list())), "test: list()")
 })
 
+test_that("a board option prints a nested value on one line", {
+
+  opt <- new_board_option("test", list(a = 1:6, b = list("x", NULL)))
+
+  expect_identical(
+    format(opt),
+    "test: {a: [1, 2, 3, 4, 5, ...], b: [x, NULL]}"
+  )
+})
+
 test_that("core's board options take their value alone and compute nothing", {
 
   ctors <- list(

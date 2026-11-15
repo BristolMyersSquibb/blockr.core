@@ -550,27 +550,103 @@ id_to_sentence_case <- function(x) {
 
 # The value `x` on one line.
 # A value of length 0 shows as "NULL" or as its class with "()", as "list()".
-# A longer value shows its first `n` elements, each formatted by this function,
-# so that an element that is empty or a list gives one string as well.
-format_head <- function(x, n = 3L) {
+# A list shows its elements in braces where they have names,
+# as "{a: 1, b: x}", and in brackets where they have none, as "[1, x]",
+# each formatted by this function, so that the line keeps the list's nesting.
+# A vector of several values shows its first `n`, as "a, b, c, ...",
+# in brackets where it sits in a list.
+format_head <- function(x, n = 3L, nested = FALSE) {
 
   if (!length(x)) {
     return(if (is.null(x)) "NULL" else paste0(class(x)[1L], "()"))
   }
 
-  if (length(x) > 1) {
+  if (is.list(x)) {
 
-    res <- paste(
-      chr_ply(utils::head(x, n = n), format_head, n = n),
-      collapse = ", "
-    )
+    res <- chr_ply(x, format_head, n = n, nested = TRUE)
 
-    if (length(x) > n) {
-      res <- paste0(res, ", ...")
+    if (is_named_list(x)) {
+      return(paste0("{", paste0(names(x), ": ", res, collapse = ", "), "}"))
     }
 
-    return(res)
+    return(paste0("[", paste(res, collapse = ", "), "]"))
   }
 
-  format(x)
+  if (length(x) == 1L) {
+    return(format(x))
+  }
+
+  res <- paste(chr_ply(utils::head(x, n = n), format), collapse = ", ")
+
+  if (length(x) > n) {
+    res <- paste0(res, ", ...")
+  }
+
+  if (nested) paste0("[", res, "]") else res
+}
+
+# The lines of `x`, a list, one for each element:
+# "name: value" where the list has names, and "- value" where it has none.
+# A value stays on its element's line, as `format_head()` gives it,
+# unless it is a list that nests more than two deep,
+# or whose line is wider than the console.
+# Such a list goes below, as the lines of its elements, indented by two spaces.
+format_lines <- function(x, indent = "") {
+
+  fits <- function(value, line) {
+    !is.list(value) || !length(value) ||
+      (list_depth(value) <= 2L && nchar(line) <= getOption("width", 80L))
+  }
+
+  inner <- paste0(indent, "  ")
+
+  if (is_named_list(x)) {
+
+    lines <- Map(
+      function(name, value) {
+
+        line <- paste0(indent, name, ": ", format_head(value))
+
+        if (fits(value, line)) {
+          return(line)
+        }
+
+        c(paste0(indent, name, ":"), format_lines(value, inner))
+      },
+      names(x),
+      x
+    )
+
+    return(unlst(lines))
+  }
+
+  lines <- lapply(
+    x,
+    function(value) {
+
+      line <- paste0(indent, "- ", format_head(value))
+
+      if (fits(value, line)) {
+        return(line)
+      }
+
+      res <- format_lines(value, inner)
+      res[1L] <- paste0(indent, "- ", substring(res[1L], nchar(inner) + 1L))
+
+      res
+    }
+  )
+
+  unlst(lines)
+}
+
+# How deep lists nest in `x`: 0 where it is not a list or is empty,
+# and otherwise one more than in its deepest element.
+list_depth <- function(x) {
+
+  if (!is.list(x) || !length(x)) {
+    return(0L)
+  }
+
+  1L + max(int_ply(x, list_depth))
 }

@@ -672,14 +672,9 @@ check_plugin_packages <- function(packages, listed) {
 
 #' @export
 format.plugin <- function(x, ...) {
-
-  state <- plugin_state(x)
-
   c(
     paste0("<", class(x)[1L], "> ", plugin_class_id(x)),
-    if (length(state)) {
-      paste0(names(state), ": ", chr_ply(state, format_head))
-    }
+    format_lines(plugin_state(x))
   )
 }
 
