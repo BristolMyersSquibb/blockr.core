@@ -7894,6 +7894,7 @@ function createCore(parts) {
     raise,
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
+  const focus = createFocus(store, parts.signal);
   const api = {
     store,
     commands,
@@ -7928,7 +7929,21 @@ function createCore(parts) {
       }
       return createLog(given);
     },
-    focus: createFocus(store, parts.signal),
+    focus,
+    onScreen: createOnScreen(parts.signal),
+    show(object2) {
+      if (parts.signal?.aborted === true) return Promise.resolve();
+      const shown2 = shownObject(object2);
+      if ("block" in shown2) {
+        if (!store.hasBoard() || !Object.hasOwn(store.board().blocks, shown2.block)) {
+          throw new Error(`The board holds no block ${JSON.stringify(shown2.block)} to show.`);
+        }
+        focus.set(shown2.block);
+      } else if (plugins.pluginClass(shown2.plugin).ui === void 0) {
+        throw new Error(`The class of the plugin "${shown2.plugin}" has no ui to show.`);
+      }
+      return parts.show(shown2);
+    },
     request: (plugin, name3, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name3, args, opts),
     module: (id2) => loader.module(id2),
     blockrOption: (name3) => blockrOptions.read(name3),
@@ -7982,6 +7997,64 @@ function createCore(parts) {
     raisedBy.set(id2, raisedNow);
   }
   return { api, plugins };
+}
+function shownObject(given) {
+  if (typeof given === "object" && given !== null && !Array.isArray(given)) {
+    const entries = Object.entries(given);
+    const [entry] = entries;
+    if (entries.length === 1 && entry !== void 0 && typeof entry[1] === "string") {
+      if (entry[0] === "block") return Object.freeze({ block: entry[1] });
+      if (entry[0] === "plugin") return Object.freeze({ plugin: entry[1] });
+    }
+  }
+  throw new TypeError(`Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`);
+}
+function createOnScreen(signal) {
+  let seen = null;
+  const listeners = /* @__PURE__ */ new Set();
+  signal?.addEventListener(
+    "abort",
+    () => {
+      listeners.clear();
+    },
+    { once: true }
+  );
+  return {
+    get: () => seen,
+    set(shown2) {
+      const next = seenGiven(shown2);
+      if (seen !== null && sameIds(seen.blocks, next.blocks) && sameIds(seen.plugins, next.plugins)) return;
+      seen = next;
+      announceTo(listeners, seen);
+    },
+    subscribe(fn) {
+      const wrapped = (shown2) => {
+        fn(shown2);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
+}
+function seenGiven(given) {
+  if (typeof given === "object" && given !== null) {
+    const { blocks, plugins } = given;
+    if (isIds(blocks) && isIds(plugins)) {
+      return Object.freeze({ blocks: Object.freeze([...blocks]), plugins: Object.freeze([...plugins]) });
+    }
+  }
+  throw new TypeError(
+    `A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`
+  );
+}
+function isIds(given) {
+  return Array.isArray(given) && given.every((id2) => typeof id2 === "string");
+}
+function sameIds(a2, b2) {
+  const inB = new Set(b2);
+  return new Set(a2).size === inB.size && a2.every((id2) => inB.has(id2));
 }
 function createFocus(store, signal) {
   let focused = null;
@@ -8069,6 +8142,10 @@ function pageFrontEnds(el) {
       };
       signal.addEventListener("abort", ending, { once: true });
       const current2 = {
+        frontend: prepared.frontend,
+        plugin: prepared.plugin,
+        core,
+        board: signal,
         controller,
         off: () => {
           signal.removeEventListener("abort", ending);
@@ -8094,6 +8171,16 @@ function pageFrontEnds(el) {
         });
         showError(el, why.message);
         log.error(why);
+      }
+    },
+    async show(object2, signal) {
+      const current2 = drawn2;
+      if (current2?.board !== signal || current2.frontend.show === void 0) return;
+      try {
+        await current2.frontend.show({ object: object2, el, core: current2.core });
+      } catch (error) {
+        if (current2.controller.signal.aborted) return;
+        throw new Error(`The frontend of the plugin class "${current2.plugin}" failed in show(): ${errorMessage(error)}`, { cause: error });
       }
     }
   };
@@ -9385,6 +9472,7 @@ function start(options) {
       options: reply.options,
       notifications,
       signal,
+      show: (object2) => options.frontEnds?.show(object2, signal) ?? Promise.resolve(),
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
     running2 = { store, scheduler, core, notifications, controller };

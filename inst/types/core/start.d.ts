@@ -14,6 +14,7 @@ export type Front = {
 export interface FrontEnds {
     prepare(front: Front, signal: AbortSignal): void;
     render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
+    show(object: Parameters<CoreApi["show"]>[0], signal: AbortSignal): Promise<void>;
     card?(core: CoreApi, signal: AbortSignal): void;
 }
 export interface Changed {

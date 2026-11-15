@@ -84,7 +84,7 @@ export const BlockCard = memo(function BlockCard({
 
   useLayoutEffect(() => {
     const el = ref.current;
-    return el === null ? undefined : inView.watch(id, el);
+    return el === null ? undefined : inView.watch({ block: id }, el);
   }, [inView, id]);
 
   const mountUi = useCallback((el: HTMLElement) => core.mountBlock(el, id), [core, id]);

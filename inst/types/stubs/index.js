@@ -7323,8 +7323,8 @@ function createRegistrations(migration = () => void 0) {
       }
     }
     for (const member of ["ui", "frontend"]) {
-      const drawn2 = given[member];
-      if (drawn2 !== void 0 && (!isObject(drawn2) || typeof drawn2.render !== "function")) {
+      const drawn3 = given[member];
+      if (drawn3 !== void 0 && (!isObject(drawn3) || typeof drawn3.render !== "function")) {
         throw new Error(`The plugin class "${id2}" has a ${member} without a render() function.`);
       }
     }
@@ -7795,9 +7795,9 @@ function runPlugins(deps) {
   }
   function frontend() {
     const [id2] = inRole(appPlugins(), registeredClass, "frontend");
-    const drawn2 = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
-    if (id2 === void 0 || drawn2 === void 0) return void 0;
-    return { frontend: drawn2, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
+    const drawn3 = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
+    if (id2 === void 0 || drawn3 === void 0) return void 0;
+    return { frontend: drawn3, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
   }
   let started = false;
   async function start2() {
@@ -8033,6 +8033,7 @@ function createCore(parts) {
     raise,
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
+  const focus = createFocus(store, parts.signal);
   const api = {
     store,
     commands,
@@ -8067,7 +8068,21 @@ function createCore(parts) {
       }
       return createLog(given);
     },
-    focus: createFocus(store, parts.signal),
+    focus,
+    onScreen: createOnScreen(parts.signal),
+    show(object2) {
+      if (parts.signal?.aborted === true) return Promise.resolve();
+      const shown2 = shownObject(object2);
+      if ("block" in shown2) {
+        if (!store.hasBoard() || !Object.hasOwn(store.board().blocks, shown2.block)) {
+          throw new Error(`The board holds no block ${JSON.stringify(shown2.block)} to show.`);
+        }
+        focus.set(shown2.block);
+      } else if (plugins.pluginClass(shown2.plugin).ui === void 0) {
+        throw new Error(`The class of the plugin "${shown2.plugin}" has no ui to show.`);
+      }
+      return parts.show(shown2);
+    },
     request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name2, args, opts),
     module: (id2) => loader.module(id2),
     blockrOption: (name2) => blockrOptions.read(name2),
@@ -8122,6 +8137,64 @@ function createCore(parts) {
   }
   return { api, plugins };
 }
+function shownObject(given) {
+  if (typeof given === "object" && given !== null && !Array.isArray(given)) {
+    const entries = Object.entries(given);
+    const [entry] = entries;
+    if (entries.length === 1 && entry !== void 0 && typeof entry[1] === "string") {
+      if (entry[0] === "block") return Object.freeze({ block: entry[1] });
+      if (entry[0] === "plugin") return Object.freeze({ plugin: entry[1] });
+    }
+  }
+  throw new TypeError(`Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`);
+}
+function createOnScreen(signal) {
+  let seen = null;
+  const listeners = /* @__PURE__ */ new Set();
+  signal?.addEventListener(
+    "abort",
+    () => {
+      listeners.clear();
+    },
+    { once: true }
+  );
+  return {
+    get: () => seen,
+    set(shown2) {
+      const next = seenGiven(shown2);
+      if (seen !== null && sameIds(seen.blocks, next.blocks) && sameIds(seen.plugins, next.plugins)) return;
+      seen = next;
+      announceTo(listeners, seen);
+    },
+    subscribe(fn) {
+      const wrapped = (shown2) => {
+        fn(shown2);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
+}
+function seenGiven(given) {
+  if (typeof given === "object" && given !== null) {
+    const { blocks, plugins } = given;
+    if (isIds(blocks) && isIds(plugins)) {
+      return Object.freeze({ blocks: Object.freeze([...blocks]), plugins: Object.freeze([...plugins]) });
+    }
+  }
+  throw new TypeError(
+    `A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`
+  );
+}
+function isIds(given) {
+  return Array.isArray(given) && given.every((id2) => typeof id2 === "string");
+}
+function sameIds(a2, b2) {
+  const inB = new Set(b2);
+  return new Set(a2).size === inB.size && a2.every((id2) => inB.has(id2));
+}
 function createFocus(store, signal) {
   let focused = null;
   const listeners = /* @__PURE__ */ new Set();
@@ -8170,12 +8243,12 @@ function loadingNote() {
   return box;
 }
 function pageFrontEnds(el) {
-  let drawn2;
+  let drawn3;
   let next;
   function end() {
-    const current2 = drawn2;
+    const current2 = drawn3;
     if (current2 === void 0) return;
-    drawn2 = void 0;
+    drawn3 = void 0;
     current2.off();
     current2.controller.abort();
     if (current2.cleanup !== void 0) attempt(current2.cleanup);
@@ -8204,17 +8277,21 @@ function pageFrontEnds(el) {
       }
       const controller = new AbortController();
       const ending = () => {
-        if (drawn2 === current2) end();
+        if (drawn3 === current2) end();
       };
       signal.addEventListener("abort", ending, { once: true });
       const current2 = {
+        frontend: prepared.frontend,
+        plugin: prepared.plugin,
+        core,
+        board: signal,
         controller,
         off: () => {
           signal.removeEventListener("abort", ending);
         },
         cleanup: void 0
       };
-      drawn2 = current2;
+      drawn3 = current2;
       try {
         const rendered = await prepared.frontend.render({
           el,
@@ -8233,6 +8310,16 @@ function pageFrontEnds(el) {
         });
         showError(el, why.message);
         log.error(why);
+      }
+    },
+    async show(object2, signal) {
+      const current2 = drawn3;
+      if (current2?.board !== signal || current2.frontend.show === void 0) return;
+      try {
+        await current2.frontend.show({ object: object2, el, core: current2.core });
+      } catch (error) {
+        if (current2.controller.signal.aborted) return;
+        throw new Error(`The frontend of the plugin class "${current2.plugin}" failed in show(): ${errorMessage(error)}`, { cause: error });
       }
     }
   };
@@ -9524,6 +9611,7 @@ function start(options) {
       options: reply.options,
       notifications,
       signal,
+      show: (object2) => options.frontEnds?.show(object2, signal) ?? Promise.resolve(),
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
     running2 = { store, scheduler, core, notifications, controller };
@@ -10143,7 +10231,7 @@ function Field({
     if (!open || marked === void 0) return;
     list.current?.ownerDocument.getElementById(optionId2(listId, marked))?.scrollIntoView({ block: "nearest" });
   }, [open, marked, listId]);
-  function show() {
+  function show2() {
     if (!open) {
       setOpen(true);
       setActive(multiple ? void 0 : single?.value);
@@ -10167,7 +10255,7 @@ function Field({
   }
   function move(by) {
     if (!open) {
-      show();
+      show2();
       return;
     }
     if (pickable.length === 0) return;
@@ -10252,7 +10340,7 @@ function Field({
             setActive(void 0);
             setOpen(true);
           },
-          onClick: show,
+          onClick: show2,
           onKeyDown,
           onBlur: close
         }
@@ -10270,7 +10358,7 @@ function Field({
           onClick: () => {
             if (open) close();
             else {
-              show();
+              show2();
               input2.current?.focus();
             }
           },
@@ -10871,7 +10959,7 @@ var BlockCard = memo(function BlockCard2({
   const ref = useRef5(null);
   useLayoutEffect5(() => {
     const el = ref.current;
-    return el === null ? void 0 : inView2.watch(id2, el);
+    return el === null ? void 0 : inView2.watch({ block: id2 }, el);
   }, [inView2, id2]);
   const mountUi = useCallback4((el) => core.mountBlock(el, id2), [core, id2]);
   const mountOutput2 = useCallback4((el) => core.mountOutput(el, id2), [core, id2]);
@@ -11059,7 +11147,7 @@ function OptionUi({ id: id2 }) {
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback6 } from "react";
+import { useCallback as useCallback6, useLayoutEffect as useLayoutEffect6, useRef as useRef6 } from "react";
 import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 function placed(core) {
   return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
@@ -11078,11 +11166,16 @@ function Plugins() {
   );
 }
 function PluginSection({ id: id2, plugin }) {
-  const { core } = useFrontEnd();
+  const { core, inView: inView2 } = useFrontEnd();
+  const ref = useRef6(null);
+  useLayoutEffect6(() => {
+    const el = ref.current;
+    return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
+  }, [inView2, id2]);
   const mount2 = useCallback6((el) => core.mountPlugin(el, id2), [core, id2]);
   return /* @__PURE__ */ jsxs9("details", { open: true, className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`, children: [
     /* @__PURE__ */ jsx11("summary", { className: `${classes.heading} bc:cursor-pointer`, children: plugin.name }),
-    /* @__PURE__ */ jsx11(Mounted, { mount: mount2, className: "bc:mt-3 bc:min-w-0" })
+    /* @__PURE__ */ jsx11("div", { ref, className: "bc:mt-3 bc:min-w-0", children: /* @__PURE__ */ jsx11(Mounted, { mount: mount2, className: "bc:min-w-0" }) })
   ] });
 }
 
@@ -11228,7 +11321,7 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState9 } from "react";
+import { useEffect as useEffect2, useReducer, useRef as useRef7, useState as useState9 } from "react";
 
 // srcts/modules/basic/storage.ts
 var KINDS2 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -11443,16 +11536,16 @@ function StorageControls() {
       return void 0;
     }
   }, [core, storage]);
-  const drawn2 = drawnControls(core);
-  const problem = drawn2?.problem;
+  const drawn3 = drawnControls(core);
+  const problem = drawn3?.problem;
   useEffect2(() => {
     if (problem !== void 0) core.log("blockr.core").error(problem);
   }, [core, problem]);
-  if (drawn2 === void 0) return null;
-  if (drawn2.failed) {
+  if (drawn3 === void 0) return null;
+  if (drawn3.failed) {
     return /* @__PURE__ */ jsx12("span", { role: "alert", title: problem, className: "bc:font-sans bc:text-sm bc:text-text-danger", children: "Storage failed" });
   }
-  return /* @__PURE__ */ jsx12(Fragment2, { children: drawn2.controls.map((control) => /* @__PURE__ */ jsx12(Control, { control }, control.id)) });
+  return /* @__PURE__ */ jsx12(Fragment2, { children: drawn3.controls.map((control) => /* @__PURE__ */ jsx12(Control, { control }, control.id)) });
 }
 function Control({ control }) {
   switch (control.kind) {
@@ -11490,7 +11583,7 @@ function StorageButton({
 }
 function StorageMenu({ label, items }) {
   const [open, setOpen] = useState9(false);
-  const ref = useRef6(null);
+  const ref = useRef7(null);
   useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs10("div", { ref, className: "bc:relative", children: [
     /* @__PURE__ */ jsxs10(
@@ -11714,7 +11807,16 @@ function demandShown(core, view = window) {
   let released = false;
   function update() {
     if (released) return;
-    near.set([...new Set([...seen].flatMap((el) => watched.get(el) ?? []))]);
+    const blocks = /* @__PURE__ */ new Set();
+    const plugins = /* @__PURE__ */ new Set();
+    for (const el of seen) {
+      const object2 = watched.get(el);
+      if (object2 === void 0) continue;
+      if ("block" in object2) blocks.add(object2.block);
+      else plugins.add(object2.plugin);
+    }
+    near.set([...blocks]);
+    core.onScreen.set({ blocks: [...blocks], plugins: [...plugins] });
   }
   const Observer = view.IntersectionObserver;
   const observer = Observer === void 0 ? void 0 : new Observer((entries) => {
@@ -11726,14 +11828,20 @@ function demandShown(core, view = window) {
     update();
   });
   return {
-    watch(block, el) {
-      watched.set(el, block);
+    watch(object2, el) {
+      watched.set(el, object2);
       observer?.observe(el);
       return () => {
         observer?.unobserve(el);
         watched.delete(el);
         if (seen.delete(el)) update();
       };
+    },
+    element(object2) {
+      for (const [el, at] of watched) {
+        if ("block" in object2 ? "block" in at && at.block === object2.block : "plugin" in at && at.plugin === object2.plugin) return el;
+      }
+      return void 0;
     },
     measure() {
       seen.clear();
@@ -11757,8 +11865,9 @@ function inView(el, view) {
 import { jsx as jsx14 } from "react/jsx-runtime";
 var basic_default = {
   options: ["show_conditions", "dark_mode"],
-  frontend: { render }
+  frontend: { render, show }
 };
+var drawn2 = /* @__PURE__ */ new WeakMap();
 function render({ el, core, plugin }) {
   const doc = el.ownerDocument;
   const shown2 = demandShown(core, doc.defaultView ?? window);
@@ -11770,12 +11879,23 @@ function render({ el, core, plugin }) {
   });
   shown2.measure();
   const unbind = bindShortcuts(doc, front);
+  drawn2.set(el, shown2);
   return () => {
+    if (drawn2.get(el) === shown2) drawn2.delete(el);
     unbind();
     toasts.stop();
     shown2.release();
     root.unmount();
   };
+}
+function show({ object: object2, el }) {
+  const target2 = drawn2.get(el)?.element(object2);
+  if (target2 === void 0) return;
+  for (let node = target2.parentElement; node !== null && node !== el; node = node.parentElement) {
+    if (node.localName === "details" && !node.hasAttribute("open")) node.setAttribute("open", "");
+  }
+  const into = "plugin" in object2 ? target2.closest("details") ?? target2 : target2;
+  into.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 // srcts/modules/edit-board/index.tsx
@@ -11783,7 +11903,7 @@ import { flushSync as flushSync4 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect6, useRef as useRef7, useState as useState14 } from "react";
+import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect7, useRef as useRef8, useState as useState14 } from "react";
 
 // srcts/modules/edit-board/blocks.tsx
 import { useCallback as useCallback8, useState as useState11 } from "react";
@@ -12499,9 +12619,9 @@ var table = {
 };
 function useRowEditing() {
   const [editing, setEditing] = useState14(false);
-  const closed = useRef7(false);
-  const button = useRef7(null);
-  useLayoutEffect6(() => {
+  const closed = useRef8(false);
+  const button = useRef8(null);
+  useLayoutEffect7(() => {
     if (editing || !closed.current) return;
     closed.current = false;
     button.current?.focus();
@@ -12647,7 +12767,7 @@ import { useState as useState15 } from "react";
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
-function bind2(host, key2, show, options = {}) {
+function bind2(host, key2, show2, options = {}) {
   const source = createSource(host);
   source.check(key2);
   let shown2;
@@ -12659,7 +12779,7 @@ function bind2(host, key2, show, options = {}) {
     const value2 = source.get(key2);
     if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
     shown2 = { value: value2 };
-    show(value2);
+    show2(value2);
   };
   const submit = async (value2) => {
     if (jsonEqual(source.get(key2), value2)) return true;
@@ -12909,13 +13029,13 @@ function useTyped(bound) {
 }
 
 // srcts/react/hooks.ts
-import { useCallback as useCallback10, useLayoutEffect as useLayoutEffect7, useMemo as useMemo5, useRef as useRef8, useState as useState16, useSyncExternalStore as useSyncExternalStore4 } from "react";
+import { useCallback as useCallback10, useLayoutEffect as useLayoutEffect8, useMemo as useMemo5, useRef as useRef9, useState as useState16, useSyncExternalStore as useSyncExternalStore4 } from "react";
 function useValue(host, key2) {
   const name2 = key2 ?? ("option" in host ? host.option : "");
   const [value2, setValue] = useState16(() => held2(host, name2));
   const [error, setError] = useState16(null);
-  const binding = useRef8(null);
-  useLayoutEffect7(() => {
+  const binding = useRef9(null);
+  useLayoutEffect8(() => {
     const bound = bind2(host, name2, setValue, {
       settled: (refused3) => {
         setError(refused3 === null ? null : errorMessage(refused3));

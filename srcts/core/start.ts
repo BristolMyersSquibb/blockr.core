@@ -148,6 +148,12 @@ export interface FrontEnds {
   // element instead, and calls no render(). The frontend ends as the signal
   // aborts, as the next board opens.
   render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
+  // Calls the show() of the module of the frontend that render() drew for the
+  // board of the signal, where it has one, with the board object, the element
+  // and CoreApi, and resolves once that has, or rejects with why it failed. It
+  // does nothing where that frontend is not drawn, as once the next board has
+  // opened.
+  show(object: Parameters<CoreApi["show"]>[0], signal: AbortSignal): Promise<void>;
   // Draws the board's one block in its card, for a block that serve() serves
   // alone, and returns once the card has mounted the block. The card ends as
   // the signal aborts, as the next board opens.
@@ -457,6 +463,7 @@ export function start(options: StartOptions): Started {
       options: reply.options,
       notifications,
       signal,
+      show: (object) => options.frontEnds?.show(object, signal) ?? Promise.resolve(),
       ...(options.measure === undefined ? {} : { measure: options.measure }),
     });
     running = { store, scheduler, core, notifications, controller };

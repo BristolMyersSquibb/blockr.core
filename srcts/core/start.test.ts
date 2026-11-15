@@ -1753,6 +1753,7 @@ describe("a block that serve() serves alone", () => {
             throw new Error("Core prepares no frontend.");
           },
           render: () => Promise.reject(new Error("Core renders no frontend.")),
+          show: () => Promise.reject(new Error("Core shows nothing through a frontend.")),
           card(core) {
             drawn.push({ core, sent: s.r.evaluations().length });
             core.scheduler.demand("blockr.core", Object.keys(core.store.board().blocks));

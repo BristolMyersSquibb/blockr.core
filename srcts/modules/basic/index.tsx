@@ -27,6 +27,12 @@
 // 4. It binds undo, redo and the buttons among the storage controls to their
 //    shortcuts.
 // The cleanup that render() returns undoes all four.
+//
+// As a plugin asks it to show a block or a plugin, show() opens the group of
+// the block's stack, or the plugin's section, where the user collapsed it,
+// and scrolls the card or the section into view, leaving the keyboard's focus
+// where it is
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
 
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -36,6 +42,7 @@ import type { CoreApi } from "../../types/core-api.ts";
 import { BasicBoard } from "./board.tsx";
 import type { FrontEnd } from "./context.ts";
 import { demandShown } from "./demand.ts";
+import type { InView, Watched } from "./demand.ts";
 import { bindShortcuts } from "./shortcuts.ts";
 import { createToasts } from "./toasts.ts";
 
@@ -43,8 +50,12 @@ export const api = 1;
 
 export default {
   options: ["show_conditions", "dark_mode"],
-  frontend: { render },
+  frontend: { render, show },
 } satisfies Omit<PluginClass, "id">;
+
+// What is in view on each element that the frontend draws in, which show()
+// finds the cards and the sections by.
+const drawn = new WeakMap<HTMLElement, InView>();
 
 function render({ el, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }): () => void {
   const doc = el.ownerDocument;
@@ -58,10 +69,26 @@ function render({ el, core, plugin }: { el: HTMLElement; core: CoreApi; plugin: 
   shown.measure();
 
   const unbind = bindShortcuts(doc, front);
+  drawn.set(el, shown);
   return () => {
+    if (drawn.get(el) === shown) drawn.delete(el);
     unbind();
     toasts.stop();
     shown.release();
     root.unmount();
   };
+}
+
+function show({ object, el }: { object: Watched; el: HTMLElement }): void {
+  const target = drawn.get(el)?.element(object);
+  if (target === undefined) return;
+  // Every collapsed group or section that holds it opens, which the browser
+  // lays out before it scrolls.
+  for (let node = target.parentElement; node !== null && node !== el; node = node.parentElement) {
+    if (node.localName === "details" && !node.hasAttribute("open")) node.setAttribute("open", "");
+  }
+  // A plugin's section scrolls into view whole, with its name, and a block's
+  // card alone, rather than the group of its stack.
+  const into = "plugin" in object ? (target.closest("details") ?? target) : target;
+  into.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
