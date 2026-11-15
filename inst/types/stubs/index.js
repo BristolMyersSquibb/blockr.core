@@ -9251,6 +9251,7 @@ function createCommands(store, options = {}) {
     }
   }
   async function planned(list, then) {
+    const within = keepContext();
     const checked3 = list.map(({ id: id2, args }, index) => {
       try {
         return lookup(id2, args);
@@ -9277,7 +9278,7 @@ function createCommands(store, options = {}) {
         try {
           allow(command2, board, args);
           if (command2.prepare !== void 0 && !inputs.has(index)) {
-            inputs.set(index, await prepare(command2, board, args));
+            inputs.set(index, await within(() => prepare(command2, board, args)));
             if (ended()) throw refusal(command2.id, [DROPPED]);
             if (store.board() !== start2) {
               again = true;
@@ -9291,13 +9292,29 @@ function createCommands(store, options = {}) {
         }
       }
     }
-    return then(built, checked3.map(({ command: command2 }) => command2));
+    return within(() => then(built, checked3.map(({ command: command2 }) => command2)));
   }
   function runList(list, origin) {
-    return planned(list, (built, listed) => {
-      const undo = listed.every((command2) => command2.undo === false) ? false : void 0;
-      store.apply(built, origin, { undo });
-    });
+    const ids2 = list.map(({ id: id2 }) => id2);
+    return traced(
+      "command list",
+      { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
+      () => planned(list, (built, listed) => {
+        const undo = listed.every((command2) => command2.undo === false) ? false : void 0;
+        store.apply(built, origin, { undo });
+      })
+    );
+  }
+  async function traced(name2, attributes, run) {
+    const span = tracer().startSpan(name2, { attributes });
+    try {
+      await otelContext.with(trace3.setSpan(otelContext.active(), span), run);
+    } catch (error) {
+      failSpan(span, error);
+      throw error;
+    } finally {
+      span.end();
+    }
   }
   function withEdits(delta) {
     const blocks = delta.blocks?.mod;
@@ -9340,23 +9357,15 @@ function createCommands(store, options = {}) {
     // A list comes with its origin second, in place of the args.
     async run(target2, given, origin = "user") {
       if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
-      const span = tracer().startSpan(`command ${target2}`, {
-        attributes: { "blockr.command.id": target2, "blockr.delta.origin": origin }
-      });
-      const active = trace3.setSpan(otelContext.active(), span);
-      try {
-        const { command: command2, args } = otelContext.with(active, () => lookup(target2, given));
-        const step2 = otelContext.with(active, () => deltas(command2, args));
+      return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
+        const within = keepContext();
+        const { command: command2, args } = lookup(target2, given);
+        const step2 = deltas(command2, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        otelContext.with(active, () => {
+        within(() => {
           store.apply(ready, origin, { undo: command2.undo });
         });
-      } catch (error) {
-        failSpan(span, error);
-        throw error;
-      } finally {
-        span.end();
-      }
+      });
     },
     async plan(target2, given) {
       if (typeof target2 !== "string") return planned(target2, (built) => built);

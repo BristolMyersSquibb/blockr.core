@@ -411,7 +411,8 @@
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
   Where the board changes while a command of the list waits in its `prepare()`, the registry plans the list again from its first command, on the board as it is then, and no command prepares twice.
   The registry applies the deltas of every command as one step of the origin, which is an undo step unless every command of the list has `undo: false`, or applies none where one command refuses.
-  It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command failed its preflight, the check of its `enabled()`, as for a command that runs alone (#619).
+  It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command failed its preflight, the check of its `enabled()`, as for a command that runs alone.
+  The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.

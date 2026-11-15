@@ -24,7 +24,9 @@
 // span failed. The span goes under the span that is active as run() is called,
 // so that a plugin that runs a command inside a span of its own, as the
 // assistant's tools do, holds the command in its trace. It names the command
-// by its id and the step's origin, as "assistant". The span is active while
+// by its id and the step's origin, as "assistant". A list of commands runs in
+// one span, "command list", which names the ids of its commands in order,
+// since the store applies their deltas as one step. The span is active while
 // the command prepares and runs, and while the store applies its deltas, so
 // that the scheduler takes it as what gave each block that the deltas change
 // its revision, and the span of the block's evaluation links to it.
@@ -32,13 +34,14 @@
 // The API's context is named apart from the context that the command registry
 // hands every command.
 import { context as otelContext, trace } from "@opentelemetry/api";
+import type { Attributes } from "@opentelemetry/api";
 import { computed, signal } from "@preact/signals-core";
 import type { Lock } from "../protocol/index.ts";
 import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS, StoreError } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { failSpan, tracer } from "../trace/index.ts";
+import { failSpan, keepContext, tracer } from "../trace/index.ts";
 import { compile, errorMessage, packageFromId, quoted } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
@@ -333,6 +336,9 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     list: readonly { readonly id: string; readonly args?: Json }[],
     then: (built: Delta[], listed: readonly Command<Json, unknown>[]) => T,
   ): Promise<T> {
+    // The span of run(), active as planned() is called, which a command's
+    // prepare() and `then` run in after an await.
+    const within = keepContext();
     const checked = list.map(({ id, args }, index) => {
       try {
         return lookup(id, args);
@@ -361,7 +367,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         try {
           allow(command, board, args);
           if (command.prepare !== undefined && !inputs.has(index)) {
-            inputs.set(index, await prepare(command, board, args));
+            inputs.set(index, await within(() => prepare(command, board, args)));
             if (ended()) throw refusal(command.id, [DROPPED]);
             if (store.board() !== start) {
               again = true;
@@ -375,17 +381,37 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         }
       }
     }
-    return then(built, checked.map(({ command }) => command));
+    return within(() => then(built, checked.map(({ command }) => command)));
   }
 
   // Applies the deltas of the commands of a list as one step of the origin,
   // which takes no undo step where every command of the list has
-  // `undo: false`.
+  // `undo: false`. The list runs in one span, which names the ids of its
+  // commands in order, since the store applies their deltas at once.
   function runList(list: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<void> {
-    return planned(list, (built, listed) => {
-      const undo = listed.every((command) => command.undo === false) ? false : undefined;
-      store.apply(built, origin, { undo });
-    });
+    const ids = list.map(({ id }) => id);
+    return traced("command list", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
+      planned(list, (built, listed) => {
+        const undo = listed.every((command) => command.undo === false) ? false : undefined;
+        store.apply(built, origin, { undo });
+      }),
+    );
+  }
+
+  // Runs a command, or a list of commands, in a span of its own, as the head
+  // of this file has it. The span is active as `run` is called, and `run`
+  // keeps it active after an await, as keepContext() keeps it. A refusal or a
+  // failure marks the span failed.
+  async function traced(name: string, attributes: Attributes, run: () => Promise<void>): Promise<void> {
+    const span = tracer().startSpan(name, { attributes });
+    try {
+      await otelContext.with(trace.setSpan(otelContext.active(), span), run);
+    } catch (error) {
+      failSpan(span, error);
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   // The delta with the edit id of each block and each plugin it changes,
@@ -447,23 +473,15 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       origin: Origin = "user",
     ) {
       if (typeof target !== "string") return runList(target, typeof given === "string" ? given : "user");
-      const span = tracer().startSpan(`command ${target}`, {
-        attributes: { "blockr.command.id": target, "blockr.delta.origin": origin },
-      });
-      const active = trace.setSpan(otelContext.active(), span);
-      try {
-        const { command, args } = otelContext.with(active, () => lookup(target, given));
-        const step = otelContext.with(active, () => deltas(command, args));
+      return traced(`command ${target}`, { "blockr.command.id": target, "blockr.delta.origin": origin }, async () => {
+        const within = keepContext();
+        const { command, args } = lookup(target, given);
+        const step = deltas(command, args);
         const ready = Array.isArray(step) ? step : await step;
-        otelContext.with(active, () => {
+        within(() => {
           store.apply(ready, origin, { undo: command.undo });
         });
-      } catch (error) {
-        failSpan(span, error);
-        throw error;
-      } finally {
-        span.end();
-      }
+      });
     },
     async plan(target: string | readonly { readonly id: string; readonly args?: Json }[], given?: Json) {
       if (typeof target !== "string") return planned(target, (built) => built);

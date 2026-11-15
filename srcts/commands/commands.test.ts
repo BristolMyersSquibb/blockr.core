@@ -876,4 +876,56 @@ describe("spans", () => {
     expect(span.attributes["blockr.delta.origin"]).toBe("user");
     recorded.restore();
   });
+
+  test("record a list as one span, which names the ids of its commands in order, and is active while the store announces the list's deltas", async () => {
+    const { store, commands } = await setup();
+    commands.register(renameB({ prepare: (_board, args) => Promise.resolve(args) }));
+    const recorded = recordSpans();
+    const tracer = trace.getTracer("blockr.test");
+    const announced: (string | undefined)[] = [];
+    store.subscribe(() => {
+      announced.push(trace.getActiveSpan()?.spanContext().spanId);
+    });
+
+    const tool = tracer.startSpan("execute_tool edit");
+    await context.with(trace.setSpan(context.active(), tool), () =>
+      commands.run(
+        [
+          { id: "test.pkg-rename_b", args: { name: "Bee" } },
+          { id: "blockr.core-rename_block", args: { id: "b", name: "Bea" } },
+        ],
+        "assistant",
+      ),
+    );
+    tool.end();
+
+    const span = recorded.span("command list");
+    expect(span.parentSpanContext?.spanId).toBe(tool.spanContext().spanId);
+    expect(span.attributes).toEqual({
+      "blockr.command.ids": ["test.pkg-rename_b", "blockr.core-rename_block"],
+      "blockr.delta.origin": "assistant",
+    });
+    expect(span.status.code).toBe(SpanStatusCode.UNSET);
+    // The first command prepared, after which the registry planned the
+    // second and the store applied both, and the span was active all the
+    // same as the store announced them.
+    expect(new Set(announced)).toEqual(new Set([span.spanContext().spanId]));
+    expect(recorded.spans().map(({ name }) => name)).toEqual(["command list", "execute_tool edit"]);
+    recorded.restore();
+  });
+
+  test("mark a list that is refused as failed", async () => {
+    const { commands } = await setup();
+    const recorded = recordSpans();
+
+    await expect(commands.run([{ id: "blockr.core-remove_block", args: { id: "zz" } }])).rejects.toBeInstanceOf(
+      CommandError,
+    );
+
+    const span = recorded.span("command list");
+    expect(span.status.code).toBe(SpanStatusCode.ERROR);
+    expect(span.status.message).toMatch(/^The list of commands was refused at command 1, "blockr.core-remove_block"\n/);
+    expect(span.attributes["blockr.delta.origin"]).toBe("user");
+    recorded.restore();
+  });
 });
