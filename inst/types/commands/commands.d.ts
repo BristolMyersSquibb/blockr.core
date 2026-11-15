@@ -36,14 +36,14 @@ export interface Commands {
 export declare class CommandError extends Error {
     readonly failures: readonly string[];
     readonly index?: number;
-    readonly enabled?: false;
+    readonly preflight?: false;
     constructor(message: string, failures: readonly string[], options?: ErrorOptions & {
         readonly index?: number;
-        readonly enabled?: false;
+        readonly preflight?: false;
     });
 }
 export declare function refusal(id: string, failures: readonly string[], options?: {
-    readonly enabled?: false;
+    readonly preflight?: false;
 }): CommandError;
 export interface CommandsOptions {
     readonly signal?: AbortSignal;

@@ -255,12 +255,12 @@ describe("running a command", () => {
     );
     expect(store.board()).toBe(board);
 
-    // Its CommandError says that its enabled() refused it, and has no index,
+    // Its CommandError says that it failed its preflight, and has no index,
     // since the command ran alone.
     const error = await rejection(commands.run("blockr.core-remove_block", { id: "zz" }));
-    expect([error.enabled, error.index]).toEqual([false, undefined]);
+    expect([error.preflight, error.index]).toEqual([false, undefined]);
     const failed = await rejection(commands.run("blockr.core-rename_board", { name: 1 }));
-    expect(failed.enabled).toBeUndefined();
+    expect(failed.preflight).toBeUndefined();
   });
 
   test("rejects with what the store refused, having changed nothing", async () => {
@@ -591,7 +591,7 @@ describe("running a list", () => {
 });
 
 describe("refusing a list", () => {
-  test("applies none of it where a command is not enabled, and rejects with the command's index and that its enabled() refused it", async () => {
+  test("applies none of it where a command is not enabled, and rejects with the command's index and that it failed its preflight", async () => {
     const { store, commands } = await setup();
     const board = store.board();
     const seen = origins(store);
@@ -609,7 +609,7 @@ describe("refusing a list", () => {
     expect(error.message).toBe(
       'The list of commands was refused at command 2, "blockr.core-remove_block"\n- It is not enabled on the board as it is, with the args {"id":"zz"}.',
     );
-    expect([error.index, error.enabled]).toEqual([1, false]);
+    expect([error.index, error.preflight]).toEqual([1, false]);
     expect(error.failures).toEqual(['It is not enabled on the board as it is, with the args {"id":"zz"}.']);
     expect(error.cause).toBeInstanceOf(CommandError);
     expect(store.board()).toBe(board);
@@ -626,7 +626,7 @@ describe("refusing a list", () => {
       commands.run([{ id: "test.pkg-later" }, { id: "blockr.core-rename_board", args: { name: 1 } }]),
     );
     expect(error.index).toBe(1);
-    expect(error.enabled).toBeUndefined();
+    expect(error.preflight).toBeUndefined();
     expect(error.failures).toEqual([expect.stringMatching(/^The args fail their schema at \/name:/)]);
     expect(prepare).not.toHaveBeenCalled();
 
@@ -648,7 +648,7 @@ describe("refusing a list", () => {
     );
 
     expect(error.index).toBe(1);
-    expect(error.enabled).toBeUndefined();
+    expect(error.preflight).toBeUndefined();
     expect(error.cause).toBeInstanceOf(StoreError);
     expect(error.failures).toEqual([expect.stringContaining('The links form a cycle through the blocks "e".')]);
     expect(store.board()).toBe(board);
@@ -748,7 +748,7 @@ describe("a list with a command that prepares", () => {
     ready.resolve("!");
 
     const error = await rejection(done);
-    expect([error.index, error.enabled]).toEqual([0, false]);
+    expect([error.index, error.preflight]).toEqual([0, false]);
     expect(store.board()).toBe(board);
   });
 
@@ -830,7 +830,7 @@ describe("planning a list", () => {
         { id: "blockr.core-add_link", args: { from: "zz", to: "g" } },
       ]),
     );
-    expect([error.index, error.enabled]).toEqual([1, false]);
+    expect([error.index, error.preflight]).toEqual([1, false]);
     expect(await commands.plan([])).toEqual([]);
   });
 });

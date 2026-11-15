@@ -9000,16 +9000,17 @@ var CommandError = class extends Error {
   // The command's place in the list that run() or plan() was given, counted
   // from 0, where the command refused as one of a list.
   index;
-  // False where the command's enabled() returned false, and left out
-  // otherwise, as a command's `undo` is false only where it takes no undo
-  // step. The assistant's edit tool reads it to tell the model what to check.
-  enabled;
+  // False where the command failed its preflight, the check of its enabled(),
+  // and left out otherwise, as a command's `undo` is false only where it takes
+  // no undo step. The assistant's edit tool reads it to tell the model what to
+  // check.
+  preflight;
   constructor(message, failures, options) {
     super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
     this.name = "CommandError";
     this.failures = failures;
     if (options?.index !== void 0) this.index = options.index;
-    if (options?.enabled === false) this.enabled = false;
+    if (options?.preflight === false) this.preflight = false;
   }
 };
 function refusal(id2, failures, options) {
@@ -9081,7 +9082,7 @@ function createCommands(store, options = {}) {
       throw refusal(
         command2.id,
         [`It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`],
-        { enabled: false }
+        { preflight: false }
       );
     }
   }
@@ -9242,7 +9243,7 @@ function inList(index, id2, error) {
   return new CommandError(
     `The list of commands was refused at command ${String(index + 1)}, "${id2}"`,
     named3 ? error.failures : [errorMessage(error)],
-    { cause: error, index, enabled: error instanceof CommandError ? error.enabled : void 0 }
+    { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
   );
 }
 function failed(command2, error) {

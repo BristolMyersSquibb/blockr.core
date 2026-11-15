@@ -131,21 +131,22 @@ export class CommandError extends Error {
   // The command's place in the list that run() or plan() was given, counted
   // from 0, where the command refused as one of a list.
   readonly index?: number;
-  // False where the command's enabled() returned false, and left out
-  // otherwise, as a command's `undo` is false only where it takes no undo
-  // step. The assistant's edit tool reads it to tell the model what to check.
-  readonly enabled?: false;
+  // False where the command failed its preflight, the check of its enabled(),
+  // and left out otherwise, as a command's `undo` is false only where it takes
+  // no undo step. The assistant's edit tool reads it to tell the model what to
+  // check.
+  readonly preflight?: false;
 
   constructor(
     message: string,
     failures: readonly string[],
-    options?: ErrorOptions & { readonly index?: number; readonly enabled?: false },
+    options?: ErrorOptions & { readonly index?: number; readonly preflight?: false },
   ) {
     super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
     this.name = "CommandError";
     this.failures = failures;
     if (options?.index !== undefined) this.index = options.index;
-    if (options?.enabled === false) this.enabled = false;
+    if (options?.preflight === false) this.preflight = false;
   }
 }
 
@@ -154,7 +155,7 @@ export class CommandError extends Error {
 export function refusal(
   id: string,
   failures: readonly string[],
-  options?: { readonly enabled?: false },
+  options?: { readonly preflight?: false },
 ): CommandError {
   return new CommandError(`The command "${id}" refused to run`, failures, options);
 }
@@ -266,7 +267,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       throw refusal(
         command.id,
         [`It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`],
-        { enabled: false },
+        { preflight: false },
       );
     }
   }
@@ -502,7 +503,7 @@ function inList(index: number, id: string, error: unknown): CommandError {
   return new CommandError(
     `The list of commands was refused at command ${String(index + 1)}, "${id}"`,
     named ? error.failures : [errorMessage(error)],
-    { cause: error, index, enabled: error instanceof CommandError ? error.enabled : undefined },
+    { cause: error, index, preflight: error instanceof CommandError ? error.preflight : undefined },
   );
 }
 
