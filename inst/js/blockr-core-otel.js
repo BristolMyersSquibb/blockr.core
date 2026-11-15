@@ -3,12 +3,14 @@ import { context, SeverityNumber, trace } from "@opentelemetry/api";
 import {
   BatchLogRecordProcessor,
   BatchSpanProcessor,
+  defaultResource,
   LoggerProvider,
   OTLPLogExporter,
   OTLPTraceExporter,
+  resourceFromAttributes,
   StackContextManager,
   TracerProvider
-} from "./opentelemetry-f97c2de3.js";
+} from "./opentelemetry-4144b137.js";
 var SEVERITIES = {
   error: SeverityNumber.ERROR,
   warn: SeverityNumber.WARN,
@@ -19,7 +21,10 @@ var SEVERITIES = {
 var CAUSES = 8;
 function otelLogger(options) {
   const exporter = options.exporter ?? new OTLPLogExporter({ url: options.url });
-  const provider = new LoggerProvider({ processors: [new BatchLogRecordProcessor({ exporter })] });
+  const provider = new LoggerProvider({
+    resource: resource(options.serviceName),
+    processors: [new BatchLogRecordProcessor({ exporter })]
+  });
   const logger = provider.getLogger("blockr.core");
   const write = (line) => {
     const session = options.sessionId();
@@ -41,11 +46,15 @@ function otelLogger(options) {
 function otelTracing(options) {
   const exporter = options.exporter ?? new OTLPTraceExporter({ url: options.url });
   const provider = new TracerProvider({
+    resource: resource(options.serviceName),
     spanProcessors: [sessionNamer(options.sessionId), new BatchSpanProcessor({ exporter })]
   });
   context.setGlobalContextManager(new StackContextManager().enable());
   trace.setGlobalTracerProvider(provider);
   return { flush: () => provider.forceFlush() };
+}
+function resource(serviceName) {
+  return defaultResource().merge(resourceFromAttributes({ "service.name": serviceName }));
 }
 function sessionNamer(sessionId) {
   return {

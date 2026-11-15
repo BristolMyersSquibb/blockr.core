@@ -67,6 +67,12 @@
 #' Spans name the session by `session.id` and hold ids and revisions,
 #' never a block's state or data.
 #'
+#' The client names its service in its log records and its spans,
+#' as their `service.name`, by the blockr option `otel_client_service_name`,
+#' and as `"blockr"` where that option is not set.
+#' R's records name the service that the environment variable
+#' `OTEL_SERVICE_NAME` gives, as Shiny's do.
+#'
 #' Core works out the logger, the level and the blockr options `log_time` and
 #' `log_mem` each when it first needs them, and keeps them for the process.
 #' As it starts an app, [serve()] drops what core keeps and works out the

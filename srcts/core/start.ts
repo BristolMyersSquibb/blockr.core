@@ -118,7 +118,7 @@ import type { Dropped, Option, PluginClass, Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
 import type { CoreApi, FrontendModule, Notification } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { fallBack, log, logSettings, setUpLogging } from "../log/index.ts";
+import { fallBack, log, logSettings, serviceName, setUpLogging } from "../log/index.ts";
 import type { OtelModule } from "../log/index.ts";
 import { setUpTracing, steps, tracesUrl } from "../trace/index.ts";
 import type { Steps } from "../trace/index.ts";
@@ -440,29 +440,33 @@ export function start(options: StartOptions): Started {
     );
 
     // The blockr options that the scheduler reads, rand_id, the shape of the
-    // ids that commands mint, and those that set the page's logger up, asked
-    // at once, in one request, before the scheduler starts and the commands
-    // run, and kept for the page.
+    // ids that commands mint, and those that set the page's logger and its
+    // tracing up, asked at once, in one request, before the scheduler starts
+    // and the commands run, and kept for the page.
     // Each goes as R sent it to the scheduler or the command registry, which
     // converts and checks it, and takes its fallback where nothing sets it.
-    // As the first board opens, core sets the page's logger up with the other
-    // three (../log/settings.ts), which hands it the lines that core held.
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel, logger, otelClientEndpoint] = await Promise.all([
-      blockrOptions.read("evaluation_queue"),
-      blockrOptions.read("background_evaluation_delay"),
-      blockrOptions.read("gate_visibility"),
-      blockrOptions.read("rand_id"),
-      blockrOptions.read("log_level"),
-      blockrOptions.read("logger"),
-      blockrOptions.read("otel_client_endpoint"),
-    ]);
+    // As the first board opens, core sets the page's logger and its tracing up
+    // with the other four (../log/settings.ts, ../trace/settings.ts), and the
+    // logger writes the lines that core held.
+    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel, logger, otelClientEndpoint, otelClientServiceName] =
+      await Promise.all([
+        blockrOptions.read("evaluation_queue"),
+        blockrOptions.read("background_evaluation_delay"),
+        blockrOptions.read("gate_visibility"),
+        blockrOptions.read("rand_id"),
+        blockrOptions.read("log_level"),
+        blockrOptions.read("logger"),
+        blockrOptions.read("otel_client_endpoint"),
+        blockrOptions.read("otel_client_service_name"),
+      ]);
     if (!logging) {
       const base = typeof document === "undefined" ? undefined : document.baseURI;
       const settings = logSettings({ logLevel, logger, otelClientEndpoint }, base);
+      const service = serviceName(otelClientServiceName);
       const sessionId = (): string | undefined => options.transport.sessionId?.();
       logging = true;
-      setUpLogging(settings, sessionId, options.otel ?? noOtel);
-      tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), sessionId, options.otel ?? noOtel);
+      setUpLogging(settings, service, sessionId, options.otel ?? noOtel);
+      tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), service, sessionId, options.otel ?? noOtel);
     }
 
     const store: Store = createStore({ hello: reply, signal, migration: (id) => migrations.get(id) });

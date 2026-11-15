@@ -32,18 +32,26 @@
 // provider and the StackContextManager as the API's globals, so that a span
 // stays active through synchronous calls alone. Each span names the session in
 // which it started by `session.id`, as each log record does.
+//
+// The records and the spans name the page's service by their resource's
+// `service.name`, the name that core hands the module from the blockr option
+// otel_client_service_name (../log/settings.ts), beside what the SDK names of
+// itself, as `telemetry.sdk.language`.
 
 import { context, SeverityNumber, trace } from "@opentelemetry/api";
 import type { AnyValue, Attributes } from "@opentelemetry/api";
+import type { Resource } from "@opentelemetry/resources";
 import type { LogRecordExporter } from "@opentelemetry/sdk-logs";
 import type { SpanExporter, SpanProcessor } from "@opentelemetry/sdk-trace";
 import type { LogLevel, LogLine } from "../types/log.ts";
 import {
   BatchLogRecordProcessor,
   BatchSpanProcessor,
+  defaultResource,
   LoggerProvider,
   OTLPLogExporter,
   OTLPTraceExporter,
+  resourceFromAttributes,
   StackContextManager,
   TracerProvider,
 } from "./sdk.ts";
@@ -51,6 +59,8 @@ import {
 export interface OtelLoggerOptions {
   // The URL that the records go to, the collector's path v1/logs.
   readonly url: string;
+  // The name of the page's service, which the records name.
+  readonly serviceName: string;
   // The id of the session that runs, or undefined while none runs.
   readonly sessionId: () => string | undefined;
   // What sends the records, OTLP over HTTP to `url` unless given, as a test
@@ -78,7 +88,10 @@ const CAUSES = 8;
 
 export function otelLogger(options: OtelLoggerOptions): OtelLogger {
   const exporter = options.exporter ?? new OTLPLogExporter({ url: options.url });
-  const provider = new LoggerProvider({ processors: [new BatchLogRecordProcessor({ exporter })] });
+  const provider = new LoggerProvider({
+    resource: resource(options.serviceName),
+    processors: [new BatchLogRecordProcessor({ exporter })],
+  });
   const logger = provider.getLogger("blockr.core");
   const write = (line: LogLine): void => {
     const session = options.sessionId();
@@ -101,6 +114,8 @@ export function otelLogger(options: OtelLoggerOptions): OtelLogger {
 export interface OtelTracingOptions {
   // The URL that the spans go to, the collector's path v1/traces.
   readonly url: string;
+  // The name of the page's service, which the spans name.
+  readonly serviceName: string;
   // The id of the session that runs, or undefined while none runs.
   readonly sessionId: () => string | undefined;
   // What sends the spans, OTLP over HTTP to `url` unless given, as a test
@@ -120,11 +135,18 @@ export interface OtelTracing {
 export function otelTracing(options: OtelTracingOptions): OtelTracing {
   const exporter = options.exporter ?? new OTLPTraceExporter({ url: options.url });
   const provider = new TracerProvider({
+    resource: resource(options.serviceName),
     spanProcessors: [sessionNamer(options.sessionId), new BatchSpanProcessor({ exporter })],
   });
   context.setGlobalContextManager(new StackContextManager().enable());
   trace.setGlobalTracerProvider(provider);
   return { flush: () => provider.forceFlush() };
+}
+
+// The resource of the page's records and spans: the SDK's own, which names the
+// SDK, with the page's service as `service.name`.
+function resource(serviceName: string): Resource {
+  return defaultResource().merge(resourceFromAttributes({ "service.name": serviceName }));
 }
 
 // Names the session of each span by `session.id` as the span starts, where a

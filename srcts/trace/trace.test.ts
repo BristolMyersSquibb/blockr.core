@@ -19,30 +19,30 @@ describe("where the page sends its spans", () => {
 });
 
 describe("setting the page's tracing up", () => {
-  test("hands the module the URL and the session, once it has loaded", async () => {
-    const given: { url: string; session: string | undefined }[] = [];
+  test("hands the module the URL, the service and the session, once it has loaded", async () => {
+    const given: { url: string; service: string; session: string | undefined }[] = [];
     const module = {
       otelLogger: () => () => undefined,
-      otelTracing({ url, sessionId }) {
-        given.push({ url, session: sessionId() });
+      otelTracing({ url, serviceName: service, sessionId }) {
+        given.push({ url, service, session: sessionId() });
       },
     } satisfies OtelModule;
 
-    await setUpTracing("https://connect.example.com/otlp/v1/traces", () => "token-1", () => Promise.resolve(module));
+    await setUpTracing("https://connect.example.com/otlp/v1/traces", "iris-review", () => "token-1", () => Promise.resolve(module));
 
-    expect(given).toEqual([{ url: "https://connect.example.com/otlp/v1/traces", session: "token-1" }]);
+    expect(given).toEqual([{ url: "https://connect.example.com/otlp/v1/traces", service: "iris-review", session: "token-1" }]);
   });
 
   test("loads nothing where no collector is named, and logs why where the module does not load", async () => {
     let loads = 0;
-    await setUpTracing(undefined, () => undefined, () => {
+    await setUpTracing(undefined, "blockr", () => undefined, () => {
       loads += 1;
       return Promise.reject(new Error("unreached"));
     });
     expect(loads).toBe(0);
 
     const reported = logged();
-    await setUpTracing("https://connect.example.com/otlp/v1/traces", () => undefined, () => Promise.reject(new Error("404")));
+    await setUpTracing("https://connect.example.com/otlp/v1/traces", "blockr", () => undefined, () => Promise.reject(new Error("404")));
     reported.restore();
 
     expect(reported.errors().map((line) => line.message)).toEqual([

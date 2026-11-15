@@ -1418,7 +1418,16 @@ function collectorUrl(value2, path, base) {
   url.pathname = `${url.pathname.replace(/\/$/, "")}/${path}`;
   return url.href;
 }
-function setUpLogging(settings, sessionId, load) {
+function serviceName(value2) {
+  if (value2 === void 0) return "blockr";
+  if (typeof value2 !== "string" || value2 === "") {
+    throw new TypeError(
+      `The blockr option otel_client_service_name is ${JSON.stringify(value2)}, where it takes the name of a service, as a string that is not empty.`
+    );
+  }
+  return value2;
+}
+function setUpLogging(settings, serviceName2, sessionId, load) {
   const { lowest, url } = settings;
   if (url === void 0) {
     setLogging(lowest, consoleLogger);
@@ -1428,7 +1437,7 @@ function setUpLogging(settings, sessionId, load) {
   void (async () => {
     let logger;
     try {
-      logger = (await load()).otelLogger({ url, sessionId });
+      logger = (await load()).otelLogger({ url, serviceName: serviceName2, sessionId });
     } catch (error) {
       setLogging(lowest, consoleLogger);
       log.error(
@@ -2281,10 +2290,10 @@ function steps(name2, start2 = performance.now(), parent = context2.active()) {
 function tracesUrl(otelClientEndpoint, base) {
   return otelClientEndpoint === void 0 ? void 0 : collectorUrl(otelClientEndpoint, "v1/traces", base);
 }
-async function setUpTracing(url, sessionId, load) {
+async function setUpTracing(url, serviceName2, sessionId, load) {
   if (url === void 0) return;
   try {
-    (await load()).otelTracing({ url, sessionId });
+    (await load()).otelTracing({ url, serviceName: serviceName2, sessionId });
   } catch (error) {
     log.error(
       new Error(`Core could not set up its OpenTelemetry tracing, so the page records no spans: ${errorMessage(error)}`, {
@@ -9715,22 +9724,24 @@ function start(options) {
       },
       { once: true }
     );
-    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel2, logger, otelClientEndpoint] = await Promise.all([
+    const [evaluationQueue, backgroundEvaluationDelay, gateVisibility, randId, logLevel2, logger, otelClientEndpoint, otelClientServiceName] = await Promise.all([
       blockrOptions.read("evaluation_queue"),
       blockrOptions.read("background_evaluation_delay"),
       blockrOptions.read("gate_visibility"),
       blockrOptions.read("rand_id"),
       blockrOptions.read("log_level"),
       blockrOptions.read("logger"),
-      blockrOptions.read("otel_client_endpoint")
+      blockrOptions.read("otel_client_endpoint"),
+      blockrOptions.read("otel_client_service_name")
     ]);
     if (!logging2) {
       const base = typeof document === "undefined" ? void 0 : document.baseURI;
       const settings = logSettings({ logLevel: logLevel2, logger, otelClientEndpoint }, base);
+      const service = serviceName(otelClientServiceName);
       const sessionId = () => options.transport.sessionId?.();
       logging2 = true;
-      setUpLogging(settings, sessionId, options.otel ?? noOtel);
-      tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), sessionId, options.otel ?? noOtel);
+      setUpLogging(settings, service, sessionId, options.otel ?? noOtel);
+      tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), service, sessionId, options.otel ?? noOtel);
     }
     const store = createStore({ hello: reply, signal, migration: (id2) => migrations.get(id2) });
     const notifications = createNotifications(store, { signal, plugins: reply.plugins });

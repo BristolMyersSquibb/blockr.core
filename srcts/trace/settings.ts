@@ -23,17 +23,19 @@ export function tracesUrl(otelClientEndpoint: Json | undefined, base?: string): 
 }
 
 // Sets the page's tracing up where `url` names where its spans go, once `load`
-// has imported core's OpenTelemetry module, which names the session of each
-// span by `sessionId`. It resolves once the module has set the tracing up, or
-// once it failed to, which core logs, and at once where `url` is undefined.
+// has imported core's OpenTelemetry module, which names the page's service in
+// the spans by `serviceName`, and the session of each span by `sessionId`. It
+// resolves once the module has set the tracing up, or once it failed to, which
+// core logs, and at once where `url` is undefined.
 export async function setUpTracing(
   url: string | undefined,
+  serviceName: string,
   sessionId: () => string | undefined,
   load: () => Promise<OtelModule>,
 ): Promise<void> {
   if (url === undefined) return;
   try {
-    (await load()).otelTracing({ url, sessionId });
+    (await load()).otelTracing({ url, serviceName, sessionId });
   } catch (error) {
     log.error(
       new Error(`Core could not set up its OpenTelemetry tracing, so the page records no spans: ${errorMessage(error)}`, {

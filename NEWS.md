@@ -540,6 +540,7 @@
   Where the blockr option `otel_client_endpoint` names a collector, the client records a span of each command, from `run()` until the store has applied its deltas, of each evaluation, request and output that it sends, until R replies, and of the page's start and each opening of a board, with a span for each step, and sends them to the collector's path `v1/traces`.
   A request carries the context of the client's span of it in `traceparent`, so that R's span of it is a child of the client's, and the span of an evaluation links to the span of the command that changed the block's recipe.
   The spans name the session by `session.id`, and so do R's log records that R writes while it handles a message of the session.
+  The client names its service in its spans and its log records by the blockr option `otel_client_service_name`, as their `service.name`, and as `"blockr"` where that option is not set, while R's records name the service that `OTEL_SERVICE_NAME` gives.
   The page's import map names `@opentelemetry/api`, which core ships as a file of its own, so that the modules of packages record spans into the same traces, and the types of `@blockr/core` name it as their peer (#552).
 
 # blockr.core 0.1.4

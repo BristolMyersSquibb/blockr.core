@@ -17,10 +17,10 @@ function line(given: Partial<LogLine>): LogLine {
 }
 
 describe("the OpenTelemetry logger", () => {
-  test("sends each line as a record with its severity, its message, the time it was logged, its package and its session", async () => {
+  test("sends each line as a record with its severity, its message, the time it was logged, its package and its session, naming the page's service", async () => {
     const exporter = new InMemoryLogRecordExporter();
     let session: string | undefined = "token-1";
-    const logger = otelLogger({ url: URL, sessionId: () => session, exporter });
+    const logger = otelLogger({ url: URL, serviceName: "iris-review", sessionId: () => session, exporter });
 
     logger(line({ level: "warn", message: "Careful.", attributes: { "blockr.block.id": "a" } }));
     session = undefined;
@@ -37,11 +37,13 @@ describe("the OpenTelemetry logger", () => {
     expect(records[1]?.attributes).toEqual({});
     expect(records[0]?.hrTime).toEqual([1_700_000_000, 123_000_000]);
     expect(records[0]?.instrumentationScope.name).toBe("blockr.core");
+    // The resource names the service beside what the SDK names of itself.
+    expect(records[0]?.resource.attributes).toMatchObject({ "service.name": "iris-review", "telemetry.sdk.name": "opentelemetry" });
   });
 
   test("gives an error the type, message and stack trace of its Error, followed by those of its causes", async () => {
     const exporter = new InMemoryLogRecordExporter();
-    const logger = otelLogger({ url: URL, sessionId: () => undefined, exporter });
+    const logger = otelLogger({ url: URL, serviceName: "blockr", sessionId: () => undefined, exporter });
     const cause = new TypeError("No state.");
     const error = new Error("The plugin failed: No state.", { cause });
 
@@ -57,7 +59,7 @@ describe("the OpenTelemetry logger", () => {
 
   test("names the package and the session itself, whatever the line's attributes say", async () => {
     const exporter = new InMemoryLogRecordExporter();
-    const logger = otelLogger({ url: URL, sessionId: () => "token-1", exporter });
+    const logger = otelLogger({ url: URL, serviceName: "blockr", sessionId: () => "token-1", exporter });
 
     logger(line({ attributes: { "blockr.package.name": "blockr.other", "session.id": "token-2", n: 2 } }));
     await logger.flush();
@@ -71,13 +73,13 @@ describe("the OpenTelemetry logger", () => {
 });
 
 describe("the OpenTelemetry tracing", () => {
-  test("has the spans that start from then on record, each naming the session in which it started, and sends them through its exporter", async () => {
+  test("has the spans that start from then on record, each naming the page's service and the session in which it started, and sends them through its exporter", async () => {
     const exporter = new InMemorySpanExporter();
     let session: string | undefined = "token-1";
     const tracer = trace.getTracer("blockr.test");
     const before = tracer.startSpan("before");
 
-    const tracing = otelTracing({ url: "https://connect.example.com/otlp/v1/traces", sessionId: () => session, exporter });
+    const tracing = otelTracing({ url: "https://connect.example.com/otlp/v1/traces", serviceName: "iris-review", sessionId: () => session, exporter });
     const named = tracer.startSpan("named", { attributes: { "session.id": "token-2", n: 1 } });
     session = undefined;
     const unnamed = tracer.startSpan("unnamed");
@@ -89,12 +91,16 @@ describe("the OpenTelemetry tracing", () => {
       ["named", { "session.id": "token-1", n: 1 }],
       ["unnamed", {}],
     ]);
+    expect(exporter.getFinishedSpans()[0]?.resource.attributes).toMatchObject({
+      "service.name": "iris-review",
+      "telemetry.sdk.name": "opentelemetry",
+    });
     stopRecording();
   });
 
   test("keeps a span active through synchronous calls alone, as the StackContextManager does", async () => {
     const exporter = new InMemorySpanExporter();
-    const tracing = otelTracing({ url: "https://connect.example.com/otlp/v1/traces", sessionId: () => undefined, exporter });
+    const tracing = otelTracing({ url: "https://connect.example.com/otlp/v1/traces", serviceName: "blockr", sessionId: () => undefined, exporter });
     const tracer = trace.getTracer("blockr.test");
     const outer = tracer.startSpan("outer");
     const active: (string | undefined)[] = [];

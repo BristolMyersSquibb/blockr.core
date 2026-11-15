@@ -290,6 +290,7 @@ describe("starting the page", () => {
         "log_level",
         "logger",
         "otel_client_endpoint",
+        "otel_client_service_name",
       ],
     });
 
@@ -357,7 +358,7 @@ describe("starting the page", () => {
 
     await expect(s.started.ready).rejects.toThrow("Conflicting options set for evaluation_queue");
     expect(failed).toEqual([
-      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id", "log_level", "logger" and "otel_client_endpoint": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
+      'R sent no values of the blockr options "evaluation_queue", "background_evaluation_delay", "gate_visibility", "rand_id", "log_level", "logger", "otel_client_endpoint" and "otel_client_service_name": R replied error. Conflicting options set for evaluation_queue: check environment variable BLOCKR_EVALUATION_QUEUE and option blockr.evaluation_queue.',
     ]);
     expect(s.r.kinds()).toEqual(["hello", "blockr_options"]);
   });
@@ -422,6 +423,39 @@ describe("starting the page", () => {
     }
   });
 
+  test("names the page's service in its records and its spans by the blockr option otel_client_service_name, blockr where it is not set", async () => {
+    for (const [values, named] of [
+      [{}, "blockr"],
+      [{ otel_client_service_name: "iris-review" }, "iris-review"],
+    ] as const) {
+      resetLogging();
+      const basic = frontEnd();
+      const given: { records: string[]; spans: string[] } = { records: [], spans: [] };
+      const s = setup(
+        { [BASIC]: basic.exports },
+        {
+          otel: () =>
+            Promise.resolve({
+              otelLogger({ serviceName }) {
+                given.records.push(serviceName);
+                return () => undefined;
+              },
+              otelTracing({ serviceName }) {
+                given.spans.push(serviceName);
+              },
+            }),
+        },
+      );
+      s.r.session();
+      await tick();
+      s.r.options({ otel_client_endpoint: "https://connect.example.com/otlp/", ...values });
+      await s.started.ready;
+      await tick();
+
+      expect(given).toEqual({ records: [named], spans: [named] });
+    }
+  });
+
   test("writes to the console, records no spans, and logs why, where it is given no OpenTelemetry module to send to a collector with", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
@@ -445,6 +479,7 @@ describe("starting the page", () => {
       [{ log_level: "verbose" }, 'The blockr option log_level is "verbose", where it takes'],
       [{ logger: "otel" }, 'The blockr option logger is "otel", but the blockr option otel_client_endpoint names no collector'],
       [{ otel_client_endpoint: "ftp://example.com" }, 'The blockr option otel_client_endpoint is "ftp://example.com"'],
+      [{ otel_client_service_name: "" }, 'The blockr option otel_client_service_name is ""'],
     ] as const) {
       resetLogging();
       const basic = frontEnd();

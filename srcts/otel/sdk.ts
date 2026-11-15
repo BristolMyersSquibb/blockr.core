@@ -7,5 +7,6 @@
 
 export { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 export { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+export { defaultResource, resourceFromAttributes } from "@opentelemetry/resources";
 export { BatchLogRecordProcessor, LoggerProvider } from "@opentelemetry/sdk-logs";
 export { BatchSpanProcessor, StackContextManager, TracerProvider } from "@opentelemetry/sdk-trace";

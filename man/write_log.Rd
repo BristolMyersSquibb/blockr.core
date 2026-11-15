@@ -153,6 +153,12 @@ block's recipe.
 Spans name the session by \code{session.id} and hold ids and revisions,
 never a block's state or data.
 
+The client names its service in its log records and its spans,
+as their \code{service.name}, by the blockr option \code{otel_client_service_name},
+and as \code{"blockr"} where that option is not set.
+R's records name the service that the environment variable
+\code{OTEL_SERVICE_NAME} gives, as Shiny's do.
+
 Core works out the logger, the level and the blockr options \code{log_time} and
 \code{log_mem} each when it first needs them, and keeps them for the process.
 As it starts an app, \code{\link[=serve]{serve()}} drops what core keeps and works out the
