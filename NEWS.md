@@ -350,6 +350,10 @@
   A card gives its block focus as the user clicks into it or moves the keyboard's focus into it.
   Beside the edits that the store refused, the frontend shows the notifications that the modules of packages raise, in the color of their severity, and the one in which core names what the store dropped as a board opened.
   On a locked board, the toolbar keeps the board options and the storage controls (#507, #558, #567).
+* A plugin shows a block or a plugin under every frontend through the `show()` of `CoreApi`, which takes `{ block }` or `{ plugin }`, gives a block focus, and calls the `show()` of the frontend's module where it has one.
+  It reads which blocks and plugins the user sees in the `onScreen` of `CoreApi`, which the frontend sets, and which is `null` until it does.
+  Core's basic frontend opens the group of the block's stack, or the plugin's section, where the user collapsed it, and scrolls the card or the section into view, leaving the keyboard's focus where it is.
+  It has on screen the blocks whose cards and the plugins whose sections show in the browser's viewport (#617).
 * Core's Edit board plugin, which `new_edit_board_plugin()` makes, of class `c("edit_board_plugin", "plugin")`, adds, changes and removes blocks, links and stacks under every frontend, as the plugins `manage_blocks`, `manage_links` and `manage_stacks` did until now.
   It keeps no state, and an app runs it by default, since `available_plugins()` lists it.
   Every frontend places it as it places any plugin with a UI, as core's basic frontend does in a section of its own.

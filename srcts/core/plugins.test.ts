@@ -2,7 +2,8 @@
 // R's reply to hello names them, each from the module of its class, the
 // storage whose controls a frontend draws, mounting a plugin's UI where a
 // frontend places it, and what a frontend offers other plugins, the
-// notifications they raise and which block has focus.
+// notifications they raise, which block has focus, which blocks and plugins
+// are on screen, and showing a block or a plugin.
 
 import { describe, expect, test } from "vitest";
 // The modules of core's own plugin classes, which the build bundles on their
@@ -536,6 +537,137 @@ describe("what a frontend offers other plugins", () => {
     core.focus.set("a");
     const next = await reopen(s);
     expect(next.focus.get()).toBeNull();
+    s.stop();
+  });
+
+  test("holds the blocks and plugins on screen as the frontend sets them, none until it does, and none as the next board opens", async () => {
+    const s = await stubCore();
+    const { core } = s;
+    const heard: unknown[] = [];
+    core.onScreen.subscribe((shown) => heard.push(shown));
+    expect(core.onScreen.get()).toBeNull();
+
+    const given = { blocks: ["a", "b"], plugins: [EDIT] };
+    core.onScreen.set(given);
+    const first = core.onScreen.get();
+    expect(first).toEqual({ blocks: ["a", "b"], plugins: [EDIT] });
+    // Core keeps a copy, which the frontend's arrays do not change, and the
+    // same object while the frontend sets the same ids, in whatever order.
+    given.blocks.push("c");
+    core.onScreen.set({ blocks: ["b", "a"], plugins: [EDIT] });
+    expect(core.onScreen.get()).toBe(first);
+    expect(first).toEqual({ blocks: ["a", "b"], plugins: [EDIT] });
+
+    core.onScreen.set({ blocks: ["a"], plugins: [] });
+    expect(heard).toEqual([
+      { blocks: ["a", "b"], plugins: [EDIT] },
+      { blocks: ["a"], plugins: [] },
+    ]);
+    for (const given of [null, {}, { blocks: ["a"] }, { blocks: "a", plugins: [] }, { blocks: [1], plugins: [] }]) {
+      expect(() => {
+        core.onScreen.set(given as never);
+      }).toThrow(`A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`);
+    }
+
+    const next = await reopen(s);
+    expect(next.onScreen.get()).toBeNull();
+    s.stop();
+  });
+
+  test("has the frontend show a block or a plugin through the show() of its module, giving a block focus, and resolves once that has", async () => {
+    const el = document.createElement("div");
+    const asked: { object: unknown; el: boolean; board: string }[] = [];
+    let finish = (): void => undefined;
+    const s = await stubCore({
+      el,
+      modules: {
+        [BASIC]: classModule({
+          options: ["show_conditions", "dark_mode"],
+          frontend: {
+            render: () => undefined,
+            show({ object, el: at, core: given }: { object: unknown; el: HTMLElement; core: CoreApi }) {
+              asked.push({ object, el: at === el, board: given.store.board().name });
+              return new Promise<void>((resolve) => {
+                finish = resolve;
+              });
+            },
+          },
+        }),
+      },
+    });
+    await s.settled();
+    const { core } = s;
+
+    let done = false;
+    const showing = core.show({ block: "b" }).then(() => {
+      done = true;
+    });
+    expect(core.focus.get()).toBe("b");
+    await Promise.resolve();
+    expect(done).toBe(false);
+    finish();
+    await showing;
+    expect(done).toBe(true);
+
+    // A plugin takes no focus from the block.
+    const plugin = core.show({ plugin: EDIT });
+    finish();
+    await plugin;
+    expect(core.focus.get()).toBe("b");
+    expect(asked).toEqual([
+      { object: { block: "b" }, el: true, board: "Iris review" },
+      { object: { plugin: EDIT }, el: true, board: "Iris review" },
+    ]);
+    s.stop();
+  });
+
+  test("shows no block that the board does not hold, nor a plugin that the app does not run or whose class has no ui, nor anything else", async () => {
+    const s = await stubCore();
+    const { core } = s;
+    expect(() => core.show({ block: "nowhere" })).toThrow('The board holds no block "nowhere" to show.');
+    expect(() => core.show({ plugin: BASIC })).toThrow(`The class of the plugin "${BASIC}" has no ui to show.`);
+    expect(() => core.show({ plugin: "blockr.test-nowhere_plugin" })).toThrow(
+      'The app runs no plugin "blockr.test-nowhere_plugin" on the open board.',
+    );
+    for (const given of [null, "b", { stack: "s" }, { block: "b", plugin: EDIT }, { block: 1 }]) {
+      expect(() => core.show(given as never)).toThrow(
+        `Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`,
+      );
+    }
+    expect(core.focus.get()).toBeNull();
+
+    // Where no frontend draws the board, it gives a block focus alone.
+    await core.show({ block: "a" });
+    expect(core.focus.get()).toBe("a");
+    s.stop();
+  });
+
+  test("rejects with why the frontend's show() failed, and shows nothing once the next board has opened", async () => {
+    const el = document.createElement("div");
+    const asked: unknown[] = [];
+    const s = await stubCore({
+      el,
+      modules: {
+        [BASIC]: classModule({
+          options: ["show_conditions", "dark_mode"],
+          frontend: {
+            render: () => undefined,
+            show({ object }: { object: unknown }) {
+              asked.push(object);
+              throw new Error("No room.");
+            },
+          },
+        }),
+      },
+    });
+    await s.settled();
+    const before = s.core;
+    await expect(before.show({ block: "b" })).rejects.toThrow(`The frontend of the plugin class "${BASIC}" failed in show(): No room.`);
+
+    await reopen(s);
+    await before.show({ block: "b" });
+    expect(asked).toEqual([{ block: "b" }]);
+    expect(s.core.focus.get()).toBeNull();
     s.stop();
   });
 });
