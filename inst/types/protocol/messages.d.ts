@@ -10,6 +10,9 @@ export type ClientMessage = Request[];
 export type RMessage = (Reply | Progress)[];
 export type Request = HelloRequest | BlockrOptionsRequest | EvaluateRequest | BlockClassRequest | BoardOptionRequest | PluginRequest | OutputClassRequest | RendererRequest | OutputRequest | CancelRequest | ForgetRequest;
 export type Reply = HelloReply | BlockrOptionsReply | EvaluateReply | RequestReply | OutputReply | ErrorReply | CancelledReply | MissingReply;
+export interface Traced {
+    traceparent?: string;
+}
 export interface Progress {
     id: string;
     progress: {
@@ -73,7 +76,7 @@ export interface BlockrOptionsReply {
     status: "ok";
     values: Record<string, Json>;
 }
-export interface EvaluateRequest {
+export interface EvaluateRequest extends Traced {
     id: string;
     kind: "evaluate";
     block: BlockId;
@@ -116,7 +119,7 @@ export interface Condition {
     message: string;
 }
 export type Phase = "expr" | "inputs" | "block_eval" | "result_summary" | "output" | "request";
-export interface BlockClassRequest {
+export interface BlockClassRequest extends Traced {
     id: string;
     kind: "request";
     type: "block_class";
@@ -131,7 +134,7 @@ export interface BlockClassRequest {
     output?: never;
     renderer?: never;
 }
-export interface BoardOptionRequest {
+export interface BoardOptionRequest extends Traced {
     id: string;
     kind: "request";
     type: "option";
@@ -143,7 +146,7 @@ export interface BoardOptionRequest {
     output?: never;
     renderer?: never;
 }
-export interface PluginRequest {
+export interface PluginRequest extends Traced {
     id: string;
     kind: "request";
     type: "plugin";
@@ -157,7 +160,7 @@ export interface PluginRequest {
     output?: never;
     renderer?: never;
 }
-export interface OutputClassRequest {
+export interface OutputClassRequest extends Traced {
     id: string;
     kind: "request";
     type: "output_class";
@@ -171,7 +174,7 @@ export interface OutputClassRequest {
     option?: never;
     renderer?: never;
 }
-export interface RendererRequest {
+export interface RendererRequest extends Traced {
     id: string;
     kind: "request";
     type: "renderer";
@@ -200,7 +203,7 @@ export type RequestReply = {
     conditions: Condition[];
     volatile?: true;
 };
-export interface OutputRequest {
+export interface OutputRequest extends Traced {
     id: string;
     kind: "output";
     block: BlockId;

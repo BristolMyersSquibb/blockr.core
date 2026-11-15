@@ -34,6 +34,12 @@ export interface CoreApi {
         set(block: BlockId | null): void;
         subscribe(fn: (block: BlockId | null) => void): () => void;
     };
+    readonly onScreen: OnScreen;
+    show(object: {
+        readonly block: BlockId;
+    } | {
+        readonly plugin: PluginClassId;
+    }): Promise<void>;
     request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
     module<T = unknown>(id: string): Promise<T>;
     blockrOption(name: string): Promise<Json | undefined>;
@@ -125,6 +131,29 @@ export interface FrontendModule {
         signal: AbortSignal;
         args: Readonly<Record<string, Json>>;
     }): Rendered;
+    show?(args: {
+        object: {
+            readonly block: BlockId;
+        } | {
+            readonly plugin: PluginClassId;
+        };
+        el: HTMLElement;
+        core: CoreApi;
+    }): void | Promise<void>;
+}
+export interface OnScreen {
+    get(): {
+        readonly blocks: readonly BlockId[];
+        readonly plugins: readonly PluginClassId[];
+    } | null;
+    set(shown: {
+        readonly blocks: readonly BlockId[];
+        readonly plugins: readonly PluginClassId[];
+    }): void;
+    subscribe(fn: (shown: {
+        readonly blocks: readonly BlockId[];
+        readonly plugins: readonly PluginClassId[];
+    } | null) => void): () => void;
 }
 export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;
 export interface RequestOpts {

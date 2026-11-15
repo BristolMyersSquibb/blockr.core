@@ -49,8 +49,12 @@ async function write(files: Record<string, string>): Promise<void> {
 // Through a link to `inst/types`, the types would find React in the
 // node_modules of core's repo, which a package does not have.
 // The test would then pass where a package's type check fails.
+// With them comes OpenTelemetry's API, which npm installs as their peer, as
+// the types of `@blockr/core` name it.
 async function installTypes(): Promise<void> {
   await cp(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), { recursive: true });
+  await mkdir(join(root, "node_modules", "@opentelemetry"), { recursive: true });
+  await symlink(join(repo, "node_modules", "@opentelemetry", "api"), join(root, "node_modules", "@opentelemetry", "api"), "dir");
 }
 
 async function files(dir: string): Promise<string[]> {
@@ -113,12 +117,14 @@ async function importedPackages(name: string): Promise<string[]> {
   return [...new Set(bare.map((specifier) => specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/")))];
 }
 
-test("what a package's tests load imports no package but the React that `@blockr/core` names as its peer, at the version that core's runtime bundles", async () => {
+test("what a package's tests load imports no package but the React and the OpenTelemetry API that `@blockr/core` names as its peers, at the versions that core ships", async () => {
   const manifest = JSON.parse(await readFile(join(repo, "inst/types/package.json"), "utf8")) as typeof TYPES_PACKAGE;
   const installed = createRequire(import.meta.url);
   expect(manifest.peerDependencies).toEqual({
     react: (installed("react/package.json") as { version: string }).version,
     "react-dom": (installed("react-dom/package.json") as { version: string }).version,
+    // The API's exports name no package.json, which its folder holds.
+    "@opentelemetry/api": (JSON.parse(await readFile(join(repo, "node_modules/@opentelemetry/api/package.json"), "utf8")) as { version: string }).version,
   });
 
   // The stubs draw core's UIs, the board options' among them, with React.

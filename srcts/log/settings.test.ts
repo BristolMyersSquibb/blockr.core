@@ -1,12 +1,13 @@
-// Setting the page's logger up from the blockr options log_level, logger and
-// otel_client_endpoint: what each takes, which logger they pick, and the
-// OpenTelemetry module that the page imports for the collector's.
+// Setting the page's logger up from the blockr options log_level, logger,
+// otel_client_endpoint and otel_client_service_name: what each takes, which
+// logger they pick, and the OpenTelemetry module that the page imports for the
+// collector's.
 
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { logged } from "../testing/logged.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
-import { consoleLogger, createLog, currentLogging, fallBack, logSettings, setTestLoggersAside, setUpLogging } from "./index.ts";
+import { consoleLogger, createLog, currentLogging, fallBack, logSettings, serviceName, setTestLoggersAside, setUpLogging } from "./index.ts";
 import type { OtelModule } from "./index.ts";
 
 const unset = { logLevel: undefined, logger: undefined, otelClientEndpoint: undefined };
@@ -66,6 +67,21 @@ describe("the settings of the page's logger", () => {
   });
 });
 
+describe("the name of the page's service", () => {
+  test("is the one that otel_client_service_name gives, blockr where it is not set", () => {
+    expect(serviceName(undefined)).toBe("blockr");
+    expect(serviceName("iris-review")).toBe("iris-review");
+  });
+
+  test("is refused where otel_client_service_name is no string, or an empty one", () => {
+    for (const value of ["", 3, null, true, ["iris-review"]]) {
+      expect(() => serviceName(value)).toThrow(
+        `The blockr option otel_client_service_name is ${JSON.stringify(value)}, where it takes the name of a service, as a string that is not empty.`,
+      );
+    }
+  });
+});
+
 describe("setting the page's logger up", () => {
   let back: () => void;
   beforeEach(() => {
@@ -78,19 +94,19 @@ describe("setting the page's logger up", () => {
   const noModule = (): Promise<OtelModule> => Promise.reject(new Error("The test imports no module."));
 
   test("sets the console's logger at once where the settings name no URL", () => {
-    setUpLogging({ lowest: "debug" }, () => undefined, noModule);
+    setUpLogging({ lowest: "debug" }, "blockr", () => undefined, noModule);
     expect(currentLogging()).toEqual({ lowest: "debug", logger: consoleLogger });
   });
 
-  test("holds the lines until the OpenTelemetry module has loaded, though the page fails meanwhile, then hands them to its logger, which names the session", async () => {
+  test("holds the lines until the OpenTelemetry module has loaded, though the page fails meanwhile, then hands them to its logger, which names the service and the session", async () => {
     const lines: LogLine[] = [];
-    const given: { url: string; session: string | undefined }[] = [];
+    const given: { url: string; service: string; session: string | undefined }[] = [];
     let loaded: (module: OtelModule) => void = () => undefined;
     const module = new Promise<OtelModule>((resolve) => {
       loaded = resolve;
     });
 
-    setUpLogging({ lowest: "info", url: "https://connect.example.com/otlp/v1/logs" }, () => "token-1", () => module);
+    setUpLogging({ lowest: "info", url: "https://connect.example.com/otlp/v1/logs" }, "iris-review", () => "token-1", () => module);
     createLog("blockr.core").warn("Held.");
     // A page that fails meanwhile waits for the module rather than for the
     // console.
@@ -98,17 +114,18 @@ describe("setting the page's logger up", () => {
     expect(currentLogging()).toBeUndefined();
 
     loaded({
-      otelLogger({ url, sessionId }) {
-        given.push({ url, session: sessionId() });
+      otelLogger({ url, serviceName: service, sessionId }) {
+        given.push({ url, service, session: sessionId() });
         return (line) => {
           lines.push(line);
         };
       },
+      otelTracing: () => undefined,
     });
     await module;
     await Promise.resolve();
 
-    expect(given).toEqual([{ url: "https://connect.example.com/otlp/v1/logs", session: "token-1" }]);
+    expect(given).toEqual([{ url: "https://connect.example.com/otlp/v1/logs", service: "iris-review", session: "token-1" }]);
     expect(lines.map((line) => line.message)).toEqual(["Held."]);
     createLog("blockr.core").debug("Below.");
     expect(lines).toHaveLength(1);
@@ -116,7 +133,7 @@ describe("setting the page's logger up", () => {
 
   test("writes to the console where the module fails to load, and logs why", async () => {
     const reported = logged();
-    setUpLogging({ lowest: "info", url: "https://connect.example.com/otlp/v1/logs" }, () => undefined, noModule);
+    setUpLogging({ lowest: "info", url: "https://connect.example.com/otlp/v1/logs" }, "blockr", () => undefined, noModule);
     await new Promise((resolve) => setTimeout(resolve, 0));
     reported.restore();
 

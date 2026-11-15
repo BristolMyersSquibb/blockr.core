@@ -440,7 +440,7 @@ function Field({
     if (!open || marked === void 0) return;
     list.current?.ownerDocument.getElementById(optionId2(listId, marked))?.scrollIntoView({ block: "nearest" });
   }, [open, marked, listId]);
-  function show() {
+  function show2() {
     if (!open) {
       setOpen(true);
       setActive(multiple ? void 0 : single?.value);
@@ -464,7 +464,7 @@ function Field({
   }
   function move(by) {
     if (!open) {
-      show();
+      show2();
       return;
     }
     if (pickable.length === 0) return;
@@ -549,7 +549,7 @@ function Field({
             setActive(void 0);
             setOpen(true);
           },
-          onClick: show,
+          onClick: show2,
           onKeyDown,
           onBlur: close
         }
@@ -567,7 +567,7 @@ function Field({
           onClick: () => {
             if (open) close();
             else {
-              show();
+              show2();
               input2.current?.focus();
             }
           },
@@ -1081,7 +1081,7 @@ var BlockCard = memo(function BlockCard2({
   const ref = useRef5(null);
   useLayoutEffect5(() => {
     const el = ref.current;
-    return el === null ? void 0 : inView2.watch(id2, el);
+    return el === null ? void 0 : inView2.watch({ block: id2 }, el);
   }, [inView2, id2]);
   const mountUi = useCallback4((el) => core.mountBlock(el, id2), [core, id2]);
   const mountOutput = useCallback4((el) => core.mountOutput(el, id2), [core, id2]);
@@ -1269,7 +1269,7 @@ function OptionUi({ id: id2 }) {
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback6 } from "react";
+import { useCallback as useCallback6, useLayoutEffect as useLayoutEffect6, useRef as useRef6 } from "react";
 import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 function placed(core) {
   return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
@@ -1288,11 +1288,16 @@ function Plugins() {
   );
 }
 function PluginSection({ id: id2, plugin }) {
-  const { core } = useFrontEnd();
+  const { core, inView: inView2 } = useFrontEnd();
+  const ref = useRef6(null);
+  useLayoutEffect6(() => {
+    const el = ref.current;
+    return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
+  }, [inView2, id2]);
   const mount = useCallback6((el) => core.mountPlugin(el, id2), [core, id2]);
   return /* @__PURE__ */ jsxs9("details", { open: true, className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`, children: [
     /* @__PURE__ */ jsx11("summary", { className: `${classes.heading} bc:cursor-pointer`, children: plugin.name }),
-    /* @__PURE__ */ jsx11(Mounted, { mount, className: "bc:mt-3 bc:min-w-0" })
+    /* @__PURE__ */ jsx11("div", { ref, className: "bc:mt-3 bc:min-w-0", children: /* @__PURE__ */ jsx11(Mounted, { mount, className: "bc:min-w-0" }) })
   ] });
 }
 
@@ -1438,7 +1443,7 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState9 } from "react";
+import { useEffect as useEffect2, useReducer, useRef as useRef7, useState as useState9 } from "react";
 
 // srcts/modules/basic/storage.ts
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -1649,16 +1654,16 @@ function StorageControls() {
       return void 0;
     }
   }, [core, storage]);
-  const drawn = drawnControls(core);
-  const problem = drawn?.problem;
+  const drawn2 = drawnControls(core);
+  const problem = drawn2?.problem;
   useEffect2(() => {
     if (problem !== void 0) core.log("blockr.core").error(problem);
   }, [core, problem]);
-  if (drawn === void 0) return null;
-  if (drawn.failed) {
+  if (drawn2 === void 0) return null;
+  if (drawn2.failed) {
     return /* @__PURE__ */ jsx12("span", { role: "alert", title: problem, className: "bc:font-sans bc:text-sm bc:text-text-danger", children: "Storage failed" });
   }
-  return /* @__PURE__ */ jsx12(Fragment2, { children: drawn.controls.map((control) => /* @__PURE__ */ jsx12(Control, { control }, control.id)) });
+  return /* @__PURE__ */ jsx12(Fragment2, { children: drawn2.controls.map((control) => /* @__PURE__ */ jsx12(Control, { control }, control.id)) });
 }
 function Control({ control }) {
   switch (control.kind) {
@@ -1696,7 +1701,7 @@ function StorageButton({
 }
 function StorageMenu({ label, items }) {
   const [open, setOpen] = useState9(false);
-  const ref = useRef6(null);
+  const ref = useRef7(null);
   useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs10("div", { ref, className: "bc:relative", children: [
     /* @__PURE__ */ jsxs10(
@@ -1920,7 +1925,16 @@ function demandShown(core, view = window) {
   let released = false;
   function update() {
     if (released) return;
-    near.set([...new Set([...seen].flatMap((el) => watched.get(el) ?? []))]);
+    const blocks = /* @__PURE__ */ new Set();
+    const plugins = /* @__PURE__ */ new Set();
+    for (const el of seen) {
+      const object = watched.get(el);
+      if (object === void 0) continue;
+      if ("block" in object) blocks.add(object.block);
+      else plugins.add(object.plugin);
+    }
+    near.set([...blocks]);
+    core.onScreen.set({ blocks: [...blocks], plugins: [...plugins] });
   }
   const Observer = view.IntersectionObserver;
   const observer = Observer === void 0 ? void 0 : new Observer((entries) => {
@@ -1932,14 +1946,20 @@ function demandShown(core, view = window) {
     update();
   });
   return {
-    watch(block, el) {
-      watched.set(el, block);
+    watch(object, el) {
+      watched.set(el, object);
       observer?.observe(el);
       return () => {
         observer?.unobserve(el);
         watched.delete(el);
         if (seen.delete(el)) update();
       };
+    },
+    element(object) {
+      for (const [el, at] of watched) {
+        if ("block" in object ? "block" in at && at.block === object.block : "plugin" in at && at.plugin === object.plugin) return el;
+      }
+      return void 0;
     },
     measure() {
       seen.clear();
@@ -1964,8 +1984,9 @@ import { jsx as jsx14 } from "react/jsx-runtime";
 var api = 1;
 var basic_default = {
   options: ["show_conditions", "dark_mode"],
-  frontend: { render }
+  frontend: { render, show }
 };
+var drawn = /* @__PURE__ */ new WeakMap();
 function render({ el, core }) {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
@@ -1977,12 +1998,23 @@ function render({ el, core }) {
   });
   shown.measure();
   const unbind = bindShortcuts(doc, core);
+  drawn.set(el, shown);
   return () => {
+    if (drawn.get(el) === shown) drawn.delete(el);
     unbind();
     toasts.stop();
     shown.release();
     root.unmount();
   };
+}
+function show({ object, el }) {
+  const target2 = drawn.get(el)?.element(object);
+  if (target2 === void 0) return;
+  for (let node = target2.parentElement; node !== null && node !== el; node = node.parentElement) {
+    if (node.localName === "details" && !node.hasAttribute("open")) node.setAttribute("open", "");
+  }
+  const into = "plugin" in object ? target2.closest("details") ?? target2 : target2;
+  into.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 export {
   api,

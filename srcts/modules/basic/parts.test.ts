@@ -1,5 +1,6 @@
 // The parts of core's basic frontend that need no page: where it draws each
-// block, what it demands, and the severities that show_conditions names.
+// block, what it demands and has on screen, and the severities that
+// show_conditions names.
 
 import { describe, expect, test } from "vitest";
 import type { Stack } from "../../types/board.ts";
@@ -31,9 +32,16 @@ describe("where each block goes", () => {
 });
 
 // A scheduler that keeps each demand with its blocks and evaluation priority,
-// and refuses to set a demand that was released, as core's does.
+// and refuses to set a demand that was released, as core's does, and what the
+// frontend sets as on screen, each time.
 function played() {
   const demands: { owner: string; priority: number | undefined; blocks: unknown; released: boolean }[] = [];
+  const screens: unknown[] = [];
+  const onScreen = {
+    set(shown: unknown) {
+      screens.push(shown);
+    },
+  };
   const scheduler = {
     demand(owner: string, blocks: unknown, options?: { priority?: number }) {
       const demand = { owner, priority: options?.priority, blocks, released: false };
@@ -49,7 +57,7 @@ function played() {
       };
     },
   };
-  return { core: { scheduler } as unknown as Pick<CoreApi, "scheduler">, demands };
+  return { core: { scheduler, onScreen } as unknown as Pick<CoreApi, "scheduler" | "onScreen">, demands, screens };
 }
 
 // A page of 800 by 600 pixels whose observer the test plays.
@@ -111,9 +119,9 @@ describe("what the frontend demands", () => {
     const p = page();
     const shown = demandShown(core, p.view);
     const [a, b, c] = [laidOut(0), laidOut(400), laidOut(900)];
-    shown.watch("a", a);
-    shown.watch("b", b);
-    const unwatch = shown.watch("c", c);
+    shown.watch({ block: "a" }, a);
+    shown.watch({ block: "b" }, b);
+    const unwatch = shown.watch({ block: "c" }, c);
 
     shown.measure();
     expect(demands[1]?.blocks).toEqual(["a", "b"]);
@@ -128,7 +136,7 @@ describe("what the frontend demands", () => {
     expect(demands[1]?.blocks).toEqual(["b"]);
     expect(p.observed.has(c)).toBe(false);
 
-    const unwatchD = shown.watch("d", laidOut(200));
+    const unwatchD = shown.watch({ block: "d" }, laidOut(200));
     shown.measure();
     expect(demands[1]?.blocks).toEqual(["a", "b", "d"]);
 
@@ -146,10 +154,50 @@ describe("what the frontend demands", () => {
   test("of the blocks in view is measured alone where the page reports nothing", () => {
     const { core, demands } = played();
     const shown = demandShown(core, { innerWidth: 800, innerHeight: 600 });
-    shown.watch("a", laidOut(100));
-    shown.watch("b", laidOut(700));
+    shown.watch({ block: "a" }, laidOut(100));
+    shown.watch({ block: "b" }, laidOut(700));
     shown.measure();
     expect(demands[1]?.blocks).toEqual(["a"]);
+  });
+});
+
+describe("what the frontend has on screen", () => {
+  test("is the blocks whose cards and the plugins whose sections are in view, and only the blocks are demanded", () => {
+    const { core, demands, screens } = played();
+    const p = page();
+    const shown = demandShown(core, p.view);
+    const a = laidOut(0);
+    const md = laidOut(100);
+    const b = laidOut(700);
+    shown.watch({ block: "a" }, a);
+    shown.watch({ plugin: "blockr.md-md_plugin" }, md);
+    shown.watch({ block: "b" }, b);
+
+    shown.measure();
+    expect(screens.at(-1)).toEqual({ blocks: ["a"], plugins: ["blockr.md-md_plugin"] });
+    expect(demands[1]?.blocks).toEqual(["a"]);
+
+    p.report([
+      { target: md, isIntersecting: false },
+      { target: b, isIntersecting: true },
+    ]);
+    expect(screens.at(-1)).toEqual({ blocks: ["a", "b"], plugins: [] });
+    expect(demands[1]?.blocks).toEqual(["a", "b"]);
+  });
+
+  test("finds the element that a block or a plugin is watched by", () => {
+    const { core } = played();
+    const shown = demandShown(core, page().view);
+    const a = laidOut(0);
+    const md = laidOut(100);
+    shown.watch({ block: "a" }, a);
+    const unwatch = shown.watch({ plugin: "blockr.md-md_plugin" }, md);
+
+    expect(shown.element({ block: "a" })).toBe(a);
+    expect(shown.element({ plugin: "blockr.md-md_plugin" })).toBe(md);
+    expect(shown.element({ block: "blockr.md-md_plugin" })).toBeUndefined();
+    unwatch();
+    expect(shown.element({ plugin: "blockr.md-md_plugin" })).toBeUndefined();
   });
 });
 

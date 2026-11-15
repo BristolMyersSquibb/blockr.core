@@ -7,9 +7,10 @@
 // The user collapses and expands each section, which starts open. A collapsed
 // section hides the plugin's UI and leaves it mounted, so that the UI keeps
 // what it holds outside the plugin's state. Which sections are collapsed is
-// the page's, which nothing saves or undoes.
+// the page's, which nothing saves or undoes. The plugin is on screen while the
+// element of its UI is in view, which it is not in a collapsed section.
 
-import { useCallback } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { Mounted } from "../../card/index.ts";
 import type { PluginClassId } from "../../types/board.ts";
@@ -44,12 +45,19 @@ export function Plugins(): ReactElement | null {
 }
 
 function PluginSection({ id, plugin }: { id: PluginClassId; plugin: Plugin }): ReactElement {
-  const { core } = useFrontEnd();
+  const { core, inView } = useFrontEnd();
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    return el === null ? undefined : inView.watch({ plugin: id }, el);
+  }, [inView, id]);
   const mount = useCallback((el: HTMLElement) => core.mountPlugin(el, id), [core, id]);
   return (
     <details open className={`${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`}>
       <summary className={`${classes.heading} bc:cursor-pointer`}>{plugin.name}</summary>
-      <Mounted mount={mount} className="bc:mt-3 bc:min-w-0" />
+      <div ref={ref} className="bc:mt-3 bc:min-w-0">
+        <Mounted mount={mount} className="bc:min-w-0" />
+      </div>
     </details>
   );
 }

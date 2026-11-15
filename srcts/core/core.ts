@@ -17,8 +17,11 @@
 // It also holds what the frontend offers other plugins, as Plugins has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#what-a-frontend-offers-other-plugins):
 // the notifications of the board, which the frontend draws (./notifications.ts),
-// and which block has focus, which the frontend sets. Both are the page's,
-// outside the board, and end with the board. Where an onChange() throws, core
+// which block has focus and which blocks and plugins are on screen, both of
+// which the frontend sets, and show(), through which a plugin has the frontend
+// show a block or a plugin
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#showing-a-block-or-a-plugin).
+// What they hold is the page's, outside the board, and ends with the board. Where an onChange() throws, core
 // raises a notification that holds until its next call returns, and so do
 // those that the call raises through its `notify`.
 //
@@ -34,7 +37,7 @@ import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Origin, Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, OutputEvents, Raised } from "../types/core-api.ts";
+import type { CoreApi, OnScreen, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { createLog, log } from "../log/index.ts";
 import { asError, coreNotification, errorMessage, isPackageName, jsonEqual, own, sourceModule } from "../util/index.ts";
@@ -74,7 +77,16 @@ export interface CoreParts {
   // and what core keeps of outputs and answers, while the outputs' events
   // reach nobody more.
   readonly signal?: AbortSignal;
+  // Has the frontend that draws the board show a block or a plugin, through
+  // the show() of its module where it has one, as the page's frontends do
+  // (./frontends.ts), and resolves once that has.
+  readonly show: (object: ShownObject) => Promise<void>;
 }
+
+// What CoreApi's show() takes: a block or a plugin, by its id.
+type ShownObject = Parameters<CoreApi["show"]>[0];
+// What CoreApi's onScreen holds once the frontend has set it.
+type Seen = NonNullable<ReturnType<OnScreen["get"]>>;
 
 // What core makes for one board: CoreApi, and what draws and starts the app's
 // plugins as the board opens, which core calls (./start.ts).
@@ -154,7 +166,9 @@ export function createCore(parts: CoreParts): Core {
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
   });
 
+  const focus = createFocus(store, parts.signal);
   const edits = refusing(store, commands, notifications.raiseAgain);
+
   const api: CoreApi = {
     store: edits.store,
     commands: edits.commands,
@@ -190,7 +204,21 @@ export function createCore(parts: CoreParts): Core {
       }
       return createLog(given);
     },
-    focus: createFocus(store, parts.signal),
+    focus,
+    onScreen: createOnScreen(parts.signal),
+    show(object) {
+      if (parts.signal?.aborted === true) return Promise.resolve();
+      const shown = shownObject(object);
+      if ("block" in shown) {
+        if (!store.hasBoard() || !Object.hasOwn(store.board().blocks, shown.block)) {
+          throw new Error(`The board holds no block ${JSON.stringify(shown.block)} to show.`);
+        }
+        focus.set(shown.block);
+      } else if (plugins.pluginClass(shown.plugin).ui === undefined) {
+        throw new Error(`The class of the plugin "${shown.plugin}" has no ui to show.`);
+      }
+      return parts.show(shown);
+    },
     request: <T = Json>(plugin: PluginClassId, name: string, args: Readonly<Record<string, Json>> = {}, opts = {}) =>
       pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name, args, opts) as Promise<T | Blob>,
     module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
@@ -328,6 +356,79 @@ function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAga
         }),
     },
   };
+}
+
+// The board object that a plugin gives show(), as a block or a plugin by its
+// id, which it copies. It throws for anything else, as a plugin in plain JS may
+// give.
+function shownObject(given: unknown): ShownObject {
+  if (typeof given === "object" && given !== null && !Array.isArray(given)) {
+    const entries = Object.entries(given);
+    const [entry] = entries;
+    if (entries.length === 1 && entry !== undefined && typeof entry[1] === "string") {
+      if (entry[0] === "block") return Object.freeze({ block: entry[1] });
+      if (entry[0] === "plugin") return Object.freeze({ plugin: entry[1] });
+    }
+  }
+  throw new TypeError(`Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`);
+}
+
+// Which blocks and plugins are on screen, as the frontend last set them, or
+// null until it first does, until the board ends.
+function createOnScreen(signal: AbortSignal | undefined): OnScreen {
+  let seen: Seen | null = null;
+  const listeners = new Set<(shown: Seen | null) => void>();
+  signal?.addEventListener(
+    "abort",
+    () => {
+      listeners.clear();
+    },
+    { once: true },
+  );
+
+  return {
+    get: () => seen,
+    set(shown) {
+      const next = seenGiven(shown);
+      if (seen !== null && sameIds(seen.blocks, next.blocks) && sameIds(seen.plugins, next.plugins)) return;
+      seen = next;
+      announceTo(listeners, seen);
+    },
+    subscribe(fn) {
+      const wrapped = (shown: Seen | null): void => {
+        fn(shown);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    },
+  };
+}
+
+// The blocks and plugins that a frontend gives onScreen.set(), copied, so that
+// they change only as the frontend sets them again. It throws for anything
+// else, as a frontend in plain JS may give.
+function seenGiven(given: unknown): Seen {
+  if (typeof given === "object" && given !== null) {
+    const { blocks, plugins } = given as { blocks?: unknown; plugins?: unknown };
+    if (isIds(blocks) && isIds(plugins)) {
+      return Object.freeze({ blocks: Object.freeze([...blocks]), plugins: Object.freeze([...plugins]) });
+    }
+  }
+  throw new TypeError(
+    `A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`,
+  );
+}
+
+function isIds(given: unknown): given is string[] {
+  return Array.isArray(given) && given.every((id) => typeof id === "string");
+}
+
+// Whether two lists hold the same ids, in whatever order.
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  const inB = new Set(b);
+  return new Set(a).size === inB.size && a.every((id) => inB.has(id));
 }
 
 // Which block has focus, which starts with none as the board opens and goes

@@ -120,6 +120,26 @@ export interface CoreApi {
     // the block with focus leaves the board, which leaves no block with focus.
     subscribe(fn: (block: BlockId | null) => void): () => void;
   };
+  // Which blocks and plugins are on screen, which the user sees now as the
+  // frontend lays them out, and which a plugin such as the assistant reads to
+  // tell what the user sees: under the dock, the panel that each tab group of
+  // the active view shows and that of each open rail, and under core's basic
+  // frontend, the cards and sections in the browser's viewport
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#what-a-frontend-offers-other-plugins).
+  // Core holds it for the page, outside the board, as it holds focus.
+  readonly onScreen: OnScreen;
+  // Has the frontend show a block or a plugin in its own way, as the DAG shows
+  // a block as the user selects its node
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#showing-a-block-or-a-plugin).
+  // It throws for a block that the board does not hold, and for a plugin that
+  // the app does not run or whose class has no `ui`. It gives a block focus,
+  // and calls the show() of the frontend's module where the module has one,
+  // resolving once that has, and rejecting with why where that fails. Under
+  // every frontend, showing takes no undo step,
+  // leaves the keyboard's focus where it is, stays within what the frontend
+  // shows now and changes nothing that a lock fixes. Once the next board has
+  // opened, it shows nothing.
+  show(object: { readonly block: BlockId } | { readonly plugin: PluginClassId }): Promise<void>;
   // A request of a plugin that runs, by the id of the plugin's class, which
   // the method of R's plugin_requests() for the class answers. Its args go to
   // the request's function by name. Core has the blocks that it reads
@@ -324,6 +344,10 @@ export interface PluginModule {
 // board that the app opens gets the same. They are empty for core's basic
 // frontend, which takes none
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#the-frontend).
+// Beside render(), the module may give show(), which core calls as a plugin
+// asks to show a block or a plugin through CoreApi's show(), with the board
+// object, the page's element and CoreApi, and which may be async. A frontend
+// that keeps every block and plugin in view leaves it out.
 export interface FrontendModule {
   render(args: {
     el: HTMLElement;
@@ -332,6 +356,28 @@ export interface FrontendModule {
     signal: AbortSignal;
     args: Readonly<Record<string, Json>>;
   }): Rendered;
+  show?(args: {
+    object: { readonly block: BlockId } | { readonly plugin: PluginClassId };
+    el: HTMLElement;
+    core: CoreApi;
+  }): void | Promise<void>;
+}
+
+// Which blocks and plugins are on screen, which the frontend sets as what it
+// shows changes. It is null until the frontend sets it, so that a plugin tells
+// a frontend that says nothing from one that shows nothing, and it goes back
+// to null as the next board opens.
+export interface OnScreen {
+  // The blocks and plugins that the user sees, the same object until they
+  // change, or null where the frontend has said nothing.
+  get(): { readonly blocks: readonly BlockId[]; readonly plugins: readonly PluginClassId[] } | null;
+  // The frontend's: the blocks and plugins that it now has on screen, by their
+  // ids and the ids of the plugins' classes, which it sets again as what it
+  // shows changes, as when a block leaves the board. It throws for what is no
+  // such pair of arrays of ids.
+  set(shown: { readonly blocks: readonly BlockId[]; readonly plugins: readonly PluginClassId[] }): void;
+  // Calls `fn` with them whenever they change.
+  subscribe(fn: (shown: { readonly blocks: readonly BlockId[]; readonly plugins: readonly PluginClassId[] } | null) => void): () => void;
 }
 
 export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;

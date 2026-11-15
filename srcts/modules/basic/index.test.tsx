@@ -1046,6 +1046,52 @@ describe("which block has focus", () => {
   });
 });
 
+describe("what is on screen", () => {
+  test("is the blocks whose cards and the plugins whose sections show in the viewport, as the page lays them out", async () => {
+    // The page lays out the card of Head and the UI of the Edit board plugin
+    // in view, and nothing else.
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const shown = this.matches('article[aria-label="Head"]') || this.parentElement?.querySelector("summary")?.textContent === "Edit board";
+      const [width, height] = shown ? [400, 100] : [0, 0];
+      return { top: 0, bottom: height, left: 0, right: width, width, height, x: 0, y: 0, toJSON: () => ({}) };
+    });
+    const { core } = await drawn();
+    expect(core.onScreen.get()).toEqual({ blocks: ["b"], plugins: ["blockr.core-edit_board_plugin"] });
+  });
+});
+
+describe("showing a block or a plugin", () => {
+  test("opens the group or the section that the user collapsed, and scrolls the card or the section into view, leaving the keyboard's focus where it is", async () => {
+    const { el, core } = await drawn();
+    const scrolled: Element[] = [];
+    vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(function (this: Element) {
+      scrolled.push(this);
+    });
+    const stack = find(el, 'section[aria-label="Input"]');
+    const group = find(stack, "details", HTMLDetailsElement);
+    await click(find(stack, "summary"));
+    const section = find(find(el, 'aside[aria-label="Plugins"]'), "details", HTMLDetailsElement);
+    await click(find(section, "summary"));
+    expect([group.open, section.open]).toEqual([false, false]);
+    const actions = find(card(el, "Merge"), 'button[aria-label="Actions of Merge"]');
+    await step(() => {
+      actions.focus();
+    });
+
+    await act(() => core.show({ block: "b" }));
+    expect(group.open).toBe(true);
+    expect(scrolled).toEqual([card(el, "Head")]);
+    expect(core.focus.get()).toBe("b");
+    expect(document.activeElement).toBe(actions);
+
+    await act(() => core.show({ plugin: "blockr.core-edit_board_plugin" }));
+    expect(section.open).toBe(true);
+    expect(scrolled).toEqual([card(el, "Head"), section]);
+    expect(core.focus.get()).toBe("b");
+    expect(document.activeElement).toBe(actions);
+  });
+});
+
 // R's reply to hello whose opening board the store opens without what the
 // app cannot rebuild: the package blockr.dplyr, which R did not load, a block
 // of its filter block class, the state of a plugin that the app does not run,

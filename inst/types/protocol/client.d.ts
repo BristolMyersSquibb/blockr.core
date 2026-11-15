@@ -1,3 +1,4 @@
+import type { Attributes, Context, Link } from "@opentelemetry/api";
 import type { BlockId } from "../types/board.ts";
 import type { Capability, CancelRequest, ClientMessage, ForgetRequest, HelloRequest, Progress, Reply, Request } from "./messages.ts";
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -6,9 +7,16 @@ export interface RequestOptions {
     body?: Blob;
     progress?: (note: ProgressNote) => void;
     signal?: AbortSignal;
+    span?: RequestSpan;
 }
+export interface RequestSpan {
+    readonly parent?: Context;
+    readonly links?: readonly Link[];
+    readonly attributes?: Attributes;
+}
+export type Asked = DistributiveOmit<Exclude<Request, HelloRequest | CancelRequest | ForgetRequest>, "id" | "body" | "traceparent">;
 export interface Client {
-    request(request: DistributiveOmit<Exclude<Request, HelloRequest | CancelRequest | ForgetRequest>, "id" | "body">, options?: RequestOptions): Promise<{
+    request(request: Asked, options?: RequestOptions): Promise<{
         reply: Reply;
         body: Blob | null;
     }>;
