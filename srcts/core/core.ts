@@ -24,8 +24,8 @@
 //
 // Where the store or the command registry refuses an edit of the origin
 // "user" that a plugin makes through CoreApi, core tells the user why, as an
-// error of the code `edit_refused`, whichever plugin made the edit. The call
-// still rejects or throws with the reason (refusing(), below).
+// error of the code `board_edit_failed`, whichever plugin made the edit. The
+// call still rejects or throws with the reason (refusing(), below).
 
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
@@ -262,7 +262,7 @@ export function createCore(parts: CoreParts): Core {
 // The store and the command registry as plugins see them, through CoreApi.
 // Where either refuses an edit of the origin "user", a command, a delta, an
 // undo or a redo, core tells the user why through a notification of the code
-// `edit_refused`, and the call still rejects or throws with the reason, as
+// `board_edit_failed`, and the call still rejects or throws with the reason, as
 // Notifications has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications).
 // - The notification concerns the board, since core knows the origin of an
@@ -286,7 +286,7 @@ function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAga
     if ((origin ?? "user") !== "user") return;
     const why = errorMessage(error);
     log.debug(why);
-    raiseAgain(coreNotification("edit_refused", "error", why));
+    raiseAgain(coreNotification("board_edit_failed", "error", why));
   }
   // Makes an edit through the store, and tells the user why the store refused
   // it.

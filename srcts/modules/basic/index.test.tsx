@@ -1167,7 +1167,7 @@ describe("what the user learns", () => {
     expect(toastsIn(el).map((t) => t.closest("dialog"))).toEqual([null]);
   });
 
-  test("is why the store or the command registry refused an edit, an error of the code edit_refused that core raises about the board, whatever block the edit names, which shows again as the same refusal comes again", async () => {
+  test("is why the store or the command registry refused an edit, an error of the code board_edit_failed that core raises about the board, whatever block the edit names, which shows again as the same refusal comes again", async () => {
     const { el, core } = await drawn();
     // The user removes the link from Iris to Head, and the assistant then
     // feeds Head's one input from Wide sepals, in a step that is no undo step.
@@ -1200,8 +1200,8 @@ describe("what the user learns", () => {
     ]);
     // The frontend raises none of its own.
     expect(core.notifications.get().map(({ source, about }) => [source, about])).toEqual([
-      [{ kind: "core", code: "edit_refused" }, undefined],
-      [{ kind: "core", code: "edit_refused" }, undefined],
+      [{ kind: "core", code: "board_edit_failed" }, undefined],
+      [{ kind: "core", code: "board_edit_failed" }, undefined],
     ]);
     expect(pills(card(el, "Head"))).toEqual([]);
   });

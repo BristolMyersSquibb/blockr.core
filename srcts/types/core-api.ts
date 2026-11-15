@@ -26,13 +26,13 @@ export interface CoreApi {
   // user why through a notification of the code `board_open_failed`, and
   // open() rejects with the reason. Where it refuses a delta, an undo or a
   // redo of the origin "user", core tells the user why through a notification
-  // of the code `edit_refused`, and the call still throws the reason.
+  // of the code `board_edit_failed`, and the call still throws the reason.
   readonly store: Store;
   // The command registry, for menus and shortcuts. Where it or the store
   // refuses a command of the origin "user", core tells the user why through a
-  // notification of the code `edit_refused`, and run() still rejects with the
-  // reason. An edit of another origin, such as the assistant's, only rejects
-  // or throws.
+  // notification of the code `board_edit_failed`, and run() still rejects
+  // with the reason. An edit of another origin, such as the assistant's, only
+  // rejects or throws.
   readonly commands: Commands;
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
@@ -265,7 +265,7 @@ export type CoreCode =
   | "board_open_failed"
   // An edit of the origin "user" that the store or the command registry
   // refuses.
-  | "edit_refused"
+  | "board_edit_failed"
   // What the store dropped as the board opened.
   | "board_objects_dropped"
   // A package that R runs at another version than the page loaded.

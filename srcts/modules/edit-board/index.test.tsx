@@ -634,10 +634,10 @@ describe("each edit", () => {
     await click(button(add(), "Add link"));
 
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
-    const refused = held(core, (n) => codeOf(n) === "edit_refused");
+    const refused = held(core, (n) => codeOf(n) === "board_edit_failed");
     expect(refused).toHaveLength(1);
     expect(refused[0]?.severity).toBe("error");
-    expect(refused[0]?.source).toEqual({ kind: "core", code: "edit_refused" });
+    expect(refused[0]?.source).toEqual({ kind: "core", code: "board_edit_failed" });
     // It concerns the board, whatever block the edit names.
     expect(refused[0]?.about).toBeUndefined();
     expect(refused[0]?.message).toContain('The command "blockr.core-add_link" refused to run');

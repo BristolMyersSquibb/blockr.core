@@ -7989,7 +7989,7 @@ function refusing(store, commands, raiseAgain) {
     if ((origin ?? "user") !== "user") return;
     const why = errorMessage(error);
     log.debug(why);
-    raiseAgain(coreNotification("edit_refused", "error", why));
+    raiseAgain(coreNotification("board_edit_failed", "error", why));
   }
   function edit(origin, fn) {
     try {

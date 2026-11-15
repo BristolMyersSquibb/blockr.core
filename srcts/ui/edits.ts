@@ -2,7 +2,7 @@
 // one of the commands that the command registry holds, as one step of the
 // user, as the user makes the edit, so that undo takes back each one.
 // Where the store or the command registry refuses an edit, core tells the user
-// why through a notification, an error of the code `edit_refused`, which
+// why through a notification, an error of the code `board_edit_failed`, which
 // concerns the board (../core/core.ts). So the plugin that made the edit only
 // learns whether it ran.
 

@@ -603,9 +603,9 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
-    const refused = held(s.core, (n) => codeOf(n) === "edit_refused");
+    const refused = held(s.core, (n) => codeOf(n) === "board_edit_failed");
     expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual(
-      Array.from({ length: 4 }, () => ["error", { kind: "core", code: "edit_refused" }, undefined]),
+      Array.from({ length: 4 }, () => ["error", { kind: "core", code: "board_edit_failed" }, undefined]),
     );
     expect(refused.map((n) => n.message)).toEqual([
       expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/),
@@ -624,18 +624,18 @@ describe("core's notifications", () => {
     await s.settled();
     const heard: string[][] = [];
     s.core.notifications.subscribe((all) => {
-      heard.push(all.filter((n) => codeOf(n) === "edit_refused").map((n) => n.message));
+      heard.push(all.filter((n) => codeOf(n) === "board_edit_failed").map((n) => n.message));
     });
     const remove = (): Promise<void> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" });
 
     await expect(remove()).rejects.toThrow();
-    const [first] = s.core.notifications.get().filter((n) => codeOf(n) === "edit_refused");
+    const [first] = s.core.notifications.get().filter((n) => codeOf(n) === "board_edit_failed");
     await expect(remove()).rejects.toThrow();
 
     // Core withdrew the notification, and raised it again with the same id.
     const message = first?.message ?? "";
     expect(heard).toEqual([[message], [], [message]]);
-    expect(s.core.notifications.get().filter((n) => codeOf(n) === "edit_refused")).toEqual([first]);
+    expect(s.core.notifications.get().filter((n) => codeOf(n) === "board_edit_failed")).toEqual([first]);
     s.stop();
   });
 
@@ -665,7 +665,7 @@ describe("core's notifications", () => {
     }).toThrow("The store refused to undo the step");
     quiet.restore();
 
-    expect(held(s.core, (n) => codeOf(n) === "edit_refused")).toEqual([]);
+    expect(held(s.core, (n) => codeOf(n) === "board_edit_failed")).toEqual([]);
     expect(quiet.lines()).toEqual([]);
     // The store refused core's edit of the default, which core names as the
     // board option's failure alone.
@@ -711,7 +711,7 @@ describe("core's notifications", () => {
     await expect(blocks[0]?.submit({ n: -1 })).rejects.toThrow('The state of block "b" fails its schema at /n');
     await expect(options[0]?.submit(0)).rejects.toThrow('The value of the board option "n_rows" fails its schema');
 
-    expect(held(s.core, (n) => codeOf(n) === "edit_refused")).toEqual([]);
+    expect(held(s.core, (n) => codeOf(n) === "board_edit_failed")).toEqual([]);
     s.stop();
   });
 });

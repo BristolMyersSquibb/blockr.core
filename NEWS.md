@@ -538,7 +538,7 @@
   The `serve()` function stops where `logger` is `"otel"` and `otel_client_endpoint` names no collector.
   Core logs every failure that it catches at error, with its stack, and logs at debug each notification that it drops because the board no longer holds what the notification concerns.
   The stubs of the hosts hold what a module logs in `logged`, and so does `stubCore()`, which passes each line on to the logger that the page would write it with (#551).
-* Where the store or the command registry refuses an edit of the origin `"user"` that a plugin makes through `CoreApi`, a command, a delta, an undo or a redo, core raises a notification of the code `edit_refused`, which concerns the board, and the call still rejects or throws.
+* Where the store or the command registry refuses an edit of the origin `"user"` that a plugin makes through `CoreApi`, a command, a delta, an undo or a redo, core raises a notification of the code `board_edit_failed`, which concerns the board, and the call still rejects or throws.
   So the user learns why an edit was refused, whichever plugin made it.
   Core's basic frontend and its Edit board plugin raise none of their own.
   An edit of another origin only rejects or throws, as the assistant's, whose tool hands the refusal to its model.
