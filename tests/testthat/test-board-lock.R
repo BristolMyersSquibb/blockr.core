@@ -153,6 +153,7 @@ test_that("with both locks, R builds a locked block's expression once", {
   )
 
   local_block_class(cls)
+  local_versions(blockr.test = "0.1.0")
 
   board <- proto_json_board(
     obj(

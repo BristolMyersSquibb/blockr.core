@@ -1,4 +1,4 @@
-@cfworker/json-schema 4.1.4, by Jeremy Danyow, in blockr-core.js
+@cfworker/json-schema 4.1.4, by Jeremy Danyow, in vendor-ccb64a4e.js
 
 MIT License
 
@@ -239,7 +239,7 @@ SOFTWARE.
 
 ------------------------------------------------------------------------------
 
-@preact/signals-core 1.14.5, in blockr-core.js
+@preact/signals-core 1.14.5, in vendor-ccb64a4e.js
 
 The MIT License (MIT)
 
@@ -293,9 +293,9 @@ SOFTWARE.
 
 ------------------------------------------------------------------------------
 
-react 19.3.1, in react-963521e2.js
-react-dom 19.3.1, in react-963521e2.js
-scheduler 0.28.0, in react-963521e2.js
+react 19.3.1, in vendor-ccb64a4e.js
+react-dom 19.3.1, in vendor-ccb64a4e.js
+scheduler 0.28.0, in vendor-ccb64a4e.js
 
 MIT License
 

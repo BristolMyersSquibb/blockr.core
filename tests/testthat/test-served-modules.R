@@ -349,12 +349,12 @@ test_that("the import map names the URL at which R serves each import", {
     expect_true(file.exists(served_copy("blockr.core", "js", file)))
   }
 
-  # The bundle of React that the entry points of React import, and that of
-  # OpenTelemetry's SDK that core's OpenTelemetry module imports, by their
-  # names, as files beside them.
+  # The vendor file, which the entry points of React and core's runtime import,
+  # and the bundle of OpenTelemetry's SDK, which core's OpenTelemetry module
+  # imports, by their names, as files beside them.
   bundles <- list.files(
     system.file("js", package = "blockr.core"),
-    "^(react|opentelemetry)-[0-9a-f]{8}\\.js$"
+    "^(vendor|opentelemetry)-[0-9a-f]{8}\\.js$"
   )
 
   expect_length(bundles, 2L)

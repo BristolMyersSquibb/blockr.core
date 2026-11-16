@@ -16,9 +16,20 @@
 //   one of the files above imports it, as core's runtime and that bundle of
 //   the SDK do. So the page runs one copy of the API, through which the
 //   modules of packages record spans as well.
-// - React's entry points, such as `react` and `react-dom/client`, are written
+// - React and the packages that core's code imports beside it, the signals of
+//   @preact/signals-core and the JSON Schema validator of @cfworker/json-schema,
+//   are bundled, minified, into one file, vendor-<hash>.js, since the page
+//   loads all of them up front.
+//   React's entry points, such as `react` and `react-dom/client`, are written
 //   as ES modules of their own, such as react.js and react-dom-client.js,
-//   which read one minified bundle of React, react-<hash>.js.
+//   which read React from that file.
+//   The runtime, the modules and the SDK, the binding, the controls and the
+//   OpenTelemetry module import the other packages from that file by its name.
+//   So blockr-core.js holds core's own code alone, and the page runs one copy
+//   of each package.
+//   The vendor check of ./vendor-check.ts, which core ships to packages beside
+//   the preset, fails the build where one of those files would bundle any
+//   other package from node_modules.
 // - The runtime, the modules and the SDK, the binding and the controls leave
 //   their imports of React, of OpenTelemetry's API and of each other imports,
 //   which the page that R serves resolves through its import map, as
@@ -90,6 +101,7 @@ import { IMPORTS, importFile, OTEL_API, REACT_ENTRIES } from "../import-map/inde
 import type { Import } from "../import-map/index.ts";
 import { listing } from "../util/index.ts";
 import { preset } from "./preset.ts";
+import { vendorCheck } from "./vendor-check.ts";
 
 // Core's repo, whose node_modules holds the React that the build writes into
 // inst/js.
@@ -152,7 +164,7 @@ function reactNames(): Record<string, string[]> {
 // the page's import map, those that `input` names external.
 // It returns what the file holds from other projects too, as
 // licensedSources() gives it.
-// The name holds a hash of the content, as react-3f2a9c1d.js, so that no
+// The name holds a hash of the content, as vendor-3f2a9c1d.js, so that no
 // browser runs an old copy from its cache, since what imports the file imports
 // it by that name.
 // A file that the import map names, which R serves at a URL that holds a hash
@@ -219,29 +231,63 @@ function licensedSources(metafile: esbuild.Metafile, dir: string): Map<string, s
   return bundled;
 }
 
-// Writes React's entry points into `out` as ES modules of their own, each
-// exporting the names that the entry point exports, from one minified bundle of
-// React and ReactDOM, so that all of them read one React.
-// It returns the files it wrote, with the bundle's name and what the bundle
-// holds from other projects.
-async function reactModules(out: string): Promise<{ written: string[]; bundle: string; sources: string[] }> {
-  const { file: bundle, sources } = await vendored(out, "react", {
+// The packages beside React that core's code imports, which the build bundles
+// with React into vendor-<hash>.js, rather than into each file that imports
+// them.
+// A package that core's code starts to import goes here, or the vendor check
+// fails the build.
+const VENDOR_IMPORTS = ["@preact/signals-core", "@cfworker/json-schema"] as const;
+
+// Bundles React, ReactDOM and the packages that VENDOR_IMPORTS names into one
+// minified file in `out`, as vendor-3f2a9c1d.js, and returns its name and what
+// it holds from other projects.
+// The file exports each of React's entry points as a namespace of its own,
+// entry0 for `react` and so on, which React's ES modules read.
+// It exports the names of the other packages as they are, which core's code
+// imports.
+async function vendorBundle(out: string): Promise<{ file: string; sources: string[] }> {
+  return vendored(out, "vendor", {
     stdin: {
-      contents: REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`).join("\n"),
+      contents: [
+        ...REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`),
+        ...VENDOR_IMPORTS.map((name) => `export * from ${JSON.stringify(name)};`),
+      ].join("\n"),
       resolveDir: repo,
       loader: "js",
     },
   });
+}
 
+// Leaves each import of a package that VENDOR_IMPORTS names an import of the
+// vendor file, `file`, by its name beside the file that imports it.
+// The packages have no side effects, as their package.json files say.
+// So a file that imports none of their names, as from code of core's that it
+// bundles, keeps no import of the vendor file.
+function vendorImports(file: string): esbuild.Plugin {
+  const names: readonly string[] = VENDOR_IMPORTS;
+  return {
+    name: "blockr.core-vendor-imports",
+    setup(build) {
+      build.onResolve({ filter: /^[^./]/ }, (args) =>
+        names.includes(args.path) ? { path: `./${file}`, external: true, sideEffects: false } : undefined,
+      );
+    },
+  };
+}
+
+// Writes React's entry points into `out` as ES modules of their own, each
+// exporting the names that the entry point exports, from the vendor file,
+// `bundle`, so that all of them read one React.
+async function reactModules(out: string, bundle: string): Promise<string[]> {
   const names = reactNames();
-  const written = [bundle];
+  const written: string[] = [];
   for (const [i, name] of REACT_ENTRIES.entries()) {
     const exported = (names[name] ?? []).filter((key) => key !== "default" && /^[A-Za-z_$][\w$]*$/.test(key));
     const file = importFile(name);
     await writeFile(
       join(out, file),
       [
-        `// ${name}, as an ES module, from the bundle of React that blockr.core ships.`,
+        `// ${name}, as an ES module, from the one copy of React that blockr.core ships.`,
         `import { entry${String(i)} as m } from "./${bundle}";`,
         "export default m.default;",
         `export const { ${exported.join(", ")} } = m;`,
@@ -250,7 +296,7 @@ async function reactModules(out: string): Promise<{ written: string[]; bundle: s
     );
     written.push(file);
   }
-  return { written, bundle, sources };
+  return written;
 }
 
 // Core's libraries for modules, each by its name in the import map and the
@@ -349,7 +395,8 @@ export async function build(root: string): Promise<string[]> {
     logLevel: "warning",
     metafile: true,
   } satisfies esbuild.BuildOptions;
-  const plugins = (own?: Import) => [sourceImports(src, own), ...preset.plugins];
+  const vendor = await vendorBundle(out);
+  const plugins = (own?: Import) => [vendorImports(vendor.file), sourceImports(src, own), ...preset.plugins, vendorCheck];
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
   const otel = await otelSdk(src, out);
   const sdk = otel?.file;
@@ -387,9 +434,9 @@ export async function build(root: string): Promise<string[]> {
   const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
   // What each file holds from other projects, by the file's path.
   const bundled = new Map(results.flatMap((result) => [...licensedSources(result.metafile, root)]));
-  const react = await reactModules(out);
-  written.push(...react.written.map((file) => relative(root, join(out, file))));
-  bundled.set(join(out, react.bundle), react.sources);
+  const react = await reactModules(out, vendor.file);
+  written.push(...[vendor.file, ...react].map((file) => relative(root, join(out, file))));
+  bundled.set(join(out, vendor.file), vendor.sources);
   if (otel !== undefined) {
     written.push(relative(root, join(out, otel.file)));
     bundled.set(join(out, otel.file), otel.sources);
@@ -403,8 +450,9 @@ export async function build(root: string): Promise<string[]> {
   }
 
   // The import map that the page R serves holds, as R reads it: each import by
-  // the file in inst/js that it resolves to. R serves the files that those
-  // import in turn, React's bundle and OpenTelemetry's, as files beside them.
+  // the file in inst/js that it resolves to. R serves the files that core's
+  // files import by their names, the vendor file and OpenTelemetry's bundle,
+  // as files beside them.
   const imports = Object.fromEntries(
     IMPORTS.filter((name) => existsSync(join(out, importFile(name)))).map((name) => [name, importFile(name)]),
   );
@@ -469,8 +517,9 @@ function authorName(manifest: Manifest): string | undefined {
 // For each file, `bundled` gives what it holds, by the file's path: the
 // directories of packages from node_modules and the sources that COPIED names.
 // A package whose directory holds no license file takes the one that
-// srcts/build/licenses holds under its name, and the build fails for a package
-// with neither.
+// srcts/build/licenses in core's repo holds under its name, as the packages
+// come from core's node_modules, and the build fails for a package with
+// neither.
 // Where the files hold nothing from other projects, it writes nothing.
 export async function licenses(
   root: string,
@@ -484,7 +533,7 @@ export async function licenses(
   if (holders.size === 0) return [];
 
   const src = join(root, "srcts");
-  const kept = join(src, "build", "licenses");
+  const kept = join(repo, "srcts", "build", "licenses");
   const entries = await Promise.all(
     [...holders].map(async ([source, files]) => {
       const held = listing(files.sort());

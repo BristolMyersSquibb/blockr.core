@@ -1,408 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-
-// node_modules/@preact/signals-core/dist/signals-core.module.js
-var i = /* @__PURE__ */ Symbol.for("preact-signals");
-function t() {
-  if (!(v > 1)) {
-    var i2, t2 = false;
-    !(function() {
-      var i3 = c;
-      c = void 0;
-      while (void 0 !== i3) {
-        var t3 = i3.S;
-        if (t3.v === i3.v) {
-          for (var r3 = t3.t; void 0 !== r3; r3 = r3.x) if (r3.i === i3.i) r3.i = t3.i;
-        }
-        i3 = i3.o;
-      }
-    })();
-    while (void 0 !== h) {
-      var r2 = h;
-      h = void 0;
-      s++;
-      while (void 0 !== r2) {
-        var n2 = r2.u;
-        r2.u = void 0;
-        r2.f &= -3;
-        if (!(8 & r2.f) && w(r2)) try {
-          r2.c();
-        } catch (r3) {
-          if (!t2) {
-            i2 = r3;
-            t2 = true;
-          }
-        }
-        r2 = n2;
-      }
-    }
-    s = 0;
-    v--;
-    if (t2) throw i2;
-  } else v--;
-}
-function r(i2) {
-  if (v > 0) return i2();
-  u = ++e;
-  v++;
-  try {
-    return i2();
-  } finally {
-    t();
-  }
-}
-var n;
-var o = void 0;
-function f(i2) {
-  var t2 = o, r2 = n;
-  o = void 0;
-  n = void 0;
-  try {
-    return i2();
-  } finally {
-    o = t2;
-    n = r2;
-  }
-}
-var h = void 0;
-var v = 0;
-var s = 0;
-var e = 0;
-var u = 0;
-var c = void 0;
-var a = 0;
-function d(i2) {
-  if (void 0 !== o) {
-    var t2 = i2.n;
-    if (void 0 === t2 || t2.t !== o) {
-      t2 = { i: 0, S: i2, p: o.s, n: void 0, t: o, e: void 0, x: void 0, r: t2 };
-      if (void 0 !== o.s) o.s.n = t2;
-      o.s = t2;
-      i2.n = t2;
-      if (32 & o.f) i2.S(t2);
-      return t2;
-    } else if (-1 === t2.i) {
-      t2.i = 0;
-      if (void 0 !== t2.n) {
-        t2.n.p = t2.p;
-        if (void 0 !== t2.p) t2.p.n = t2.n;
-        t2.p = o.s;
-        t2.n = void 0;
-        o.s.n = t2;
-        o.s = t2;
-      }
-      return t2;
-    }
-  }
-}
-function l(i2, t2) {
-  this.v = i2;
-  this.i = 0;
-  this.n = void 0;
-  this.t = void 0;
-  this.l = 0;
-  this.W = null == t2 ? void 0 : t2.watched;
-  this.Z = null == t2 ? void 0 : t2.unwatched;
-  this.name = null == t2 ? void 0 : t2.name;
-}
-l.prototype.brand = i;
-l.prototype.h = function() {
-  return true;
-};
-l.prototype.S = function(i2) {
-  var t2 = this, r2 = this.t;
-  if (r2 !== i2 && void 0 === i2.e) {
-    i2.x = r2;
-    this.t = i2;
-    if (void 0 !== r2) r2.e = i2;
-    else f(function() {
-      var i3;
-      null == (i3 = t2.W) || i3.call(t2);
-    });
-  }
-};
-l.prototype.U = function(i2) {
-  var t2 = this;
-  if (void 0 !== this.t) {
-    var r2 = i2.e, n2 = i2.x;
-    if (void 0 !== r2) {
-      r2.x = n2;
-      i2.e = void 0;
-    }
-    if (void 0 !== n2) {
-      n2.e = r2;
-      i2.x = void 0;
-    }
-    if (i2 === this.t) {
-      this.t = n2;
-      if (void 0 === n2) f(function() {
-        var i3;
-        null == (i3 = t2.Z) || i3.call(t2);
-      });
-    }
-  }
-};
-l.prototype.subscribe = function(i2) {
-  var t2 = this;
-  return x(function() {
-    var r2 = t2.value;
-    f(function() {
-      return i2(r2);
-    });
-  }, { name: "sub" });
-};
-l.prototype.valueOf = function() {
-  return this.value;
-};
-l.prototype.toString = function() {
-  return this.value + "";
-};
-l.prototype.toJSON = function() {
-  return this.value;
-};
-l.prototype.peek = function() {
-  var i2 = this;
-  return f(function() {
-    return i2.value;
-  });
-};
-Object.defineProperty(l.prototype, "value", { get: function() {
-  var i2 = d(this);
-  if (void 0 !== i2) i2.i = this.i;
-  return this.v;
-}, set: function(i2) {
-  if (i2 !== this.v) {
-    if (s > 100) throw new Error("Cycle detected");
-    !(function(i3) {
-      if (0 !== v && 0 === s) {
-        if (i3.l !== u) {
-          i3.l = u;
-          c = { S: i3, v: i3.v, i: i3.i, o: c };
-        }
-      }
-    })(this);
-    this.v = i2;
-    this.i++;
-    a++;
-    v++;
-    try {
-      for (var r2 = this.t; void 0 !== r2; r2 = r2.x) r2.t.N();
-    } finally {
-      t();
-    }
-  }
-} });
-function y(i2, t2) {
-  return new l(i2, t2);
-}
-function w(i2) {
-  for (var t2 = i2.s; void 0 !== t2; t2 = t2.n) if (t2.S.i !== t2.i || !t2.S.h() || t2.S.i !== t2.i) return true;
-  return false;
-}
-function b(i2) {
-  for (var t2 = i2.s; void 0 !== t2; t2 = t2.n) {
-    var r2 = t2.S.n;
-    if (void 0 !== r2) t2.r = r2;
-    t2.S.n = t2;
-    t2.i = -1;
-    if (void 0 === t2.n) {
-      i2.s = t2;
-      break;
-    }
-  }
-}
-function _(i2) {
-  var t2 = i2.s, r2 = void 0;
-  while (void 0 !== t2) {
-    var n2 = t2.p;
-    if (-1 === t2.i) {
-      t2.S.U(t2);
-      if (void 0 !== n2) n2.n = t2.n;
-      if (void 0 !== t2.n) t2.n.p = n2;
-    } else r2 = t2;
-    t2.S.n = t2.r;
-    if (void 0 !== t2.r) t2.r = void 0;
-    t2 = n2;
-  }
-  i2.s = r2;
-}
-function j(i2, t2) {
-  l.call(this, void 0, t2);
-  this.x = i2;
-  this.s = void 0;
-  this.g = a - 1;
-  this.f = 4;
-}
-j.prototype = new l();
-j.prototype.h = function() {
-  this.f &= -3;
-  if (1 & this.f) return false;
-  if (32 == (36 & this.f)) return true;
-  this.f &= -5;
-  if (this.g === a) return true;
-  this.g = a;
-  this.f |= 1;
-  if (this.i > 0 && !w(this)) {
-    this.f &= -2;
-    return true;
-  }
-  var i2 = o;
-  try {
-    b(this);
-    o = this;
-    var t2 = this.x();
-    if (16 & this.f || this.v !== t2 || 0 === this.i) {
-      this.v = t2;
-      this.f &= -17;
-      this.i++;
-    }
-  } catch (i3) {
-    this.v = i3;
-    this.f |= 16;
-    this.i++;
-  }
-  o = i2;
-  _(this);
-  this.f &= -2;
-  return true;
-};
-j.prototype.S = function(i2) {
-  if (void 0 === this.t) {
-    this.f |= 36;
-    for (var t2 = this.s; void 0 !== t2; t2 = t2.n) t2.S.S(t2);
-  }
-  l.prototype.S.call(this, i2);
-};
-j.prototype.U = function(i2) {
-  if (void 0 !== this.t) {
-    l.prototype.U.call(this, i2);
-    if (void 0 === this.t) {
-      this.f &= -33;
-      for (var t2 = this.s; void 0 !== t2; t2 = t2.n) t2.S.U(t2);
-    }
-  }
-};
-j.prototype.N = function() {
-  if (!(2 & this.f)) {
-    this.f |= 6;
-    for (var i2 = this.t; void 0 !== i2; i2 = i2.x) i2.t.N();
-  }
-};
-Object.defineProperty(j.prototype, "value", { get: function() {
-  if (1 & this.f) throw new Error("Cycle detected");
-  var i2 = d(this);
-  this.h();
-  if (void 0 !== i2) i2.i = this.i;
-  if (16 & this.f) throw this.v;
-  return this.v;
-} });
-function O(i2, t2) {
-  return new j(i2, t2);
-}
-function p(i2) {
-  var r2 = i2.j;
-  i2.j = void 0;
-  if ("function" == typeof r2) {
-    v++;
-    var n2 = o;
-    o = void 0;
-    try {
-      r2();
-    } catch (t2) {
-      i2.f &= -2;
-      i2.f |= 8;
-      g(i2);
-      throw t2;
-    } finally {
-      o = n2;
-      t();
-    }
-  }
-}
-function g(i2) {
-  for (var t2 = i2.s; void 0 !== t2; t2 = t2.n) t2.S.U(t2);
-  i2.x = void 0;
-  i2.s = void 0;
-  p(i2);
-}
-function S(i2) {
-  if (o !== this) throw new Error("Out-of-order effect");
-  _(this);
-  o = i2;
-  this.f &= -2;
-  try {
-    if (8 & this.f) g(this);
-  } finally {
-    t();
-  }
-}
-function m(i2, t2) {
-  this.x = i2;
-  this.j = void 0;
-  this.s = void 0;
-  this.u = void 0;
-  this.f = 32;
-  this.name = null == t2 ? void 0 : t2.name;
-  if (n) n.push(this);
-}
-m.prototype.c = function() {
-  var i2 = this.S();
-  try {
-    if (8 & this.f) return;
-    if (void 0 === this.x) return;
-    var t2 = this.x();
-    if ("function" == typeof t2) this.j = t2;
-  } finally {
-    i2();
-  }
-};
-m.prototype.S = function() {
-  if (1 & this.f) throw new Error("Cycle detected");
-  this.f |= 1;
-  this.f &= -9;
-  p(this);
-  b(this);
-  v++;
-  var i2 = o;
-  o = this;
-  return S.bind(this, i2);
-};
-m.prototype.N = function() {
-  if (!(2 & this.f)) {
-    this.f |= 2;
-    this.u = h;
-    h = this;
-  }
-};
-m.prototype.d = function() {
-  this.f |= 8;
-  if (!(1 & this.f)) g(this);
-};
-m.prototype.dispose = function() {
-  this.d();
-};
-function x(i2, t2) {
-  var r2 = new m(i2, t2);
-  try {
-    r2.c();
-  } catch (i3) {
-    r2.d();
-    throw i3;
-  }
-  var n2 = r2.d.bind(r2);
-  n2[Symbol.dispose] = n2;
-  return n2;
-}
-function E(i2) {
-  return function() {
-    var t2 = arguments, n2 = this;
-    return r(function() {
-      return f(function() {
-        return i2.apply(n2, [].slice.call(t2));
-      });
-    });
-  };
-}
+import { action, batch, computed, effect, signal, untracked } from "./vendor-ccb64a4e.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -510,17 +108,17 @@ function errorMessage(error) {
 function asError(error) {
   return error instanceof Error ? error : new Error(String(error));
 }
-function isObject(x2) {
-  return typeof x2 === "object" && x2 !== null && !Array.isArray(x2);
+function isObject(x) {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
 }
-function jsonEqual(a2, b2) {
-  if (a2 === b2) return true;
-  if (Array.isArray(a2)) {
-    return Array.isArray(b2) && a2.length === b2.length && a2.every((x2, i2) => jsonEqual(x2, b2[i2]));
+function jsonEqual(a, b) {
+  if (a === b) return true;
+  if (Array.isArray(a)) {
+    return Array.isArray(b) && a.length === b.length && a.every((x, i) => jsonEqual(x, b[i]));
   }
-  if (isObject(a2) && isObject(b2)) {
-    const keys = Object.keys(a2);
-    return keys.length === Object.keys(b2).length && keys.every((key2) => Object.hasOwn(b2, key2) && jsonEqual(a2[key2], b2[key2]));
+  if (isObject(a) && isObject(b)) {
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((key2) => Object.hasOwn(b, key2) && jsonEqual(a[key2], b[key2]));
   }
   return false;
 }
@@ -530,15 +128,15 @@ function without(record, keys) {
     Object.entries(record).filter(([key2]) => !keys.includes(key2))
   );
 }
-function frozenCopy(x2) {
-  return freeze(structuredClone(x2));
+function frozenCopy(x) {
+  return freeze(structuredClone(x));
 }
-function freeze(x2) {
-  if (typeof x2 === "object" && x2 !== null) {
-    for (const value2 of Object.values(x2)) freeze(value2);
-    Object.freeze(x2);
+function freeze(x) {
+  if (typeof x === "object" && x !== null) {
+    for (const value2 of Object.values(x)) freeze(value2);
+    Object.freeze(x);
   }
-  return x2;
+  return x;
 }
 function listing(items) {
   if (items.length <= 1) return items.join("");
@@ -625,1111 +223,8 @@ function checkRaised(notification) {
   return notification;
 }
 
-// node_modules/@cfworker/json-schema/dist/esm/deep-compare-strict.js
-function deepCompareStrict(a2, b2) {
-  const typeofa = typeof a2;
-  if (typeofa !== typeof b2) {
-    return false;
-  }
-  const aIsArray = Array.isArray(a2);
-  const bIsArray = Array.isArray(b2);
-  if (aIsArray !== bIsArray) {
-    return false;
-  }
-  if (aIsArray) {
-    const length = a2.length;
-    if (length !== b2.length) {
-      return false;
-    }
-    for (let i2 = 0; i2 < length; i2++) {
-      if (!deepCompareStrict(a2[i2], b2[i2])) {
-        return false;
-      }
-    }
-    return true;
-  }
-  if (typeofa === "object") {
-    if (!a2 || !b2) {
-      return a2 === b2;
-    }
-    const aKeys = Object.keys(a2);
-    const bKeys = Object.keys(b2);
-    const length = aKeys.length;
-    if (length !== bKeys.length) {
-      return false;
-    }
-    for (const k of aKeys) {
-      if (!Object.prototype.hasOwnProperty.call(b2, k)) {
-        return false;
-      }
-      if (!deepCompareStrict(a2[k], b2[k])) {
-        return false;
-      }
-    }
-    return true;
-  }
-  return a2 === b2;
-}
-
-// node_modules/@cfworker/json-schema/dist/esm/pointer.js
-function encodePointer(p2) {
-  return encodeURI(escapePointer(p2));
-}
-function escapePointer(p2) {
-  return p2.replace(/~/g, "~0").replace(/\//g, "~1");
-}
-
-// node_modules/@cfworker/json-schema/dist/esm/dereference.js
-var schemaArrayKeyword = {
-  prefixItems: true,
-  items: true,
-  allOf: true,
-  anyOf: true,
-  oneOf: true
-};
-var schemaMapKeyword = {
-  $defs: true,
-  definitions: true,
-  properties: true,
-  patternProperties: true,
-  dependentSchemas: true
-};
-var ignoredKeyword = {
-  id: true,
-  $id: true,
-  $ref: true,
-  $schema: true,
-  $anchor: true,
-  $vocabulary: true,
-  $comment: true,
-  default: true,
-  enum: true,
-  const: true,
-  required: true,
-  dependentRequired: true,
-  type: true,
-  maximum: true,
-  minimum: true,
-  exclusiveMaximum: true,
-  exclusiveMinimum: true,
-  multipleOf: true,
-  maxLength: true,
-  minLength: true,
-  pattern: true,
-  format: true,
-  maxItems: true,
-  minItems: true,
-  uniqueItems: true,
-  maxProperties: true,
-  minProperties: true
-};
-var initialBaseURI = typeof self !== "undefined" && self.location && self.location.origin !== "null" ? new URL(self.location.origin + self.location.pathname + location.search) : new URL("https://github.com/cfworker");
-function dereference(schema, lookup = /* @__PURE__ */ Object.create(null), baseURI = initialBaseURI, basePointer = "") {
-  if (schema && typeof schema === "object" && !Array.isArray(schema)) {
-    const id2 = schema.$id || schema["id"];
-    if (id2) {
-      const url = new URL(id2, baseURI.href);
-      if (url.hash.length > 1) {
-        lookup[url.href] = schema;
-      } else {
-        url.hash = "";
-        if (basePointer === "") {
-          baseURI = url;
-        } else {
-          dereference(schema, lookup, baseURI);
-        }
-      }
-    }
-  } else if (schema !== true && schema !== false) {
-    return lookup;
-  }
-  const schemaURI = baseURI.href + (basePointer ? "#" + basePointer : "");
-  if (lookup[schemaURI] !== void 0 && lookup[schemaURI] !== schema) {
-    throw new Error(`Duplicate schema URI "${schemaURI}".`);
-  }
-  lookup[schemaURI] = schema;
-  if (schema === true || schema === false) {
-    return lookup;
-  }
-  if (schema.__absolute_uri__ === void 0) {
-    Object.defineProperty(schema, "__absolute_uri__", {
-      enumerable: false,
-      value: schemaURI
-    });
-  }
-  if (schema.$ref && schema.__absolute_ref__ === void 0) {
-    const url = new URL(schema.$ref, baseURI.href);
-    url.hash = url.hash;
-    Object.defineProperty(schema, "__absolute_ref__", {
-      enumerable: false,
-      value: url.href
-    });
-  }
-  if (schema.$recursiveRef && schema.__absolute_recursive_ref__ === void 0) {
-    const url = new URL(schema.$recursiveRef, baseURI.href);
-    url.hash = url.hash;
-    Object.defineProperty(schema, "__absolute_recursive_ref__", {
-      enumerable: false,
-      value: url.href
-    });
-  }
-  if (schema.$anchor) {
-    const url = new URL("#" + schema.$anchor, baseURI.href);
-    lookup[url.href] = schema;
-  }
-  for (let key2 in schema) {
-    if (ignoredKeyword[key2]) {
-      continue;
-    }
-    const keyBase = `${basePointer}/${encodePointer(key2)}`;
-    const subSchema = schema[key2];
-    if (Array.isArray(subSchema)) {
-      if (schemaArrayKeyword[key2]) {
-        const length = subSchema.length;
-        for (let i2 = 0; i2 < length; i2++) {
-          dereference(subSchema[i2], lookup, baseURI, `${keyBase}/${i2}`);
-        }
-      }
-    } else if (schemaMapKeyword[key2]) {
-      for (let subKey in subSchema) {
-        dereference(subSchema[subKey], lookup, baseURI, `${keyBase}/${encodePointer(subKey)}`);
-      }
-    } else {
-      dereference(subSchema, lookup, baseURI, keyBase);
-    }
-  }
-  return lookup;
-}
-
-// node_modules/@cfworker/json-schema/dist/esm/format.js
-var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
-var DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-var TIME = /^(\d\d):(\d\d):(\d\d)(\.\d+)?(z|[+-]\d\d(?::?\d\d)?)?$/i;
-var HOSTNAME = /^(?=.{1,253}\.?$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[-0-9a-z]{0,61}[0-9a-z])?)*\.?$/i;
-var URIREF = /^(?:[a-z][a-z0-9+\-.]*:)?(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'"()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*)?(?:\?(?:[a-z0-9\-._~!$&'"()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'"()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
-var URITEMPLATE = /^(?:(?:[^\x00-\x20"'<>%\\^`{|}]|%[0-9a-f]{2})|\{[+#./;?&=,!@|]?(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\*)?(?:,(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\*)?)*\})*$/i;
-var URL_ = /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u{00a1}-\u{ffff}0-9]+-?)*[a-z\u{00a1}-\u{ffff}0-9]+)(?:\.(?:[a-z\u{00a1}-\u{ffff}0-9]+-?)*[a-z\u{00a1}-\u{ffff}0-9]+)*(?:\.(?:[a-z\u{00a1}-\u{ffff}]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$/iu;
-var UUID = /^(?:urn:uuid:)?[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
-var JSON_POINTER = /^(?:\/(?:[^~/]|~0|~1)*)*$/;
-var JSON_POINTER_URI_FRAGMENT = /^#(?:\/(?:[a-z0-9_\-.!$&'()*+,;:=@]|%[0-9a-f]{2}|~0|~1)*)*$/i;
-var RELATIVE_JSON_POINTER = /^(?:0|[1-9][0-9]*)(?:#|(?:\/(?:[^~/]|~0|~1)*)*)$/;
-var EMAIL = (input2) => {
-  if (input2[0] === '"')
-    return false;
-  const [name3, host, ...rest] = input2.split("@");
-  if (!name3 || !host || rest.length !== 0 || name3.length > 64 || host.length > 253)
-    return false;
-  if (name3[0] === "." || name3.endsWith(".") || name3.includes(".."))
-    return false;
-  if (!/^[a-z0-9.-]+$/i.test(host) || !/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(name3))
-    return false;
-  return host.split(".").every((part) => /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i.test(part));
-};
-var IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
-var IPV6 = /^((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))$/i;
-var DURATION = (input2) => input2.length > 1 && input2.length < 80 && (/^P\d+([.,]\d+)?W$/.test(input2) || /^P[\dYMDTHS]*(\d[.,]\d+)?[YMDHS]$/.test(input2) && /^P([.,\d]+Y)?([.,\d]+M)?([.,\d]+D)?(T([.,\d]+H)?([.,\d]+M)?([.,\d]+S)?)?$/.test(input2));
-function bind(r2) {
-  return r2.test.bind(r2);
-}
-var format = {
-  date,
-  time: time.bind(void 0, false),
-  "date-time": date_time,
-  duration: DURATION,
-  uri,
-  "uri-reference": bind(URIREF),
-  "uri-template": bind(URITEMPLATE),
-  url: bind(URL_),
-  email: EMAIL,
-  hostname: bind(HOSTNAME),
-  ipv4: bind(IPV4),
-  ipv6: bind(IPV6),
-  regex,
-  uuid: bind(UUID),
-  "json-pointer": bind(JSON_POINTER),
-  "json-pointer-uri-fragment": bind(JSON_POINTER_URI_FRAGMENT),
-  "relative-json-pointer": bind(RELATIVE_JSON_POINTER)
-};
-function isLeapYear(year) {
-  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-}
-function date(str) {
-  const matches = str.match(DATE);
-  if (!matches)
-    return false;
-  const yearPart = matches[1];
-  const monthPart = matches[2];
-  const dayPart = matches[3];
-  if (!yearPart || !monthPart || !dayPart)
-    return false;
-  const year = +yearPart;
-  const month = +monthPart;
-  const day = +dayPart;
-  const maxDay = month == 2 && isLeapYear(year) ? 29 : DAYS[month];
-  return month >= 1 && month <= 12 && day >= 1 && maxDay !== void 0 && day <= maxDay;
-}
-function time(full, str) {
-  const matches = str.match(TIME);
-  if (!matches)
-    return false;
-  const hourPart = matches[1];
-  const minutePart = matches[2];
-  const secondPart = matches[3];
-  if (!hourPart || !minutePart || !secondPart)
-    return false;
-  const hour = +hourPart;
-  const minute = +minutePart;
-  const second = +secondPart;
-  const timeZone = !!matches[5];
-  return (hour <= 23 && minute <= 59 && second <= 59 || hour == 23 && minute == 59 && second == 60) && (!full || timeZone);
-}
-var DATE_TIME_SEPARATOR = /t|\s/i;
-function date_time(str) {
-  const [datePart, timePart, extra] = str.split(DATE_TIME_SEPARATOR);
-  return datePart !== void 0 && timePart !== void 0 && extra === void 0 && date(datePart) && time(true, timePart);
-}
-var NOT_URI_FRAGMENT = /\/|:/;
-var URI_PATTERN = /^(?:[a-z][a-z0-9+\-.]*:)(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\?(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
-function uri(str) {
-  return NOT_URI_FRAGMENT.test(str) && URI_PATTERN.test(str);
-}
-var Z_ANCHOR = /[^\\]\\Z/;
-function regex(str) {
-  if (Z_ANCHOR.test(str))
-    return false;
-  try {
-    new RegExp(str, "u");
-    return true;
-  } catch (e2) {
-    return false;
-  }
-}
-
-// node_modules/@cfworker/json-schema/dist/esm/ucs2-length.js
-function ucs2length(s2) {
-  let result = 0;
-  let length = s2.length;
-  let index = 0;
-  let charCode;
-  while (index < length) {
-    result++;
-    charCode = s2.charCodeAt(index++);
-    if (charCode >= 55296 && charCode <= 56319 && index < length) {
-      charCode = s2.charCodeAt(index);
-      if ((charCode & 64512) == 56320) {
-        index++;
-      }
-    }
-  }
-  return result;
-}
-
-// node_modules/@cfworker/json-schema/dist/esm/validate.js
-function hasOwnProperty(instance, key2) {
-  return Object.prototype.hasOwnProperty.call(instance, key2);
-}
-function decimalInteger(value2) {
-  const coefficientAndExponent = Math.abs(value2).toString().split("e");
-  const coefficient = coefficientAndExponent[0];
-  const exponent = coefficientAndExponent[1] ?? "0";
-  const point = coefficient.indexOf(".");
-  const fractionLength = point === -1 ? 0 : coefficient.length - point - 1;
-  return [
-    BigInt(coefficient.replace(".", "")),
-    Number(exponent) - fractionLength
-  ];
-}
-function isMultipleOf(instance, divisor) {
-  if (!Number.isFinite(instance) || !Number.isFinite(divisor) || divisor <= 0) {
-    return false;
-  }
-  const [instanceCoefficient, instanceExponent] = decimalInteger(instance);
-  const [divisorCoefficient, divisorExponent] = decimalInteger(divisor);
-  const exponentDifference = instanceExponent - divisorExponent;
-  if (exponentDifference >= 0) {
-    return instanceCoefficient * 10n ** BigInt(exponentDifference) % divisorCoefficient === 0n;
-  }
-  return instanceCoefficient % (divisorCoefficient * 10n ** BigInt(-exponentDifference)) === 0n;
-}
-function validate(instance, schema, draft = "2019-09", lookup = dereference(schema), shortCircuit = true, recursiveAnchor = null, instanceLocation = "#", schemaLocation = "#", evaluated = /* @__PURE__ */ Object.create(null)) {
-  if (schema === true) {
-    return { valid: true, errors: [] };
-  }
-  if (schema === false) {
-    return {
-      valid: false,
-      errors: [
-        {
-          instanceLocation,
-          keyword: "false",
-          keywordLocation: instanceLocation,
-          error: "False boolean schema."
-        }
-      ]
-    };
-  }
-  const rawInstanceType = typeof instance;
-  let instanceType;
-  switch (rawInstanceType) {
-    case "boolean":
-    case "number":
-    case "string":
-      instanceType = rawInstanceType;
-      break;
-    case "object":
-      if (instance === null) {
-        instanceType = "null";
-      } else if (Array.isArray(instance)) {
-        instanceType = "array";
-      } else {
-        instanceType = "object";
-      }
-      break;
-    default:
-      throw new Error(`Instances of "${rawInstanceType}" type are not supported.`);
-  }
-  const { $ref, $recursiveRef, $recursiveAnchor, type: $type, const: $const, enum: $enum, required: $required, not: $not, anyOf: $anyOf, allOf: $allOf, oneOf: $oneOf, if: $if, then: $then, else: $else, format: $format, properties: $properties, patternProperties: $patternProperties, additionalProperties: $additionalProperties, unevaluatedProperties: $unevaluatedProperties, minProperties: $minProperties, maxProperties: $maxProperties, propertyNames: $propertyNames, dependentRequired: $dependentRequired, dependentSchemas: $dependentSchemas, dependencies: $dependencies, prefixItems: $prefixItems, items: $items, additionalItems: $additionalItems, unevaluatedItems: $unevaluatedItems, contains: $contains, minContains: $minContains, maxContains: $maxContains, minItems: $minItems, maxItems: $maxItems, uniqueItems: $uniqueItems, minimum: $minimum, maximum: $maximum, exclusiveMinimum: $exclusiveMinimum, exclusiveMaximum: $exclusiveMaximum, multipleOf: $multipleOf, minLength: $minLength, maxLength: $maxLength, pattern: $pattern, __absolute_ref__, __absolute_recursive_ref__ } = schema;
-  const errors = [];
-  if ($recursiveAnchor === true && recursiveAnchor === null) {
-    recursiveAnchor = schema;
-  }
-  if ($recursiveRef === "#") {
-    const refSchema = recursiveAnchor === null ? lookup[__absolute_recursive_ref__] : recursiveAnchor;
-    const keywordLocation = `${schemaLocation}/$recursiveRef`;
-    const result = validate(instance, recursiveAnchor === null ? schema : recursiveAnchor, draft, lookup, shortCircuit, refSchema, instanceLocation, keywordLocation, evaluated);
-    if (!result.valid) {
-      errors.push({
-        instanceLocation,
-        keyword: "$recursiveRef",
-        keywordLocation,
-        error: "A subschema had errors."
-      }, ...result.errors);
-    }
-  }
-  if ($ref !== void 0) {
-    const uri2 = __absolute_ref__ || $ref;
-    const refSchema = lookup[uri2];
-    if (refSchema === void 0) {
-      let message = `Unresolved $ref "${$ref}".`;
-      if (__absolute_ref__ && __absolute_ref__ !== $ref) {
-        message += `  Absolute URI "${__absolute_ref__}".`;
-      }
-      message += `
-Known schemas:
-- ${Object.keys(lookup).join("\n- ")}`;
-      throw new Error(message);
-    }
-    const keywordLocation = `${schemaLocation}/$ref`;
-    const result = validate(instance, refSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, keywordLocation, evaluated);
-    if (!result.valid) {
-      errors.push({
-        instanceLocation,
-        keyword: "$ref",
-        keywordLocation,
-        error: "A subschema had errors."
-      }, ...result.errors);
-    }
-    if (draft === "4" || draft === "7") {
-      return { valid: errors.length === 0, errors };
-    }
-  }
-  if (Array.isArray($type)) {
-    let length = $type.length;
-    let valid = false;
-    for (let i2 = 0; i2 < length; i2++) {
-      if (instanceType === $type[i2] || $type[i2] === "integer" && instanceType === "number" && instance % 1 === 0 && instance === instance) {
-        valid = true;
-        break;
-      }
-    }
-    if (!valid) {
-      errors.push({
-        instanceLocation,
-        keyword: "type",
-        keywordLocation: `${schemaLocation}/type`,
-        error: `Instance type "${instanceType}" is invalid. Expected "${$type.join('", "')}".`
-      });
-    }
-  } else if ($type === "integer") {
-    if (instanceType !== "number" || instance % 1 || instance !== instance) {
-      errors.push({
-        instanceLocation,
-        keyword: "type",
-        keywordLocation: `${schemaLocation}/type`,
-        error: `Instance type "${instanceType}" is invalid. Expected "${$type}".`
-      });
-    }
-  } else if ($type !== void 0 && instanceType !== $type) {
-    errors.push({
-      instanceLocation,
-      keyword: "type",
-      keywordLocation: `${schemaLocation}/type`,
-      error: `Instance type "${instanceType}" is invalid. Expected "${$type}".`
-    });
-  }
-  if ($const !== void 0) {
-    if (instanceType === "object" || instanceType === "array") {
-      if (!deepCompareStrict(instance, $const)) {
-        errors.push({
-          instanceLocation,
-          keyword: "const",
-          keywordLocation: `${schemaLocation}/const`,
-          error: `Instance does not match ${JSON.stringify($const)}.`
-        });
-      }
-    } else if (instance !== $const) {
-      errors.push({
-        instanceLocation,
-        keyword: "const",
-        keywordLocation: `${schemaLocation}/const`,
-        error: `Instance does not match ${JSON.stringify($const)}.`
-      });
-    }
-  }
-  if ($enum !== void 0) {
-    if (instanceType === "object" || instanceType === "array") {
-      if (!$enum.some((value2) => deepCompareStrict(instance, value2))) {
-        errors.push({
-          instanceLocation,
-          keyword: "enum",
-          keywordLocation: `${schemaLocation}/enum`,
-          error: `Instance does not match any of ${JSON.stringify($enum)}.`
-        });
-      }
-    } else if (!$enum.some((value2) => instance === value2)) {
-      errors.push({
-        instanceLocation,
-        keyword: "enum",
-        keywordLocation: `${schemaLocation}/enum`,
-        error: `Instance does not match any of ${JSON.stringify($enum)}.`
-      });
-    }
-  }
-  if ($not !== void 0) {
-    const keywordLocation = `${schemaLocation}/not`;
-    const result = validate(instance, $not, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, keywordLocation);
-    if (result.valid) {
-      errors.push({
-        instanceLocation,
-        keyword: "not",
-        keywordLocation,
-        error: 'Instance matched "not" schema.'
-      });
-    }
-  }
-  let subEvaluateds = [];
-  if ($anyOf !== void 0) {
-    const keywordLocation = `${schemaLocation}/anyOf`;
-    const errorsLength = errors.length;
-    let anyValid = false;
-    for (const [i2, subSchema] of $anyOf.entries()) {
-      const subEvaluated = Object.create(evaluated);
-      const result = validate(instance, subSchema, draft, lookup, shortCircuit, $recursiveAnchor === true ? recursiveAnchor : null, instanceLocation, `${keywordLocation}/${i2}`, subEvaluated);
-      errors.push(...result.errors);
-      anyValid = anyValid || result.valid;
-      if (result.valid) {
-        subEvaluateds.push(subEvaluated);
-      }
-    }
-    if (anyValid) {
-      errors.length = errorsLength;
-    } else {
-      errors.splice(errorsLength, 0, {
-        instanceLocation,
-        keyword: "anyOf",
-        keywordLocation,
-        error: "Instance does not match any subschemas."
-      });
-    }
-  }
-  if ($allOf !== void 0) {
-    const keywordLocation = `${schemaLocation}/allOf`;
-    const errorsLength = errors.length;
-    let allValid = true;
-    for (const [i2, subSchema] of $allOf.entries()) {
-      const subEvaluated = Object.create(evaluated);
-      const result = validate(instance, subSchema, draft, lookup, shortCircuit, $recursiveAnchor === true ? recursiveAnchor : null, instanceLocation, `${keywordLocation}/${i2}`, subEvaluated);
-      errors.push(...result.errors);
-      allValid = allValid && result.valid;
-      if (result.valid) {
-        subEvaluateds.push(subEvaluated);
-      }
-    }
-    if (allValid) {
-      errors.length = errorsLength;
-    } else {
-      errors.splice(errorsLength, 0, {
-        instanceLocation,
-        keyword: "allOf",
-        keywordLocation,
-        error: `Instance does not match every subschema.`
-      });
-    }
-  }
-  if ($oneOf !== void 0) {
-    const keywordLocation = `${schemaLocation}/oneOf`;
-    const errorsLength = errors.length;
-    const matches = $oneOf.filter((subSchema, i2) => {
-      const subEvaluated = Object.create(evaluated);
-      const result = validate(instance, subSchema, draft, lookup, shortCircuit, $recursiveAnchor === true ? recursiveAnchor : null, instanceLocation, `${keywordLocation}/${i2}`, subEvaluated);
-      errors.push(...result.errors);
-      if (result.valid) {
-        subEvaluateds.push(subEvaluated);
-      }
-      return result.valid;
-    }).length;
-    if (matches === 1) {
-      errors.length = errorsLength;
-    } else {
-      errors.splice(errorsLength, 0, {
-        instanceLocation,
-        keyword: "oneOf",
-        keywordLocation,
-        error: `Instance does not match exactly one subschema (${matches} matches).`
-      });
-    }
-  }
-  if (instanceType === "object" || instanceType === "array") {
-    Object.assign(evaluated, ...subEvaluateds);
-  }
-  if ($if !== void 0) {
-    const keywordLocation = `${schemaLocation}/if`;
-    const conditionResult = validate(instance, $if, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, keywordLocation, evaluated).valid;
-    if (conditionResult) {
-      if ($then !== void 0) {
-        const thenResult = validate(instance, $then, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${schemaLocation}/then`, evaluated);
-        if (!thenResult.valid) {
-          errors.push({
-            instanceLocation,
-            keyword: "if",
-            keywordLocation,
-            error: `Instance does not match "then" schema.`
-          }, ...thenResult.errors);
-        }
-      }
-    } else if ($else !== void 0) {
-      const elseResult = validate(instance, $else, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${schemaLocation}/else`, evaluated);
-      if (!elseResult.valid) {
-        errors.push({
-          instanceLocation,
-          keyword: "if",
-          keywordLocation,
-          error: `Instance does not match "else" schema.`
-        }, ...elseResult.errors);
-      }
-    }
-  }
-  if (instanceType === "object") {
-    if ($required !== void 0) {
-      for (const key2 of $required) {
-        if (!hasOwnProperty(instance, key2)) {
-          errors.push({
-            instanceLocation,
-            keyword: "required",
-            keywordLocation: `${schemaLocation}/required`,
-            error: `Instance does not have required property "${key2}".`
-          });
-        }
-      }
-    }
-    const keys = Object.keys(instance);
-    if ($minProperties !== void 0 && keys.length < $minProperties) {
-      errors.push({
-        instanceLocation,
-        keyword: "minProperties",
-        keywordLocation: `${schemaLocation}/minProperties`,
-        error: `Instance does not have at least ${$minProperties} properties.`
-      });
-    }
-    if ($maxProperties !== void 0 && keys.length > $maxProperties) {
-      errors.push({
-        instanceLocation,
-        keyword: "maxProperties",
-        keywordLocation: `${schemaLocation}/maxProperties`,
-        error: `Instance does not have at least ${$maxProperties} properties.`
-      });
-    }
-    if ($propertyNames !== void 0) {
-      const keywordLocation = `${schemaLocation}/propertyNames`;
-      for (const key2 in instance) {
-        const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
-        const result = validate(key2, $propertyNames, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
-        if (!result.valid) {
-          errors.push({
-            instanceLocation,
-            keyword: "propertyNames",
-            keywordLocation,
-            error: `Property name "${key2}" does not match schema.`
-          }, ...result.errors);
-        }
-      }
-    }
-    if ($dependentRequired !== void 0) {
-      const keywordLocation = `${schemaLocation}/dependantRequired`;
-      for (const key2 in $dependentRequired) {
-        if (hasOwnProperty(instance, key2)) {
-          const required = $dependentRequired[key2];
-          for (const dependantKey of required) {
-            if (!hasOwnProperty(instance, dependantKey)) {
-              errors.push({
-                instanceLocation,
-                keyword: "dependentRequired",
-                keywordLocation,
-                error: `Instance has "${key2}" but does not have "${dependantKey}".`
-              });
-            }
-          }
-        }
-      }
-    }
-    if ($dependentSchemas !== void 0) {
-      for (const [key2, dependentSchema] of Object.entries($dependentSchemas)) {
-        const keywordLocation = `${schemaLocation}/dependentSchemas`;
-        if (hasOwnProperty(instance, key2)) {
-          const result = validate(instance, dependentSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${keywordLocation}/${encodePointer(key2)}`, evaluated);
-          if (!result.valid) {
-            errors.push({
-              instanceLocation,
-              keyword: "dependentSchemas",
-              keywordLocation,
-              error: `Instance has "${key2}" but does not match dependant schema.`
-            }, ...result.errors);
-          }
-        }
-      }
-    }
-    if ($dependencies !== void 0) {
-      const keywordLocation = `${schemaLocation}/dependencies`;
-      for (const key2 in $dependencies) {
-        if (hasOwnProperty(instance, key2)) {
-          const propsOrSchema = $dependencies[key2];
-          if (Array.isArray(propsOrSchema)) {
-            for (const dependantKey of propsOrSchema) {
-              if (!hasOwnProperty(instance, dependantKey)) {
-                errors.push({
-                  instanceLocation,
-                  keyword: "dependencies",
-                  keywordLocation,
-                  error: `Instance has "${key2}" but does not have "${dependantKey}".`
-                });
-              }
-            }
-          } else {
-            const result = validate(instance, propsOrSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${keywordLocation}/${encodePointer(key2)}`);
-            if (!result.valid) {
-              errors.push({
-                instanceLocation,
-                keyword: "dependencies",
-                keywordLocation,
-                error: `Instance has "${key2}" but does not match dependant schema.`
-              }, ...result.errors);
-            }
-          }
-        }
-      }
-    }
-    const thisEvaluated = /* @__PURE__ */ Object.create(null);
-    let stop = false;
-    if ($properties !== void 0) {
-      const keywordLocation = `${schemaLocation}/properties`;
-      for (const [key2, propertySchema] of Object.entries($properties)) {
-        if (!hasOwnProperty(instance, key2)) {
-          continue;
-        }
-        const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
-        const result = validate(instance[key2], propertySchema, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, `${keywordLocation}/${encodePointer(key2)}`);
-        thisEvaluated[key2] = true;
-        if (result.valid) {
-          evaluated[key2] = true;
-        } else {
-          stop = shortCircuit;
-          errors.push({
-            instanceLocation,
-            keyword: "properties",
-            keywordLocation,
-            error: `Property "${key2}" does not match schema.`
-          }, ...result.errors);
-          if (stop)
-            break;
-        }
-      }
-    }
-    if (!stop && $patternProperties !== void 0) {
-      const keywordLocation = `${schemaLocation}/patternProperties`;
-      for (const [pattern, subSchema] of Object.entries($patternProperties)) {
-        const regex2 = new RegExp(pattern, "u");
-        for (const key2 in instance) {
-          if (!regex2.test(key2)) {
-            continue;
-          }
-          const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
-          const result = validate(instance[key2], subSchema, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, `${keywordLocation}/${encodePointer(pattern)}`);
-          thisEvaluated[key2] = true;
-          if (result.valid) {
-            evaluated[key2] = true;
-          } else {
-            stop = shortCircuit;
-            errors.push({
-              instanceLocation,
-              keyword: "patternProperties",
-              keywordLocation,
-              error: `Property "${key2}" matches pattern "${pattern}" but does not match associated schema.`
-            }, ...result.errors);
-          }
-        }
-      }
-    }
-    if (!stop && $additionalProperties !== void 0) {
-      const keywordLocation = `${schemaLocation}/additionalProperties`;
-      for (const key2 in instance) {
-        if (thisEvaluated[key2]) {
-          continue;
-        }
-        const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
-        const result = validate(instance[key2], $additionalProperties, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
-        if (result.valid) {
-          evaluated[key2] = true;
-        } else {
-          stop = shortCircuit;
-          errors.push({
-            instanceLocation,
-            keyword: "additionalProperties",
-            keywordLocation,
-            error: `Property "${key2}" does not match additional properties schema.`
-          }, ...result.errors);
-        }
-      }
-    } else if (!stop && $unevaluatedProperties !== void 0) {
-      const keywordLocation = `${schemaLocation}/unevaluatedProperties`;
-      for (const key2 in instance) {
-        if (!evaluated[key2]) {
-          const subInstancePointer = `${instanceLocation}/${encodePointer(key2)}`;
-          const result = validate(instance[key2], $unevaluatedProperties, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
-          if (result.valid) {
-            evaluated[key2] = true;
-          } else {
-            errors.push({
-              instanceLocation,
-              keyword: "unevaluatedProperties",
-              keywordLocation,
-              error: `Property "${key2}" does not match unevaluated properties schema.`
-            }, ...result.errors);
-          }
-        }
-      }
-    }
-  } else if (instanceType === "array") {
-    if ($maxItems !== void 0 && instance.length > $maxItems) {
-      errors.push({
-        instanceLocation,
-        keyword: "maxItems",
-        keywordLocation: `${schemaLocation}/maxItems`,
-        error: `Array has too many items (${instance.length} > ${$maxItems}).`
-      });
-    }
-    if ($minItems !== void 0 && instance.length < $minItems) {
-      errors.push({
-        instanceLocation,
-        keyword: "minItems",
-        keywordLocation: `${schemaLocation}/minItems`,
-        error: `Array has too few items (${instance.length} < ${$minItems}).`
-      });
-    }
-    const length = instance.length;
-    let i2 = 0;
-    let stop = false;
-    if ($prefixItems !== void 0) {
-      const keywordLocation = `${schemaLocation}/prefixItems`;
-      const length2 = Math.min($prefixItems.length, length);
-      for (; i2 < length2; i2++) {
-        const result = validate(instance[i2], $prefixItems[i2], draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i2}`, `${keywordLocation}/${i2}`);
-        evaluated[i2] = true;
-        if (!result.valid) {
-          stop = shortCircuit;
-          errors.push({
-            instanceLocation,
-            keyword: "prefixItems",
-            keywordLocation,
-            error: `Items did not match schema.`
-          }, ...result.errors);
-          if (stop)
-            break;
-        }
-      }
-    }
-    if ($items !== void 0) {
-      const keywordLocation = `${schemaLocation}/items`;
-      if (Array.isArray($items)) {
-        const length2 = Math.min($items.length, length);
-        for (; i2 < length2; i2++) {
-          const result = validate(instance[i2], $items[i2], draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i2}`, `${keywordLocation}/${i2}`);
-          evaluated[i2] = true;
-          if (!result.valid) {
-            stop = shortCircuit;
-            errors.push({
-              instanceLocation,
-              keyword: "items",
-              keywordLocation,
-              error: `Items did not match schema.`
-            }, ...result.errors);
-            if (stop)
-              break;
-          }
-        }
-      } else {
-        for (; i2 < length; i2++) {
-          const result = validate(instance[i2], $items, draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i2}`, keywordLocation);
-          evaluated[i2] = true;
-          if (!result.valid) {
-            stop = shortCircuit;
-            errors.push({
-              instanceLocation,
-              keyword: "items",
-              keywordLocation,
-              error: `Items did not match schema.`
-            }, ...result.errors);
-            if (stop)
-              break;
-          }
-        }
-      }
-      if (!stop && $additionalItems !== void 0) {
-        const keywordLocation2 = `${schemaLocation}/additionalItems`;
-        for (; i2 < length; i2++) {
-          const result = validate(instance[i2], $additionalItems, draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i2}`, keywordLocation2);
-          evaluated[i2] = true;
-          if (!result.valid) {
-            stop = shortCircuit;
-            errors.push({
-              instanceLocation,
-              keyword: "additionalItems",
-              keywordLocation: keywordLocation2,
-              error: `Items did not match additional items schema.`
-            }, ...result.errors);
-          }
-        }
-      }
-    }
-    if ($contains !== void 0) {
-      if (length === 0 && $minContains === void 0) {
-        errors.push({
-          instanceLocation,
-          keyword: "contains",
-          keywordLocation: `${schemaLocation}/contains`,
-          error: `Array is empty. It must contain at least one item matching the schema.`
-        });
-      } else if ($minContains !== void 0 && length < $minContains) {
-        errors.push({
-          instanceLocation,
-          keyword: "minContains",
-          keywordLocation: `${schemaLocation}/minContains`,
-          error: `Array has less items (${length}) than minContains (${$minContains}).`
-        });
-      } else {
-        const keywordLocation = `${schemaLocation}/contains`;
-        const errorsLength = errors.length;
-        let contained = 0;
-        for (let j2 = 0; j2 < length; j2++) {
-          const result = validate(instance[j2], $contains, draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${j2}`, keywordLocation);
-          if (result.valid) {
-            evaluated[j2] = true;
-            contained++;
-          } else {
-            errors.push(...result.errors);
-          }
-        }
-        if (contained >= ($minContains || 0)) {
-          errors.length = errorsLength;
-        }
-        if ($minContains === void 0 && contained === 0) {
-          errors.splice(errorsLength, 0, {
-            instanceLocation,
-            keyword: "contains",
-            keywordLocation,
-            error: `Array does not contain item matching schema.`
-          });
-        } else if ($minContains !== void 0 && contained < $minContains) {
-          errors.push({
-            instanceLocation,
-            keyword: "minContains",
-            keywordLocation: `${schemaLocation}/minContains`,
-            error: `Array must contain at least ${$minContains} items matching schema. Only ${contained} items were found.`
-          });
-        } else if ($maxContains !== void 0 && contained > $maxContains) {
-          errors.push({
-            instanceLocation,
-            keyword: "maxContains",
-            keywordLocation: `${schemaLocation}/maxContains`,
-            error: `Array may contain at most ${$maxContains} items matching schema. ${contained} items were found.`
-          });
-        }
-      }
-    }
-    if (!stop && $unevaluatedItems !== void 0) {
-      const keywordLocation = `${schemaLocation}/unevaluatedItems`;
-      for (i2; i2 < length; i2++) {
-        if (evaluated[i2]) {
-          continue;
-        }
-        const result = validate(instance[i2], $unevaluatedItems, draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i2}`, keywordLocation);
-        evaluated[i2] = true;
-        if (!result.valid) {
-          errors.push({
-            instanceLocation,
-            keyword: "unevaluatedItems",
-            keywordLocation,
-            error: `Items did not match unevaluated items schema.`
-          }, ...result.errors);
-        }
-      }
-    }
-    if ($uniqueItems) {
-      for (let j2 = 0; j2 < length; j2++) {
-        const a2 = instance[j2];
-        const ao = typeof a2 === "object" && a2 !== null;
-        for (let k = 0; k < length; k++) {
-          if (j2 === k) {
-            continue;
-          }
-          const b2 = instance[k];
-          const bo = typeof b2 === "object" && b2 !== null;
-          if (a2 === b2 || ao && bo && deepCompareStrict(a2, b2)) {
-            errors.push({
-              instanceLocation,
-              keyword: "uniqueItems",
-              keywordLocation: `${schemaLocation}/uniqueItems`,
-              error: `Duplicate items at indexes ${j2} and ${k}.`
-            });
-            j2 = Number.MAX_SAFE_INTEGER;
-            k = Number.MAX_SAFE_INTEGER;
-          }
-        }
-      }
-    }
-  } else if (instanceType === "number") {
-    if (draft === "4") {
-      if ($minimum !== void 0 && ($exclusiveMinimum === true && instance <= $minimum || instance < $minimum)) {
-        errors.push({
-          instanceLocation,
-          keyword: "minimum",
-          keywordLocation: `${schemaLocation}/minimum`,
-          error: `${instance} is less than ${$exclusiveMinimum ? "or equal to " : ""} ${$minimum}.`
-        });
-      }
-      if ($maximum !== void 0 && ($exclusiveMaximum === true && instance >= $maximum || instance > $maximum)) {
-        errors.push({
-          instanceLocation,
-          keyword: "maximum",
-          keywordLocation: `${schemaLocation}/maximum`,
-          error: `${instance} is greater than ${$exclusiveMaximum ? "or equal to " : ""} ${$maximum}.`
-        });
-      }
-    } else {
-      if ($minimum !== void 0 && instance < $minimum) {
-        errors.push({
-          instanceLocation,
-          keyword: "minimum",
-          keywordLocation: `${schemaLocation}/minimum`,
-          error: `${instance} is less than ${$minimum}.`
-        });
-      }
-      if ($maximum !== void 0 && instance > $maximum) {
-        errors.push({
-          instanceLocation,
-          keyword: "maximum",
-          keywordLocation: `${schemaLocation}/maximum`,
-          error: `${instance} is greater than ${$maximum}.`
-        });
-      }
-      if ($exclusiveMinimum !== void 0 && instance <= $exclusiveMinimum) {
-        errors.push({
-          instanceLocation,
-          keyword: "exclusiveMinimum",
-          keywordLocation: `${schemaLocation}/exclusiveMinimum`,
-          error: `${instance} is less than ${$exclusiveMinimum}.`
-        });
-      }
-      if ($exclusiveMaximum !== void 0 && instance >= $exclusiveMaximum) {
-        errors.push({
-          instanceLocation,
-          keyword: "exclusiveMaximum",
-          keywordLocation: `${schemaLocation}/exclusiveMaximum`,
-          error: `${instance} is greater than or equal to ${$exclusiveMaximum}.`
-        });
-      }
-    }
-    if ($multipleOf !== void 0) {
-      if (!isMultipleOf(instance, $multipleOf)) {
-        errors.push({
-          instanceLocation,
-          keyword: "multipleOf",
-          keywordLocation: `${schemaLocation}/multipleOf`,
-          error: `${instance} is not a multiple of ${$multipleOf}.`
-        });
-      }
-    }
-  } else if (instanceType === "string") {
-    const length = $minLength === void 0 && $maxLength === void 0 ? 0 : ucs2length(instance);
-    if ($minLength !== void 0 && length < $minLength) {
-      errors.push({
-        instanceLocation,
-        keyword: "minLength",
-        keywordLocation: `${schemaLocation}/minLength`,
-        error: `String is too short (${length} < ${$minLength}).`
-      });
-    }
-    if ($maxLength !== void 0 && length > $maxLength) {
-      errors.push({
-        instanceLocation,
-        keyword: "maxLength",
-        keywordLocation: `${schemaLocation}/maxLength`,
-        error: `String is too long (${length} > ${$maxLength}).`
-      });
-    }
-    if ($pattern !== void 0 && !new RegExp($pattern, "u").test(instance)) {
-      errors.push({
-        instanceLocation,
-        keyword: "pattern",
-        keywordLocation: `${schemaLocation}/pattern`,
-        error: `String does not match pattern.`
-      });
-    }
-    if ($format !== void 0 && format[$format] && !format[$format](instance)) {
-      errors.push({
-        instanceLocation,
-        keyword: "format",
-        keywordLocation: `${schemaLocation}/format`,
-        error: `String does not match format "${$format}".`
-      });
-    }
-  }
-  return { valid: errors.length === 0, errors };
-}
-
-// node_modules/@cfworker/json-schema/dist/esm/validator.js
-var Validator = class {
-  schema;
-  draft;
-  shortCircuit;
-  lookup;
-  constructor(schema, draft = "2019-09", shortCircuit = true) {
-    this.schema = schema;
-    this.draft = draft;
-    this.shortCircuit = shortCircuit;
-    this.lookup = dereference(schema);
-  }
-  validate(instance) {
-    return validate(instance, this.schema, this.draft, this.lookup, this.shortCircuit);
-  }
-  addSchema(schema, id2) {
-    if (id2) {
-      schema = { ...schema, $id: id2 };
-    }
-    dereference(schema, this.lookup);
-  }
-};
-
 // srcts/util/validate.ts
+import { Validator } from "./vendor-ccb64a4e.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -2038,8 +533,8 @@ var SessionEndedError = class extends Error {
     this.name = "SessionEndedError";
   }
 };
-function sameMajor(a2, b2) {
-  return a2.split(".")[0] === b2.split(".")[0];
+function sameMajor(a, b) {
+  return a.split(".")[0] === b.split(".")[0];
 }
 function createClient(transport, options) {
   let next = 0;
@@ -2157,7 +652,7 @@ function createClient(transport, options) {
         if (reply.status === "ok" && "capabilities" in reply) {
           if (sameMajor(reply.protocol, named3.protocol)) {
             const theirs = new Set(reply.capabilities);
-            shared = new Set(named3.capabilities.filter((c2) => theirs.has(c2)));
+            shared = new Set(named3.capabilities.filter((c) => theirs.has(c)));
             state2 = "ready";
             const outbound = held2;
             held2 = [];
@@ -2209,7 +704,7 @@ function createClient(transport, options) {
     }
   });
   return {
-    request(request, { body, progress, signal, span: spanned } = {}) {
+    request(request, { body, progress, signal: signal5, span: spanned } = {}) {
       const id2 = mint();
       const span = requestSpan(request, spanned);
       const parent = span === void 0 ? void 0 : traceparent(span);
@@ -2230,7 +725,7 @@ function createClient(transport, options) {
           sent: false,
           aborted: false,
           settle(result) {
-            signal?.removeEventListener("abort", onAbort2);
+            signal5?.removeEventListener("abort", onAbort2);
             if (span !== void 0) endRequestSpan(span, result);
             if ("error" in result) {
               reject(result.error);
@@ -2240,11 +735,11 @@ function createClient(transport, options) {
           }
         };
         const entry = { message, call };
-        if (signal?.aborted === true) {
+        if (signal5?.aborted === true) {
           call.settle(cancelled(id2));
           return;
         }
-        signal?.addEventListener("abort", onAbort2, { once: true });
+        signal5?.addEventListener("abort", onAbort2, { once: true });
         queue(entry);
       });
     },
@@ -2460,8 +955,8 @@ function waitingFor(what) {
   const inputs = what.unlinked.length === 1 ? "input" : "inputs";
   return `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
 }
-function sameStatus(a2, b2) {
-  return a2.status === b2.status && a2.revision === b2.revision && a2.evaluated === b2.evaluated && a2.running === b2.running && a2.stdout === b2.stdout && a2.stderr === b2.stderr && a2.summary === b2.summary && a2.reason === b2.reason && a2.conditions.length === b2.conditions.length && a2.conditions.every((condition, i2) => condition === b2.conditions[i2]);
+function sameStatus(a, b) {
+  return a.status === b.status && a.revision === b.revision && a.evaluated === b.evaluated && a.running === b.running && a.stdout === b.stdout && a.stderr === b.stderr && a.summary === b.summary && a.reason === b.reason && a.conditions.length === b.conditions.length && a.conditions.every((condition, i) => condition === b.conditions[i]);
 }
 function blockStatuses(input2) {
   const statuses = /* @__PURE__ */ new Map();
@@ -2672,7 +1167,7 @@ function evaluationPlan(input2) {
   const sent2 = [...input2.sent];
   const asked = [...input2.asked];
   const pending = [...input2.pending];
-  const index = new Map(graph.order.map((id2, i2) => [id2, i2]));
+  const index = new Map(graph.order.map((id2, i) => [id2, i]));
   const deadlines = [];
   const cancel = [];
   const cancelled2 = /* @__PURE__ */ new Set();
@@ -2741,7 +1236,7 @@ function evaluationPlan(input2) {
     queued.push({ block: item.block, priority: item.priority, oneTime: item.oneTime });
   }
   queued.sort(
-    (a2, b2) => (a2.priority === b2.priority ? 0 : a2.priority > b2.priority ? -1 : 1) || (index.get(a2.block) ?? 0) - (index.get(b2.block) ?? 0)
+    (a, b) => (a.priority === b.priority ? 0 : a.priority > b.priority ? -1 : 1) || (index.get(a.block) ?? 0) - (index.get(b.block) ?? 0)
   );
   let slots = input2.queue + 1 - sent2.length;
   const send = [];
@@ -2834,8 +1329,8 @@ function variadic(declared, links, bound) {
   }
   return { recipe, unlinked };
 }
-function sameInputs(a2, b2) {
-  return a2.length === b2.length && a2.every((input2, i2) => input2.input === b2[i2]?.input && input2.block === b2[i2].block);
+function sameInputs(a, b) {
+  return a.length === b.length && a.every((input2, i) => input2.input === b[i]?.input && input2.block === b[i].block);
 }
 
 // srcts/scheduler/revisions.ts
@@ -2889,22 +1384,22 @@ function createScheduler(options) {
   const queue = setting(options.evaluationQueue, 2, "evaluation_queue", true);
   const delay = setting(options.backgroundEvaluationDelay, Infinity, "background_evaluation_delay");
   const gated = flag(options.gateVisibility, true, "gate_visibility");
-  const board = y(void 0);
-  const registry = y({});
-  const bound = y(new Set(options.bound ?? []));
-  const revisions = y(/* @__PURE__ */ new Map());
-  const outcomes = y(/* @__PURE__ */ new Map());
-  const sent2 = y(/* @__PURE__ */ new Map());
-  const asked = y(/* @__PURE__ */ new Map());
-  const demands = y(/* @__PURE__ */ new Map());
-  const oneTimes = y(/* @__PURE__ */ new Map());
-  const holding = y(true);
-  const graph = O(() => createGraph(board.value ?? NO_BOARD));
-  const inputs = O(
+  const board = signal(void 0);
+  const registry = signal({});
+  const bound = signal(new Set(options.bound ?? []));
+  const revisions = signal(/* @__PURE__ */ new Map());
+  const outcomes = signal(/* @__PURE__ */ new Map());
+  const sent2 = signal(/* @__PURE__ */ new Map());
+  const asked = signal(/* @__PURE__ */ new Map());
+  const demands = signal(/* @__PURE__ */ new Map());
+  const oneTimes = signal(/* @__PURE__ */ new Map());
+  const holding = signal(true);
+  const graph = computed(() => createGraph(board.value ?? NO_BOARD));
+  const inputs = computed(
     () => inputsByBlock(board.value ?? NO_BOARD, graph.value, registry.value, bound.value)
   );
   let last = /* @__PURE__ */ new Map();
-  const statuses = O(() => {
+  const statuses = computed(() => {
     last = blockStatuses({
       graph: graph.value,
       revisions: revisions.value,
@@ -2915,7 +1410,7 @@ function createScheduler(options) {
     }).statuses;
     return last;
   });
-  const needs = O(
+  const needs = computed(
     () => neededBlocks(graph.value, [
       ...[...demands.value.values()].map((demand) => ({
         blocks: demand.blocks.value,
@@ -2924,7 +1419,7 @@ function createScheduler(options) {
       ...neededBy(oneTimes.value, graph.value)
     ])
   );
-  const state2 = O(() => [
+  const state2 = computed(() => [
     board.value,
     registry.value,
     bound.value,
@@ -2970,12 +1465,12 @@ function createScheduler(options) {
       if (!next.has(id2)) causes.delete(id2);
     }
   }
-  const opened = E((next) => {
+  const opened = action((next) => {
     registry.value = store.blockRegistry();
     board.value = next;
     setRevisions(opening(graph.value, revision));
   });
-  const applied = E((delta, next) => {
+  const applied = action((delta, next) => {
     const before = { board: board.value ?? next, inputs: inputs.value };
     board.value = next;
     const revised = revise(
@@ -2992,7 +1487,7 @@ function createScheduler(options) {
     update(left(oneTimes.value, gone));
     client.forget(revised.gone);
   });
-  const lacking = E((missing) => {
+  const lacking = action((missing) => {
     const lost = /* @__PURE__ */ new Set();
     for (const { block, revision: at } of missing) {
       if (revisions.value.get(block) === at && statuses.value.get(block)?.status === "ready") {
@@ -3009,7 +1504,7 @@ function createScheduler(options) {
       settle2?.(result);
     }
   }
-  const end = E((id2, result) => {
+  const end = action((id2, result) => {
     if (!oneTimes.value.has(id2)) return;
     const rest = new Map(oneTimes.value);
     rest.delete(id2);
@@ -3091,7 +1586,7 @@ function createScheduler(options) {
     controllers.delete(id2);
     return evaluation;
   }
-  const answered2 = E((id2, reply) => {
+  const answered2 = action((id2, reply) => {
     const evaluation = done(id2);
     if (evaluation === void 0 || ended()) return;
     if (reply.status === "missing") lacking(reply.missing);
@@ -3112,7 +1607,7 @@ function createScheduler(options) {
       );
     }
   });
-  const unanswered = E((id2, error) => {
+  const unanswered = action((id2, error) => {
     const evaluation = done(id2);
     if (evaluation === void 0 || ended()) return;
     if (evaluation.oneTime !== void 0) {
@@ -3139,7 +1634,7 @@ function createScheduler(options) {
   }
   function pass() {
     passTimer = void 0;
-    r(() => {
+    batch(() => {
       if (stopped === void 0 && board.value !== void 0) {
         const plan = evaluationPlan({
           graph: graph.value,
@@ -3175,10 +1670,10 @@ function createScheduler(options) {
   function demanding(id2, owner, blocks, priority) {
     let demanded;
     if (typeof blocks === "function") {
-      demanded = O(() => {
+      demanded = computed(() => {
         const of = board.value;
         if (of === void 0) return /* @__PURE__ */ new Set();
-        return f(() => {
+        return untracked(() => {
           try {
             return new Set(blocks(of));
           } catch (error) {
@@ -3193,7 +1688,7 @@ function createScheduler(options) {
         });
       });
     } else {
-      demanded = y(new Set(blocks));
+      demanded = signal(new Set(blocks));
     }
     demands.value = new Map(demands.value).set(id2, { owner, priority, blocks: demanded });
   }
@@ -3202,18 +1697,18 @@ function createScheduler(options) {
   }
   if (store.hasBoard()) opened(store.board());
   let heard = /* @__PURE__ */ new Map();
-  const dispose = x(() => {
+  const dispose = effect(() => {
     const now = statuses.value;
     const settled3 = settle(oneTimes.value, now);
     if (settled3.settled.length > 0) {
-      f(() => {
+      untracked(() => {
         update(settled3);
       });
     }
     const changed = changedSince(heard, now);
     heard = now;
     if (changed.length > 0) {
-      f(() => {
+      untracked(() => {
         for (const fn of [...subscribers]) {
           try {
             fn(changed);
@@ -3243,18 +1738,18 @@ function createScheduler(options) {
   if (ended()) stop();
   else options.signal?.addEventListener("abort", stop, { once: true });
   return {
-    demand: E((owner, blocks, { priority } = {}) => {
+    demand: action((owner, blocks, { priority } = {}) => {
       const id2 = ++ids2;
       demanding(id2, owner, blocks, checked(priority));
       return {
-        set: E((next, { priority: given } = {}) => {
+        set: action((next, { priority: given } = {}) => {
           const demand = demands.value.get(id2);
           if (demand === void 0) {
             throw new Error(`The demand of ${owner} was released, so it can no longer be set.`);
           }
           demanding(id2, owner, next, given === void 0 ? demand.priority : checked(given));
         }),
-        release: E(() => {
+        release: action(() => {
           if (!demands.value.has(id2)) return;
           const rest = new Map(demands.value);
           rest.delete(id2);
@@ -3262,7 +1757,7 @@ function createScheduler(options) {
         })
       };
     }),
-    evaluate: E((blocks, params, { priority, signal: abort } = {}) => {
+    evaluate: action((blocks, params, { priority, signal: abort } = {}) => {
       if (ended()) return Promise.reject(endedError());
       const at = priority ?? 0;
       const invalid = priorityError(at);
@@ -3287,7 +1782,7 @@ function createScheduler(options) {
         }
       });
     }),
-    invalidate: E((id2) => {
+    invalidate: action((id2) => {
       if (!revisions.value.has(id2)) return;
       setRevisions(bump(graph.value, revisions.value, /* @__PURE__ */ new Set([id2]), revision));
     }),
@@ -3330,10 +1825,10 @@ function createScheduler(options) {
       }
     },
     inputs: (id2) => inputs.peek().get(id2),
-    start: E(() => {
+    start: action(() => {
       holding.value = false;
     }),
-    session: E(() => {
+    session: action(() => {
       setRevisions(bump(graph.value, revisions.value, new Set(revisions.value.keys()), revision));
     })
   };
@@ -3382,10 +1877,10 @@ function priorityError(priority) {
 }
 
 // srcts/mount/answers.ts
-function createAnswers(scheduler, signal) {
+function createAnswers(scheduler, signal5) {
   const kept = /* @__PURE__ */ new Map();
   const flights = /* @__PURE__ */ new Map();
-  signal?.addEventListener(
+  signal5?.addEventListener(
     "abort",
     () => {
       kept.clear();
@@ -3436,7 +1931,7 @@ function createAnswers(scheduler, signal) {
     if (key2 !== void 0) flights.set(key2, flight);
     return flight;
   }
-  function join(flight, key2, signal2, progress) {
+  function join(flight, key2, signal6, progress) {
     flight.callers += 1;
     const listener = progress === void 0 ? void 0 : { fn: progress };
     if (listener !== void 0) flight.progress.add(listener);
@@ -3446,17 +1941,17 @@ function createAnswers(scheduler, signal) {
         left2 = true;
         flight.callers -= 1;
         if (listener !== void 0) flight.progress.delete(listener);
-        signal2?.removeEventListener("abort", abort);
+        signal6?.removeEventListener("abort", abort);
       };
       const abort = () => {
         leave2();
-        reject(asError(signal2?.reason));
+        reject(asError(signal6?.reason));
         if (flight.callers === 0) {
           if (key2 !== void 0 && flights.get(key2) === flight) flights.delete(key2);
           flight.controller.abort();
         }
       };
-      signal2?.addEventListener("abort", abort, { once: true });
+      signal6?.addEventListener("abort", abort, { once: true });
       flight.done.then(
         (answer) => {
           if (left2) return;
@@ -3472,13 +1967,13 @@ function createAnswers(scheduler, signal) {
     });
   }
   return {
-    ask(ask, { signal: signal2, progress } = {}) {
-      if (signal2?.aborted === true) return Promise.reject(asError(signal2.reason));
+    ask(ask, { signal: signal6, progress } = {}) {
+      if (signal6?.aborted === true) return Promise.reject(asError(signal6.reason));
       const key2 = ask.share === "once" ? void 0 : requestKey(ask.request);
       const answer = key2 === void 0 ? void 0 : kept.get(key2)?.answer;
       if (answer !== void 0) return Promise.resolve(answer);
       const flight = (key2 === void 0 ? void 0 : flights.get(key2)) ?? start2(ask, key2);
-      return join(flight, key2, signal2, progress);
+      return join(flight, key2, signal6, progress);
     },
     size: () => kept.size
   };
@@ -3511,15 +2006,15 @@ function requestKey(request) {
 function requestReads(request) {
   return request.type === "block_class" ? request.reads : [request.output];
 }
-function sorted(x2) {
-  if (Array.isArray(x2)) return x2.map(sorted);
-  if (isObject(x2)) {
-    const object2 = x2;
+function sorted(x) {
+  if (Array.isArray(x)) return x.map(sorted);
+  if (isObject(x)) {
+    const object2 = x;
     return Object.fromEntries(
       Object.keys(object2).sort().map((name3) => [name3, sorted(object2[name3] ?? null)])
     );
   }
-  return x2;
+  return x;
 }
 
 // srcts/mount/load.ts
@@ -3691,9 +2186,9 @@ function behindPage() {
   probe.remove();
   return colour !== null && colour[3] >= 1 ? colour : WHITE;
 }
-function over(behind, [r2, g2, b2, alpha]) {
+function over(behind, [r, g, b, alpha]) {
   const mix = (front, back) => front * alpha + back * (1 - alpha);
-  return [mix(r2, behind[0]), mix(g2, behind[1]), mix(b2, behind[2]), 1];
+  return [mix(r, behind[0]), mix(g, behind[1]), mix(b, behind[2]), 1];
 }
 function asHex(colour) {
   const rgba = asRgba(colour);
@@ -3706,18 +2201,18 @@ function asRgba(colour) {
   if (text === "transparent") return [0, 0, 0, 0];
   const long = /^#[0-9a-f]{3}$/i.test(text) ? text.replace(/[0-9a-f]/gi, "$&$&") : text;
   if (/^#[0-9a-f]{6}$/i.test(long)) {
-    const [r2 = 0, g2 = 0, b2 = 0] = [1, 3, 5].map((at) => parseInt(long.slice(at, at + 2), 16));
-    return [r2, g2, b2, 1];
+    const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) => parseInt(long.slice(at, at + 2), 16));
+    return [r, g, b, 1];
   }
   const rgb = RGB.exec(text);
   if (rgb !== null) {
-    const [, r2 = "0", g2 = "0", b2 = "0", alpha = "1", percent] = rgb;
-    return [Number(r2), Number(g2), Number(b2), Math.min(1, Number(alpha) / (percent === "%" ? 100 : 1))];
+    const [, r = "0", g = "0", b = "0", alpha = "1", percent] = rgb;
+    return [Number(r), Number(g), Number(b), Math.min(1, Number(alpha) / (percent === "%" ? 100 : 1))];
   }
   return drawn(text);
 }
-function hex([r2, g2, b2]) {
-  return `#${[r2, g2, b2].map((c2) => Math.round(Math.min(255, Math.max(0, c2))).toString(16).padStart(2, "0")).join("")}`;
+function hex([r, g, b]) {
+  return `#${[r, g, b].map((c) => Math.round(Math.min(255, Math.max(0, c))).toString(16).padStart(2, "0")).join("")}`;
 }
 function drawn(colour) {
   try {
@@ -3726,8 +2221,8 @@ function drawn(colour) {
     context4.fillStyle = "#000000";
     context4.fillStyle = colour;
     context4.fillRect(0, 0, 1, 1);
-    const [r2 = 0, g2 = 0, b2 = 0, alpha = 0] = context4.getImageData(0, 0, 1, 1).data;
-    return [r2, g2, b2, alpha / 255];
+    const [r = 0, g = 0, b = 0, alpha = 0] = context4.getImageData(0, 0, 1, 1).data;
+    return [r, g, b, alpha / 255];
   } catch {
     return null;
   }
@@ -3823,7 +2318,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
     }
   }
 }
-async function evaluateReads(deps, block, entry, name3, names, signal) {
+async function evaluateReads(deps, block, entry, name3, names, signal5) {
   const what = `The request "${name3}" of block "${block}"`;
   if (names.length === 0) return [];
   const inputs = deps.scheduler.inputs(block);
@@ -3837,7 +2332,7 @@ async function evaluateReads(deps, block, entry, name3, names, signal) {
   );
   const upstream = [...new Set(read.flatMap((input2) => input2.block ?? []))];
   if (upstream.length === 0) return read.map((input2) => ({ input: input2.input }));
-  const statuses = await deps.scheduler.evaluate(upstream, void 0, signal === void 0 ? {} : { signal });
+  const statuses = await deps.scheduler.evaluate(upstream, void 0, signal5 === void 0 ? {} : { signal: signal5 });
   const unready = read.flatMap((input2) => {
     if (input2.block === void 0) return [];
     const status = own(statuses, input2.block);
@@ -3896,10 +2391,10 @@ function attempt(fn) {
     log.error(asError(error));
   }
 }
-function onAbort(signal, fn) {
-  signal.addEventListener("abort", fn, { once: true });
+function onAbort(signal5, fn) {
+  signal5.addEventListener("abort", fn, { once: true });
   return () => {
-    signal.removeEventListener("abort", fn);
+    signal5.removeEventListener("abort", fn);
   };
 }
 var REPLACED = "Another board opened, so core mounts nothing more of the board before.";
@@ -4386,18 +2881,18 @@ function mountOutput(deps, el, block) {
     wake();
   }
   function mountRenderer(prepared) {
-    const signal = new AbortController();
-    const current3 = { prepared, host: outputHost(prepared), controller: signal, cleanup: void 0 };
+    const signal5 = new AbortController();
+    const current3 = { prepared, host: outputHost(prepared), controller: signal5, cleanup: void 0 };
     drawing = current3;
     el.replaceChildren();
     void (async () => {
       try {
-        const rendered = await prepared.mod.render({ el, host: current3.host, signal: signal.signal });
+        const rendered = await prepared.mod.render({ el, host: current3.host, signal: signal5.signal });
         if (typeof rendered !== "function") return;
-        if (signal.signal.aborted) attempt(rendered);
+        if (signal5.signal.aborted) attempt(rendered);
         else current3.cleanup = rendered;
       } catch (failure) {
-        if (signal.signal.aborted) return;
+        if (signal5.signal.aborted) return;
         const pkg = packageFromId(prepared.renderer.id);
         const why = new ModuleError(prepared.renderer.module, pkg, `failed in render(): ${errorMessage(failure)}`, {
           cause: failure
@@ -4438,15 +2933,15 @@ function mountOutput(deps, el, block) {
     shelf.params = next;
     announceTo(shelf.mounts);
   }
-  function current2(name3, signal) {
+  function current2(name3, signal5) {
     return new Promise((resolve, reject) => {
       const settle2 = () => {
         if (!bound()) {
           reject(unboundError());
           return true;
         }
-        if (signal?.aborted === true) {
-          reject(asError(signal.reason));
+        if (signal5?.aborted === true) {
+          reject(asError(signal5.reason));
           return true;
         }
         const status = scheduler.status(block);
@@ -4475,10 +2970,10 @@ function mountOutput(deps, el, block) {
       };
       const stop = () => {
         waiting2.delete(check2);
-        signal?.removeEventListener("abort", check2);
+        signal5?.removeEventListener("abort", check2);
       };
       waiting2.add(check2);
-      signal?.addEventListener("abort", check2, { once: true });
+      signal5?.addEventListener("abort", check2, { once: true });
     });
   }
   async function request(prepared, name3, args, opts) {
@@ -4653,15 +3148,15 @@ function mountOutput(deps, el, block) {
 function outputRequestKey(asked) {
   return JSON.stringify([asked.revision, sorted2(asked.options), sorted2(asked.info), sorted2(asked.params)]);
 }
-function sorted2(x2) {
-  if (Array.isArray(x2)) return x2.map(sorted2);
-  if (isObject(x2)) {
-    const object2 = x2;
+function sorted2(x) {
+  if (Array.isArray(x)) return x.map(sorted2);
+  if (isObject(x)) {
+    const object2 = x;
     return Object.fromEntries(
       Object.keys(object2).sort().map((name3) => [name3, sorted2(object2[name3] ?? null)])
     );
   }
-  return x2;
+  return x;
 }
 
 // srcts/mount/block.ts
@@ -4791,8 +3286,8 @@ function createMounts(options) {
     const module = sourceModule({ block }, pkg);
     const by = `the UI module of block class "${entry.id}"`;
     const controller = new AbortController();
-    const { signal } = controller;
-    const ended = () => signal.aborted;
+    const { signal: signal5 } = controller;
+    const ended = () => signal5.aborted;
     let cleanup;
     let stopKeeping;
     const end = () => {
@@ -4852,7 +3347,7 @@ function createMounts(options) {
       }
       host.name(named3);
       try {
-        const rendered = await mod.render({ el, host, signal });
+        const rendered = await mod.render({ el, host, signal: signal5 });
         if (typeof rendered !== "function") return;
         if (ended()) attempt(rendered);
         else cleanup = rendered;
@@ -5039,8 +3534,8 @@ function blockHost(deps) {
     }
   };
 }
-function sameContext(a2, b2) {
-  return a2.name === b2.name && a2.status === b2.status && a2.inputs.length === b2.inputs.length && a2.inputs.every((input2, i2) => input2.input === b2.inputs[i2]?.input && input2.revision === b2.inputs[i2].revision) && jsonEqual(a2.options, b2.options);
+function sameContext(a, b) {
+  return a.name === b.name && a.status === b.status && a.inputs.length === b.inputs.length && a.inputs.every((input2, i) => input2.input === b.inputs[i]?.input && input2.revision === b.inputs[i].revision) && jsonEqual(a.options, b.options);
 }
 
 // srcts/transport/shiny.ts
@@ -5163,8 +3658,8 @@ function refuseLarger(text, max) {
     );
   }
 }
-function byteCount(n2) {
-  return `${n2.toLocaleString("en-US")} bytes`;
+function byteCount(n) {
+  return `${n.toLocaleString("en-US")} bytes`;
 }
 async function post(fetcher, start2, id2, body) {
   if (start2 === null) {
@@ -5195,8 +3690,8 @@ function blob(parts, body) {
 function fromBase64(data) {
   const text = atob(data);
   const bytes = new Uint8Array(text.length);
-  for (let i2 = 0; i2 < text.length; i2 += 1) {
-    bytes[i2] = text.charCodeAt(i2);
+  for (let i = 0; i < text.length; i += 1) {
+    bytes[i] = text.charCodeAt(i);
   }
   return bytes;
 }
@@ -5204,20 +3699,20 @@ function fromBase64(data) {
 // srcts/core/blockr-options.ts
 function createBlockrOptions(client) {
   const found = /* @__PURE__ */ new Map();
-  let batch;
+  let batch2;
   function ask(name3) {
     let asked = found.get(name3);
     if (asked === void 0) {
       asked = new Promise((resolve, reject) => {
-        if (batch === void 0) {
+        if (batch2 === void 0) {
           const sending = /* @__PURE__ */ new Map();
-          batch = sending;
+          batch2 = sending;
           void Promise.resolve().then(() => {
-            if (batch === sending) batch = void 0;
+            if (batch2 === sending) batch2 = void 0;
             void send(sending);
           });
         }
-        batch.set(name3, { resolve, reject });
+        batch2.set(name3, { resolve, reject });
       });
       found.set(name3, asked);
     }
@@ -5259,7 +3754,7 @@ async function requestBlockrOptions(client, names) {
       throw error;
     }
     if (reply.status !== "ok" || !("values" in reply)) {
-      const said = "conditions" in reply ? reply.conditions.map((c2) => c2.message).join(" ") : "";
+      const said = "conditions" in reply ? reply.conditions.map((c) => c.message).join(" ") : "";
       throw new Error(`R replied ${reply.status}. ${said}`.trim());
     }
     return reply.values;
@@ -5268,6 +3763,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
+import { computed as computed3, signal as signal4 } from "./vendor-ccb64a4e.js";
+
+// srcts/store/store.ts
+import { signal as signal3 } from "./vendor-ccb64a4e.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -6237,14 +4736,14 @@ function isId(id2) {
 }
 function mintId(taken, randId = "adjective_animal") {
   const draw = draws[randId];
-  for (let i2 = 0; i2 < 100; i2++) {
+  for (let i = 0; i < 100; i++) {
     const id3 = draw();
     if (isId(id3) && !taken(id3)) return id3;
   }
   const id2 = draw();
-  let n2 = 2;
-  while (taken(`${id2}_${String(n2)}`)) n2++;
-  return `${id2}_${String(n2)}`;
+  let n = 2;
+  while (taken(`${id2}_${String(n)}`)) n++;
+  return `${id2}_${String(n)}`;
 }
 function sentenceCase(id2) {
   const words = id2.replace(/([A-Z])/g, " $1").replace(/[_\-.]/g, " ").trim().split(" ");
@@ -6267,23 +4766,23 @@ var draws = {
   bytes_8: () => hex2(randomBytes(8)),
   uuid: randomUuid
 };
-function randomInt(n2) {
-  return Math.floor(Math.random() * n2);
+function randomInt(n) {
+  return Math.floor(Math.random() * n);
 }
 function pick(words) {
   return words[randomInt(words.length)] ?? "";
 }
 function pickTwo(words) {
-  const i2 = randomInt(words.length);
-  let j2 = randomInt(words.length - 1);
-  if (j2 >= i2) j2++;
-  return [words[i2] ?? "", words[j2] ?? ""];
+  const i = randomInt(words.length);
+  let j = randomInt(words.length - 1);
+  if (j >= i) j++;
+  return [words[i] ?? "", words[j] ?? ""];
 }
-function randomLetters(n2) {
-  return Array.from({ length: n2 }, () => String.fromCharCode(97 + randomInt(26))).join("");
+function randomLetters(n) {
+  return Array.from({ length: n }, () => String.fromCharCode(97 + randomInt(26))).join("");
 }
-function randomBytes(n2) {
-  return Array.from({ length: n2 }, () => randomInt(256));
+function randomBytes(n) {
+  return Array.from({ length: n }, () => randomInt(256));
 }
 function hex2(bytes) {
   return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -6301,12 +4800,12 @@ var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
 var hexColor = new RegExp(HEX_COLOR);
 var validators = /* @__PURE__ */ new WeakMap();
 function stateFailures(entry, state2) {
-  let validate2 = validators.get(entry);
-  if (validate2 === void 0) {
-    validate2 = compile(`the state of the block class "${entry.id}"`, entry.schema);
-    validators.set(entry, validate2);
+  let validate = validators.get(entry);
+  if (validate === void 0) {
+    validate = compile(`the state of the block class "${entry.id}"`, entry.schema);
+    validators.set(entry, validate);
   }
-  return validate2(state2);
+  return validate(state2);
 }
 function check(board, registry, registrations, changed) {
   const failures = [];
@@ -6469,18 +4968,18 @@ function shape(value2, fields) {
   }
   return problems;
 }
-function fits(x2, kind) {
+function fits(x, kind) {
   switch (kind) {
     case "array":
-      return Array.isArray(x2);
+      return Array.isArray(x);
     case "object":
-      return isObject(x2);
+      return isObject(x);
     case "string or null":
-      return x2 === null || typeof x2 === "string";
+      return x === null || typeof x === "string";
     case "boolean or null":
-      return x2 === null || typeof x2 === "boolean";
+      return x === null || typeof x === "boolean";
     case "string":
-      return typeof x2 === "string";
+      return typeof x === "string";
   }
 }
 
@@ -6498,10 +4997,10 @@ function pluginClassFromPath(path) {
 function pathFromSegments(segments) {
   return segments.map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`).join("");
 }
-function overlap(a2, b2, board) {
+function overlap(a, b, board) {
   let at = board;
-  for (const [i2, segment] of a2.slice(0, b2.length).entries()) {
-    if (Array.isArray(at) || segment !== b2[i2]) return false;
+  for (const [i, segment] of a.slice(0, b.length).entries()) {
+    if (Array.isArray(at) || segment !== b[i]) return false;
     at = isObject(at) ? own(at, segment) : void 0;
   }
   return true;
@@ -6710,8 +5209,8 @@ function patch(board, patches2, placed, failures) {
   const inverse = [];
   const places = {};
   const plugins = /* @__PURE__ */ new Set();
-  for (const [i2, given] of patches2.entries()) {
-    const name3 = `The patch ${String(i2 + 1)}`;
+  for (const [i, given] of patches2.entries()) {
+    const name3 = `The patch ${String(i + 1)}`;
     const problems = malformed(given);
     if (problems.length > 0) {
       failures.push(`${name3} ${problems.join(", ")}.`);
@@ -7025,8 +5524,8 @@ function merge(delta, given, patches2, board) {
   if (added.length === 0) return delta;
   return { ...delta, patches: [...held2, ...added] };
 }
-function same(a2, b2) {
-  return a2.op === b2.op && a2.path === b2.path && jsonEqual(a2.value, b2.value);
+function same(a, b) {
+  return a.op === b.op && a.path === b.path && jsonEqual(a.value, b.value);
 }
 
 // srcts/store/lock.ts
@@ -7102,8 +5601,8 @@ function fit(delta, board) {
     links: { ...links, ...Object.keys(before).length === 0 ? {} : { before } },
     stacks: {
       ...stacks.rm === void 0 ? {} : { rm: stacks.rm },
-      ...stacks.add === void 0 ? {} : { add: Object.fromEntries(Object.entries(stacks.add).map(([id2, s2]) => [id2, placed(s2)])) },
-      ...stacks.mod === void 0 ? {} : { mod: Object.fromEntries(Object.entries(stacks.mod).map(([id2, s2]) => [id2, placed(s2)])) }
+      ...stacks.add === void 0 ? {} : { add: Object.fromEntries(Object.entries(stacks.add).map(([id2, s]) => [id2, placed(s)])) },
+      ...stacks.mod === void 0 ? {} : { mod: Object.fromEntries(Object.entries(stacks.mod).map(([id2, s]) => [id2, placed(s)])) }
     },
     ...delta.options === void 0 ? {} : { options: delta.options },
     ...delta.name === void 0 ? {} : { name: delta.name },
@@ -7199,7 +5698,7 @@ function checkJsonBoard(json) {
       `The JSON board's format is ${String(json.format)}, while this client reads format ${String(FORMAT)} at most.`
     ]);
   }
-  if (!isObject(json.packages) || !Object.values(json.packages).every((v2) => typeof v2 === "string")) {
+  if (!isObject(json.packages) || !Object.values(json.packages).every((v) => typeof v === "string")) {
     throw new StoreError(refused, ["The JSON board names no packages with their versions."]);
   }
   if (!isObject(json.board)) throw new StoreError(refused, ["The JSON board holds no board."]);
@@ -7362,21 +5861,22 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
+import { computed as computed2, signal as signal2 } from "./vendor-ccb64a4e.js";
 function createRegistrations(migration = () => void 0) {
-  const classes = y(/* @__PURE__ */ new Map());
-  const options = y([]);
-  const optionIndex = O(
+  const classes = signal2(/* @__PURE__ */ new Map());
+  const options = signal2([]);
+  const optionIndex = computed2(
     () => new Map(options.value.map((option) => [option.def.id, option]))
   );
-  const classDefs = O(
+  const classDefs = computed2(
     () => Object.fromEntries([...classes.value].map(([id2, cls]) => [id2, cls.def]))
   );
-  const optionDefs = O(
+  const optionDefs = computed2(
     () => Object.fromEntries(options.value.map((option) => [option.def.id, option.def]))
   );
-  function checkInitial(what, validate2, initial, field) {
+  function checkInitial(what, validate, initial, field) {
     if (initial === void 0) return;
-    const failures = validate2(initial);
+    const failures = validate(initial);
     if (failures.length > 0) {
       throw new Error(`The ${field} of ${what} ${failures.join(" ")}`);
     }
@@ -7422,16 +5922,16 @@ function createRegistrations(migration = () => void 0) {
       throw new Error(`The plugin class "${id2}" requires board options that are no array of their ids.`);
     }
     const what = `the state of the plugin class "${id2}"`;
-    let validate2 = () => [];
+    let validate = () => [];
     const state2 = given.state;
     if (state2 !== void 0) {
       if (!isObject(state2) || !isObject(state2.schema) || !Object.hasOwn(state2, "default")) {
         throw new Error(`The plugin class "${id2}" gives a state without a schema and a default.`);
       }
-      validate2 = compile(what, state2.schema);
-      checkInitial(what, validate2, state2.default, "default");
+      validate = compile(what, state2.schema);
+      checkInitial(what, validate, state2.default, "default");
     }
-    const item = { def, validate: validate2 };
+    const item = { def, validate };
     classes.value = new Map([...classes.value, [id2, item]]);
     return () => {
       if (classes.value.get(id2) !== item) return;
@@ -7462,14 +5962,14 @@ function createRegistrations(migration = () => void 0) {
         if (def.migrate !== void 0 && typeof def.migrate !== "function") {
           throw new Error(`The board option "${def.id}" has a migrate that is no function.`);
         }
-        const validate2 = compile(what, def.schema);
+        const validate = compile(what, def.schema);
         if (typeof def.default !== "function") {
-          checkInitial(what, validate2, def.default, "default");
+          checkInitial(what, validate, def.default, "default");
         }
-        const item = { def, validate: validate2 };
+        const item = { def, validate };
         options.value = [...options.value, item];
         return () => {
-          options.value = options.value.filter((x2) => x2 !== item);
+          options.value = options.value.filter((x) => x !== item);
         };
       },
       registered: () => optionDefs.value
@@ -7488,11 +5988,11 @@ function isPluginClassId(id2) {
 var ENDED = "Another board opened in a new store, so this store changes its board no more.";
 function createStore(options = {}) {
   const registrations = createRegistrations(options.migration);
-  const board = y(void 0);
+  const board = signal3(void 0);
   let hello = options.hello;
-  const registry = y(options.hello?.block_registry ?? {});
-  const packages = y(options.hello?.packages ?? {});
-  const history = y({ undo: [], redo: [] });
+  const registry = signal3(options.hello?.block_registry ?? {});
+  const packages = signal3(options.hello?.packages ?? {});
+  const history = signal3({ undo: [], redo: [] });
   const subscribers = /* @__PURE__ */ new Set();
   let opening2 = false;
   const ended = () => options.signal?.aborted === true;
@@ -7531,14 +6031,14 @@ function createStore(options = {}) {
     const applied = [];
     const inverses = [];
     let current3 = start2;
-    for (const [i2, given] of deltas.entries()) {
-      const prefix = deltas.length > 1 ? `Delta ${String(i2 + 1)}: ` : "";
+    for (const [i, given] of deltas.entries()) {
+      const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
       const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
       const delta = how.fit === true ? fit(given, current3) : given;
       if (how.fit === true && isEmpty(delta)) continue;
       const expanded = expand(delta, current3, registrations);
       if ("failures" in expanded) throw fail(expanded.failures);
-      const committed = commit(current3, expanded, how.places?.[i2]);
+      const committed = commit(current3, expanded, how.places?.[i]);
       if ("failures" in committed) throw fail(committed.failures);
       if (hello?.lock.board === true) {
         const locked2 = lockFailures(current3, committed.inverse.delta);
@@ -8435,8 +6935,8 @@ function refusal(id2, failures, options) {
 }
 var DROPPED = "A board opened while it prepared, which drops it.";
 function createCommands(store, options = {}) {
-  const commands = y(/* @__PURE__ */ new Map());
-  const registered = O(
+  const commands = signal4(/* @__PURE__ */ new Map());
+  const registered = computed3(
     () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
   );
   const ended = () => options.signal?.aborted === true;
@@ -8462,10 +6962,10 @@ function createCommands(store, options = {}) {
     if (commands.value.has(id2)) {
       throw new Error(`The command "${id2}" is registered already.`);
     }
-    const validate2 = command2.args === void 0 ? void 0 : compile(`the args of the command "${id2}"`, command2.args, "fail their schema");
+    const validate = command2.args === void 0 ? void 0 : compile(`the args of the command "${id2}"`, command2.args, "fail their schema");
     const item = {
       command: command2,
-      validate: validate2,
+      validate,
       context: { ...shared, refusal: (failures) => refusal(id2, failures) }
     };
     commands.value = new Map([...commands.value, [id2, item]]);
@@ -8765,9 +7265,9 @@ function runPlugins(deps) {
       return def?.start === void 0 ? [] : [{ id: id2, def }];
     });
     const failures = await Promise.all(starting.map(({ id: id2 }) => added.get(id2) ?? NOTHING_FAILED));
-    starting.forEach(({ id: id2, def }, i2) => {
+    starting.forEach(({ id: id2, def }, i) => {
       if (replaced2.aborted) return;
-      if ((failures[i2] ?? []).length > 0) {
+      if ((failures[i] ?? []).length > 0) {
         log.error(`The plugin "${id2}" does not start, since board options that its class requires did not go onto the board.`);
         return;
       }
@@ -8804,8 +7304,8 @@ function runPlugins(deps) {
       throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
     }
     const controller = new AbortController();
-    const { signal } = controller;
-    const ended = () => signal.aborted;
+    const { signal: signal5 } = controller;
+    const ended = () => signal5.aborted;
     let cleanup;
     let stopKeeping;
     const end = () => {
@@ -8845,7 +7345,7 @@ function runPlugins(deps) {
         return;
       }
       try {
-        const rendered = await ui.render({ el, core: deps.core(), plugin, signal });
+        const rendered = await ui.render({ el, core: deps.core(), plugin, signal: signal5 });
         if (typeof rendered !== "function") return;
         if (ended()) attempt(rendered);
         else cleanup = rendered;
@@ -8912,14 +7412,14 @@ async function pluginRequest(deps, plugin, name3, args, opts) {
     }
   }
 }
-async function evaluateReads2(deps, what, blocks, signal) {
+async function evaluateReads2(deps, what, blocks, signal5) {
   if (blocks.length === 0) return [];
   const absent = blocks.filter((block) => deps.scheduler.status(block) === void 0);
   if (absent.length > 0) {
     throw new Error(`${what} reads ${absent.length === 1 ? "the block" : "the blocks"} ${quoted(absent)}, which the board lacks.`);
   }
   const unique = [...new Set(blocks)];
-  const statuses = await deps.scheduler.evaluate(unique, void 0, signal === void 0 ? {} : { signal });
+  const statuses = await deps.scheduler.evaluate(unique, void 0, signal5 === void 0 ? {} : { signal: signal5 });
   const unready = unique.flatMap((block) => {
     const status = own(statuses, block);
     return status === void 0 || status.status === "ready" ? [] : [{ block, status }];
@@ -9160,10 +7660,10 @@ function shownObject(given) {
   }
   throw new TypeError(`Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`);
 }
-function createOnScreen(signal) {
+function createOnScreen(signal5) {
   let seen = null;
   const listeners = /* @__PURE__ */ new Set();
-  signal?.addEventListener(
+  signal5?.addEventListener(
     "abort",
     () => {
       listeners.clear();
@@ -9203,11 +7703,11 @@ function seenGiven(given) {
 function isIds(given) {
   return Array.isArray(given) && given.every((id2) => typeof id2 === "string");
 }
-function sameIds(a2, b2) {
-  const inB = new Set(b2);
-  return new Set(a2).size === inB.size && a2.every((id2) => inB.has(id2));
+function sameIds(a, b) {
+  const inB = new Set(b);
+  return new Set(a).size === inB.size && a.every((id2) => inB.has(id2));
 }
-function createFocus(store, signal) {
+function createFocus(store, signal5) {
   let focused = null;
   const listeners = /* @__PURE__ */ new Set();
   const offStore = store.subscribe((_change, board) => {
@@ -9215,7 +7715,7 @@ function createFocus(store, signal) {
     focused = null;
     announceTo(listeners, focused);
   });
-  signal?.addEventListener(
+  signal5?.addEventListener(
     "abort",
     () => {
       offStore();
@@ -9267,13 +7767,13 @@ function pageFrontEnds(el) {
     el.replaceChildren(loadingNote());
   }
   return {
-    prepare(front, signal) {
-      if (signal.aborted) return;
+    prepare(front, signal5) {
+      if (signal5.aborted) return;
       end();
       next = front;
     },
-    async render(core, signal, failures) {
-      if (signal.aborted) return;
+    async render(core, signal5, failures) {
+      if (signal5.aborted) return;
       const prepared = next;
       next = void 0;
       if (prepared === void 0) return;
@@ -9291,15 +7791,15 @@ function pageFrontEnds(el) {
       const ending = () => {
         if (drawn2 === current2) end();
       };
-      signal.addEventListener("abort", ending, { once: true });
+      signal5.addEventListener("abort", ending, { once: true });
       const current2 = {
         frontend: prepared.frontend,
         plugin: prepared.plugin,
         core,
-        board: signal,
+        board: signal5,
         controller,
         off: () => {
-          signal.removeEventListener("abort", ending);
+          signal5.removeEventListener("abort", ending);
         },
         cleanup: void 0
       };
@@ -9324,9 +7824,9 @@ function pageFrontEnds(el) {
         log.error(why);
       }
     },
-    async show(object2, signal) {
+    async show(object2, signal5) {
       const current2 = drawn2;
-      if (current2?.board !== signal || current2.frontend.show === void 0) return;
+      if (current2?.board !== signal5 || current2.frontend.show === void 0) return;
       try {
         await current2.frontend.show({ object: object2, el, core: current2.core });
       } catch (error) {
@@ -9401,7 +7901,7 @@ var EVALUATE_PHASES = {
 var NONE2 = Object.freeze([]);
 var nothing = () => void 0;
 function createNotifications(store, options = {}) {
-  const { signal } = options;
+  const { signal: signal5 } = options;
   const plugins = options.plugins ?? {};
   const held2 = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
@@ -9468,8 +7968,8 @@ function createNotifications(store, options = {}) {
     if (had) publish();
     listeners.clear();
   }
-  if (signal?.aborted === true) end();
-  else if (signal !== void 0) onAbort(signal, end);
+  if (signal5?.aborted === true) end();
+  else if (signal5 !== void 0) onAbort(signal5, end);
   function replace(what, object2, next) {
     let moved = false;
     for (const id2 of replacing.get(what)?.ids ?? []) {
@@ -9748,7 +8248,7 @@ function start(options) {
   const loader = createLoader({
     ...options.loader,
     modules: () => latest?.modules ?? {},
-    changed: (pkg) => changed.find((c2) => c2.package === pkg)
+    changed: (pkg) => changed.find((c) => c.package === pkg)
   });
   const migrations = createMigrations(loader);
   function heard(reply) {
@@ -9833,13 +8333,13 @@ function start(options) {
   }
   async function boot(reply, later, opening2) {
     const controller = new AbortController();
-    const { signal } = controller;
+    const { signal: signal5 } = controller;
     const ending = () => {
       controller.abort();
     };
     if (page.signal.aborted) ending();
     page.signal.addEventListener("abort", ending, { once: true });
-    signal.addEventListener(
+    signal5.addEventListener(
       "abort",
       () => {
         page.signal.removeEventListener("abort", ending);
@@ -9865,17 +8365,17 @@ function start(options) {
       setUpLogging(settings, service, sessionId, options.otel ?? noOtel);
       tracing = setUpTracing(tracesUrl(otelClientEndpoint, base), service, sessionId, options.otel ?? noOtel);
     }
-    const store = createStore({ hello: reply, signal, migration: (id2) => migrations.get(id2) });
-    const notifications = createNotifications(store, { signal, plugins: reply.plugins });
+    const store = createStore({ hello: reply, signal: signal5, migration: (id2) => migrations.get(id2) });
+    const notifications = createNotifications(store, { signal: signal5, plugins: reply.plugins });
     const { raise } = notifications;
     askReload(raise);
     const commands = createCommands(store, {
-      signal,
+      signal: signal5,
       lock: reply.lock,
       randId,
       blockrOption: (name3) => blockrOptions.read(name3)
     });
-    await opening2.step("modules", () => register(reply, store, commands, signal, raise));
+    await opening2.step("modules", () => register(reply, store, commands, signal5, raise));
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
       store,
@@ -9884,7 +8384,7 @@ function start(options) {
       backgroundEvaluationDelay,
       gateVisibility,
       nextRevision,
-      signal,
+      signal: signal5,
       ...bound === void 0 ? {} : { bound }
     });
     const { api: core, plugins } = createCore({
@@ -9901,15 +8401,15 @@ function start(options) {
       plugins: reply.plugins,
       options: reply.options,
       notifications,
-      signal,
-      show: (object2) => options.frontEnds?.show(object2, signal) ?? Promise.resolve(),
+      signal: signal5,
+      show: (object2) => options.frontEnds?.show(object2, signal5) ?? Promise.resolve(),
       ...options.measure === void 0 ? {} : { measure: options.measure }
     });
     running2 = { store, scheduler, core, notifications, controller };
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = alone ? void 0 : await named3(reply, store, core, signal, raise, opening2);
+      const instead = alone ? void 0 : await named3(reply, store, core, signal5, raise, opening2);
       await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
       if (instead === void 0) {
         dropped = await opening2.step("store.open", () => store.open(reply));
@@ -9950,7 +8450,7 @@ function start(options) {
     if (dropped.length > 0) raise(droppedNotification(dropped));
     if (alone) {
       try {
-        options.frontEnds?.card?.(core, signal);
+        options.frontEnds?.card?.(core, signal5);
       } finally {
         scheduler.start();
       }
@@ -9958,11 +8458,11 @@ function start(options) {
       const front = plugins.frontend();
       options.frontEnds?.prepare(
         front === void 0 ? { none: noFrontend(reply, core) } : { frontend: front.frontend, plugin: front.plugin, args: reply.frontend },
-        signal
+        signal5
       );
       const failures = await (front?.added ?? []);
       try {
-        await opening2.step("render", async () => options.frontEnds?.render(core, signal, failures));
+        await opening2.step("render", async () => options.frontEnds?.render(core, signal5, failures));
       } finally {
         scheduler.start();
       }
@@ -9971,10 +8471,10 @@ function start(options) {
     if (failure !== void 0) throw failure;
     return { core, dropped };
   }
-  async function register(reply, store, commands, signal, raise) {
+  async function register(reply, store, commands, signal5, raise) {
     const failed2 = (error, concerns) => {
       log.error(asError(error));
-      if (!signal.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
+      if (!signal5.aborted) raise(coreNotification("module_failed", "error", errorMessage(error), concerns));
     };
     const [defs, opts] = await Promise.all([
       Promise.all(
@@ -9992,9 +8492,9 @@ function start(options) {
         )
       )
     ]);
-    if (signal.aborted) return;
-    Object.entries(reply.options).forEach(([id2, entry], i2) => {
-      const def = opts[i2];
+    if (signal5.aborted) return;
+    Object.entries(reply.options).forEach(([id2, entry], i) => {
+      const def = opts[i];
       if (def === void 0) return;
       try {
         store.options.register({ ...def, id: id2 });
@@ -10002,8 +8502,8 @@ function start(options) {
         failed2(error, { module: sourceModule({ option: id2 }, entry.package) });
       }
     });
-    Object.keys(reply.plugins).forEach((id2, i2) => {
-      const def = defs[i2];
+    Object.keys(reply.plugins).forEach((id2, i) => {
+      const def = defs[i];
       if (def === void 0) return;
       let cls;
       try {
@@ -10031,7 +8531,7 @@ function start(options) {
       return void 0;
     }
   }
-  async function named3(reply, store, core, signal, raise, opening2) {
+  async function named3(reply, store, core, signal5, raise, opening2) {
     if (reply.lock.load) return void 0;
     const classes = store.plugins.registered();
     const plugin = Object.keys(reply.plugins).find((id2) => own(classes, id2)?.storage !== void 0);
@@ -10043,7 +8543,7 @@ function start(options) {
     };
     let text;
     try {
-      text = await opening2.step("storage.load", async () => storage.load?.({ core, plugin, signal }));
+      text = await opening2.step("storage.load", async () => storage.load?.({ core, plugin, signal: signal5 }));
     } catch (error) {
       refuse(
         new Error(`The load() of the storage plugin "${plugin}" failed, so core opens the board that R sent: ${errorMessage(error)}`, {
@@ -10142,7 +8642,7 @@ function start(options) {
 }
 function helloError(reply) {
   if (reply.status !== "ok" || !("block_registry" in reply)) {
-    const said = "conditions" in reply ? reply.conditions.map((c2) => c2.message).join(" ") : "";
+    const said = "conditions" in reply ? reply.conditions.map((c) => c.message).join(" ") : "";
     return new Error(`R replied ${reply.status} to the client's hello. ${said}`.trim());
   }
   return void 0;
@@ -10159,7 +8659,7 @@ function changedPackages(loaded, reply) {
   });
 }
 function reloadNotification(changed) {
-  const versions = changed.map((c2) => `${c2.package} ${c2.loaded} to ${c2.now}`).join(", ");
+  const versions = changed.map((c) => `${c.package} ${c.loaded} to ${c.now}`).join(", ");
   return coreNotification(
     "page_reload_needed",
     "warning",
@@ -10221,8 +8721,8 @@ function Footer({ status, shown: shown2 }) {
 }
 function Pills({ status, shown: shown2, notifications, severities, open, toggle, panel }) {
   const pills = SEVERITIES2.flatMap((severity) => {
-    const n2 = counted(shown2, notifications, severities, severity);
-    return n2 === 0 ? [] : [{ severity, n: n2 }];
+    const n = counted(shown2, notifications, severities, severity);
+    return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
   return /* @__PURE__ */ jsx(
@@ -10232,7 +8732,7 @@ function Pills({ status, shown: shown2, notifications, severities, open, toggle,
       "aria-label": "Status",
       "aria-busy": status?.running === true,
       className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
-      children: pills.map(({ severity, n: n2 }) => {
+      children: pills.map(({ severity, n }) => {
         const mark = MARKS[severity];
         return /* @__PURE__ */ jsxs(
           "button",
@@ -10246,7 +8746,7 @@ function Pills({ status, shown: shown2, notifications, severities, open, toggle,
             className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
             children: [
               /* @__PURE__ */ jsx(SeverityIcon, { severity }),
-              severity === "error" ? mark.noun : `${String(n2)} ${mark.noun}${n2 === 1 ? "" : "s"}`
+              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
             ]
           },
           severity
@@ -10262,14 +8762,14 @@ function Banners({ shown: shown2, notifications, severities, open, panel }) {
   const reason = shown2?.reason ?? null;
   if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
   if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i2) => /* @__PURE__ */ jsx(Banner, { severity, message }, i2)) });
+  return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx(Banner, { severity, message }, i)) });
 }
 function settled2(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
 function counted(status, notifications, severities, severity) {
-  const n2 = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
-  return severity === "message" && (status?.reason ?? null) !== null ? n2 + 1 : n2;
+  const n = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 var MARKS = {
   error: {
@@ -10396,8 +8896,8 @@ function useSized(status) {
 // srcts/page/card.tsx
 import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var OWNER = "blockr.core";
-function drawCard(el, core, signal) {
-  if (signal.aborted) return;
+function drawCard(el, core, signal5) {
+  if (signal5.aborted) return;
   const ids2 = Object.keys(core.store.board().blocks);
   const [id2] = ids2;
   if (id2 === void 0 || ids2.length > 1) {
@@ -10410,7 +8910,7 @@ function drawCard(el, core, signal) {
   flushSync(() => {
     root.render(/* @__PURE__ */ jsx3(AloneCard, { core, id: id2 }));
   });
-  signal.addEventListener(
+  signal5.addEventListener(
     "abort",
     () => {
       demand.release();
@@ -10482,8 +8982,8 @@ function startPage(options) {
     ...options.measure === void 0 ? {} : { measure: options.measure },
     frontEnds: {
       ...pageFrontEnds(el),
-      card(core, signal) {
-        drawCard(el, core, signal);
+      card(core, signal5) {
+        drawCard(el, core, signal5);
       }
     },
     ...options.alone === true ? { alone: true } : {},

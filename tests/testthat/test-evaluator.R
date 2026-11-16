@@ -1074,12 +1074,14 @@ test_that("R reads blockr options, as the fixture blockr-options has it", {
 
 test_that("R writes a blockr option as yyjsonr does, or fails naming it", {
 
-  withr::local_options(
-    blockr.release = as.Date("2026-11-09"),
-    blockr.renderers = list(table_output = function() NULL)
-  )
+  withr::local_options(blockr.release = as.Date("2026-11-09"))
 
   session <- local_evaluator()
+
+  # R reads the blockr option `renderers` to build its reply to the hello.
+  # A value that is no list of renderers makes that reply an error,
+  # so the test sets one only once the session has started.
+  withr::local_options(blockr.renderers = list(table_output = function() NULL))
 
   session$receive(
     list(list(id = "2", kind = "blockr_options", names = "release"))
@@ -1411,6 +1413,7 @@ test_that("R calls a plugin's request with its args, reads and body", {
   local_plugin_classes(
     Notes = plugin_ctor(function() NULL, "notes_plugin", "blockr.notes")
   )
+  local_versions(blockr.notes = "0.1.0")
 
   testthat::local_mocked_s3_method(
     "plugin_requests",
