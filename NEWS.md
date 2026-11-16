@@ -394,7 +394,7 @@
   Until now, `isTRUE()` read the string as `FALSE`, so that `BLOCKR_LOG_MEM=TRUE`, for one, did nothing.
   A value that `as.logical()` reads as neither `TRUE` nor `FALSE` fails, naming the blockr option (#510).
 * Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello, and core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
-* The command registry hands every command its context, beside the board and its args, as the third argument of its `enabled()`, `prepare()` and `run()`.
+* The command registry hands every command its context, beside the board and its args, as the third argument of its `preflight()`, `prepare()` and `run()`.
   The context holds the locks of R's reply to `hello` in `lock`, a function `mintId()` that mints an ID in the shape that `rand_id` names, and the function `blockrOption()`, which reads a blockr option as `CoreApi.blockrOption()` does.
   So a plugin class's commands can refuse what its plugins lock, and mint IDs as core's commands do.
   Core's own commands read the board lock and mint IDs through the context too.

@@ -8611,7 +8611,7 @@ function coreCommands(store) {
       label: "Remove block",
       description: "Removes a block, with its links and its place in its stack.",
       args: object({ id: blockId }, ["id"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run: (_board, { id: id2 }) => ({ blocks: { rm: [id2] } })
     }),
     command({
@@ -8619,7 +8619,7 @@ function coreCommands(store) {
       label: "Rename block",
       description: "Gives a block a new name.",
       args: object({ id: blockId, name: name2 }, ["id", "name"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run: (_board, { id: id2, name: name3 }) => ({ blocks: { mod: { [id2]: { name: name3 } } } })
     }),
     command({
@@ -8627,7 +8627,7 @@ function coreCommands(store) {
       label: "Set block lock",
       description: "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",
       args: object({ id: blockId, locked }, ["id", "locked"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run: (_board, { id: id2, locked: locked2 }) => ({ blocks: { mod: { [id2]: { locked: locked2 } } } })
     }),
     command({
@@ -8642,7 +8642,7 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run(board2, { id: id2, state: state2, unset }) {
         const block = own(board2.blocks, id2);
         if (block === void 0) return [];
@@ -8675,7 +8675,7 @@ function coreCommands(store) {
         },
         ["from", "registry_id"]
       ),
-      enabled: (board2, { from }) => Object.hasOwn(board2.blocks, from),
+      preflight: (board2, { from }) => Object.hasOwn(board2.blocks, from),
       run(board2, args, { mintId: mintId2 }) {
         const [id2, block, entry] = added(this.id, board2, args, mintId2);
         const input2 = newInput(this.id, entry, args.input);
@@ -8701,7 +8701,7 @@ function coreCommands(store) {
         },
         ["to", "registry_id"]
       ),
-      enabled: (board2, { to, input: input2 }) => linkable(board2, to, input2),
+      preflight: (board2, { to, input: input2 }) => linkable(board2, to, input2),
       run(board2, args, { mintId: mintId2 }) {
         const input2 = linkInput(this.id, board2, args.to, args.input);
         const [id2, block] = added(this.id, board2, args, mintId2);
@@ -8727,7 +8727,7 @@ function coreCommands(store) {
         },
         ["link", "registry_id"]
       ),
-      enabled: (board2, { link }) => Object.hasOwn(board2.links, link),
+      preflight: (board2, { link }) => Object.hasOwn(board2.links, link),
       run(board2, args, { mintId: mintId2 }) {
         const split = own(board2.links, args.link);
         if (split === void 0) return [];
@@ -8769,7 +8769,7 @@ function coreCommands(store) {
         },
         ["from", "to"]
       ),
-      enabled: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
+      preflight: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
       run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
         const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
         const resolved = linkInput(this.id, board2, to, input2);
@@ -8792,7 +8792,7 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
       run(board2, args) {
         const link = own(board2.links, args.id);
         if (link === void 0) return [];
@@ -8817,7 +8817,7 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
       run(board2, { id: id2, before }) {
         const link = own(board2.links, id2);
         if (link === void 0) return [];
@@ -8848,7 +8848,7 @@ function coreCommands(store) {
       label: "Remove link",
       description: "Removes a link.",
       args: object({ id: linkId }, ["id"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
       run: (_board, { id: id2 }) => ({ links: { rm: [id2] } })
     })
   ];
@@ -8898,7 +8898,7 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
       run: (board2, { id: id2, blocks: blocks2, color: color2 }) => ({
         stacks: {
           mod: {
@@ -8916,7 +8916,7 @@ function coreCommands(store) {
       label: "Rename stack",
       description: "Gives a stack a new name.",
       args: object({ id: stackId, name: name2 }, ["id", "name"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
       run: (_board, { id: id2, name: name3 }) => ({ stacks: { mod: { [id2]: { name: name3 } } } })
     }),
     command({
@@ -8924,7 +8924,7 @@ function coreCommands(store) {
       label: "Remove stack",
       description: "Removes a stack, leaving its blocks on the board.",
       args: object({ id: stackId }, ["id"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
       run: (_board, { id: id2 }) => ({ stacks: { rm: [id2] } })
     })
   ];
@@ -8941,7 +8941,7 @@ function coreCommands(store) {
       label: "Set board option",
       description: "Sets the value of a board option, which the board option's schema types.",
       args: object({ id: optionId, value }, ["id", "value"]),
-      enabled: (_board, { id: id2 }) => own(store.options.registered(), id2) !== void 0,
+      preflight: (_board, { id: id2 }) => own(store.options.registered(), id2) !== void 0,
       run: (_board, { id: id2, value: value2 }) => ({ options: { set: { [id2]: value2 } } })
     })
   ];
@@ -8949,7 +8949,7 @@ function coreCommands(store) {
     command({
       id: "blockr.core-set_plugin_state",
       label: "Set plugin state",
-      description: "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It is not enabled on a locked board, where only the commands of a plugin's class know what the plugin locks.",
+      description: "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It fails its preflight on a locked board, where only the commands of a plugin's class know what the plugin locks.",
       args: object(
         {
           plugin: {
@@ -8960,7 +8960,7 @@ function coreCommands(store) {
         },
         ["plugin", "patches"]
       ),
-      enabled: (board2, { plugin }, { lock }) => !lock.board && Object.hasOwn(board2.plugins, plugin),
+      preflight: (board2, { plugin }, { lock }) => !lock.board && Object.hasOwn(board2.plugins, plugin),
       run: (_board, { plugin, patches: patches2 }) => ({
         patches: patches2.map((patch2) => ({ ...patch2, path: `${pathFromSegments(["plugins", plugin])}${patch2.path}` }))
       })
@@ -9021,7 +9021,7 @@ function command(def) {
   return {
     ...def,
     run: def.run.bind(def),
-    ...def.enabled === void 0 ? {} : { enabled: def.enabled.bind(def) }
+    ...def.preflight === void 0 ? {} : { preflight: def.preflight.bind(def) }
   };
 }
 
@@ -9097,10 +9097,10 @@ function createCommands(store, options = {}) {
     return store.board();
   }
   function allow(command2, board, args) {
-    const enabled = attempt2(command2, () => command2.enabled?.(board, args, context4) ?? true);
-    if (!enabled) {
+    const passes = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
+    if (!passes) {
       throw refusal(command2.id, [
-        `It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`
+        `It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`
       ]);
     }
   }
@@ -9158,7 +9158,7 @@ function createCommands(store, options = {}) {
   const registry = {
     register,
     registered: () => registered.value,
-    enabled(id2, given) {
+    preflight(id2, given) {
       try {
         const { command: command2, args } = lookup(id2, given);
         allow(command2, current2(id2), args);
