@@ -815,6 +815,37 @@ test_that("the page names the import map first and starts the client", {
   expect_match(page$html, "\"blockr-page\"), alone: true });", fixed = TRUE)
 })
 
+test_that("the page shows the loading note in the system's theme at once", {
+
+  page <- htmltools::renderTags(serve_page())
+
+  expect_match(
+    page$head,
+    "<meta name=\"color-scheme\" content=\"light dark\"/>",
+    fixed = TRUE
+  )
+  expect_match(
+    page$html,
+    paste0(
+      "<div id=\"blockr-page\">\\s*",
+      "<div role=\"status\" class=\"bc:loading-note\">"
+    )
+  )
+  expect_match(
+    page$html,
+    paste0(
+      "<progress class=\"bc:spinner\" aria-label=\"Loading the board\">",
+      "</progress>"
+    ),
+    fixed = TRUE
+  )
+  expect_match(
+    page$html,
+    "<span aria-hidden=\"true\">Loading the board\u2026</span>",
+    fixed = TRUE
+  )
+})
+
 test_that("in Shiny's test mode, the page puts out blockrTest", {
 
   # Outside test mode, the page loads nothing for end-to-end tests.

@@ -407,6 +407,12 @@ latest_results <- function(ev, alone = FALSE) {
 # after its own scripts, which are no modules.
 # The page then holds core's stylesheet, the element that the client draws
 # in, and the module script that starts the client with `startPage()`.
+# The element holds the loading note from the start, so that the page shows it
+# before the client's code has loaded, which the client keeps until the board
+# opens.
+# The page takes the theme that the user's system prefers until then, as the
+# board option `dark_mode` does by default, rather than a light page that turns
+# dark as the board opens.
 # R makes the page for each request, so that its URLs name the files that R
 # serves now.
 # In Shiny's test mode, as shinytest2 starts an app, the module script also
@@ -429,10 +435,26 @@ serve_page <- function(alone = FALSE,
   shiny::tagList(
     import_map_dependency(),
     shiny::tags$head(
+      shiny::tags$meta(name = "color-scheme", content = "light dark"),
       shiny::tags$link(rel = "stylesheet", href = runtime[["css"]])
     ),
-    shiny::tags$div(id = "blockr-page"),
+    shiny::tags$div(id = "blockr-page", loading_note()),
     shiny::tags$script(type = "module", shiny::HTML(script))
+  )
+}
+
+# The loading note, as the client's `loadingNote()` makes it
+# (srcts/core/frontends.ts): a spinner over the line "Loading the board…",
+# which core's stylesheet draws.
+loading_note <- function() {
+  shiny::tags$div(
+    role = "status",
+    class = "bc:loading-note",
+    shiny::tags$progress(
+      class = "bc:spinner",
+      `aria-label` = "Loading the board"
+    ),
+    shiny::tags$span(`aria-hidden` = "true", "Loading the board\u2026")
   )
 }
 

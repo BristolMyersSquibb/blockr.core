@@ -84,3 +84,120 @@
     --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
   }
 }
+
+/*
+ * The loading note, which the page shows while core starts, as the page
+ * starts and as another board opens, and which R's page holds from the start:
+ * a spinner over the line "Loading the board…", in the middle of the window,
+ * in the muted color of the text.
+ * It fades in after a moment, so that a board that opens at once shows none.
+ */
+@utility loading-note {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: --spacing(3);
+  font-family: var(--bc-font-sans);
+  font-size: var(--bc-text-sm);
+  line-height: var(--bc-text-sm--line-height);
+  color: var(--bc-color-text-muted);
+  animation: bc-appear 400ms ease-out 400ms both;
+}
+
+@keyframes bc-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * The spinner, a <progress> without a value, which says that the page is busy.
+ * It draws as a ring in the color of the text around it: an arc that grows
+ * and shrinks as it turns, over a faint track.
+ * Under reduced motion, the arc keeps its length and turns slowly.
+ * Under forced colors, which drop the gradient, it draws in the system's
+ * colors.
+ * The angles of the arc's ends animate as registered properties.
+ * A browser that registers none leaves out the arc's growing, through the
+ * initial value of --bc-spinner-dash, so that the arc turns without jumps.
+ */
+@property --bc-spinner-start {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@property --bc-spinner-end {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@property --bc-spinner-dash {
+  syntax: "*";
+  inherits: false;
+  initial-value: , bc-spinner-dash 3s ease-in-out infinite;
+}
+
+@utility spinner {
+  --bc-spinner-color: color-mix(in oklab, currentColor 80%, transparent);
+  --bc-spinner-track: color-mix(in oklab, currentColor 18%, transparent);
+  --bc-spinner-turn: 1.4s;
+  appearance: none;
+  box-sizing: border-box;
+  width: --spacing(7);
+  height: --spacing(7);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+      from calc(90deg + var(--bc-spinner-start)),
+      var(--bc-spinner-color) calc(var(--bc-spinner-end) - var(--bc-spinner-start)),
+      transparent 0
+    )
+    var(--bc-spinner-track);
+  mask-image: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  animation: bc-spinner-turn var(--bc-spinner-turn) linear infinite var(--bc-spinner-dash, );
+
+  &::-webkit-progress-bar,
+  &::-webkit-progress-value {
+    background: none;
+  }
+  &::-moz-progress-bar {
+    background: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    --bc-spinner-turn: 6s;
+    --bc-spinner-dash: ;
+    --bc-spinner-end: 158deg;
+  }
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    --bc-spinner-color: CanvasText;
+    --bc-spinner-track: Canvas;
+  }
+}
+
+@keyframes bc-spinner-turn {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@keyframes bc-spinner-dash {
+  from {
+    --bc-spinner-start: 0deg;
+    --bc-spinner-end: 3deg;
+  }
+  50% {
+    --bc-spinner-start: 100deg;
+    --bc-spinner-end: 358deg;
+  }
+  to {
+    --bc-spinner-start: 360deg;
+    --bc-spinner-end: 363deg;
+  }
+}

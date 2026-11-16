@@ -4,8 +4,14 @@
 // frontend in the page's element, as srcts/core starts it. Core draws a block that serve() serves alone in its card instead
 // (./card.tsx).
 // While core starts, as the page starts and as another board opens, the
-// element says that the board is loading, as today's page waits for the board
-// that a loader resolves. Where core cannot start, the element says why. Where
+// element shows the loading note, as today's page waits for the board that a
+// loader resolves.
+// R's page holds the note from the start, so that it shows before core's code
+// has loaded.
+// So core puts the note only in an element that holds no element, and keeps
+// the one that R's page holds, whose fade-in then goes on rather than start
+// over.
+// Where core cannot start, the element says why. Where
 // R now runs other versions of packages than the page loaded, the frontend
 // draws the notification in which core asks for the page to be reloaded.
 
@@ -35,7 +41,7 @@ export interface PageOptions {
 
 export function startPage(options: PageOptions): Started {
   const { el } = options;
-  el.replaceChildren(loadingNote());
+  if (el.firstElementChild === null) el.replaceChildren(loadingNote());
   return start({
     transport: options.transport ?? shinyTransport(),
     ...(options.loader === undefined ? {} : { loader: options.loader }),

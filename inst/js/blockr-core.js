@@ -9250,8 +9250,14 @@ function createFocus(store, signal) {
 function loadingNote() {
   const box = document.createElement("div");
   box.setAttribute("role", "status");
-  box.className = "bc:p-4 bc:font-sans bc:text-sm bc:text-text-muted";
-  box.textContent = "Loading the board\u2026";
+  box.className = "bc:loading-note";
+  const spinner = document.createElement("progress");
+  spinner.className = "bc:spinner";
+  spinner.setAttribute("aria-label", "Loading the board");
+  const line = document.createElement("span");
+  line.setAttribute("aria-hidden", "true");
+  line.textContent = "Loading the board\u2026";
+  box.append(spinner, line);
   return box;
 }
 function pageFrontEnds(el) {
@@ -10475,7 +10481,7 @@ function useBlockName(core, id2) {
 // srcts/page/page.ts
 function startPage(options) {
   const { el } = options;
-  el.replaceChildren(loadingNote());
+  if (el.firstElementChild === null) el.replaceChildren(loadingNote());
   return start({
     transport: options.transport ?? shinyTransport(),
     ...options.loader === void 0 ? {} : { loader: options.loader },

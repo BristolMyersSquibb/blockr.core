@@ -27,7 +27,7 @@ import type { CoreApi, FrontendModule, Notification, PluginModule } from "../typ
 import type { Json, JsonSchema } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import { own } from "../util/index.ts";
-import { pageFrontEnds, start } from "./index.ts";
+import { loadingNote, pageFrontEnds, start } from "./index.ts";
 import type { StartOptions } from "./index.ts";
 
 // The URL at which the fixture hello has R serve the module of the class of
@@ -844,6 +844,48 @@ describe("starting the page", () => {
     expect(el.textContent).toBe(unfitness);
     expect(basic.renders).toHaveLength(0);
     expect(r.evaluations()).toEqual([]);
+  });
+
+  test("shows the loading note in an element that holds no element, and keeps the one that R's page holds, until the frontend draws", async () => {
+    const page = (el: HTMLElement) => {
+      const r = playedR();
+      const basic = frontEnd();
+      const started = startPage({
+        el,
+        transport: r.transport,
+        loader: {
+          importer: (url) =>
+            url === BASIC
+              ? Promise.resolve(basic.exports)
+              : Object.hasOwn(CORE, url)
+                ? Promise.resolve(CORE[url])
+                : Promise.reject(new TypeError(`No module at ${url}.`)),
+          stylesheet: () => Promise.resolve(),
+        },
+        measure: { info: () => null, watch: () => () => undefined },
+      });
+      return { r, started };
+    };
+
+    const empty = document.createElement("div");
+    page(empty);
+    expect(empty.children).toHaveLength(1);
+    expect(empty.firstElementChild?.getAttribute("role")).toBe("status");
+    expect(empty.querySelector("progress")?.getAttribute("aria-label")).toBe("Loading the board");
+    expect(empty.textContent).toBe("Loading the board…");
+
+    // Core keeps the note that R's page holds, so that its fade-in goes on.
+    const el = document.createElement("div");
+    const note = loadingNote();
+    el.append(note);
+    const { r, started } = page(el);
+    expect(el.firstElementChild).toBe(note);
+
+    r.session();
+    await tick();
+    r.options();
+    await started.ready;
+    expect(el.textContent).toBe("Iris review");
   });
 });
 

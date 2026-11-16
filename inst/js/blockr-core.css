@@ -40,6 +40,9 @@
       --tw-drop-shadow-alpha: 100%;
       --tw-drop-shadow-size: initial;
       --tw-duration: initial;
+      --bc-spinner-start: 0deg;
+      --bc-spinner-end: 0deg;
+      --bc-spinner-dash: , bc-spinner-dash 3s ease-in-out infinite;
     }
   }
 }
@@ -141,6 +144,20 @@
   pointer-events: none;
 }
 
+.bc\:loading-note {
+  place-content: center;
+  justify-items: center;
+  gap: calc(var(--bc-spacing) * 3);
+  font-family: var(--bc-font-sans);
+  font-size: var(--bc-text-sm);
+  line-height: var(--bc-text-sm--line-height);
+  color: var(--bc-color-text-muted);
+  animation: .4s ease-out .4s both bc-appear;
+  display: grid;
+  position: fixed;
+  inset: 0;
+}
+
 .bc\:sr-only {
   clip-path: inset(50%);
   white-space: nowrap;
@@ -199,6 +216,73 @@
 
 .bc\:z-50 {
   z-index: 50;
+}
+
+.bc\:spinner {
+  --bc-spinner-color: currentColor;
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .bc\:spinner {
+    --bc-spinner-color: color-mix(in oklab, currentColor 80%, transparent);
+  }
+}
+
+.bc\:spinner {
+  --bc-spinner-track: currentColor;
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .bc\:spinner {
+    --bc-spinner-track: color-mix(in oklab, currentColor 18%, transparent);
+  }
+}
+
+.bc\:spinner {
+  --bc-spinner-turn: 1.4s;
+  appearance: none;
+  box-sizing: border-box;
+  width: calc(var(--bc-spacing) * 7);
+  height: calc(var(--bc-spacing) * 7);
+  background: conic-gradient(from calc(90deg + var(--bc-spinner-start)),
+      var(--bc-spinner-color) calc(var(--bc-spinner-end) - var(--bc-spinner-start)),
+      transparent 0)
+    var(--bc-spinner-track);
+  animation: bc-spinner-turn var(--bc-spinner-turn) linear infinite var(--bc-spinner-dash, );
+  border: 0;
+  border-radius: 50%;
+  margin: 0;
+  padding: 0;
+  -webkit-mask-image: radial-gradient(farthest-side, #0000 calc(100% - 2.5px), #000 calc(100% - 2px));
+  mask-image: radial-gradient(farthest-side, #0000 calc(100% - 2.5px), #000 calc(100% - 2px));
+}
+
+.bc\:spinner::-webkit-progress-bar {
+  background: none;
+}
+
+.bc\:spinner::-webkit-progress-value {
+  background: none;
+}
+
+.bc\:spinner::-moz-progress-bar {
+  background: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bc\:spinner {
+    --bc-spinner-turn: 6s;
+    --bc-spinner-dash:  ;
+    --bc-spinner-end: 158deg;
+  }
+}
+
+@media (forced-colors: active) {
+  .bc\:spinner {
+    forced-color-adjust: none;
+    --bc-spinner-color: CanvasText;
+    --bc-spinner-track: Canvas;
+  }
 }
 
 .bc\:m-0 {
@@ -1032,6 +1116,53 @@
 
 :root[data-bc-theme="light"] {
   color-scheme: light;
+}
+
+@keyframes bc-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@property --bc-spinner-start {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --bc-spinner-end {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --bc-spinner-dash {
+  syntax: "*";
+  inherits: false;
+  initial-value: , bc-spinner-dash 3s ease-in-out infinite;
+}
+
+@keyframes bc-spinner-turn {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@keyframes bc-spinner-dash {
+  from {
+    --bc-spinner-start: 0deg;
+    --bc-spinner-end: 3deg;
+  }
+
+  50% {
+    --bc-spinner-start: 100deg;
+    --bc-spinner-end: 358deg;
+  }
+
+  to {
+    --bc-spinner-start: 360deg;
+    --bc-spinner-end: 363deg;
+  }
 }
 
 @property --tw-border-style {

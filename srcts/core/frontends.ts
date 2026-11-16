@@ -47,12 +47,24 @@ interface Drawn {
 }
 
 // What the element says while core starts, as the page starts and as another
-// board opens.
+// board opens: the loading note, a spinner over the line "Loading the board…".
+// Core's stylesheet draws it in the middle of the window, and fades it in after
+// a moment (../runtime/index.css).
+// The spinner is a <progress> without a value, which says that the page is
+// busy, and its label says what loads. The line says the same to the eye, so
+// assistive technology skips it.
+// R's page holds the same note from the start (R/utils-serve.R).
 export function loadingNote(): HTMLElement {
   const box = document.createElement("div");
   box.setAttribute("role", "status");
-  box.className = "bc:p-4 bc:font-sans bc:text-sm bc:text-text-muted";
-  box.textContent = "Loading the board…";
+  box.className = "bc:loading-note";
+  const spinner = document.createElement("progress");
+  spinner.className = "bc:spinner";
+  spinner.setAttribute("aria-label", "Loading the board");
+  const line = document.createElement("span");
+  line.setAttribute("aria-hidden", "true");
+  line.textContent = "Loading the board…";
+  box.append(spinner, line);
   return box;
 }
 
