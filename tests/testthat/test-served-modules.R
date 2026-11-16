@@ -20,8 +20,7 @@ test_that("R serves a package's file under the package's name", {
     paste0("blockr.test/js/grid.js?v=", hash_of(file))
   )
 
-  # Shiny serves a directory of R's own under the package's name, which holds
-  # the files that R names and nothing beside them.
+  # Shiny serves a directory of R's own under the package's name.
   expect_identical(
     served_path("blockr.test"),
     served_copy("blockr.test")
@@ -30,7 +29,64 @@ test_that("R serves a package's file under the package's name", {
     readLines(served_copy("blockr.test", "js", "grid.js")),
     readLines(file)
   )
-  expect_false(file.exists(served_copy("blockr.test", "js", "notes.txt")))
+})
+
+test_that("R serves the files beside a package's module, each at its path", {
+
+  dir <- withr::local_tempdir()
+  write_declared_files(dir)
+  local_empty_declarations()
+  local_declared_package(dir)
+
+  served_url(js_module("js/grid.js", package = "blockr.test"))
+
+  # The bundle that the module imports by a relative URL, and every other file
+  # of the module's directory, at the path that the browser resolves such a URL
+  # to.
+  pkg <- file.path(dir, "blockr.test", "js")
+
+  for (file in c("grid-lib-493f0854.js", "grid.css", "picker.js")) {
+    expect_identical(
+      readLines(served_copy("blockr.test", "js", file)),
+      readLines(file.path(pkg, file)),
+      info = file
+    )
+  }
+
+  # Nothing of a directory within it, or of the rest of the package.
+  expect_false(file.exists(served_copy("blockr.test", "js", "vendor")))
+  expect_false(file.exists(served_copy("blockr.test", "notes.txt")))
+})
+
+test_that("R copies the files beside a module again once the module changed", {
+
+  dir <- withr::local_tempdir()
+  write_declared_files(dir)
+  local_empty_declarations()
+  local_declared_package(dir)
+
+  module <- js_module("js/picker.js", package = "blockr.test")
+  served_url(module)
+
+  # A new build of the package writes a bundle, and the module imports it by
+  # the bundle's name.
+  pkg <- file.path(dir, "blockr.test", "js")
+
+  writeBin(
+    charToRaw("export const lib = 2;\n"),
+    file.path(pkg, "picker-lib-a49cd4c9.js")
+  )
+  writeBin(
+    charToRaw("import { lib } from \"./picker-lib-a49cd4c9.js\";\n"),
+    file.path(pkg, "picker.js")
+  )
+
+  served_url(module)
+
+  expect_identical(
+    readLines(served_copy("blockr.test", "js", "picker-lib-a49cd4c9.js")),
+    "export const lib = 2;"
+  )
 })
 
 test_that("a changed file gets a new URL, at which R serves the change", {
@@ -259,6 +315,8 @@ test_that("a running app serves a module that R names to the client", {
 
 test_that("the import map names the URL at which R serves each import", {
 
+  local_served_dir()
+
   shipped <- yyjsonr::read_json_file(
     system.file("js", "import-map.json", package = "blockr.core")
   )
@@ -293,7 +351,12 @@ test_that("the import map names the URL at which R serves each import", {
 
   # The bundle of React that the entry points of React import, and that of
   # OpenTelemetry's SDK that core's OpenTelemetry module imports, by their
-  # names.
-  expect_length(shipped$files, 2L)
-  expect_true(all(file.exists(served_copy("blockr.core", "js", shipped$files))))
+  # names, as files beside them.
+  bundles <- list.files(
+    system.file("js", package = "blockr.core"),
+    "^(react|opentelemetry)-[0-9a-f]{8}\\.js$"
+  )
+
+  expect_length(bundles, 2L)
+  expect_true(all(file.exists(served_copy("blockr.core", "js", bundles))))
 })

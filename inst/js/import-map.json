@@ -9,9 +9,5 @@
     "@blockr/core/controls": "blockr-core-controls.js",
     "@blockr/core/otel": "blockr-core-otel.js",
     "@opentelemetry/api": "opentelemetry-api.js"
-  },
-  "files": [
-    "react-963521e2.js",
-    "opentelemetry-4144b137.js"
-  ]
+  }
 }

@@ -81,7 +81,11 @@
 #' It serves a module, and the stylesheet beside it, under the package's name,
 #' at the module's path in the package, with a hash of the file's content in
 #' the URL, so that no browser runs a changed file from its cache.
-#' It serves only the files it names, and nothing else of the package.
+#' It serves the other files in the module's directory as well, each at its
+#' path, so that a module or its stylesheet can import a file beside it.
+#' Such a file has no hash in its URL, so the package names it with a hash of
+#' its content, as blockr.core names React's bundle `react-<hash>.js`.
+#' It serves nothing else of the package.
 #'
 #' @param pkg The name of the package
 #'
