@@ -45,14 +45,12 @@ export interface CoreApi {
   readonly options: Options & {
     value(option: OptionId): Json | undefined;
   };
-  // The plugin classes that packages define, and the app's plugins, which
-  // run on every board that the app opens, each named by the id of its class
+  // The app's plugins, which run on every board that the app opens, each
+  // named by the id of its class, and the definitions of their classes
   // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#running-a-plugin).
+  // Core registers the class of each of the app's plugins itself, from the
+  // default export of the module that R names for it.
   readonly plugins: {
-    // Registers a plugin class under the class's id, as core does with the
-    // default export of the module that R names for the class of each of the
-    // app's plugins, and returns what unregisters it.
-    register(def: PluginClass): () => void;
     // The app's plugins whose classes are registered, by the ids of their
     // classes, each with its class's name, as R's reply to `hello` names
     // them. It returns the same object until the registered classes change,
