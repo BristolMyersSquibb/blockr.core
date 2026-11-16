@@ -8,7 +8,6 @@ export type { BlockMod, Delta, Origin, Patch, Values } from "./delta.ts";
 export { pathFromSegments, pluginClassFromPath, segmentsFromPath } from "./patch.ts";
 export { inRole } from "./plugins.ts";
 export type {
-  Hints,
   Migration,
   Option,
   Options,

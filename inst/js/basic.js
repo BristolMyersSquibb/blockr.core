@@ -1455,7 +1455,7 @@ function drawnControls(core) {
     const twice = /* @__PURE__ */ new Set();
     const controls = distinct(storage.controls({ core, plugin }), twice);
     return {
-      controls: [...controls.filter((c) => c.placement !== "end"), ...controls.filter((c) => c.placement === "end")],
+      controls,
       failed: false,
       ...twice.size === 0 ? {} : { problem: `Storage controls of one list share the ids ${quoted([...twice])}, so only the first of each draws.` }
     };
