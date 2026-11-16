@@ -101,6 +101,30 @@ test("writes the declarations of the types and the stubs, the stubs bundled, and
   expect(stubs.echo([1, "a"])).toEqual([1, "a"]);
 });
 
+test("writes the licenses of the code from other projects that the stubs bundle into LICENSES beside them", async () => {
+  await copyFile(join(repo, "tsconfig.client.json"), join(root, "tsconfig.client.json"));
+  await write({
+    "node_modules/shout/package.json": JSON.stringify({
+      name: "shout",
+      version: "2.0.0",
+      type: "module",
+      exports: { ".": { types: "./index.d.ts", default: "./index.js" } },
+    }),
+    "node_modules/shout/index.js": "export const shout = (x) => x.toUpperCase();\n",
+    "node_modules/shout/index.d.ts": "export declare const shout: (x: string) => string;\n",
+    "node_modules/shout/LICENSE": "The license of shout\n",
+    "srcts/index.ts": "export type Json = string;\n",
+    "srcts/stubs/index.ts": 'export { shout } from "shout";\n',
+  });
+
+  const written = await types(root);
+
+  expect(written).toContain("inst/types/LICENSES");
+  expect(await readFile(join(root, "inst/types/LICENSES"), "utf8")).toBe(
+    "shout 2.0.0, in stubs/index.js\n\nThe license of shout\n",
+  );
+});
+
 test("refuses types that do not check", async () => {
   await copyFile(join(repo, "tsconfig.client.json"), join(root, "tsconfig.client.json"));
   await write({ "srcts/index.ts": "export const n: number = 'one';\n" });

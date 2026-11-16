@@ -7,11 +7,14 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { IMPORTS, OTEL_API, REACT_ENTRIES, importFile } from "../import-map/index.ts";
-import { build, idWords, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
+import { build, idWords, licenses, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
 
 // The fixtures import and reference core's stylesheet, so that they test core's
 // setup of Tailwind CSS.
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "../runtime/index.css");
+
+// Core's repo, whose node_modules holds the packages that the build bundles.
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 let root: string;
 
@@ -46,6 +49,7 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   const out = join(root, "inst/js");
   // Beside them, the build writes React's entry points and the import map.
   expect((await readdir(out)).filter((file) => !/^react|^import-map/.test(file)).sort()).toEqual([
+    "LICENSES",
     "blockr-core.css",
     "blockr-core.js",
     "head-block.css",
@@ -72,7 +76,9 @@ test("writes each of React's entry points as an ES module, exporting what the en
   const bundles = (await readdir(out)).filter((file) => /^react-[0-9a-f]{8}\.js$/.test(file));
   expect(bundles).toHaveLength(1);
   expect(written).toEqual(
-    ["blockr-core.js", "import-map.json", ...bundles, ...REACT_ENTRIES.map(importFile)].map((file) => `inst/js/${file}`).sort(),
+    ["LICENSES", "blockr-core.js", "import-map.json", ...bundles, ...REACT_ENTRIES.map(importFile)]
+      .map((file) => `inst/js/${file}`)
+      .sort(),
   );
   // The bundle keeps React's license comments.
   expect(await readFile(join(out, bundles[0] ?? ""), "utf8")).toContain("@license React");
@@ -178,6 +184,91 @@ test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module use
   // R serves the file beside the module, and the API as an import of its own.
   const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { imports: Record<string, string> };
   expect(map.imports[OTEL_API]).toBe(importFile(OTEL_API));
+});
+
+// The version of a package in core's node_modules, as its package.json gives
+// it, which the exports of some packages do not name.
+async function version(name: string): Promise<string> {
+  return (JSON.parse(await readFile(join(repo, "node_modules", name, "package.json"), "utf8")) as { version: string })
+    .version;
+}
+
+test("writes the licenses of the code from other projects in its files into LICENSES beside them, each license once", async () => {
+  await write({
+    "srcts/runtime/index.ts": "export const runtime = 'core';\n",
+    "srcts/runtime/index.css": `@import "${core}";\n`,
+  });
+
+  const written = await build(root);
+
+  const out = join(root, "inst/js");
+  expect(written).toContain("inst/js/LICENSES");
+  const bundle = (await readdir(out)).find((file) => /^react-[0-9a-f]{8}\.js$/.test(file)) ?? "";
+  const text = await readFile(join(out, "LICENSES"), "utf8");
+  // React's three packages share their license, whose text follows their lines.
+  const react = await readFile(join(repo, "node_modules/react/LICENSE"), "utf8");
+  expect(text).toContain(
+    [
+      `react ${await version("react")}, in ${bundle}`,
+      `react-dom ${await version("react-dom")}, in ${bundle}`,
+      `scheduler ${await version("scheduler")}, in ${bundle}`,
+      "",
+      react.trimEnd(),
+    ].join("\n"),
+  );
+  expect(text.split("Copyright (c) Meta Platforms, Inc. and affiliates.")).toHaveLength(2);
+  // Tailwind CSS writes the stylesheet.
+  const tailwind = await readFile(join(repo, "node_modules/tailwindcss/LICENSE"), "utf8");
+  expect(text).toContain(`tailwindcss ${await version("tailwindcss")}, in blockr-core.css\n\n${tailwind.trimEnd()}\n`);
+});
+
+test("takes the license of a package that npm installs without one from srcts/build/licenses, and fails for a package with neither", async () => {
+  await write({
+    "node_modules/@scope/own/package.json": JSON.stringify({
+      name: "@scope/own",
+      version: "1.0.0",
+      author: "Jane Doe <jane@example.com> (https://example.com)",
+    }),
+    "node_modules/@scope/own/LICENSE": "The license of own\n",
+    "node_modules/kept/package.json": JSON.stringify({ name: "kept", version: "2.0.0", author: { name: "Kim Lee" } }),
+    "srcts/build/licenses/kept/LICENSE.md": "The license of kept\n",
+    "node_modules/none/package.json": JSON.stringify({ name: "none", version: "3.0.0" }),
+  });
+  const out = join(root, "inst/js");
+  await mkdir(out, { recursive: true });
+  const at = (name: string) => join(root, "node_modules", name);
+
+  const written = await licenses(
+    root,
+    out,
+    new Map([
+      [join(out, "b.js"), [at("kept")]],
+      [join(out, "a.js"), [at("@scope/own"), at("kept")]],
+    ]),
+  );
+
+  expect(written).toEqual(["inst/js/LICENSES"]);
+  expect(await readFile(join(out, "LICENSES"), "utf8")).toBe(
+    [
+      "@scope/own 1.0.0, by Jane Doe, in a.js",
+      "",
+      "The license of own",
+      "",
+      "-".repeat(78),
+      "",
+      "kept 2.0.0, by Kim Lee, in a.js and b.js",
+      "",
+      "The license of kept",
+      "",
+    ].join("\n"),
+  );
+
+  await expect(licenses(root, out, new Map([[join(out, "a.js"), [at("none")]]]))).rejects.toThrow(
+    "The code of none in a.js comes with no license",
+  );
+  // Where its files hold no code from other projects, a directory gets no
+  // LICENSES.
+  expect(await licenses(root, join(root, "inst/types"), new Map())).toEqual([]);
 });
 
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {

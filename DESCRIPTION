@@ -23,16 +23,16 @@ Authors@R:
       person(given = "Grant",
              family = "Forrest",
              role = "cph",
-             comment = "Word lists of adjective-adjective-animal, in inst/ids"),
-      person(family = "Meta Platforms, Inc.",
-             role = "cph",
-             comment = "'React' and 'ReactDOM', bundled in inst/js/blockr-core.js")
+             comment = "Word lists of adjective-adjective-animal, in inst/ids")
     )
 Description: A framework for data manipulation and visualization using a
     web-based point and click user interface where analysis pipelines are decomposed into re-usable and parameterizable blocks.
 URL: https://bristolmyerssquibb.github.io/blockr.core/
 BugReports: https://github.com/BristolMyersSquibb/blockr.core/issues
 License: GPL (>= 3)
+Copyright: Where inst/js or inst/types holds code from other projects, the
+    file LICENSES in that directory names the projects, their copyright
+    holders and their licenses.
 Encoding: UTF-8
 Language: en-US
 Roxygen: list(markdown = TRUE, roclets = c("collate", "namespace", "rd",

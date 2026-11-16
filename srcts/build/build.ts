@@ -53,6 +53,17 @@
 //   The controls, srcts/controls/index.ts, go there as the SDK does,
 //   as `@blockr/core/controls`, for a package that writes its modules without
 //   React.
+// - The licenses of the code from other projects that the files in inst/js
+//   hold go into inst/js/LICENSES, and those of the files in inst/types into
+//   inst/types/LICENSES.
+//   Each has a line for each package from node_modules, with its version, its
+//   author where its package.json names one, and the files that hold its code.
+//   The text of a license follows the lines of the packages that share it.
+//   Tailwind CSS counts as a package of each stylesheet, since it writes them.
+//   A package that npm installs without a license file takes the one in
+//   srcts/build/licenses under its name.
+//   The build fails for a package with neither, so that no code ships without
+//   its license.
 //
 // - The words that ids are made of, in srcts/store/words.ts, go into inst/ids,
 //   one word a line, for R's rand_names() to draw from as the client's
@@ -75,6 +86,7 @@ import { createGenerator } from "ts-json-schema-generator";
 import ts from "typescript";
 import { IMPORTS, importFile, OTEL_API, REACT_ENTRIES } from "../import-map/index.ts";
 import type { Import } from "../import-map/index.ts";
+import { listing } from "../util/index.ts";
 import { preset } from "./preset.ts";
 
 // Core's repo, whose node_modules holds the React that the build writes into
@@ -135,9 +147,11 @@ function reactNames(): Record<string, string[]> {
 // Bundles code that core ships from other projects, minified and with its
 // license comments, into one file in `out`, which it resolves from core's
 // repo, and returns the file's name and the imports that the file leaves to
-// the page's import map, those that `input` names external. The name holds a
-// hash of the content, as react-3f2a9c1d.js, so that no browser runs an old
-// copy from its cache, since what imports the file imports it by that name.
+// the page's import map, those that `input` names external.
+// It returns the directories of the packages whose code the file holds too.
+// The name holds a hash of the content, as react-3f2a9c1d.js, so that no
+// browser runs an old copy from its cache, since what imports the file imports
+// it by that name.
 // A file that the import map names, which R serves at a URL that holds a hash
 // of the content, is named as given instead.
 async function vendored(
@@ -145,7 +159,7 @@ async function vendored(
   name: string,
   input: Pick<esbuild.BuildOptions, "stdin" | "entryPoints" | "nodePaths" | "external">,
   hashed = true,
-): Promise<{ file: string; imports: string[] }> {
+): Promise<{ file: string; imports: string[]; packages: string[] }> {
   const result = await esbuild.build({
     absWorkingDir: repo,
     ...input,
@@ -167,7 +181,11 @@ async function vendored(
   const text = result.outputFiles[0]?.text ?? "";
   const file = hashed ? `${name}-${createHash("sha256").update(text).digest("hex").slice(0, 8)}.js` : `${name}.js`;
   await writeFile(join(out, file), text);
-  return { file, imports: externalImports(result.metafile) };
+  return {
+    file,
+    imports: externalImports(result.metafile),
+    packages: [...bundledPackages(result.metafile, repo).values()].flat(),
+  };
 }
 
 // The imports that the files of a build leave imports, by their specifiers.
@@ -177,11 +195,30 @@ function externalImports(metafile: esbuild.Metafile): string[] {
   );
 }
 
+// The directories of the packages from node_modules whose code each file of a
+// build holds, by the file's path. The metafile gives each path from `dir`,
+// the working directory of the build.
+function bundledPackages(metafile: esbuild.Metafile, dir: string): Map<string, string[]> {
+  const bundled = new Map<string, string[]>();
+  for (const [output, { inputs }] of Object.entries(metafile.outputs)) {
+    const packages = new Set(
+      Object.keys(inputs).flatMap((input) => {
+        const found = /^(.*node_modules\/(?:@[^/]+\/)?[^/]+)\//.exec(input)?.[1];
+        return found === undefined ? [] : [resolve(dir, found)];
+      }),
+    );
+    if (packages.size > 0) bundled.set(resolve(dir, output), [...packages]);
+  }
+  return bundled;
+}
+
 // Writes React's entry points into `out` as ES modules of their own, each
 // exporting the names that the entry point exports, from one minified bundle of
 // React and ReactDOM, so that all of them read one React.
-async function reactModules(out: string): Promise<string[]> {
-  const { file: bundle } = await vendored(out, "react", {
+// It returns the files it wrote, with the bundle's name and the directories of
+// the packages whose code the bundle holds.
+async function reactModules(out: string): Promise<{ written: string[]; bundle: string; packages: string[] }> {
+  const { file: bundle, packages } = await vendored(out, "react", {
     stdin: {
       contents: REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`).join("\n"),
       resolveDir: repo,
@@ -206,7 +243,7 @@ async function reactModules(out: string): Promise<string[]> {
     );
     written.push(file);
   }
-  return written;
+  return { written, bundle, packages };
 }
 
 // Core's libraries for modules, each by its name in the import map and the
@@ -243,11 +280,16 @@ function sourceImports(src: string, own?: Import): esbuild.Plugin {
 
 // Bundles the parts of OpenTelemetry's SDK that srcts/otel/sdk.ts names into
 // one file in `out`, as opentelemetry-3f2a9c1d.js, as it bundles React, and
-// returns its name with the imports that it leaves to the import map, or
-// writes nothing where srcts holds no such file. The bundle leaves its
-// imports of OpenTelemetry's API imports, so that the SDK records through the
-// API that core's runtime and the modules of packages use.
-async function otelSdk(src: string, out: string): Promise<{ file: string; imports: string[] } | undefined> {
+// returns its name with the imports that it leaves to the import map and the
+// directories of the packages whose code it holds, or writes nothing where
+// srcts holds no such file.
+// The bundle leaves its imports of OpenTelemetry's API imports, so that the
+// SDK records through the API that core's runtime and the modules of packages
+// use.
+async function otelSdk(
+  src: string,
+  out: string,
+): Promise<{ file: string; imports: string[]; packages: string[] } | undefined> {
   const entry = join(src, "otel", "sdk.ts");
   if (!existsSync(entry)) return undefined;
   return vendored(out, "opentelemetry", { entryPoints: [entry], nodePaths: [join(repo, "node_modules")], external: [OTEL_API] });
@@ -255,9 +297,9 @@ async function otelSdk(src: string, out: string): Promise<{ file: string; import
 
 // Bundles OpenTelemetry's API into the file in `out` that the import map names
 // for it, opentelemetry-api.js, with its default export too, and returns the
-// file's name.
-async function otelApi(out: string): Promise<string> {
-  const { file } = await vendored(
+// file's name and the directories of the packages whose code it holds.
+async function otelApi(out: string): Promise<{ file: string; packages: string[] }> {
+  return vendored(
     out,
     importFile(OTEL_API).replace(/\.js$/, ""),
     {
@@ -269,7 +311,6 @@ async function otelApi(out: string): Promise<string> {
     },
     false,
   );
-  return file;
 }
 
 // Leaves the OpenTelemetry module's import of srcts/otel/sdk.ts an import of
@@ -337,13 +378,21 @@ export async function build(root: string): Promise<string[]> {
   }
 
   const written = results.flatMap((result) => Object.keys(result.metafile.outputs));
+  // The directories of the packages whose code each file holds, by its path.
+  const bundled = new Map(results.flatMap((result) => [...bundledPackages(result.metafile, root)]));
   const react = await reactModules(out);
-  written.push(...react.map((file) => relative(root, join(out, file))));
-  if (sdk !== undefined) written.push(relative(root, join(out, sdk)));
+  written.push(...react.written.map((file) => relative(root, join(out, file))));
+  bundled.set(join(out, react.bundle), react.packages);
+  if (otel !== undefined) {
+    written.push(relative(root, join(out, otel.file)));
+    bundled.set(join(out, otel.file), otel.packages);
+  }
   // OpenTelemetry's API, where core's runtime, a module, a library or the
   // bundle of the SDK imports it.
   if ([...results.flatMap((result) => externalImports(result.metafile)), ...(otel?.imports ?? [])].includes(OTEL_API)) {
-    written.push(relative(root, join(out, await otelApi(out))));
+    const api = await otelApi(out);
+    written.push(relative(root, join(out, api.file)));
+    bundled.set(join(out, api.file), api.packages);
   }
 
   // The import map that the page R serves holds, as R reads it: each import by
@@ -362,9 +411,85 @@ export async function build(root: string): Promise<string[]> {
     const file = join(out, `${entry.name}.css`);
     await writeFile(file, await stylesheet(css));
     written.push(relative(root, file));
+    bundled.set(file, [join(repo, "node_modules", "tailwindcss")]);
   }
 
+  written.push(...(await licenses(root, out, bundled)));
   return written.sort();
+}
+
+// The parts of a package's package.json that LICENSES names.
+interface Manifest {
+  name: string;
+  version: string;
+  author?: string | { name?: string };
+}
+
+// The text of each license file in a package's directory, such as LICENSE or
+// LICENSE.md, or none where the directory holds none or does not exist.
+async function licenseTexts(dir: string): Promise<string[]> {
+  if (!existsSync(dir)) return [];
+  const files = (await readdir(dir)).filter((file) => /^(licen[cs]e|copying)/i.test(file)).sort();
+  return Promise.all(files.map(async (file) => (await readFile(join(dir, file), "utf8")).replace(/\r\n/g, "\n").trimEnd()));
+}
+
+// The author that a package's package.json names, without an email or a URL.
+function authorName(manifest: Manifest): string | undefined {
+  const name = typeof manifest.author === "string" ? manifest.author.replace(/\s*[<(].*$/, "") : manifest.author?.name;
+  return name === undefined || name === "" ? undefined : name;
+}
+
+// Writes the licenses of the code from other projects that the files in `dir`
+// hold into `dir`, as LICENSES, and returns its path from `root`.
+// For each file, `bundled` gives the directories of the packages whose code it
+// holds, by the file's path.
+// A package whose directory holds no license file takes the one that
+// srcts/build/licenses holds under its name, and the build fails for a package
+// with neither.
+// Where the files hold no such code, it writes nothing.
+export async function licenses(
+  root: string,
+  dir: string,
+  bundled: ReadonlyMap<string, readonly string[]>,
+): Promise<string[]> {
+  const holders = new Map<string, string[]>();
+  for (const [file, packages] of bundled) {
+    for (const pkg of packages) holders.set(pkg, [...(holders.get(pkg) ?? []), relative(dir, file)]);
+  }
+  if (holders.size === 0) return [];
+
+  const kept = join(root, "srcts", "build", "licenses");
+  const entries = await Promise.all(
+    [...holders].map(async ([pkg, files]) => {
+      const manifest = JSON.parse(await readFile(join(pkg, "package.json"), "utf8")) as Manifest;
+      const held = listing(files.sort());
+      const own = await licenseTexts(pkg);
+      const texts = own.length > 0 ? own : await licenseTexts(join(kept, manifest.name));
+      if (texts.length === 0) {
+        throw new Error(
+          `The code of ${manifest.name} in ${held} comes with no license: neither its directory in node_modules nor srcts/build/licenses/${manifest.name} holds a license file.`,
+        );
+      }
+      const author = authorName(manifest);
+      return {
+        line: `${manifest.name} ${manifest.version}${author === undefined ? "" : `, by ${author}`}, in ${held}`,
+        text: texts.join("\n\n"),
+      };
+    }),
+  );
+
+  // Each license once, after the lines of the packages that share it, in the
+  // order of the packages' names.
+  const byLicense = new Map<string, string[]>();
+  for (const { line, text } of entries.sort((a, b) => (a.line < b.line ? -1 : 1))) {
+    byLicense.set(text, [...(byLicense.get(text) ?? []), line]);
+  }
+  const file = join(dir, "LICENSES");
+  await writeFile(
+    file,
+    [...byLicense].map(([text, lines]) => `${lines.join("\n")}\n\n${text}\n`).join(`\n${"-".repeat(78)}\n\n`),
+  );
+  return [relative(root, file)];
 }
 
 // The output types: every exported interface of the file named <Name>Output,
@@ -683,6 +808,7 @@ export async function types(root: string): Promise<string[]> {
       throw new Error("esbuild warned, as printed above");
     }
     written.push(...Object.keys(metafile.outputs));
+    written.push(...(await licenses(root, dir, bundledPackages(metafile, root))));
   }
 
   const manifest = join(dir, "package.json");
