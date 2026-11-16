@@ -198,6 +198,37 @@ describe("the notifications of R's replies to requests", () => {
     s.stop();
   });
 
+  test("are none for a plugin's request whose caller takes its conditions, which leaves those of the request's earlier replies as they are", async () => {
+    let full = true;
+    const s = await stubCore({
+      answer: (request) => {
+        if (request.kind !== "request" || request.type !== "plugin") return undefined;
+        if (full) throw new Error("The disk is full.");
+        return "saved";
+      },
+    });
+    await s.settled();
+    const ofRequests = (n: Notification): boolean => n.source.kind === "r" && n.source.request.type === "plugin";
+    const taken: (readonly Condition[])[] = [];
+    const conditions = (given: readonly Condition[]): void => {
+      taken.push(given);
+    };
+
+    await expect(s.core.request(FILE, "save", {}, { conditions })).rejects.toThrow("The disk is full.");
+    expect(held(s.core, ofRequests)).toEqual([]);
+    expect(taken).toEqual([[{ severity: "error", class: ["blockr_error", "error", "condition"], phase: "request", message: "The disk is full." }]]);
+
+    // A call that does not take the conditions raises them, and a later call
+    // that takes them leaves that notification as it is.
+    await expect(s.core.request(FILE, "save")).rejects.toThrow("The disk is full.");
+    full = false;
+    await expect(s.core.request(FILE, "save", {}, { conditions })).resolves.toBe("saved");
+    expect(held(s.core, ofRequests).map((n) => n.message)).toEqual(["The disk is full."]);
+    expect(taken).toHaveLength(2);
+    expect(taken[1]).toEqual([]);
+    s.stop();
+  });
+
   test("name the module that made the request: the block's UI module, the renderer of the block's output, whichever scope its request has, and the board option's module", async () => {
     const hosts: { block?: BlockHost; output?: OutputHost; option?: OptionHost } = {};
     const zoom: Option = {

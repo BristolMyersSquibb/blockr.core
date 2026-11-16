@@ -525,6 +525,10 @@
   Core raises one for each condition of R's reply to an ask of a block's output, ok or error, in place of those before.
   Where the ask fails without an error from R, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
   Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601, #606).
+* A plugin takes the conditions of R's reply to one of its own requests itself, through a function that it passes to `core.request()` in `conditions`, beside `progress`.
+  Core hands that function the conditions of each reply, ok or error, and raises no notification for them.
+  It also leaves the notifications of the request's earlier replies as they are, and a reply of error still rejects with its conditions.
+  So the assistant can hand the errors and warnings of the model's own R code to the model alone, rather than to the user as well (#644).
 * Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
   A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
   The card of a block that `serve()` serves alone shows every notification of the board.

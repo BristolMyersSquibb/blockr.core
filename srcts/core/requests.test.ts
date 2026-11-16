@@ -129,6 +129,34 @@ describe("a plugin's request", () => {
     ]);
   });
 
+  test("hands the conditions of R's reply, ok or error, to a caller that takes them, and none to the notifications", async () => {
+    const warning = { severity: "warning" as const, class: ["simpleWarning", "warning", "condition"], phase: "request" as const, message: "NAs introduced by coercion" };
+    const condition = { severity: "error" as const, class: ["simpleError", "error", "condition"], phase: "request" as const, message: "no" };
+    const missing: Reply = { id: "1", status: "missing", missing: [{ block: "a", revision: 1 }] };
+    const s = setup([
+      missing,
+      ok("done", [warning]),
+      ok("none"),
+      { id: "1", status: "error", conditions: [warning, condition] },
+      { id: "1", status: "cancelled" },
+    ]);
+    const taken: (readonly Condition[])[] = [];
+    const conditions = (given: readonly Condition[]): void => {
+      taken.push(given);
+    };
+
+    await expect(pluginRequest(s.deps, CODE, "script", {}, { reads: ["a"], conditions })).resolves.toBe("done");
+    await expect(pluginRequest(s.deps, CODE, "script", {}, { conditions })).resolves.toBe("none");
+    const failed = pluginRequest(s.deps, CODE, "script", {}, { conditions });
+    await expect(failed).rejects.toMatchObject({ status: "error", conditions: [warning, condition] });
+    await expect(pluginRequest(s.deps, CODE, "script", {}, { conditions })).rejects.toMatchObject({ status: "cancelled" });
+
+    // Once for each reply of ok or error, the ok reply's after R first lacked
+    // a result, and none for the reply of cancelled.
+    expect(taken).toEqual([[warning], [], [warning, condition]]);
+    expect(s.handed).toEqual([]);
+  });
+
   test.each([
     ["no plugin", "", "script", {}, {}, "names the plugin by the id of its class"],
     [
@@ -143,6 +171,7 @@ describe("a plugin's request", () => {
     ["no name", CODE, "", {}, {}, 'A request of the plugin "blockr.code-code_plugin" is named by a non-empty string'],
     ["args that are no object", CODE, "script", [], {}, "are an object"],
     ["a block that the board lacks", CODE, "script", {}, { reads: ["z"] }, 'reads the block "z", which the board lacks'],
+    ["conditions that go to no function", CODE, "script", {}, { conditions: [] as never }, 'The `conditions` of the request "script" of the plugin "blockr.code-code_plugin" is a function.'],
   ])("refuses %s", async (_, plugin, name, args, opts, message) => {
     const s = setup([]);
     await expect(pluginRequest(s.deps, plugin, name, args as never, opts)).rejects.toThrow(message);

@@ -9,7 +9,7 @@
 // CoreApi.
 
 import type { Commands } from "../commands/index.ts";
-import type { Lock, Phase } from "../protocol/index.ts";
+import type { Condition, Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
@@ -390,6 +390,14 @@ export interface RequestOpts {
   file?: File;
   // Hears each progress note that R sends for it.
   progress?(note: { value?: number; message?: string }): void;
+  // Takes the conditions of R's reply to it, ok or error, for a caller that
+  // hands them on itself, as the assistant hands them to the model.
+  // Core then raises no notification for them, and leaves the notifications
+  // of earlier replies to the request as they are.
+  // A reply of error still rejects with its conditions.
+  // A plugin passes it only for a request of its own, since core cannot tell
+  // which plugin calls.
+  conditions?(conditions: readonly Condition[]): void;
 }
 
 export interface OutputEvents {
