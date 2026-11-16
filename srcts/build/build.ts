@@ -37,11 +37,11 @@
 //   and so do a package's modules.
 //   The runtime leaves its import of the OpenTelemetry module an import as
 //   well, so that a page loads the module only where it imports it.
-// - The files that a page imports as it starts go into preload.json: those
-//   that the runtime imports, and core's React SDK, which core's board options
-//   import, with the files that these import in turn.
-//   R names them in the page's head, so that the browser fetches them at once,
-//   rather than each once the file that imports it has loaded.
+// - What each file imports up front, the static imports of ./preload.ts, goes
+//   into preload.json, React's entry points included, which import the vendor
+//   file.
+//   R names those files in the page's head, so that the browser fetches them at
+//   once, rather than each once the file that imports it has loaded.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
@@ -82,7 +82,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import tailwindcss from "@tailwindcss/postcss";
 import * as esbuild from "esbuild";
@@ -91,6 +91,7 @@ import { createGenerator } from "ts-json-schema-generator";
 import ts from "typescript";
 import { IMPORTS, importFile, OTEL_API, REACT_ENTRIES } from "../import-map/index.ts";
 import type { Import } from "../import-map/index.ts";
+import { staticImports } from "./preload.ts";
 import { preset } from "./preset.ts";
 import { vendorCheck } from "./vendor-check.ts";
 
@@ -192,51 +193,6 @@ function externalImports(metafile: esbuild.Metafile): string[] {
   return Object.values(metafile.outputs).flatMap((output) =>
     output.imports.flatMap((entry) => (entry.external === true ? [entry.path] : [])),
   );
-}
-
-// The files in inst/js that a page imports as it starts: those that the
-// runtime, the file given, imports, and core's React SDK, which core's board
-// options import, with the files that these import in turn.
-// It reads what each bundle imports: an import by name as the file that the
-// import map resolves it to, and a file beside the bundle by its name.
-// Each of React's entry points, `react`, imports the vendor file, `vendor`.
-// A dynamic import is left out, so that a page loads the OpenTelemetry module
-// only where it imports it.
-function upFront(
-  results: readonly { metafile: esbuild.Metafile }[],
-  imports: Readonly<Record<string, string>>,
-  react: readonly string[],
-  vendor: string,
-  runtime: string,
-): string[] {
-  const edges = new Map<string, string[]>();
-  for (const { metafile } of results) {
-    for (const [file, output] of Object.entries(metafile.outputs)) {
-      edges.set(
-        basename(file),
-        output.imports.flatMap((entry) =>
-          entry.external === true && entry.kind === "import-statement" ? [imports[entry.path] ?? basename(entry.path)] : [],
-        ),
-      );
-    }
-  }
-  for (const entry of react) edges.set(entry, [vendor]);
-
-  const found = new Set<string>();
-  const visit = (file: string): void => {
-    for (const next of edges.get(file) ?? []) {
-      if (found.has(next)) continue;
-      found.add(next);
-      visit(next);
-    }
-  };
-  visit(runtime);
-  const sdk = imports["@blockr/core/react"];
-  if (sdk !== undefined) {
-    found.add(sdk);
-    visit(sdk);
-  }
-  return [...found].sort();
 }
 
 // The packages beside React that core's code imports, which the build bundles
@@ -456,8 +412,16 @@ export async function build(root: string): Promise<string[]> {
   await writeJson(map, { imports });
   written.push(relative(root, map));
 
+  // What each file imports up front, and React's entry points, which the build
+  // writes itself, the vendor file, as the bundle of OpenTelemetry's SDK
+  // imports its API.
   const preload = join(out, "preload.json");
-  await writeJson(preload, upFront(results, imports, react, vendor, `${runtime.name}.js`));
+  const imported: Record<string, readonly string[]> = {
+    ...staticImports(results.map((result) => result.metafile)),
+    ...Object.fromEntries(react.map((file) => [file, [`./${vendor}`]])),
+    ...(otel === undefined || otel.imports.length === 0 ? {} : { [otel.file]: otel.imports }),
+  };
+  await writeJson(preload, Object.fromEntries(Object.entries(imported).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
   written.push(relative(root, preload));
 
   for (const entry of [runtime, ...modules]) {

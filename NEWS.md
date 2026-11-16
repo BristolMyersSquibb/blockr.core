@@ -289,7 +289,8 @@
   R's page holds it from the start, so that it shows before the client's code has loaded, and the page takes the theme of the user's system until the board sets its own.
   The spinner stays until the frontend draws, so that a frontend that first asks R for something, as the dock does, leaves no blank page.
   The page's head also names the files that the page imports as it starts, as `<link rel="modulepreload">`, so that the browser fetches them at once rather than each once the file that imports it has loaded.
-  These are the files that the runtime and core's React SDK import, the modules of the app's plugins and of the board options, and the UI modules and renderers of the classes of the opening board's blocks (#648).
+  These are the modules of the app's plugins and of the board options, the UI modules and renderers of the classes of the opening board's blocks, and what these and the runtime import up front, as the build of each file's package lists it in the `preload.json` beside the file.
+  A package's build writes that file with `staticImports()` from `@blockr/core/build` (#648).
 * A later session whose R speaks another major of the wire protocol stops the page, as the first session's does.
   Core's client sends R nothing more, not even what it held for the session, and the page says to reload it.
   Where a later session names a package at another version than the page loaded, the page still asks the user to reload it.

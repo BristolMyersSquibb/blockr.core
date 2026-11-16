@@ -187,52 +187,134 @@ import_map <- function() {
 # The links in the page's head that have the browser fetch the files that the
 # page imports as it starts, all at once as the page loads, rather than each
 # once the file that imports it has loaded.
-# They name core's runtime, at the URL given, the files that the runtime and
-# core's React SDK import, which core's build lists in inst/js/preload.json,
-# and the `modules` given, as `<link rel="modulepreload">`, and the stylesheet
-# beside each of these modules as `<link rel="preload">`.
-# The browser runs what it fetched for a link only where an import names the
-# same URL.
-# So a file that the import map names gets the URL that the map gives it.
-# A file that no import names, such as React's bundle, which a file of the map
-# imports by its name, gets the URL without the hash.
+# They name core's runtime, at the URL given, and the `modules` given, each
+# with its stylesheet, and what these import up front, and the files that those
+# import in turn (see `imported_files()`).
+# A module and a file that it imports come as `<link rel="modulepreload">`, and
+# a stylesheet as `<link rel="preload">`.
+# The runtime and what it imports keep their priority, since the page needs
+# them before Shiny connects.
+# The rest comes at a low priority, since the page needs it only once R has
+# answered, so that it takes no bandwidth from the runtime.
 # R serves each module as it names it here, so that a fresh app serves the
 # module of a package before the first reply to `hello` names it.
 # A module whose file R cannot find gets no link.
 preload_links <- function(runtime, modules = list()) {
 
-  map <- yyjsonr::read_json_file(
-    system.file("js", "import-map.json", package = "blockr.core")
-  )
-  files <- yyjsonr::read_json_file(
-    system.file("js", "preload.json", package = "blockr.core")
-  )
-
-  imported <- as.character(unlst(map[["imports"]]))
-
-  core <- chr_ply(
-    as.character(files),
-    function(file) {
-      path <- file.path("js", file)
-      url <- served_url(js_module(path, package = "blockr.core"))
-      if (file %in% imported) url else url_path("blockr.core", path)
-    }
-  )
-
   found <- Filter(function(x) nzchar(module_file(x)), modules)
   served <- lapply(found, served_module)
 
-  scripts <- unique(c(runtime, core, chr_xtr(served, "module")))
-  styles <- unique(as.character(unlst(lst_xtr(served, "css"))))
+  first <- imported_files(list(core_runtime()))
+  sheets <- lapply(
+    Filter(function(x) nzchar(module_file(x, ".css")), found),
+    function(x) list(package = x[["package"]], path = module_path(x, ".css"))
+  )
+  then <- imported_files(c(found, sheets))
+
+  css <- function(x) grepl("[.]css$", x[["path"]])
+
+  early <- unique(c(runtime, first[["url"]][!css(first)]))
+  late <- setdiff(
+    unique(c(chr_xtr(served, "module"), then[["url"]][!css(then)])),
+    early
+  )
+  styles <- unique(
+    c(unlst(lst_xtr(served, "css")), first[["url"]][css(first)],
+      then[["url"]][css(then)])
+  )
+
+  link <- function(url, ...) {
+    shiny::tags$link(rel = "modulepreload", href = paste0("./", url), ...)
+  }
 
   shiny::tagList(
-    lapply(
-      paste0("./", scripts),
-      function(url) shiny::tags$link(rel = "modulepreload", href = url)
-    ),
+    lapply(early, link),
+    lapply(late, link, fetchpriority = "low"),
     lapply(
       paste0("./", styles),
-      function(url) shiny::tags$link(rel = "preload", href = url, as = "style")
+      function(url) {
+        shiny::tags$link(
+          rel = "preload", href = url, as = "style", fetchpriority = "low"
+        )
+      }
     )
   )
+}
+
+# What the files given import up front, as the build of each file's package
+# lists it in the preload.json beside the file, and the files that those
+# import in turn, each by its path in its package and by the URL at which the
+# page imports it, in `path` and `url`.
+# An import by name is a file of core's that the import map names, at the URL
+# that the map gives it.
+# An import of a file beside the importing file comes at its path, without a
+# hash, since the browser reads that URL off the import.
+# A file from no package lists nothing.
+imported_files <- function(files) {
+
+  map <- yyjsonr::read_json_file(
+    system.file("js", "import-map.json", package = "blockr.core")
+  )[["imports"]]
+
+  lists <- new.env(parent = emptyenv())
+
+  listed <- function(file) {
+
+    pkg <- file[["package"]]
+
+    if (is.null(pkg)) {
+      return(character())
+    }
+
+    dir <- dirname(file[["path"]])
+    key <- paste(pkg, dir, sep = "/")
+    imports <- get0(key, envir = lists, inherits = FALSE)
+
+    if (is.null(imports)) {
+      json <- package_file(file.path(dir, "preload.json"), pkg)
+      imports <- if (nzchar(json)) yyjsonr::read_json_file(json) else list()
+      assign(key, imports, envir = lists)
+    }
+
+    as.character(unlst(imports[[basename(file[["path"]])]]))
+  }
+
+  paths <- character()
+  urls <- character()
+  queue <- files
+
+  while (length(queue)) {
+
+    file <- queue[[1L]]
+    queue <- queue[-1L]
+
+    for (name in listed(file)) {
+
+      if (grepl("^[.]/[^/]+$", name)) {
+        next_file <- list(
+          package = file[["package"]],
+          path = file.path(dirname(file[["path"]]), substring(name, 3L))
+        )
+        url <- url_path(next_file[["package"]], next_file[["path"]])
+      } else if (name %in% names(map)) {
+        next_file <- list(
+          package = "blockr.core",
+          path = file.path("js", map[[name]])
+        )
+        url <- served_url(js_module(next_file[["path"]], "blockr.core"))
+      } else {
+        next
+      }
+
+      if (url %in% urls) {
+        next
+      }
+
+      paths <- c(paths, next_file[["path"]])
+      urls <- c(urls, url)
+      queue <- c(queue, list(next_file))
+    }
+  }
+
+  list(path = paths, url = urls)
 }

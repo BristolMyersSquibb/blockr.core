@@ -894,34 +894,13 @@ test_that("the page names the files that it imports, which R serves at once", {
     paste0("<link rel=\"", rel, "\" href=\"./", url)
   }
 
+  served <- served_module(module)
+
   expect_match(
     page$head,
     link("blockr.core/js/blockr-core.js?v="),
     fixed = TRUE
   )
-
-  # A file that the import map names comes at the URL that the map gives it,
-  # and React's bundle, which a file of the map imports, without the hash.
-  map <- sub(".*<script type=\"importmap\">(.*)</script>.*", "\\1",
-             page$dependencies[[1L]]$head)
-  imports <- unlst(yyjsonr::read_json_str(map)[["imports"]])
-  files <- yyjsonr::read_json_file(
-    system.file("js", "preload.json", package = "blockr.core")
-  )
-
-  for (file in files) {
-    url <- grep(paste0("/", file, "?v="), imports, fixed = TRUE, value = TRUE)
-    if (length(url)) {
-      expect_match(page$head, link(paste0(sub("^./", "", url), "\"")),
-                   fixed = TRUE)
-    } else {
-      expect_match(page$head, link(paste0("blockr.core/js/", file, "\"")),
-                   fixed = TRUE)
-    }
-  }
-
-  served <- served_module(module)
-
   expect_match(
     page$head,
     link(paste0(served[["module"]], "\"")),
@@ -929,12 +908,111 @@ test_that("the page names the files that it imports, which R serves at once", {
   )
   expect_match(
     page$head,
-    link(paste0(served[["css"]], "\" as=\"style\"/>"), "preload"),
+    link(paste0(served[["css"]], "\" as=\"style\""), "preload"),
     fixed = TRUE
   )
 
   # A module whose file R cannot find gets no link.
   expect_no_match(page$head, "missing-block", fixed = TRUE)
+})
+
+test_that("the page names what the runtime and the modules import up front", {
+
+  # A package whose module imports its vendor file and core's React SDK, and
+  # whose stylesheet imports a stylesheet of its vendor file, as its build
+  # lists them in the preload.json beside them.
+  dir <- withr::local_tempdir()
+  js <- file.path(dir, "js")
+  dir.create(js)
+  writeLines("export const fake = 1;", file.path(js, "fake.js"))
+  writeLines(".fake {}", file.path(js, "fake.css"))
+  writeLines("export const vendor = 1;", file.path(js, "vendor-1a2b3c4d.js"))
+  writeLines(".vendor {}", file.path(js, "vendor-5e6f7a8b.css"))
+  writeLines(
+    paste0(
+      "{\"fake.js\": [\"./vendor-1a2b3c4d.js\", \"@blockr/core/react\"], ",
+      "\"fake.css\": [\"./vendor-5e6f7a8b.css\"]}"
+    ),
+    file.path(js, "preload.json")
+  )
+
+  real <- pkg_file
+  local_mocked_bindings(
+    pkg_file = function(..., pkg = parent.frame()) {
+      if (!identical(pkg, "blockr.fake")) {
+        return(real(..., pkg = pkg))
+      }
+      path <- file.path(dir, ...)
+      if (file.exists(path)) path else ""
+    }
+  )
+
+  module <- js_module("js/fake.js", package = "blockr.fake")
+  page <- htmltools::renderTags(serve_page(modules = list(module)))
+
+  # The start of the link to the URL given, up to where the URL ends.
+  link <- function(url, rel = "modulepreload") {
+    paste0("<link rel=\"", rel, "\" href=\"./", url)
+  }
+
+  # An import by name comes at the URL that the import map gives it.
+  map <- sub(".*<script type=\"importmap\">(.*)</script>.*", "\\1",
+             page$dependencies[[1L]]$head)
+  imports <- yyjsonr::read_json_str(map)[["imports"]]
+  by_name <- function(name) {
+    link(paste0(sub("^[.]/", "", imports[[name]]), "\""))
+  }
+
+  # The runtime imports React, whose entry points import core's vendor file,
+  # which comes without a hash.
+  vendor <- yyjsonr::read_json_file(
+    system.file("js", "preload.json", package = "blockr.core")
+  )[["react.js"]]
+
+  # These keep their priority, since the page needs them before Shiny
+  # connects.
+  expect_match(page$head, paste0(by_name("react"), "/>"), fixed = TRUE)
+  expect_match(
+    page$head,
+    link(paste0("blockr.core/js/", sub("^[.]/", "", vendor), "\"/>")),
+    fixed = TRUE
+  )
+
+  # The package's module imports the SDK, which imports its binding, and its
+  # vendor file, all of which come at a low priority, since the page needs
+  # them only once R has answered.
+  low <- " fetchpriority=\"low\"/>"
+  expect_match(
+    page$head,
+    paste0(by_name("@blockr/core/react"), low),
+    fixed = TRUE
+  )
+  expect_match(
+    page$head,
+    paste0(by_name("@blockr/core/binding"), low),
+    fixed = TRUE
+  )
+  expect_match(page$head, link("blockr.fake/js/fake.js?v="), fixed = TRUE)
+  expect_match(
+    page$head,
+    link(paste0("blockr.fake/js/vendor-1a2b3c4d.js\"", low)),
+    fixed = TRUE
+  )
+
+  # Its stylesheet imports its vendor file's stylesheet.
+  expect_match(
+    page$head,
+    link("blockr.fake/js/fake.css?v=", "preload"),
+    fixed = TRUE
+  )
+  expect_match(
+    page$head,
+    link("blockr.fake/js/vendor-5e6f7a8b.css\" as=\"style\"", "preload"),
+    fixed = TRUE
+  )
+
+  # The runtime loads the OpenTelemetry module only as it imports it.
+  expect_no_match(page$head, "blockr-core-otel.js", fixed = TRUE)
 })
 
 test_that("in Shiny's test mode, the page puts out blockrTest", {

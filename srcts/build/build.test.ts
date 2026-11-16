@@ -215,13 +215,18 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   const map = JSON.parse(await read("import-map.json")) as unknown;
   expect(map).toEqual({ imports: Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])) });
 
-  // A page imports up front what the runtime and the SDK import, the vendor
-  // file through the entry point of React that the runtime imports, but not
-  // the OpenTelemetry module, which the runtime imports only as it loads it.
-  const bundle = (await readdir(join(root, "inst/js"))).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
-  expect(JSON.parse(await read("preload.json"))).toEqual(
-    [importFile("@blockr/core/react"), importFile("@blockr/core/binding"), importFile("@blockr/core/controls"), importFile(OTEL_API), importFile("react"), bundle].sort(),
+  // The build lists what each file imports up front: an import by name, and a
+  // file beside it by its path. The runtime's import of the OpenTelemetry
+  // module is left out, which the runtime imports only as it loads it, and
+  // each of React's entry points imports the vendor file.
+  const vendor = (await readdir(join(root, "inst/js"))).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
+  const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
+  expect([...(preload["blockr-core.js"] ?? [])].sort()).toEqual(
+    ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls", OTEL_API, "react"].sort(),
   );
+  expect(preload["blockr-core-react.js"]).toEqual(["@blockr/core/binding"]);
+  for (const name of REACT_ENTRIES) expect(preload[importFile(name)]).toEqual([`./${vendor ?? ""}`]);
+  expect(Object.keys(preload)).toEqual(Object.keys(preload).sort());
 });
 
 test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {

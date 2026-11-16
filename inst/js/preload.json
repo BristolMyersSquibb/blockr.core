@@ -1,10 +1,146 @@
-[
-  "blockr-core-binding.js",
-  "blockr-core-react.js",
-  "opentelemetry-api.js",
-  "react-dom-client.js",
-  "react-dom.js",
-  "react-jsx-runtime.js",
-  "react.js",
-  "vendor-ccb64a4e.js"
-]
+{
+  "basic-plot.js": [
+    "react",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "basic-table.js": [
+    "react",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "basic-text.js": [
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "basic.js": [
+    "react-dom",
+    "react-dom/client",
+    "react",
+    "react/jsx-runtime"
+  ],
+  "blockr-core-controls.js": [
+    "react",
+    "react-dom",
+    "react-dom/client",
+    "@blockr/core/binding",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "blockr-core-otel.js": [
+    "@opentelemetry/api",
+    "./opentelemetry-4144b137.js"
+  ],
+  "blockr-core-react.js": [
+    "react",
+    "@blockr/core/binding",
+    "react-dom",
+    "react-dom/client",
+    "react/jsx-runtime"
+  ],
+  "blockr-core.js": [
+    "@opentelemetry/api",
+    "./vendor-ccb64a4e.js",
+    "react",
+    "react-dom",
+    "react-dom/client",
+    "react/jsx-runtime"
+  ],
+  "csv-block.js": [
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "dark-mode-option.js": [
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "dataset-block.js": [
+    "@blockr/core/binding",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "edit-board.js": [
+    "react-dom",
+    "react-dom/client",
+    "react",
+    "react/jsx-runtime"
+  ],
+  "filebrowser-block.js": [
+    "react",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "glue-block.js": [
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "head-block.js": [
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "merge-block.js": [
+    "@blockr/core/binding",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "n-rows-option.js": [
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "opentelemetry-4144b137.js": [
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api"
+  ],
+  "react-dom-client.js": [
+    "./vendor-ccb64a4e.js"
+  ],
+  "react-dom.js": [
+    "./vendor-ccb64a4e.js"
+  ],
+  "react-jsx-runtime.js": [
+    "./vendor-ccb64a4e.js"
+  ],
+  "react.js": [
+    "./vendor-ccb64a4e.js"
+  ],
+  "scatter-block.js": [
+    "@blockr/core/binding",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "show-conditions-option.js": [
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "subset-block.js": [
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ],
+  "upload-block.js": [
+    "react",
+    "@blockr/core/binding",
+    "@blockr/core/react",
+    "react/jsx-runtime"
+  ]
+}
