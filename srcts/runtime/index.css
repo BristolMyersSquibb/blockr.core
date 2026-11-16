@@ -91,10 +91,13 @@
  * a spinner over the line "Loading the board…", in the middle of the window,
  * in the muted color of the text.
  * It fades in after a moment, so that a board that opens at once shows none.
+ * It takes no clicks, so that it blocks nothing that a frontend draws beside
+ * it before render() has returned.
  */
 @utility loading-note {
   position: fixed;
   inset: 0;
+  pointer-events: none;
   display: grid;
   place-content: center;
   justify-items: center;

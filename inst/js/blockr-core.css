@@ -136,15 +136,8 @@
   }
 }
 
-.bc\:pointer-events-auto {
-  pointer-events: auto;
-}
-
-.bc\:pointer-events-none {
-  pointer-events: none;
-}
-
 .bc\:loading-note {
+  pointer-events: none;
   place-content: center;
   justify-items: center;
   gap: calc(var(--bc-spacing) * 3);
@@ -156,6 +149,14 @@
   display: grid;
   position: fixed;
   inset: 0;
+}
+
+.bc\:pointer-events-auto {
+  pointer-events: auto;
+}
+
+.bc\:pointer-events-none {
+  pointer-events: none;
 }
 
 .bc\:sr-only {
