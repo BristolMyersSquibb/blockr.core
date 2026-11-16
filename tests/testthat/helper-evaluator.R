@@ -8,6 +8,8 @@
 # `otel_logger()` would name in its record.
 # R writes none of them out.
 # The session starts with the client's hello, unless `hello` is `FALSE`.
+# Where R's reply to that hello is not `ok`, the test stops there,
+# with the message of each condition that the reply carries.
 # Its lock is what `lock_board()` reads of the board unless given, as `serve()`
 # reads it, and so are the app's plugins, which are the plugins of every class
 # that an available package lists, or none for a block served alone.
@@ -77,8 +79,19 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
   }
 
   if (hello) {
+
     session$receive(hello_message())
     session$run()
+
+    reply <- last_reply(session)
+
+    if (!identical(reply[["status"]], "ok")) {
+      stop(
+        "R replied ", reply[["status"]], " to the session's hello: ",
+        paste(chr_xtr(reply[["conditions"]], "message"), collapse = " ")
+      )
+    }
+
     session$sent <- list()
     session$logged <- list()
   }
@@ -484,8 +497,12 @@ report_export <- function(reads, format) {
 # blockr.code's plugin class gives the request script, for the script of the
 # blocks it reads, and blockr.md's gives the request export, which reports
 # progress. The packages list their plugin classes.
-# Linting skips the calls of local_plugin_classes() and plugin_ctor(), helpers
-# of another file, which lintr does not see.
+# R's reply to a hello names the version of each package that the app's
+# plugins come from.
+# So blockr.code and blockr.md are at the version 0.1.0, whatever the library
+# holds.
+# Linting skips the calls of local_plugin_classes(), plugin_ctor() and
+# local_versions(), helpers of another file, which lintr does not see.
 local_request_types <- function(frame = parent.frame()) {
 
   local_plugin_classes( # nolint: object_usage_linter.
@@ -499,6 +516,12 @@ local_request_types <- function(frame = parent.frame()) {
       "md_plugin",
       "blockr.md"
     ),
+    frame = frame
+  )
+
+  local_versions( # nolint: object_usage_linter.
+    blockr.code = "0.1.0",
+    blockr.md = "0.1.0",
     frame = frame
   )
 
