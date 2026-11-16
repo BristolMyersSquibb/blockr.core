@@ -66,6 +66,13 @@ export interface Store {
   // or what sits inside a plugin's state, which the plugin locks itself
   // (./lock.ts).
   apply(delta: Delta | readonly Delta[], origin?: Origin, opts?: { readonly undo?: false }): void;
+  // The board that apply() would leave, given the same deltas: it expands and
+  // checks them as apply() does, or throws the StoreError that apply() would
+  // throw, but commits nothing, announces nothing and keeps no undo step.
+  // So it may run while the store applies or announces a change.
+  // The command registry plans each command of a list on the board that a
+  // dry run of the deltas of the commands before it gives (../commands).
+  dryRun(delta: Delta | readonly Delta[]): Board;
   // Opens the opening board that R sent with its reply to `hello`, or a JSON
   // board given as its text, with the block registry of the last such reply,
   // and resolves with what it dropped.
@@ -360,6 +367,17 @@ export function createStore(options: StoreOptions = {}): Store {
     }
   }
 
+  // Runs the deltas as one step on the board the store holds, once the edit
+  // ids that they name are those of that board, or throws what rejected them.
+  // It commits nothing, so that apply() and dryRun() both build on it.
+  function runOnBoard(deltas: readonly Delta[]): { start: Board; applied: Applied[]; inverses: Inverse[] } {
+    const refused = "The store rejected the delta";
+    const start = current(refused);
+    const failures = named(deltas);
+    if (failures.length > 0) throw new StoreError(refused, failures);
+    return { start, ...run(start, deltas, {}, refused) };
+  }
+
   function apply(
     delta: Delta | readonly Delta[],
     origin: Origin = "user",
@@ -371,12 +389,7 @@ export function createStore(options: StoreOptions = {}): Store {
 
     busy = true;
     try {
-      const refused = "The store rejected the delta";
-      const start = current(refused);
-      const failures = named(deltas);
-      if (failures.length > 0) throw new StoreError(refused, failures);
-
-      const { applied, inverses } = run(start, deltas, {}, refused);
+      const { start, applied, inverses } = runOnBoard(deltas);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start);
       if (inverses.length > 0 && opts.undo !== false) {
@@ -392,6 +405,22 @@ export function createStore(options: StoreOptions = {}): Store {
     }
   }
 
+  function dryRun(delta: Delta | readonly Delta[]): Board {
+    const deltas: readonly Delta[] = isDeltas(delta) ? delta : [delta];
+    // The store is busy while the dry run calls the update of each plugin's
+    // class, so that no update applies a delta. Afterwards the store is as
+    // busy as before, since a subscriber may run a dry run while the store
+    // announces a change.
+    const was = busy;
+    busy = true;
+    try {
+      const { start, applied } = runOnBoard(deltas);
+      return applied.at(-1)?.board ?? start;
+    } finally {
+      busy = was;
+    }
+  }
+
   // Takes back the undo list's last step, or the origin's last step where an
   // undo names one, or applies again the redo list's last step, as a new edit
   // on the board as it is.
@@ -403,7 +432,7 @@ export function createStore(options: StoreOptions = {}): Store {
   function revert(back: boolean, origin?: Origin): void {
     guard();
     const { undo, redo } = history.value;
-    const at = back ? lastOf(undo, origin) : redo.length - 1;
+    const at = back ? lastStepIndex(undo, origin) : redo.length - 1;
     const step = (back ? undo : redo)[at];
     if (step === undefined) return;
 
@@ -591,6 +620,7 @@ export function createStore(options: StoreOptions = {}): Store {
       };
     },
     apply,
+    dryRun,
     open,
     check: checkText,
     undo: (origin) => {
@@ -599,7 +629,7 @@ export function createStore(options: StoreOptions = {}): Store {
     redo: () => {
       revert(false);
     },
-    canUndo: (origin) => lastOf(history.value.undo, origin) >= 0,
+    canUndo: (origin) => lastStepIndex(history.value.undo, origin) >= 0,
     canRedo: () => history.value.redo.length > 0,
     plugins: registrations.plugins,
     options: registrations.options,
@@ -613,7 +643,7 @@ export function createStore(options: StoreOptions = {}): Store {
 
 // The index of the list's last step, or of the origin's last step where one is
 // given, or -1 where the list holds no such step.
-function lastOf(steps: readonly Step[], origin: Origin | undefined): number {
+function lastStepIndex(steps: readonly Step[], origin: Origin | undefined): number {
   return origin === undefined ? steps.length - 1 : steps.map((step) => step.origin).lastIndexOf(origin);
 }
 

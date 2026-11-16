@@ -12,9 +12,9 @@ import { afterEach, describe, expect, test } from "vitest";
 import type { HelloReply } from "../../protocol/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
-import { labelled, optionOf, optionsOf } from "../../testing/combobox.ts";
+import { labelled, optionFromLabel, optionLabels } from "../../testing/combobox.ts";
 import { find, pick, press, texts, type } from "../../testing/inputs.ts";
-import { codeOf, held } from "../../testing/notifications.ts";
+import { held, notificationCode } from "../../testing/notifications.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
@@ -123,7 +123,7 @@ async function chosen(el: ParentNode, label: string, search: string, option?: st
     type(labelled(el, label), search);
   });
   await step(() => {
-    optionOf(labelled(el, label), option ?? search).click();
+    optionFromLabel(labelled(el, label), option ?? search).click();
   });
 }
 
@@ -142,7 +142,7 @@ describe("the blocks", () => {
     await step(() => {
       classes.click();
     });
-    expect(optionsOf(classes)).toEqual([
+    expect(optionLabels(classes)).toEqual([
       "input: data upload block",
       "input: dataset block",
       "plot: scatter plot block",
@@ -154,12 +154,12 @@ describe("the blocks", () => {
     await step(() => {
       type(classes, "scatter");
     });
-    expect(optionsOf(classes)).toEqual(["plot: scatter plot block"]);
+    expect(optionLabels(classes)).toEqual(["plot: scatter plot block"]);
 
     // Picking a class adds nothing, but shows the class's description and the
     // name that a block of it takes.
     await step(() => {
-      optionOf(classes, "scatter plot block").click();
+      optionFromLabel(classes, "scatter plot block").click();
     });
     expect(added(board())).toEqual([]);
     expect(classes.value).toBe("scatter plot block");
@@ -283,7 +283,7 @@ describe("the links", () => {
       await step(() => {
         labelled(add(), "To").click();
       });
-      const found = optionsOf(labelled(add(), "To"));
+      const found = optionLabels(labelled(add(), "To"));
       await step(() => {
         press(labelled(add(), "To"), "Escape");
       });
@@ -319,7 +319,7 @@ describe("the links", () => {
     await step(() => {
       labelled(add(), "From").click();
     });
-    expect(optionsOf(labelled(add(), "From"))).toEqual(["Iris", "Head", "Wide sepals", "Bind", "Scatter"]);
+    expect(optionLabels(labelled(add(), "From"))).toEqual(["Iris", "Head", "Wide sepals", "Bind", "Scatter"]);
   });
 
   test("into a variadic block, are given a name for the input, or none, which the table shows with the link's place among the block's links", async () => {
@@ -527,7 +527,7 @@ describe("the stacks", () => {
     await step(() => {
       blocks.click();
     });
-    expect(optionsOf(blocks)).toEqual([
+    expect(optionLabels(blocks)).toEqual([
       "In no stack: Merge",
       "In no stack: Wide sepals",
       "In no stack: Bind",
@@ -536,10 +536,10 @@ describe("the stacks", () => {
       "In another stack: Head",
     ]);
     await step(() => {
-      optionOf(blocks, "Scatter").click();
+      optionFromLabel(blocks, "Scatter").click();
     });
     await step(() => {
-      optionOf(blocks, "Merge").click();
+      optionFromLabel(blocks, "Merge").click();
     });
     expect(Object.keys(board().stacks)).toEqual(["s1"]);
     await click(button(add(), "Add stack"));
@@ -634,7 +634,7 @@ describe("each edit", () => {
     await click(button(add(), "Add link"));
 
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
-    const refused = held(core, (n) => codeOf(n) === "board_edit_failed");
+    const refused = held(core, (n) => notificationCode(n) === "board_edit_failed");
     expect(refused).toHaveLength(1);
     expect(refused[0]?.severity).toBe("error");
     expect(refused[0]?.source).toEqual({ kind: "core", code: "board_edit_failed" });

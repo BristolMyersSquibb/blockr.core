@@ -22,7 +22,7 @@
 // that it cannot read.
 
 import type { CoreApi } from "../../types/core-api.ts";
-import { buttonsOf, drawnControls, runButton } from "./storage.ts";
+import { buttonsFromControls, drawnControls, runButton } from "./storage.ts";
 
 // Listens for the shortcuts on the document, until the returned cleanup runs.
 // A key press runs undo, redo or a button as a click does: core tells the
@@ -42,7 +42,7 @@ export function bindShortcuts(doc: Document, core: CoreApi): () => void {
       }
       return;
     }
-    const button = buttonsOf(drawnControls(core)?.controls ?? []).find(
+    const button = buttonsFromControls(drawnControls(core)?.controls ?? []).find(
       (b) => b.disabled !== true && b.shortcut !== undefined && matchesShortcut(b.shortcut, event),
     );
     if (button === undefined) return;

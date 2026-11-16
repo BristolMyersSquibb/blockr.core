@@ -151,3 +151,4 @@ knitr::include_graphics("screenshots/block-alone.png")
 - [Create a block class](create-block.html) shows how a package writes a block class: its R side, its UI module in the browser and its tests.
 - [Block expressions](block-expressions.html) shows how a block class builds the R code that a block runs.
 - [Migration notes for app scripts](migration-notes.html) lists what changes for a script written for blockr.core 0.1.
+- [Send log records and spans to an OpenTelemetry collector](opentelemetry.html) shows how a deployment collects the log records and spans of R and of the browser in one place.

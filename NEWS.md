@@ -122,11 +122,14 @@
   options (#560).
   R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file
-  from its cache. It serves a package's files under the package's name, and the
-  module of a block class from outside a package at a URL of its own, read
-  from the path given, and nothing beside them. Registration refuses a class
-  whose starting state is not a plain value, and an arg spec whose example is
-  not one either (#426, #465, #504, #558).
+  from its cache.
+  It serves a package's files under the package's name, with the other files
+  in a module's directory, so that a module or its stylesheet can import a file
+  beside it.
+  It serves the module of a block class from outside a package at a URL of its
+  own, read from the path given, and nothing beside it.
+  Registration refuses a class whose starting state is not a plain value, and
+  an arg spec whose example is not one either (#426, #465, #504, #558, #634).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
   A JSON board holds the board, with its ID and name, its blocks, links and
@@ -341,10 +344,10 @@
   The `CoreApi` for tests runs the app's plugins as the page does, and serves a module that a test gives by its id, such as a plugin's UI (#506, #558).
 * A storage plugin describes its storage controls, and every frontend draws them with its own components.
   The `storage` of a storage plugin's class holds `controls()`, which gives the controls in order, and `subscribe()`, which calls back whenever they change, in place of `save()` and `open()`.
-  A storage control is a button, a menu of further controls or a status, and it may ask for the end of the frontend's bar with the hint `placement: "end"`.
+  A storage control is a button, a menu of further controls or a status.
   The controls save and open boards themselves, and leave out what a lock fixes.
   Core's own storage plugin, whose class, `blockr.core-file_storage_plugin`, core registers as it starts, gives two buttons: Save, which saves the board as a download, and Open, which opens an upload and which it leaves out under the load lock (#567).
-* Core's basic frontend draws the storage controls that `core.plugins.storage()` gives at the end of its toolbar, those that ask for the end of the bar after the others, and none where the app runs no storage plugin.
+* Core's basic frontend draws the storage controls that `core.plugins.storage()` gives at the end of its toolbar, and none where the app runs no storage plugin.
   It draws them again whenever `subscribe()` calls back, binds the `shortcut` of each button, such as `Mod+S`, and tells the user why a button failed.
   It shows the UI of each plugin whose class has a `ui` in a section of its own, beside the board on a wide page and above it on a narrow one.
   The user collapses or expands each plugin's section, and each stack's group of cards.
@@ -396,17 +399,26 @@
   A value that `as.logical()` reads as neither `TRUE` nor `FALSE` fails, naming the blockr option (#510).
 * Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello, and core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
 * The command registry hands every command its context, beside the board and its args, as the third argument of its `preflight()`, `prepare()` and `run()`.
-  The context holds the locks of R's reply to `hello` in `lock`, a function `mintId()` that mints an ID in the shape that `rand_id` names, and the function `blockrOption()`, which reads a blockr option as `CoreApi.blockrOption()` does.
+  The context holds the locks of R's reply to `hello` in `lock`, a function `mintId()` that mints an ID in the shape that `rand_id` names, the function `blockrOption()`, which reads a blockr option as `CoreApi.blockrOption()` does, and the function `refusal()`, which takes a sentence for each failure and makes a `CommandError` that names the command.
   So a plugin class's commands can refuse what its plugins lock, and mint IDs as core's commands do.
+  A command throws what `refusal()` makes to refuse from its `preflight()`, `prepare()` or `run()`, and the command registry rejects with it as it is, as with its own refusals.
   Core's own commands read the board lock and mint IDs through the context too.
   A command with `undo: false` takes no undo step.
   That suits a command that changes only what the user looks at, such as which of the dock's views shows.
-  The command registry passes `{ undo: false }` on to `store.apply()`, which applies and announces such a step as any other, but keeps no inverse of it and leaves the undo and redo steps as they are (#600).
+  The command registry passes `{ undo: false }` on to `store.apply()`, which applies and announces such a step as any other, but keeps no inverse of it and leaves the undo and redo steps as they are (#600, #627).
 * The client's store keeps one undo history for the steps of every origin, in the order the board took them, so that a frontend's Undo takes back the assistant's edits as it takes back the user's own.
   Its `undo()` takes back the history's last step, whoever took it, or, given an origin, that origin's last step, past the steps of others after it.
   Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
   A new step empties the redo steps, whoever takes it.
   An undo or a redo is a change of the origin that asks for it, `"user"` where none is given (#608).
+* The command registry takes a list of commands, each as `{ id, args }`, in `commands.run(list, origin)` and `commands.plan(list)`, as the assistant's edit tool runs one.
+  It plans each command on the board that the deltas of the commands before it leave, so that a list can add a block and then link it.
+  The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
+  Where the board changes while a command of the list waits in its `prepare()`, the registry plans the list again from its first command, on the board as it is then, and no command prepares twice.
+  The registry applies the deltas of every command as one step of the origin, which is an undo step unless every command of the list has `undo: false`, or applies none where one command refuses.
+  It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
+  Where the registry refuses a list of the origin `"user"` that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
+  The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.
@@ -558,6 +570,11 @@
   Where the store refuses a board that `open()` is given, core raises `board_open_failed`, which concerns the board, and `open()` still rejects with the reason.
   Core logs each of these refusals at debug, since the call hands the reason to its caller.
   Core raises a refusal anew each time it comes again, so that a frontend that has shown it shows it again (#616).
+* The command registry logs at error what a command's own `preflight()`, `prepare()` or `run()` throws, whoever runs the command and whatever its origin.
+  The line holds a `CommandError` that names the command, with what the command threw, and its stack, as the cause.
+  The registry still rejects with that error, and its `preflight()` still answers `false`.
+  It logs no refusal, whether it refuses a command itself, the command refuses with the `refusal()` of its context, or the store refuses the command's deltas.
+  Where a plugin runs a command of the user's through `CoreApi`, core raises `board_edit_failed` for a command that failed so, as it does for a refusal, and logs no line of its own (#627).
 
 # blockr.core 0.1.4
 

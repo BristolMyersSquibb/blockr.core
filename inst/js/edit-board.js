@@ -196,7 +196,7 @@ function Field({
       if (last !== void 0) unpick?.(last);
     }
   }
-  const groups = groupsOf(shown);
+  const groups = optionsByGroup(shown);
   const note = error ?? hint;
   const text = open ? query : multiple ? "" : single?.label ?? "";
   return /* @__PURE__ */ jsxs("div", { className: styles.field, children: [
@@ -344,7 +344,7 @@ function Option({
     }
   );
 }
-function groupsOf(options) {
+function optionsByGroup(options) {
   const groups = /* @__PURE__ */ new Map();
   for (const option of options) groups.set(option.group, [...groups.get(option.group) ?? [], option]);
   const loose = groups.get(void 0);

@@ -68,7 +68,11 @@ R replies `ok` with:
 | `board` | the opening board, as a JSON board, `JsonBoard` in [`srcts/types/board.ts`](../../srcts/types/board.ts) ([Files](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.4#files)): the board that the app script built, which R writes with `blockr_ser()`, or the JSON board that `serve()` was given, which R passes on as it is (below) |
 | `bound` | only for a block that `serve()` serves alone, the inputs that R binds itself to the data it was given, as `["data"]`, which the client counts as linked and names in a recipe by the input alone ([Data passed to `serve()`](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.3#data-passed-to-serve)) |
 
-A module's URL, like its stylesheet's in `css`, which a module without one leaves out, is R's to choose, and holds a hash of the file's content, so that a changed file is never read from a browser's cache. The client imports each URL once, and loads the stylesheet with its module. Where R finds no file for a module, it sends a URL at which nothing is served, so that the client reports the module as failing to load where it would mount it.
+A module's URL, like its stylesheet's in `css`, which a module without one leaves out, is R's to choose, and holds a hash of the file's content, so that a changed file is never read from a browser's cache.
+R serves the other files in the directory of a package's module as well, each at its path, so that a module or its stylesheet can import a file beside it by a relative URL.
+Such a file has no hash in its URL, so a package names it with a hash of its content.
+The client imports each URL once, and loads the stylesheet with its module.
+Where R finds no file for a module, it sends a URL at which nothing is served, so that the client reports the module as failing to load where it would mount it.
 
 Both sides use only the capabilities that both named, so that a capability can arrive without a major version:
 

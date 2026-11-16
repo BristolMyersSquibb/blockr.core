@@ -9,10 +9,24 @@
 # the path that the script gave, rather than a `blob:` URL, which a content
 # security policy may forbid.
 #
-# R copies each file that it names into a directory of its own, so that it
-# serves those files and nothing beside them, such as the other files of an
-# app's directory. Shiny serves that directory as a resource path, which httpuv
-# serves from its own thread, so that a module loads while R evaluates a block.
+# R copies each file that it names into a directory of its own.
+# Shiny serves that directory as a resource path, which httpuv serves from its
+# own thread, so that a module loads while R evaluates a block.
+# With a package's file, R also copies the other files in the file's directory,
+# each at its path.
+# So a module or its stylesheet can import a file beside it, by a static
+# import, a dynamic import or an `@import`.
+# The browser reads the URL of such a file off the import, so the URL holds no
+# hash.
+# A package names the file with a hash of its content instead, as core's build
+# names the bundle that holds React `vendor-<hash>.js`.
+# A changed file then has a new name, and the module that imports it changes
+# with it.
+# So R copies the other files only when it copies the module or the stylesheet
+# itself: the first time that it serves it in a session, and again once it
+# changed.
+# A file from no package is copied alone, so that R serves nothing else of an
+# app's directory, such as its secrets.
 
 # Where R serves a module and the stylesheet beside it, as the client gets
 # them: the URL of the module in `module`, and that of the stylesheet in `css`,
@@ -56,7 +70,9 @@ served_url <- function(module, suffix = NULL) {
     path <- file.path(hash, basename(path))
   }
 
-  copy_served_file(file, prefix, path, hash)
+  if (copy_served_file(file, prefix, path, hash) && not_null(package)) {
+    copy_files_beside(file, prefix, path)
+  }
 
   paste0(url_path(prefix, path), if (not_null(package)) paste0("?v=", hash))
 }
@@ -74,12 +90,14 @@ url_path <- function(prefix, path) {
 # where it is missing or holds other content, and has Shiny serve that
 # directory under `prefix`. A running app serves it from then on, and one
 # started later from its start.
+# It returns whether it copied the file.
 copy_served_file <- function(file, prefix, path, hash) {
 
   dir <- file.path(served_dir(), prefix)
   dest <- file.path(dir, path)
+  copy <- !file.exists(dest) || !identical(file_hash(dest), hash)
 
-  if (!file.exists(dest) || !identical(file_hash(dest), hash)) {
+  if (copy) {
     dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
     file.copy(file, dest, overwrite = TRUE)
   }
@@ -88,7 +106,28 @@ copy_served_file <- function(file, prefix, path, hash) {
     shiny::addResourcePath(prefix, dir)
   }
 
-  invisible(dest)
+  invisible(copy)
+}
+
+# Copies the other files in the directory of a package's file, which R serves
+# at `path` under `prefix`, each beside the file's copy, where its copy is
+# missing or holds other content.
+# It copies neither the directories within nor hidden files.
+copy_files_beside <- function(file, prefix, path) {
+
+  beside <- list.files(dirname(file), full.names = TRUE)
+  beside <- beside[!dir.exists(beside) & basename(beside) != basename(file)]
+
+  for (other in beside) {
+    copy_served_file(
+      other,
+      prefix,
+      file.path(dirname(path), basename(other)),
+      file_hash(other)
+    )
+  }
+
+  invisible()
 }
 
 # The directory that Shiny serves under `prefix`, or `NA` where it serves none,
@@ -117,7 +156,8 @@ served_dir <- function() {
 # head. It gives each import that core's build leaves in a module, such as
 # `react` and `@blockr/core/react`, the URL at which R serves the file that
 # blockr.core ships for it, as inst/js/import-map.json names them.
-# R serves the files that those import in turn beside them.
+# R serves the files that those import in turn, such as the vendor file, as it
+# serves every file beside a package's module.
 # A browser takes an import map only ahead of the page's first module script,
 # so the page puts this tag before any such script.
 # The map gives each URL relative to the page, starting with `./`, since it
@@ -128,17 +168,12 @@ import_map <- function() {
     system.file("js", "import-map.json", package = "blockr.core")
   )
 
-  core_file <- function(file) {
-    served_url(js_module(file.path("js", file), package = "blockr.core"))
-  }
-
-  for (file in map[["files"]]) {
-    core_file(file)
-  }
-
   imports <- lapply(
     map[["imports"]],
-    function(file) paste0("./", core_file(file))
+    function(file) {
+      module <- js_module(file.path("js", file), package = "blockr.core")
+      paste0("./", served_url(module))
+    }
   )
 
   shiny::tags$script(

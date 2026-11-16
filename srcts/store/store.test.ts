@@ -1825,6 +1825,84 @@ describe("applying a delta", () => {
   });
 });
 
+describe("a dry run", () => {
+  test("gives the board that apply() would leave, and commits, announces and numbers nothing", async () => {
+    const store = await opened();
+    const board = store.board();
+    const b = store.editId({ block: "b" });
+    const seen = changes(store);
+    const deltas: Delta[] = [
+      { blocks: { add: { g: head(3) } } },
+      { links: { add: { dg: { from: "d", to: "g", input: "data" } } }, blocks: { mod: { b: { edit: b, name: "Top" } } } },
+    ];
+
+    const after = store.dryRun(deltas);
+
+    expect(store.board()).toBe(board);
+    expect(seen).toEqual([]);
+    expect(store.canUndo()).toBe(false);
+    expect(store.editId({ block: "b" })).toBe(b);
+    expect(store.editId({ block: "g" })).toBeUndefined();
+    store.apply(deltas);
+    expect(after).toEqual(store.board());
+  });
+
+  test("expands the deltas as apply() does, through the update of each plugin's class too", async () => {
+    const store = await docked();
+    const board = store.board();
+
+    const after = store.dryRun({ blocks: { rm: ["b"] } });
+
+    expect(Object.values(after.links).some((link) => link.from === "b" || link.to === "b")).toBe(false);
+    expect(after.stacks.s1?.blocks).toEqual(["a"]);
+    expect(dockViews(after)).toEqual({ main: { panels: ["a"] } });
+    expect(store.board()).toBe(board);
+  });
+
+  test("throws what apply() would throw, and changes nothing", async () => {
+    const store = await opened();
+    const edit = store.editId({ block: "b" });
+    store.apply({ blocks: { mod: { b: { edit, state: { n: 7 } } } } });
+    const board = store.board();
+
+    expect(() => store.dryRun({ links: { add: { zh: { from: "z", to: "a", input: "data" } } } })).toThrow(StoreError);
+    expect(() => store.dryRun({ blocks: { mod: { b: { edit, state: { n: 8 } } } } })).toThrow(
+      /built on edit \d+ of block "b", which another edit has replaced/,
+    );
+    expect(store.board()).toBe(board);
+    expect(() => createStoreWithCoreOptions().dryRun({ name: "Sepals" })).toThrow(
+      "The store holds no board until it opens one.",
+    );
+  });
+
+  test("gives the board as it is for no deltas, or for deltas that change nothing", async () => {
+    const store = await opened();
+    expect(store.dryRun([])).toBe(store.board());
+    expect(store.dryRun({ name: "Iris review" })).toBe(store.board());
+  });
+
+  test("runs while the store announces a change, after which the store refuses a subscriber's delta still", async () => {
+    const store = await opened();
+    let named: string | undefined;
+    let caught: unknown;
+    store.subscribe((change) => {
+      if (!("delta" in change)) return;
+      named = store.dryRun({ name: "Again" }).name;
+      try {
+        store.apply({ name: "Again" });
+      } catch (error) {
+        caught = error;
+      }
+    });
+
+    store.apply({ name: "Renamed" });
+
+    expect(named).toBe("Again");
+    expect(String(caught)).toMatch(/applying or announcing a change/);
+    expect(store.board().name).toBe("Renamed");
+  });
+});
+
 describe("the locks", () => {
   // R's reply to hello with the locks given, whose opening board, the sample
   // board, gives the head block b a lock of false, which the board lock leaves

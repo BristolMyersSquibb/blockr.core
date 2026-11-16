@@ -426,15 +426,14 @@ export async function build(root: string): Promise<string[]> {
   }
 
   // The import map that the page R serves holds, as R reads it: each import by
-  // the file in inst/js that it resolves to, and the files that R serves
-  // beside them, which core's files import by their names: the vendor file and
-  // the bundle of OpenTelemetry's SDK.
+  // the file in inst/js that it resolves to. R serves the files that core's
+  // files import by their names, the vendor file and OpenTelemetry's bundle,
+  // as files beside them.
   const imports = Object.fromEntries(
     IMPORTS.filter((name) => existsSync(join(out, importFile(name)))).map((name) => [name, importFile(name)]),
   );
   const map = join(out, "import-map.json");
-  const files = [vendor, ...(sdk === undefined ? [] : [sdk])];
-  await writeJson(map, { imports, files });
+  await writeJson(map, { imports });
   written.push(relative(root, map));
 
   for (const entry of [runtime, ...modules]) {

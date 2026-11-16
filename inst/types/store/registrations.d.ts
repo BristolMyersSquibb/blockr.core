@@ -36,7 +36,7 @@ export interface Storage {
         readonly signal: AbortSignal;
     }): Promise<string | undefined>;
 }
-export type StorageControl = Hints & ({
+export type StorageControl = {
     readonly kind: "button";
     readonly id: string;
     readonly label: string;
@@ -54,10 +54,7 @@ export type StorageControl = Hints & ({
     readonly id: string;
     readonly text: string;
     readonly tooltip?: string;
-});
-export interface Hints {
-    readonly placement?: "end";
-}
+};
 export interface Plugins {
     register(def: PluginClass): () => void;
     registered(): Readonly<Record<PluginClassId, PluginClass>>;

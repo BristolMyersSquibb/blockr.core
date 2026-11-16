@@ -141,9 +141,9 @@ test("bundles the packages that core's code imports beside React into the vendor
   expect(runtime.valid(3)).toBe(true);
   expect(runtime.valid("3")).toBe(false);
   expect(runtime.double(4)).toBe(8);
-  // R serves the vendor file beside the files that the import map names.
-  const map = JSON.parse(await read("import-map.json")) as { files: string[] };
-  expect(map.files).toEqual([file]);
+  // The vendor file sits beside the runtime, where R serves it as a file
+  // beside a module, so the import map names it nowhere.
+  expect(await read("import-map.json")).not.toContain(file);
 });
 
 test("fails where one of core's files would bundle a package from node_modules that the vendor file does not hold, naming the package and the file", async () => {
@@ -212,11 +212,11 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   const api = (await import(pathToFileURL(join(root, "inst/js", importFile(OTEL_API))).href)) as Record<string, unknown>;
   expect(Object.keys(api)).toEqual(expect.arrayContaining(["context", "default", "propagation", "trace"]));
 
-  // The import map names each import by its file, and the vendor file, which
-  // the entry points of React import, beside them.
-  const map = JSON.parse(await read("import-map.json")) as { imports: Record<string, string>; files: string[] };
-  expect(map.imports).toEqual(Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])));
-  expect(map.files).toEqual([expect.stringMatching(/^vendor-[0-9a-f]{8}\.js$/)]);
+  // The import map names each import by its file, and nothing else, since R
+  // serves the files that those import, such as the vendor file, as files
+  // beside them.
+  const map = JSON.parse(await read("import-map.json")) as unknown;
+  expect(map).toEqual({ imports: Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])) });
 });
 
 test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {
@@ -249,10 +249,8 @@ test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module use
   expect(own).toContain("the otel module");
   expect(own).toContain(`from "./${sdk[0] ?? ""}"`);
   expect(own).not.toContain("maxExportBatchSize");
-  // R serves the file beside the module, as the import map names it, and the
-  // API as an import of its own.
-  const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { imports: Record<string, string>; files: string[] };
-  expect(map.files).toEqual([expect.stringMatching(/^vendor-[0-9a-f]{8}\.js$/), sdk[0]]);
+  // R serves the file beside the module, and the API as an import of its own.
+  const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { imports: Record<string, string> };
   expect(map.imports[OTEL_API]).toBe(importFile(OTEL_API));
 });
 
