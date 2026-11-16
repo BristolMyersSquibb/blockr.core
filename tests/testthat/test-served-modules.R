@@ -315,6 +315,8 @@ test_that("a running app serves a module that R names to the client", {
 
 test_that("the import map names the URL at which R serves each import", {
 
+  local_served_dir()
+
   shipped <- yyjsonr::read_json_file(
     system.file("js", "import-map.json", package = "blockr.core")
   )
@@ -349,7 +351,12 @@ test_that("the import map names the URL at which R serves each import", {
 
   # The bundle of React that the entry points of React import, and that of
   # OpenTelemetry's SDK that core's OpenTelemetry module imports, by their
-  # names.
-  expect_length(shipped$files, 2L)
-  expect_true(all(file.exists(served_copy("blockr.core", "js", shipped$files))))
+  # names, as files beside them.
+  bundles <- list.files(
+    system.file("js", package = "blockr.core"),
+    "^(react|opentelemetry)-[0-9a-f]{8}\\.js$"
+  )
+
+  expect_length(bundles, 2L)
+  expect_true(all(file.exists(served_copy("blockr.core", "js", bundles))))
 })
