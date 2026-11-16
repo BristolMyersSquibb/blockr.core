@@ -277,6 +277,8 @@
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol, takes the modules of plugin classes and board options by their IDs and serves core's own, as the page imports them.
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505, #560).
+  It names `@preact/signals-core` and `@cfworker/json-schema`, which core's code imports beside React, as its dependencies, at the versions that the runtime bundles.
+  So npm installs them with it, and the stubs hold core's own code alone (#636).
 * Opening a board starts core's client again in place, with no reload, so that nothing of the board before outlives the opening.
   The store on the page checks the board first, with its `check()`, and a board that it refuses leaves the page as it was, with the reason.
   One abort then ends everything that core ran for the board before: the frontend and what it mounted, the plugins, the store with its undo history, the command registry, the board options, the scheduler with its demands, which block has focus, and what core kept of outputs and answers.

@@ -48,8 +48,13 @@
 //   SDK and the binding bundled for a package's tests, whose build leaves its
 //   imports of them to the page's import map, the preset bundled for a
 //   package's build, with React left an import, the stubs bundled for
-//   a test runner, and the package.json that names them and the React that
-//   the runtime bundles as its peer.
+//   a test runner, and the package.json that names them.
+//   That package.json names React and OpenTelemetry's API as its peers.
+//   It names @preact/signals-core and @cfworker/json-schema as its
+//   dependencies, since core's code imports them beside React.
+//   The bundles leave each package that it names an import, which a
+//   package's tests resolve to the copy that npm installs with `@blockr/core`.
+//   So the stubs hold core's own code alone.
 //   The controls, srcts/controls/index.ts, go there as the SDK does,
 //   as `@blockr/core/controls`, for a package that writes its modules without
 //   React.
@@ -594,6 +599,17 @@ function packageVersion(name: string): string {
 // API's types and its bundles leave the API an import. So a package's modules
 // type their spans, and its tests record core's spans and its own, through
 // the API of the page.
+// Core's code, which the stubs bundle, imports @preact/signals-core and
+// @cfworker/json-schema.
+// The bundles leave both packages imports, so the package names them as its
+// dependencies, at the versions that core's runtime bundles.
+// So npm installs them with `@blockr/core`, and the stubs hold core's own code
+// alone, as the Conventions of State in JS ask
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#conventions).
+// They are not peers, as React is, since core's declarations name neither.
+// So no signal or validator passes between the stubs and a package's code,
+// and a package may depend on other versions of the two packages.
+// Then npm puts core's versions in the node_modules of `@blockr/core`.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -608,6 +624,10 @@ export const TYPES_PACKAGE = {
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
     "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
+  dependencies: {
+    "@preact/signals-core": packageVersion("@preact/signals-core"),
+    "@cfworker/json-schema": packageVersion("@cfworker/json-schema"),
+  },
   peerDependencies: {
     react: packageVersion("react"),
     "react-dom": packageVersion("react-dom"),
@@ -618,6 +638,23 @@ export const TYPES_PACKAGE = {
 // The modules of srcts that the types package bundles,
 // each as the export of its name.
 const BUNDLED = ["stubs", "binding", "react", "build", "controls"];
+
+// Leaves each import of a package that `names` holds an import.
+// The packages have no side effects, as their package.json files say.
+// So a bundle that holds some of core's code, but uses no name of the
+// package that the code imports, keeps no import of it.
+// Without that, the SDK, the binding and the controls would each import
+// @cfworker/json-schema, whose validator they do not use.
+function dependencyImports(names: readonly string[]): esbuild.Plugin {
+  return {
+    name: "blockr.core-dependency-imports",
+    setup(build) {
+      build.onResolve({ filter: /^[^./]/ }, (args) =>
+        names.includes(args.path) ? { path: args.path, external: true, sideEffects: false } : undefined,
+      );
+    },
+  };
+}
 
 // Writes inst/types: the declarations of srcts/index.ts and of the modules
 // that BUNDLED names, each file's beside where its source sits in srcts, those
@@ -673,9 +710,13 @@ export async function types(root: string): Promise<string[]> {
       platform: "neutral",
       target: "es2022",
       jsx: "automatic",
-      // React and OpenTelemetry's API stay imports, which a package's tests
-      // resolve to those that npm installs with `@blockr/core`.
-      external: ["react", "react/*", "react-dom", "react-dom/*", OTEL_API],
+      // The peers that the package.json names, React and OpenTelemetry's API,
+      // stay imports, with their subpaths, such as react/jsx-runtime.
+      // A package's tests resolve them to those that npm installs with
+      // `@blockr/core`.
+      external: Object.keys(TYPES_PACKAGE.peerDependencies).flatMap((name) => [name, `${name}/*`]),
+      // So do the packages that the package.json names as its dependencies.
+      plugins: [dependencyImports(Object.keys(TYPES_PACKAGE.dependencies))],
       logLevel: "warning",
       metafile: true,
     });
