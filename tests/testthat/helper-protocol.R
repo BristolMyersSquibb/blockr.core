@@ -1186,6 +1186,10 @@ proto_output <- function(x) {
 # of grid_plugin and the value of grid_gap version 2, its frontend takes a
 # title from `serve()`, and it makes two renderers, one for table outputs and
 # one for the board option dark_mode.
+# Beside the module of grid_plugin sits a bundle that the module would import,
+# by a name that holds a hash of the bundle's content.
+# Two files of blockr.test sit beside none of its modules, one in a directory
+# within theirs and one outside it.
 # Beside it, a script defines two block classes, one whose module ships a
 # stylesheet and the schema of its state, and one whose module ships neither.
 # The helper writes the files of all of them, so that their content, and so the
@@ -1199,7 +1203,9 @@ declared_files <- function() {
     `blockr.test/js/picker.js` = "export const api = 1; // picker\n",
     `blockr.test/js/table.js` = "export const api = 1; // table\n",
     `blockr.test/js/dark.js` = "export const api = 1; // dark\n",
-    `blockr.test/js/notes.txt` = "Not served.\n",
+    `blockr.test/js/grid-lib-493f0854.js` = "export const lib = 1;\n",
+    `blockr.test/js/vendor/notes.txt` = "Not served.\n",
+    `blockr.test/notes.txt` = "Not served.\n",
     `app/letters-block.js` = "export const api = 1; // letters\n",
     `app/letters-block.css` = ".letters { color: teal; }\n",
     `app/letters-block.schema.json` = paste0(
@@ -1229,12 +1235,15 @@ write_declared_files <- function(dir) {
 # Empties the block registry, which core fills as it loads, and what core
 # lists in its `._BLOCKR_MODULES_` until `frame` ends, and removes then the
 # resource paths that serving a file added.
+# R copies the files that it serves into a directory of its own until then.
 local_empty_declarations <- function(frame = parent.frame()) {
 
   saved <- as.list(block_registry, all.names = TRUE)
   paths <- names(shiny::resourcePaths())
 
   rm(list = ls(block_registry, all.names = TRUE), envir = block_registry)
+
+  local_served_dir(frame)
 
   # Linting skips the call of local_empty_core_listing(), a helper of another
   # file, which lintr does not see.
@@ -1253,6 +1262,24 @@ local_empty_declarations <- function(frame = parent.frame()) {
   )
 
   invisible()
+}
+
+# Has R copy the files that it serves into an empty directory until `frame`
+# ends.
+# R copies the files beside a package's file only when it copies that file, so
+# a copy that an earlier test made would otherwise stand in for one that R did
+# not make.
+local_served_dir <- function(frame = parent.frame()) {
+
+  dir <- withr::local_tempdir(.local_envir = frame)
+
+  testthat::local_mocked_bindings(
+    served_dir = function() dir,
+    .package = "blockr.core",
+    .env = frame
+  )
+
+  invisible(dir)
 }
 
 # Has the package blockr.test of the files that `dir` holds list what it lists

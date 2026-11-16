@@ -122,11 +122,14 @@
   options (#560).
   R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file
-  from its cache. It serves a package's files under the package's name, and the
-  module of a block class from outside a package at a URL of its own, read
-  from the path given, and nothing beside them. Registration refuses a class
-  whose starting state is not a plain value, and an arg spec whose example is
-  not one either (#426, #465, #504, #558).
+  from its cache.
+  It serves a package's files under the package's name, with the other files
+  in a module's directory, so that a module or its stylesheet can import a file
+  beside it.
+  It serves the module of a block class from outside a package at a URL of its
+  own, read from the path given, and nothing beside it.
+  Registration refuses a class whose starting state is not a plain value, and
+  an arg spec whose example is not one either (#426, #465, #504, #558, #634).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
   A JSON board holds the board, with its ID and name, its blocks, links and
