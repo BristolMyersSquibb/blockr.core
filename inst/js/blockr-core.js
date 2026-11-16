@@ -7596,17 +7596,20 @@ function createStore(options = {}) {
       else edits.delete(key2);
     }
   }
+  function runOnBoard(deltas) {
+    const refused2 = "The store rejected the delta";
+    const start2 = current2(refused2);
+    const failures = named3(deltas);
+    if (failures.length > 0) throw new StoreError(refused2, failures);
+    return { start: start2, ...run(start2, deltas, {}, refused2) };
+  }
   function apply(delta, origin = "user", opts = {}) {
     guard2();
     const deltas = isDeltas(delta) ? delta : [delta];
     if (deltas.length === 0) return;
     busy = true;
     try {
-      const refused2 = "The store rejected the delta";
-      const start2 = current2(refused2);
-      const failures = named3(deltas);
-      if (failures.length > 0) throw new StoreError(refused2, failures);
-      const { applied, inverses } = run(start2, deltas, {}, refused2);
+      const { start: start2, applied, inverses } = runOnBoard(deltas);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start2);
       if (inverses.length > 0 && opts.undo !== false) {
@@ -7618,6 +7621,17 @@ function createStore(options = {}) {
       }
     } finally {
       busy = false;
+    }
+  }
+  function dryRun(delta) {
+    const deltas = isDeltas(delta) ? delta : [delta];
+    const was = busy;
+    busy = true;
+    try {
+      const { start: start2, applied } = runOnBoard(deltas);
+      return applied.at(-1)?.board ?? start2;
+    } finally {
+      busy = was;
     }
   }
   function revert(back, origin) {
@@ -7789,6 +7803,7 @@ function createStore(options = {}) {
       };
     },
     apply,
+    dryRun,
     open,
     check: checkText,
     undo: (origin) => {
@@ -8398,15 +8413,27 @@ function command(def) {
 // srcts/commands/commands.ts
 var CommandError = class extends Error {
   failures;
+  // The command's place in the list that run() or plan() was given, counted
+  // from 0, where the command refused as one of a list.
+  index;
+  // False where the command failed its preflight, its preflight() answering
+  // false, and left out otherwise, as a command's `undo` is false only where it
+  // takes no undo step. The assistant's edit tool reads it to tell the model
+  // what to check. A preflight() that throws the refusal() of its context
+  // leaves it out, since that refusal says why.
+  preflight;
   constructor(message, failures, options) {
     super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
     this.name = "CommandError";
     this.failures = failures;
+    if (options?.index !== void 0) this.index = options.index;
+    if (options?.preflight === false) this.preflight = false;
   }
 };
-function refusal(id2, failures) {
-  return new CommandError(`The command "${id2}" refused to run`, failures);
+function refusal(id2, failures, options) {
+  return new CommandError(`The command "${id2}" refused to run`, failures, options);
 }
+var DROPPED = "A board opened while it prepared, which drops it.";
 function createCommands(store, options = {}) {
   const commands = y(/* @__PURE__ */ new Map());
   const registered = O(
@@ -8473,9 +8500,11 @@ function createCommands(store, options = {}) {
   function allow({ command: command2, context: context4 }, board, args) {
     const passes = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
     if (!passes) {
-      throw refusal(command2.id, [
-        `It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`
-      ]);
+      throw refusal(
+        command2.id,
+        [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
+        { preflight: false }
+      );
     }
   }
   function build({ command: command2, context: context4 }, board, args) {
@@ -8490,19 +8519,86 @@ function createCommands(store, options = {}) {
     return prepared(item, board, args);
   }
   async function prepared(item, board, args) {
-    const { command: command2, context: context4 } = item;
-    let input2;
-    try {
-      input2 = await command2.prepare?.(board, args, context4);
-    } catch (error) {
-      throw failed(command2, error);
-    }
-    if (ended()) {
-      throw refusal(command2.id, ["A board opened while it prepared, which drops it."]);
-    }
+    const { command: command2 } = item;
+    const input2 = await prepare(item, board, args);
+    if (ended()) throw refusal(command2.id, [DROPPED]);
     const now = current2(command2.id);
     allow(item, now, args);
     return build(item, now, input2);
+  }
+  async function prepare({ command: command2, context: context4 }, board, args) {
+    try {
+      return await command2.prepare?.(board, args, context4);
+    } catch (error) {
+      throw failed(command2, error);
+    }
+  }
+  async function planned(list, then) {
+    const within = keepContext();
+    const checked2 = list.map(({ id: id2, args }, index) => {
+      try {
+        return lookup(id2, args);
+      } catch (error) {
+        throw inList(index, id2, error);
+      }
+    });
+    const [first] = checked2;
+    if (first === void 0) return then([], []);
+    const inputs = /* @__PURE__ */ new Map();
+    let built = [];
+    let again = true;
+    while (again) {
+      again = false;
+      built = [];
+      let start2;
+      try {
+        start2 = current2(first.item.command.id);
+      } catch (error) {
+        throw inList(0, first.item.command.id, error);
+      }
+      let board = start2;
+      for (const [index, { item, args }] of checked2.entries()) {
+        const { command: command2 } = item;
+        try {
+          allow(item, board, args);
+          if (command2.prepare !== void 0 && !inputs.has(index)) {
+            inputs.set(index, await within(() => prepare(item, board, args)));
+            if (ended()) throw refusal(command2.id, [DROPPED]);
+            if (store.board() !== start2) {
+              again = true;
+              break;
+            }
+          }
+          built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
+          board = store.dryRun(built);
+        } catch (error) {
+          throw inList(index, command2.id, error);
+        }
+      }
+    }
+    return within(() => then(built, checked2.map(({ item }) => item.command)));
+  }
+  function runList(list, origin) {
+    const ids2 = list.map(({ id: id2 }) => id2);
+    return traced(
+      "command list",
+      { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
+      () => planned(list, (built, listed) => {
+        const undo = listed.every((command2) => command2.undo === false) ? false : void 0;
+        store.apply(built, origin, { undo });
+      })
+    );
+  }
+  async function traced(name3, attributes, run) {
+    const span = tracer().startSpan(name3, { attributes });
+    try {
+      await otelContext.with(trace3.setSpan(otelContext.active(), span), run);
+    } catch (error) {
+      failSpan(span, error);
+      throw error;
+    } finally {
+      span.end();
+    }
   }
   function withEdits(delta) {
     const blocks = delta.blocks?.mod;
@@ -8542,27 +8638,22 @@ function createCommands(store, options = {}) {
         return false;
       }
     },
-    async run(id2, given, origin = "user") {
-      const span = tracer().startSpan(`command ${id2}`, {
-        attributes: { "blockr.command.id": id2, "blockr.delta.origin": origin }
-      });
-      const active = trace3.setSpan(otelContext.active(), span);
-      try {
-        const { item, args } = otelContext.with(active, () => lookup(id2, given));
-        const step2 = otelContext.with(active, () => deltas(item, args));
+    // A list comes with its origin second, in place of the args.
+    async run(target2, given, origin = "user") {
+      if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
+      return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
+        const within = keepContext();
+        const { item, args } = lookup(target2, given);
+        const step2 = deltas(item, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        otelContext.with(active, () => {
+        within(() => {
           store.apply(ready, origin, { undo: item.command.undo });
         });
-      } catch (error) {
-        failSpan(span, error);
-        throw error;
-      } finally {
-        span.end();
-      }
+      });
     },
-    async plan(id2, given) {
-      const { item, args } = lookup(id2, given);
+    async plan(target2, given) {
+      if (typeof target2 !== "string") return planned(target2, (built) => built);
+      const { item, args } = lookup(target2, given);
       return deltas(item, args);
     }
   };
@@ -8582,6 +8673,16 @@ function isCommandId(id2) {
 var loggedErrors = /* @__PURE__ */ new WeakSet();
 function isLogged(error) {
   return error instanceof CommandError && loggedErrors.has(error);
+}
+function inList(index, id2, error) {
+  const named3 = error instanceof CommandError || error instanceof StoreError;
+  const refused2 = new CommandError(
+    `The list of commands was refused at command ${String(index + 1)}, "${id2}"`,
+    named3 ? error.failures : [errorMessage(error)],
+    { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
+  );
+  if (isLogged(error)) loggedErrors.add(refused2);
+  return refused2;
 }
 function failed(command2, error) {
   if (error instanceof CommandError) return error;
@@ -9011,6 +9112,12 @@ function refusing(store, commands, raiseAgain) {
       throw error;
     }
   }
+  function ran(origin, running2) {
+    return running2.catch((error) => {
+      refused2(origin, error);
+      throw error;
+    });
+  }
   return {
     store: {
       ...store,
@@ -9034,10 +9141,11 @@ function refusing(store, commands, raiseAgain) {
     },
     commands: {
       ...commands,
-      run: (id2, args, origin) => commands.run(id2, args, origin).catch((error) => {
-        refused2(origin, error);
-        throw error;
-      })
+      run(target2, given, origin) {
+        if (typeof target2 === "string") return ran(origin, commands.run(target2, given, origin));
+        const listed = typeof given === "string" ? given : void 0;
+        return ran(listed, commands.run(target2, listed));
+      }
     }
   };
 }

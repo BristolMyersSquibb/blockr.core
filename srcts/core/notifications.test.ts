@@ -647,6 +647,34 @@ describe("core's notifications", () => {
     s.stop();
   });
 
+  test("of a list of the user's whose command's own code throws concern the board, and core logs no line of its own, as for a command alone", async () => {
+    const s = await stubCore();
+    await s.settled();
+    s.core.commands.register({
+      id: "blockr.test-relayout",
+      label: "Relayout",
+      run: () => {
+        throw new Error("No layout.");
+      },
+    });
+    const reported = logged();
+
+    await expect(s.core.commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }, { id: "blockr.test-relayout" }])).rejects.toThrow(
+      'The list of commands was refused at command 2, "blockr.test-relayout"\n- No layout.',
+    );
+    await s.settled();
+    reported.restore();
+
+    const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
+    expect(refused.map(({ severity, message, about }) => [severity, message, about])).toEqual([
+      ["error", 'The list of commands was refused at command 2, "blockr.test-relayout"\n- No layout.', undefined],
+    ]);
+    expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual([
+      ["error", "blockr.core", 'The command "blockr.test-relayout" failed\n- No layout.'],
+    ]);
+    s.stop();
+  });
+
   test("of an edit that the user makes again are raised anew, so that a frontend that has shown one shows it again", async () => {
     const s = await stubCore();
     await s.settled();
@@ -698,6 +726,30 @@ describe("core's notifications", () => {
     // The store refused core's edit of the default, which core names as the
     // board option's failure alone.
     expect(held(s.core, (n) => notificationCode(n) === "board_option_failed").map((n) => n.about)).toEqual([{ option: "unfit" }]);
+    s.stop();
+  });
+
+  test("of a list of commands that the command registry refuses are raised as for a command alone, for the user's list and none for the assistant's", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const run = (origin?: string): Promise<void> =>
+      s.core.commands.run(
+        [
+          { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+          { id: "blockr.core-remove_block", args: { id: "nowhere" } },
+        ],
+        origin,
+      );
+    const refusal = 'The list of commands was refused at command 2, "blockr.core-remove_block"';
+
+    await expect(run("assistant")).rejects.toThrow(refusal);
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
+    await expect(run()).rejects.toThrow(refusal);
+
+    const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
+    expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual([["error", { kind: "core", code: "board_edit_failed" }, undefined]]);
+    expect(refused.map((n) => n.message)).toEqual([expect.stringMatching(/^The list of commands was refused at command 2, "blockr\.core-remove_block"\n/)]);
+    expect(s.core.store.board().name).not.toBe("Sepals");
     s.stop();
   });
 

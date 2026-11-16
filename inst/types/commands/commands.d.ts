@@ -24,13 +24,28 @@ export interface Commands {
     registered(): Readonly<Record<string, Command<Json, unknown>>>;
     preflight(id: string, args?: Json): boolean;
     run(id: string, args?: Json, origin?: Origin): Promise<void>;
+    run(list: readonly {
+        readonly id: string;
+        readonly args?: Json;
+    }[], origin?: Origin): Promise<void>;
     plan(id: string, args?: Json): Promise<Delta[]>;
+    plan(list: readonly {
+        readonly id: string;
+        readonly args?: Json;
+    }[]): Promise<Delta[]>;
 }
 export declare class CommandError extends Error {
     readonly failures: readonly string[];
-    constructor(message: string, failures: readonly string[], options?: ErrorOptions);
+    readonly index?: number;
+    readonly preflight?: false;
+    constructor(message: string, failures: readonly string[], options?: ErrorOptions & {
+        readonly index?: number;
+        readonly preflight?: false;
+    });
 }
-export declare function refusal(id: string, failures: readonly string[]): CommandError;
+export declare function refusal(id: string, failures: readonly string[], options?: {
+    readonly preflight?: false;
+}): CommandError;
 export interface CommandsOptions {
     readonly signal?: AbortSignal;
     readonly lock?: Lock;
