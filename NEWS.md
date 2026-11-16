@@ -225,6 +225,8 @@
 * R's `ok` reply to a request or an output carries `conditions`, as its reply to an evaluation does: every message and warning that the request's function or the output's coercion raised.
   R logs each of them.
   Core raises a notification for each condition of an `ok` reply to a request or an output (#601, #606).
+  On the `CoreApi` for tests, R's reply to a request carries the messages and warnings that the option `conditions` of `stubCore()` gives, before the error of an `answer` that throws.
+  Its reply to an output carries those that the option `output` gives beside the output (#654).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
@@ -279,6 +281,8 @@
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol, takes the modules of plugin classes and board options by their IDs and serves core's own, as the page imports them.
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505, #560).
+  It names `@preact/signals-core` and `@cfworker/json-schema`, which core's code imports beside React, as its dependencies, at the versions that the runtime bundles.
+  So npm installs them with it, and the stubs hold core's own code alone (#636).
 * Opening a board starts core's client again in place, with no reload, so that nothing of the board before outlives the opening.
   The store on the page checks the board first, with its `check()`, and a board that it refuses leaves the page as it was, with the reason.
   One abort then ends everything that core ran for the board before: the frontend and what it mounted, the plugins, the store with its undo history, the command registry, the board options, the scheduler with its demands, which block has focus, and what core kept of outputs and answers.
@@ -535,6 +539,10 @@
   Core raises one for each condition of R's reply to an ask of a block's output, ok or error, in place of those before.
   Where the ask fails without an error from R, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
   Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601, #606).
+* A plugin takes the conditions of R's reply to one of its own requests itself, through a function that it passes to `core.request()` in `conditions`, beside `progress`.
+  Core hands that function the conditions of each reply, ok or error, and raises no notification for them.
+  It also leaves the notifications of the request's earlier replies as they are, and a reply of error still rejects with its conditions.
+  So the assistant can hand the errors and warnings of the model's own R code to the model alone, rather than to the user as well (#644).
 * Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
   A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
   The card of a block that `serve()` serves alone shows every notification of the board.

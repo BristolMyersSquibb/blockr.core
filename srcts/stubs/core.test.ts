@@ -4,9 +4,11 @@
 
 import { act } from "react";
 import { describe, expect, test } from "vitest";
+import type { Condition } from "../protocol/index.ts";
 import type { Option } from "../store/index.ts";
 import { find } from "../testing/inputs.ts";
 import { logged } from "../testing/logged.ts";
+import { concerning, held } from "../testing/notifications.ts";
 import { classModule, optionModule } from "../testing/plugins.ts";
 import { withOptions, withPlugins } from "../testing/store.ts";
 // React's act() environment, for the UIs of core's board options.
@@ -113,6 +115,58 @@ describe("the CoreApi for tests", () => {
     await expect(core.request("blockr.dag-dag_plugin", "script")).rejects.toThrow('The app runs no plugin "blockr.dag-dag_plugin"');
     await expect(core.blockrOption("n_rows")).resolves.toBe(25);
     await expect(core.blockrOption("gate_visibility")).resolves.toBeUndefined();
+  });
+
+  test("replies to a request with the messages and warnings that the test gives, ok or error, before the error that its answer throws", async () => {
+    const code = "blockr.code-code_plugin";
+    const read: Condition = { severity: "message", class: ["simpleMessage", "message", "condition"], phase: "request", message: "Read 150 rows." };
+    const few: Condition = { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "request", message: "Few rows." };
+    const { core, stop } = await stubCore({
+      hello: withPlugins({ [code]: { name: "Code" } }),
+      modules: { [code]: classModule() },
+      conditions: () => [read, few],
+      answer: (request) => {
+        if (request.kind !== "request" || request.name === "other") return undefined;
+        if (request.name === "save") throw new Error("The disk is full.");
+        return ["a <- 1"];
+      },
+    });
+
+    await expect(core.request(code, "script")).resolves.toEqual(["a <- 1"]);
+    expect(held(core, (n) => n.source.kind === "r").map((n) => [n.severity, n.message])).toEqual([
+      ["message", "Read 150 rows."],
+      ["warning", "Few rows."],
+    ]);
+    await expect(core.request(code, "save")).rejects.toMatchObject({
+      status: "error",
+      conditions: [read, few, { severity: "error", phase: "request", message: "The disk is full." }],
+    });
+    // R runs no function for a request that the test gives no answer to, so
+    // its reply carries only its own error.
+    await expect(core.request(code, "other")).rejects.toMatchObject({
+      status: "error",
+      conditions: [{ severity: "error", phase: "request" }],
+    });
+    stop();
+  });
+
+  test("replies to an output with the messages and warnings that the test gives with it", async () => {
+    const table = renderer();
+    const few: Condition = { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "output", message: "Few rows." };
+    const output = { renderer: { id: "blockr.core-table_output", module: TABLE }, columns: [], rows: [], total: 150 };
+    const { core, settled, stop } = await stubCore({
+      modules: { [TABLE]: table.exports },
+      output: () => ({ output, conditions: [few] }),
+    });
+    core.scheduler.demand("test", ["b"]);
+    core.mountOutput(document.createElement("div"), "b");
+    await settled();
+
+    expect(table.hosts[0]?.output()).toMatchObject({ total: 150 });
+    expect(held(core, concerning("b"))).toEqual([
+      { severity: "warning", message: "Few rows.", source: { kind: "r", class: few.class, request: { type: "output" } }, about: { block: "b" } },
+    ]);
+    stop();
   });
 
   test("holds what core and the modules on the page log while it runs, and passes each line on to the logger in place before", async () => {

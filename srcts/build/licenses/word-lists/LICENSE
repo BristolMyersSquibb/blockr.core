@@ -1,7 +1,4 @@
-The words in adjectives.txt and animals.txt are picked from the word lists of
-the R package ids (https://github.com/richfitz/ids), which took them from
-adjective-adjective-animal (https://github.com/a-type/adjective-adjective-animal),
-both under the MIT License:
+MIT License
 
 Copyright (c) 2017 Rich FitzJohn
 Copyright (c) 2021 Grant Forrest

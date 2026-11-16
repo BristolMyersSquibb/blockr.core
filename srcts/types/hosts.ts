@@ -103,7 +103,10 @@ export interface BlockContext {
 // The options of a host's request, such as the file of an upload or the bitmap
 // of a chart. The host fills in the blocks it reads, from the block's inputs or
 // the output it holds.
-export type HostRequestOpts = Omit<RequestOpts, "reads">;
+// A module that core mounts does not take the conditions of R's reply itself.
+// Those conditions raise notifications about its block or board option, which
+// the frontend shows, as on the block's card.
+export type HostRequestOpts = Omit<RequestOpts, "reads" | "conditions">;
 
 // The options of an output's request: as a host's, and the scope of the
 // request, "class" for one of the output class, as unless given, or

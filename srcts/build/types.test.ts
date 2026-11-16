@@ -4,8 +4,9 @@
 // `@blockr/core`: the declarations of the types that modules are written
 // against and of the stubs of the hosts, the stubs bundled for a test runner,
 // the React SDK, its binding and the build preset bundled for a package's build,
-// and the package.json that names them and the React that core's runtime
-// bundles as its peer.
+// and the package.json that names them.
+// That package.json names React and OpenTelemetry's API as its peers,
+// and the packages that core's code imports beside React as its dependencies.
 // The controls go there as the SDK does.
 
 import { copyFile, cp, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -99,14 +100,38 @@ test("writes the declarations of the types and the stubs, the stubs bundled, and
     echo: (x: unknown) => unknown;
   };
   expect(stubs.echo([1, "a"])).toEqual([1, "a"]);
-});
+}, 60_000);
+
+test("writes the licenses of the code from other projects that the stubs bundle into LICENSES beside them", async () => {
+  await copyFile(join(repo, "tsconfig.client.json"), join(root, "tsconfig.client.json"));
+  await write({
+    "node_modules/shout/package.json": JSON.stringify({
+      name: "shout",
+      version: "2.0.0",
+      type: "module",
+      exports: { ".": { types: "./index.d.ts", default: "./index.js" } },
+    }),
+    "node_modules/shout/index.js": "export const shout = (x) => x.toUpperCase();\n",
+    "node_modules/shout/index.d.ts": "export declare const shout: (x: string) => string;\n",
+    "node_modules/shout/LICENSE": "The license of shout\n",
+    "srcts/index.ts": "export type Json = string;\n",
+    "srcts/stubs/index.ts": 'export { shout } from "shout";\n',
+  });
+
+  const written = await types(root);
+
+  expect(written).toContain("inst/types/LICENSES");
+  expect(await readFile(join(root, "inst/types/LICENSES"), "utf8")).toBe(
+    "shout 2.0.0, in stubs/index.js\n\nThe license of shout\n",
+  );
+}, 60_000);
 
 test("refuses types that do not check", async () => {
   await copyFile(join(repo, "tsconfig.client.json"), join(root, "tsconfig.client.json"));
   await write({ "srcts/index.ts": "export const n: number = 'one';\n" });
 
   await expect(types(root)).rejects.toThrow("Type 'string' is not assignable to type 'number'.");
-});
+}, 60_000);
 
 // The packages that the bundle that core ships under the name given imports,
 // each by its scope and name, as npm installs it.
@@ -117,20 +142,51 @@ async function importedPackages(name: string): Promise<string[]> {
   return [...new Set(bare.map((specifier) => specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/")))];
 }
 
-test("what a package's tests load imports no package but the React and the OpenTelemetry API that `@blockr/core` names as its peers, at the versions that core ships", async () => {
+// The version of a package in core's node_modules, from the package.json that
+// its folder holds, which the exports of some packages do not name.
+async function installedVersion(name: string): Promise<string> {
+  return (JSON.parse(await readFile(join(repo, "node_modules", name, "package.json"), "utf8")) as { version: string }).version;
+}
+
+test("what a package's tests load imports no package but those that `@blockr/core` names as its peers or its dependencies, at the versions that core ships", async () => {
   const manifest = JSON.parse(await readFile(join(repo, "inst/types/package.json"), "utf8")) as typeof TYPES_PACKAGE;
   const installed = createRequire(import.meta.url);
   expect(manifest.peerDependencies).toEqual({
     react: (installed("react/package.json") as { version: string }).version,
     "react-dom": (installed("react-dom/package.json") as { version: string }).version,
-    // The API's exports name no package.json, which its folder holds.
-    "@opentelemetry/api": (JSON.parse(await readFile(join(repo, "node_modules/@opentelemetry/api/package.json"), "utf8")) as { version: string }).version,
+    "@opentelemetry/api": await installedVersion("@opentelemetry/api"),
+  });
+  expect(manifest.dependencies).toEqual({
+    "@preact/signals-core": await installedVersion("@preact/signals-core"),
+    "@cfworker/json-schema": await installedVersion("@cfworker/json-schema"),
   });
 
   // The stubs draw core's UIs, the board options' among them, with React.
   expect(await importedPackages("stubs")).toContain("react");
+  const named = { ...manifest.peerDependencies, ...manifest.dependencies };
   for (const name of ["stubs", "react", "binding", "controls"]) {
-    expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(manifest.peerDependencies, pkg))).toEqual([]);
+    expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(named, pkg))).toEqual([]);
+  }
+});
+
+// The files whose code esbuild put into the bundle that core ships under the
+// name given, by the path that it notes above the code of each.
+async function bundledFiles(name: string): Promise<string[]> {
+  const text = await readFile(join(repo, "inst", "types", name, "index.js"), "utf8");
+  return [...text.matchAll(/^\/\/ (\S+)$/gm)].map((match) => match[1] ?? "");
+}
+
+// What core ships in inst/types leaves each package that its code imports an
+// import, and bundles none.
+// So its files hold core's own code alone, as the Conventions of State in JS
+// ask (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#conventions).
+test("what core ships for a package's tests and build holds core's own code alone", async () => {
+  for (const name of ["stubs", "react", "binding", "controls", "build"]) {
+    const files = await bundledFiles(name);
+    // The bundle notes the path of each file above its code, such as
+    // srcts/stubs/core.ts.
+    expect(files.filter((file) => file.startsWith(`srcts/${name}/`))).not.toHaveLength(0);
+    expect(files.filter((file) => !file.startsWith("srcts/") && !file.startsWith("inst/"))).toEqual([]);
   }
 });
 

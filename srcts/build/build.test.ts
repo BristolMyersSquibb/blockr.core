@@ -7,11 +7,14 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { IMPORTS, OTEL_API, REACT_ENTRIES, importFile } from "../import-map/index.ts";
-import { build, idWords, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
+import { build, idWords, licenses, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
 
 // The fixtures import and reference core's stylesheet, so that they test core's
 // setup of Tailwind CSS.
 const core = resolve(dirname(fileURLToPath(import.meta.url)), "../runtime/index.css");
+
+// Core's repo, whose node_modules holds the packages that the build bundles.
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 let root: string;
 
@@ -47,6 +50,7 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   // Beside them, the build writes the vendor file, React's entry points, the
   // import map and the files that a page imports as it starts.
   expect((await readdir(out)).filter((file) => !/^react|^vendor-|^import-map|^preload/.test(file)).sort()).toEqual([
+    "LICENSES",
     "blockr-core.css",
     "blockr-core.js",
     "head-block.css",
@@ -73,7 +77,9 @@ test("writes each of React's entry points as an ES module, exporting what the en
   const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
   expect(vendor).toHaveLength(1);
   expect(written).toEqual(
-    ["blockr-core.js", "import-map.json", "preload.json", ...vendor, ...REACT_ENTRIES.map(importFile)].map((file) => `inst/js/${file}`).sort(),
+    ["LICENSES", "blockr-core.js", "import-map.json", "preload.json", ...vendor, ...REACT_ENTRIES.map(importFile)]
+      .map((file) => `inst/js/${file}`)
+      .sort(),
   );
   // The vendor file keeps React's license comments.
   expect(await readFile(join(out, vendor[0] ?? ""), "utf8")).toContain("@license React");
@@ -262,6 +268,119 @@ test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module use
   // R serves the file beside the module, and the API as an import of its own.
   const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { imports: Record<string, string> };
   expect(map.imports[OTEL_API]).toBe(importFile(OTEL_API));
+});
+
+// The version of a package in core's node_modules, as its package.json gives
+// it, which the exports of some packages do not name.
+async function version(name: string): Promise<string> {
+  return (JSON.parse(await readFile(join(repo, "node_modules", name, "package.json"), "utf8")) as { version: string })
+    .version;
+}
+
+test("writes the licenses of the code from other projects in its files into LICENSES beside them, each license once", async () => {
+  await write({
+    "srcts/runtime/index.ts": "export const runtime = 'core';\n",
+    "srcts/runtime/index.css": `@import "${core}";\n`,
+  });
+
+  const written = await build(root);
+
+  const out = join(root, "inst/js");
+  expect(written).toContain("inst/js/LICENSES");
+  const vendor = (await readdir(out)).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file)) ?? "";
+  const text = await readFile(join(out, "LICENSES"), "utf8");
+  // React's three packages share their license, whose text follows their lines.
+  const react = await readFile(join(repo, "node_modules/react/LICENSE"), "utf8");
+  expect(text).toContain(
+    [
+      `react ${await version("react")}, in ${vendor}`,
+      `react-dom ${await version("react-dom")}, in ${vendor}`,
+      `scheduler ${await version("scheduler")}, in ${vendor}`,
+      "",
+      react.trimEnd(),
+    ].join("\n"),
+  );
+  // The vendor file holds the packages beside React too.
+  expect(text).toContain(`@preact/signals-core ${await version("@preact/signals-core")}, in ${vendor}\n`);
+  expect(text.split("Copyright (c) Meta Platforms, Inc. and affiliates.")).toHaveLength(2);
+  // Tailwind CSS writes the stylesheet.
+  const tailwind = await readFile(join(repo, "node_modules/tailwindcss/LICENSE"), "utf8");
+  expect(text).toContain(`tailwindcss ${await version("tailwindcss")}, in blockr-core.css\n\n${tailwind.trimEnd()}\n`);
+});
+
+test("names the word lists that the words of ids are picked from beside each file that holds the words", async () => {
+  await write({
+    "srcts/store/words.ts": 'export const adjectives = ["calm"];\nexport const animals = ["heron"];\n',
+    "srcts/runtime/index.ts": 'import { adjectives, animals } from "../store/words.ts";\nexport const id = `${adjectives[0]}_${animals[0]}`;\n',
+  });
+
+  await build(root);
+
+  const license = await readFile(join(repo, "srcts/build/licenses/word-lists/LICENSE"), "utf8");
+  expect(await readFile(join(root, "inst/js/LICENSES"), "utf8")).toContain(
+    [
+      "The word lists of adjective-adjective-animal, by Grant Forrest, in blockr-core.js",
+      "The word lists of the R package ids, by Rich FitzJohn, in blockr-core.js",
+      "",
+      license.trimEnd(),
+      "",
+    ].join("\n"),
+  );
+});
+
+test("takes the license of a package that npm installs without one from srcts/build/licenses, and fails for a package with neither", async () => {
+  // A package that npm installs without a license file, as
+  // @cfworker/json-schema, takes the one that core's repo keeps for it.
+  await write({
+    "node_modules/@scope/own/package.json": JSON.stringify({
+      name: "@scope/own",
+      version: "1.0.0",
+      author: "Jane Doe <jane@example.com> (https://example.com)",
+    }),
+    "node_modules/@scope/own/LICENSE": "The license of own\n",
+    "node_modules/@cfworker/json-schema/package.json": JSON.stringify({
+      name: "@cfworker/json-schema",
+      version: "2.0.0",
+      author: { name: "Kim Lee" },
+    }),
+    "node_modules/none/package.json": JSON.stringify({ name: "none", version: "3.0.0" }),
+  });
+  const out = join(root, "inst/js");
+  await mkdir(out, { recursive: true });
+  const at = (name: string) => join(root, "node_modules", name);
+  const kept = await readFile(join(repo, "srcts/build/licenses/@cfworker/json-schema/LICENSE.md"), "utf8");
+
+  const written = await licenses(
+    root,
+    out,
+    new Map([
+      [join(out, "b.js"), [at("@cfworker/json-schema")]],
+      [join(out, "a.js"), [at("@scope/own"), at("@cfworker/json-schema")]],
+    ]),
+  );
+
+  expect(written).toEqual(["inst/js/LICENSES"]);
+  expect(await readFile(join(out, "LICENSES"), "utf8")).toBe(
+    [
+      "@cfworker/json-schema 2.0.0, by Kim Lee, in a.js and b.js",
+      "",
+      kept.trimEnd(),
+      "",
+      "-".repeat(78),
+      "",
+      "@scope/own 1.0.0, by Jane Doe, in a.js",
+      "",
+      "The license of own",
+      "",
+    ].join("\n"),
+  );
+
+  await expect(licenses(root, out, new Map([[join(out, "a.js"), [at("none")]]]))).rejects.toThrow(
+    "The code of none in a.js comes with no license",
+  );
+  // Where its files hold no code from other projects, a directory gets no
+  // LICENSES.
+  expect(await licenses(root, join(root, "inst/types"), new Map())).toEqual([]);
 });
 
 test("keeps core's utilities under its prefix and outside layers, without Preflight", async () => {
@@ -490,7 +609,7 @@ test("writes the schemas of core's board options beside their modules", async ()
   });
 });
 
-test("writes the words that ids are made of, one word a line, for R", async () => {
+test("writes the words that ids are made of, one word a line, for R, with the license of their word lists", async () => {
   await write({
     "srcts/store/words.ts": [
       'export const adjectives = ["calm", "keen"];',
@@ -499,9 +618,18 @@ test("writes the words that ids are made of, one word a line, for R", async () =
     ].join("\n"),
   });
 
-  expect(await idWords(root)).toEqual(["inst/ids/adjectives.txt", "inst/ids/animals.txt"]);
+  expect(await idWords(root)).toEqual(["inst/ids/adjectives.txt", "inst/ids/animals.txt", "inst/ids/LICENSES"]);
   expect(await readFile(join(root, "inst", "ids", "adjectives.txt"), "utf8")).toBe("calm\nkeen\n");
   expect(await readFile(join(root, "inst", "ids", "animals.txt"), "utf8")).toBe("heron\n");
+  expect(await readFile(join(root, "inst", "ids", "LICENSES"), "utf8")).toBe(
+    [
+      "The word lists of adjective-adjective-animal, by Grant Forrest, in adjectives.txt and animals.txt",
+      "The word lists of the R package ids, by Rich FitzJohn, in adjectives.txt and animals.txt",
+      "",
+      (await readFile(join(repo, "srcts/build/licenses/word-lists/LICENSE"), "utf8")).trimEnd(),
+      "",
+    ].join("\n"),
+  );
 });
 
 test("writes no words without the module they come from", async () => {
