@@ -1,5 +1,5 @@
 import type { Measure } from "../mount/index.ts";
-import type { EvaluateReply, EvaluateRequest, HelloReply, OutputInfo, OutputRequest, Request } from "../protocol/index.ts";
+import type { Condition, EvaluateReply, EvaluateRequest, HelloReply, OutputInfo, OutputRequest, Request } from "../protocol/index.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
@@ -15,8 +15,10 @@ export interface StubCoreOptions {
     readonly output?: (request: OutputRequest) => {
         output: BlockOutput & Record<string, Json>;
         body?: Blob;
+        conditions?: readonly Condition[];
     } | undefined;
     readonly answer?: Answer;
+    readonly conditions?: (request: Request) => readonly Condition[] | undefined;
     readonly el?: HTMLElement;
     readonly measure?: Measure;
     readonly refuse?: readonly Request["kind"][];
