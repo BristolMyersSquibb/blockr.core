@@ -636,7 +636,7 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
-    const refused = held(s.core, (n) => codeOf(n) === "board_edit_failed");
+    const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
     expect(refused.map(({ severity, message, about }) => [severity, message, about])).toEqual([
       ["error", 'The command "blockr.test-relayout" failed\n- No layout.', undefined],
     ]);
