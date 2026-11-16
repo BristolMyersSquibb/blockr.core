@@ -1,5 +1,7 @@
 Blockr
+CORS
 Cmd
+Connect's
 Ctrl
 DAGs
 DFS
@@ -7,8 +9,11 @@ DOM
 DT
 Extensibility
 JS
+Kubernetes
 LLM
 MCP
+NGINX
+OTLP
 OpenTelemetry
 OpenTelemetry's
 React's
@@ -63,6 +68,7 @@ namespaced
 navbar
 npm
 nrow
+otelsdk
 parameterizable
 pharmaverse
 pkgdown

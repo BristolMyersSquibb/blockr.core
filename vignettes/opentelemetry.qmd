@@ -1,0 +1,203 @@
+---
+title: "5. Send log records and spans to an OpenTelemetry collector"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{5. Send log records and spans to an OpenTelemetry collector}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(blockr.core)
+```
+
+A blockr app runs in two places.
+The browser holds the board, and R evaluates its blocks.
+Both sides write log lines.
+Both can also record spans, which time what each side does.
+By default, R writes its log lines to standard output and standard error, and the browser writes its own to the browser's console.
+Neither side records spans.
+
+[OpenTelemetry](https://opentelemetry.io/) gives log records and spans a common format.
+Its collector is a program that receives them and passes them on to wherever a deployment keeps them.
+This guide shows how a deployment sends the log records and spans of both sides to one collector, beside Posit Connect or elsewhere.
+No record leaves R or the page until the deployment sets where it goes.
+
+## What each side sends
+
+R sends a log record for each line that core or a package writes through `write_log()`, at the level that the blockr option `log_level` sets or above.
+That includes every condition that R sends the browser, such as the error of a block.
+The record of a block's condition names the block and its revision.
+R also records a span of each evaluation, output and request that the browser asks for.
+Inside the span of an evaluation, it records a span of each phase of the evaluation.
+
+The browser sends a log record for each line that the code on the page writes, such as every failure that core catches, with its stack.
+It records a span of each command, such as an edit of a block, and of each evaluation, output and request that it sends to R.
+It also records a span of the page's start and of each opening of a board.
+
+Each request that the browser sends carries the context of the browser's span of the request.
+So R's span of the request is a child of the browser's span, in the same trace.
+The span of an evaluation links to the span of the command that changed the block.
+Both sides name the session in every record and span by `session.id`, which holds Shiny's token of the session.
+So a collector joins the records of one session from both sides.
+
+Spans hold IDs and revisions, never a block's state or data.
+Log records hold messages, such as the message of a block's error, which may quote the block's data.
+So the collector, and wherever it passes the records on, needs the care that R's logs need.
+
+## One collector for both sides
+
+A deployment runs one [OpenTelemetry collector](https://opentelemetry.io/docs/collector/) for both sides.
+R sends its records to the collector from the server, and the browser of every user sends its own from the page.
+So the collector must be reachable from R, and from the browser of every user.
+
+Both sides send over OTLP/HTTP, OpenTelemetry's protocol over HTTP.
+This configuration of the collector receives log records and spans on the default port of OTLP/HTTP, 4318.
+It listens on `localhost` alone, since the browser reaches it through a proxy in the setup beside Connect below.
+It passes both on to a backend at `https://otlp.example.com`:
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: localhost:4318
+
+exporters:
+  otlphttp:
+    endpoint: https://otlp.example.com
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlphttp]
+    logs:
+      receivers: [otlp]
+      exporters: [otlphttp]
+```
+
+The collector's [configuration](https://opentelemetry.io/docs/collector/configuration/) lists its other receivers and exporters.
+
+## R
+
+R exports through the package [otelsdk](https://otelsdk.r-lib.org/), which OpenTelemetry's environment variables set up.
+These variables have R send its spans and log records to the collector above, which runs on the same server.
+They also name the app's service, and keep Shiny's own spans to sessions:
+
+```sh
+OTEL_TRACES_EXPORTER=otlp
+OTEL_LOGS_EXPORTER=otlp
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_SERVICE_NAME=iris-review
+SHINY_OTEL_COLLECT=session
+```
+
+R sends its spans to the path `v1/traces` below the endpoint, and its log records to `v1/logs`.
+The [environment variables of otelsdk](https://otelsdk.r-lib.org/reference/environmentvariables.html) include others, such as those for headers and certificates.
+The package otelsdk must be installed where the app runs, since blockr.core suggests it but does not import it.
+
+A deployment uses `otlp` as the exporter.
+That exporter sends from a thread of its own.
+The console and file exporters of otelsdk write each record on R's thread, and an evaluation waits while they write.
+
+Shiny records spans of its own wherever R exports spans.
+By default, Shiny records a trace for each message that the browser sends.
+Such a trace shows little more than the observer that takes the message.
+The value `session` of `SHINY_OTEL_COLLECT` keeps Shiny's spans to the start and the end of each session, as [Shiny's options](https://shiny.posit.co/r/reference/shiny/latest/shinyoptions.html) describe.
+
+Where the blockr option `logger` is not set, R writes its log lines through OpenTelemetry once `OTEL_LOGS_EXPORTER` sets up an exporter, and to the console otherwise.
+The blockr option `log_level` sets the lowest level that each side writes.
+It is info unless set.
+OpenTelemetry's own level, `OTEL_LOG_LEVEL`, drops none of core's records.
+Where `logger` is `"otel"`, each side stops where it has nowhere to send, rather than writing to the console.
+The help of `write_log()` gives the details.
+
+## The browser
+
+The browser sends its log records and spans to the collector whose URL the blockr option `otel_client_endpoint` gives.
+The blockr option `otel_client_service_name` names the page's service in its records, as `OTEL_SERVICE_NAME` names R's.
+It is `blockr` where it is not set.
+A deployment sets both as environment variables:
+
+```sh
+BLOCKR_OTEL_CLIENT_ENDPOINT=/otlp/
+BLOCKR_OTEL_CLIENT_SERVICE_NAME=iris-review-browser
+```
+
+Like every blockr option, each can also be set as an R option, as in an app script:
+
+```{r, eval = FALSE}
+options(blockr.otel_client_endpoint = "/otlp/")
+```
+
+The browser sends its spans to the path `v1/traces` below the URL, and its log records to `v1/logs`.
+A relative URL is read against the page.
+So `/otlp/` names the path `/otlp/` on the page's own host, whatever the path of the app on that host.
+
+The browser sends its records in batches.
+It also sends what it holds as the page is hidden, as when the user switches to another tab or closes the page.
+Where `otel_client_endpoint` is not set, the browser writes its log lines to its console, records no spans and loads none of OpenTelemetry's SDK.
+
+## Beside Posit Connect
+
+Posit Connect has OpenTelemetry built in.
+An administrator points Connect at a collector, and Connect exports its own traces, metrics and logs to it ([OpenTelemetry](https://docs.posit.co/connect/admin/opentelemetry/)).
+But its documentation describes no address where a browser, or content, can send records of its own.
+
+So a deployment runs a collector beside Connect, under Connect's host name:
+
+1. The administrator runs the collector on Connect's server, as in the configuration above, so that it listens on a local port, here 4318.
+2. The administrator routes the path `/otlp/` to the collector, in the proxy in front of Connect ([Running with a proxy](https://docs.posit.co/connect/admin/proxy/)).
+   With NGINX, a `location` block for the path goes beside the block that routes the rest to Connect:
+
+   ```nginx
+   location /otlp/ {
+     proxy_pass http://localhost:4318/;
+   }
+   ```
+
+   The trailing slash of `proxy_pass` drops `/otlp` from the path.
+   So a record that the browser sends to `/otlp/v1/logs` reaches the collector at `/v1/logs`.
+3. The publisher sets the environment variables of the sections above in the settings of the content ([Environment variables](https://docs.posit.co/connect/user/content-settings/#environment-variables)), with `/otlp/` as `BLOCKR_OTEL_CLIENT_ENDPOINT`.
+   Where Connect runs content on other hosts, as on Kubernetes, `OTEL_EXPORTER_OTLP_ENDPOINT` gives an address of the collector that those hosts reach.
+4. The app script names otelsdk, as in `library(otelsdk)`, so that Connect installs it with the other packages of the content.
+
+The page then sends its records to its own origin, so it needs no CORS.
+The administrator can point Connect's own export at the same collector too, with `http://localhost:4318` as the endpoint of an `[OTLPEndpoint]` section ([Getting started](https://docs.posit.co/connect/admin/opentelemetry/getting-started.html)).
+Connect's records, R's and the browser's then meet in one place.
+
+Since version 2026.09.0, Connect can also set up the traces of R content that opts in ([Content telemetry](https://docs.posit.co/connect/admin/opentelemetry/content-telemetry.html)).
+Its documentation names neither the environment variables that Connect then sets nor what becomes of the log records of such content.
+So the steps above leave it off for a blockr app, and set OpenTelemetry's variables in the settings of the content instead.
+
+## Elsewhere
+
+A collector at another origin than the page must allow the page's requests through CORS.
+So it lists the page's origin in the `cors.allowed_origins` of its OTLP/HTTP receiver, as its [HTTP settings](https://github.com/open-telemetry/opentelemetry-collector/blob/main/config/confighttp/README.md#server-configuration) describe:
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - https://apps.example.com
+```
+
+The app then names the collector by its full URL, as in `BLOCKR_OTEL_CLIENT_ENDPOINT=https://otel.example.com/`.
+The list never holds `*`.
+A browser accepts it, and the pages of any site could then send records to the collector from the browsers of their visitors.
+
+A hosted backend usually takes records only with a key, but the browser sends no header of its own.
+So the browser sends its records to the deployment's own collector.
+That collector passes them on to the backend, with the key in the settings of its exporter.
