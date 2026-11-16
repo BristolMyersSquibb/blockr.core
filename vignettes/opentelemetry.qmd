@@ -27,7 +27,7 @@ Neither side records spans.
 
 [OpenTelemetry](https://opentelemetry.io/) gives log records and spans a common format.
 Its collector is a program that receives them and passes them on to wherever a deployment keeps them.
-This guide shows how a deployment sends the log records and spans of both sides to one collector, beside Posit Connect or elsewhere.
+This guide shows how a deployment sends the log records and spans of both sides to one collector, whichever host runs the app.
 No record leaves R or the page until the deployment sets where it goes.
 
 ## What each side sends
@@ -60,7 +60,7 @@ So the collector must be reachable from R, and from the browser of every user.
 
 Both sides send over OTLP/HTTP, OpenTelemetry's protocol over HTTP.
 This configuration of the collector receives log records and spans on the default port of OTLP/HTTP, 4318.
-It listens on `localhost` alone, since the browser reaches it through a proxy in the setup beside Connect below.
+It listens on `localhost` alone, where R and a proxy on the same server reach it.
 It passes both on to a backend at `https://otlp.example.com`:
 
 ```yaml
@@ -146,39 +146,26 @@ The browser sends its records in batches.
 It also sends what it holds as the page is hidden, as when the user switches to another tab or closes the page.
 Where `otel_client_endpoint` is not set, the browser writes its log lines to its console, records no spans and loads none of OpenTelemetry's SDK.
 
-## Beside Posit Connect
+## Under the app's host name
 
-Posit Connect has OpenTelemetry built in.
-An administrator points Connect at a collector, and Connect exports its own traces, metrics and logs to it ([OpenTelemetry](https://docs.posit.co/connect/admin/opentelemetry/)).
-But its documentation describes no address where a browser, or content, can send records of its own.
+Where a proxy sits in front of the app, it can route a path of the app's host name, here `/otlp/`, to the collector.
+With NGINX, a `location` block for the path goes beside the block that routes the rest to the app:
 
-So a deployment runs a collector beside Connect, under Connect's host name:
+```nginx
+location /otlp/ {
+  proxy_pass http://localhost:4318/;
+}
+```
 
-1. The administrator runs the collector on Connect's server, as in the configuration above, so that it listens on a local port, here 4318.
-2. The administrator routes the path `/otlp/` to the collector, in the proxy in front of Connect ([Running with a proxy](https://docs.posit.co/connect/admin/proxy/)).
-   With NGINX, a `location` block for the path goes beside the block that routes the rest to Connect:
+The trailing slash of `proxy_pass` drops `/otlp` from the path.
+So a record that the browser sends to `/otlp/v1/logs` reaches the collector at `/v1/logs`.
+With `/otlp/` as `BLOCKR_OTEL_CLIENT_ENDPOINT`, the page sends its records to its own origin, so it needs no CORS.
 
-   ```nginx
-   location /otlp/ {
-     proxy_pass http://localhost:4318/;
-   }
-   ```
+On Posit Connect, for example, the administrator adds the route to the proxy in front of Connect ([Running with a proxy](https://docs.posit.co/connect/admin/proxy/)).
+The publisher sets the environment variables of the sections above in the settings of the content ([Environment variables](https://docs.posit.co/connect/user/content-settings/#environment-variables)).
+Connect can send its own telemetry to the same collector ([OpenTelemetry](https://docs.posit.co/connect/admin/opentelemetry/)).
 
-   The trailing slash of `proxy_pass` drops `/otlp` from the path.
-   So a record that the browser sends to `/otlp/v1/logs` reaches the collector at `/v1/logs`.
-3. The publisher sets the environment variables of the sections above in the settings of the content ([Environment variables](https://docs.posit.co/connect/user/content-settings/#environment-variables)), with `/otlp/` as `BLOCKR_OTEL_CLIENT_ENDPOINT`.
-   Where Connect runs content on other hosts, as on Kubernetes, `OTEL_EXPORTER_OTLP_ENDPOINT` gives an address of the collector that those hosts reach.
-4. The app script names otelsdk, as in `library(otelsdk)`, so that Connect installs it with the other packages of the content.
-
-The page then sends its records to its own origin, so it needs no CORS.
-The administrator can point Connect's own export at the same collector too, with `http://localhost:4318` as the endpoint of an `[OTLPEndpoint]` section ([Getting started](https://docs.posit.co/connect/admin/opentelemetry/getting-started.html)).
-Connect's records, R's and the browser's then meet in one place.
-
-Since version 2026.09.0, Connect can also set up the traces of R content that opts in ([Content telemetry](https://docs.posit.co/connect/admin/opentelemetry/content-telemetry.html)).
-Its documentation names neither the environment variables that Connect then sets nor what becomes of the log records of such content.
-So the steps above leave it off for a blockr app, and set OpenTelemetry's variables in the settings of the content instead.
-
-## Elsewhere
+## At another origin
 
 A collector at another origin than the page must allow the page's requests through CORS.
 So it lists the page's origin in the `cors.allowed_origins` of its OTLP/HTTP receiver, as its [HTTP settings](https://github.com/open-telemetry/opentelemetry-collector/blob/main/config/confighttp/README.md#server-configuration) describe:
