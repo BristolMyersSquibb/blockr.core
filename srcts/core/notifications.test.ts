@@ -619,6 +619,34 @@ describe("core's notifications", () => {
     s.stop();
   });
 
+  test("of a command of the user's whose own code throws concern the board, and core logs no line of its own, since the command registry logged what was thrown at error", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const error = new Error("No layout.");
+    s.core.commands.register({
+      id: "blockr.test-relayout",
+      label: "Relayout",
+      run: () => {
+        throw error;
+      },
+    });
+    const reported = logged();
+
+    await expect(s.core.commands.run("blockr.test-relayout")).rejects.toThrow('The command "blockr.test-relayout" failed\n- No layout.');
+    await s.settled();
+    reported.restore();
+
+    const refused = held(s.core, (n) => codeOf(n) === "board_edit_failed");
+    expect(refused.map(({ severity, message, about }) => [severity, message, about])).toEqual([
+      ["error", 'The command "blockr.test-relayout" failed\n- No layout.', undefined],
+    ]);
+    expect(reported.lines().map((line) => [line.level, line.package, line.message])).toEqual([
+      ["error", "blockr.core", 'The command "blockr.test-relayout" failed\n- No layout.'],
+    ]);
+    expect(reported.lines()[0]?.error?.cause).toBe(error);
+    s.stop();
+  });
+
   test("of an edit that the user makes again are raised anew, so that a frontend that has shown one shows it again", async () => {
     const s = await stubCore();
     await s.settled();
