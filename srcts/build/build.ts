@@ -27,6 +27,8 @@
 //   OpenTelemetry module import the other packages from that file by its name.
 //   So blockr-core.js holds core's own code alone, and the page runs one copy
 //   of each package.
+//   The build fails where one of those files would bundle any other package
+//   from node_modules.
 // - The runtime, the modules and the SDK, the binding and the controls leave
 //   their imports of React, of OpenTelemetry's API and of each other imports,
 //   which the page that R serves resolves through its import map, as
@@ -74,7 +76,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import tailwindcss from "@tailwindcss/postcss";
 import * as esbuild from "esbuild";
@@ -188,6 +190,7 @@ function externalImports(metafile: esbuild.Metafile): string[] {
 // The packages beside React that core's code imports, which the build bundles
 // with React into vendor-<hash>.js, rather than into each file that imports
 // them.
+// A package that core's code starts to import goes here, or the build fails.
 const VENDOR_IMPORTS = ["@preact/signals-core", "@cfworker/json-schema"] as const;
 
 // Bundles React, ReactDOM and the packages that VENDOR_IMPORTS names into one
@@ -225,6 +228,32 @@ function vendorImports(file: string): esbuild.Plugin {
       );
     },
   };
+}
+
+// The packages from node_modules whose code a build put into its files, each
+// with the file, as "left-pad into blockr-core.js".
+// Core's own files hold core's code alone, so the build fails on any such
+// package, which belongs in VENDOR_IMPORTS.
+function bundledPackages(metafile: esbuild.Metafile): string[] {
+  return Object.entries(metafile.outputs).flatMap(([file, output]) => {
+    const packages = new Set(
+      Object.entries(output.inputs).flatMap(([input, { bytesInOutput }]) => {
+        const name = inputPackage(input);
+        return name === undefined || bytesInOutput === 0 ? [] : [name];
+      }),
+    );
+    return [...packages].map((name) => `${name} into ${basename(file)}`);
+  });
+}
+
+// The package of an input from node_modules, as @preact/signals-core for
+// node_modules/@preact/signals-core/dist/signals-core.module.js, or undefined
+// for an input from elsewhere.
+function inputPackage(input: string): string | undefined {
+  const at = input.lastIndexOf("node_modules/");
+  if (at === -1) return undefined;
+  const [first = "", second = ""] = input.slice(at + "node_modules/".length).split("/");
+  return first.startsWith("@") ? `${first}/${second}` : first;
 }
 
 // Writes React's entry points into `out` as ES modules of their own, each
@@ -377,6 +406,13 @@ export async function build(root: string): Promise<string[]> {
 
   if (results.some((result) => result.warnings.length > 0)) {
     throw new Error("esbuild warned, as printed above");
+  }
+
+  const vendorless = results.flatMap((result) => bundledPackages(result.metafile));
+  if (vendorless.length > 0) {
+    throw new Error(
+      `Core's build bundled code from node_modules into its own files: ${vendorless.join(", ")}. Name each such package in VENDOR_IMPORTS in srcts/build/build.ts, so that the vendor file holds it, minified.`,
+    );
   }
 
   const written = results.flatMap((result) => Object.keys(result.metafile.outputs));

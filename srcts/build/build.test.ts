@@ -146,6 +146,21 @@ test("bundles the packages that core's code imports beside React into the vendor
   expect(map.files).toEqual([file]);
 });
 
+test("fails where one of core's files would bundle a package from node_modules that the vendor file does not hold, naming the package and the file", async () => {
+  await write({
+    "node_modules/@acme/pad/package.json": '{ "name": "@acme/pad", "type": "module", "main": "index.js" }\n',
+    "node_modules/@acme/pad/index.js": "export const pad = (s, n) => String(s).padStart(n);\n",
+    "node_modules/left-pad/package.json": '{ "name": "left-pad", "main": "index.js" }\n',
+    "node_modules/left-pad/index.js": "module.exports = (s, n) => String(s).padStart(n);\n",
+    "srcts/runtime/index.ts": 'import { pad } from "@acme/pad";\nexport const padded = pad("x", 3);\n',
+    "srcts/modules/head-block/index.ts": 'import leftPad from "left-pad";\nexport const padded = leftPad("x", 3);\n',
+  });
+
+  await expect(build(root)).rejects.toThrow(
+    "Core's build bundled code from node_modules into its own files: @acme/pad into blockr-core.js, left-pad into head-block.js.",
+  );
+});
+
 test("builds the SDK, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
   const imports = (up: string) =>
     [
