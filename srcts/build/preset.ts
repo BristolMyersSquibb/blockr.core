@@ -9,6 +9,8 @@
 // So the module's bundle holds none of them.
 // A package's build adds its entry points and where they go, as in
 // `esbuild.build({ ...preset, entryPoints: ["srcts/head-block.tsx"], outdir: "inst/js" })`.
+// To the builds of its own files, it adds the vendor check of
+// ./vendor-check.ts as well, which the preset's plugins leave out.
 // The file imports nothing but the imports that the import map names, since
 // Node runs it as core's build and a package's build load it.
 

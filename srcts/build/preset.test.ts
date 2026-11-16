@@ -22,8 +22,8 @@ import type * as Build from "./index.ts";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-// The build preset as core ships it.
-const { preset } = (await import(pathToFileURL(join(repo, "inst/types/build/index.js")).href)) as typeof Build;
+// The build preset and the vendor check as core ships them.
+const { preset, vendorCheck } = (await import(pathToFileURL(join(repo, "inst/types/build/index.js")).href)) as typeof Build;
 
 let root: string;
 
@@ -169,4 +169,47 @@ test("refuses an entry point of React that the import map does not name", async 
   await expect(
     bundle(`import { renderToString } from "react-dom/server";\n\nexport const html = renderToString(null);\n`),
   ).rejects.toThrow("A module imports react-dom/server, which the page's import map does not name.");
+});
+
+test("the vendor check fails a package's build that puts code from node_modules into one of its own files, naming each npm package and the file", async () => {
+  const files: Record<string, string> = {
+    "node_modules/@acme/pad/package.json": '{ "name": "@acme/pad", "type": "module", "main": "index.js" }\n',
+    "node_modules/@acme/pad/index.js": "export const pad = (s, n) => String(s).padStart(n);\n",
+    "node_modules/left-pad/package.json": '{ "name": "left-pad", "main": "index.js" }\n',
+    "node_modules/left-pad/index.js": "module.exports = (s, n) => String(s).padStart(n);\n",
+    "srcts/dock.ts": 'import { pad } from "@acme/pad";\nimport leftPad from "left-pad";\nexport const padded = [pad("x", 3), leftPad("y", 3)];\n',
+    "srcts/util.ts": 'import { pad } from "@acme/pad";\nexport const padded = (s: string) => pad(s, 3);\nexport const label = "plain";\n',
+    "srcts/plain.ts": 'import { label } from "./util.ts";\nexport const ui = label;\n',
+  };
+  for (const [path, content] of Object.entries(files)) {
+    await mkdir(dirname(join(root, path)), { recursive: true });
+    await writeFile(join(root, path), content);
+  }
+  const options = (entry: string, plugins: esbuild.Plugin[]) => ({
+    ...preset,
+    plugins,
+    absWorkingDir: root,
+    entryPoints: [join(root, "srcts", entry)],
+    outdir: join(root, "inst", "js"),
+    logLevel: "silent" as const,
+  });
+
+  // Without the check, as a package builds its vendor file, the build bundles
+  // both npm packages.
+  await expect(esbuild.build(options("dock.ts", preset.plugins))).resolves.toBeDefined();
+
+  // With it, the build fails, with an error for each npm package.
+  const failure = await esbuild.build(options("dock.ts", [...preset.plugins, vendorCheck])).then(
+    () => undefined,
+    (error: unknown) => error as esbuild.BuildFailure,
+  );
+  expect(failure?.errors.map(({ text }) => text).sort()).toEqual([
+    "The build put code of @acme/pad, from node_modules, into inst/js/dock.js. Bundle @acme/pad into the package's vendor file instead, and import it from there.",
+    "The build put code of left-pad, from node_modules, into inst/js/dock.js. Bundle left-pad into the package's vendor file instead, and import it from there.",
+  ]);
+
+  // A module can bundle a file of its own that uses an npm package only in a
+  // function that the module leaves out.
+  // Its file then holds none of the npm package's code, so it passes the check.
+  await expect(esbuild.build(options("plain.ts", [...preset.plugins, vendorCheck]))).resolves.toBeDefined();
 });
