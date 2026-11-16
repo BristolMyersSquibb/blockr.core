@@ -57,7 +57,6 @@
     --bc-color-red-600: oklch(57.7% .245 27.325);
     --bc-color-amber-500: oklch(76.9% .188 70.08);
     --bc-color-amber-600: oklch(66.6% .179 58.318);
-    --bc-color-green-600: oklch(62.7% .194 149.214);
     --bc-color-blue-400: oklch(70.7% .165 254.624);
     --bc-color-blue-500: oklch(62.3% .214 259.815);
     --bc-color-blue-600: oklch(54.6% .245 262.881);
@@ -101,7 +100,6 @@
   :root, :host {
     --bc-color-text-danger: var(--bc-color-red-600);
     --bc-color-text-warning: var(--bc-color-amber-600);
-    --bc-color-text-success: var(--bc-color-green-600);
     --bc-color-text-on-accent: var(--bc-color-white);
     --bc-color-border-default: currentColor;
   }
@@ -125,7 +123,26 @@
     }
   }
 
-  :root, :host, :root[data-bc-theme="dark"] {
+  :root, :host {
+    --bc-color-bg-raised: Canvas;
+    --bc-color-status-unevaluated: #6b7280;
+    --bc-color-status-stale: #6b7280;
+    --bc-color-status-waiting: #d97706;
+    --bc-color-status-invalid: #d97706;
+    --bc-color-status-ready: #16a34a;
+    --bc-color-status-failed: #dc2626;
+    --bc-color-category-input: #0072b2;
+    --bc-color-category-transform: #009e73;
+    --bc-color-category-structured: #56b4e9;
+    --bc-color-category-plot: #e69f00;
+    --bc-color-category-table: #cc79a7;
+    --bc-color-category-model: #f0e442;
+    --bc-color-category-output: #d55e00;
+    --bc-color-category-utility: #ccc;
+    --bc-color-category-uncategorized: #999;
+  }
+
+  :root[data-bc-theme="dark"] {
     --bc-color-bg-raised: Canvas;
   }
 
@@ -133,6 +150,15 @@
     :root[data-bc-theme="dark"] {
       --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
     }
+  }
+
+  :root[data-bc-theme="dark"] {
+    --bc-color-status-unevaluated: #8a94a3;
+    --bc-color-status-stale: #8a94a3;
+    --bc-color-status-waiting: #fbbf24;
+    --bc-color-status-invalid: #fbbf24;
+    --bc-color-status-ready: #4ade80;
+    --bc-color-status-failed: #f87171;
   }
 }
 
@@ -900,6 +926,30 @@
   color: inherit;
 }
 
+.bc\:text-status-failed {
+  color: var(--bc-color-status-failed);
+}
+
+.bc\:text-status-invalid {
+  color: var(--bc-color-status-invalid);
+}
+
+.bc\:text-status-ready {
+  color: var(--bc-color-status-ready);
+}
+
+.bc\:text-status-stale {
+  color: var(--bc-color-status-stale);
+}
+
+.bc\:text-status-unevaluated {
+  color: var(--bc-color-status-unevaluated);
+}
+
+.bc\:text-status-waiting {
+  color: var(--bc-color-status-waiting);
+}
+
 .bc\:text-text-danger {
   color: var(--bc-color-text-danger);
 }
@@ -914,10 +964,6 @@
 
 .bc\:text-text-on-accent {
   color: var(--bc-color-text-on-accent);
-}
-
-.bc\:text-text-success {
-  color: var(--bc-color-text-success);
 }
 
 .bc\:text-text-warning {

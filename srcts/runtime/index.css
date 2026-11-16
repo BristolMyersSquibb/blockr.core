@@ -16,6 +16,10 @@
  *   around the element that core draws in, or take the theme's red and blue
  *   or the page's background, so that core suits a light and a dark frontend
  *   alike, and a frontend or a UI kit sets them to restyle core.
+ * - The theme also holds a color for each status of a block and for each
+ *   category of block classes, for every plugin that draws them.
+ *   Their defaults are blockr.ui's colors, rather than ones that follow the
+ *   text, and the statuses take lighter ones under the dark theme.
  * - The face of core's UIs is the theme's sans, `--bc-font-sans`, as that of
  *   their code is its mono, `--bc-font-mono`, rather than the face of the
  *   element they sit in, since core counts on no stylesheet of the page to
@@ -82,6 +86,60 @@
 @layer theme {
   :root[data-bc-theme="dark"] {
     --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
+  }
+}
+
+/*
+ * A color for each status of a block and for each category of block classes.
+ * The categories are those that suggested_categories() lists in R.
+ * Every plugin that draws a block's status or the mark of its class reads
+ * them, as the dock's cards and the DAG's nodes do, so that all of them draw
+ * a status or a category in the same color
+ * (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
+ * Their defaults are the values of blockr.ui's design tokens.
+ * Each status takes the value of the token that the table of the dock's
+ * status dot names for it, as ready takes that of
+ * --blockr-color-border-success
+ * (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.2.7#the-status-dot).
+ * Each category takes the value of its own token, as input takes that of
+ * --blockr-category-input.
+ * Tailwind writes a variable of @theme into the stylesheet only where a
+ * utility uses it, but it writes every variable of @theme static.
+ * So a plugin finds each of these variables, even one that no UI of core's
+ * uses, such as the color of a category.
+ */
+@theme static {
+  --color-status-unevaluated: #6b7280;
+  --color-status-stale: #6b7280;
+  --color-status-waiting: #d97706;
+  --color-status-invalid: #d97706;
+  --color-status-ready: #16a34a;
+  --color-status-failed: #dc2626;
+  --color-category-input: #0072b2;
+  --color-category-transform: #009e73;
+  --color-category-structured: #56b4e9;
+  --color-category-plot: #e69f00;
+  --color-category-table: #cc79a7;
+  --color-category-model: #f0e442;
+  --color-category-output: #d55e00;
+  --color-category-utility: #cccccc;
+  --color-category-uncategorized: #999999;
+}
+
+/*
+ * Under the dark theme, each status takes the value that blockr.ui gives its
+ * token there.
+ * The categories keep their colors.
+ * The rule sits in the theme's layer, as that of bg-raised does.
+ */
+@layer theme {
+  :root[data-bc-theme="dark"] {
+    --bc-color-status-unevaluated: #8a94a3;
+    --bc-color-status-stale: #8a94a3;
+    --bc-color-status-waiting: #fbbf24;
+    --bc-color-status-invalid: #fbbf24;
+    --bc-color-status-ready: #4ade80;
+    --bc-color-status-failed: #f87171;
   }
 }
 
