@@ -166,7 +166,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       label: "Remove block",
       description: "Removes a block, with its links and its place in its stack.",
       args: object({ id: schemas.blockId }, ["id"]),
-      enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
+      preflight: (board, { id }) => Object.hasOwn(board.blocks, id),
       run: (_board, { id }) => ({ blocks: { rm: [id] } }),
     }),
     command<{ readonly id: BlockId; readonly name: string }>({
@@ -174,7 +174,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       label: "Rename block",
       description: "Gives a block a new name.",
       args: object({ id: schemas.blockId, name: schemas.name }, ["id", "name"]),
-      enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
+      preflight: (board, { id }) => Object.hasOwn(board.blocks, id),
       run: (_board, { id, name }) => ({ blocks: { mod: { [id]: { name } } } }),
     }),
     command<{ readonly id: BlockId; readonly locked: boolean | null }>({
@@ -183,7 +183,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       description:
         "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",
       args: object({ id: schemas.blockId, locked: schemas.locked }, ["id", "locked"]),
-      enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
+      preflight: (board, { id }) => Object.hasOwn(board.blocks, id),
       run: (_board, { id, locked }) => ({ blocks: { mod: { [id]: { locked } } } }),
     }),
     command<{ readonly id: BlockId; readonly state?: State; readonly unset?: readonly string[] }>({
@@ -199,7 +199,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["id"],
       ),
-      enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
+      preflight: (board, { id }) => Object.hasOwn(board.blocks, id),
       run(board, { id, state, unset }) {
         const block = own(board.blocks, id);
         if (block === undefined) return [];
@@ -234,7 +234,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["from", "registry_id"],
       ),
-      enabled: (board, { from }) => Object.hasOwn(board.blocks, from),
+      preflight: (board, { from }) => Object.hasOwn(board.blocks, from),
       run(board, args, { mintId }) {
         const [id, block, entry] = added(this.id, board, args, mintId);
         const input = newInput(this.id, entry, args.input);
@@ -262,7 +262,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["to", "registry_id"],
       ),
-      enabled: (board, { to, input }) => linkable(board, to, input),
+      preflight: (board, { to, input }) => linkable(board, to, input),
       run(board, args, { mintId }) {
         const input = linkInput(this.id, board, args.to, args.input);
         const [id, block] = added(this.id, board, args, mintId);
@@ -290,7 +290,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["link", "registry_id"],
       ),
-      enabled: (board, { link }) => Object.hasOwn(board.links, link),
+      preflight: (board, { link }) => Object.hasOwn(board.links, link),
       run(board, args, { mintId }) {
         const split = own(board.links, args.link);
         if (split === undefined) return [];
@@ -343,7 +343,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["from", "to"],
       ),
-      enabled: (board, { from, to, input }) =>
+      preflight: (board, { from, to, input }) =>
         Object.hasOwn(board.blocks, from) && linkable(board, to, input),
       run(board, { from, to, input, id }, { mintId }) {
         const link = id ?? mintId((id) => Object.hasOwn(board.links, id));
@@ -374,7 +374,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["id"],
       ),
-      enabled: (board, { id }) => Object.hasOwn(board.links, id),
+      preflight: (board, { id }) => Object.hasOwn(board.links, id),
       run(board, args) {
         const link = own(board.links, args.id);
         if (link === undefined) return [];
@@ -408,7 +408,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["id"],
       ),
-      enabled: (board, { id }) => Object.hasOwn(board.links, id),
+      preflight: (board, { id }) => Object.hasOwn(board.links, id),
       run(board, { id, before }) {
         const link = own(board.links, id);
         if (link === undefined) return [];
@@ -439,7 +439,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       label: "Remove link",
       description: "Removes a link.",
       args: object({ id: schemas.linkId }, ["id"]),
-      enabled: (board, { id }) => Object.hasOwn(board.links, id),
+      preflight: (board, { id }) => Object.hasOwn(board.links, id),
       run: (_board, { id }) => ({ links: { rm: [id] } }),
     }),
   ];
@@ -503,7 +503,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["id"],
       ),
-      enabled: (board, { id }) => Object.hasOwn(board.stacks, id),
+      preflight: (board, { id }) => Object.hasOwn(board.stacks, id),
       run: (board, { id, blocks, color }) => ({
         stacks: {
           mod: {
@@ -521,7 +521,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       label: "Rename stack",
       description: "Gives a stack a new name.",
       args: object({ id: schemas.stackId, name: schemas.name }, ["id", "name"]),
-      enabled: (board, { id }) => Object.hasOwn(board.stacks, id),
+      preflight: (board, { id }) => Object.hasOwn(board.stacks, id),
       run: (_board, { id, name }) => ({ stacks: { mod: { [id]: { name } } } }),
     }),
     command<{ readonly id: StackId }>({
@@ -529,7 +529,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       label: "Remove stack",
       description: "Removes a stack, leaving its blocks on the board.",
       args: object({ id: schemas.stackId }, ["id"]),
-      enabled: (board, { id }) => Object.hasOwn(board.stacks, id),
+      preflight: (board, { id }) => Object.hasOwn(board.stacks, id),
       run: (_board, { id }) => ({ stacks: { rm: [id] } }),
     }),
   ];
@@ -547,7 +547,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       label: "Set board option",
       description: "Sets the value of a board option, which the board option's schema types.",
       args: object({ id: schemas.optionId, value: schemas.value }, ["id", "value"]),
-      enabled: (_board, { id }) => own(store.options.registered(), id) !== undefined,
+      preflight: (_board, { id }) => own(store.options.registered(), id) !== undefined,
       run: (_board, { id, value }) => ({ options: { set: { [id]: value } } }),
     }),
   ];
@@ -557,7 +557,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       id: "blockr.core-set_plugin_state",
       label: "Set plugin state",
       description:
-        "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It is not enabled on a locked board, where only the commands of a plugin's class know what the plugin locks.",
+        "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It fails its preflight on a locked board, where only the commands of a plugin's class know what the plugin locks.",
       args: object(
         {
           plugin: {
@@ -568,7 +568,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["plugin", "patches"],
       ),
-      enabled: (board, { plugin }, { lock }) => !lock.board && Object.hasOwn(board.plugins, plugin),
+      preflight: (board, { plugin }, { lock }) => !lock.board && Object.hasOwn(board.plugins, plugin),
       run: (_board, { plugin, patches }) => ({
         patches: patches.map((patch) => ({ ...patch, path: `${pathFromSegments(["plugins", plugin])}${patch.path}` })),
       }),
@@ -687,7 +687,7 @@ function command<A extends Json>(
   return {
     ...def,
     run: def.run.bind(def),
-    ...(def.enabled === undefined ? {} : { enabled: def.enabled.bind(def) }),
+    ...(def.preflight === undefined ? {} : { preflight: def.preflight.bind(def) }),
   };
 }
 

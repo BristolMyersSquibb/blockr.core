@@ -9,7 +9,7 @@
 // removes its links and stacks. Each edit is one of core's commands, which the
 // plugin runs as the user makes the edit, so that undo takes back each one,
 // and the plugin keeps nothing staged. Where the store or the command registry
-// refuses an edit, the plugin tells the user why through a notification.
+// refuses an edit, core tells the user why through a notification.
 // It keeps no state, so the board holds nothing for it.
 // It works on the board through CoreApi alone, and is written in React, on the
 // one copy of React that core puts on the page, in a root of its own.

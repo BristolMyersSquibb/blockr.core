@@ -13,7 +13,7 @@ export interface Command<A extends Json = Json, P = A> {
     readonly description?: string;
     readonly args?: JsonSchema;
     readonly shortcut?: string;
-    enabled?(board: Board, args: A, context: CommandContext): boolean;
+    preflight?(board: Board, args: A, context: CommandContext): boolean;
     readonly undo?: false;
     prepare?(board: Board, args: A, context: CommandContext): Promise<P>;
     run(board: Board, args: P, context: CommandContext): Delta | readonly Delta[];
@@ -21,7 +21,7 @@ export interface Command<A extends Json = Json, P = A> {
 export interface Commands {
     register<A extends Json, P = A>(command: Command<A, P>): () => void;
     registered(): Readonly<Record<string, Command<Json, unknown>>>;
-    enabled(id: string, args?: Json): boolean;
+    preflight(id: string, args?: Json): boolean;
     run(id: string, args?: Json, origin?: Origin): Promise<void>;
     run(list: readonly {
         readonly id: string;

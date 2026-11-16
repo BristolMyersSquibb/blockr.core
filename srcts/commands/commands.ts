@@ -76,9 +76,13 @@ export interface Command<A extends Json = Json, P = A> {
   readonly args?: JsonSchema;
   // Such as "Mod+Backspace", which a frontend binds.
   readonly shortcut?: string;
-  // Whether it applies to the board with these args, which menus show by
-  // greying out what does not.
-  enabled?(board: Board, args: A, context: CommandContext): boolean;
+  // Its preflight: whether the command has what it needs on the board as it
+  // is, with these args, such as the block that the args name. The command
+  // registry runs it before the command's prepare() and again before its
+  // run(), and refuses a command that fails it. Menus grey such a command
+  // out. A pass promises nothing beyond itself, since run() and the store
+  // can still refuse.
+  preflight?(board: Board, args: A, context: CommandContext): boolean;
   // False where its deltas take no undo step, as for a command that changes
   // only what the user looks at, such as the dock's active view. The store
   // still applies and announces them as any others.
@@ -96,9 +100,9 @@ export interface Commands {
   // The registered commands by id, for menus, a command palette and the
   // assistant's tools.
   registered(): Readonly<Record<string, Command<Json, unknown>>>;
-  // Whether the command applies to the current board with these args, which
-  // fit the schema of its args.
-  enabled(id: string, args?: Json): boolean;
+  // Whether the command passes its preflight on the current board with these
+  // args, which fit the schema of its args.
+  preflight(id: string, args?: Json): boolean;
   // Runs the command and applies its deltas as one step of the origin, "user"
   // unless given, or rejects with what refused it, having changed nothing. The
   // step is an undo step unless the command has `undo: false`. A command that
@@ -134,10 +138,9 @@ export class CommandError extends Error {
   // The command's place in the list that run() or plan() was given, counted
   // from 0, where the command refused as one of a list.
   readonly index?: number;
-  // False where the command failed its preflight, the check of its enabled(),
-  // and left out otherwise, as a command's `undo` is false only where it takes
-  // no undo step. The assistant's edit tool reads it to tell the model what to
-  // check.
+  // False where the command failed its preflight, and left out otherwise, as a
+  // command's `undo` is false only where it takes no undo step. The
+  // assistant's edit tool reads it to tell the model what to check.
   readonly preflight?: false;
 
   constructor(
@@ -179,8 +182,8 @@ export interface CommandsOptions {
   readonly signal?: AbortSignal;
   // The locks that R's reply to `hello` gives, which the context of every
   // command holds. Under the board lock, core's command for a plugin's state
-  // is not enabled, since there only a plugin class's own commands know what
-  // the plugin locks. No lock is on unless given.
+  // fails its preflight, since there only a plugin class's own commands know
+  // what the plugin locks. No lock is on unless given.
   readonly lock?: Lock;
   // The `rand_id` blockr option as R sent it, the shape of the ids that the
   // context of every command mints, which core asks R for as soon as R has
@@ -265,11 +268,11 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   }
 
   function allow(command: Command<Json, unknown>, board: Board, args: Json): void {
-    const enabled = attempt(command, () => command.enabled?.(board, args, context) ?? true);
-    if (!enabled) {
+    const passes = attempt(command, () => command.preflight?.(board, args, context) ?? true);
+    if (!passes) {
       throw refusal(
         command.id,
-        [`It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`],
+        [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
         { preflight: false },
       );
     }
@@ -285,8 +288,8 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
 
   // The deltas of the command on the current board: at once where it does
   // not prepare, so that run() applies them before it returns, and otherwise
-  // once prepare() resolves, on the board as it is then, where the command is
-  // still enabled and no board has opened in the meantime.
+  // once prepare() resolves, on the board as it is then, where the command
+  // still passes its preflight and no board has opened in the meantime.
   function deltas(command: Command<Json, unknown>, args: Json): Delta[] | Promise<Delta[]> {
     const board = current(command.id);
     allow(command, board, args);
@@ -328,8 +331,8 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // A command that prepares is built once its prepare() resolves. Where the
   // board has changed meanwhile, the registry plans the list again from its
   // first command, on the board as it is then. Each command keeps what its
-  // prepare() gave, so that none prepares twice, and each is checked again
-  // with its enabled(), as a command alone is once it has prepared.
+  // prepare() gave, so that none prepares twice, and each runs its preflight()
+  // again, as a command alone does once it has prepared.
   // Whatever refuses a command, the store's refusal of its deltas included,
   // rejects as a CommandError that gives the command's index.
   async function planned<T>(
@@ -457,7 +460,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   const registry: Commands = {
     register,
     registered: () => registered.value,
-    enabled(id, given) {
+    preflight(id, given) {
       try {
         const { command, args } = lookup(id, given);
         allow(command, current(id), args);
@@ -525,7 +528,7 @@ function inList(index: number, id: string, error: unknown): CommandError {
   );
 }
 
-// What a command's own enabled(), prepare() or run() threw, as a CommandError
+// What a command's own preflight(), prepare() or run() threw, as a CommandError
 // that names the command, unless it is one already.
 function failed(command: Command<Json, unknown>, error: unknown): CommandError {
   if (error instanceof CommandError) return error;

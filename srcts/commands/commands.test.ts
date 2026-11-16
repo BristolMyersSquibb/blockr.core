@@ -246,12 +246,12 @@ describe("running a command", () => {
     );
   });
 
-  test("refuses a command that is not enabled with its args, naming them", async () => {
+  test("refuses a command that fails its preflight, naming its args", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
     await expect(commands.run("blockr.core-remove_block", { id: "zz" })).rejects.toThrow(
-      'It is not enabled on the board as it is, with the args {"id":"zz"}.',
+      'It fails its preflight on the board as it is, with the args {"id":"zz"}.',
     );
     expect(store.board()).toBe(board);
 
@@ -296,7 +296,7 @@ describe("running a command", () => {
     await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(
       'The command "blockr.core-rename_board" refused to run\n- The store holds no board until it opens one.',
     );
-    expect(commands.enabled("blockr.core-rename_board", { name: "Sepals" })).toBe(false);
+    expect(commands.preflight("blockr.core-rename_board", { name: "Sepals" })).toBe(false);
   });
 
   test("applies no step where the command changes nothing", async () => {
@@ -306,26 +306,26 @@ describe("running a command", () => {
   });
 });
 
-describe("enabled()", () => {
-  test("says whether the command applies to the current board with these args", async () => {
+describe("preflight()", () => {
+  test("says whether the command passes its preflight on the current board with these args", async () => {
     const { commands } = await setup();
 
-    expect(commands.enabled("blockr.core-remove_block", { id: "b" })).toBe(true);
-    expect(commands.enabled("blockr.core-remove_block", { id: "zz" })).toBe(false);
-    expect(commands.enabled("blockr.core-remove_block", { id: 1 })).toBe(false);
-    expect(commands.enabled("test.pkg-nothing")).toBe(false);
+    expect(commands.preflight("blockr.core-remove_block", { id: "b" })).toBe(true);
+    expect(commands.preflight("blockr.core-remove_block", { id: "zz" })).toBe(false);
+    expect(commands.preflight("blockr.core-remove_block", { id: 1 })).toBe(false);
+    expect(commands.preflight("test.pkg-nothing")).toBe(false);
   });
 
-  test("is false where the command's enabled() throws", async () => {
+  test("is false where the command's preflight() throws", async () => {
     const { commands } = await setup();
     commands.register(
       renameB({
-        enabled: () => {
+        preflight: () => {
           throw new Error("No idea.");
         },
       }),
     );
-    expect(commands.enabled("test.pkg-rename_b", { name: "Top" })).toBe(false);
+    expect(commands.preflight("test.pkg-rename_b", { name: "Top" })).toBe(false);
   });
 });
 
@@ -353,14 +353,14 @@ describe("preparing", () => {
     expect(store.board().name).toBe("Sepals!");
   });
 
-  test("checks enabled() again once prepare() resolves", async () => {
+  test("runs preflight() again once prepare() resolves", async () => {
     const { store, commands } = await setup();
     const ready = Promise.withResolvers<null>();
     const run = vi.fn(() => ({ name: "Never" }));
     commands.register<{ readonly id: string }, null>({
       id: "test.pkg-later",
       label: "Later",
-      enabled: (board, { id }) => Object.hasOwn(board.blocks, id),
+      preflight: (board, { id }) => Object.hasOwn(board.blocks, id),
       prepare: () => ready.promise,
       run,
     });
@@ -369,7 +369,7 @@ describe("preparing", () => {
     store.apply({ blocks: { rm: ["b"] } });
     ready.resolve(null);
 
-    await expect(done).rejects.toThrow('It is not enabled on the board as it is, with the args {"id":"b"}.');
+    await expect(done).rejects.toThrow('It fails its preflight on the board as it is, with the args {"id":"b"}.');
     expect(run).not.toHaveBeenCalled();
   });
 
@@ -396,7 +396,7 @@ describe("preparing", () => {
       'The command "blockr.core-rename_board" refused to run\n- Another board opened in a new store, so this command registry runs no command.',
     );
     await expect(commands.plan("blockr.core-rename_board", { name: "Sepals" })).rejects.toThrow(CommandError);
-    expect(commands.enabled("blockr.core-rename_board", { name: "Sepals" })).toBe(false);
+    expect(commands.preflight("blockr.core-rename_board", { name: "Sepals" })).toBe(false);
     expect(store.board().name).toBe("Iris review");
   });
 
@@ -415,7 +415,7 @@ describe("preparing", () => {
 });
 
 describe("the context", () => {
-  test("hands enabled(), prepare() and run() the locks, the blockr options and ids in the shape that rand_id names", async () => {
+  test("hands preflight(), prepare() and run() the locks, the blockr options and ids in the shape that rand_id names", async () => {
     const store = await openedStore();
     const lock: Lock = { board: false, load: true };
     const asked: string[] = [];
@@ -431,7 +431,7 @@ describe("the context", () => {
     commands.register<Json, Json | undefined>({
       id: "test.pkg-add_stack",
       label: "Add stack",
-      enabled(_board, _args, context) {
+      preflight(_board, _args, context) {
         locks.push(context.lock);
         return true;
       },
@@ -447,7 +447,7 @@ describe("the context", () => {
 
     await commands.run("test.pkg-add_stack");
 
-    // The registry checks enabled() before prepare() and again once it
+    // The registry runs preflight() before prepare() and again once it
     // resolves.
     expect(locks).toEqual([lock, lock]);
     expect(asked).toEqual(["stack_name"]);
@@ -530,8 +530,8 @@ describe("running a list", () => {
     const { store, commands } = await setup();
     const board = store.board();
     const seen = origins(store);
-    // Alone, the link is not enabled, since the board lacks block "g".
-    expect(commands.enabled("blockr.core-add_link", { from: "d", to: "g" })).toBe(false);
+    // Alone, the link fails its preflight, since the board lacks block "g".
+    expect(commands.preflight("blockr.core-add_link", { from: "d", to: "g" })).toBe(false);
 
     await commands.run(
       [
@@ -591,7 +591,7 @@ describe("running a list", () => {
 });
 
 describe("refusing a list", () => {
-  test("applies none of it where a command is not enabled, and rejects with the command's index and that it failed its preflight", async () => {
+  test("applies none of it where a command fails its preflight, and rejects with the command's index and that it failed its preflight", async () => {
     const { store, commands } = await setup();
     const board = store.board();
     const seen = origins(store);
@@ -607,10 +607,10 @@ describe("refusing a list", () => {
     );
 
     expect(error.message).toBe(
-      'The list of commands was refused at command 2, "blockr.core-remove_block"\n- It is not enabled on the board as it is, with the args {"id":"zz"}.',
+      'The list of commands was refused at command 2, "blockr.core-remove_block"\n- It fails its preflight on the board as it is, with the args {"id":"zz"}.',
     );
     expect([error.index, error.preflight]).toEqual([1, false]);
-    expect(error.failures).toEqual(['It is not enabled on the board as it is, with the args {"id":"zz"}.']);
+    expect(error.failures).toEqual(['It fails its preflight on the board as it is, with the args {"id":"zz"}.']);
     expect(error.cause).toBeInstanceOf(CommandError);
     expect(store.board()).toBe(board);
     expect(store.canUndo("assistant")).toBe(false);
@@ -734,7 +734,7 @@ describe("a list with a command that prepares", () => {
     expect(store.board().blocks.b?.name).toBe("Head");
   });
 
-  test("checks each command again with its enabled() as it plans the list again", async () => {
+  test("runs the preflight of each command again as it plans the list again", async () => {
     const { store, commands } = await setup();
     const ready = Promise.withResolvers<string>();
     commands.register(later(() => ready.promise));

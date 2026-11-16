@@ -437,7 +437,10 @@ test_that("a board has a compact str_value()", {
 
 test_that("a board prints its plugins", {
 
-  notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
+  notes <- plugin_ctor(
+    function(text = "", tags = character()) NULL,
+    "notes_plugin"
+  )
 
   out <- format(new_board(plugins = notes("To do"), name = "B"))
 
@@ -445,6 +448,7 @@ test_that("a board prints its plugins", {
   expect_true("Plugins[1]:" %in% out)
   expect_true("<notes_plugin> blockr.test-notes_plugin" %in% out)
   expect_true("text: To do" %in% out)
+  expect_true("tags: character()" %in% out)
 })
 
 test_that("empty variadic link inputs stay unnamed", {

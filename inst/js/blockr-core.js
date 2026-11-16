@@ -613,7 +613,7 @@ function checkRaised(notification) {
   }
   if (typeof given.code !== "string" || given.code === "") {
     throw new TypeError(
-      `The code of a notification is a non-empty string, as "edit_refused", not ${JSON.stringify(given.code)}.`
+      `The code of a notification is a non-empty string, as "render_failed", not ${JSON.stringify(given.code)}.`
     );
   }
   const { about } = given;
@@ -8124,9 +8124,10 @@ function createCore(parts) {
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const focus = createFocus(store, parts.signal);
+  const edits = refusing(store, commands, notifications.raiseAgain);
   const api = {
-    store,
-    commands,
+    store: edits.store,
+    commands: edits.commands,
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
       evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),
@@ -8226,6 +8227,58 @@ function createCore(parts) {
     raisedBy.set(id2, raisedNow);
   }
   return { api, plugins };
+}
+function refusing(store, commands, raiseAgain) {
+  function refused2(origin, error) {
+    if ((origin ?? "user") !== "user") return;
+    const why = errorMessage(error);
+    log.debug(why);
+    raiseAgain(coreNotification("board_edit_failed", "error", why));
+  }
+  function edit(origin, fn) {
+    try {
+      fn();
+    } catch (error) {
+      refused2(origin, error);
+      throw error;
+    }
+  }
+  function ran(origin, running2) {
+    return running2.catch((error) => {
+      refused2(origin, error);
+      throw error;
+    });
+  }
+  return {
+    store: {
+      ...store,
+      apply(delta, origin, opts) {
+        edit(origin, () => {
+          store.apply(delta, origin, opts);
+        });
+      },
+      undo(origin) {
+        edit(origin, () => {
+          store.undo(origin);
+        });
+      },
+      // A redo names no origin, so it is the user's, as the store announces
+      // it.
+      redo() {
+        edit(void 0, () => {
+          store.redo();
+        });
+      }
+    },
+    commands: {
+      ...commands,
+      run(target2, given, origin) {
+        if (typeof target2 === "string") return ran(origin, commands.run(target2, given, origin));
+        const listed = typeof given === "string" ? given : void 0;
+        return ran(listed, commands.run(target2, listed));
+      }
+    }
+  };
 }
 function shownObject(given) {
   if (typeof given === "object" && given !== null && !Array.isArray(given)) {
@@ -8580,7 +8633,7 @@ function coreCommands(store) {
       label: "Remove block",
       description: "Removes a block, with its links and its place in its stack.",
       args: object({ id: blockId }, ["id"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run: (_board, { id: id2 }) => ({ blocks: { rm: [id2] } })
     }),
     command({
@@ -8588,7 +8641,7 @@ function coreCommands(store) {
       label: "Rename block",
       description: "Gives a block a new name.",
       args: object({ id: blockId, name: name2 }, ["id", "name"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run: (_board, { id: id2, name: name3 }) => ({ blocks: { mod: { [id2]: { name: name3 } } } })
     }),
     command({
@@ -8596,7 +8649,7 @@ function coreCommands(store) {
       label: "Set block lock",
       description: "Sets a block's lock, which fixes its state where the board lock is on: true locks the block, false leaves it open to readers, and null has it follow the board lock.",
       args: object({ id: blockId, locked }, ["id", "locked"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run: (_board, { id: id2, locked: locked2 }) => ({ blocks: { mod: { [id2]: { locked: locked2 } } } })
     }),
     command({
@@ -8611,7 +8664,7 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.blocks, id2),
       run(board2, { id: id2, state: state2, unset }) {
         const block = own(board2.blocks, id2);
         if (block === void 0) return [];
@@ -8644,7 +8697,7 @@ function coreCommands(store) {
         },
         ["from", "registry_id"]
       ),
-      enabled: (board2, { from }) => Object.hasOwn(board2.blocks, from),
+      preflight: (board2, { from }) => Object.hasOwn(board2.blocks, from),
       run(board2, args, { mintId: mintId2 }) {
         const [id2, block, entry] = added(this.id, board2, args, mintId2);
         const input2 = newInput(this.id, entry, args.input);
@@ -8670,7 +8723,7 @@ function coreCommands(store) {
         },
         ["to", "registry_id"]
       ),
-      enabled: (board2, { to, input: input2 }) => linkable(board2, to, input2),
+      preflight: (board2, { to, input: input2 }) => linkable(board2, to, input2),
       run(board2, args, { mintId: mintId2 }) {
         const input2 = linkInput(this.id, board2, args.to, args.input);
         const [id2, block] = added(this.id, board2, args, mintId2);
@@ -8696,7 +8749,7 @@ function coreCommands(store) {
         },
         ["link", "registry_id"]
       ),
-      enabled: (board2, { link }) => Object.hasOwn(board2.links, link),
+      preflight: (board2, { link }) => Object.hasOwn(board2.links, link),
       run(board2, args, { mintId: mintId2 }) {
         const split = own(board2.links, args.link);
         if (split === void 0) return [];
@@ -8738,7 +8791,7 @@ function coreCommands(store) {
         },
         ["from", "to"]
       ),
-      enabled: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
+      preflight: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
       run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
         const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
         const resolved = linkInput(this.id, board2, to, input2);
@@ -8761,7 +8814,7 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
       run(board2, args) {
         const link = own(board2.links, args.id);
         if (link === void 0) return [];
@@ -8786,7 +8839,7 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
       run(board2, { id: id2, before }) {
         const link = own(board2.links, id2);
         if (link === void 0) return [];
@@ -8817,7 +8870,7 @@ function coreCommands(store) {
       label: "Remove link",
       description: "Removes a link.",
       args: object({ id: linkId }, ["id"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
       run: (_board, { id: id2 }) => ({ links: { rm: [id2] } })
     })
   ];
@@ -8867,7 +8920,7 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
       run: (board2, { id: id2, blocks: blocks2, color: color2 }) => ({
         stacks: {
           mod: {
@@ -8885,7 +8938,7 @@ function coreCommands(store) {
       label: "Rename stack",
       description: "Gives a stack a new name.",
       args: object({ id: stackId, name: name2 }, ["id", "name"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
       run: (_board, { id: id2, name: name3 }) => ({ stacks: { mod: { [id2]: { name: name3 } } } })
     }),
     command({
@@ -8893,7 +8946,7 @@ function coreCommands(store) {
       label: "Remove stack",
       description: "Removes a stack, leaving its blocks on the board.",
       args: object({ id: stackId }, ["id"]),
-      enabled: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
+      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.stacks, id2),
       run: (_board, { id: id2 }) => ({ stacks: { rm: [id2] } })
     })
   ];
@@ -8910,7 +8963,7 @@ function coreCommands(store) {
       label: "Set board option",
       description: "Sets the value of a board option, which the board option's schema types.",
       args: object({ id: optionId, value }, ["id", "value"]),
-      enabled: (_board, { id: id2 }) => own(store.options.registered(), id2) !== void 0,
+      preflight: (_board, { id: id2 }) => own(store.options.registered(), id2) !== void 0,
       run: (_board, { id: id2, value: value2 }) => ({ options: { set: { [id2]: value2 } } })
     })
   ];
@@ -8918,7 +8971,7 @@ function coreCommands(store) {
     command({
       id: "blockr.core-set_plugin_state",
       label: "Set plugin state",
-      description: "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It is not enabled on a locked board, where only the commands of a plugin's class know what the plugin locks.",
+      description: "Changes a plugin's state by patches at paths within that state, as JSON Patch has them, which the schema of the plugin's class types. It fails its preflight on a locked board, where only the commands of a plugin's class know what the plugin locks.",
       args: object(
         {
           plugin: {
@@ -8929,7 +8982,7 @@ function coreCommands(store) {
         },
         ["plugin", "patches"]
       ),
-      enabled: (board2, { plugin }, { lock }) => !lock.board && Object.hasOwn(board2.plugins, plugin),
+      preflight: (board2, { plugin }, { lock }) => !lock.board && Object.hasOwn(board2.plugins, plugin),
       run: (_board, { plugin, patches: patches2 }) => ({
         patches: patches2.map((patch2) => ({ ...patch2, path: `${pathFromSegments(["plugins", plugin])}${patch2.path}` }))
       })
@@ -8990,7 +9043,7 @@ function command(def) {
   return {
     ...def,
     run: def.run.bind(def),
-    ...def.enabled === void 0 ? {} : { enabled: def.enabled.bind(def) }
+    ...def.preflight === void 0 ? {} : { preflight: def.preflight.bind(def) }
   };
 }
 
@@ -9000,10 +9053,9 @@ var CommandError = class extends Error {
   // The command's place in the list that run() or plan() was given, counted
   // from 0, where the command refused as one of a list.
   index;
-  // False where the command failed its preflight, the check of its enabled(),
-  // and left out otherwise, as a command's `undo` is false only where it takes
-  // no undo step. The assistant's edit tool reads it to tell the model what to
-  // check.
+  // False where the command failed its preflight, and left out otherwise, as a
+  // command's `undo` is false only where it takes no undo step. The
+  // assistant's edit tool reads it to tell the model what to check.
   preflight;
   constructor(message, failures, options) {
     super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
@@ -9077,11 +9129,11 @@ function createCommands(store, options = {}) {
     return store.board();
   }
   function allow(command2, board, args) {
-    const enabled = attempt2(command2, () => command2.enabled?.(board, args, context4) ?? true);
-    if (!enabled) {
+    const passes = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
+    if (!passes) {
       throw refusal(
         command2.id,
-        [`It is not enabled on the board as it is, with the args ${JSON.stringify(args)}.`],
+        [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
         { preflight: false }
       );
     }
@@ -9206,7 +9258,7 @@ function createCommands(store, options = {}) {
   const registry = {
     register,
     registered: () => registered.value,
-    enabled(id2, given) {
+    preflight(id2, given) {
       try {
         const { command: command2, args } = lookup(id2, given);
         allow(command2, current2(id2), args);
@@ -9337,6 +9389,7 @@ function createNotifications(store, options = {}) {
   const plugins = options.plugins ?? {};
   const held2 = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
+  const again = /* @__PURE__ */ new Map();
   const replacing = /* @__PURE__ */ new Map();
   const left2 = /* @__PURE__ */ new Set();
   const listeners = /* @__PURE__ */ new Set();
@@ -9393,6 +9446,7 @@ function createNotifications(store, options = {}) {
     const had = held2.size > 0;
     held2.clear();
     raised.clear();
+    again.clear();
     replacing.clear();
     left2.clear();
     if (had) publish();
@@ -9449,13 +9503,7 @@ function createNotifications(store, options = {}) {
       log.debug(`Core drops a notification that core raised about ${named2(given.about)}, which the board does not hold.`);
       return nothing;
     }
-    const id2 = JSON.stringify([
-      "raised",
-      given.severity,
-      given.message,
-      sourceCopy(given.source),
-      given.about === void 0 ? null : objectCopy(given.about)
-    ]);
+    const id2 = raisedId(given);
     const token = {};
     const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
     tokens.add(token);
@@ -9470,6 +9518,12 @@ function createNotifications(store, options = {}) {
       raised.delete(id2);
       if (held2.delete(id2)) publish();
     };
+  };
+  const raiseAgain = (given) => {
+    const id2 = raisedId(given);
+    again.get(id2)?.();
+    const withdraw = raise(given);
+    if (!ended) again.set(id2, withdraw);
   };
   const notify = (module, notification) => {
     const given = checkRaised(notification);
@@ -9529,6 +9583,7 @@ function createNotifications(store, options = {}) {
       }
     },
     raise,
+    raiseAgain,
     replied: replied2,
     notify,
     follow(scheduler) {
@@ -9544,6 +9599,15 @@ function createNotifications(store, options = {}) {
       if (store.hasBoard()) heard(Object.keys(store.board().blocks));
     }
   };
+}
+function raisedId(given) {
+  return JSON.stringify([
+    "raised",
+    given.severity,
+    given.message,
+    sourceCopy(given.source),
+    given.about === void 0 ? null : objectCopy(given.about)
+  ]);
 }
 function statusSource(condition) {
   if (isUnsentError(condition)) return { kind: "core", code: "evaluation_unsent" };
@@ -9862,13 +9926,9 @@ function start(options) {
           log.error(asError(again));
           throw failure;
         }
-        raise(
-          coreNotification(
-            "board_open_failed",
-            "error",
-            `The board did not open, so core opened the board before it again: ${failure.message}`
-          )
-        );
+        const why = `The board did not open, so core opened the board before it again: ${failure.message}`;
+        log.debug(why);
+        raise(coreNotification("board_open_failed", "error", why));
       }
     }
     if (dropped.length > 0) raise(droppedNotification(dropped));
@@ -10019,7 +10079,14 @@ function start(options) {
     let before;
     try {
       await migrations.prepare(text, current2.store.blockRegistry());
-      await current2.store.check(text);
+      try {
+        await current2.store.check(text);
+      } catch (error) {
+        const why = errorMessage(error);
+        log.debug(why);
+        current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", why));
+        throw error;
+      }
       before = current2.store.save();
     } catch (error) {
       opening2.record(tracing, error);

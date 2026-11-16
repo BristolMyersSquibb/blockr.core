@@ -24,11 +24,10 @@ import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, MultiCombobox, Pager, TableSearch, TextField, useTableView } from "../../ui/index.ts";
+import { classes, MultiCombobox, Pager, runCommand, TableSearch, TextField, useTableView } from "../../ui/index.ts";
 import type { ComboOption } from "../../ui/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
 import { blockName, blockOption } from "./links.tsx";
-import { runCommand } from "./run.ts";
 
 // The colours that a new stack starts from, ColorBrewer's Set2, of which a new
 // stack takes the first that no stack has.

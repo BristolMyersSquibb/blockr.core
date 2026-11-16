@@ -394,7 +394,7 @@
   Until now, `isTRUE()` read the string as `FALSE`, so that `BLOCKR_LOG_MEM=TRUE`, for one, did nothing.
   A value that `as.logical()` reads as neither `TRUE` nor `FALSE` fails, naming the blockr option (#510).
 * Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello, and core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
-* The command registry hands every command its context, beside the board and its args, as the third argument of its `enabled()`, `prepare()` and `run()`.
+* The command registry hands every command its context, beside the board and its args, as the third argument of its `preflight()`, `prepare()` and `run()`.
   The context holds the locks of R's reply to `hello` in `lock`, a function `mintId()` that mints an ID in the shape that `rand_id` names, and the function `blockrOption()`, which reads a blockr option as `CoreApi.blockrOption()` does.
   So a plugin class's commands can refuse what its plugins lock, and mint IDs as core's commands do.
   Core's own commands read the board lock and mint IDs through the context too.
@@ -411,7 +411,8 @@
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
   Where the board changes while a command of the list waits in its `prepare()`, the registry plans the list again from its first command, on the board as it is then, and no command prepares twice.
   The registry applies the deltas of every command as one step of the origin, which is an undo step unless every command of the list has `undo: false`, or applies none where one command refuses.
-  It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command failed its preflight, the check of its `enabled()`, as for a command that runs alone.
+  It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command failed its preflight, as for a command that runs alone.
+  Where the registry refuses a list of the origin `"user"` that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
   The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
@@ -525,8 +526,7 @@
   The card of a block that `serve()` serves alone shows every notification of the board.
   A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
   In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
-  Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it.
-  The Edit board plugin raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses (#539).
+  Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it (#539).
 * Core's basic frontend shows each notification that concerns no block as a toast, whatever its severity and whoever raised it, in place of its list above the board.
   The toasts sit in the window's bottom right corner.
   Each names what it concerns, such as a board option or a plugin, and the package that its source names.
@@ -534,12 +534,11 @@
   A warning's or an error's toast stays until the user closes it.
   A toast goes as soon as core withdraws its notification, and one that faded or that the user closed does not come back while its notification holds.
   While a dialog of the frontend is open, the toasts show inside it, so that the user can still close them.
-  The toast of `page_reload_needed` offers to reload the page.
-  The frontend raises a notification of the code `edit_refused` for each of its edits that the store or the command registry refuses, which concerns its plugin (#549).
+  The toast of `page_reload_needed` offers to reload the page (#549).
 * A storage plugin tells the user why one of its buttons failed, through a notification of its own, since it alone knows its backend and when the failure is over.
   Its `controls()` gets the id of its class beside `core` for that.
-  Core's file storage plugin raises an Open that fails as an error of the code `board_open_failed`.
-  A frontend logs a button whose `run()` rejects, as a fault of the plugin (#549).
+  Core's file storage plugin raises a file that Open cannot read as an error of the code `board_open_failed`.
+  A frontend logs a button whose `run()` rejects (#549).
 * The client's code logs through a `Log`: a plugin through the `log()` of `CoreApi`, as `core.log("blockr.dock")`, and every other module through its host's `log`, which names the module's package already.
   A `Log` has `error()`, `warn()`, `info()`, `debug()` and `trace()`, each taking a message and attributes, and `error()` takes an `Error` too, which goes with its stack.
   The client drops a line below the blockr option `log_level`, as R does.
@@ -558,6 +557,14 @@
   The spans name the session by `session.id`, and so do R's log records that R writes while it handles a message of the session.
   The client names its service in its spans and its log records by the blockr option `otel_client_service_name`, as their `service.name`, and as `"blockr"` where that option is not set, while R's records name the service that `OTEL_SERVICE_NAME` gives.
   The page's import map names `@opentelemetry/api`, which core ships as a file of its own, so that the modules of packages record spans into the same traces, and the types of `@blockr/core` name it as their peer (#552).
+* Where the store or the command registry refuses an edit of the origin `"user"` that a plugin makes through `CoreApi`, a command, a delta, an undo or a redo, core raises a notification of the code `board_edit_failed`, which concerns the board, and the call still rejects or throws.
+  So the user learns why an edit was refused, whichever plugin made it.
+  Core's basic frontend and its Edit board plugin raise none of their own.
+  An edit of another origin only rejects or throws, as the assistant's, whose tool hands the refusal to its model.
+  A refused `submit()` of a block's or a board option's UI module only rejects, since the module says why, as core's inputs do below themselves.
+  Where the store refuses a board that `open()` is given, core raises `board_open_failed`, which concerns the board, and `open()` still rejects with the reason.
+  Core logs each of these refusals at debug, since the call hands the reason to its caller.
+  Core raises a refusal anew each time it comes again, so that a frontend that has shown it shows it again (#616).
 
 # blockr.core 0.1.4
 

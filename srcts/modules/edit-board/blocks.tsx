@@ -15,10 +15,9 @@ import { styles } from "../../styles/index.ts";
 import type { Block, BlockId, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, NameField, Pager, TableSearch, useTableView } from "../../ui/index.ts";
+import { classes, NameField, Pager, runCommand, TableSearch, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Part, Section, table } from "./board.tsx";
-import { runCommand } from "./run.ts";
 
 const ADD: AddMode = { kind: "add" };
 
