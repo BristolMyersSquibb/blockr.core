@@ -6,6 +6,7 @@ export interface CommandContext {
     readonly lock: Lock;
     readonly mintId: (taken: (id: string) => boolean) => string;
     readonly blockrOption: (name: string) => Promise<Json | undefined>;
+    readonly refusal: (failures: readonly string[]) => CommandError;
 }
 export interface Command<A extends Json = Json, P = A> {
     readonly id: string;
@@ -52,3 +53,4 @@ export interface CommandsOptions {
     readonly blockrOption?: (name: string) => Promise<Json | undefined>;
 }
 export declare function createCommands(store: Store, options?: CommandsOptions): Commands;
+export declare function isLogged(error: unknown): boolean;

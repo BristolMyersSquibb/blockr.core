@@ -30,12 +30,22 @@
 // the command prepares and runs, and while the store applies its deltas, so
 // that the scheduler takes it as what gave each block that the deltas change
 // its revision, and the span of the block's evaluation links to it.
+//
+// The command registry logs at error what a command's own preflight(),
+// prepare() or run() throws, with its stack, as Logging has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#logging),
+// whoever runs the command and whatever its origin. It still rejects with it,
+// as a CommandError that names the command, and preflight() still answers
+// false. It logs no refusal, whether the command registry, the command or the
+// store refuses, since the call hands the refusal to its caller. A command
+// refuses with what its context's refusal() makes.
 
 // The API's context is named apart from the context that the command registry
 // hands every command.
 import { context as otelContext, trace } from "@opentelemetry/api";
 import type { Attributes } from "@opentelemetry/api";
 import { computed, signal } from "@preact/signals-core";
+import { log } from "../log/index.ts";
 import type { Lock } from "../protocol/index.ts";
 import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS, StoreError } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
@@ -47,8 +57,9 @@ import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
 
 // What the command registry hands every command beside the board and its
-// args: what the app fixes for the page. A plugin class's commands read it to
-// refuse what its plugins lock, and to mint ids as core's commands do.
+// args: what the app fixes for the page, and what the command refuses with.
+// A plugin class's commands read it to refuse what its plugins lock, and to
+// mint ids as core's commands do.
 export interface CommandContext {
   // The locks that R's reply to `hello` gives: whether the board lock and the
   // load lock are on.
@@ -60,6 +71,13 @@ export interface CommandContext {
   // CoreApi.blockrOption() reads it. It returns a promise, so a command reads
   // a blockr option in its prepare().
   readonly blockrOption: (name: string) => Promise<Json | undefined>;
+  // A refusal of the command, with each failure in a sentence, which the
+  // command throws to refuse from its preflight(), prepare() or run(), as
+  // where its args place a block that the board does not hold. The command
+  // registry rejects with the refusal as it is, and logs no line of it, as
+  // for its own refusals. It logs at error whatever else the command's own
+  // code throws.
+  readonly refusal: (failures: readonly string[]) => CommandError;
 }
 
 export interface Command<A extends Json = Json, P = A> {
@@ -138,9 +156,11 @@ export class CommandError extends Error {
   // The command's place in the list that run() or plan() was given, counted
   // from 0, where the command refused as one of a list.
   readonly index?: number;
-  // False where the command failed its preflight, and left out otherwise, as a
-  // command's `undo` is false only where it takes no undo step. The
-  // assistant's edit tool reads it to tell the model what to check.
+  // False where the command failed its preflight, its preflight() answering
+  // false, and left out otherwise, as a command's `undo` is false only where it
+  // takes no undo step. The assistant's edit tool reads it to tell the model
+  // what to check. A preflight() that throws the refusal() of its context
+  // leaves it out, since that refusal says why.
   readonly preflight?: false;
 
   constructor(
@@ -173,6 +193,9 @@ const DROPPED = "A board opened while it prepared, which drops it.";
 interface Registered {
   readonly command: Command<Json, unknown>;
   readonly validate: Validate | undefined;
+  // What the command registry hands the command's preflight(), prepare() and
+  // run(), whose refusal() names the command.
+  readonly context: CommandContext;
 }
 
 export interface CommandsOptions {
@@ -203,7 +226,8 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   );
   const ended = (): boolean => options.signal?.aborted === true;
   const randId = options.randId === undefined ? "adjective_animal" : asRandId(options.randId);
-  const context: CommandContext = {
+  // What the context of every command holds, all but its refusal().
+  const shared: Omit<CommandContext, "refusal"> = {
     lock: options.lock ?? { board: false, load: false },
     mintId: (taken) => mintId(taken, randId),
     blockrOption: options.blockrOption ?? (() => Promise.resolve(undefined)),
@@ -230,7 +254,11 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         ? undefined
         : compile(`the args of the command "${id}"`, command.args, "fail their schema");
 
-    const item: Registered = { command, validate };
+    const item: Registered = {
+      command,
+      validate,
+      context: { ...shared, refusal: (failures) => refusal(id, failures) },
+    };
     commands.value = new Map([...commands.value, [id, item]]);
     return () => {
       if (commands.value.get(id) !== item) return;
@@ -240,11 +268,9 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     };
   }
 
-  // The command and its args, once they fit its schema, or a CommandError.
-  function lookup(
-    id: string,
-    given: Json | undefined,
-  ): { command: Command<Json, unknown>; args: Json } {
+  // The registered command and its args, once they fit its schema, or a
+  // CommandError.
+  function lookup(id: string, given: Json | undefined): { item: Registered; args: Json } {
     const item = commands.value.get(id);
     if (item === undefined) {
       throw refusal(id, [`No command "${id}" is registered.`]);
@@ -254,7 +280,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     if (failures.length > 0) {
       throw refusal(id, failures.map((failure) => `The args ${failure}`));
     }
-    return { command: item.command, args };
+    return { item, args };
   }
 
   function current(id: string): Board {
@@ -267,7 +293,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     return store.board();
   }
 
-  function allow(command: Command<Json, unknown>, board: Board, args: Json): void {
+  function allow({ command, context }: Registered, board: Board, args: Json): void {
     const passes = attempt(command, () => command.preflight?.(board, args, context) ?? true);
     if (!passes) {
       throw refusal(
@@ -280,7 +306,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
 
   // The deltas that the command returns on the board, with the edit ids the
   // board gives what they change where the command left them out.
-  function build(command: Command<Json, unknown>, board: Board, args: unknown): Delta[] {
+  function build({ command, context }: Registered, board: Board, args: unknown): Delta[] {
     const returned = attempt(command, () => command.run(board, args, context));
     const deltas: readonly Delta[] = isDeltas(returned) ? returned : [returned];
     return deltas.map(withEdits);
@@ -290,28 +316,25 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // not prepare, so that run() applies them before it returns, and otherwise
   // once prepare() resolves, on the board as it is then, where the command
   // still passes its preflight and no board has opened in the meantime.
-  function deltas(command: Command<Json, unknown>, args: Json): Delta[] | Promise<Delta[]> {
-    const board = current(command.id);
-    allow(command, board, args);
-    if (command.prepare === undefined) return build(command, board, args);
-    return prepared(command, board, args);
+  function deltas(item: Registered, args: Json): Delta[] | Promise<Delta[]> {
+    const board = current(item.command.id);
+    allow(item, board, args);
+    if (item.command.prepare === undefined) return build(item, board, args);
+    return prepared(item, board, args);
   }
 
-  async function prepared(
-    command: Command<Json, unknown>,
-    board: Board,
-    args: Json,
-  ): Promise<Delta[]> {
-    const input = await prepare(command, board, args);
+  async function prepared(item: Registered, board: Board, args: Json): Promise<Delta[]> {
+    const { command } = item;
+    const input = await prepare(item, board, args);
     if (ended()) throw refusal(command.id, [DROPPED]);
     const now = current(command.id);
-    allow(command, now, args);
-    return build(command, now, input);
+    allow(item, now, args);
+    return build(item, now, input);
   }
 
   // What the command's prepare() resolves to, or a CommandError that names the
   // command where it rejects.
-  async function prepare(command: Command<Json, unknown>, board: Board, args: Json): Promise<unknown> {
+  async function prepare({ command, context }: Registered, board: Board, args: Json): Promise<unknown> {
     try {
       return await command.prepare?.(board, args, context);
     } catch (error) {
@@ -361,30 +384,31 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       built = [];
       let start: Board;
       try {
-        start = current(first.command.id);
+        start = current(first.item.command.id);
       } catch (error) {
-        throw inList(0, first.command.id, error);
+        throw inList(0, first.item.command.id, error);
       }
       let board = start;
-      for (const [index, { command, args }] of checked.entries()) {
+      for (const [index, { item, args }] of checked.entries()) {
+        const { command } = item;
         try {
-          allow(command, board, args);
+          allow(item, board, args);
           if (command.prepare !== undefined && !inputs.has(index)) {
-            inputs.set(index, await within(() => prepare(command, board, args)));
+            inputs.set(index, await within(() => prepare(item, board, args)));
             if (ended()) throw refusal(command.id, [DROPPED]);
             if (store.board() !== start) {
               again = true;
               break;
             }
           }
-          built.push(...build(command, board, inputs.has(index) ? inputs.get(index) : args));
+          built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
           board = store.dryRun(built);
         } catch (error) {
           throw inList(index, command.id, error);
         }
       }
     }
-    return within(() => then(built, checked.map(({ command }) => command)));
+    return within(() => then(built, checked.map(({ item }) => item.command)));
   }
 
   // Applies the deltas of the commands of a list as one step of the origin,
@@ -462,8 +486,8 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     registered: () => registered.value,
     preflight(id, given) {
       try {
-        const { command, args } = lookup(id, given);
-        allow(command, current(id), args);
+        const { item, args } = lookup(id, given);
+        allow(item, current(id), args);
         return true;
       } catch {
         return false;
@@ -478,18 +502,18 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       if (typeof target !== "string") return runList(target, typeof given === "string" ? given : "user");
       return traced(`command ${target}`, { "blockr.command.id": target, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
-        const { command, args } = lookup(target, given);
-        const step = deltas(command, args);
+        const { item, args } = lookup(target, given);
+        const step = deltas(item, args);
         const ready = Array.isArray(step) ? step : await step;
         within(() => {
-          store.apply(ready, origin, { undo: command.undo });
+          store.apply(ready, origin, { undo: item.command.undo });
         });
       });
     },
     async plan(target: string | readonly { readonly id: string; readonly args?: Json }[], given?: Json) {
       if (typeof target !== "string") return planned(target, (built) => built);
-      const { command, args } = lookup(target, given);
-      return deltas(command, args);
+      const { item, args } = lookup(target, given);
+      return deltas(item, args);
     },
   };
 
@@ -515,26 +539,44 @@ function isCommandId(id: string): boolean {
   return pkg !== null && id.length > pkg.length + 1;
 }
 
+// The CommandErrors that failed() logged, and those with which the command
+// registry refuses a list for one of them, so that CoreApi does not log one
+// again as it tells the user why an edit failed (../core/core.ts).
+const loggedErrors = new WeakSet<CommandError>();
+
+// Whether the command registry logged what the error reports already, as
+// what a command's own code threw, alone or as one of a list.
+export function isLogged(error: unknown): boolean {
+  return error instanceof CommandError && loggedErrors.has(error);
+}
+
 // The CommandError with which the command registry refuses a list, for what
 // refused the command at the index: the command's own CommandError, or the
 // StoreError with which the store refused its deltas. It keeps that error as
-// its cause, with its failures.
+// its cause, with its failures, and counts as logged where that error does.
 function inList(index: number, id: string, error: unknown): CommandError {
   const named = error instanceof CommandError || error instanceof StoreError;
-  return new CommandError(
+  const refused = new CommandError(
     `The list of commands was refused at command ${String(index + 1)}, "${id}"`,
     named ? error.failures : [errorMessage(error)],
     { cause: error, index, preflight: error instanceof CommandError ? error.preflight : undefined },
   );
+  if (isLogged(error)) loggedErrors.add(refused);
+  return refused;
 }
 
 // What a command's own preflight(), prepare() or run() threw, as a CommandError
-// that names the command, unless it is one already.
+// that names the command, unless it is one already, as a refusal is. It logs
+// the CommandError at error, whose cause holds the stack of what the command
+// threw.
 function failed(command: Command<Json, unknown>, error: unknown): CommandError {
   if (error instanceof CommandError) return error;
-  return new CommandError(`The command "${command.id}" failed`, [errorMessage(error)], {
+  const failure = new CommandError(`The command "${command.id}" failed`, [errorMessage(error)], {
     cause: error,
   });
+  log.error(failure);
+  loggedErrors.add(failure);
+  return failure;
 }
 
 function attempt<T>(command: Command<Json, unknown>, fn: () => T): T {
