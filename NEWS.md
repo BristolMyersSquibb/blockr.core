@@ -122,11 +122,14 @@
   options (#560).
   R serves each module and stylesheet at a URL that
   holds a hash of the file's content, so that no browser runs a changed file
-  from its cache. It serves a package's files under the package's name, and the
-  module of a block class from outside a package at a URL of its own, read
-  from the path given, and nothing beside them. Registration refuses a class
-  whose starting state is not a plain value, and an arg spec whose example is
-  not one either (#426, #465, #504, #558).
+  from its cache.
+  It serves a package's files under the package's name, with the other files
+  in a module's directory, so that a module or its stylesheet can import a file
+  beside it.
+  It serves the module of a block class from outside a package at a URL of its
+  own, read from the path given, and nothing beside it.
+  Registration refuses a class whose starting state is not a plain value, and
+  an arg spec whose example is not one either (#426, #465, #504, #558, #634).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
   A JSON board holds the board, with its ID and name, its blocks, links and
@@ -340,10 +343,10 @@
   The `CoreApi` for tests runs the app's plugins as the page does, and serves a module that a test gives by its id, such as a plugin's UI (#506, #558).
 * A storage plugin describes its storage controls, and every frontend draws them with its own components.
   The `storage` of a storage plugin's class holds `controls()`, which gives the controls in order, and `subscribe()`, which calls back whenever they change, in place of `save()` and `open()`.
-  A storage control is a button, a menu of further controls or a status, and it may ask for the end of the frontend's bar with the hint `placement: "end"`.
+  A storage control is a button, a menu of further controls or a status.
   The controls save and open boards themselves, and leave out what a lock fixes.
   Core's own storage plugin, whose class, `blockr.core-file_storage_plugin`, core registers as it starts, gives two buttons: Save, which saves the board as a download, and Open, which opens an upload and which it leaves out under the load lock (#567).
-* Core's basic frontend draws the storage controls that `core.plugins.storage()` gives at the end of its toolbar, those that ask for the end of the bar after the others, and none where the app runs no storage plugin.
+* Core's basic frontend draws the storage controls that `core.plugins.storage()` gives at the end of its toolbar, and none where the app runs no storage plugin.
   It draws them again whenever `subscribe()` calls back, binds the `shortcut` of each button, such as `Mod+S`, and tells the user why a button failed.
   It shows the UI of each plugin whose class has a `ui` in a section of its own, beside the board on a wide page and above it on a narrow one.
   The user collapses or expands each plugin's section, and each stack's group of cards.

@@ -123,46 +123,35 @@ export interface Storage {
 // Its id names it within its list, the controls() or the items of a menu, and
 // a frontend may place a control of the top list by its id apart from the
 // rest.
-export type StorageControl = Hints &
-  (
-    | {
-        readonly kind: "button";
-        readonly id: string;
-        readonly label: string;
-        readonly tooltip?: string;
-        // Written as a command's shortcut is, such as "Mod+S", which a frontend
-        // binds, for a button inside a menu too.
-        readonly shortcut?: string;
-        readonly disabled?: boolean;
-        // What the button does. The plugin tells the user why it failed,
-        // through a notification of its own. A frontend logs a run() that
-        // rejects, as a fault of the plugin.
-        run(): Promise<void>;
-      }
-    | {
-        readonly kind: "menu";
-        readonly id: string;
-        readonly label: string;
-        // What opens from it: buttons, statuses and further menus.
-        readonly items: readonly StorageControl[];
-      }
-    | {
-        readonly kind: "status";
-        readonly id: string;
-        // Text that runs nothing, such as "Saved".
-        readonly text: string;
-        readonly tooltip?: string;
-      }
-  );
-
-// What a storage control asks of the frontend. A frontend honors a hint where
-// it can, and otherwise draws the control as if the hint were not there, as it
-// does with a hint that it does not know. It reads the hints of the controls
-// on its bar alone, and ignores those inside a menu.
-export interface Hints {
-  // Asks for the end of the frontend's bar, after the frontend's own parts.
-  readonly placement?: "end";
-}
+export type StorageControl =
+  | {
+      readonly kind: "button";
+      readonly id: string;
+      readonly label: string;
+      readonly tooltip?: string;
+      // Written as a command's shortcut is, such as "Mod+S", which a frontend
+      // binds, for a button inside a menu too.
+      readonly shortcut?: string;
+      readonly disabled?: boolean;
+      // What the button does. The plugin tells the user why it failed,
+      // through a notification of its own. A frontend logs a run() that
+      // rejects, as a fault of the plugin.
+      run(): Promise<void>;
+    }
+  | {
+      readonly kind: "menu";
+      readonly id: string;
+      readonly label: string;
+      // What opens from it: buttons, statuses and further menus.
+      readonly items: readonly StorageControl[];
+    }
+  | {
+      readonly kind: "status";
+      readonly id: string;
+      // Text that runs nothing, such as "Saved".
+      readonly text: string;
+      readonly tooltip?: string;
+    };
 
 // The plugin classes that packages define, by id.
 export interface Plugins {

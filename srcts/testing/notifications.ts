@@ -5,7 +5,7 @@ import type { CoreApi, Notification } from "../types/core-api.ts";
 
 // What a notification is of: the first class of R's condition, or the code of
 // core's or of a package's.
-export function codeOf(notification: Pick<Notification, "source">): string {
+export function notificationCode(notification: Pick<Notification, "source">): string {
   return notification.source.kind === "r" ? (notification.source.class[0] ?? "") : notification.source.code;
 }
 

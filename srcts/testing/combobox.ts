@@ -15,15 +15,15 @@ export function labelled(el: ParentNode, label: string): HTMLInputElement {
 }
 
 // The list that the dropdown of the field shows while it is open.
-export function listOf(field: HTMLInputElement): HTMLElement | null {
+export function listFromField(field: HTMLInputElement): HTMLElement | null {
   const id = field.getAttribute("aria-controls");
   return id === null ? null : field.ownerDocument.getElementById(id);
 }
 
 // The labels of the options that the open list of the field shows, by group
 // where it groups them, as "group: label".
-export function optionsOf(field: HTMLInputElement): string[] {
-  const list = listOf(field);
+export function optionLabels(field: HTMLInputElement): string[] {
+  const list = listFromField(field);
   if (list === null) return [];
   return [...list.querySelectorAll('[role="option"]')].map((option) => {
     const group = option.closest('[role="group"]');
@@ -34,8 +34,8 @@ export function optionsOf(field: HTMLInputElement): string[] {
 }
 
 // The option of the label given in the open list of the field.
-export function optionOf(field: HTMLInputElement, label: string): HTMLElement {
-  const found = [...(listOf(field)?.querySelectorAll('[role="option"]') ?? [])].find((option) => optionLabel(option) === label);
+export function optionFromLabel(field: HTMLInputElement, label: string): HTMLElement {
+  const found = [...(listFromField(field)?.querySelectorAll('[role="option"]') ?? [])].find((option) => optionLabel(option) === label);
   if (!(found instanceof HTMLElement)) throw new Error(`Found no option ${label} of ${field.id}.`);
   return found;
 }
@@ -46,7 +46,7 @@ export function choose(el: ParentNode, label: string, search: string, option: st
   const field = labelled(el, label);
   field.click();
   type(field, search);
-  optionOf(field, option).click();
+  optionFromLabel(field, option).click();
 }
 
 // What an option shows as its label, without the mark of a picked one.

@@ -189,7 +189,6 @@ export function createCore(parts: CoreParts): Core {
       value: (id) => (store.hasBoard() ? own(store.board().options, id) : undefined),
     },
     plugins: {
-      register: (def) => store.plugins.register(def),
       appPlugins: () => plugins.appPlugins(),
       pluginClass: (plugin) => plugins.pluginClass(plugin),
       storage: () => plugins.storage(),

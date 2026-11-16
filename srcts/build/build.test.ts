@@ -138,11 +138,11 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   const api = (await import(pathToFileURL(join(root, "inst/js", importFile(OTEL_API))).href)) as Record<string, unknown>;
   expect(Object.keys(api)).toEqual(expect.arrayContaining(["context", "default", "propagation", "trace"]));
 
-  // The import map names each import by its file, and the bundle of React,
-  // which the entry points of React import, beside them.
-  const map = JSON.parse(await read("import-map.json")) as { imports: Record<string, string>; files: string[] };
-  expect(map.imports).toEqual(Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])));
-  expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/)]);
+  // The import map names each import by its file, and nothing else, since R
+  // serves the files that those import, such as React's bundle, as files
+  // beside them.
+  const map = JSON.parse(await read("import-map.json")) as unknown;
+  expect(map).toEqual({ imports: Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])) });
 });
 
 test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {
@@ -175,10 +175,8 @@ test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module use
   expect(own).toContain("the otel module");
   expect(own).toContain(`from "./${sdk[0] ?? ""}"`);
   expect(own).not.toContain("maxExportBatchSize");
-  // R serves the file beside the module, as the import map names it, and the
-  // API as an import of its own.
-  const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { imports: Record<string, string>; files: string[] };
-  expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/), sdk[0]]);
+  // R serves the file beside the module, and the API as an import of its own.
+  const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { imports: Record<string, string> };
   expect(map.imports[OTEL_API]).toBe(importFile(OTEL_API));
 });
 

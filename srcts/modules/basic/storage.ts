@@ -10,8 +10,8 @@
 // 2. Of the controls of one list that share an id, it keeps the first, since
 //    it keys each control by its id.
 // 3. It leaves out a control of a kind that it does not know.
-// 4. It puts the controls that ask for the end of the bar after the others,
-//    and ignores the hints of the controls inside a menu.
+// 4. It draws the controls that are left in the order in which controls()
+//    gives them.
 // Where controls() throws, or gives what the frontend cannot read, no control
 // draws, and the toolbar shows a warning in their place. The dock's navbar
 // does the same with ids that two controls share and with controls() that
@@ -50,7 +50,7 @@ export function drawnControls(core: CoreApi): Drawn | undefined {
     const twice = new Set<string>();
     const controls = distinct(storage.controls({ core, plugin }), twice);
     return {
-      controls: [...controls.filter((c) => c.placement !== "end"), ...controls.filter((c) => c.placement === "end")],
+      controls,
       failed: false,
       ...(twice.size === 0
         ? {}
@@ -63,10 +63,10 @@ export function drawnControls(core: CoreApi): Drawn | undefined {
 
 // The buttons among the controls, those inside menus too, in the order in which
 // the toolbar draws them.
-export function buttonsOf(controls: readonly StorageControl[]): Button[] {
+export function buttonsFromControls(controls: readonly StorageControl[]): Button[] {
   return controls.flatMap((control) => {
     if (control.kind === "button") return [control];
-    if (control.kind === "menu") return buttonsOf(control.items);
+    if (control.kind === "menu") return buttonsFromControls(control.items);
     return [];
   });
 }
