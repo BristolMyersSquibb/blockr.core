@@ -286,7 +286,8 @@
   A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
 * While core starts, as the page starts and as another board opens, the page shows a small gray spinner over the line "Loading the board…" in the middle of the window.
   It fades in after a moment, so that a board that opens at once shows none.
-  R's page holds it from the start, so that it shows before the client's code has loaded, and the page takes the theme of the user's system until the board sets its own.
+  R's page holds it from the start, so that it shows before the client's code has loaded.
+  Until the board sets its theme, the page takes the theme of the board option `dark_mode` where R knows it, from the board's value or else the blockr option `dark_mode`, and otherwise the theme of the user's system.
   The spinner stays until the frontend draws, so that a frontend that first asks R for something, as the dock does, leaves no blank page.
   The page's head also names the files that the page imports as it starts, as `<link rel="modulepreload">`, so that the browser fetches them at once rather than each once the file that imports it has loaded.
   These are the modules of the app's plugins and of the board options, the UI modules and renderers of the classes of the opening board's blocks, and what these and the runtime import up front, as the build of each file's package lists it in the `preload.json` beside the file.

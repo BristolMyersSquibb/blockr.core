@@ -846,6 +846,60 @@ test_that("the page shows the loading note in the system's theme at once", {
   )
 })
 
+test_that("the page takes the theme of `dark_mode` where R knows it", {
+
+  withr::local_options(blockr.dark_mode = NULL)
+  withr::local_envvar(BLOCKR_DARK_MODE = NA)
+
+  # The theme for the blockr option given and the board's value, if any.
+  scheme <- function(option, board_value = NULL) {
+    withr::with_options(
+      list(blockr.dark_mode = option),
+      page_color_scheme(board_value)
+    )
+  }
+
+  # Where neither the board nor the blockr option sets it, the page takes the
+  # theme of the user's system.
+  expect_identical(page_color_scheme(), "light dark")
+
+  # The blockr option, read as the client reads it.
+  for (value in list(TRUE, "TRUE", " true ", "T", "dark")) {
+    expect_identical(scheme(value), "dark")
+  }
+  for (value in list(FALSE, "False", "F", "light")) {
+    expect_identical(scheme(value), "light")
+  }
+  withr::with_envvar(
+    c(BLOCKR_DARK_MODE = "TRUE"),
+    expect_identical(page_color_scheme(), "dark")
+  )
+
+  # A value that the board option does not take, or a blockr option set
+  # twice, leaves the theme of the user's system.
+  expect_identical(scheme("purple"), "light dark")
+  withr::with_envvar(
+    c(BLOCKR_DARK_MODE = "dark"),
+    expect_identical(scheme("light"), "light dark")
+  )
+
+  # The board's own value comes before the blockr option.
+  dark <- new_board(options = new_board_options(new_dark_mode_option("dark")))
+  value <- board_dark_mode(encode_message(blockr_ser(dark)))
+
+  expect_identical(value, "dark")
+  expect_identical(scheme("light", value), "dark")
+  expect_null(board_dark_mode(encode_message(blockr_ser(new_board()))))
+
+  page <- htmltools::renderTags(serve_page(color_scheme = "dark"))
+
+  expect_match(
+    page$head,
+    "<meta name=\"color-scheme\" content=\"dark\"/>",
+    fixed = TRUE
+  )
+})
+
 test_that("the page imports the modules of plugins, options and blocks", {
 
   plugins <- app_plugins(subset(available_plugins(), package == "blockr.core"))
