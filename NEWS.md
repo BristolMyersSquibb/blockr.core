@@ -225,6 +225,8 @@
 * R's `ok` reply to a request or an output carries `conditions`, as its reply to an evaluation does: every message and warning that the request's function or the output's coercion raised.
   R logs each of them.
   Core raises a notification for each condition of an `ok` reply to a request or an output (#601, #606).
+  On the `CoreApi` for tests, R's reply to a request carries the messages and warnings that the option `conditions` of `stubCore()` gives, before the error of an `answer` that throws.
+  Its reply to an output carries those that the option `output` gives beside the output (#654).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
   It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.

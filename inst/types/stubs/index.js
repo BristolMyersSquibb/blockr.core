@@ -14627,24 +14627,26 @@ function fixtureR(hello, options) {
         if (held3?.revision !== request.revision) {
           return [{ id: id2, status: "missing", missing: [{ block: request.block, revision: request.revision }] }];
         }
-        const made = options.output?.(request) ?? sample(held3.registry_id);
+        const given = options.output?.(request);
+        const made = given ?? sample(held3.registry_id);
         if (made === void 0) return [failed2(id2, "output", `The fixtures hold no output of block "${request.block}".`)];
-        const reply = { id: id2, status: "ok", output: made.output, conditions: [] };
+        const reply = { id: id2, status: "ok", output: made.output, conditions: [...given?.conditions ?? []] };
         return made.body === void 0 ? [reply] : [{ ...reply, body: { type: made.body.type } }, made.body];
       }
       default: {
+        const raised = [...options.conditions?.(request) ?? []];
         let answer2;
         try {
           answer2 = await options.answer?.(request, body);
         } catch (error) {
-          return [failed2(id2, "request", errorMessage(error))];
+          return [failed2(id2, "request", errorMessage(error), raised)];
         }
         if (answer2 === void 0) return [failed2(id2, "request", `The test gives no answer to the request ${JSON.stringify(request)}.`)];
         if (answer2 instanceof Blob) {
           const announced = answer2 instanceof File ? { type: answer2.type, name: answer2.name } : { type: answer2.type };
-          return [{ id: id2, status: "ok", body: announced, conditions: [] }, answer2];
+          return [{ id: id2, status: "ok", body: announced, conditions: raised }, answer2];
         }
-        return [{ id: id2, status: "ok", value: answer2, conditions: [] }];
+        return [{ id: id2, status: "ok", value: answer2, conditions: raised }];
       }
     }
   }
@@ -14659,11 +14661,11 @@ function fixtureR(hello, options) {
   }
   return { transport, sent: sent2, pending: () => pending };
 }
-function failed2(id2, phase, message) {
+function failed2(id2, phase, message, before = []) {
   return {
     id: id2,
     status: "error",
-    conditions: [{ severity: "error", class: ["blockr_error", "error", "condition"], phase, message }]
+    conditions: [...before, { severity: "error", class: ["blockr_error", "error", "condition"], phase, message }]
   };
 }
 export {

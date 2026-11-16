@@ -33,6 +33,7 @@ import type { Measure } from "../mount/index.ts";
 import { coreOptions } from "../options/index.ts";
 import type {
   ClientMessage,
+  Condition,
   EvaluateReply,
   EvaluateRequest,
   Fixture,
@@ -121,12 +122,24 @@ export interface StubCoreOptions {
   // What R replies to an evaluation, beside its id, block and revision, ok
   // with no conditions unless given.
   readonly evaluate?: (request: EvaluateRequest) => Partial<Omit<EvaluateReply, "id" | "block" | "revision">> | undefined;
-  // The output that R makes, the first sample output of the renderer that the
-  // block's class names unless given.
-  readonly output?: (request: OutputRequest) => { output: BlockOutput & Record<string, Json>; body?: Blob } | undefined;
+  // The output that R makes, and the messages and warnings that R's reply
+  // carries with it, as the output's coercion raised them.
+  // R makes the first sample output of the renderer that the block's class
+  // names unless given, and its reply carries no conditions unless given.
+  readonly output?: (
+    request: OutputRequest,
+  ) => { output: BlockOutput & Record<string, Json>; body?: Blob; conditions?: readonly Condition[] } | undefined;
   // What R answers to a request of a block class, an output class, a
   // renderer, a board option or a plugin.
   readonly answer?: Answer;
+  // The messages and warnings that R's reply to such a request carries, as
+  // the request's function raised them, and none unless given.
+  // The reply carries them whether `answer` answers or throws.
+  // In a reply of error, they come before what `answer` threw, as R records
+  // each condition in the order it is raised.
+  // A reply to a request that `answer` gives no answer to carries none,
+  // since R then runs no function.
+  readonly conditions?: (request: Request) => readonly Condition[] | undefined;
   // The element in which core draws the board with its frontend. Without
   // one, core draws no frontend and lets the scheduler send once the board is
   // open.
@@ -321,24 +334,26 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
         if (held?.revision !== request.revision) {
           return [{ id, status: "missing", missing: [{ block: request.block, revision: request.revision }] }];
         }
-        const made = options.output?.(request) ?? sample(held.registry_id);
+        const given = options.output?.(request);
+        const made = given ?? sample(held.registry_id);
         if (made === undefined) return [failed(id, "output", `The fixtures hold no output of block "${request.block}".`)];
-        const reply: OutputReply = { id, status: "ok", output: made.output, conditions: [] };
+        const reply: OutputReply = { id, status: "ok", output: made.output, conditions: [...(given?.conditions ?? [])] };
         return made.body === undefined ? [reply] : [{ ...reply, body: { type: made.body.type } }, made.body];
       }
       default: {
+        const raised = [...(options.conditions?.(request) ?? [])];
         let answer: Json | Blob | undefined;
         try {
           answer = await options.answer?.(request, body);
         } catch (error) {
-          return [failed(id, "request", errorMessage(error))];
+          return [failed(id, "request", errorMessage(error), raised)];
         }
         if (answer === undefined) return [failed(id, "request", `The test gives no answer to the request ${JSON.stringify(request)}.`)];
         if (answer instanceof Blob) {
           const announced = answer instanceof File ? { type: answer.type, name: answer.name } : { type: answer.type };
-          return [{ id, status: "ok", body: announced, conditions: [] }, answer];
+          return [{ id, status: "ok", body: announced, conditions: raised }, answer];
         }
-        return [{ id, status: "ok", value: answer, conditions: [] }];
+        return [{ id, status: "ok", value: answer, conditions: raised }];
       }
     }
   }
@@ -360,10 +375,12 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
   return { transport, sent, pending: () => pending };
 }
 
-function failed(id: string, phase: "output" | "request", message: string): Reply {
+// R's reply of error: the conditions that R recorded before the error, and
+// then the error, with the message given.
+function failed(id: string, phase: "output" | "request", message: string, before: readonly Condition[] = []): Reply {
   return {
     id,
     status: "error",
-    conditions: [{ severity: "error", class: ["blockr_error", "error", "condition"], phase, message }],
+    conditions: [...before, { severity: "error", class: ["blockr_error", "error", "condition"], phase, message }],
   };
 }
