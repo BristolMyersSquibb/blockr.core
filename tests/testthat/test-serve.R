@@ -846,6 +846,97 @@ test_that("the page shows the loading note in the system's theme at once", {
   )
 })
 
+test_that("the page imports the modules of plugins, options and blocks", {
+
+  plugins <- app_plugins(subset(available_plugins(), package == "blockr.core"))
+  board <- served_board()
+  registry <- app_block_registry(board = board)
+
+  modules <- page_modules(encode_message(blockr_ser(board)), registry, plugins)
+
+  expect_setequal(
+    chr_xtr(modules, "path"),
+    c(
+      chr_xtr(lst_xtr(plugins, "module"), "path"),
+      chr_xtr(lst_xtr(loaded_options(), "module"), "path"),
+      "js/dataset-block.js",
+      "js/head-block.js",
+      "js/basic-table.js"
+    )
+  )
+  # The dataset block and the head block share their renderer.
+  expect_length(modules, length(unique(chr_xtr(modules, "path"))))
+})
+
+test_that("the page names the files that it imports, which R serves at once", {
+
+  # A module of its own content, which R serves nowhere yet.
+  dir <- withr::local_tempdir()
+  file <- file.path(dir, "my-block.js")
+  writeLines(paste0("export const dir = ", deparse(dir), ";"), file)
+  writeLines(".my-block {}", file.path(dir, "my-block.css"))
+
+  module <- js_module(file, package = NULL)
+  missing <- js_module("js/missing-block.js", package = "blockr.core")
+
+  copy <- file.path(
+    served_dir(), "blockr-modules", file_hash(file), "my-block.js"
+  )
+  expect_false(file.exists(copy))
+
+  page <- htmltools::renderTags(serve_page(modules = list(module, missing)))
+
+  # R serves the module as the page names it, before any reply to `hello`.
+  expect_true(file.exists(copy))
+
+  # The start of the link to the URL given, up to where the URL ends.
+  link <- function(url, rel = "modulepreload") {
+    paste0("<link rel=\"", rel, "\" href=\"./", url)
+  }
+
+  expect_match(
+    page$head,
+    link("blockr.core/js/blockr-core.js?v="),
+    fixed = TRUE
+  )
+
+  # A file that the import map names comes at the URL that the map gives it,
+  # and React's bundle, which a file of the map imports, without the hash.
+  map <- sub(".*<script type=\"importmap\">(.*)</script>.*", "\\1",
+             page$dependencies[[1L]]$head)
+  imports <- unlst(yyjsonr::read_json_str(map)[["imports"]])
+  files <- yyjsonr::read_json_file(
+    system.file("js", "preload.json", package = "blockr.core")
+  )
+
+  for (file in files) {
+    url <- grep(paste0("/", file, "?v="), imports, fixed = TRUE, value = TRUE)
+    if (length(url)) {
+      expect_match(page$head, link(paste0(sub("^./", "", url), "\"")),
+                   fixed = TRUE)
+    } else {
+      expect_match(page$head, link(paste0("blockr.core/js/", file, "\"")),
+                   fixed = TRUE)
+    }
+  }
+
+  served <- served_module(module)
+
+  expect_match(
+    page$head,
+    link(paste0(served[["module"]], "\"")),
+    fixed = TRUE
+  )
+  expect_match(
+    page$head,
+    link(paste0(served[["css"]], "\" as=\"style\"/>"), "preload"),
+    fixed = TRUE
+  )
+
+  # A module whose file R cannot find gets no link.
+  expect_no_match(page$head, "missing-block", fixed = TRUE)
+})
+
 test_that("in Shiny's test mode, the page puts out blockrTest", {
 
   # Outside test mode, the page loads nothing for end-to-end tests.

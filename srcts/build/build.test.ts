@@ -44,8 +44,9 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   await build(root);
 
   const out = join(root, "inst/js");
-  // Beside them, the build writes React's entry points and the import map.
-  expect((await readdir(out)).filter((file) => !/^react|^import-map/.test(file)).sort()).toEqual([
+  // Beside them, the build writes React's entry points, the import map and
+  // the files that a page imports as it starts.
+  expect((await readdir(out)).filter((file) => !/^react|^import-map|^preload/.test(file)).sort()).toEqual([
     "blockr-core.css",
     "blockr-core.js",
     "head-block.css",
@@ -72,7 +73,7 @@ test("writes each of React's entry points as an ES module, exporting what the en
   const bundles = (await readdir(out)).filter((file) => /^react-[0-9a-f]{8}\.js$/.test(file));
   expect(bundles).toHaveLength(1);
   expect(written).toEqual(
-    ["blockr-core.js", "import-map.json", ...bundles, ...REACT_ENTRIES.map(importFile)].map((file) => `inst/js/${file}`).sort(),
+    ["blockr-core.js", "import-map.json", "preload.json", ...bundles, ...REACT_ENTRIES.map(importFile)].map((file) => `inst/js/${file}`).sort(),
   );
   // The bundle keeps React's license comments.
   expect(await readFile(join(out, bundles[0] ?? ""), "utf8")).toContain("@license React");
@@ -103,7 +104,7 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
     "srcts/binding/index.ts": "export const binding = 'the binding';\n",
     "srcts/controls/index.ts": 'import { input } from "../inputs/index.ts";\nexport const controls = "the controls " + input;\n',
     "srcts/otel/index.ts": "export const otel = 'the otel module';\n",
-    "srcts/runtime/index.ts": `${imports("..")}import { trace } from "@opentelemetry/api";\nexport const tracer = trace.getTracer("blockr.core");\nexport const otel = () => import("../otel/index.ts");\n`,
+    "srcts/runtime/index.ts": `${imports("..")}import { trace } from "@opentelemetry/api";\nimport { version } from "react";\nexport const tracer = trace.getTracer("blockr.core", version);\nexport const otel = () => import("../otel/index.ts");\n`,
     "srcts/modules/head-block/index.ts": imports("../.."),
   });
 
@@ -143,6 +144,14 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   // beside them.
   const map = JSON.parse(await read("import-map.json")) as unknown;
   expect(map).toEqual({ imports: Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])) });
+
+  // A page imports up front what the runtime and the SDK import, React's
+  // bundle through the entry point that the runtime imports, but not the
+  // OpenTelemetry module, which the runtime imports only as it loads it.
+  const bundle = (await readdir(join(root, "inst/js"))).find((file) => /^react-[0-9a-f]{8}\.js$/.test(file));
+  expect(JSON.parse(await read("preload.json"))).toEqual(
+    [importFile("@blockr/core/react"), importFile("@blockr/core/binding"), importFile("@blockr/core/controls"), importFile(OTEL_API), importFile("react"), bundle].sort(),
+  );
 });
 
 test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {

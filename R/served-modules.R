@@ -183,3 +183,56 @@ import_map <- function() {
     )
   )
 }
+
+# The links in the page's head that have the browser fetch the files that the
+# page imports as it starts, all at once as the page loads, rather than each
+# once the file that imports it has loaded.
+# They name core's runtime, at the URL given, the files that the runtime and
+# core's React SDK import, which core's build lists in inst/js/preload.json,
+# and the `modules` given, as `<link rel="modulepreload">`, and the stylesheet
+# beside each of these modules as `<link rel="preload">`.
+# The browser runs what it fetched for a link only where an import names the
+# same URL.
+# So a file that the import map names gets the URL that the map gives it.
+# A file that no import names, such as React's bundle, which a file of the map
+# imports by its name, gets the URL without the hash.
+# R serves each module as it names it here, so that a fresh app serves the
+# module of a package before the first reply to `hello` names it.
+# A module whose file R cannot find gets no link.
+preload_links <- function(runtime, modules = list()) {
+
+  map <- yyjsonr::read_json_file(
+    system.file("js", "import-map.json", package = "blockr.core")
+  )
+  files <- yyjsonr::read_json_file(
+    system.file("js", "preload.json", package = "blockr.core")
+  )
+
+  imported <- as.character(unlst(map[["imports"]]))
+
+  core <- chr_ply(
+    as.character(files),
+    function(file) {
+      path <- file.path("js", file)
+      url <- served_url(js_module(path, package = "blockr.core"))
+      if (file %in% imported) url else url_path("blockr.core", path)
+    }
+  )
+
+  found <- Filter(function(x) nzchar(module_file(x)), modules)
+  served <- lapply(found, served_module)
+
+  scripts <- unique(c(runtime, core, chr_xtr(served, "module")))
+  styles <- unique(as.character(unlst(lst_xtr(served, "css"))))
+
+  shiny::tagList(
+    lapply(
+      paste0("./", scripts),
+      function(url) shiny::tags$link(rel = "modulepreload", href = url)
+    ),
+    lapply(
+      paste0("./", styles),
+      function(url) shiny::tags$link(rel = "preload", href = url, as = "style")
+    )
+  )
+}

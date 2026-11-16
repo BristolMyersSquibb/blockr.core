@@ -350,6 +350,8 @@ check_outside_classes <- function(classes) {
 # It works out the logger afresh, so that a logger that cannot work stops the
 # app here, and so does a logger of the client's that cannot (see
 # `write_log()`).
+# R also works out here which modules the page imports as it starts, which the
+# page names for the browser to fetch at once (see `page_modules()`).
 serve_app <- function(board, registry, data = list(), alone = FALSE,
                       plugins = list(), frontend = as_json_object(list())) {
 
@@ -365,8 +367,10 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
   # names, so that two packages that list one stop the app here.
   loaded_options()
 
+  modules <- page_modules(board, registry, plugins)
+
   shiny::shinyApp(
-    ui = function(req) serve_page(alone),
+    ui = function(req) serve_page(alone, modules = modules),
     server = function(input, output, session) {
 
       ev <- new_evaluator(
@@ -382,6 +386,37 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
       )
     }
   )
+}
+
+# The modules that the page imports as it starts, for the opening board given
+# as JSON.
+# Core imports the module of each of the app's plugins, `plugins`, and of each
+# board option that the loaded packages list, before it opens the board.
+# The frontend then imports the UI module of the class of each block on the
+# board, and the module of the class's renderer, from the app's block
+# registry, `registry`.
+# A block whose class the registry lacks adds nothing, since the board fails
+# to open with it.
+page_modules <- function(board, registry, plugins = list()) {
+
+  json <- if (inherits(board, "json")) board else encode_message(board)
+  blocks <- decode_message(json)[["board"]][["blocks"]]
+
+  ids <- unique(as.character(unlst(lst_xtr(blocks, "registry_id"))))
+  ids <- intersect(ids, ls(envir = registry))
+
+  entries <- lapply(ids, get_registry_entry, registry)
+  coercions <- output_coercions()
+  renderers <- Filter(not_null, lapply(entries, entry_renderer, coercions))
+
+  modules <- c(
+    lst_xtr(plugins, "module"),
+    lst_xtr(loaded_options(), "module"),
+    lst_xtr(entries, "ui"),
+    lst_xtr(renderers, "module")
+  )
+
+  unique(Filter(not_null, unname(modules)))
 }
 
 # The latest result of each block that the evaluator holds one for, by block
@@ -413,6 +448,8 @@ latest_results <- function(ev, alone = FALSE) {
 # The page takes the theme that the user's system prefers until then, as the
 # board option `dark_mode` does by default, rather than a light page that turns
 # dark as the board opens.
+# Its head names the files that the page imports as it starts, the `modules`
+# given among them, for the browser to fetch at once (see `preload_links()`).
 # R makes the page for each request, so that its URLs name the files that R
 # serves now.
 # In Shiny's test mode, as shinytest2 starts an app, the module script also
@@ -420,7 +457,8 @@ latest_results <- function(ev, alone = FALSE) {
 # it returns on `window`, for the tests to read.
 # A page outside test mode loads none of that module.
 serve_page <- function(alone = FALSE,
-                       test = isTRUE(shiny::getShinyOption("testmode"))) {
+                       test = isTRUE(shiny::getShinyOption("testmode")),
+                       modules = list()) {
 
   runtime <- served_module(core_runtime())
 
@@ -436,7 +474,8 @@ serve_page <- function(alone = FALSE,
     import_map_dependency(),
     shiny::tags$head(
       shiny::tags$meta(name = "color-scheme", content = "light dark"),
-      shiny::tags$link(rel = "stylesheet", href = runtime[["css"]])
+      shiny::tags$link(rel = "stylesheet", href = runtime[["css"]]),
+      preload_links(runtime[["module"]], modules)
     ),
     shiny::tags$div(id = "blockr-page", loading_note()),
     shiny::tags$script(type = "module", shiny::HTML(script))

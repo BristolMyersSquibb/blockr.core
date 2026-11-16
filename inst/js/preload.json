@@ -1,0 +1,10 @@
+[
+  "blockr-core-binding.js",
+  "blockr-core-react.js",
+  "opentelemetry-api.js",
+  "react-963521e2.js",
+  "react-dom-client.js",
+  "react-dom.js",
+  "react-jsx-runtime.js",
+  "react.js"
+]
