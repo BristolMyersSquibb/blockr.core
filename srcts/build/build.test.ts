@@ -222,6 +222,26 @@ test("writes the licenses of the code from other projects in its files into LICE
   expect(text).toContain(`tailwindcss ${await version("tailwindcss")}, in blockr-core.css\n\n${tailwind.trimEnd()}\n`);
 });
 
+test("names the word lists that the words of ids are picked from beside each file that holds the words", async () => {
+  await write({
+    "srcts/store/words.ts": 'export const adjectives = ["calm"];\nexport const animals = ["heron"];\n',
+    "srcts/runtime/index.ts": 'import { adjectives, animals } from "../store/words.ts";\nexport const id = `${adjectives[0]}_${animals[0]}`;\n',
+    "srcts/build/licenses/word-lists/LICENSE": "The license of the word lists\n",
+  });
+
+  await build(root);
+
+  expect(await readFile(join(root, "inst/js/LICENSES"), "utf8")).toContain(
+    [
+      "The word lists of adjective-adjective-animal, by Grant Forrest, in blockr-core.js",
+      "The word lists of the R package ids, by Rich FitzJohn, in blockr-core.js",
+      "",
+      "The license of the word lists",
+      "",
+    ].join("\n"),
+  );
+});
+
 test("takes the license of a package that npm installs without one from srcts/build/licenses, and fails for a package with neither", async () => {
   await write({
     "node_modules/@scope/own/package.json": JSON.stringify({
@@ -497,18 +517,28 @@ test("writes the schemas of core's board options beside their modules", async ()
   });
 });
 
-test("writes the words that ids are made of, one word a line, for R", async () => {
+test("writes the words that ids are made of, one word a line, for R, with the license of their word lists", async () => {
   await write({
     "srcts/store/words.ts": [
       'export const adjectives = ["calm", "keen"];',
       'export const animals = ["heron"];',
       "",
     ].join("\n"),
+    "srcts/build/licenses/word-lists/LICENSE": "The license of the word lists\n",
   });
 
-  expect(await idWords(root)).toEqual(["inst/ids/adjectives.txt", "inst/ids/animals.txt"]);
+  expect(await idWords(root)).toEqual(["inst/ids/adjectives.txt", "inst/ids/animals.txt", "inst/ids/LICENSES"]);
   expect(await readFile(join(root, "inst", "ids", "adjectives.txt"), "utf8")).toBe("calm\nkeen\n");
   expect(await readFile(join(root, "inst", "ids", "animals.txt"), "utf8")).toBe("heron\n");
+  expect(await readFile(join(root, "inst", "ids", "LICENSES"), "utf8")).toBe(
+    [
+      "The word lists of adjective-adjective-animal, by Grant Forrest, in adjectives.txt and animals.txt",
+      "The word lists of the R package ids, by Rich FitzJohn, in adjectives.txt and animals.txt",
+      "",
+      "The license of the word lists",
+      "",
+    ].join("\n"),
+  );
 });
 
 test("writes no words without the module they come from", async () => {

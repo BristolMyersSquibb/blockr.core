@@ -6,7 +6,9 @@
 // They are familiar and neutral words of at most six letters, picked from the
 // word lists of the R package ids, copyright 2017 Rich FitzJohn, which took
 // them from adjective-adjective-animal, copyright 2021 Grant Forrest, both
-// under the MIT License, as inst/ids/LICENSE gives it.
+// under the MIT License.
+// The build writes that license, from srcts/build/licenses/word-lists, into
+// the LICENSES beside each file that holds the words.
 
 export const adjectives: readonly string[] = [
   "ablaze",
