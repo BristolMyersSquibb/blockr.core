@@ -288,10 +288,10 @@ export function createCore(parts: CoreParts): Core {
 }
 
 // The store and the command registry as plugins see them, through CoreApi.
-// Where either refuses an edit of the origin "user", a command, a delta, an
-// undo or a redo, core tells the user why through a notification of the code
-// `board_edit_failed`, and the call still rejects or throws with the reason, as
-// Notifications has it
+// Where either refuses an edit of the origin "user", a command, a list of
+// commands, a delta, an undo or a redo, core tells the user why through a
+// notification of the code `board_edit_failed`, and the call still rejects or
+// throws with the reason, as Notifications has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications).
 // - The notification concerns the board, since core knows the origin of an
 //   edit but not the plugin that made it, so a frontend does not show it on a
@@ -328,6 +328,14 @@ function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAga
       throw error;
     }
   }
+  // Waits for a command, or a list of commands, that the command registry
+  // runs, and tells the user why the command registry or the store refused it.
+  function ran(origin: Origin | undefined, running: Promise<void>): Promise<void> {
+    return running.catch((error: unknown) => {
+      refused(origin, error);
+      throw error;
+    });
+  }
   return {
     store: {
       ...store,
@@ -351,11 +359,13 @@ function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAga
     },
     commands: {
       ...commands,
-      run: (id, args, origin) =>
-        commands.run(id, args, origin).catch((error: unknown) => {
-          refused(origin, error);
-          throw error;
-        }),
+      run(target: string | readonly { readonly id: string; readonly args?: Json }[], given?: Json, origin?: Origin) {
+        if (typeof target === "string") return ran(origin, commands.run(target, given, origin));
+        // A list comes with its origin second, in place of the args, as the
+        // command registry takes it.
+        const listed = typeof given === "string" ? given : undefined;
+        return ran(listed, commands.run(target, listed));
+      },
     },
   };
 }

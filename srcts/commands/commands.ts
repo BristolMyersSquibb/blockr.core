@@ -5,6 +5,12 @@
 // given, so that every edit, whoever makes it, passes the store's checks.
 // The step is one undo step, unless the command has `undo: false` or the step
 // sets or removes only board option values (../store/store.ts).
+// A list of commands runs as one step too, as the assistant's edit tool runs
+// one. The command registry plans each command on the board that the deltas
+// of the commands before it leave, which a dry run of the store gives. Then it
+// applies the deltas of every command, or none where one command refuses.
+// That step is one undo step unless every command of the list has
+// `undo: false`.
 // Beside the board and its args, the command registry hands every command its
 // context: what the app fixes for the page.
 // Core creates a command registry for each store and hands it to plugins,
@@ -18,7 +24,9 @@
 // span failed. The span goes under the span that is active as run() is called,
 // so that a plugin that runs a command inside a span of its own, as the
 // assistant's tools do, holds the command in its trace. It names the command
-// by its id and the step's origin, as "assistant". The span is active while
+// by its id and the step's origin, as "assistant". A list of commands runs in
+// one span, "command list", which names the ids of its commands in order,
+// since the store applies their deltas as one step. The span is active while
 // the command prepares and runs, and while the store applies its deltas, so
 // that the scheduler takes it as what gave each block that the deltas change
 // its revision, and the span of the block's evaluation links to it.
@@ -35,14 +43,15 @@
 // The API's context is named apart from the context that the command registry
 // hands every command.
 import { context as otelContext, trace } from "@opentelemetry/api";
+import type { Attributes } from "@opentelemetry/api";
 import { computed, signal } from "@preact/signals-core";
 import { log } from "../log/index.ts";
 import type { Lock } from "../protocol/index.ts";
-import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS } from "../store/index.ts";
+import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS, StoreError } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
-import { failSpan, tracer } from "../trace/index.ts";
+import { failSpan, keepContext, tracer } from "../trace/index.ts";
 import { compile, errorMessage, packageFromId, quoted } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
@@ -117,30 +126,69 @@ export interface Commands {
   // step is an undo step unless the command has `undo: false`. A command that
   // does not prepare is applied before run() returns.
   run(id: string, args?: Json, origin?: Origin): Promise<void>;
+  // Runs the commands of the list in order, each planned on the board that the
+  // deltas of the commands before it leave, and applies the deltas of every
+  // command as one step of the origin, "user" unless given. Where a command
+  // refuses, it applies none and rejects with a CommandError that gives the
+  // command's index. The step is an undo step unless every command of the
+  // list has `undo: false`. A list whose commands do not prepare is applied
+  // before run() returns.
+  run(list: readonly { readonly id: string; readonly args?: Json }[], origin?: Origin): Promise<void>;
   // The deltas the command returns on the current board, not applied, with
   // the edit ids of the board they were built on, so that the store refuses
   // them once another edit has come first.
   plan(id: string, args?: Json): Promise<Delta[]>;
+  // The deltas of the commands of the list in order, each built on the board
+  // that the deltas of the commands before it leave, not applied. It rejects
+  // where run() would reject for the list. The deltas name the edit ids of the
+  // board that the list was planned on.
+  plan(list: readonly { readonly id: string; readonly args?: Json }[]): Promise<Delta[]>;
 }
 
 // What the command registry rejects with where it refuses to run a command, or
 // a command fails, with each failure in a sentence. What the store refuses it
-// rejects with as the store throws it.
+// rejects with as the store throws it, but for a command of a list.
+// Where it refuses a list, the CommandError gives the index of the command
+// that refused, and has what refused it as its cause: the command's own
+// CommandError, or the StoreError with which the store refused its deltas.
 export class CommandError extends Error {
   readonly failures: readonly string[];
+  // The command's place in the list that run() or plan() was given, counted
+  // from 0, where the command refused as one of a list.
+  readonly index?: number;
+  // False where the command failed its preflight, its preflight() answering
+  // false, and left out otherwise, as a command's `undo` is false only where it
+  // takes no undo step. The assistant's edit tool reads it to tell the model
+  // what to check. A preflight() that throws the refusal() of its context
+  // leaves it out, since that refusal says why.
+  readonly preflight?: false;
 
-  constructor(message: string, failures: readonly string[], options?: ErrorOptions) {
+  constructor(
+    message: string,
+    failures: readonly string[],
+    options?: ErrorOptions & { readonly index?: number; readonly preflight?: false },
+  ) {
     super([message, ...failures.map((failure) => `- ${failure}`)].join("\n"), options);
     this.name = "CommandError";
     this.failures = failures;
+    if (options?.index !== undefined) this.index = options.index;
+    if (options?.preflight === false) this.preflight = false;
   }
 }
 
 // The CommandError of a command that refuses to run, with each failure in a
 // sentence.
-export function refusal(id: string, failures: readonly string[]): CommandError {
-  return new CommandError(`The command "${id}" refused to run`, failures);
+export function refusal(
+  id: string,
+  failures: readonly string[],
+  options?: { readonly preflight?: false },
+): CommandError {
+  return new CommandError(`The command "${id}" refused to run`, failures, options);
 }
+
+// Why the command registry drops a command that was still in its prepare() as
+// another board opened.
+const DROPPED = "A board opened while it prepared, which drops it.";
 
 interface Registered {
   readonly command: Command<Json, unknown>;
@@ -248,9 +296,11 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   function allow({ command, context }: Registered, board: Board, args: Json): void {
     const passes = attempt(command, () => command.preflight?.(board, args, context) ?? true);
     if (!passes) {
-      throw refusal(command.id, [
-        `It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`,
-      ]);
+      throw refusal(
+        command.id,
+        [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
+        { preflight: false },
+      );
     }
   }
 
@@ -274,23 +324,129 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   }
 
   async function prepared(item: Registered, board: Board, args: Json): Promise<Delta[]> {
-    const { command, context } = item;
-    let input: unknown;
-    try {
-      input = await command.prepare?.(board, args, context);
-    } catch (error) {
-      throw failed(command, error);
-    }
-    if (ended()) {
-      throw refusal(command.id, ["A board opened while it prepared, which drops it."]);
-    }
+    const { command } = item;
+    const input = await prepare(item, board, args);
+    if (ended()) throw refusal(command.id, [DROPPED]);
     const now = current(command.id);
     allow(item, now, args);
     return build(item, now, input);
   }
 
+  // What the command's prepare() resolves to, or a CommandError that names the
+  // command where it rejects.
+  async function prepare({ command, context }: Registered, board: Board, args: Json): Promise<unknown> {
+    try {
+      return await command.prepare?.(board, args, context);
+    } catch (error) {
+      throw failed(command, error);
+    }
+  }
+
+  // Plans the commands of a list in order, and hands their deltas to `then`,
+  // with the commands, as soon as the last command's deltas are built. So
+  // run() applies the deltas on the board that they were built on.
+  // The registry first checks every command's args against its schema. Then
+  // it plans each command as it plans one alone: the first on the store's
+  // board, and each later one on the board that a dry run of the deltas before
+  // it gives. The dry run checks those deltas as apply() would. A dry run
+  // follows the last command too, so that a refusal by the store always names
+  // the command whose deltas it refused.
+  // A command that prepares is built once its prepare() resolves. Where the
+  // board has changed meanwhile, the registry plans the list again from its
+  // first command, on the board as it is then. Each command keeps what its
+  // prepare() gave, so that none prepares twice, and each runs its preflight()
+  // again, as a command alone does once it has prepared.
+  // Whatever refuses a command, the store's refusal of its deltas included,
+  // rejects as a CommandError that gives the command's index.
+  async function planned<T>(
+    list: readonly { readonly id: string; readonly args?: Json }[],
+    then: (built: Delta[], listed: readonly Command<Json, unknown>[]) => T,
+  ): Promise<T> {
+    // The span of run(), active as planned() is called, which a command's
+    // prepare() and `then` run in after an await.
+    const within = keepContext();
+    const checked = list.map(({ id, args }, index) => {
+      try {
+        return lookup(id, args);
+      } catch (error) {
+        throw inList(index, id, error);
+      }
+    });
+    const [first] = checked;
+    if (first === undefined) return then([], []);
+
+    // What each command that prepares got from its prepare(), by its index.
+    const inputs = new Map<number, unknown>();
+    let built: Delta[] = [];
+    let again = true;
+    while (again) {
+      again = false;
+      built = [];
+      let start: Board;
+      try {
+        start = current(first.item.command.id);
+      } catch (error) {
+        throw inList(0, first.item.command.id, error);
+      }
+      let board = start;
+      for (const [index, { item, args }] of checked.entries()) {
+        const { command } = item;
+        try {
+          allow(item, board, args);
+          if (command.prepare !== undefined && !inputs.has(index)) {
+            inputs.set(index, await within(() => prepare(item, board, args)));
+            if (ended()) throw refusal(command.id, [DROPPED]);
+            if (store.board() !== start) {
+              again = true;
+              break;
+            }
+          }
+          built.push(...build(item, board, inputs.has(index) ? inputs.get(index) : args));
+          board = store.dryRun(built);
+        } catch (error) {
+          throw inList(index, command.id, error);
+        }
+      }
+    }
+    return within(() => then(built, checked.map(({ item }) => item.command)));
+  }
+
+  // Applies the deltas of the commands of a list as one step of the origin,
+  // which takes no undo step where every command of the list has
+  // `undo: false`. The list runs in one span, which names the ids of its
+  // commands in order, since the store applies their deltas at once.
+  function runList(list: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<void> {
+    const ids = list.map(({ id }) => id);
+    return traced("command list", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
+      planned(list, (built, listed) => {
+        const undo = listed.every((command) => command.undo === false) ? false : undefined;
+        store.apply(built, origin, { undo });
+      }),
+    );
+  }
+
+  // Runs a command, or a list of commands, in a span of its own, as the head
+  // of this file has it. The span is active as `run` is called, and `run`
+  // keeps it active after an await, as keepContext() keeps it. A refusal or a
+  // failure marks the span failed.
+  async function traced(name: string, attributes: Attributes, run: () => Promise<void>): Promise<void> {
+    const span = tracer().startSpan(name, { attributes });
+    try {
+      await otelContext.with(trace.setSpan(otelContext.active(), span), run);
+    } catch (error) {
+      failSpan(span, error);
+      throw error;
+    } finally {
+      span.end();
+    }
+  }
+
   // The delta with the edit id of each block and each plugin it changes,
-  // where it names none, from the board that the command read.
+  // where it names none, as the store holds it. For a command alone, that is
+  // the board that the command read. For a command of a list, it is the board
+  // that the list was planned on, as the store checks every delta of a step
+  // against the edit ids of the board that the step started on. So a block
+  // that an earlier command of the list adds gets no edit id.
   function withEdits(delta: Delta): Delta {
     const blocks = delta.blocks?.mod;
     const patches = delta.patches;
@@ -337,27 +493,26 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         return false;
       }
     },
-    async run(id, given, origin = "user") {
-      const span = tracer().startSpan(`command ${id}`, {
-        attributes: { "blockr.command.id": id, "blockr.delta.origin": origin },
-      });
-      const active = trace.setSpan(otelContext.active(), span);
-      try {
-        const { item, args } = otelContext.with(active, () => lookup(id, given));
-        const step = otelContext.with(active, () => deltas(item, args));
+    // A list comes with its origin second, in place of the args.
+    async run(
+      target: string | readonly { readonly id: string; readonly args?: Json }[],
+      given?: Json,
+      origin: Origin = "user",
+    ) {
+      if (typeof target !== "string") return runList(target, typeof given === "string" ? given : "user");
+      return traced(`command ${target}`, { "blockr.command.id": target, "blockr.delta.origin": origin }, async () => {
+        const within = keepContext();
+        const { item, args } = lookup(target, given);
+        const step = deltas(item, args);
         const ready = Array.isArray(step) ? step : await step;
-        otelContext.with(active, () => {
+        within(() => {
           store.apply(ready, origin, { undo: item.command.undo });
         });
-      } catch (error) {
-        failSpan(span, error);
-        throw error;
-      } finally {
-        span.end();
-      }
+      });
     },
-    async plan(id, given) {
-      const { item, args } = lookup(id, given);
+    async plan(target: string | readonly { readonly id: string; readonly args?: Json }[], given?: Json) {
+      if (typeof target !== "string") return planned(target, (built) => built);
+      const { item, args } = lookup(target, given);
       return deltas(item, args);
     },
   };
@@ -384,14 +539,30 @@ function isCommandId(id: string): boolean {
   return pkg !== null && id.length > pkg.length + 1;
 }
 
-// The CommandErrors that failed() logged, so that CoreApi does not log one
+// The CommandErrors that failed() logged, and those with which the command
+// registry refuses a list for one of them, so that CoreApi does not log one
 // again as it tells the user why an edit failed (../core/core.ts).
 const loggedErrors = new WeakSet<CommandError>();
 
-// Whether the command registry logged the error already, as what a command's
-// own code threw.
+// Whether the command registry logged what the error reports already, as
+// what a command's own code threw, alone or as one of a list.
 export function isLogged(error: unknown): boolean {
   return error instanceof CommandError && loggedErrors.has(error);
+}
+
+// The CommandError with which the command registry refuses a list, for what
+// refused the command at the index: the command's own CommandError, or the
+// StoreError with which the store refused its deltas. It keeps that error as
+// its cause, with its failures, and counts as logged where that error does.
+function inList(index: number, id: string, error: unknown): CommandError {
+  const named = error instanceof CommandError || error instanceof StoreError;
+  const refused = new CommandError(
+    `The list of commands was refused at command ${String(index + 1)}, "${id}"`,
+    named ? error.failures : [errorMessage(error)],
+    { cause: error, index, preflight: error instanceof CommandError ? error.preflight : undefined },
+  );
+  if (isLogged(error)) loggedErrors.add(refused);
+  return refused;
 }
 
 // What a command's own preflight(), prepare() or run() threw, as a CommandError

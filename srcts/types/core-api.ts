@@ -29,10 +29,10 @@ export interface CoreApi {
   // of the code `board_edit_failed`, and the call still throws the reason.
   readonly store: Store;
   // The command registry, for menus and shortcuts. Where it or the store
-  // refuses a command of the origin "user", core tells the user why through a
-  // notification of the code `board_edit_failed`, and run() still rejects
-  // with the reason. An edit of another origin, such as the assistant's, only
-  // rejects or throws.
+  // refuses a command, or a list of commands, of the origin "user", core tells
+  // the user why through a notification of the code `board_edit_failed`, and
+  // run() still rejects with the reason. An edit of another origin, such as
+  // the assistant's, only rejects or throws.
   readonly commands: Commands;
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
