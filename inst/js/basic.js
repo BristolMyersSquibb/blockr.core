@@ -1192,12 +1192,12 @@ function StackGroup({ stack, children }) {
   );
 }
 var TONES = {
-  ready: "bc:text-text-success",
-  failed: "bc:text-text-danger",
-  invalid: "bc:text-text-warning",
-  waiting: "bc:text-text-warning",
-  stale: "bc:text-text-muted",
-  unevaluated: "bc:text-text-muted"
+  ready: "bc:text-status-ready",
+  failed: "bc:text-status-failed",
+  invalid: "bc:text-status-invalid",
+  waiting: "bc:text-status-waiting",
+  stale: "bc:text-status-stale",
+  unevaluated: "bc:text-status-unevaluated"
 };
 function StatusBadge({ status }) {
   if (status === void 0) return null;

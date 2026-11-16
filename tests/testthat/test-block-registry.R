@@ -669,3 +669,19 @@ test_that("listed examples of an array type are lists", {
   expect_identical(listed_arg_example("a", list(type = "string")), "a")
   expect_identical(listed_arg_example("a", NULL), "a")
 })
+
+test_that("core's theme holds a color for each suggested category", {
+
+  css <- readLines(
+    system.file("js", "blockr-core.css", package = "blockr.core")
+  )
+
+  # The theme declares each category's color in a variable of its own, as
+  # `--bc-color-category-input: #0072b2;`
+  cats <- regmatches(
+    css,
+    regexpr("(?<=--bc-color-category-)[a-z]+(?=:)", css, perl = TRUE)
+  )
+
+  expect_setequal(cats, names(suggested_categories()))
+})

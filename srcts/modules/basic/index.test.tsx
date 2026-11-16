@@ -413,6 +413,28 @@ describe("a card", () => {
     expect(output("Merge").className).toContain("bc:flex-1");
   });
 
+  test("draws its block's status in the colour that core's theme holds for the status, which every plugin draws it in", async () => {
+    const { el } = await drawn({
+      evaluate: (request) =>
+        request.block === "b"
+          ? { status: "error", conditions: [{ severity: "error", class: ["simpleError", "error", "condition"], phase: "expr", message: "No rows" }] }
+          : undefined,
+    });
+
+    // The colours of the badge's word, which its dot takes as well.
+    const colours = (name: string): string[] => {
+      const shown = find(card(el, name), "header [data-status]");
+      expect(find(shown, '[aria-hidden="true"]').className).toContain("bc:bg-current");
+      return shown.className.split(" ").filter((cls) => cls.startsWith("bc:text-") && cls !== "bc:text-xs");
+    };
+    expect(badge(card(el, "Iris"))).toBe("ready");
+    expect(colours("Iris")).toEqual(["bc:text-status-ready"]);
+    expect(badge(card(el, "Head"))).toBe("failed");
+    expect(colours("Head")).toEqual(["bc:text-status-failed"]);
+    expect(badge(card(el, "Merge"))).toBe("waiting");
+    expect(colours("Merge")).toEqual(["bc:text-status-waiting"]);
+  });
+
   test("renames and removes its block from its menu, through core's commands", async () => {
     const { el, board } = await drawn();
 

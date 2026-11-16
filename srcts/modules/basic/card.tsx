@@ -198,16 +198,18 @@ export function StackGroup({ stack, children }: { stack: Stack; children: ReactN
   );
 }
 
+// The colour of each status, which core's theme holds, so that the badge draws
+// a status in the colour that every plugin draws it in (../../runtime/index.css).
 const TONES: Readonly<Record<Status, string>> = {
-  ready: "bc:text-text-success",
-  failed: "bc:text-text-danger",
-  invalid: "bc:text-text-warning",
-  waiting: "bc:text-text-warning",
-  stale: "bc:text-text-muted",
-  unevaluated: "bc:text-text-muted",
+  ready: "bc:text-status-ready",
+  failed: "bc:text-status-failed",
+  invalid: "bc:text-status-invalid",
+  waiting: "bc:text-status-waiting",
+  stale: "bc:text-status-stale",
+  unevaluated: "bc:text-status-unevaluated",
 };
 
-// The block's status, and whether R is evaluating it.
+// The block's status in its colour, and whether R is evaluating it.
 function StatusBadge({ status }: { status: BlockStatus | undefined }): ReactElement | null {
   if (status === undefined) return null;
   return (

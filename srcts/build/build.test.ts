@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { IMPORTS, OTEL_API, REACT_ENTRIES, importFile } from "../import-map/index.ts";
+import type { Status } from "../scheduler/index.ts";
 import { build, idWords, licenses, outputTypes, schemaFile, schemas, stylesheet } from "./build.ts";
 
 // The fixtures import and reference core's stylesheet, so that they test core's
@@ -432,6 +433,27 @@ test("draws what floats over the board on the page's background, which the dark 
   expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-bg-raised: Canvas;/);
   expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-bg-raised: color-mix\(in oklab, Canvas, currentColor 10%\);/);
   expect(css.replace(theme, "")).not.toContain("--bc-color-bg-raised:");
+});
+
+test("holds a color for each status of a block, lighter under the dark theme, and for each category of block classes, though no utility uses those", async () => {
+  await write({ "test.css": `@import "${core}";\n` });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  // The colors sit in the theme's layer, so that a frontend that sets one
+  // outside a layer wins over them.
+  const start = css.indexOf("@layer theme {");
+  const theme = css.slice(start, css.indexOf("\n}\n", start));
+  expect(css.replace(theme, "")).not.toMatch(/--bc-color-(status|category)-[a-z]+:/);
+  // Every status, as the type names them.
+  const statuses: Record<Status, null> = { unevaluated: null, stale: null, waiting: null, invalid: null, ready: null, failed: null };
+  for (const status of Object.keys(statuses)) {
+    expect(theme).toMatch(new RegExp(`:root, :host \\{[^}]*--bc-color-status-${status}: #`));
+    expect(theme).toMatch(new RegExp(`:root\\[data-bc-theme="dark"\\] \\{[^}]*--bc-color-status-${status}: #`));
+  }
+  // No UI of core's draws a category, whose color the dark theme keeps.
+  expect(theme).toMatch(/:root, :host \{[^}]*--bc-color-category-uncategorized: #/);
+  expect(theme).not.toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-category-/);
 });
 
 test("takes the face of core's UIs from the theme's sans, which a frontend sets", async () => {
