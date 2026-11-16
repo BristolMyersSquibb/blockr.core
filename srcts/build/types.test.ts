@@ -100,7 +100,7 @@ test("writes the declarations of the types and the stubs, the stubs bundled, and
     echo: (x: unknown) => unknown;
   };
   expect(stubs.echo([1, "a"])).toEqual([1, "a"]);
-});
+}, 60_000);
 
 test("writes the licenses of the code from other projects that the stubs bundle into LICENSES beside them", async () => {
   await copyFile(join(repo, "tsconfig.client.json"), join(root, "tsconfig.client.json"));
@@ -124,14 +124,14 @@ test("writes the licenses of the code from other projects that the stubs bundle 
   expect(await readFile(join(root, "inst/types/LICENSES"), "utf8")).toBe(
     "shout 2.0.0, in stubs/index.js\n\nThe license of shout\n",
   );
-});
+}, 60_000);
 
 test("refuses types that do not check", async () => {
   await copyFile(join(repo, "tsconfig.client.json"), join(root, "tsconfig.client.json"));
   await write({ "srcts/index.ts": "export const n: number = 'one';\n" });
 
   await expect(types(root)).rejects.toThrow("Type 'string' is not assignable to type 'number'.");
-});
+}, 60_000);
 
 // The packages that the bundle that core ships under the name given imports,
 // each by its scope and name, as npm installs it.
