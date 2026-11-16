@@ -126,6 +126,7 @@ new_evaluator <- function(board, data = list(), lock = NULL,
   ev$session_id <- session_id
   ev$started <- FALSE
   ev$shared <- character()
+  ev$packages <- character()
   ev$results <- new.env(parent = emptyenv())
   ev$queue <- list()
   ev$running <- NULL
@@ -300,6 +301,8 @@ receive_request <- function(ev, req, send) {
 # R forgets every block and drops every request still queued,
 # with what it held each block to without the load lock.
 # R loads no package for a `hello`, since the app's script has loaded them.
+# R keeps the packages that the reply names, by name, for the plugins'
+# requests that follow (see `request_call()`).
 start_session <- function(ev, req, send) {
 
   if (!is_string(req[["protocol"]])) {
@@ -321,6 +324,9 @@ start_session <- function(ev, req, send) {
   ev$started <- TRUE
   ev$shared <- intersect(evaluator_capabilities(ev), as.character(caps))
 
+  loaded <- loaded_reply(ev$registry, ev$plugins, ev$frontend)
+  ev$packages <- names(loaded[["packages"]])
+
   send(
     list(
       c(
@@ -330,7 +336,7 @@ start_session <- function(ev, req, send) {
           protocol = protocol_version(),
           capabilities = I(evaluator_capabilities(ev))
         ),
-        loaded_reply(ev$registry, ev$plugins, ev$frontend),
+        loaded,
         list(lock = ev$locks),
         ev$opening
       )

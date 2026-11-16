@@ -229,8 +229,9 @@
 * Every request names its type, one of core's: the requests of block classes, output classes, renderers, board options and plugins.
   No package adds a type of its own, and R replies `error` to a request of any other type.
   The package that ships a board option gives the board option's requests with a method of `board_option_requests()` for the board option's class, and the package of a plugin class gives the class's requests with a method of `plugin_requests()` for the class.
-  R calls a plugin's request with its args by name, the blocks that it reads in `reads`, each with its result and its block expression, and the request's body in `file`.
-  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430, #505).
+  R calls a plugin's request with its args by name, the blocks that it reads in `reads`, each with its result and its block expression, the names of the packages in R's reply to `hello` in `packages`, and the request's body in `file`.
+  R refuses a plugin's request whose args set `reads`, `packages` or `file`.
+  A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430, #505, #629).
 * Core's client draws table, text and plot outputs with renderers of its own, written in React: a table that pages and sorts through its output's parameters, printed text that scrolls at R's width, and a plot's PNG at the size it was drawn at.
   The package ships the one copy of React on the page, as an ES module for each of React's entry points that core's modules import, such as `react` and `react-dom/client`, all of which read one minified bundle of React.
   Core's React SDK holds what the renderers and core's UIs draw with.

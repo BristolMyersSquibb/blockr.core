@@ -88,6 +88,15 @@ R passes a plugin's request the blocks that it reads as well,
 in its argument \code{reads}, where the function takes one.
 That is a list by block ID, each a list of the block's \code{result} and the block
 expression \code{expr} that R built for it.
+R also passes a plugin's request the packages whose versions R sends in
+its reply to the client's \code{hello}, in the argument \code{packages},
+where the function takes one.
+Those are the packages that the app's block classes, the renderers of their
+outputs, the modules, the app's plugins, the board options and their
+renderers come from.
+The argument holds their names, as a character vector in sorted order.
+R binds \code{reads}, \code{packages} and \code{file} itself.
+It refuses a plugin's request in which the client passes one of them.
 A board option's request and a plugin's may write,
 so the client keeps none of their answers.
 R runs a plugin's request on a locked board as on any other.

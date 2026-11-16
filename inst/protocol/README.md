@@ -236,12 +236,14 @@ R calls a block class's request with each of its inputs bound to the result the 
 It calls a board option's request with its args by name, and an output class's request with its args, the result its output was made from, and the board option values and parameters that output was asked with ([What a package declares in R](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-a-package-declares-in-r)).
 It calls a plugin's request with its args by name, and with the results that the request reads in the argument `reads`, where its function takes one.
 That argument holds each result by block id, as a list of the block's `result` and the block expression `expr` that R built for it.
+R also passes a plugin's request the names of the packages in R's reply to `hello`, sorted, in the argument `packages`, where its function takes one ([The handshake](#the-handshake)).
 R calls a renderer's request as it calls an output class's, and the client keeps its answer as it keeps an output class's.
 A renderer brings requests of its own for what its output does not hold, such as the labels of a table's columns ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)).
 R checks the results that a request of any type reads, and replies `missing` where it lacks one, so that a request's function gets only results that R holds.
 R resolves the request of an output class, or of a renderer, against the class vector of the latest output that it made from that result, and replies `error` where it has made none.
 R passes the body that a request carries in the argument `file`, to a block class's action and to the request of an output class, a renderer, a board option or a plugin whose function takes `file`.
 That argument is a list of the path of the file that R wrote the bytes to, in `datapath`, and the file's `name`, `type` and `size`.
+A plugin's request that sets `reads`, `packages` or `file` in `args` gets an `error`, since R binds those arguments itself.
 
 R replies `ok` with the answer in `value`, which no schema describes, so that R writes it with every vector as an array, a length-one vector included, as `[150]`, and a module reads a single value as `answer[0]`. An answer that is a file, as a download is, comes as the reply's binary body, with no `value`.
 The reply also carries `conditions`: every message and warning that the request's function raised, with the phase `request` ([Conditions](#conditions)).

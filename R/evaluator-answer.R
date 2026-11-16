@@ -206,6 +206,8 @@ answer_output <- function(ev, job) {
 # A request, which R answers through `request_call()`, by the request's class.
 # First R checks the results that the request reads, whatever its type,
 # and replies `missing` where it lacks one.
+# R hands the method the app's block registry and the packages that R named
+# in its reply to `hello`.
 answer_object_request <- function(ev, job) {
 
   req <- job[["req"]]
@@ -218,7 +220,8 @@ answer_object_request <- function(ev, job) {
   call <- request_call(
     req,
     held_reads(ev, req[["reads"]]),
-    registry = ev$registry
+    registry = ev$registry,
+    packages = ev$packages
   )
 
   answer_call(job[["id"]], call, call[["volatile"]])

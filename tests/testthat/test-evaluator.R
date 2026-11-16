@@ -1499,6 +1499,70 @@ test_that("R calls a plugin's request with its args, reads and body", {
   )
 })
 
+test_that("R passes a plugin's request the packages of its reply to hello", {
+
+  got <- NULL
+
+  local_plugin_classes(
+    Notes = plugin_ctor(function() NULL, "notes_plugin", "blockr.notes")
+  )
+
+  local_versions(blockr.notes = "0.1.0")
+
+  testthat::local_mocked_s3_method(
+    "plugin_requests",
+    "notes_plugin",
+    function(x, ...) {
+      list(
+        skills = function(packages) {
+          got <<- packages
+          length(packages)
+        }
+      )
+    }
+  )
+
+  session <- local_evaluator(hello = FALSE)
+
+  session$receive(hello_message())
+  session$run()
+
+  hello <- last_reply(session)
+
+  skills <- function(id, args = obj()) {
+    list(
+      id = id,
+      kind = "request",
+      type = "plugin",
+      plugin = "blockr.notes-notes_plugin",
+      name = "skills",
+      args = args
+    )
+  }
+
+  session$sent <- list()
+
+  # The client may not name packages of its own.
+  session$receive(
+    list(skills("2"), skills("3", list(packages = list("blockr.dock"))))
+  )
+  session$run()
+
+  replies <- lapply(session$sent, `[[`, 1L)
+
+  expect_identical(hello$status, "ok")
+  expect_identical(got, names(hello$packages))
+  expect_contains(got, c("blockr.core", "blockr.notes"))
+
+  expect_identical(chr_xtr(replies, "id"), c("2", "3"))
+  expect_identical(replies[[1L]]$status, "ok")
+  expect_identical(replies[[2L]]$status, "error")
+  expect_identical(
+    condition_class(replies[[2L]]),
+    "plugin_request_args_invalid"
+  )
+})
+
 test_that("R checks what a request of any type reads, and forgets it", {
 
   local_request_types()

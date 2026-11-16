@@ -56,6 +56,15 @@
 #' in its argument `reads`, where the function takes one.
 #' That is a list by block ID, each a list of the block's `result` and the block
 #' expression `expr` that R built for it.
+#' R also passes a plugin's request the packages whose versions R sends in
+#' its reply to the client's `hello`, in the argument `packages`,
+#' where the function takes one.
+#' Those are the packages that the app's block classes, the renderers of their
+#' outputs, the modules, the app's plugins, the board options and their
+#' renderers come from.
+#' The argument holds their names, as a character vector in sorted order.
+#' R binds `reads`, `packages` and `file` itself.
+#' It refuses a plugin's request in which the client passes one of them.
 #' A board option's request and a plugin's may write,
 #' so the client keeps none of their answers.
 #' R runs a plugin's request on a locked board as on any other.
@@ -103,6 +112,8 @@ NULL
 # output from the result, the class vector of the latest output in `output`.
 # A request of a block class reads the class from the app's block registry,
 # which R hands it in `registry`.
+# A plugin's request passes its function the packages that R names in its
+# reply to `hello`, which R hands it by name in `packages`.
 # Core keeps the generic to itself, since no package adds a type.
 # R reads no request of another type, so the generic needs no default method.
 request_call <- function(x, reads, ...) {
@@ -171,9 +182,10 @@ request_call.option_request <- function(x, reads, ...) {
 # A plugin's request, which R finds by the ID of the plugin's class among the
 # requests of the class, which an available package lists.
 # Its function gets the blocks that the request reads in `reads`, each with its
-# result and its block expression alone, and the request's body in `file`.
+# result and its block expression alone, the packages that R names in its
+# reply to `hello` in `packages`, by name, and the request's body in `file`.
 #' @export
-request_call.plugin_request <- function(x, reads, ...) {
+request_call.plugin_request <- function(x, reads, packages, ...) {
 
   plugin <- x[["plugin"]]
   name <- x[["name"]]
@@ -203,10 +215,13 @@ request_call.plugin_request <- function(x, reads, ...) {
       name,
       x[["args"]],
       c(
-        list(reads = lapply(reads, `[`, c("result", "expr"))),
+        list(
+          reads = lapply(reads, `[`, c("result", "expr")),
+          packages = packages
+        ),
         Filter(not_null, list(file = x[["body"]]))
       ),
-      c("reads", "file"),
+      c("reads", "packages", "file"),
       "plugin_request_args_invalid"
     )
   )
