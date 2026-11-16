@@ -44,8 +44,9 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   await build(root);
 
   const out = join(root, "inst/js");
-  // Beside them, the build writes React's entry points and the import map.
-  expect((await readdir(out)).filter((file) => !/^react|^import-map/.test(file)).sort()).toEqual([
+  // Beside them, the build writes the vendor file, React's entry points and the
+  // import map.
+  expect((await readdir(out)).filter((file) => !/^react|^vendor-|^import-map/.test(file)).sort()).toEqual([
     "blockr-core.css",
     "blockr-core.js",
     "head-block.css",
@@ -69,13 +70,13 @@ test("writes each of React's entry points as an ES module, exporting what the en
   const written = await build(root);
 
   const out = join(root, "inst/js");
-  const bundles = (await readdir(out)).filter((file) => /^react-[0-9a-f]{8}\.js$/.test(file));
-  expect(bundles).toHaveLength(1);
+  const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
+  expect(vendor).toHaveLength(1);
   expect(written).toEqual(
-    ["blockr-core.js", "import-map.json", ...bundles, ...REACT_ENTRIES.map(importFile)].map((file) => `inst/js/${file}`).sort(),
+    ["blockr-core.js", "import-map.json", ...vendor, ...REACT_ENTRIES.map(importFile)].map((file) => `inst/js/${file}`).sort(),
   );
-  // The bundle keeps React's license comments.
-  expect(await readFile(join(out, bundles[0] ?? ""), "utf8")).toContain("@license React");
+  // The vendor file keeps React's license comments.
+  expect(await readFile(join(out, vendor[0] ?? ""), "utf8")).toContain("@license React");
 
   // Each entry point exports what React's does in production, bar the two
   // names that its development build alone exports.
@@ -85,6 +86,64 @@ test("writes each of React's entry points as an ES module, exporting what the en
     const exported = Object.keys(installed(name) as object).filter((key) => !["act", "captureOwnerStack"].includes(key));
     expect(Object.keys(module).sort()).toEqual([...exported, "default"].sort());
   }
+});
+
+test("bundles the packages that core's code imports beside React into the vendor file, minified, which the runtime and the modules import by its name", async () => {
+  await write({
+    "srcts/runtime/index.ts": [
+      'import { computed, signal } from "@preact/signals-core";',
+      'import { Validator } from "@cfworker/json-schema";',
+      'export const valid = (value: unknown) => new Validator({ type: "integer" }).validate(value).valid;',
+      "const n = signal(1);",
+      "const doubled = computed(() => n.value * 2);",
+      "export const double = (value: number) => {",
+      "  n.value = value;",
+      "  return doubled.value;",
+      "};",
+      "",
+    ].join("\n"),
+    "srcts/util/count.ts": 'import { signal } from "@preact/signals-core";\nexport const counter = () => signal(0);\nexport const label = "plain";\n',
+    "srcts/modules/head-block/index.ts": 'import { counter } from "../../util/count.ts";\nexport const read = () => counter().value;\n',
+    "srcts/modules/plain/index.ts": 'import { label } from "../../util/count.ts";\nexport const ui = label;\n',
+  });
+
+  const written = await build(root);
+
+  const out = join(root, "inst/js");
+  const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
+  expect(vendor).toHaveLength(1);
+  const file = vendor[0] ?? "";
+  expect(written).toContain(`inst/js/${file}`);
+  const read = (name: string) => readFile(join(out, name), "utf8");
+  // The packages' code, minified, without the paths of its sources, beside
+  // React's.
+  const bundled = await read(file);
+  expect(bundled).toContain("Cycle detected");
+  expect(bundled).toContain("Instance type");
+  expect(bundled).toContain("@license React");
+  expect(bundled).not.toContain("// node_modules/");
+  // The runtime and the module hold core's code alone, and import the packages
+  // from the vendor file, by its name beside them.
+  for (const name of ["blockr-core.js", "head-block.js"]) {
+    const own = await read(name);
+    expect(own).toContain(`from "./${file}"`);
+    expect(own).not.toContain("Cycle detected");
+    expect(own).not.toContain("Instance type");
+  }
+  // A module that uses none of the packages' names keeps no import of the
+  // vendor file, though it bundles code of core's that imports them.
+  expect(await read("plain.js")).not.toContain(file);
+  // The runtime runs on the packages in the vendor file.
+  const runtime = (await import(pathToFileURL(join(out, "blockr-core.js")).href)) as {
+    valid: (value: unknown) => boolean;
+    double: (value: number) => number;
+  };
+  expect(runtime.valid(3)).toBe(true);
+  expect(runtime.valid("3")).toBe(false);
+  expect(runtime.double(4)).toBe(8);
+  // R serves the vendor file beside the files that the import map names.
+  const map = JSON.parse(await read("import-map.json")) as { files: string[] };
+  expect(map.files).toEqual([file]);
 });
 
 test("builds the SDK, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
@@ -138,11 +197,11 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   const api = (await import(pathToFileURL(join(root, "inst/js", importFile(OTEL_API))).href)) as Record<string, unknown>;
   expect(Object.keys(api)).toEqual(expect.arrayContaining(["context", "default", "propagation", "trace"]));
 
-  // The import map names each import by its file, and the bundle of React,
-  // which the entry points of React import, beside them.
+  // The import map names each import by its file, and the vendor file, which
+  // the entry points of React import, beside them.
   const map = JSON.parse(await read("import-map.json")) as { imports: Record<string, string>; files: string[] };
   expect(map.imports).toEqual(Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])));
-  expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/)]);
+  expect(map.files).toEqual([expect.stringMatching(/^vendor-[0-9a-f]{8}\.js$/)]);
 });
 
 test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {
@@ -178,7 +237,7 @@ test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module use
   // R serves the file beside the module, as the import map names it, and the
   // API as an import of its own.
   const map = JSON.parse(await readFile(join(out, "import-map.json"), "utf8")) as { imports: Record<string, string>; files: string[] };
-  expect(map.files).toEqual([expect.stringMatching(/^react-[0-9a-f]{8}\.js$/), sdk[0]]);
+  expect(map.files).toEqual([expect.stringMatching(/^vendor-[0-9a-f]{8}\.js$/), sdk[0]]);
   expect(map.imports[OTEL_API]).toBe(importFile(OTEL_API));
 });
 
