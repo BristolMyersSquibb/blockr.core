@@ -325,6 +325,11 @@ write_block_class <- test_block_class(
 
 # Registers the write block of blockr.io, with its block_eval() method,
 # for the duration of `frame`.
+# R's reply to a hello names the version of each package that a block class
+# comes from.
+# So blockr.io is at the version 0.1.0, whatever the library holds.
+# Linting skips the call of local_versions(), a helper of another file, which
+# lintr does not see.
 local_write_block <- function(frame = parent.frame()) {
 
   testthat::local_mocked_s3_method(
@@ -336,6 +341,11 @@ local_write_block <- function(frame = parent.frame()) {
       }
       NextMethod()
     },
+    frame = frame
+  )
+
+  local_versions( # nolint: object_usage_linter.
+    blockr.io = "0.1.0",
     frame = frame
   )
 
@@ -415,7 +425,18 @@ local_labelled_block <- function(frame = parent.frame()) {
 # a renderer of table outputs with a request of its own for the labels of a
 # table's columns, which the app names for table outputs for the duration of
 # `frame`.
+# R's reply to a hello names the version of each package that a renderer of a
+# block class's outputs comes from.
+# So blockr.ui is at the version 0.1.0, whatever the library holds.
+# Linting skips the call of local_versions(), a helper of another file, which
+# lintr does not see.
 local_table_preview <- function(frame = parent.frame()) {
+
+  local_versions( # nolint: object_usage_linter.
+    blockr.ui = "0.1.0",
+    frame = frame
+  )
+
   withr::local_options(
     blockr.renderers = list(
       table_output = new_renderer(
