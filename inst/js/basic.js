@@ -492,7 +492,7 @@ function Field({
       if (last !== void 0) unpick?.(last);
     }
   }
-  const groups = groupsOf(shown);
+  const groups = optionsByGroup(shown);
   const note = error ?? hint;
   const text = open ? query : multiple ? "" : single?.label ?? "";
   return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
@@ -640,7 +640,7 @@ function Option({
     }
   );
 }
-function groupsOf(options) {
+function optionsByGroup(options) {
   const groups = /* @__PURE__ */ new Map();
   for (const option of options) groups.set(option.group, [...groups.get(option.group) ?? [], option]);
   const loose = groups.get(void 0);
@@ -1463,10 +1463,10 @@ function drawnControls(core) {
     return { controls: [], failed: true, problem: `The storage controls failed: ${errorMessage(error)}` };
   }
 }
-function buttonsOf(controls) {
+function buttonsFromControls(controls) {
   return controls.flatMap((control) => {
     if (control.kind === "button") return [control];
-    if (control.kind === "menu") return buttonsOf(control.items);
+    if (control.kind === "menu") return buttonsFromControls(control.items);
     return [];
   });
 }
@@ -1506,7 +1506,7 @@ function bindShortcuts(doc, core) {
       }
       return;
     }
-    const button = buttonsOf(drawnControls(core)?.controls ?? []).find(
+    const button = buttonsFromControls(drawnControls(core)?.controls ?? []).find(
       (b) => b.disabled !== true && b.shortcut !== void 0 && matchesShortcut(b.shortcut, event)
     );
     if (button === void 0) return;

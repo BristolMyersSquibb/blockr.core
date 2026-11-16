@@ -63,10 +63,10 @@ export function drawnControls(core: CoreApi): Drawn | undefined {
 
 // The buttons among the controls, those inside menus too, in the order in which
 // the toolbar draws them.
-export function buttonsOf(controls: readonly StorageControl[]): Button[] {
+export function buttonsFromControls(controls: readonly StorageControl[]): Button[] {
   return controls.flatMap((control) => {
     if (control.kind === "button") return [control];
-    if (control.kind === "menu") return buttonsOf(control.items);
+    if (control.kind === "menu") return buttonsFromControls(control.items);
     return [];
   });
 }

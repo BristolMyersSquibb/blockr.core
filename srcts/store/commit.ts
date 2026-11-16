@@ -296,7 +296,7 @@ function collection<T, M extends object>(
 
   // The entry that `before` puts an entry before: the one named, the one that
   // followed it where the delta removes it, or null for the last place.
-  const successorOf = (named: string | null): string | null =>
+  const keptSuccessor = (named: string | null): string | null =>
     named === null ? null : removed.has(named) ? (own(readdPlaces, named) ?? null) : named;
 
   const moves: [string, string | null][] = [];
@@ -308,7 +308,7 @@ function collection<T, M extends object>(
       failures.push(`The board holds no ${name(id)} to move.`);
       continue;
     }
-    const to = successorOf(named);
+    const to = keptSuccessor(named);
     const was = kept[at + 1]?.[0] ?? null;
     if (to === was || to === id) continue;
     if (to !== null && !kept.some(([other]) => other === to)) {
@@ -329,7 +329,7 @@ function collection<T, M extends object>(
     }
     const named = own(before ?? {}, id);
     const successor =
-      named === undefined ? (own(places ?? {}, id) ?? null) : successorOf(named);
+      named === undefined ? (own(places ?? {}, id) ?? null) : keptSuccessor(named);
     const at =
       successor === null ? -1 : kept.findIndex(([other]) => other === successor);
     if (at < 0 && successor !== null && named !== undefined) {
