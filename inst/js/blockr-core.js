@@ -9283,7 +9283,6 @@ function pageFrontEnds(el) {
       const prepared = next;
       next = void 0;
       if (prepared === void 0) return;
-      el.replaceChildren();
       if ("none" in prepared) {
         showError(el, prepared.none);
         log.error(prepared.none);
@@ -9310,6 +9309,7 @@ function pageFrontEnds(el) {
         cleanup: void 0
       };
       drawn2 = current2;
+      const note = [...el.childNodes];
       try {
         const rendered = await prepared.frontend.render({
           el,
@@ -9318,6 +9318,7 @@ function pageFrontEnds(el) {
           signal: controller.signal,
           args: prepared.args
         });
+        for (const node of note) if (node.parentNode === el) node.remove();
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current2.cleanup = rendered;

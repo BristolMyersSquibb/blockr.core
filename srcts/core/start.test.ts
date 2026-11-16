@@ -887,6 +887,53 @@ describe("starting the page", () => {
     await started.ready;
     expect(el.textContent).toBe("Iris review");
   });
+
+  test("keeps the loading note while the frontend's render() waits, and removes it once render() has returned, where the frontend left it", async () => {
+    const r = playedR();
+    const el = document.createElement("div");
+    let draw = (): void => undefined;
+    const drawing = new Promise<void>((resolve) => {
+      draw = resolve;
+    });
+    const seen: string[] = [];
+    // A frontend that asks for something before it draws, and draws without
+    // React, adding to what the element holds.
+    const frontend: FrontendModule = {
+      async render({ el: into }) {
+        seen.push(into.textContent);
+        await drawing;
+        const board = document.createElement("main");
+        board.textContent = "Drawn";
+        into.append(board);
+      },
+    };
+    const started = startPage({
+      el,
+      transport: r.transport,
+      loader: {
+        importer: (url) =>
+          url === BASIC
+            ? Promise.resolve(basicModule(frontend))
+            : Object.hasOwn(CORE, url)
+              ? Promise.resolve(CORE[url])
+              : Promise.reject(new TypeError(`No module at ${url}.`)),
+        stylesheet: () => Promise.resolve(),
+      },
+      measure: { info: () => null, watch: () => () => undefined },
+    });
+    r.session();
+    await tick();
+    r.options();
+    await tick(50);
+
+    expect(seen).toEqual(["Loading the board…"]);
+    expect(el.textContent).toBe("Loading the board…");
+
+    draw();
+    await started.ready;
+    expect(el.children).toHaveLength(1);
+    expect(el.textContent).toBe("Drawn");
+  });
 });
 
 describe("a board opened later", () => {
