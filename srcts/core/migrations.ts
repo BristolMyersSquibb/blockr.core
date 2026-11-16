@@ -42,7 +42,7 @@ export function createMigrations(loader: Loader): Migrations {
     const pkg = packageFromId(registryId);
     let migration: Migration | undefined;
     try {
-      migration = migrationOf(await loader.load({ module }, pkg), module, pkg);
+      migration = migrationFromExports(await loader.load({ module }, pkg), module, pkg);
     } catch (error) {
       log.error(asError(error));
     }
@@ -87,7 +87,7 @@ function olderBlocks(given: unknown, registry: Readonly<Record<RegistryId, Regis
 
 // The `migrate` that a block class's UI module exports, or undefined where it
 // exports none.
-function migrationOf(exports: unknown, module: string, pkg: string | null): Migration | undefined {
+function migrationFromExports(exports: unknown, module: string, pkg: string | null): Migration | undefined {
   const { migrate } = moduleExports(exports, module, pkg);
   if (migrate === undefined) return undefined;
   if (typeof migrate !== "function") {

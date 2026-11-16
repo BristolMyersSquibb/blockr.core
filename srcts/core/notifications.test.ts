@@ -16,7 +16,7 @@ import { createStore } from "../store/index.ts";
 import type { Option, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import type { StubCoreOptions } from "../stubs/index.ts";
-import { codeOf, concerning, held } from "../testing/notifications.ts";
+import { concerning, held, notificationCode } from "../testing/notifications.ts";
 import { listedModules, pluginUi } from "../testing/plugins.ts";
 import { logged } from "../testing/logged.ts";
 import { hello, withOptions, withPlugins } from "../testing/store.ts";
@@ -97,7 +97,7 @@ describe("a block's notifications", () => {
     // The UI module of b's class, which the test gives none of, fails to load.
     s.core.mountBlock(document.createElement("div"), "b");
     await s.settled();
-    expect(s.core.notifications.get().filter(concerning("b")).map(codeOf)).toEqual(["simpleWarning", "share_failed", "module_failed"]);
+    expect(s.core.notifications.get().filter(concerning("b")).map(notificationCode)).toEqual(["simpleWarning", "share_failed", "module_failed"]);
 
     await s.core.commands.run("blockr.core-remove_block", { id: "b" });
     await s.settled();
@@ -114,10 +114,10 @@ describe("the notifications about a link or a stack", () => {
     await s.settled();
     s.core.notifications.notify(FILE, { severity: "warning", code: "slow", message: "Slow link.", about: { link: "ab" } });
     s.core.notifications.notify(FILE, { severity: "warning", code: "crowded", message: "Crowded stack.", about: { stack: "s1" } });
-    expect(held(s.core, fromModules).map(codeOf)).toEqual(["slow", "crowded"]);
+    expect(held(s.core, fromModules).map(notificationCode)).toEqual(["slow", "crowded"]);
 
     await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
-    expect(held(s.core, fromModules).map(codeOf)).toEqual(["crowded"]);
+    expect(held(s.core, fromModules).map(notificationCode)).toEqual(["crowded"]);
     await s.core.commands.run("blockr.core-remove_stack", { id: "s1" });
     expect(held(s.core, fromModules)).toEqual([]);
 
@@ -400,7 +400,7 @@ describe("core's notifications", () => {
     reported.restore();
 
     const module = HEAD.replace(/[?#].*$/, "");
-    expect(held(s.core, (n) => codeOf(n) === "module_failed")).toEqual([
+    expect(held(s.core, (n) => notificationCode(n) === "module_failed")).toEqual([
       {
         severity: "error",
         message: expect.stringContaining(`The module ${module} of blockr.core failed to load`) as string,
@@ -422,7 +422,7 @@ describe("core's notifications", () => {
     reported.restore();
 
     const module = TABLE.replace(/[?#].*$/, "");
-    expect(held(s.core, (n) => codeOf(n) === "module_failed")).toEqual([
+    expect(held(s.core, (n) => notificationCode(n) === "module_failed")).toEqual([
       {
         severity: "error",
         message: `The module ${module} of blockr.core was built against major 2 of core's JS API, where core's is 1.`,
@@ -459,7 +459,7 @@ describe("core's notifications", () => {
     reported.restore();
 
     expect(el.textContent).toBe("");
-    expect(held(s.core, (n) => codeOf(n) === "module_failed")).toEqual([
+    expect(held(s.core, (n) => notificationCode(n) === "module_failed")).toEqual([
       {
         severity: "error",
         message: 'The UI of the board option "zoom" failed in render(): No slider.',
@@ -536,7 +536,7 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
-    expect(held(s.core, (n) => codeOf(n) === "board_option_failed")).toEqual([
+    expect(held(s.core, (n) => notificationCode(n) === "board_option_failed")).toEqual([
       {
         severity: "error",
         message: 'The default of the board option "zoom", which the plugin class "blockr.test-zoomed_plugin" requires, failed: No zoom today.',
@@ -603,7 +603,7 @@ describe("core's notifications", () => {
     await s.settled();
     reported.restore();
 
-    const refused = held(s.core, (n) => codeOf(n) === "board_edit_failed");
+    const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
     expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual(
       Array.from({ length: 4 }, () => ["error", { kind: "core", code: "board_edit_failed" }, undefined]),
     );
@@ -652,18 +652,18 @@ describe("core's notifications", () => {
     await s.settled();
     const heard: string[][] = [];
     s.core.notifications.subscribe((all) => {
-      heard.push(all.filter((n) => codeOf(n) === "board_edit_failed").map((n) => n.message));
+      heard.push(all.filter((n) => notificationCode(n) === "board_edit_failed").map((n) => n.message));
     });
     const remove = (): Promise<void> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" });
 
     await expect(remove()).rejects.toThrow();
-    const [first] = s.core.notifications.get().filter((n) => codeOf(n) === "board_edit_failed");
+    const [first] = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
     await expect(remove()).rejects.toThrow();
 
     // Core withdrew the notification, and raised it again with the same id.
     const message = first?.message ?? "";
     expect(heard).toEqual([[message], [], [message]]);
-    expect(s.core.notifications.get().filter((n) => codeOf(n) === "board_edit_failed")).toEqual([first]);
+    expect(s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed")).toEqual([first]);
     s.stop();
   });
 
@@ -693,11 +693,11 @@ describe("core's notifications", () => {
     }).toThrow("The store refused to undo the step");
     quiet.restore();
 
-    expect(held(s.core, (n) => codeOf(n) === "board_edit_failed")).toEqual([]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
     expect(quiet.lines()).toEqual([]);
     // The store refused core's edit of the default, which core names as the
     // board option's failure alone.
-    expect(held(s.core, (n) => codeOf(n) === "board_option_failed").map((n) => n.about)).toEqual([{ option: "unfit" }]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_option_failed").map((n) => n.about)).toEqual([{ option: "unfit" }]);
     s.stop();
   });
 
@@ -739,7 +739,7 @@ describe("core's notifications", () => {
     await expect(blocks[0]?.submit({ n: -1 })).rejects.toThrow('The state of block "b" fails its schema at /n');
     await expect(options[0]?.submit(0)).rejects.toThrow('The value of the board option "n_rows" fails its schema');
 
-    expect(held(s.core, (n) => codeOf(n) === "board_edit_failed")).toEqual([]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
     s.stop();
   });
 });

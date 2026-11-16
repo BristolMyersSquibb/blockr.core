@@ -198,7 +198,7 @@ function Field({
     }
   }
 
-  const groups = groupsOf(shown);
+  const groups = optionsByGroup(shown);
   const note = error ?? hint;
   const text = open ? query : multiple ? "" : (single?.label ?? "");
 
@@ -376,7 +376,7 @@ function Option({
 
 // The options by group, in the order in which each group first comes, the
 // options without a group first.
-function groupsOf(options: readonly ComboOption[]): [string | undefined, ComboOption[]][] {
+function optionsByGroup(options: readonly ComboOption[]): [string | undefined, ComboOption[]][] {
   const groups = new Map<string | undefined, ComboOption[]>();
   for (const option of options) groups.set(option.group, [...(groups.get(option.group) ?? []), option]);
   const loose = groups.get(undefined);

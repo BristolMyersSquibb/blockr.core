@@ -11,7 +11,7 @@ import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
-import { labelled, listOf, optionOf, optionsOf } from "../../testing/combobox.ts";
+import { labelled, listFromField, optionFromLabel, optionLabels } from "../../testing/combobox.ts";
 import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
@@ -121,7 +121,7 @@ async function chosen(el: ParentNode, label: string, search: string, option: str
     type(labelled(el, label), search);
   });
   await step(() => {
-    optionOf(labelled(el, label), option).click();
+    optionFromLabel(labelled(el, label), option).click();
   });
 }
 
@@ -441,9 +441,9 @@ describe("a card", () => {
     await step(() => {
       classes.click();
     });
-    expect(optionsOf(classes)).not.toContain("input: dataset block");
+    expect(optionLabels(classes)).not.toContain("input: dataset block");
     await step(() => {
-      optionOf(classes, "subset block").click();
+      optionFromLabel(classes, "subset block").click();
     });
     expect(added(board())).toEqual([]);
     await click(button(dialog(el), "Add block"));
@@ -557,7 +557,7 @@ describe("what floats over the board", () => {
     await step(() => {
       classes.click();
     });
-    const list = listOf(classes);
+    const list = listFromField(classes);
     expect(list).not.toBeNull();
     expect(list === null ? [] : backgrounds(list)).toEqual(["bc:bg-bg-raised"]);
     await click(button(dialog(el), "Close"));

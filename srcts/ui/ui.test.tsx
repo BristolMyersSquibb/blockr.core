@@ -6,7 +6,7 @@ import { act, useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
-import { labelled, listOf, optionOf, optionsOf } from "../testing/combobox.ts";
+import { labelled, listFromField, optionFromLabel, optionLabels } from "../testing/combobox.ts";
 import { find, press, texts, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import { Combobox, MultiCombobox, Pager, TableSearch, useTableView } from "./index.ts";
@@ -69,13 +69,13 @@ describe("a searchable dropdown", () => {
     const field = labelled(el, "Block");
     expect(field.getAttribute("role")).toBe("combobox");
     expect(field.getAttribute("aria-expanded")).toBe("false");
-    expect(listOf(field)).toBeNull();
+    expect(listFromField(field)).toBeNull();
 
     await step(() => {
       field.click();
     });
     expect(field.getAttribute("aria-expanded")).toBe("true");
-    expect(optionsOf(field)).toEqual(["input: Iris", "transform: Head", "transform: Merge", "transform: Gone"]);
+    expect(optionLabels(field)).toEqual(["input: Iris", "transform: Head", "transform: Merge", "transform: Gone"]);
 
     for (const [search, found] of [
       ["flow", ["input: Iris"]],
@@ -86,14 +86,14 @@ describe("a searchable dropdown", () => {
       await step(() => {
         type(field, search);
       });
-      expect(optionsOf(field)).toEqual(found);
+      expect(optionLabels(field)).toEqual(found);
     }
 
     await step(() => {
       type(field, "nothing like it");
     });
-    expect(optionsOf(field)).toEqual([]);
-    expect(listOf(field)?.textContent).toBe("No option matches.");
+    expect(optionLabels(field)).toEqual([]);
+    expect(listFromField(field)?.textContent).toBe("No option matches.");
   });
 
   test("picks the option that the user clicks, or marks with Down and Up and picks with Enter, skipping one that cannot be picked", async () => {
@@ -105,11 +105,11 @@ describe("a searchable dropdown", () => {
       field.click();
     });
     await step(() => {
-      optionOf(field, "Head").click();
+      optionFromLabel(field, "Head").click();
     });
     expect(seen).toEqual(["b"]);
     // The list closes, and the field shows the label of the option picked.
-    expect(listOf(field)).toBeNull();
+    expect(listFromField(field)).toBeNull();
     expect(field.value).toBe("Head");
 
     // Down opens the list on the option picked, and moves on from it.
@@ -142,7 +142,7 @@ describe("a searchable dropdown", () => {
       field.click();
     });
     await step(() => {
-      optionOf(field, "Gone").click();
+      optionFromLabel(field, "Gone").click();
     });
     expect(seen).toEqual(["b", "c"]);
   });
@@ -159,7 +159,7 @@ describe("a searchable dropdown", () => {
     await step(() => {
       press(field, "Escape");
     });
-    expect(listOf(field)).toBeNull();
+    expect(listFromField(field)).toBeNull();
     expect(field.value).toBe("");
 
     await step(() => {
@@ -170,7 +170,7 @@ describe("a searchable dropdown", () => {
       field.dispatchEvent(new FocusEvent("blur"));
       field.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     });
-    expect(listOf(field)).toBeNull();
+    expect(listFromField(field)).toBeNull();
     expect(seen).toEqual([]);
   });
 
@@ -197,17 +197,17 @@ describe("a searchable dropdown of several options", () => {
     await step(() => {
       field.click();
     });
-    expect(optionsOf(field)).toEqual(["input: Iris", "transform: Merge", "transform: Gone"]);
+    expect(optionLabels(field)).toEqual(["input: Iris", "transform: Merge", "transform: Gone"]);
     await step(() => {
       type(field, "mer");
     });
     await step(() => {
-      optionOf(field, "Merge").click();
+      optionFromLabel(field, "Merge").click();
     });
     expect(chips()).toEqual(["Head", "Merge"]);
     // The search clears, and the list stays open on the options left.
     expect(field.value).toBe("");
-    expect(optionsOf(field)).toEqual(["input: Iris", "transform: Gone"]);
+    expect(optionLabels(field)).toEqual(["input: Iris", "transform: Gone"]);
 
     await step(() => {
       press(field, "Enter");
@@ -222,7 +222,7 @@ describe("a searchable dropdown of several options", () => {
       field.click();
     });
     await step(() => {
-      optionOf(field, "Iris").click();
+      optionFromLabel(field, "Iris").click();
     });
     expect(texts(el, 'ul[aria-label="Blocks, picked"] li > span')).toEqual(["Head", "Iris"]);
 

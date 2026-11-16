@@ -403,7 +403,7 @@ export function createStore(options: StoreOptions = {}): Store {
   function revert(back: boolean, origin?: Origin): void {
     guard();
     const { undo, redo } = history.value;
-    const at = back ? lastOf(undo, origin) : redo.length - 1;
+    const at = back ? lastStepIndex(undo, origin) : redo.length - 1;
     const step = (back ? undo : redo)[at];
     if (step === undefined) return;
 
@@ -599,7 +599,7 @@ export function createStore(options: StoreOptions = {}): Store {
     redo: () => {
       revert(false);
     },
-    canUndo: (origin) => lastOf(history.value.undo, origin) >= 0,
+    canUndo: (origin) => lastStepIndex(history.value.undo, origin) >= 0,
     canRedo: () => history.value.redo.length > 0,
     plugins: registrations.plugins,
     options: registrations.options,
@@ -613,7 +613,7 @@ export function createStore(options: StoreOptions = {}): Store {
 
 // The index of the list's last step, or of the origin's last step where one is
 // given, or -1 where the list holds no such step.
-function lastOf(steps: readonly Step[], origin: Origin | undefined): number {
+function lastStepIndex(steps: readonly Step[], origin: Origin | undefined): number {
   return origin === undefined ? steps.length - 1 : steps.map((step) => step.origin).lastIndexOf(origin);
 }
 

@@ -6903,7 +6903,7 @@ function collection(name2, current2, part, modify, places, before, failures) {
     readdPlaces[id2] = after.find((other) => !removed.has(other)) ?? null;
   }
   const kept = order.filter((id2) => !removed.has(id2)).map((id2) => [id2, current2[id2]]);
-  const successorOf = (named3) => named3 === null ? null : removed.has(named3) ? own(readdPlaces, named3) ?? null : named3;
+  const keptSuccessor = (named3) => named3 === null ? null : removed.has(named3) ? own(readdPlaces, named3) ?? null : named3;
   const moves = [];
   for (const [id2, named3] of Object.entries(before ?? {})) {
     if (Object.hasOwn(part.add ?? {}, id2)) continue;
@@ -6913,7 +6913,7 @@ function collection(name2, current2, part, modify, places, before, failures) {
       failures.push(`The board holds no ${name2(id2)} to move.`);
       continue;
     }
-    const to = successorOf(named3);
+    const to = keptSuccessor(named3);
     const was = kept[at + 1]?.[0] ?? null;
     if (to === was || to === id2) continue;
     if (to !== null && !kept.some(([other]) => other === to)) {
@@ -6932,7 +6932,7 @@ function collection(name2, current2, part, modify, places, before, failures) {
       continue;
     }
     const named3 = own(before ?? {}, id2);
-    const successor = named3 === void 0 ? own(places ?? {}, id2) ?? null : successorOf(named3);
+    const successor = named3 === void 0 ? own(places ?? {}, id2) ?? null : keptSuccessor(named3);
     const at = successor === null ? -1 : kept.findIndex(([other]) => other === successor);
     if (at < 0 && successor !== null && named3 !== void 0) {
       failures.push(
@@ -7762,7 +7762,7 @@ function createStore(options = {}) {
   function revert(back, origin) {
     guard2();
     const { undo, redo } = history.value;
-    const at = back ? lastOf(undo, origin) : redo.length - 1;
+    const at = back ? lastStepIndex(undo, origin) : redo.length - 1;
     const step2 = (back ? undo : redo)[at];
     if (step2 === void 0) return;
     busy = true;
@@ -7936,7 +7936,7 @@ function createStore(options = {}) {
     redo: () => {
       revert(false);
     },
-    canUndo: (origin) => lastOf(history.value.undo, origin) >= 0,
+    canUndo: (origin) => lastStepIndex(history.value.undo, origin) >= 0,
     canRedo: () => history.value.redo.length > 0,
     plugins: registrations.plugins,
     options: registrations.options,
@@ -7947,7 +7947,7 @@ function createStore(options = {}) {
     editId: (of) => edits.get(target(of))
   };
 }
-function lastOf(steps2, origin) {
+function lastStepIndex(steps2, origin) {
   return origin === void 0 ? steps2.length - 1 : steps2.map((step2) => step2.origin).lastIndexOf(origin);
 }
 function settled(fn) {
@@ -9376,7 +9376,7 @@ function createMigrations(loader) {
     const pkg = packageFromId(registryId2);
     let migration;
     try {
-      migration = migrationOf(await loader.load({ module }, pkg), module, pkg);
+      migration = migrationFromExports(await loader.load({ module }, pkg), module, pkg);
     } catch (error) {
       log.error(asError(error));
     }
@@ -9414,7 +9414,7 @@ function olderBlocks(given, registry) {
   }
   return older;
 }
-function migrationOf(exports, module, pkg) {
+function migrationFromExports(exports, module, pkg) {
   const { migrate: migrate2 } = moduleExports(exports, module, pkg);
   if (migrate2 === void 0) return void 0;
   if (typeof migrate2 !== "function") {
@@ -10623,7 +10623,7 @@ function Field({
       if (last !== void 0) unpick?.(last);
     }
   }
-  const groups = groupsOf(shown2);
+  const groups = optionsByGroup(shown2);
   const note = error ?? hint;
   const text = open ? query : multiple ? "" : single?.label ?? "";
   return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
@@ -10771,7 +10771,7 @@ function Option({
     }
   );
 }
-function groupsOf(options) {
+function optionsByGroup(options) {
   const groups = /* @__PURE__ */ new Map();
   for (const option of options) groups.set(option.group, [...groups.get(option.group) ?? [], option]);
   const loose = groups.get(void 0);
@@ -11675,10 +11675,10 @@ function drawnControls(core) {
     return { controls: [], failed: true, problem: `The storage controls failed: ${errorMessage(error)}` };
   }
 }
-function buttonsOf(controls) {
+function buttonsFromControls(controls) {
   return controls.flatMap((control) => {
     if (control.kind === "button") return [control];
-    if (control.kind === "menu") return buttonsOf(control.items);
+    if (control.kind === "menu") return buttonsFromControls(control.items);
     return [];
   });
 }
@@ -11718,7 +11718,7 @@ function bindShortcuts(doc, core) {
       }
       return;
     }
-    const button = buttonsOf(drawnControls(core)?.controls ?? []).find(
+    const button = buttonsFromControls(drawnControls(core)?.controls ?? []).find(
       (b2) => b2.disabled !== true && b2.shortcut !== void 0 && matchesShortcut(b2.shortcut, event)
     );
     if (button === void 0) return;
