@@ -16,7 +16,6 @@ export interface CoreApi {
         value(option: OptionId): Json | undefined;
     };
     readonly plugins: {
-        register(def: PluginClass): () => void;
         appPlugins(): Readonly<Record<PluginClassId, Plugin>>;
         pluginClass(plugin: PluginClassId): PluginClass;
         storage(): Storage | undefined;

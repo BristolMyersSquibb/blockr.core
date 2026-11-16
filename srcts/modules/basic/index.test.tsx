@@ -722,20 +722,18 @@ function running() {
 }
 
 describe("the storage controls", () => {
-  test("show at the end of the toolbar in the plugin's order, each kind in its own look, those that ask for the end of the bar last", async () => {
+  test("show at the end of the toolbar in the plugin's order, each kind in its own look", async () => {
     const { ran } = running();
     const storage = storagePlugin(() => [
-      { kind: "status", id: "user", text: "NS", tooltip: "Signed in as Nina", placement: "end" },
+      { kind: "status", id: "user", text: "NS", tooltip: "Signed in as Nina" },
       { kind: "button", id: "save", label: "Save", tooltip: "Save to Connect", shortcut: "Mod+S", run: ran("save") },
       { kind: "menu", id: "versions", label: "Versions", items: [] },
       { kind: "status", id: "saved", text: "Saved" },
       { kind: "button", id: "share", label: "Share", disabled: true, run: ran("share") },
-      // A hint that the frontend does not know draws as if it were not there.
-      { kind: "button", id: "help", label: "Help", placement: "start" as "end", run: ran("help") },
     ]);
     const { el } = await drawn(storage.options);
 
-    expect(parts(el)).toEqual(["Options", "Undo", "Redo", "Save", "Versions▾", "Saved", "Share", "Help", "NS"]);
+    expect(parts(el)).toEqual(["Options", "Undo", "Redo", "NS", "Save", "Versions▾", "Saved", "Share"]);
     // A button looks like the toolbar's own, and is greyed out while it is
     // disabled.
     const save = button(toolbar(el), "Save");
@@ -747,8 +745,8 @@ describe("the storage controls", () => {
     expect(find(toolbar(el), 'button[aria-haspopup="menu"]').getAttribute("aria-expanded")).toBe("false");
     const statuses = [...toolbar(el).querySelectorAll('[role="status"]')];
     expect(statuses.map((status) => [status.tagName, status.textContent, status.getAttribute("title")])).toEqual([
-      ["SPAN", "Saved", null],
       ["SPAN", "NS", "Signed in as Nina"],
+      ["SPAN", "Saved", null],
     ]);
   });
 
@@ -761,8 +759,7 @@ describe("the storage controls", () => {
         label: "Versions",
         items: [
           { kind: "button", id: "restore", label: "Restore", run: ran("restore") },
-          // The frontend ignores hints inside a menu.
-          { kind: "status", id: "latest", text: "Version 3", tooltip: "Saved at noon", placement: "end" },
+          { kind: "status", id: "latest", text: "Version 3", tooltip: "Saved at noon" },
           {
             kind: "menu",
             id: "older",

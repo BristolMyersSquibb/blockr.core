@@ -80,7 +80,6 @@ export type {
   Change,
   Delta,
   Dropped,
-  Hints,
   Migration,
   Option,
   Options,

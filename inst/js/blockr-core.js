@@ -8913,7 +8913,6 @@ function createCore(parts) {
       value: (id2) => store.hasBoard() ? own(store.board().options, id2) : void 0
     },
     plugins: {
-      register: (def) => store.plugins.register(def),
       appPlugins: () => plugins.appPlugins(),
       pluginClass: (plugin) => plugins.pluginClass(plugin),
       storage: () => plugins.storage()

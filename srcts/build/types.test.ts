@@ -256,7 +256,7 @@ export default {
   storage: {
     controls: ({ core }) => {
       const save: StorageControl = { kind: "button", id: "save", label: "Save", shortcut: "Mod+S", run: () => Promise.resolve() };
-      const status: StorageControl = { kind: "status", id: "saved", text: core.store.board().name, placement: "end" };
+      const status: StorageControl = { kind: "status", id: "saved", text: core.store.board().name };
       return [save, { kind: "menu", id: "more", label: "More", items: [status] }];
     },
     subscribe: (listener) => {
