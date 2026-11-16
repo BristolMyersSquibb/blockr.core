@@ -557,6 +557,10 @@
   Where the store refuses a board that `open()` is given, core raises `board_open_failed`, which concerns the board, and `open()` still rejects with the reason.
   Core logs each of these refusals at debug, since the call hands the reason to its caller.
   Core raises a refusal anew each time it comes again, so that a frontend that has shown it shows it again (#616).
+* The command registry logs at error what a command's own `preflight()`, `prepare()` or `run()` throws, whoever runs the command and whatever its origin.
+  The line holds a `CommandError` that names the command, with what the command threw, and its stack, as the cause.
+  The registry still rejects with that error, and its `preflight()` still answers `false`.
+  Where a plugin runs a command of the user's through `CoreApi`, core raises `board_edit_failed` for a command that failed so, as it does for a refusal, and logs no line of its own (#627).
 
 # blockr.core 0.1.4
 

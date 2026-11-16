@@ -22,11 +22,20 @@
 // the command prepares and runs, and while the store applies its deltas, so
 // that the scheduler takes it as what gave each block that the deltas change
 // its revision, and the span of the block's evaluation links to it.
+//
+// The command registry logs at error what a command's own preflight(),
+// prepare() or run() throws, with its stack, as Logging has it
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#logging),
+// whoever runs the command and whatever its origin. It still rejects with it,
+// as a CommandError that names the command, and preflight() still answers
+// false. It logs no refusal, whether the command registry, the command or the
+// store refuses, since the call hands the refusal to its caller.
 
 // The API's context is named apart from the context that the command registry
 // hands every command.
 import { context as otelContext, trace } from "@opentelemetry/api";
 import { computed, signal } from "@preact/signals-core";
+import { log } from "../log/index.ts";
 import type { Lock } from "../protocol/index.ts";
 import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
@@ -363,13 +372,28 @@ function isCommandId(id: string): boolean {
   return pkg !== null && id.length > pkg.length + 1;
 }
 
+// The CommandErrors that failed() logged, so that CoreApi does not log one
+// again as it tells the user why an edit failed (../core/core.ts).
+const loggedErrors = new WeakSet<CommandError>();
+
+// Whether the command registry logged the error already, as what a command's
+// own code threw.
+export function isLogged(error: unknown): boolean {
+  return error instanceof CommandError && loggedErrors.has(error);
+}
+
 // What a command's own preflight(), prepare() or run() threw, as a CommandError
-// that names the command, unless it is one already.
+// that names the command, unless it is one already, as a refusal is. It logs
+// the CommandError at error, whose cause holds the stack of what the command
+// threw.
 function failed(command: Command<Json, unknown>, error: unknown): CommandError {
   if (error instanceof CommandError) return error;
-  return new CommandError(`The command "${command.id}" failed`, [errorMessage(error)], {
+  const failure = new CommandError(`The command "${command.id}" failed`, [errorMessage(error)], {
     cause: error,
   });
+  log.error(failure);
+  loggedErrors.add(failure);
+  return failure;
 }
 
 function attempt<T>(command: Command<Json, unknown>, fn: () => T): T {

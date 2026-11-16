@@ -5405,6 +5405,9 @@ async function requestBlockrOptions(client, names) {
   }
 }
 
+// srcts/commands/commands.ts
+import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
+
 // srcts/store/words.ts
 var adjectives = [
   "ablaze",
@@ -7955,639 +7958,6 @@ function settled(fn) {
   }
 }
 
-// srcts/core/plugins.ts
-var NONE = Object.freeze({});
-var NOTHING_FAILED = Promise.resolve([]);
-function runPlugins(deps) {
-  const { store, keepOptions } = deps;
-  const replaced2 = deps.signal ?? new AbortController().signal;
-  const registeredClass = (id2) => own(store.plugins.registered(), id2);
-  const added = /* @__PURE__ */ new Map();
-  const stops = [];
-  function keep(ids2, by) {
-    if (ids2.length === 0) return NOTHING_FAILED;
-    const kept = keepOptions(ids2, by);
-    stops.push(kept.stop);
-    return kept.added;
-  }
-  function opened() {
-    for (const id2 of Object.keys(appPlugins())) {
-      const def = registeredClass(id2);
-      if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${id2}"`));
-    }
-  }
-  const offStore = store.subscribe((change) => {
-    if ("opened" in change) opened();
-  });
-  onAbort(replaced2, () => {
-    offStore();
-    for (const stop of stops.splice(0)) stop();
-  });
-  let memo2;
-  function appPlugins() {
-    if (!store.hasBoard()) return NONE;
-    const classes2 = store.plugins.registered();
-    if (memo2?.classes !== classes2) {
-      const registered = Object.entries(deps.plugins).flatMap(
-        ([id2, { name: name2 }]) => Object.hasOwn(classes2, id2) ? [[id2, Object.freeze({ name: name2 })]] : []
-      );
-      memo2 = { classes: classes2, plugins: Object.freeze(Object.fromEntries(registered)) };
-    }
-    return memo2.plugins;
-  }
-  function pluginClass(plugin) {
-    const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : void 0;
-    if (def === void 0) throw new Error(`The app runs no plugin "${plugin}" on the open board.`);
-    return def;
-  }
-  function storage() {
-    const [id2] = inRole(appPlugins(), registeredClass, "storage");
-    return id2 === void 0 ? void 0 : pluginClass(id2).storage;
-  }
-  function frontend() {
-    const [id2] = inRole(appPlugins(), registeredClass, "frontend");
-    const drawn3 = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
-    if (id2 === void 0 || drawn3 === void 0) return void 0;
-    return { frontend: drawn3, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
-  }
-  let started = false;
-  async function start2() {
-    if (started) return;
-    started = true;
-    const starting = Object.keys(appPlugins()).flatMap((id2) => {
-      const def = registeredClass(id2);
-      return def?.start === void 0 ? [] : [{ id: id2, def }];
-    });
-    const failures = await Promise.all(starting.map(({ id: id2 }) => added.get(id2) ?? NOTHING_FAILED));
-    starting.forEach(({ id: id2, def }, i2) => {
-      if (replaced2.aborted) return;
-      if ((failures[i2] ?? []).length > 0) {
-        log.error(`The plugin "${id2}" does not start, since board options that its class requires did not go onto the board.`);
-        return;
-      }
-      launch(id2, def);
-    });
-  }
-  function launch(id2, def) {
-    const controller = new AbortController();
-    let cleanup;
-    onAbort(replaced2, () => {
-      controller.abort();
-      if (cleanup !== void 0) attempt(cleanup);
-    });
-    let returned;
-    try {
-      returned = def.start?.({ core: deps.core(), plugin: id2, signal: controller.signal });
-    } catch (error) {
-      const why = new Error(`The start of the plugin class "${id2}" failed: ${errorMessage(error)}`, { cause: error });
-      log.error(why);
-      const module = sourceModule({ plugin: id2 }, packageFromId(id2));
-      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { module }));
-      return;
-    }
-    if (typeof returned !== "function") return;
-    const given = returned;
-    if (controller.signal.aborted) attempt(given);
-    else cleanup = given;
-  }
-  function mountPlugin(el, plugin) {
-    if (replaced2.aborted) throw new Error(REPLACED);
-    const def = pluginClass(plugin);
-    const { ui } = def;
-    if (ui === void 0) {
-      throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
-    }
-    const controller = new AbortController();
-    const { signal } = controller;
-    const ended = () => signal.aborted;
-    let cleanup;
-    let stopKeeping;
-    const end = () => {
-      if (ended()) return;
-      offEnd();
-      stopKeeping?.();
-      controller.abort();
-      if (cleanup !== void 0) attempt(cleanup);
-      el.replaceChildren();
-    };
-    const offEnd = onAbort(replaced2, end);
-    function fail(error) {
-      if (ended()) return;
-      log.error(asError(error));
-      cannotDraw(errorMessage(error));
-    }
-    function cannotDraw(message) {
-      deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
-    }
-    function lacking(ids2) {
-      const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
-      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing2));
-    }
-    void (async () => {
-      const named3 = def.options ?? [];
-      const kept = keepOptions(named3, `the plugin class "${plugin}"`, () => {
-        if (ended()) return;
-        end();
-        lacking(named3);
-      });
-      stopKeeping = kept.stop;
-      const failures = await kept.added;
-      if (ended()) return;
-      if (failures.length > 0) {
-        kept.stop();
-        lacking(named3);
-        return;
-      }
-      try {
-        const rendered = await ui.render({ el, core: deps.core(), plugin, signal });
-        if (typeof rendered !== "function") return;
-        if (ended()) attempt(rendered);
-        else cleanup = rendered;
-      } catch (error) {
-        fail(new Error(`The ui of the plugin class "${plugin}" failed in render(): ${errorMessage(error)}`, { cause: error }));
-      }
-    })();
-    return end;
-  }
-  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start: start2 };
-}
-
-// srcts/core/requests.ts
-var ATTEMPTS3 = 3;
-async function pluginRequest(deps, plugin, name2, args, opts) {
-  if (typeof plugin !== "string" || plugin === "") {
-    throw new TypeError("A plugin's request names the plugin by the id of its class, a non-empty string.");
-  }
-  if (!Object.hasOwn(deps.plugins.appPlugins(), plugin)) {
-    throw new Error(`The app runs no plugin "${plugin}" on the open board, so its request did not go to R.`);
-  }
-  if (typeof name2 !== "string" || name2 === "") {
-    throw new TypeError(`A request of the plugin "${plugin}" is named by a non-empty string.`);
-  }
-  if (!isObject(args)) {
-    throw new TypeError(`The args of the request "${name2}" of the plugin "${plugin}" are an object.`);
-  }
-  const reads = opts.reads ?? [];
-  if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
-    throw new TypeError(`The blocks that the request "${name2}" of the plugin "${plugin}" reads are an array of their ids.`);
-  }
-  const what = `The request "${name2}" of the plugin "${plugin}"`;
-  const module = sourceModule({ plugin }, packageFromId(plugin));
-  const inCaller = keepContext();
-  for (let attempt3 = 1; ; attempt3++) {
-    const revisions = await evaluateReads2(deps, what, reads, opts.signal);
-    const { reply, body } = await inCaller(
-      () => deps.scheduler.request(
-        { kind: "request", type: "plugin", plugin, name: name2, args: { ...args }, reads: revisions },
-        {
-          ...opts.file === void 0 ? {} : { body: opts.file },
-          ...opts.signal === void 0 ? {} : { signal: opts.signal },
-          ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
-        }
-      )
-    );
-    const conditions = "conditions" in reply ? reply.conditions : [];
-    switch (reply.status) {
-      case "ok":
-        deps.replied(module, { type: "plugin", name: name2 }, conditions);
-        if (body !== null) return body;
-        return "value" in reply && reply.value !== void 0 ? reply.value : null;
-      case "missing":
-        if (attempt3 < ATTEMPTS3) continue;
-        throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
-      case "cancelled":
-        throw new RequestError(`R cancelled the request "${name2}" of the plugin "${plugin}".`, { status: "cancelled" });
-      default:
-        deps.replied(module, { type: "plugin", name: name2 }, conditions);
-        throw new RequestError(`R replied ${reply.status} to the request "${name2}" of the plugin "${plugin}".`, {
-          status: reply.status,
-          conditions
-        });
-    }
-  }
-}
-async function evaluateReads2(deps, what, blocks, signal) {
-  if (blocks.length === 0) return [];
-  const absent = blocks.filter((block) => deps.scheduler.status(block) === void 0);
-  if (absent.length > 0) {
-    throw new Error(`${what} reads ${absent.length === 1 ? "the block" : "the blocks"} ${quoted(absent)}, which the board lacks.`);
-  }
-  const unique = [...new Set(blocks)];
-  const statuses = await deps.scheduler.evaluate(unique, void 0, signal === void 0 ? {} : { signal });
-  const unready = unique.flatMap((block) => {
-    const status = own(statuses, block);
-    return status === void 0 || status.status === "ready" ? [] : [{ block, status }];
-  });
-  if (unready.length > 0) {
-    const listed = unready.map(({ block, status }) => `"${block}" reads ${status.status}`);
-    throw new RequestError(`${what} did not go to R, since a block it reads is not ready: ${listed.join(", ")}.`, {
-      blocks: unready
-    });
-  }
-  const left2 = unique.filter((block) => own(statuses, block) === void 0);
-  if (left2.length > 0) {
-    throw new Error(`${what} did not go to R, since ${left2.length === 1 ? "the block" : "the blocks"} ${quoted(left2)} left the board.`);
-  }
-  return unique.map((block) => ({ block, revision: own(statuses, block)?.revision ?? 0 }));
-}
-
-// srcts/core/core.ts
-function createCore(parts) {
-  const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
-  const { raise } = notifications;
-  notifications.follow(scheduler);
-  const optionPackage = (id2) => own(parts.options, id2)?.package;
-  const listeners = /* @__PURE__ */ new Set();
-  parts.signal?.addEventListener(
-    "abort",
-    () => {
-      listeners.clear();
-    },
-    { once: true }
-  );
-  const outputEvents = {
-    subscribe(fn) {
-      const wrapped = (event) => {
-        fn(event);
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    }
-  };
-  const mounts = createMounts({
-    store,
-    commands,
-    scheduler,
-    loader,
-    core: () => api,
-    renderers: parts.renderers,
-    raise,
-    replied: notifications.replied,
-    notify: notifications.notify,
-    optionPackage,
-    ...parts.measure === void 0 ? {} : { measure: parts.measure },
-    ...parts.signal === void 0 ? {} : { signal: parts.signal },
-    emit(event) {
-      for (const fn of [...listeners]) {
-        try {
-          fn(event);
-        } catch (error) {
-          log.error(asError(error));
-        }
-      }
-    }
-  });
-  const plugins = runPlugins({
-    store,
-    keepOptions: (ids2, by, failed3) => mounts.keepOptions(ids2, by, failed3),
-    core: () => api,
-    plugins: parts.plugins,
-    raise,
-    ...parts.signal === void 0 ? {} : { signal: parts.signal }
-  });
-  const focus = createFocus(store, parts.signal);
-  const edits = refusing(store, commands, notifications.raiseAgain);
-  const api = {
-    store: edits.store,
-    commands: edits.commands,
-    scheduler: {
-      demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
-      evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),
-      invalidate: (id2) => {
-        scheduler.invalidate(id2);
-      },
-      status: (id2) => scheduler.status(id2),
-      subscribe: (fn) => scheduler.subscribe(fn)
-    },
-    blockRegistry: () => store.blockRegistry(),
-    options: {
-      register: (def) => store.options.register(def),
-      registered: () => store.options.registered(),
-      value: (id2) => store.hasBoard() ? own(store.board().options, id2) : void 0
-    },
-    plugins: {
-      register: (def) => store.plugins.register(def),
-      appPlugins: () => plugins.appPlugins(),
-      pluginClass: (plugin) => plugins.pluginClass(plugin),
-      storage: () => plugins.storage()
-    },
-    lock: parts.lock,
-    outputEvents,
-    notifications: notifications.api,
-    log(pkg) {
-      const given = pkg;
-      if (!isPackageName(given)) {
-        throw new TypeError(`A log names the package whose lines it writes, as core.log("blockr.dock"), not ${JSON.stringify(given)}.`);
-      }
-      return createLog(given);
-    },
-    focus,
-    onScreen: createOnScreen(parts.signal),
-    show(object2) {
-      if (parts.signal?.aborted === true) return Promise.resolve();
-      const shown2 = shownObject(object2);
-      if ("block" in shown2) {
-        if (!store.hasBoard() || !Object.hasOwn(store.board().blocks, shown2.block)) {
-          throw new Error(`The board holds no block ${JSON.stringify(shown2.block)} to show.`);
-        }
-        focus.set(shown2.block);
-      } else if (plugins.pluginClass(shown2.plugin).ui === void 0) {
-        throw new Error(`The class of the plugin "${shown2.plugin}" has no ui to show.`);
-      }
-      return parts.show(shown2);
-    },
-    request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name2, args, opts),
-    module: (id2) => loader.module(id2),
-    blockrOption: (name2) => blockrOptions.read(name2),
-    mountBlock: (el, block) => mounts.mountBlock(el, block),
-    mountOutput: (el, block) => mounts.mountOutput(el, block),
-    mountOption: (el, option) => mounts.mountOption(el, option),
-    mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin)
-  };
-  let heard = {};
-  store.subscribe((change, board) => {
-    const opened = "opened" in change;
-    if (board.options !== heard || opened) {
-      const before = opened ? {} : heard;
-      heard = board.options;
-      for (const [id2, value2] of Object.entries(board.options)) {
-        if (!jsonEqual(own(before, id2), value2)) changed(id2, value2);
-      }
-    }
-    if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
-      const lacking = Object.values(store.options.registered()).filter((def) => def.onChange !== void 0 && !Object.hasOwn(board.options, def.id)).map((def) => def.id);
-      if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
-    }
-  });
-  const failing = /* @__PURE__ */ new Map();
-  const raisedBy = /* @__PURE__ */ new Map();
-  function changed(id2, value2) {
-    const def = own(store.options.registered(), id2);
-    if (def?.onChange === void 0) return;
-    const raisedNow = [];
-    const module = sourceModule({ option: id2 }, optionPackage(id2));
-    const notify = (notification) => {
-      const withdraw = notifications.notify(module, notification);
-      raisedNow.push(withdraw);
-      return withdraw;
-    };
-    let failure;
-    try {
-      def.onChange(value2, api, notify);
-    } catch (error) {
-      log.error(asError(error));
-      failure = raise(
-        coreNotification("on_change_failed", "error", `The onChange of the board option "${id2}" failed: ${errorMessage(error)}`, {
-          module
-        })
-      );
-    }
-    failing.get(id2)?.();
-    if (failure === void 0) failing.delete(id2);
-    else failing.set(id2, failure);
-    for (const withdraw of raisedBy.get(id2) ?? []) withdraw();
-    raisedBy.set(id2, raisedNow);
-  }
-  return { api, plugins };
-}
-function refusing(store, commands, raiseAgain) {
-  function refused2(origin, error) {
-    if ((origin ?? "user") !== "user") return;
-    const why = errorMessage(error);
-    log.debug(why);
-    raiseAgain(coreNotification("board_edit_failed", "error", why));
-  }
-  function edit(origin, fn) {
-    try {
-      fn();
-    } catch (error) {
-      refused2(origin, error);
-      throw error;
-    }
-  }
-  return {
-    store: {
-      ...store,
-      apply(delta, origin, opts) {
-        edit(origin, () => {
-          store.apply(delta, origin, opts);
-        });
-      },
-      undo(origin) {
-        edit(origin, () => {
-          store.undo(origin);
-        });
-      },
-      // A redo names no origin, so it is the user's, as the store announces
-      // it.
-      redo() {
-        edit(void 0, () => {
-          store.redo();
-        });
-      }
-    },
-    commands: {
-      ...commands,
-      run: (id2, args, origin) => commands.run(id2, args, origin).catch((error) => {
-        refused2(origin, error);
-        throw error;
-      })
-    }
-  };
-}
-function shownObject(given) {
-  if (typeof given === "object" && given !== null && !Array.isArray(given)) {
-    const entries = Object.entries(given);
-    const [entry] = entries;
-    if (entries.length === 1 && entry !== void 0 && typeof entry[1] === "string") {
-      if (entry[0] === "block") return Object.freeze({ block: entry[1] });
-      if (entry[0] === "plugin") return Object.freeze({ plugin: entry[1] });
-    }
-  }
-  throw new TypeError(`Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`);
-}
-function createOnScreen(signal) {
-  let seen = null;
-  const listeners = /* @__PURE__ */ new Set();
-  signal?.addEventListener(
-    "abort",
-    () => {
-      listeners.clear();
-    },
-    { once: true }
-  );
-  return {
-    get: () => seen,
-    set(shown2) {
-      const next = seenGiven(shown2);
-      if (seen !== null && sameIds(seen.blocks, next.blocks) && sameIds(seen.plugins, next.plugins)) return;
-      seen = next;
-      announceTo(listeners, seen);
-    },
-    subscribe(fn) {
-      const wrapped = (shown2) => {
-        fn(shown2);
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    }
-  };
-}
-function seenGiven(given) {
-  if (typeof given === "object" && given !== null) {
-    const { blocks, plugins } = given;
-    if (isIds(blocks) && isIds(plugins)) {
-      return Object.freeze({ blocks: Object.freeze([...blocks]), plugins: Object.freeze([...plugins]) });
-    }
-  }
-  throw new TypeError(
-    `A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`
-  );
-}
-function isIds(given) {
-  return Array.isArray(given) && given.every((id2) => typeof id2 === "string");
-}
-function sameIds(a2, b2) {
-  const inB = new Set(b2);
-  return new Set(a2).size === inB.size && a2.every((id2) => inB.has(id2));
-}
-function createFocus(store, signal) {
-  let focused = null;
-  const listeners = /* @__PURE__ */ new Set();
-  const offStore = store.subscribe((_change, board) => {
-    if (focused === null || Object.hasOwn(board.blocks, focused)) return;
-    focused = null;
-    announceTo(listeners, focused);
-  });
-  signal?.addEventListener(
-    "abort",
-    () => {
-      offStore();
-      listeners.clear();
-    },
-    { once: true }
-  );
-  return {
-    get: () => focused,
-    set(block) {
-      const given = block;
-      if (given !== null && (typeof given !== "string" || !store.hasBoard() || !Object.hasOwn(store.board().blocks, given))) {
-        throw new Error(`The board holds no block ${JSON.stringify(given)} to give focus to.`);
-      }
-      if (given === focused) return;
-      focused = given;
-      announceTo(listeners, focused);
-    },
-    subscribe(fn) {
-      const wrapped = (block) => {
-        fn(block);
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    }
-  };
-}
-
-// srcts/core/frontends.ts
-function loadingNote() {
-  const box = document.createElement("div");
-  box.setAttribute("role", "status");
-  box.className = "bc:p-4 bc:font-sans bc:text-sm bc:text-text-muted";
-  box.textContent = "Loading the board\u2026";
-  return box;
-}
-function pageFrontEnds(el) {
-  let drawn3;
-  let next;
-  function end() {
-    const current2 = drawn3;
-    if (current2 === void 0) return;
-    drawn3 = void 0;
-    current2.off();
-    current2.controller.abort();
-    if (current2.cleanup !== void 0) attempt(current2.cleanup);
-    el.replaceChildren(loadingNote());
-  }
-  return {
-    prepare(front, signal) {
-      if (signal.aborted) return;
-      end();
-      next = front;
-    },
-    async render(core, signal, failures) {
-      if (signal.aborted) return;
-      const prepared = next;
-      next = void 0;
-      if (prepared === void 0) return;
-      el.replaceChildren();
-      if ("none" in prepared) {
-        showError(el, prepared.none);
-        log.error(prepared.none);
-        return;
-      }
-      if (failures.length > 0) {
-        showError(el, failures.join("\n"));
-        return;
-      }
-      const controller = new AbortController();
-      const ending = () => {
-        if (drawn3 === current2) end();
-      };
-      signal.addEventListener("abort", ending, { once: true });
-      const current2 = {
-        frontend: prepared.frontend,
-        plugin: prepared.plugin,
-        core,
-        board: signal,
-        controller,
-        off: () => {
-          signal.removeEventListener("abort", ending);
-        },
-        cleanup: void 0
-      };
-      drawn3 = current2;
-      try {
-        const rendered = await prepared.frontend.render({
-          el,
-          core,
-          plugin: prepared.plugin,
-          signal: controller.signal,
-          args: prepared.args
-        });
-        if (typeof rendered !== "function") return;
-        if (controller.signal.aborted) attempt(rendered);
-        else current2.cleanup = rendered;
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        const why = new Error(`The frontend of the plugin class "${prepared.plugin}" failed in render(): ${errorMessage(error)}`, {
-          cause: error
-        });
-        showError(el, why.message);
-        log.error(why);
-      }
-    },
-    async show(object2, signal) {
-      const current2 = drawn3;
-      if (current2?.board !== signal || current2.frontend.show === void 0) return;
-      try {
-        await current2.frontend.show({ object: object2, el, core: current2.core });
-      } catch (error) {
-        if (current2.controller.signal.aborted) return;
-        throw new Error(`The frontend of the plugin class "${current2.plugin}" failed in show(): ${errorMessage(error)}`, { cause: error });
-      }
-    }
-  };
-}
-
-// srcts/commands/commands.ts
-import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-
 // srcts/commands/schemas.ts
 var id = { type: "string", pattern: "\\D" };
 var blockId = {
@@ -9343,11 +8713,18 @@ function isCommandId(id2) {
   const pkg = packageFromId(id2);
   return pkg !== null && id2.length > pkg.length + 1;
 }
+var loggedErrors = /* @__PURE__ */ new WeakSet();
+function isLogged(error) {
+  return error instanceof CommandError && loggedErrors.has(error);
+}
 function failed(command2, error) {
   if (error instanceof CommandError) return error;
-  return new CommandError(`The command "${command2.id}" failed`, [errorMessage(error)], {
+  const failure = new CommandError(`The command "${command2.id}" failed`, [errorMessage(error)], {
     cause: error
   });
+  log.error(failure);
+  loggedErrors.add(failure);
+  return failure;
 }
 function attempt2(command2, fn) {
   try {
@@ -9355,6 +8732,636 @@ function attempt2(command2, fn) {
   } catch (error) {
     throw failed(command2, error);
   }
+}
+
+// srcts/core/plugins.ts
+var NONE = Object.freeze({});
+var NOTHING_FAILED = Promise.resolve([]);
+function runPlugins(deps) {
+  const { store, keepOptions } = deps;
+  const replaced2 = deps.signal ?? new AbortController().signal;
+  const registeredClass = (id2) => own(store.plugins.registered(), id2);
+  const added = /* @__PURE__ */ new Map();
+  const stops = [];
+  function keep(ids2, by) {
+    if (ids2.length === 0) return NOTHING_FAILED;
+    const kept = keepOptions(ids2, by);
+    stops.push(kept.stop);
+    return kept.added;
+  }
+  function opened() {
+    for (const id2 of Object.keys(appPlugins())) {
+      const def = registeredClass(id2);
+      if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${id2}"`));
+    }
+  }
+  const offStore = store.subscribe((change) => {
+    if ("opened" in change) opened();
+  });
+  onAbort(replaced2, () => {
+    offStore();
+    for (const stop of stops.splice(0)) stop();
+  });
+  let memo2;
+  function appPlugins() {
+    if (!store.hasBoard()) return NONE;
+    const classes2 = store.plugins.registered();
+    if (memo2?.classes !== classes2) {
+      const registered = Object.entries(deps.plugins).flatMap(
+        ([id2, { name: name2 }]) => Object.hasOwn(classes2, id2) ? [[id2, Object.freeze({ name: name2 })]] : []
+      );
+      memo2 = { classes: classes2, plugins: Object.freeze(Object.fromEntries(registered)) };
+    }
+    return memo2.plugins;
+  }
+  function pluginClass(plugin) {
+    const def = Object.hasOwn(appPlugins(), plugin) ? registeredClass(plugin) : void 0;
+    if (def === void 0) throw new Error(`The app runs no plugin "${plugin}" on the open board.`);
+    return def;
+  }
+  function storage() {
+    const [id2] = inRole(appPlugins(), registeredClass, "storage");
+    return id2 === void 0 ? void 0 : pluginClass(id2).storage;
+  }
+  function frontend() {
+    const [id2] = inRole(appPlugins(), registeredClass, "frontend");
+    const drawn3 = id2 === void 0 ? void 0 : pluginClass(id2).frontend;
+    if (id2 === void 0 || drawn3 === void 0) return void 0;
+    return { frontend: drawn3, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
+  }
+  let started = false;
+  async function start2() {
+    if (started) return;
+    started = true;
+    const starting = Object.keys(appPlugins()).flatMap((id2) => {
+      const def = registeredClass(id2);
+      return def?.start === void 0 ? [] : [{ id: id2, def }];
+    });
+    const failures = await Promise.all(starting.map(({ id: id2 }) => added.get(id2) ?? NOTHING_FAILED));
+    starting.forEach(({ id: id2, def }, i2) => {
+      if (replaced2.aborted) return;
+      if ((failures[i2] ?? []).length > 0) {
+        log.error(`The plugin "${id2}" does not start, since board options that its class requires did not go onto the board.`);
+        return;
+      }
+      launch(id2, def);
+    });
+  }
+  function launch(id2, def) {
+    const controller = new AbortController();
+    let cleanup;
+    onAbort(replaced2, () => {
+      controller.abort();
+      if (cleanup !== void 0) attempt(cleanup);
+    });
+    let returned;
+    try {
+      returned = def.start?.({ core: deps.core(), plugin: id2, signal: controller.signal });
+    } catch (error) {
+      const why = new Error(`The start of the plugin class "${id2}" failed: ${errorMessage(error)}`, { cause: error });
+      log.error(why);
+      const module = sourceModule({ plugin: id2 }, packageFromId(id2));
+      deps.raise(coreNotification("plugin_start_failed", "error", why.message, { module }));
+      return;
+    }
+    if (typeof returned !== "function") return;
+    const given = returned;
+    if (controller.signal.aborted) attempt(given);
+    else cleanup = given;
+  }
+  function mountPlugin(el, plugin) {
+    if (replaced2.aborted) throw new Error(REPLACED);
+    const def = pluginClass(plugin);
+    const { ui } = def;
+    if (ui === void 0) {
+      throw new Error(`The class of the plugin "${plugin}" has no ui to mount.`);
+    }
+    const controller = new AbortController();
+    const { signal } = controller;
+    const ended = () => signal.aborted;
+    let cleanup;
+    let stopKeeping;
+    const end = () => {
+      if (ended()) return;
+      offEnd();
+      stopKeeping?.();
+      controller.abort();
+      if (cleanup !== void 0) attempt(cleanup);
+      el.replaceChildren();
+    };
+    const offEnd = onAbort(replaced2, end);
+    function fail(error) {
+      if (ended()) return;
+      log.error(asError(error));
+      cannotDraw(errorMessage(error));
+    }
+    function cannotDraw(message) {
+      deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
+    }
+    function lacking(ids2) {
+      const missing2 = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing2));
+    }
+    void (async () => {
+      const named3 = def.options ?? [];
+      const kept = keepOptions(named3, `the plugin class "${plugin}"`, () => {
+        if (ended()) return;
+        end();
+        lacking(named3);
+      });
+      stopKeeping = kept.stop;
+      const failures = await kept.added;
+      if (ended()) return;
+      if (failures.length > 0) {
+        kept.stop();
+        lacking(named3);
+        return;
+      }
+      try {
+        const rendered = await ui.render({ el, core: deps.core(), plugin, signal });
+        if (typeof rendered !== "function") return;
+        if (ended()) attempt(rendered);
+        else cleanup = rendered;
+      } catch (error) {
+        fail(new Error(`The ui of the plugin class "${plugin}" failed in render(): ${errorMessage(error)}`, { cause: error }));
+      }
+    })();
+    return end;
+  }
+  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start: start2 };
+}
+
+// srcts/core/requests.ts
+var ATTEMPTS3 = 3;
+async function pluginRequest(deps, plugin, name2, args, opts) {
+  if (typeof plugin !== "string" || plugin === "") {
+    throw new TypeError("A plugin's request names the plugin by the id of its class, a non-empty string.");
+  }
+  if (!Object.hasOwn(deps.plugins.appPlugins(), plugin)) {
+    throw new Error(`The app runs no plugin "${plugin}" on the open board, so its request did not go to R.`);
+  }
+  if (typeof name2 !== "string" || name2 === "") {
+    throw new TypeError(`A request of the plugin "${plugin}" is named by a non-empty string.`);
+  }
+  if (!isObject(args)) {
+    throw new TypeError(`The args of the request "${name2}" of the plugin "${plugin}" are an object.`);
+  }
+  const reads = opts.reads ?? [];
+  if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
+    throw new TypeError(`The blocks that the request "${name2}" of the plugin "${plugin}" reads are an array of their ids.`);
+  }
+  const what = `The request "${name2}" of the plugin "${plugin}"`;
+  const module = sourceModule({ plugin }, packageFromId(plugin));
+  const inCaller = keepContext();
+  for (let attempt3 = 1; ; attempt3++) {
+    const revisions = await evaluateReads2(deps, what, reads, opts.signal);
+    const { reply, body } = await inCaller(
+      () => deps.scheduler.request(
+        { kind: "request", type: "plugin", plugin, name: name2, args: { ...args }, reads: revisions },
+        {
+          ...opts.file === void 0 ? {} : { body: opts.file },
+          ...opts.signal === void 0 ? {} : { signal: opts.signal },
+          ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
+        }
+      )
+    );
+    const conditions = "conditions" in reply ? reply.conditions : [];
+    switch (reply.status) {
+      case "ok":
+        deps.replied(module, { type: "plugin", name: name2 }, conditions);
+        if (body !== null) return body;
+        return "value" in reply && reply.value !== void 0 ? reply.value : null;
+      case "missing":
+        if (attempt3 < ATTEMPTS3) continue;
+        throw new RequestError(`${what} gave up, since R kept lacking the results it reads.`, { status: "missing" });
+      case "cancelled":
+        throw new RequestError(`R cancelled the request "${name2}" of the plugin "${plugin}".`, { status: "cancelled" });
+      default:
+        deps.replied(module, { type: "plugin", name: name2 }, conditions);
+        throw new RequestError(`R replied ${reply.status} to the request "${name2}" of the plugin "${plugin}".`, {
+          status: reply.status,
+          conditions
+        });
+    }
+  }
+}
+async function evaluateReads2(deps, what, blocks, signal) {
+  if (blocks.length === 0) return [];
+  const absent = blocks.filter((block) => deps.scheduler.status(block) === void 0);
+  if (absent.length > 0) {
+    throw new Error(`${what} reads ${absent.length === 1 ? "the block" : "the blocks"} ${quoted(absent)}, which the board lacks.`);
+  }
+  const unique = [...new Set(blocks)];
+  const statuses = await deps.scheduler.evaluate(unique, void 0, signal === void 0 ? {} : { signal });
+  const unready = unique.flatMap((block) => {
+    const status = own(statuses, block);
+    return status === void 0 || status.status === "ready" ? [] : [{ block, status }];
+  });
+  if (unready.length > 0) {
+    const listed = unready.map(({ block, status }) => `"${block}" reads ${status.status}`);
+    throw new RequestError(`${what} did not go to R, since a block it reads is not ready: ${listed.join(", ")}.`, {
+      blocks: unready
+    });
+  }
+  const left2 = unique.filter((block) => own(statuses, block) === void 0);
+  if (left2.length > 0) {
+    throw new Error(`${what} did not go to R, since ${left2.length === 1 ? "the block" : "the blocks"} ${quoted(left2)} left the board.`);
+  }
+  return unique.map((block) => ({ block, revision: own(statuses, block)?.revision ?? 0 }));
+}
+
+// srcts/core/core.ts
+function createCore(parts) {
+  const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const { raise } = notifications;
+  notifications.follow(scheduler);
+  const optionPackage = (id2) => own(parts.options, id2)?.package;
+  const listeners = /* @__PURE__ */ new Set();
+  parts.signal?.addEventListener(
+    "abort",
+    () => {
+      listeners.clear();
+    },
+    { once: true }
+  );
+  const outputEvents = {
+    subscribe(fn) {
+      const wrapped = (event) => {
+        fn(event);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
+  const mounts = createMounts({
+    store,
+    commands,
+    scheduler,
+    loader,
+    core: () => api,
+    renderers: parts.renderers,
+    raise,
+    replied: notifications.replied,
+    notify: notifications.notify,
+    optionPackage,
+    ...parts.measure === void 0 ? {} : { measure: parts.measure },
+    ...parts.signal === void 0 ? {} : { signal: parts.signal },
+    emit(event) {
+      for (const fn of [...listeners]) {
+        try {
+          fn(event);
+        } catch (error) {
+          log.error(asError(error));
+        }
+      }
+    }
+  });
+  const plugins = runPlugins({
+    store,
+    keepOptions: (ids2, by, failed3) => mounts.keepOptions(ids2, by, failed3),
+    core: () => api,
+    plugins: parts.plugins,
+    raise,
+    ...parts.signal === void 0 ? {} : { signal: parts.signal }
+  });
+  const focus = createFocus(store, parts.signal);
+  const edits = refusing(store, commands, notifications.raiseAgain);
+  const api = {
+    store: edits.store,
+    commands: edits.commands,
+    scheduler: {
+      demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
+      evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),
+      invalidate: (id2) => {
+        scheduler.invalidate(id2);
+      },
+      status: (id2) => scheduler.status(id2),
+      subscribe: (fn) => scheduler.subscribe(fn)
+    },
+    blockRegistry: () => store.blockRegistry(),
+    options: {
+      register: (def) => store.options.register(def),
+      registered: () => store.options.registered(),
+      value: (id2) => store.hasBoard() ? own(store.board().options, id2) : void 0
+    },
+    plugins: {
+      register: (def) => store.plugins.register(def),
+      appPlugins: () => plugins.appPlugins(),
+      pluginClass: (plugin) => plugins.pluginClass(plugin),
+      storage: () => plugins.storage()
+    },
+    lock: parts.lock,
+    outputEvents,
+    notifications: notifications.api,
+    log(pkg) {
+      const given = pkg;
+      if (!isPackageName(given)) {
+        throw new TypeError(`A log names the package whose lines it writes, as core.log("blockr.dock"), not ${JSON.stringify(given)}.`);
+      }
+      return createLog(given);
+    },
+    focus,
+    onScreen: createOnScreen(parts.signal),
+    show(object2) {
+      if (parts.signal?.aborted === true) return Promise.resolve();
+      const shown2 = shownObject(object2);
+      if ("block" in shown2) {
+        if (!store.hasBoard() || !Object.hasOwn(store.board().blocks, shown2.block)) {
+          throw new Error(`The board holds no block ${JSON.stringify(shown2.block)} to show.`);
+        }
+        focus.set(shown2.block);
+      } else if (plugins.pluginClass(shown2.plugin).ui === void 0) {
+        throw new Error(`The class of the plugin "${shown2.plugin}" has no ui to show.`);
+      }
+      return parts.show(shown2);
+    },
+    request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name2, args, opts),
+    module: (id2) => loader.module(id2),
+    blockrOption: (name2) => blockrOptions.read(name2),
+    mountBlock: (el, block) => mounts.mountBlock(el, block),
+    mountOutput: (el, block) => mounts.mountOutput(el, block),
+    mountOption: (el, option) => mounts.mountOption(el, option),
+    mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin)
+  };
+  let heard = {};
+  store.subscribe((change, board) => {
+    const opened = "opened" in change;
+    if (board.options !== heard || opened) {
+      const before = opened ? {} : heard;
+      heard = board.options;
+      for (const [id2, value2] of Object.entries(board.options)) {
+        if (!jsonEqual(own(before, id2), value2)) changed(id2, value2);
+      }
+    }
+    if (opened || (change.delta.options?.unset?.length ?? 0) > 0) {
+      const lacking = Object.values(store.options.registered()).filter((def) => def.onChange !== void 0 && !Object.hasOwn(board.options, def.id)).map((def) => def.id);
+      if (lacking.length > 0) void mounts.addOptions(lacking, "its onChange");
+    }
+  });
+  const failing = /* @__PURE__ */ new Map();
+  const raisedBy = /* @__PURE__ */ new Map();
+  function changed(id2, value2) {
+    const def = own(store.options.registered(), id2);
+    if (def?.onChange === void 0) return;
+    const raisedNow = [];
+    const module = sourceModule({ option: id2 }, optionPackage(id2));
+    const notify = (notification) => {
+      const withdraw = notifications.notify(module, notification);
+      raisedNow.push(withdraw);
+      return withdraw;
+    };
+    let failure;
+    try {
+      def.onChange(value2, api, notify);
+    } catch (error) {
+      log.error(asError(error));
+      failure = raise(
+        coreNotification("on_change_failed", "error", `The onChange of the board option "${id2}" failed: ${errorMessage(error)}`, {
+          module
+        })
+      );
+    }
+    failing.get(id2)?.();
+    if (failure === void 0) failing.delete(id2);
+    else failing.set(id2, failure);
+    for (const withdraw of raisedBy.get(id2) ?? []) withdraw();
+    raisedBy.set(id2, raisedNow);
+  }
+  return { api, plugins };
+}
+function refusing(store, commands, raiseAgain) {
+  function refused2(origin, error) {
+    if ((origin ?? "user") !== "user") return;
+    const why = errorMessage(error);
+    if (!isLogged(error)) log.debug(why);
+    raiseAgain(coreNotification("board_edit_failed", "error", why));
+  }
+  function edit(origin, fn) {
+    try {
+      fn();
+    } catch (error) {
+      refused2(origin, error);
+      throw error;
+    }
+  }
+  return {
+    store: {
+      ...store,
+      apply(delta, origin, opts) {
+        edit(origin, () => {
+          store.apply(delta, origin, opts);
+        });
+      },
+      undo(origin) {
+        edit(origin, () => {
+          store.undo(origin);
+        });
+      },
+      // A redo names no origin, so it is the user's, as the store announces
+      // it.
+      redo() {
+        edit(void 0, () => {
+          store.redo();
+        });
+      }
+    },
+    commands: {
+      ...commands,
+      run: (id2, args, origin) => commands.run(id2, args, origin).catch((error) => {
+        refused2(origin, error);
+        throw error;
+      })
+    }
+  };
+}
+function shownObject(given) {
+  if (typeof given === "object" && given !== null && !Array.isArray(given)) {
+    const entries = Object.entries(given);
+    const [entry] = entries;
+    if (entries.length === 1 && entry !== void 0 && typeof entry[1] === "string") {
+      if (entry[0] === "block") return Object.freeze({ block: entry[1] });
+      if (entry[0] === "plugin") return Object.freeze({ plugin: entry[1] });
+    }
+  }
+  throw new TypeError(`Core shows a block or a plugin, as { block: "a" } or { plugin: "blockr.md-md_plugin" }, not ${JSON.stringify(given)}.`);
+}
+function createOnScreen(signal) {
+  let seen = null;
+  const listeners = /* @__PURE__ */ new Set();
+  signal?.addEventListener(
+    "abort",
+    () => {
+      listeners.clear();
+    },
+    { once: true }
+  );
+  return {
+    get: () => seen,
+    set(shown2) {
+      const next = seenGiven(shown2);
+      if (seen !== null && sameIds(seen.blocks, next.blocks) && sameIds(seen.plugins, next.plugins)) return;
+      seen = next;
+      announceTo(listeners, seen);
+    },
+    subscribe(fn) {
+      const wrapped = (shown2) => {
+        fn(shown2);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
+}
+function seenGiven(given) {
+  if (typeof given === "object" && given !== null) {
+    const { blocks, plugins } = given;
+    if (isIds(blocks) && isIds(plugins)) {
+      return Object.freeze({ blocks: Object.freeze([...blocks]), plugins: Object.freeze([...plugins]) });
+    }
+  }
+  throw new TypeError(
+    `A frontend says what is on screen as { blocks: ["a"], plugins: ["blockr.md-md_plugin"] }, not ${JSON.stringify(given)}.`
+  );
+}
+function isIds(given) {
+  return Array.isArray(given) && given.every((id2) => typeof id2 === "string");
+}
+function sameIds(a2, b2) {
+  const inB = new Set(b2);
+  return new Set(a2).size === inB.size && a2.every((id2) => inB.has(id2));
+}
+function createFocus(store, signal) {
+  let focused = null;
+  const listeners = /* @__PURE__ */ new Set();
+  const offStore = store.subscribe((_change, board) => {
+    if (focused === null || Object.hasOwn(board.blocks, focused)) return;
+    focused = null;
+    announceTo(listeners, focused);
+  });
+  signal?.addEventListener(
+    "abort",
+    () => {
+      offStore();
+      listeners.clear();
+    },
+    { once: true }
+  );
+  return {
+    get: () => focused,
+    set(block) {
+      const given = block;
+      if (given !== null && (typeof given !== "string" || !store.hasBoard() || !Object.hasOwn(store.board().blocks, given))) {
+        throw new Error(`The board holds no block ${JSON.stringify(given)} to give focus to.`);
+      }
+      if (given === focused) return;
+      focused = given;
+      announceTo(listeners, focused);
+    },
+    subscribe(fn) {
+      const wrapped = (block) => {
+        fn(block);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
+}
+
+// srcts/core/frontends.ts
+function loadingNote() {
+  const box = document.createElement("div");
+  box.setAttribute("role", "status");
+  box.className = "bc:p-4 bc:font-sans bc:text-sm bc:text-text-muted";
+  box.textContent = "Loading the board\u2026";
+  return box;
+}
+function pageFrontEnds(el) {
+  let drawn3;
+  let next;
+  function end() {
+    const current2 = drawn3;
+    if (current2 === void 0) return;
+    drawn3 = void 0;
+    current2.off();
+    current2.controller.abort();
+    if (current2.cleanup !== void 0) attempt(current2.cleanup);
+    el.replaceChildren(loadingNote());
+  }
+  return {
+    prepare(front, signal) {
+      if (signal.aborted) return;
+      end();
+      next = front;
+    },
+    async render(core, signal, failures) {
+      if (signal.aborted) return;
+      const prepared = next;
+      next = void 0;
+      if (prepared === void 0) return;
+      el.replaceChildren();
+      if ("none" in prepared) {
+        showError(el, prepared.none);
+        log.error(prepared.none);
+        return;
+      }
+      if (failures.length > 0) {
+        showError(el, failures.join("\n"));
+        return;
+      }
+      const controller = new AbortController();
+      const ending = () => {
+        if (drawn3 === current2) end();
+      };
+      signal.addEventListener("abort", ending, { once: true });
+      const current2 = {
+        frontend: prepared.frontend,
+        plugin: prepared.plugin,
+        core,
+        board: signal,
+        controller,
+        off: () => {
+          signal.removeEventListener("abort", ending);
+        },
+        cleanup: void 0
+      };
+      drawn3 = current2;
+      try {
+        const rendered = await prepared.frontend.render({
+          el,
+          core,
+          plugin: prepared.plugin,
+          signal: controller.signal,
+          args: prepared.args
+        });
+        if (typeof rendered !== "function") return;
+        if (controller.signal.aborted) attempt(rendered);
+        else current2.cleanup = rendered;
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        const why = new Error(`The frontend of the plugin class "${prepared.plugin}" failed in render(): ${errorMessage(error)}`, {
+          cause: error
+        });
+        showError(el, why.message);
+        log.error(why);
+      }
+    },
+    async show(object2, signal) {
+      const current2 = drawn3;
+      if (current2?.board !== signal || current2.frontend.show === void 0) return;
+      try {
+        await current2.frontend.show({ object: object2, el, core: current2.core });
+      } catch (error) {
+        if (current2.controller.signal.aborted) return;
+        throw new Error(`The frontend of the plugin class "${current2.plugin}" failed in show(): ${errorMessage(error)}`, { cause: error });
+      }
+    }
+  };
 }
 
 // srcts/core/migrations.ts
