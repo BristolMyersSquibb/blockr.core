@@ -14,6 +14,11 @@
 //   the arguments that `serve()` hands it, which R's reply to `hello` holds in
 //   `frontend`. Where a board option that the frontend requires did not go
 //   onto the board, the element shows why in place of the frontend.
+//   The element keeps the loading note while render() runs, since a frontend
+//   may ask R for something before it draws, as the dock reads blockr options.
+//   React's root replaces what its element holds as it first draws.
+//   Core removes the note once render() has returned, where a frontend that
+//   draws without React left it.
 // - As a plugin asks to show a block or a plugin through CoreApi's show(),
 //   core calls the show() of the module of the frontend that draws the board,
 //   where it has one, with the board object, the element and CoreApi, and
@@ -47,12 +52,24 @@ interface Drawn {
 }
 
 // What the element says while core starts, as the page starts and as another
-// board opens.
+// board opens: the loading note, a spinner over the line "Loading the board…".
+// Core's stylesheet draws it in the middle of the window, and fades it in after
+// a moment (../runtime/index.css).
+// The spinner is a <progress> without a value, which says that the page is
+// busy, and its label says what loads. The line says the same to the eye, so
+// assistive technology skips it.
+// R's page holds the same note from the start (R/utils-serve.R).
 export function loadingNote(): HTMLElement {
   const box = document.createElement("div");
   box.setAttribute("role", "status");
-  box.className = "bc:p-4 bc:font-sans bc:text-sm bc:text-text-muted";
-  box.textContent = "Loading the board…";
+  box.className = "bc:loading-note";
+  const spinner = document.createElement("progress");
+  spinner.className = "bc:spinner";
+  spinner.setAttribute("aria-label", "Loading the board");
+  const line = document.createElement("span");
+  line.setAttribute("aria-hidden", "true");
+  line.textContent = "Loading the board…";
+  box.append(spinner, line);
   return box;
 }
 
@@ -86,7 +103,6 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
       const prepared = next;
       next = undefined;
       if (prepared === undefined) return;
-      el.replaceChildren();
       if ("none" in prepared) {
         showError(el, prepared.none);
         log.error(prepared.none);
@@ -113,6 +129,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         cleanup: undefined,
       };
       drawn = current;
+      const note = [...el.childNodes];
       try {
         const rendered = await prepared.frontend.render({
           el,
@@ -121,6 +138,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
           signal: controller.signal,
           args: prepared.args,
         });
+        for (const node of note) if (node.parentNode === el) node.remove();
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current.cleanup = rendered;

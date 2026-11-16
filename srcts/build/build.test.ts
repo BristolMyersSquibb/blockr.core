@@ -47,9 +47,9 @@ test("bundles the runtime and each module, each with its stylesheet beside it", 
   await build(root);
 
   const out = join(root, "inst/js");
-  // Beside them, the build writes the vendor file, React's entry points and the
-  // import map.
-  expect((await readdir(out)).filter((file) => !/^react|^vendor-|^import-map/.test(file)).sort()).toEqual([
+  // Beside them, the build writes the vendor file, React's entry points, the
+  // import map and the files that a page imports as it starts.
+  expect((await readdir(out)).filter((file) => !/^react|^vendor-|^import-map|^preload/.test(file)).sort()).toEqual([
     "LICENSES",
     "blockr-core.css",
     "blockr-core.js",
@@ -77,7 +77,7 @@ test("writes each of React's entry points as an ES module, exporting what the en
   const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
   expect(vendor).toHaveLength(1);
   expect(written).toEqual(
-    ["LICENSES", "blockr-core.js", "import-map.json", ...vendor, ...REACT_ENTRIES.map(importFile)]
+    ["LICENSES", "blockr-core.js", "import-map.json", "preload.json", ...vendor, ...REACT_ENTRIES.map(importFile)]
       .map((file) => `inst/js/${file}`)
       .sort(),
   );
@@ -180,7 +180,7 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
     "srcts/binding/index.ts": "export const binding = 'the binding';\n",
     "srcts/controls/index.ts": 'import { input } from "../inputs/index.ts";\nexport const controls = "the controls " + input;\n',
     "srcts/otel/index.ts": "export const otel = 'the otel module';\n",
-    "srcts/runtime/index.ts": `${imports("..")}import { trace } from "@opentelemetry/api";\nexport const tracer = trace.getTracer("blockr.core");\nexport const otel = () => import("../otel/index.ts");\n`,
+    "srcts/runtime/index.ts": `${imports("..")}import { trace } from "@opentelemetry/api";\nimport { version } from "react";\nexport const tracer = trace.getTracer("blockr.core", version);\nexport const otel = () => import("../otel/index.ts");\n`,
     "srcts/modules/head-block/index.ts": imports("../.."),
   });
 
@@ -220,6 +220,19 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   // beside them.
   const map = JSON.parse(await read("import-map.json")) as unknown;
   expect(map).toEqual({ imports: Object.fromEntries(IMPORTS.map((name) => [name, importFile(name)])) });
+
+  // The build lists what each file imports up front: an import by name, and a
+  // file beside it by its path. The runtime's import of the OpenTelemetry
+  // module is left out, which the runtime imports only as it loads it, and
+  // each of React's entry points imports the vendor file.
+  const vendor = (await readdir(join(root, "inst/js"))).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
+  const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
+  expect([...(preload["blockr-core.js"] ?? [])].sort()).toEqual(
+    ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls", OTEL_API, "react"].sort(),
+  );
+  expect(preload["blockr-core-react.js"]).toEqual(["@blockr/core/binding"]);
+  for (const name of REACT_ENTRIES) expect(preload[importFile(name)]).toEqual([`./${vendor ?? ""}`]);
+  expect(Object.keys(preload)).toEqual(Object.keys(preload).sort());
 });
 
 test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module uses, minified, into a file of their own, which the module imports by its name", async () => {

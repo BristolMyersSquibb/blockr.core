@@ -37,6 +37,11 @@
 //   and so do a package's modules.
 //   The runtime leaves its import of the OpenTelemetry module an import as
 //   well, so that a page loads the module only where it imports it.
+// - What each file imports up front, the static imports of ./preload.ts, goes
+//   into preload.json, React's entry points included, which import the vendor
+//   file.
+//   R names those files in the page's head, so that the browser fetches them at
+//   once, rather than each once the file that imports it has loaded.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
 //   blockr-core.css or <name>.css.
 // - Each output type in srcts/types/outputs.ts gets its JSON Schema in
@@ -105,6 +110,7 @@ import ts from "typescript";
 import { IMPORTS, importFile, OTEL_API, REACT_ENTRIES } from "../import-map/index.ts";
 import type { Import } from "../import-map/index.ts";
 import { listing } from "../util/index.ts";
+import { staticImports } from "./preload.ts";
 import { preset } from "./preset.ts";
 import { vendorCheck } from "./vendor-check.ts";
 
@@ -464,6 +470,18 @@ export async function build(root: string): Promise<string[]> {
   const map = join(out, "import-map.json");
   await writeJson(map, { imports });
   written.push(relative(root, map));
+
+  // What each file imports up front, and React's entry points, which the build
+  // writes itself, the vendor file, as the bundle of OpenTelemetry's SDK
+  // imports its API.
+  const preload = join(out, "preload.json");
+  const imported: Record<string, readonly string[]> = {
+    ...staticImports(results.map((result) => result.metafile)),
+    ...Object.fromEntries(react.map((file) => [file, [`./${vendor.file}`]])),
+    ...(otel === undefined || otel.imports.length === 0 ? {} : { [otel.file]: otel.imports }),
+  };
+  await writeJson(preload, Object.fromEntries(Object.entries(imported).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
+  written.push(relative(root, preload));
 
   for (const entry of [runtime, ...modules]) {
     const css = join(entry.dir, "index.css");

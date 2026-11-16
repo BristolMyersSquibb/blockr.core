@@ -7757,8 +7757,14 @@ function createFocus(store, signal5) {
 function loadingNote() {
   const box = document.createElement("div");
   box.setAttribute("role", "status");
-  box.className = "bc:p-4 bc:font-sans bc:text-sm bc:text-text-muted";
-  box.textContent = "Loading the board\u2026";
+  box.className = "bc:loading-note";
+  const spinner = document.createElement("progress");
+  spinner.className = "bc:spinner";
+  spinner.setAttribute("aria-label", "Loading the board");
+  const line = document.createElement("span");
+  line.setAttribute("aria-hidden", "true");
+  line.textContent = "Loading the board\u2026";
+  box.append(spinner, line);
   return box;
 }
 function pageFrontEnds(el) {
@@ -7784,7 +7790,6 @@ function pageFrontEnds(el) {
       const prepared = next;
       next = void 0;
       if (prepared === void 0) return;
-      el.replaceChildren();
       if ("none" in prepared) {
         showError(el, prepared.none);
         log.error(prepared.none);
@@ -7811,6 +7816,7 @@ function pageFrontEnds(el) {
         cleanup: void 0
       };
       drawn2 = current2;
+      const note = [...el.childNodes];
       try {
         const rendered = await prepared.frontend.render({
           el,
@@ -7819,6 +7825,7 @@ function pageFrontEnds(el) {
           signal: controller.signal,
           args: prepared.args
         });
+        for (const node of note) if (node.parentNode === el) node.remove();
         if (typeof rendered !== "function") return;
         if (controller.signal.aborted) attempt(rendered);
         else current2.cleanup = rendered;
@@ -8982,7 +8989,7 @@ function useBlockName(core, id2) {
 // srcts/page/page.ts
 function startPage(options) {
   const { el } = options;
-  el.replaceChildren(loadingNote());
+  if (el.firstElementChild === null) el.replaceChildren(loadingNote());
   return start({
     transport: options.transport ?? shinyTransport(),
     ...options.loader === void 0 ? {} : { loader: options.loader },

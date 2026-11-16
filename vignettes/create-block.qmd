@@ -567,15 +567,30 @@ The module then runs the SDK of the blockr.core it runs on, and its inputs take 
 A script `build.ts` builds the module, and Node runs it as it is from version 22.18:
 
 ```ts
+import { writeFile } from "node:fs/promises";
 import * as esbuild from "esbuild";
-import { preset } from "@blockr/core/build";
+import { preset, staticImports, vendorCheck } from "@blockr/core/build";
 
-await esbuild.build({
+const result = await esbuild.build({
   ...preset,
+  plugins: [...preset.plugins, vendorCheck],
   entryPoints: { "head-block": "srcts/head-block/index.tsx" },
   outdir: "inst/js",
+  metafile: true,
 });
+
+await writeFile("inst/js/preload.json", JSON.stringify(staticImports([result.metafile])));
 ```
+
+The build takes the vendor check, which core ships beside the preset.
+A package's own files hold its own code alone, not minified, so that a diff of `inst/` shows what an edit changed.
+The libraries that a package bundles from npm go, minified, into a file of their own, its vendor file, such as `vendor-3f2a9c1d.js`, from which its modules import them.
+The vendor check fails a build that puts code from `node_modules` into one of the package's own files, and names the npm package and the file.
+The build of the vendor file leaves the check out, since that file holds such code alone.
+
+The build also writes what each of its files imports up front into `inst/js/preload.json`, with `staticImports()`, from the `metafile` that esbuild gives.
+R reads that list as it makes the page, and names those files in the page's head, beside the modules of the app.
+The browser then fetches them all at once, rather than each once the file that imports it has loaded.
 
 The package installs its tools from npm:
 
@@ -685,6 +700,8 @@ A module and what it ships sit in one folder of `inst/`, under one name:
 | `inst/js/head-block.css` | the module's stylesheet, if it has one |
 
 R serves each file at a URL that holds a hash of its content, so that no browser runs a changed file from its cache.
+The package's vendor file and `preload.json` sit beside them.
+R serves the vendor file at its name, which holds a hash of its content, since a module imports the file by that name.
 A class defined outside a package, such as in an app script, names a module beside the script, and `js_module()` resolves the path against the working directory.
 
 ## Registration

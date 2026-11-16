@@ -288,6 +288,14 @@
   One abort then ends everything that core ran for the board before: the frontend and what it mounted, the plugins, the store with its undo history, the command registry, the board options, the scheduler with its demands, which block has focus, and what core kept of outputs and answers.
   Core sends another hello, on which R drops every result, queued request and request body of the board before, and starts as the page does, with a new `CoreApi` for the frontend and the plugins.
   A store opens one board, and the scheduler of the next board gives each block a revision above any that the page has given (#497).
+* While core starts, as the page starts and as another board opens, the page shows a small gray spinner over the line "Loading the board…" in the middle of the window.
+  It fades in after a moment, so that a board that opens at once shows none.
+  R's page holds it from the start, so that it shows before the client's code has loaded.
+  Until the board sets its theme, the page takes the theme of the board option `dark_mode` where R knows it, from the board's value or else the blockr option `dark_mode`, and otherwise the theme of the user's system.
+  The spinner stays until the frontend draws, so that a frontend that first asks R for something, as the dock does, leaves no blank page.
+  The page's head also names the files that the page imports as it starts, as `<link rel="modulepreload">`, so that the browser fetches them at once rather than each once the file that imports it has loaded.
+  These are the modules of the app's plugins and of the board options, the UI modules and renderers of the classes of the opening board's blocks, and what these and the runtime import up front, as the build of each file's package lists it in the `preload.json` beside the file.
+  A package's build writes that file with `staticImports()` from `@blockr/core/build` (#648).
 * A later session whose R speaks another major of the wire protocol stops the page, as the first session's does.
   Core's client sends R nothing more, not even what it held for the session, and the page says to reload it.
   Where a later session names a package at another version than the page loaded, the page still asks the user to reload it.

@@ -40,6 +40,20 @@ var preset = {
   plugins: [imports]
 };
 
+// srcts/build/preload.ts
+function staticImports(metafiles) {
+  const files = [];
+  for (const metafile of metafiles) {
+    for (const [path, output] of Object.entries(metafile?.outputs ?? {})) {
+      const imports2 = output.imports.flatMap(
+        (entry) => entry.external === true && (entry.kind === "import-statement" || entry.kind === "import-rule") ? [entry.path] : []
+      );
+      if (imports2.length > 0) files.push([path.slice(path.lastIndexOf("/") + 1), [...new Set(imports2)]]);
+    }
+  }
+  return Object.fromEntries(files.sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+}
+
 // srcts/build/vendor-check.ts
 var vendorCheck = {
   name: "blockr.core-vendor-check",
@@ -71,5 +85,6 @@ function inputPackage(input) {
 }
 export {
   preset,
+  staticImports,
   vendorCheck
 };

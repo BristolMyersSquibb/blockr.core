@@ -350,6 +350,8 @@ check_outside_classes <- function(classes) {
 # It works out the logger afresh, so that a logger that cannot work stops the
 # app here, and so does a logger of the client's that cannot (see
 # `write_log()`).
+# R also works out here which modules the page imports as it starts, which the
+# page names for the browser to fetch at once (see `page_modules()`).
 serve_app <- function(board, registry, data = list(), alone = FALSE,
                       plugins = list(), frontend = as_json_object(list())) {
 
@@ -365,8 +367,17 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
   # names, so that two packages that list one stop the app here.
   loaded_options()
 
+  modules <- page_modules(board, registry, plugins)
+  dark_mode <- board_dark_mode(board)
+
   shiny::shinyApp(
-    ui = function(req) serve_page(alone),
+    ui = function(req) {
+      serve_page(
+        alone,
+        modules = modules,
+        color_scheme = page_color_scheme(dark_mode)
+      )
+    },
     server = function(input, output, session) {
 
       ev <- new_evaluator(
@@ -382,6 +393,84 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
       )
     }
   )
+}
+
+# The modules that the page imports as it starts, for the opening board given
+# as JSON.
+# Core imports the module of each of the app's plugins, `plugins`, and of each
+# board option that the loaded packages list, before it opens the board.
+# The frontend then imports the UI module of the class of each block on the
+# board, and the module of the class's renderer, from the app's block
+# registry, `registry`.
+# A block whose class the registry lacks adds nothing, since the board fails
+# to open with it.
+page_modules <- function(board, registry, plugins = list()) {
+
+  json <- if (inherits(board, "json")) board else encode_message(board)
+  blocks <- decode_message(json)[["board"]][["blocks"]]
+
+  ids <- unique(as.character(unlst(lst_xtr(blocks, "registry_id"))))
+  ids <- intersect(ids, ls(envir = registry))
+
+  entries <- lapply(ids, get_registry_entry, registry)
+  coercions <- output_coercions()
+  renderers <- Filter(not_null, lapply(entries, entry_renderer, coercions))
+
+  modules <- c(
+    lst_xtr(plugins, "module"),
+    lst_xtr(loaded_options(), "module"),
+    lst_xtr(entries, "ui"),
+    lst_xtr(renderers, "module")
+  )
+
+  unique(Filter(not_null, unname(modules)))
+}
+
+# The value of the board option `dark_mode` that the opening board given as
+# JSON holds, or `NULL` where it holds none.
+board_dark_mode <- function(board) {
+  json <- if (inherits(board, "json")) board else encode_message(board)
+  decode_message(json)[["board"]][["options"]][["dark_mode"]][["value"]]
+}
+
+# The theme that the page takes as it loads, as the content of its meta tag
+# `color-scheme`: the theme of the board option `dark_mode`, where R knows it.
+# That is the opening board's value, `value`, or else the default that the
+# blockr option `dark_mode` gives, which R reads as the client reads it.
+# TRUE or FALSE, as a logical or as text, stands for dark or light, and the
+# text "light" or "dark" for itself.
+# Where R knows neither, the page takes the theme that the user's system
+# prefers, as `dark_mode` does then, and so it does where the blockr option is
+# set twice, or to a value that the board option does not take, which the
+# client reports as it reads it.
+# A board that the storage plugin opens in place of the opening board may hold
+# another value, which R cannot know as it makes the page.
+page_color_scheme <- function(value = NULL) {
+
+  if (is.null(value)) {
+    value <- tryCatch(
+      blockr_option("dark_mode", NULL),
+      error = function(e) NULL
+    )
+  }
+
+  if (is_string(value) && !is.na(as.logical(trimws(value)))) {
+    value <- as.logical(trimws(value))
+  }
+
+  if (isTRUE(value)) {
+    return("dark")
+  }
+
+  if (isFALSE(value)) {
+    return("light")
+  }
+
+  if (is_string(value) && value %in% c("light", "dark")) {
+    return(value)
+  }
+
+  "light dark"
 }
 
 # The latest result of each block that the evaluator holds one for, by block
@@ -407,6 +496,16 @@ latest_results <- function(ev, alone = FALSE) {
 # after its own scripts, which are no modules.
 # The page then holds core's stylesheet, the element that the client draws
 # in, and the module script that starts the client with `startPage()`.
+# The element holds the loading note from the start, so that the page shows it
+# before the client's code has loaded, which the client keeps until the board
+# opens.
+# Until then, the page takes the theme of the board option `dark_mode` where R
+# knows it, or else the theme that the user's system prefers, as `dark_mode`
+# does by default, in `color_scheme` (see `page_color_scheme()`).
+# So a dark board opens on a dark page rather than on a light page that turns
+# dark.
+# Its head names the files that the page imports as it starts, the `modules`
+# given among them, for the browser to fetch at once (see `preload_links()`).
 # R makes the page for each request, so that its URLs name the files that R
 # serves now.
 # In Shiny's test mode, as shinytest2 starts an app, the module script also
@@ -414,7 +513,8 @@ latest_results <- function(ev, alone = FALSE) {
 # it returns on `window`, for the tests to read.
 # A page outside test mode loads none of that module.
 serve_page <- function(alone = FALSE,
-                       test = isTRUE(shiny::getShinyOption("testmode"))) {
+                       test = isTRUE(shiny::getShinyOption("testmode")),
+                       modules = list(), color_scheme = "light dark") {
 
   runtime <- served_module(core_runtime())
 
@@ -429,10 +529,27 @@ serve_page <- function(alone = FALSE,
   shiny::tagList(
     import_map_dependency(),
     shiny::tags$head(
-      shiny::tags$link(rel = "stylesheet", href = runtime[["css"]])
+      shiny::tags$meta(name = "color-scheme", content = color_scheme),
+      shiny::tags$link(rel = "stylesheet", href = runtime[["css"]]),
+      preload_links(runtime[["module"]], modules)
     ),
-    shiny::tags$div(id = "blockr-page"),
+    shiny::tags$div(id = "blockr-page", loading_note()),
     shiny::tags$script(type = "module", shiny::HTML(script))
+  )
+}
+
+# The loading note, as the client's `loadingNote()` makes it
+# (srcts/core/frontends.ts): a spinner over the line "Loading the board…",
+# which core's stylesheet draws.
+loading_note <- function() {
+  shiny::tags$div(
+    role = "status",
+    class = "bc:loading-note",
+    shiny::tags$progress(
+      class = "bc:spinner",
+      `aria-label` = "Loading the board"
+    ),
+    shiny::tags$span(`aria-hidden` = "true", "Loading the board\u2026")
   )
 }
 

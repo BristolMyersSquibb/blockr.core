@@ -815,6 +815,260 @@ test_that("the page names the import map first and starts the client", {
   expect_match(page$html, "\"blockr-page\"), alone: true });", fixed = TRUE)
 })
 
+test_that("the page shows the loading note in the system's theme at once", {
+
+  page <- htmltools::renderTags(serve_page())
+
+  expect_match(
+    page$head,
+    "<meta name=\"color-scheme\" content=\"light dark\"/>",
+    fixed = TRUE
+  )
+  expect_match(
+    page$html,
+    paste0(
+      "<div id=\"blockr-page\">\\s*",
+      "<div role=\"status\" class=\"bc:loading-note\">"
+    )
+  )
+  expect_match(
+    page$html,
+    paste0(
+      "<progress class=\"bc:spinner\" aria-label=\"Loading the board\">",
+      "</progress>"
+    ),
+    fixed = TRUE
+  )
+  expect_match(
+    page$html,
+    "<span aria-hidden=\"true\">Loading the board\u2026</span>",
+    fixed = TRUE
+  )
+})
+
+test_that("the page takes the theme of `dark_mode` where R knows it", {
+
+  withr::local_options(blockr.dark_mode = NULL)
+  withr::local_envvar(BLOCKR_DARK_MODE = NA)
+
+  # The theme for the blockr option given and the board's value, if any.
+  scheme <- function(option, board_value = NULL) {
+    withr::with_options(
+      list(blockr.dark_mode = option),
+      page_color_scheme(board_value)
+    )
+  }
+
+  # Where neither the board nor the blockr option sets it, the page takes the
+  # theme of the user's system.
+  expect_identical(page_color_scheme(), "light dark")
+
+  # The blockr option, read as the client reads it.
+  for (value in list(TRUE, "TRUE", " true ", "T", "dark")) {
+    expect_identical(scheme(value), "dark")
+  }
+  for (value in list(FALSE, "False", "F", "light")) {
+    expect_identical(scheme(value), "light")
+  }
+  withr::with_envvar(
+    c(BLOCKR_DARK_MODE = "TRUE"),
+    expect_identical(page_color_scheme(), "dark")
+  )
+
+  # A value that the board option does not take, or a blockr option set
+  # twice, leaves the theme of the user's system.
+  expect_identical(scheme("purple"), "light dark")
+  withr::with_envvar(
+    c(BLOCKR_DARK_MODE = "dark"),
+    expect_identical(scheme("light"), "light dark")
+  )
+
+  # The board's own value comes before the blockr option.
+  dark <- new_board(options = new_board_options(new_dark_mode_option("dark")))
+  value <- board_dark_mode(encode_message(blockr_ser(dark)))
+
+  expect_identical(value, "dark")
+  expect_identical(scheme("light", value), "dark")
+  expect_null(board_dark_mode(encode_message(blockr_ser(new_board()))))
+
+  page <- htmltools::renderTags(serve_page(color_scheme = "dark"))
+
+  expect_match(
+    page$head,
+    "<meta name=\"color-scheme\" content=\"dark\"/>",
+    fixed = TRUE
+  )
+})
+
+test_that("the page imports the modules of plugins, options and blocks", {
+
+  plugins <- app_plugins(subset(available_plugins(), package == "blockr.core"))
+  board <- served_board()
+  registry <- app_block_registry(board = board)
+
+  modules <- page_modules(encode_message(blockr_ser(board)), registry, plugins)
+
+  expect_setequal(
+    chr_xtr(modules, "path"),
+    c(
+      chr_xtr(lst_xtr(plugins, "module"), "path"),
+      chr_xtr(lst_xtr(loaded_options(), "module"), "path"),
+      "js/dataset-block.js",
+      "js/head-block.js",
+      "js/basic-table.js"
+    )
+  )
+  # The dataset block and the head block share their renderer.
+  expect_length(modules, length(unique(chr_xtr(modules, "path"))))
+})
+
+test_that("the page names the files that it imports, which R serves at once", {
+
+  # A module of its own content, which R serves nowhere yet.
+  dir <- withr::local_tempdir()
+  file <- file.path(dir, "my-block.js")
+  writeLines(paste0("export const dir = ", deparse(dir), ";"), file)
+  writeLines(".my-block {}", file.path(dir, "my-block.css"))
+
+  module <- js_module(file, package = NULL)
+  missing <- js_module("js/missing-block.js", package = "blockr.core")
+
+  copy <- file.path(
+    served_dir(), "blockr-modules", file_hash(file), "my-block.js"
+  )
+  expect_false(file.exists(copy))
+
+  page <- htmltools::renderTags(serve_page(modules = list(module, missing)))
+
+  # R serves the module as the page names it, before any reply to `hello`.
+  expect_true(file.exists(copy))
+
+  # The start of the link to the URL given, up to where the URL ends.
+  link <- function(url, rel = "modulepreload") {
+    paste0("<link rel=\"", rel, "\" href=\"./", url)
+  }
+
+  served <- served_module(module)
+
+  expect_match(
+    page$head,
+    link("blockr.core/js/blockr-core.js?v="),
+    fixed = TRUE
+  )
+  expect_match(
+    page$head,
+    link(paste0(served[["module"]], "\"")),
+    fixed = TRUE
+  )
+  expect_match(
+    page$head,
+    link(paste0(served[["css"]], "\" as=\"style\""), "preload"),
+    fixed = TRUE
+  )
+
+  # A module whose file R cannot find gets no link.
+  expect_no_match(page$head, "missing-block", fixed = TRUE)
+})
+
+test_that("the page names what the runtime and the modules import up front", {
+
+  # A package whose module imports its vendor file and core's React SDK, and
+  # whose stylesheet imports a stylesheet of its vendor file, as its build
+  # lists them in the preload.json beside them.
+  dir <- withr::local_tempdir()
+  js <- file.path(dir, "js")
+  dir.create(js)
+  writeLines("export const fake = 1;", file.path(js, "fake.js"))
+  writeLines(".fake {}", file.path(js, "fake.css"))
+  writeLines("export const vendor = 1;", file.path(js, "vendor-1a2b3c4d.js"))
+  writeLines(".vendor {}", file.path(js, "vendor-5e6f7a8b.css"))
+  writeLines(
+    paste0(
+      "{\"fake.js\": [\"./vendor-1a2b3c4d.js\", \"@blockr/core/react\"], ",
+      "\"fake.css\": [\"./vendor-5e6f7a8b.css\"]}"
+    ),
+    file.path(js, "preload.json")
+  )
+
+  real <- pkg_file
+  local_mocked_bindings(
+    pkg_file = function(..., pkg = parent.frame()) {
+      if (!identical(pkg, "blockr.fake")) {
+        return(real(..., pkg = pkg))
+      }
+      path <- file.path(dir, ...)
+      if (file.exists(path)) path else ""
+    }
+  )
+
+  module <- js_module("js/fake.js", package = "blockr.fake")
+  page <- htmltools::renderTags(serve_page(modules = list(module)))
+
+  # The start of the link to the URL given, up to where the URL ends.
+  link <- function(url, rel = "modulepreload") {
+    paste0("<link rel=\"", rel, "\" href=\"./", url)
+  }
+
+  # An import by name comes at the URL that the import map gives it.
+  map <- sub(".*<script type=\"importmap\">(.*)</script>.*", "\\1",
+             page$dependencies[[1L]]$head)
+  imports <- yyjsonr::read_json_str(map)[["imports"]]
+  by_name <- function(name) {
+    link(paste0(sub("^[.]/", "", imports[[name]]), "\""))
+  }
+
+  # The runtime imports React, whose entry points import core's vendor file,
+  # which comes without a hash.
+  vendor <- yyjsonr::read_json_file(
+    system.file("js", "preload.json", package = "blockr.core")
+  )[["react.js"]]
+
+  # These keep their priority, since the page needs them before Shiny
+  # connects.
+  expect_match(page$head, paste0(by_name("react"), "/>"), fixed = TRUE)
+  expect_match(
+    page$head,
+    link(paste0("blockr.core/js/", sub("^[.]/", "", vendor), "\"/>")),
+    fixed = TRUE
+  )
+
+  # The package's module imports the SDK, which imports its binding, and its
+  # vendor file, all of which come at a low priority, since the page needs
+  # them only once R has answered.
+  low <- " fetchpriority=\"low\"/>"
+  expect_match(
+    page$head,
+    paste0(by_name("@blockr/core/react"), low),
+    fixed = TRUE
+  )
+  expect_match(
+    page$head,
+    paste0(by_name("@blockr/core/binding"), low),
+    fixed = TRUE
+  )
+  expect_match(page$head, link("blockr.fake/js/fake.js?v="), fixed = TRUE)
+  expect_match(
+    page$head,
+    link(paste0("blockr.fake/js/vendor-1a2b3c4d.js\"", low)),
+    fixed = TRUE
+  )
+
+  # Its stylesheet imports its vendor file's stylesheet.
+  expect_match(
+    page$head,
+    link("blockr.fake/js/fake.css?v=", "preload"),
+    fixed = TRUE
+  )
+  expect_match(
+    page$head,
+    link("blockr.fake/js/vendor-5e6f7a8b.css\" as=\"style\"", "preload"),
+    fixed = TRUE
+  )
+
+  # The runtime loads the OpenTelemetry module only as it imports it.
+  expect_no_match(page$head, "blockr-core-otel.js", fixed = TRUE)
+})
+
 test_that("in Shiny's test mode, the page puts out blockrTest", {
 
   # Outside test mode, the page loads nothing for end-to-end tests.
