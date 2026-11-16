@@ -8553,7 +8553,7 @@ function createCommands(store, options = {}) {
   );
   const ended = () => options.signal?.aborted === true;
   const randId = options.randId === void 0 ? "adjective_animal" : asRandId(options.randId);
-  const context4 = {
+  const shared = {
     lock: options.lock ?? { board: false, load: false },
     mintId: (taken) => mintId(taken, randId),
     blockrOption: options.blockrOption ?? (() => Promise.resolve(void 0))
@@ -8575,7 +8575,11 @@ function createCommands(store, options = {}) {
       throw new Error(`The command "${id2}" is registered already.`);
     }
     const validate2 = command2.args === void 0 ? void 0 : compile(`the args of the command "${id2}"`, command2.args, "fail their schema");
-    const item = { command: command2, validate: validate2 };
+    const item = {
+      command: command2,
+      validate: validate2,
+      context: { ...shared, refusal: (failures) => refusal(id2, failures) }
+    };
     commands.value = new Map([...commands.value, [id2, item]]);
     return () => {
       if (commands.value.get(id2) !== item) return;
@@ -8594,7 +8598,7 @@ function createCommands(store, options = {}) {
     if (failures.length > 0) {
       throw refusal(id2, failures.map((failure) => `The args ${failure}`));
     }
-    return { command: item.command, args };
+    return { item, args };
   }
   function current2(id2) {
     if (ended()) {
@@ -8605,7 +8609,7 @@ function createCommands(store, options = {}) {
     }
     return store.board();
   }
-  function allow(command2, board, args) {
+  function allow({ command: command2, context: context4 }, board, args) {
     const passes = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
     if (!passes) {
       throw refusal(command2.id, [
@@ -8613,18 +8617,19 @@ function createCommands(store, options = {}) {
       ]);
     }
   }
-  function build(command2, board, args) {
+  function build({ command: command2, context: context4 }, board, args) {
     const returned = attempt2(command2, () => command2.run(board, args, context4));
     const deltas2 = isDeltas(returned) ? returned : [returned];
     return deltas2.map(withEdits);
   }
-  function deltas(command2, args) {
-    const board = current2(command2.id);
-    allow(command2, board, args);
-    if (command2.prepare === void 0) return build(command2, board, args);
-    return prepared(command2, board, args);
+  function deltas(item, args) {
+    const board = current2(item.command.id);
+    allow(item, board, args);
+    if (item.command.prepare === void 0) return build(item, board, args);
+    return prepared(item, board, args);
   }
-  async function prepared(command2, board, args) {
+  async function prepared(item, board, args) {
+    const { command: command2, context: context4 } = item;
     let input2;
     try {
       input2 = await command2.prepare?.(board, args, context4);
@@ -8635,8 +8640,8 @@ function createCommands(store, options = {}) {
       throw refusal(command2.id, ["A board opened while it prepared, which drops it."]);
     }
     const now = current2(command2.id);
-    allow(command2, now, args);
-    return build(command2, now, input2);
+    allow(item, now, args);
+    return build(item, now, input2);
   }
   function withEdits(delta) {
     const blocks = delta.blocks?.mod;
@@ -8669,8 +8674,8 @@ function createCommands(store, options = {}) {
     registered: () => registered.value,
     preflight(id2, given) {
       try {
-        const { command: command2, args } = lookup(id2, given);
-        allow(command2, current2(id2), args);
+        const { item, args } = lookup(id2, given);
+        allow(item, current2(id2), args);
         return true;
       } catch {
         return false;
@@ -8682,11 +8687,11 @@ function createCommands(store, options = {}) {
       });
       const active = trace3.setSpan(otelContext.active(), span);
       try {
-        const { command: command2, args } = otelContext.with(active, () => lookup(id2, given));
-        const step2 = otelContext.with(active, () => deltas(command2, args));
+        const { item, args } = otelContext.with(active, () => lookup(id2, given));
+        const step2 = otelContext.with(active, () => deltas(item, args));
         const ready = Array.isArray(step2) ? step2 : await step2;
         otelContext.with(active, () => {
-          store.apply(ready, origin, { undo: command2.undo });
+          store.apply(ready, origin, { undo: item.command.undo });
         });
       } catch (error) {
         failSpan(span, error);
@@ -8696,8 +8701,8 @@ function createCommands(store, options = {}) {
       }
     },
     async plan(id2, given) {
-      const { command: command2, args } = lookup(id2, given);
-      return deltas(command2, args);
+      const { item, args } = lookup(id2, given);
+      return deltas(item, args);
     }
   };
   for (const command2 of coreCommands(store)) {

@@ -460,6 +460,45 @@ describe("the context", () => {
     expect(minted).toEqual([expect.stringMatching(/^[a-z]{6}$/)]);
     expect(store.board().stacks[minted[0] ?? ""]?.name).toBe("Petals");
   });
+
+  test("hands each command a refusal() that names it, which the command throws to refuse from its preflight(), prepare() or run(), and which the command registry rejects with as it is and logs no line of", async () => {
+    const { commands } = await setup();
+    const failures = ['The grid places the panel of the block "z", which the board does not hold.'];
+    commands.register(
+      renameB({
+        id: "test.pkg-in_preflight",
+        preflight: (_board, _args, { refusal }) => {
+          throw refusal(failures);
+        },
+      }),
+    );
+    commands.register<Json, null>({
+      id: "test.pkg-in_prepare",
+      label: "In prepare",
+      prepare: (_board, _args, { refusal }) => Promise.reject(refusal(failures)),
+      run: () => [],
+    });
+    commands.register(
+      renameB({
+        id: "test.pkg-in_run",
+        run: (_board, _args, { refusal }) => {
+          throw refusal(failures);
+        },
+      }),
+    );
+    const reported = logged();
+
+    for (const id of ["test.pkg-in_preflight", "test.pkg-in_prepare", "test.pkg-in_run"]) {
+      const refused = commands.run(id, { name: "Top" });
+      await expect(refused).rejects.toThrow(CommandError);
+      await expect(refused).rejects.toThrow(`The command "${id}" refused to run\n- ${failures.join("")}`);
+      await expect(refused).rejects.toHaveProperty("failures", failures);
+    }
+    expect(commands.preflight("test.pkg-in_preflight", { name: "Top" })).toBe(false);
+    reported.restore();
+
+    expect(reported.lines()).toEqual([]);
+  });
 });
 
 describe("planning", () => {

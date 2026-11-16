@@ -6,6 +6,7 @@ export interface CommandContext {
     readonly lock: Lock;
     readonly mintId: (taken: (id: string) => boolean) => string;
     readonly blockrOption: (name: string) => Promise<Json | undefined>;
+    readonly refusal: (failures: readonly string[]) => CommandError;
 }
 export interface Command<A extends Json = Json, P = A> {
     readonly id: string;
