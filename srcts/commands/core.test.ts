@@ -143,7 +143,7 @@ describe("blocks", () => {
     await expect(commands.run("blockr.core-set_block_lock", { id: "b", locked: "yes" })).rejects.toThrow(
       "The args fail their schema at /locked:",
     );
-    expect(commands.enabled("blockr.core-set_block_lock", { id: "z", locked: true })).toBe(false);
+    expect(commands.preflight("blockr.core-set_block_lock", { id: "z", locked: true })).toBe(false);
   });
 
   test("set_block sets and unsets state args, as one step", async () => {
@@ -242,10 +242,10 @@ describe("appending, prepending and inserting", () => {
     ]);
   });
 
-  test("prepend_block is not enabled for a block whose inputs links feed", async () => {
+  test("prepend_block fails its preflight for a block whose inputs links feed", async () => {
     const { commands } = await setup();
-    expect(commands.enabled("blockr.core-prepend_block", { to: "b", registry_id: head })).toBe(false);
-    expect(commands.enabled("blockr.core-prepend_block", { to: "e", registry_id: head })).toBe(true);
+    expect(commands.preflight("blockr.core-prepend_block", { to: "b", registry_id: head })).toBe(false);
+    expect(commands.preflight("blockr.core-prepend_block", { to: "e", registry_id: head })).toBe(true);
   });
 
   test("prepend_block refuses to pick one of several free inputs", async () => {
@@ -254,7 +254,7 @@ describe("appending, prepending and inserting", () => {
     await commands.run("blockr.core-remove_link", { id: "bc" });
     const top = { to: "c", registry_id: head, id: "top" };
 
-    expect(commands.enabled("blockr.core-prepend_block", top)).toBe(true);
+    expect(commands.preflight("blockr.core-prepend_block", top)).toBe(true);
     await expect(commands.run("blockr.core-prepend_block", top)).rejects.toThrow(
       'The block "c" has the free inputs "x" and "y", so the args have to name the one to use.',
     );
@@ -329,7 +329,7 @@ describe("links", () => {
     await commands.run("blockr.core-remove_link", { id: "ac" });
     await commands.run("blockr.core-remove_link", { id: "bc" });
 
-    expect(commands.enabled("blockr.core-add_link", { from: "d", to: "c" })).toBe(true);
+    expect(commands.preflight("blockr.core-add_link", { from: "d", to: "c" })).toBe(true);
     await expect(commands.run("blockr.core-add_link", { from: "d", to: "c" })).rejects.toThrow(
       'The block "c" has the free inputs "x" and "y", so the args have to name the one to use.',
     );
@@ -338,10 +338,10 @@ describe("links", () => {
     expect(store.board().links.dc).toEqual({ from: "d", to: "c", input: "y" });
   });
 
-  test("add_link is not enabled for a block whose inputs links feed", async () => {
+  test("add_link fails its preflight for a block whose inputs links feed", async () => {
     const { commands } = await setup();
-    expect(commands.enabled("blockr.core-add_link", { from: "d", to: "c" })).toBe(false);
-    expect(commands.enabled("blockr.core-add_link", { from: "d", to: "zz" })).toBe(false);
+    expect(commands.preflight("blockr.core-add_link", { from: "d", to: "c" })).toBe(false);
+    expect(commands.preflight("blockr.core-add_link", { from: "d", to: "zz" })).toBe(false);
   });
 
   test("add_link keeps the input given, leaving its checks to the store", async () => {
@@ -420,7 +420,7 @@ describe("links", () => {
     const { store, commands } = await setup();
     await commands.run("blockr.core-remove_link", { id: "ab" });
     expect(Object.hasOwn(store.board().links, "ab")).toBe(false);
-    expect(commands.enabled("blockr.core-remove_link", { id: "ab" })).toBe(false);
+    expect(commands.preflight("blockr.core-remove_link", { id: "ab" })).toBe(false);
   });
 
   test("move_link moves a link before another into its block, keeping its id and its ends, as one step", async () => {
@@ -455,7 +455,7 @@ describe("links", () => {
     expect(store.board()).toBe(alone);
   });
 
-  test("move_link refuses a link into a block that is not variadic, a link into another block and the link itself, and is not enabled for a link that the board lacks", async () => {
+  test("move_link refuses a link into a block that is not variadic, a link into another block and the link itself, and fails its preflight for a link that the board lacks", async () => {
     const { commands } = await setup();
 
     // The merge block c takes its links by their inputs, x and y.
@@ -472,7 +472,7 @@ describe("links", () => {
     await expect(commands.run("blockr.core-move_link", { id: "de", before: "zz" })).rejects.toThrow(
       'The board holds no link "zz" for link "de" to go before.',
     );
-    expect(commands.enabled("blockr.core-move_link", { id: "zz" })).toBe(false);
+    expect(commands.preflight("blockr.core-move_link", { id: "zz" })).toBe(false);
   });
   test("free inputs are those of a block that no link feeds, an empty one for a variadic block, and none of a block the board lacks", async () => {
     const { store } = await setup();
@@ -601,7 +601,7 @@ describe("the board", () => {
     await commands.run("blockr.core-set_option", { id: "n_rows", value: 25 });
     expect(store.board().options.n_rows).toBe(25);
 
-    expect(commands.enabled("blockr.core-set_option", { id: "zoom", value: 2 })).toBe(false);
+    expect(commands.preflight("blockr.core-set_option", { id: "zoom", value: 2 })).toBe(false);
     const refused = commands.run("blockr.core-set_option", { id: "n_rows", value: -1 });
     await expect(refused).rejects.toThrow(StoreError);
     await expect(refused).rejects.toThrow('The value of the board option "n_rows" fails its schema');
@@ -692,19 +692,20 @@ describe("plugins", () => {
     await expect(
       commands.run("blockr.core-set_plugin_state", { plugin: dag.id, patches: [{ op: "move", path: "/positions" }] }),
     ).rejects.toThrow(/The args/);
-    // It is not enabled for a plugin whose state the board does not hold, as
-    // one that the app does not run, or of a class that keeps no state.
-    expect(commands.enabled("blockr.core-set_plugin_state", { plugin: "blockr.dag-nowhere_plugin", patches: [] })).toBe(false);
-    expect(commands.enabled("blockr.core-set_plugin_state", { plugin: "blockr.core-basic_frontend_plugin", patches: [] })).toBe(false);
+    // It fails its preflight for a plugin whose state the board does not
+    // hold, as one that the app does not run, or of a class that keeps no
+    // state.
+    expect(commands.preflight("blockr.core-set_plugin_state", { plugin: "blockr.dag-nowhere_plugin", patches: [] })).toBe(false);
+    expect(commands.preflight("blockr.core-set_plugin_state", { plugin: "blockr.core-basic_frontend_plugin", patches: [] })).toBe(false);
   });
 
-  test("under the board lock, set_plugin_state is not enabled, and under the load lock alone it is", async () => {
+  test("under the board lock, set_plugin_state fails its preflight, and under the load lock alone it passes", async () => {
     const state = plugin(dag, "DAG", { positions: {} });
     const args = { plugin: dag.id, patches: [] };
     const locked = await pluginStore(state, { board: true, load: false });
-    expect(locked.commands.enabled("blockr.core-set_plugin_state", args)).toBe(false);
+    expect(locked.commands.preflight("blockr.core-set_plugin_state", args)).toBe(false);
     const loading = await pluginStore(state, { board: false, load: true });
-    expect(loading.commands.enabled("blockr.core-set_plugin_state", args)).toBe(true);
+    expect(loading.commands.preflight("blockr.core-set_plugin_state", args)).toBe(true);
   });
 });
 

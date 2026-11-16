@@ -144,7 +144,7 @@ describe("the plugins that run", () => {
         {
           id: "blockr.test-add_note",
           label: "Add a note",
-          enabled(_board, _args, { lock }) {
+          preflight(_board, _args, { lock }) {
             got.lock = lock;
             return true;
           },
