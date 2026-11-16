@@ -7527,9 +7527,16 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
   if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
     throw new TypeError(`The blocks that the request "${name2}" of the plugin "${plugin}" reads are an array of their ids.`);
   }
+  if (opts.conditions !== void 0 && typeof opts.conditions !== "function") {
+    throw new TypeError(`The \`conditions\` of the request "${name2}" of the plugin "${plugin}" is a function.`);
+  }
   const what = `The request "${name2}" of the plugin "${plugin}"`;
   const module = sourceModule({ plugin }, packageFromId(plugin));
   const inCaller = keepContext();
+  const handOn = (conditions) => {
+    if (opts.conditions === void 0) deps.replied(module, { type: "plugin", name: name2 }, conditions);
+    else opts.conditions(conditions);
+  };
   for (let attempt3 = 1; ; attempt3++) {
     const revisions = await evaluateReads2(deps, what, reads, opts.signal);
     const { reply, body } = await inCaller(
@@ -7545,7 +7552,7 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
     const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
       case "ok":
-        deps.replied(module, { type: "plugin", name: name2 }, conditions);
+        handOn(conditions);
         if (body !== null) return body;
         return "value" in reply && reply.value !== void 0 ? reply.value : null;
       case "missing":
@@ -7554,7 +7561,7 @@ async function pluginRequest(deps, plugin, name2, args, opts) {
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name2}" of the plugin "${plugin}".`, { status: "cancelled" });
       default:
-        deps.replied(module, { type: "plugin", name: name2 }, conditions);
+        handOn(conditions);
         throw new RequestError(`R replied ${reply.status} to the request "${name2}" of the plugin "${plugin}".`, {
           status: reply.status,
           conditions

@@ -16,6 +16,8 @@
 //   before, so that a request that fails again keeps its notifications, and
 //   one that succeeds with no condition withdraws them. Its source names the
 //   module that made the request.
+//   A plugin that takes the conditions of its request itself, through
+//   `conditions`, raises none and withdraws none (./requests.ts).
 // - Those that core raises, each with an id from what it holds, so that a
 //   failure raised twice, as by two mounts of one module, is one notification,
 //   which holds until each raise of it is withdrawn. Core raises each refusal
