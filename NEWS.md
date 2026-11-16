@@ -235,11 +235,13 @@
   R calls a plugin's request with its args by name, the blocks that it reads in `reads`, each with its result and its block expression, and the request's body in `file`.
   A request's function reports how far it has come with `report_progress()`, which R sends to the client as progress notes (#430, #505).
 * Core's client draws table, text and plot outputs with renderers of its own, written in React: a table that pages and sorts through its output's parameters, printed text that scrolls at R's width, and a plot's PNG at the size it was drawn at.
-  The package ships the one copy of React on the page, as an ES module for each of React's entry points that core's modules import, such as `react` and `react-dom/client`, all of which read one minified bundle of React.
+  The package ships the one copy of React on the page, as an ES module for each of React's entry points that core's modules import, such as `react` and `react-dom/client`, all of which read React from one minified file.
+  That file also holds the two libraries that core's runtime uses beside React, `@preact/signals-core` and `@cfworker/json-schema`, so that the runtime holds core's own code alone.
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
+  Beside the preset, the build package exports the plugin `vendorCheck`, which fails a build that puts code from `node_modules` into one of a package's own files, so that the libraries a package bundles go into its vendor file instead.
   The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.
   The page that R serves resolves those imports through an import map, to the files that the package ships, so that a module's bundle holds none of React or of core's code, and every module runs the one copy of each that the blockr.core it runs on ships (#495).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a frontend sets them.

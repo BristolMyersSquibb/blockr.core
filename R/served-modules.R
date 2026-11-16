@@ -19,7 +19,7 @@
 # The browser reads the URL of such a file off the import, so the URL holds no
 # hash.
 # A package names the file with a hash of its content instead, as core's build
-# names React's bundle `react-<hash>.js`.
+# names the bundle that holds React `vendor-<hash>.js`.
 # A changed file then has a new name, and the module that imports it changes
 # with it.
 # So R copies the other files only when it copies the module or the stylesheet
@@ -156,7 +156,7 @@ served_dir <- function() {
 # head. It gives each import that core's build leaves in a module, such as
 # `react` and `@blockr/core/react`, the URL at which R serves the file that
 # blockr.core ships for it, as inst/js/import-map.json names them.
-# R serves the files that those import in turn, such as React's bundle, as it
+# R serves the files that those import in turn, such as the vendor file, as it
 # serves every file beside a package's module.
 # A browser takes an import map only ahead of the page's first module script,
 # so the page puts this tag before any such script.
