@@ -164,6 +164,7 @@ describe("blocks", () => {
       lock: { board: false, load: false },
       mintId: () => "calm_heron",
       blockrOption: () => Promise.resolve(undefined),
+      refusal: (failures) => new CommandError("The test refused", failures),
     };
     expect(() => run?.(store.board(), { registry_id: "blockr.dplyr-filter_block" }, context)).toThrow(
       'The command "blockr.core-add_block" refused to run',

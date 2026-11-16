@@ -30,6 +30,7 @@
 // error of the code `board_edit_failed`, whichever plugin made the edit. The
 // call still rejects or throws with the reason (refusing(), below).
 
+import { isLogged } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
@@ -301,7 +302,9 @@ export function createCore(parts: CoreParts): Core {
 // - Core raises the same refusal anew each time, so that a frontend that has
 //   shown it shows it again.
 // - Core logs the reason at debug alone, since the call hands it to its
-//   caller.
+//   caller. Where a command's own code threw, the command registry has
+//   logged the reason at error already, with its stack, so core logs no line
+//   of its own (../commands/commands.ts).
 // - An edit of another origin only rejects or throws. The assistant's edit
 //   tool hands each refusal to its model, which edits again
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.4.2#how-failures-reach-the-model).
@@ -312,7 +315,7 @@ function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAga
   function refused(origin: Origin | undefined, error: unknown): void {
     if ((origin ?? "user") !== "user") return;
     const why = errorMessage(error);
-    log.debug(why);
+    if (!isLogged(error)) log.debug(why);
     raiseAgain(coreNotification("board_edit_failed", "error", why));
   }
   // Makes an edit through the store, and tells the user why the store refused

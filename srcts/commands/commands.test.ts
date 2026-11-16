@@ -8,6 +8,8 @@ import { describe, expect, test, vi } from "vitest";
 import type { Lock } from "../protocol/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
+import { logged } from "../testing/logged.ts";
+import type { Logged } from "../testing/logged.ts";
 import { recordSpans } from "../testing/spans.ts";
 import { openedStore, withPlugins } from "../testing/store.ts";
 import type { Json } from "../types/json.ts";
@@ -19,6 +21,19 @@ async function setup(
 ): Promise<{ store: Store; commands: Commands }> {
   const store = await openedStore(register);
   return { store, commands: createCommands(store) };
+}
+
+// The one line that the test logged, which the command registry logged at
+// error with the CommandError that the call rejected with or that
+// preflight() swallowed, as the message of that error and its cause.
+function loggedFailure(reported: Logged): { message: string; cause: unknown } {
+  const [line, ...rest] = reported.lines();
+  expect(rest).toEqual([]);
+  expect(line?.level).toBe("error");
+  expect(line?.package).toBe("blockr.core");
+  expect(line?.error).toBeInstanceOf(CommandError);
+  expect(line?.message).toBe(line?.error?.message);
+  return { message: line?.message ?? "", cause: line?.error?.cause };
 }
 
 // A command of another package, which renames block "b".
@@ -228,7 +243,7 @@ describe("running a command", () => {
     expect(store.canUndo()).toBe(false);
   });
 
-  test("names the command in what its own code threw", async () => {
+  test("names the command in what its own code threw, which it logs at error with what was thrown as the cause", async () => {
     const { commands } = await setup();
     const error = new Error("No layout.");
     commands.register(
@@ -238,10 +253,36 @@ describe("running a command", () => {
         },
       }),
     );
+    const reported = logged();
 
     const failed = commands.run("test.pkg-rename_b", { name: "Top" });
     await expect(failed).rejects.toThrow('The command "test.pkg-rename_b" failed\n- No layout.');
     await expect(failed).rejects.toHaveProperty("cause", error);
+    reported.restore();
+
+    // The line holds the error that run() rejected with, and so the stack of
+    // what the command threw, as its cause.
+    const rejection: unknown = await failed.catch((reason: unknown) => reason);
+    expect(reported.lines()[0]?.error).toBe(rejection);
+    expect(loggedFailure(reported)).toEqual({ message: 'The command "test.pkg-rename_b" failed\n- No layout.', cause: error });
+  });
+
+  test("logs no refusal, its own or the command's, and nothing that the store refuses", async () => {
+    const { commands } = await setup();
+    const reported = logged();
+
+    await expect(commands.run("test.pkg-nothing")).rejects.toThrow("is registered");
+    await expect(commands.run("blockr.core-rename_board", { name: 1 })).rejects.toThrow("The args fail their schema");
+    await expect(commands.run("blockr.core-remove_block", { id: "zz" })).rejects.toThrow("It fails its preflight");
+    // Core's command refuses in its own run(), with a CommandError.
+    await expect(commands.run("blockr.core-add_block", { registry_id: "test.pkg-nowhere" })).rejects.toThrow(
+      'The block registry has no block class "test.pkg-nowhere".',
+    );
+    await expect(commands.run("blockr.core-add_link", { from: "e", to: "e" })).rejects.toThrow(StoreError);
+    expect(commands.preflight("blockr.core-remove_block", { id: "zz" })).toBe(false);
+    reported.restore();
+
+    expect(reported.lines()).toEqual([]);
   });
 
   test("refuses to run before the store opens a board", async () => {
@@ -270,16 +311,21 @@ describe("preflight()", () => {
     expect(commands.preflight("test.pkg-nothing")).toBe(false);
   });
 
-  test("is false where the command's preflight() throws", async () => {
+  test("is false where the command's preflight() throws, which the command registry logs at error", async () => {
     const { commands } = await setup();
+    const error = new Error("No idea.");
     commands.register(
       renameB({
         preflight: () => {
-          throw new Error("No idea.");
+          throw error;
         },
       }),
     );
+    const reported = logged();
     expect(commands.preflight("test.pkg-rename_b", { name: "Top" })).toBe(false);
+    reported.restore();
+
+    expect(loggedFailure(reported)).toEqual({ message: 'The command "test.pkg-rename_b" failed\n- No idea.', cause: error });
   });
 });
 
@@ -354,17 +400,22 @@ describe("preparing", () => {
     expect(store.board().name).toBe("Iris review");
   });
 
-  test("names the command where prepare() rejects", async () => {
+  test("names the command where prepare() rejects, which it logs at error", async () => {
     const { commands } = await setup();
+    const error = new Error("No layout.");
     commands.register<Json, null>({
       id: "test.pkg-later",
       label: "Later",
-      prepare: () => Promise.reject(new Error("No layout.")),
+      prepare: () => Promise.reject(error),
       run: () => [],
     });
+    const reported = logged();
     await expect(commands.run("test.pkg-later")).rejects.toThrow(
       'The command "test.pkg-later" failed\n- No layout.',
     );
+    reported.restore();
+
+    expect(loggedFailure(reported)).toEqual({ message: 'The command "test.pkg-later" failed\n- No layout.', cause: error });
   });
 });
 
@@ -408,6 +459,45 @@ describe("the context", () => {
     const minted = Object.keys(store.board().stacks).filter((id) => !before.includes(id));
     expect(minted).toEqual([expect.stringMatching(/^[a-z]{6}$/)]);
     expect(store.board().stacks[minted[0] ?? ""]?.name).toBe("Petals");
+  });
+
+  test("hands each command a refusal() that names it, which the command throws to refuse from its preflight(), prepare() or run(), and which the command registry rejects with as it is and logs no line of", async () => {
+    const { commands } = await setup();
+    const failures = ['The grid places the panel of the block "z", which the board does not hold.'];
+    commands.register(
+      renameB({
+        id: "test.pkg-in_preflight",
+        preflight: (_board, _args, { refusal }) => {
+          throw refusal(failures);
+        },
+      }),
+    );
+    commands.register<Json, null>({
+      id: "test.pkg-in_prepare",
+      label: "In prepare",
+      prepare: (_board, _args, { refusal }) => Promise.reject(refusal(failures)),
+      run: () => [],
+    });
+    commands.register(
+      renameB({
+        id: "test.pkg-in_run",
+        run: (_board, _args, { refusal }) => {
+          throw refusal(failures);
+        },
+      }),
+    );
+    const reported = logged();
+
+    for (const id of ["test.pkg-in_preflight", "test.pkg-in_prepare", "test.pkg-in_run"]) {
+      const refused = commands.run(id, { name: "Top" });
+      await expect(refused).rejects.toThrow(CommandError);
+      await expect(refused).rejects.toThrow(`The command "${id}" refused to run\n- ${failures.join("")}`);
+      await expect(refused).rejects.toHaveProperty("failures", failures);
+    }
+    expect(commands.preflight("test.pkg-in_preflight", { name: "Top" })).toBe(false);
+    reported.restore();
+
+    expect(reported.lines()).toEqual([]);
   });
 });
 
@@ -476,6 +566,23 @@ describe("planning", () => {
     expect(await commands.plan("test.pkg-rename_b", { name: "Top" })).toEqual([
       { blocks: { mod: { b: { edit: 99, name: "Top" } } } },
     ]);
+  });
+
+  test("rejects with what the command's own code threw, which the command registry logs at error, as it does for run()", async () => {
+    const { commands } = await setup();
+    const error = new Error("No layout.");
+    commands.register(
+      renameB({
+        run: () => {
+          throw error;
+        },
+      }),
+    );
+    const reported = logged();
+    await expect(commands.plan("test.pkg-rename_b", { name: "Top" })).rejects.toThrow('The command "test.pkg-rename_b" failed\n- No layout.');
+    reported.restore();
+
+    expect(loggedFailure(reported)).toEqual({ message: 'The command "test.pkg-rename_b" failed\n- No layout.', cause: error });
   });
 });
 

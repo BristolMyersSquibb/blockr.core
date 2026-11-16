@@ -395,12 +395,13 @@
   A value that `as.logical()` reads as neither `TRUE` nor `FALSE` fails, naming the blockr option (#510).
 * Core's client asks R for `rand_id` with the blockr options that its scheduler reads, as soon as R has answered its hello, and core's commands mint ids in the shape that `rand_id` names, as `rand_names()` draws them in R (#510).
 * The command registry hands every command its context, beside the board and its args, as the third argument of its `preflight()`, `prepare()` and `run()`.
-  The context holds the locks of R's reply to `hello` in `lock`, a function `mintId()` that mints an ID in the shape that `rand_id` names, and the function `blockrOption()`, which reads a blockr option as `CoreApi.blockrOption()` does.
+  The context holds the locks of R's reply to `hello` in `lock`, a function `mintId()` that mints an ID in the shape that `rand_id` names, the function `blockrOption()`, which reads a blockr option as `CoreApi.blockrOption()` does, and the function `refusal()`, which takes a sentence for each failure and makes a `CommandError` that names the command.
   So a plugin class's commands can refuse what its plugins lock, and mint IDs as core's commands do.
+  A command throws what `refusal()` makes to refuse from its `preflight()`, `prepare()` or `run()`, and the command registry rejects with it as it is, as with its own refusals.
   Core's own commands read the board lock and mint IDs through the context too.
   A command with `undo: false` takes no undo step.
   That suits a command that changes only what the user looks at, such as which of the dock's views shows.
-  The command registry passes `{ undo: false }` on to `store.apply()`, which applies and announces such a step as any other, but keeps no inverse of it and leaves the undo and redo steps as they are (#600).
+  The command registry passes `{ undo: false }` on to `store.apply()`, which applies and announces such a step as any other, but keeps no inverse of it and leaves the undo and redo steps as they are (#600, #627).
 * The client's store keeps one undo history for the steps of every origin, in the order the board took them, so that a frontend's Undo takes back the assistant's edits as it takes back the user's own.
   Its `undo()` takes back the history's last step, whoever took it, or, given an origin, that origin's last step, past the steps of others after it.
   Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
@@ -557,6 +558,11 @@
   Where the store refuses a board that `open()` is given, core raises `board_open_failed`, which concerns the board, and `open()` still rejects with the reason.
   Core logs each of these refusals at debug, since the call hands the reason to its caller.
   Core raises a refusal anew each time it comes again, so that a frontend that has shown it shows it again (#616).
+* The command registry logs at error what a command's own `preflight()`, `prepare()` or `run()` throws, whoever runs the command and whatever its origin.
+  The line holds a `CommandError` that names the command, with what the command threw, and its stack, as the cause.
+  The registry still rejects with that error, and its `preflight()` still answers `false`.
+  It logs no refusal, whether it refuses a command itself, the command refuses with the `refusal()` of its context, or the store refuses the command's deltas.
+  Where a plugin runs a command of the user's through `CoreApi`, core raises `board_edit_failed` for a command that failed so, as it does for a refusal, and logs no line of its own (#627).
 
 # blockr.core 0.1.4
 
