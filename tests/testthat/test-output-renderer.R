@@ -216,10 +216,6 @@ test_that("a request is the drawing renderer's own or else its class's", {
   expect_identical(run_output_class_request(out, "label", letters), "base")
   expect_identical(run_output_class_request(out, "size", letters), 26L)
 
-  expect_false(
-    output_class_request(class(out), "first", "blockr.test-labels")$volatile
-  )
-
   expect_error(
     run_output_class_request(out, "first", letters),
     class = "output_class_request_unknown"

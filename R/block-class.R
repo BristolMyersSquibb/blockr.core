@@ -76,11 +76,11 @@
 #' `block_name` or `locked`, no input or state arg shares the name of another,
 #' the
 #' arguments of each request name inputs or state args, but for
-#' parameters, which have a default, for the `file` of an action and for those
-#' that take board options, which are neither, and `expr`, called without
-#' args, cannot run yet or returns a call, a string, a function whose formals
-#' are the inputs or an object of a class that inherits from `blockr_expr`,
-#' holding no function.
+#' parameters, which have a default, for the argument that takes a file and
+#' for those that take board options, which are neither, and `expr`, called
+#' without args, cannot run yet or returns a call, a string, a function whose
+#' formals are the inputs or an object of a class that inherits from
+#' `blockr_expr`, holding no function.
 #'
 #' The constructor has the formals of `expr`, a `block_name` and a `locked`,
 #' and no `...`, so a misspelled state arg fails as an unused argument. It
@@ -412,14 +412,22 @@ validate_class_requests <- function(requests, known) {
 
     req <- requests[[nm]]
     fmls <- formals(req[["fun"]])
-    file <- request_file_arg(req)
+    file <- req[["file"]]
     read <- request_option_args(req)
-    clash <- intersect(read, c(known, file))
+    clash <- intersect(read, known)
 
     if (length(clash)) {
       blockr_abort(
         "Request {nm} reads board options into {clash}, which {qty(clash)}",
-        "{?names/name} an input, a state arg or the file of an action.",
+        "{?names/name} an input or a state arg.",
+        class = "block_class_requests_invalid"
+      )
+    }
+
+    if (isTRUE(file %in% known)) {
+      blockr_abort(
+        "Request {nm} takes the file that the client sends in {file}, which ",
+        "names an input or a state arg.",
         class = "block_class_requests_invalid"
       )
     }

@@ -25,8 +25,17 @@
 #' A request's answer is kept by the client, but for a `volatile` request,
 #' which goes to R every time and suits a cheap lookup outside the board, such
 #' as a directory listing, and for an `action`, which acts rather than reads,
-#' such as an upload, which receives the file the user picked in its argument
-#' `file`. R runs an action once per call, and it may write.
+#' such as an upload. R runs an action once per call, and it may write.
+#'
+#' A request takes a file that the client sends, such as the file that a user
+#' picked for an upload, only where `new_block_request()` names the argument
+#' that takes it, in `file`.
+#' That argument may have any name.
+#' It gets a list of the path of the temporary file that R wrote the bytes to,
+#' in `datapath`, and the file's `name`, `type` and `size`, as
+#' `shiny::fileInput()` gives a file.
+#' The client passes no value of its own for that argument, and sends no file
+#' with a request that names none.
 #'
 #' @param fun The request's function
 #' @param options For `new_block_request()`, the constructor of the board
@@ -34,6 +43,10 @@
 #'   arguments that take their values, and for `run_block_request()`, the
 #'   values of the board options it reads, by id
 #' @param volatile,action Whether the request is volatile or an action
+#' @param file For `new_block_request()`, the name of the argument of `fun`
+#'   that takes a file that the client sends, or `NULL` for a request that
+#'   takes none, and for `run_block_request()`, that file, as a list of its
+#'   `datapath`, `name`, `type` and `size`, or `NULL`
 #'
 #' @examples
 #' new_dir_option <- function(value) {
@@ -53,24 +66,32 @@
 #'     preview = new_block_request(
 #'       function(path, dir, n = 3L) readLines(file.path(dir, path), n),
 #'       options = list(dir = new_dir_option)
+#'     ),
+#'     count = new_block_request(
+#'       function(upload) length(readLines(upload$datapath)),
+#'       file = "upload"
 #'     )
 #'   )
 #' )
 #'
 #' dir_block$requests$preview
+#' dir_block$requests$count
 #'
 #' pkg <- system.file(package = "blockr.core")
 #'
 #' run_block_request(dir_block, "files", options = list(dir = pkg))
 #' run_block_request(dir_block, "preview", args = list(path = "DESCRIPTION"),
 #'                   options = list(dir = pkg))
+#' run_block_request(dir_block, "count",
+#'                   file = list(datapath = file.path(pkg, "DESCRIPTION"),
+#'                               name = "DESCRIPTION"))
 #'
 #' @return An object of class `block_request` for `new_block_request()`, and
 #' the answer of the request for `run_block_request()`.
 #'
 #' @export
 new_block_request <- function(fun, options = NULL, volatile = FALSE,
-                              action = FALSE) {
+                              action = FALSE, file = NULL) {
 
   if (!is.function(fun)) {
     blockr_abort(
@@ -109,8 +130,31 @@ new_block_request <- function(fun, options = NULL, volatile = FALSE,
     )
   }
 
+  if (!is.null(file) && !(is_nonempty_string(file) &&
+                            file %in% setdiff(formal_names(fun), "..."))) {
+    blockr_abort(
+      "A request's `file` is expected to name an argument of its function, ",
+      "which takes the file that the client sends.",
+      class = "block_request_invalid"
+    )
+  }
+
+  if (isTRUE(file %in% names(options))) {
+    blockr_abort(
+      "A request reads a board option into {file}, which takes the file that ",
+      "the client sends.",
+      class = "block_request_invalid"
+    )
+  }
+
   structure(
-    list(fun = fun, options = options, volatile = volatile, action = action),
+    list(
+      fun = fun,
+      options = options,
+      volatile = volatile,
+      action = action,
+      file = file
+    ),
     class = "block_request"
   )
 }
@@ -122,16 +166,16 @@ new_block_request <- function(fun, options = NULL, volatile = FALSE,
 #' @rdname new_block_request
 #' @export
 run_block_request <- function(x, name, inputs = list(), args = list(),
-                              options = list()) {
+                              options = list(), file = NULL) {
 
-  call <- block_request_call(x, name, inputs, args, options)
+  call <- block_request_call(x, name, inputs, args, options, file)
 
   do.call(call[["fun"]], call[["args"]], quote = TRUE)
 }
 
 # The function of a block class's request, with the arguments that R binds for
 # it, so that R can resolve a request apart from running it.
-block_request_call <- function(x, name, inputs, args, options,
+block_request_call <- function(x, name, inputs, args, options, file = NULL,
                                registry = block_registry) {
 
   cls <- as_block_class(x, registry)
@@ -153,7 +197,7 @@ block_request_call <- function(x, name, inputs, args, options,
 
   list(
     fun = req[["fun"]],
-    args = request_args(req[["fun"]], bound, inputs, args, options)
+    args = request_args(req, bound, inputs, args, options, file)
   )
 }
 
@@ -161,7 +205,8 @@ block_request_call <- function(x, name, inputs, args, options,
 format.block_request <- function(x, ...) {
 
   args <- formal_names(x[["fun"]])
-  read <- args %in% request_option_args(x)
+  takes <- ifelse(args %in% request_option_args(x), " (board option)", "")
+  takes[args %in% x[["file"]]] <- " (file)"
   kind <- c("volatile", "action")[c(x[["volatile"]], x[["action"]])]
 
   c(
@@ -169,10 +214,7 @@ format.block_request <- function(x, ...) {
     if (length(args)) {
       paste0(
         "Arguments: ",
-        paste_enum(
-          paste0("\"", args, "\"", ifelse(read, " (board option)", "")),
-          quotes = ""
-        )
+        paste_enum(paste0("\"", args, "\"", takes), quotes = "")
       )
     }
   )
@@ -206,10 +248,15 @@ request_option_ids <- function(x) {
   chr_ply(call_option_ctors(x[["options"]]), board_option_id, use_names = TRUE)
 }
 
-request_args <- function(fun, bound, inputs, args, options) {
+# The arguments that R calls a block class's request with: its inputs, the
+# state args and parameters that `args` gives, the values of the board options
+# it reads, into the arguments that `bound` names, and the file that the client
+# sends, into the argument that the request names for it.
+request_args <- function(req, bound, inputs, args, options, file) {
 
-  fmls <- formal_names(fun)
-  unknown <- setdiff(names(args), setdiff(fmls, names(bound)))
+  fmls <- formal_names(req[["fun"]])
+  file_arg <- req[["file"]]
+  unknown <- setdiff(names(args), setdiff(fmls, c(names(bound), file_arg)))
 
   if (length(unknown)) {
     blockr_abort(
@@ -227,6 +274,14 @@ request_args <- function(fun, bound, inputs, args, options) {
     )
   }
 
+  if (not_null(file) && is.null(file_arg)) {
+    blockr_abort(
+      "The request takes no file, since its `new_block_request()` names no ",
+      "argument for one.",
+      class = "block_request_args_invalid"
+    )
+  }
+
   given <- c(inputs[setdiff(names(inputs), "...")], args)
   res <- given[intersect(fmls, names(given))]
 
@@ -234,15 +289,15 @@ request_args <- function(fun, bound, inputs, args, options) {
     res[arg] <- list(options[[bound[[arg]]]])
   }
 
+  if (not_null(file)) {
+    res[file_arg] <- list(file)
+  }
+
   if ("..." %in% fmls) {
     res <- c(res, inputs[["..."]])
   }
 
   res
-}
-
-request_file_arg <- function(x) {
-  if (x[["action"]]) "file" else character()
 }
 
 request_entry <- function(x, cls) {
@@ -254,6 +309,7 @@ request_entry <- function(x, cls) {
     state_args = intersect(fmls, class_state_args(cls)),
     options = request_option_ids(x),
     volatile = x[["volatile"]],
-    action = x[["action"]]
+    action = x[["action"]],
+    file = x[["file"]]
   )
 }

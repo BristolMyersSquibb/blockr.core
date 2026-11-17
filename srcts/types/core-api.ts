@@ -398,7 +398,8 @@ export interface RequestOpts {
   // Gives it up, as a cancel does on the wire.
   signal?: AbortSignal;
   // A file it sends, which R hands the request's function in its argument
-  // `file`.
+  // `file`, and a block class's request in the argument that its
+  // `new_block_request()` names.
   file?: File;
   // Hears each progress note that R sends for it.
   progress?(note: { value?: number; message?: string }): void;

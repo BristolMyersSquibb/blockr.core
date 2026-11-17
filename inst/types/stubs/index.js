@@ -460,11 +460,10 @@ function stubBlockHost(fixture, options = {}) {
       if (opts.signal?.aborted === true) return Promise.reject(asError(opts.signal.reason));
       const found = fixture.requests.find(
         (call) => call.name === name2 && Object.keys(given).every((arg) => Object.hasOwn(call.args, arg)) && // The host fills in a state arg from the block's state
-        // where the module passes none,
-        // and R gives a file the module sends to the arg `file`.
+        // where the module passes none.
         Object.entries(call.args).every(
-          ([arg, value2]) => arg === "file" && opts.file !== void 0 && !Object.hasOwn(given, arg) ? sameFile(value2, opts.file) : jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state2, arg), value2)
-        ) && Object.entries(call.options).every(([id2, value2]) => jsonEqual(own(context4.options, id2), value2))
+          ([arg, value2]) => jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state2, arg), value2)
+        ) && (call.file === void 0 ? opts.file === void 0 : opts.file !== void 0 && sameFile(call.file, opts.file)) && Object.entries(call.options).every(([id2, value2]) => jsonEqual(own(context4.options, id2), value2))
       );
       if (found === void 0) {
         return Promise.reject(
@@ -2214,7 +2213,7 @@ function createAnswers(scheduler, signal5) {
         }
       }
     }).then((answer2) => {
-      if (key2 !== void 0 && ask.share === "keep" && answer2.reply.status === "ok" && !("volatile" in answer2.reply && answer2.reply.volatile === true) && current2(ask.request)) {
+      if (key2 !== void 0 && ask.share === "keep" && answer2.reply.status === "ok" && current2(ask.request)) {
         kept.set(key2, { answer: answer2, request: ask.request });
       }
       return answer2;
@@ -2547,6 +2546,11 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
   }
   if (!isObject(given)) {
     throw new TypeError(`The args of the request "${name2}" are an object of state args and parameters.`);
+  }
+  if (opts.file !== void 0 && spec.file !== true) {
+    throw new TypeError(
+      `The request "${name2}" of the block class "${entry.id}" takes no file, since its new_block_request() names no argument for one.`
+    );
   }
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name2}" of block "${block}"`;
@@ -12473,7 +12477,8 @@ var hello_default = {
                 inputs: [],
                 state_args: [],
                 options: [],
-                action: true
+                action: true,
+                file: true
               }
             },
             renderer: {

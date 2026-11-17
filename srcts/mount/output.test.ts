@@ -896,7 +896,7 @@ describe("a request", () => {
     await expect(download).resolves.toEqual(["a,b"]);
     await expect(labels).resolves.toEqual({ x: ["X"] });
 
-    // Core keeps an answer as it keeps the output, unless R marks it volatile.
+    // Core keeps an answer as it keeps the output.
     await expect(table.host().request("labels", {}, { scope: "renderer" })).resolves.toEqual({ x: ["X"] });
     expect(requests(s.r)).toHaveLength(2);
   });

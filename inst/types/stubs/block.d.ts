@@ -10,6 +10,7 @@ export interface BlockFixture {
         readonly name: string;
         readonly args: Readonly<Record<string, Json>>;
         readonly options: Readonly<Record<OptionId, Json>>;
+        readonly file?: Json;
         readonly answer: Json;
     }[];
 }

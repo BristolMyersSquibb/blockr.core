@@ -244,13 +244,12 @@ R calls a renderer's request as it calls an output class's, and the client keeps
 A renderer brings requests of its own for what its output does not hold, such as the labels of a table's columns ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)).
 R checks the results that a request of any type reads, and replies `missing` where it lacks one, so that a request's function gets only results that R holds.
 R resolves the request of an output class, or of a renderer, against the class vector of the latest output that it made from that result, and replies `error` where it has made none.
-R passes the body that a request carries in the argument `file`, to a block class's action and to the request of an output class, a renderer, a board option or a plugin whose function takes `file`.
+R passes the body that a request carries to a block class's request in the argument that its `new_block_request()` names for a file, and to the request of an output class, a renderer, a board option or a plugin in the argument `file`, where its function takes one.
 That argument is a list of the path of the file that R wrote the bytes to, in `datapath`, and the file's `name`, `type` and `size`.
+R replies `error` to a block class's request that carries a body but names no argument for a file, and the client sends no such request.
 
 R replies `ok` with the answer in `value`, which no schema describes, so that R writes it with every vector as an array, a length-one vector included, as `[150]`, and a module reads a single value as `answer[0]`. An answer that is a file, as a download is, comes as the reply's binary body, with no `value`.
 The reply also carries `conditions`: every message and warning that the request's function raised, with the phase `request` ([Conditions](#conditions)).
-
-Where R resolves a request of an output class to one that the class makes volatile, it marks its reply with `"volatile": true`, and the client keeps no answer so marked. The client cannot tell such a request before it asks: an output carries its renderer rather than its class vector, and a subclass may replace a volatile request of its class with one that is not. A renderer's own request is never volatile, and a block class's request needs no mark, since the block registry says which of them are volatile.
 
 What R runs for the client comes in these flavors, which differ in who defines and calls them, whether the client keeps what they answer, and whether they may write:
 
@@ -259,7 +258,7 @@ What R runs for the client comes in these flavors, which differ in who defines a
 | Evaluation | The block's class, through its `expr` and `block_eval()` | The scheduler, for demand and one-time evaluations | Its reply sets the block's status, and R keeps the result | No |
 | Evaluation with parameters | A `block_eval()` method of the block's class, such as the write block's | A one-time evaluation with parameters, such as a save button's | No, it runs once per call | Yes |
 | Output | The coercion of the output class that the block's class names | Core, for whatever draws the output | The last output, by revision, board options, `info` and parameters | No |
-| Output class's request | The output class, through the method of `output_requests()` that the package that defines it gives | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters, unless R marks its reply volatile | No |
+| Output class's request | The output class, through the method of `output_requests()` that the package that defines it gives | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters | No |
 | Renderer's request | A renderer of the output class, as the package that offers it makes it | That renderer, through its output host | Its answer, by renderer, block, revision, name, args, board options and parameters | No |
 | Block class's request | The class's `requests` | The block's UI, through its host | Its answer, by registry id, name, args, board options and the revisions read | No |
 | Volatile request | A request that the class makes with `new_block_request(volatile = TRUE)` | The block's UI, through its host | No | No |
@@ -267,7 +266,7 @@ What R runs for the client comes in these flavors, which differ in who defines a
 | Board option's request | The package that ships the board option, through its method of `board_option_requests()` | The board option's UI or renderer, through its `OptionHost` | No | Yes |
 | Plugin's request | The plugin's package, through its method of `plugin_requests()` | The plugin, through `CoreApi` | No | Yes |
 
-The block registry marks a block class's requests that are volatile or actions, with `volatile` or `action`.
+The block registry marks a block class's requests that are volatile or actions, with `volatile` or `action`, and those that take a file, with `file`.
 Under the board lock, R holds an evaluation, with parameters or without, to the block's data inputs and a locked block to its state, and draws every output and runs every request as on any board, with the board option values that the request carries ([Locked boards](#locked-boards)).
 A request that reads blocks, a block class's or a plugin's, has the client evaluate them first, even off screen, and goes to R at the revisions they then have, only where each reads `ready`, so that R never runs a request on a result it does not hold ([Demand](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#demand)).
 No request times out, since no reply is lost on a live connection and giving up on a request frees nothing in R, which runs it when its turn comes, while any request may send progress, which shows that a long one is still running.
@@ -434,7 +433,6 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`request-plugin`](fixtures/request-plugin.json) | a plugin's request |
 | [`request-progress`](fixtures/request-progress.json) | progress notes, and an answer that is a file |
 | [`request-output`](fixtures/request-output.json) | an output class's request that carries a file |
-| [`request-output-volatile`](fixtures/request-output-volatile.json) | an output class's request that R marks volatile in its reply |
 | [`request-renderer`](fixtures/request-renderer.json) | a renderer's own request |
 | [`output`](fixtures/output.json) | a table output |
 | [`output-plot`](fixtures/output-plot.json) | a plot output with its PNG |

@@ -5,7 +5,6 @@
 \alias{output_schema.block_output}
 \alias{output_requests}
 \alias{output_requests.block_output}
-\alias{volatile}
 \alias{read_json_schema}
 \alias{run_output_class_request}
 \title{Output classes in R}
@@ -17,8 +16,6 @@ output_schema(x, ...)
 output_requests(x, ...)
 
 \method{output_requests}{block_output}(x, ...)
-
-volatile(fun)
 
 read_json_schema(path, package = pkg_name(parent.frame()))
 
@@ -38,8 +35,6 @@ run_output_class_request(
 class vector}
 
 \item{...}{Generic consistency}
-
-\item{fun}{The function of a request}
 
 \item{path}{The path of the file that holds a JSON Schema, relative to the
 package's \verb{inst/}, or as given outside a package}
@@ -64,8 +59,7 @@ for a request of the output class}
 }
 \value{
 The generic \code{output_schema()} returns a JSON Schema, as a list,
-\code{output_requests()} a named list of functions, \code{volatile()} the function it
-is given, marked as volatile,
+\code{output_requests()} a named list of functions,
 \code{read_json_schema()} the JSON Schema that it reads, as a list, and
 \code{run_output_class_request()} the request's answer.
 }
@@ -106,8 +100,7 @@ takes it:
 }
 
 A request may answer with a reply body, such as a file to download.
-The client keeps a request's answers, as it keeps the output, unless the
-class wraps the request's function in \code{volatile()}.
+The client keeps a request's answers, as it keeps the output.
 No request of an output class writes.
 The function \code{run_output_class_request()} runs a request as R does, to test
 an output class, or the requests of a renderer, without Shiny.
@@ -140,7 +133,7 @@ output_schema.words_output <- function(x, ...) {
 }
 
 output_requests.words_output <- function(x, ...) {
-  list(count = volatile(function(result) length(result)))
+  list(count = function(result) length(result))
 }
 
 words <- as_words_output("hello")

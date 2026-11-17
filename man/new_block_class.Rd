@@ -166,11 +166,11 @@ A class is checked once, when it is defined: no state arg is \code{...},
 \code{block_name} or \code{locked}, no input or state arg shares the name of another,
 the
 arguments of each request name inputs or state args, but for
-parameters, which have a default, for the \code{file} of an action and for those
-that take board options, which are neither, and \code{expr}, called without
-args, cannot run yet or returns a call, a string, a function whose formals
-are the inputs or an object of a class that inherits from \code{blockr_expr},
-holding no function.
+parameters, which have a default, for the argument that takes a file and
+for those that take board options, which are neither, and \code{expr}, called
+without args, cannot run yet or returns a call, a string, a function whose
+formals are the inputs or an object of a class that inherits from
+\code{blockr_expr}, holding no function.
 
 The constructor has the formals of \code{expr}, a \code{block_name} and a \code{locked},
 and no \code{...}, so a misspelled state arg fails as an unused argument. It

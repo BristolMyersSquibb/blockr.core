@@ -154,13 +154,19 @@ test_that("new_block_class() checks a class once", {
 
   expect_error(
     new_block_class(
+      "x_block", "data", function(path = "") bbquote(.(data)), ui,
+      requests = list(
+        upload = new_block_request(function(path) path, file = "path")
+      )
+    ),
+    class = "block_class_requests_invalid"
+  )
+
+  expect_error(
+    new_block_class(
       "x_block", "data", expr, ui,
       requests = list(
-        upload = new_block_request(
-          function(file) file,
-          options = list(file = new_n_rows_option),
-          action = TRUE
-        )
+        upload = new_block_request(function(data) data, file = "data")
       )
     ),
     class = "block_class_requests_invalid"
@@ -192,10 +198,19 @@ test_that("new_block_class() checks a class once", {
           function(data, n, rows, limit = 10L) names(data),
           options = list(rows = new_n_rows_option)
         ),
-        upload = new_block_request(function(file, n) file, action = TRUE)
+        upload = new_block_request(function(sent, n) sent, action = TRUE,
+                                   file = "sent")
       )
     ),
     "block_class"
+  )
+
+  expect_error(
+    new_block_class(
+      "x_block", "data", expr, ui,
+      requests = list(upload = new_block_request(function(file) file))
+    ),
+    class = "block_class_requests_invalid"
   )
 
   expect_s3_class(

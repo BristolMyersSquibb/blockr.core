@@ -276,7 +276,8 @@ option_renderers <- function() {
   set_names(unname(chosen), chr_xtr(chosen, "id"))
 }
 
-# A renderer's own request, for an output that the renderer has to draw.
+# The function of a renderer's own request, for an output that the renderer
+# has to draw.
 renderer_request <- function(renderer, out, name) {
 
   drawn <- renderer_of(out)
@@ -298,5 +299,5 @@ renderer_request <- function(renderer, out, name) {
     )
   }
 
-  list(fun = fun, volatile = FALSE)
+  fun
 }
