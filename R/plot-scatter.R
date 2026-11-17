@@ -1,4 +1,4 @@
-#' @include block-class.R
+#' @include block-class.R output-plot.R
 #' @rdname new_scatter_block
 #' @format NULL
 #' @export
@@ -32,7 +32,7 @@ scatter_block <- new_block_class(
   },
   ui = js_module("js/scatter-block.js"),
   requests = list(columns = function(data) colnames(data)),
-  output = "plot_output"
+  output = as_plot_output
 )
 
 #' Scatter block

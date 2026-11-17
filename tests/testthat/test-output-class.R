@@ -133,34 +133,51 @@ test_that("core gives each of its output classes its schema", {
   }
 })
 
-test_that("an output class gives the coercion that makes its outputs", {
+test_that("an output family is a coercion with a class of its own", {
 
-  coercion <- function(cls) output_coercion(new_block_output(list(), cls))
+  families <- list(
+    table_output = as_table_output,
+    text_output = as_text_output,
+    plot_output = as_plot_output
+  )
 
-  expect_identical(coercion("table_output"), as_table_output)
-  expect_identical(coercion("text_output"), as_text_output)
-  expect_identical(coercion("plot_output"), as_plot_output)
-
-  # A subclass that a method of its class's coercion makes gives no method of
-  # its own, and S3 dispatch gives it its class's
-  lazy <- new_block_output(list(), c("lazy_table_output", "table_output"))
-
-  expect_identical(output_coercion(lazy), as_table_output)
-
-  as_words_output <- function(result, ...) {
-    new_block_output(list(words = result), "words_output")
+  for (cls in names(families)) {
+    expect_true(is_output_family(families[[cls]]))
+    expect_s3_class(
+      families[[cls]],
+      c(paste0(cls, "_family"), "output_family", "function"),
+      exact = TRUE
+    )
   }
 
-  local_output_class("words_output", coercion = as_words_output)
+  # A family that is a generic dispatches on the result, as S3 registers the
+  # methods of any generic
+  tbl <- as_table_output(datasets::BOD, options = list(n_rows = 2L))
 
-  expect_identical(coercion("words_output"), as_words_output)
+  expect_s3_class(tbl, "table_output")
+  expect_s3_class(as_text_output(1:3), "text_output")
 
-  # A class whose package gives no coercion has none
-  expect_error(
-    coercion("pages_output"),
-    "Output class pages_output gives no coercion",
-    class = "output_coercion_missing"
+  as_words_output <- new_output_family(
+    function(result, ...) {
+      new_block_output(list(words = result), "words_output")
+    },
+    class = "words_output_family"
   )
+
+  expect_true(is_output_family(as_words_output))
+  expect_s3_class(as_words_output("hi"), "words_output")
+
+  expect_false(is_output_family(function(result, ...) result))
+  expect_false(is_output_family(structure(list(), class = "output_family")))
+
+  expect_error(new_output_family("as_words_output", "words_output_family"),
+               class = "output_family_invalid")
+  expect_error(new_output_family(identity, character()),
+               class = "output_family_invalid")
+  expect_error(new_output_family(identity, NA_character_),
+               class = "output_family_invalid")
+  expect_error(new_output_family(identity, "output_family"),
+               class = "output_family_invalid")
 })
 
 test_that("an output is written by the schema of its most specific class", {

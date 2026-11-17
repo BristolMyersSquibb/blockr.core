@@ -3,7 +3,9 @@
 #' A plot output shows a plot as a PNG image. The image travels as the
 #' output's binary body, and the output gives the size the plot was drawn at,
 #' in CSS pixels. The constructor `new_plot_output()` makes one. The coercion
-#' `as_plot_output()` makes one from a result, by the result's class. It draws
+#' `as_plot_output()` makes one from a result, by the result's class.
+#' It is the output family of plot outputs, which a block class names in its
+#' `output` property (see [new_output_family()]). It draws
 #' the plot at the size that `info` gives, at its pixel ratio. Where the
 #' thematic package is installed, it draws with the colors and the font that
 #' `info` gives, so that the plot follows the page's theme. A change of theme
@@ -37,6 +39,7 @@
 #' @param width,height The size the plot was drawn at, in CSS pixels
 #' @param ... For `new_plot_output()`, further properties, which a subclass
 #'   adds, and otherwise passed on to methods
+#' @include output-class.R
 #' @param class The classes of a subclass, which come before `plot_output`
 #' @param info What the client measured for the output's element: its `width`
 #'   and `height` in CSS pixels, its `pixel_ratio`, its colors `bg`, `fg` and
@@ -96,10 +99,12 @@ is_size <- function(x) {
 
 #' @rdname new_plot_output
 #' @export
-as_plot_output <- function(result, options = list(), info = list(),
-                           params = list(), ...) {
-  UseMethod("as_plot_output")
-}
+as_plot_output <- new_output_family(
+  function(result, options = list(), info = list(), params = list(), ...) {
+    UseMethod("as_plot_output")
+  },
+  class = "plot_output_family"
+)
 
 #' @rdname new_plot_output
 #' @export
@@ -354,14 +359,14 @@ output_schema.plot_output <- function(x, ...) {
 }
 
 #' @export
-output_coercion.plot_output <- function(x, ...) {
-  as_plot_output
-}
-
-#' @export
-output_renderer.plot_output <- function(x, ...) {
+as_renderer.plot_output_family <- function(x, ...) {
   chosen_renderer(
     "plot_output",
     new_renderer("plot_output", js_module("js/basic-plot.js"))
   )
+}
+
+#' @export
+as_renderer.plot_output <- function(x, ...) {
+  as_renderer(as_plot_output)
 }

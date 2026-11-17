@@ -3,6 +3,8 @@
 #' A table output shows a table: its columns, the rows of one page and the
 #' total row count. The constructor `new_table_output()` makes one, and the
 #' coercion `as_table_output()` makes one from a result, by the result's class.
+#' It is the output family of table outputs, which a block class names in its
+#' `output` property (see [new_output_family()]).
 #' Its method for data frames pages and sorts the result. A package that knows
 #' another kind of table, such as a lazy table that it pages in a database,
 #' adds a method that returns a table output. Every renderer of table outputs
@@ -38,6 +40,7 @@
 #' run its whole query. A renderer then shows no page count, and a page with
 #' fewer rows than a page holds is the last.
 #'
+#' @include output-class.R
 #' @param columns The table's columns: a data frame with the character columns
 #'   `name` and `class`
 #' @param rows One page of the table's rows, as a data frame with a column for
@@ -119,10 +122,12 @@ is_unknown <- function(x) {
 
 #' @rdname new_table_output
 #' @export
-as_table_output <- function(result, options = list(), info = list(),
-                            params = list(), ...) {
-  UseMethod("as_table_output")
-}
+as_table_output <- new_output_family(
+  function(result, options = list(), info = list(), params = list(), ...) {
+    UseMethod("as_table_output")
+  },
+  class = "table_output_family"
+)
 
 #' @rdname new_table_output
 #' @export
@@ -245,14 +250,14 @@ output_schema.table_output <- function(x, ...) {
 }
 
 #' @export
-output_coercion.table_output <- function(x, ...) {
-  as_table_output
-}
-
-#' @export
-output_renderer.table_output <- function(x, ...) {
+as_renderer.table_output_family <- function(x, ...) {
   chosen_renderer(
     "table_output",
     new_renderer("table_output", js_module("js/basic-table.js"))
   )
+}
+
+#' @export
+as_renderer.table_output <- function(x, ...) {
+  as_renderer(as_table_output)
 }

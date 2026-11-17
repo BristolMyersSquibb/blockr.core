@@ -3,10 +3,11 @@
 #' A text output shows a result as [print()] shows it, at R's own width, in
 #' lines that its renderer scrolls. The constructor `new_text_output()` makes
 #' one. The coercion `as_text_output()` makes one from a result, by the
-#' result's class. Its default method prints any result. R shows the results of
-#' a block class through `as_text_output()` where the class names no other
-#' output class in its `output` property (see [new_block_class()]).
+#' result's class. Its default method prints any result.
+#' It is the output family of text outputs, which a block class names in its
+#' `output` property unless it names another (see [new_block_class()]).
 #'
+#' @include output-class.R
 #' @param text The text to show, as a string
 #' @param ... For `new_text_output()`, further properties, which a subclass
 #'   adds, and otherwise passed on to methods
@@ -37,10 +38,12 @@ new_text_output <- function(text, ..., class = character()) {
 
 #' @rdname new_text_output
 #' @export
-as_text_output <- function(result, options = list(), info = list(),
-                           params = list(), ...) {
-  UseMethod("as_text_output")
-}
+as_text_output <- new_output_family(
+  function(result, options = list(), info = list(), params = list(), ...) {
+    UseMethod("as_text_output")
+  },
+  class = "text_output_family"
+)
 
 #' @rdname new_text_output
 #' @export
@@ -55,14 +58,14 @@ output_schema.text_output <- function(x, ...) {
 }
 
 #' @export
-output_coercion.text_output <- function(x, ...) {
-  as_text_output
-}
-
-#' @export
-output_renderer.text_output <- function(x, ...) {
+as_renderer.text_output_family <- function(x, ...) {
   chosen_renderer(
     "text_output",
     new_renderer("text_output", js_module("js/basic-text.js"))
   )
+}
+
+#' @export
+as_renderer.text_output <- function(x, ...) {
+  as_renderer(as_text_output)
 }

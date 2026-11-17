@@ -1,9 +1,19 @@
 test_that("core's output classes are drawn by its plain renderers", {
 
-  for (what in c("table", "text", "plot")) {
+  families <- list(
+    table = as_table_output,
+    text = as_text_output,
+    plot = as_plot_output
+  )
 
+  for (what in names(families)) {
+
+    # An output is drawn by the renderer of its class's family, which R knows
+    # before any output exists
     out <- new_block_output(list(), paste0(what, "_output"))
-    drawn <- output_renderer(out)
+    drawn <- as_renderer(families[[what]])
+
+    expect_identical(as_renderer(out), drawn)
 
     expect_s3_class(drawn, "renderer")
     expect_identical(drawn$id, paste0("blockr.core-", what, "_output"))
@@ -46,14 +56,15 @@ test_that("another package's renderer draws only where the app names it", {
   text <- new_block_output(list(), "text_output")
   preview <- new_renderer("preview", test_module("preview.js", "blockr.ui"))
 
-  expect_identical(output_renderer(table)$id, "blockr.core-table_output")
+  expect_identical(as_renderer(table)$id, "blockr.core-table_output")
   expect_identical(chosen_renderer("table_output"), NULL)
   expect_identical(chosen_renderer("table_output", preview), preview)
 
   withr::local_options(blockr.renderers = list(table_output = preview))
 
-  expect_identical(output_renderer(table), preview)
-  expect_identical(output_renderer(text)$id, "blockr.core-text_output")
+  expect_identical(as_renderer(table), preview)
+  expect_identical(as_renderer(as_table_output), preview)
+  expect_identical(as_renderer(text)$id, "blockr.core-text_output")
   expect_identical(chosen_renderer("table_output"), preview)
 
   expect_error(chosen_renderer(""), class = "renderer_invalid")
@@ -64,11 +75,11 @@ test_that("a subclass is drawn by its class's renderer unless it has one", {
   lazy <- new_block_output(list(), c("lazy_table_output", "table_output"))
   preview <- new_renderer("preview", test_module("preview.js", "blockr.ui"))
 
-  expect_identical(output_renderer(lazy)$id, "blockr.core-table_output")
+  expect_identical(as_renderer(lazy)$id, "blockr.core-table_output")
 
   withr::local_options(blockr.renderers = list(table_output = preview))
 
-  expect_identical(output_renderer(lazy), preview)
+  expect_identical(as_renderer(lazy), preview)
 
   # A method of the subclass's own takes the app's choice for the subclass
   local_output_class(
@@ -81,20 +92,43 @@ test_that("a subclass is drawn by its class's renderer unless it has one", {
     }
   )
 
-  expect_identical(output_renderer(lazy)$id, "blockr.test-lazy_table")
+  expect_identical(as_renderer(lazy)$id, "blockr.test-lazy_table")
   expect_identical(
-    output_renderer(new_block_output(list(), "table_output")),
+    as_renderer(new_block_output(list(), "table_output")),
     preview
   )
 
   withr::local_options(blockr.renderers = list(lazy_table_output = preview))
 
-  expect_identical(output_renderer(lazy), preview)
+  expect_identical(as_renderer(lazy), preview)
 
   expect_error(
-    output_renderer(new_block_output(list(), "words_output")),
+    as_renderer(new_block_output(list(), "words_output")),
     class = "output_renderer_missing"
   )
+})
+
+test_that("an output family is drawn by what its class's method gives", {
+
+  # A coercion that wraps another family's joins that family
+  as_head_output <- new_output_family(
+    function(result, ...) as_table_output(utils::head(result), ...),
+    class = "table_output_family"
+  )
+
+  expect_identical(as_renderer(as_head_output), as_renderer(as_table_output))
+
+  as_words_output <- new_output_family(identity, "words_output_family")
+
+  expect_error(
+    as_renderer(as_words_output),
+    "no renderer for output family words_output_family",
+    class = "output_renderer_missing"
+  )
+
+  local_output_class("words_output_family", renderer = "words.js")
+
+  expect_error(renderer_of(as_words_output), class = "renderer_invalid")
 })
 
 test_that("an output is drawn by what its class's method gives", {

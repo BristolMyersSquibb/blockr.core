@@ -352,14 +352,21 @@ local_write_block <- function(frame = parent.frame()) {
   local_block_class(write_block_class, frame)
 }
 
-# A block class whose outputs are charts,
-# of the output class that `local_chart_output()` registers.
+# The output family of charts, whose renderer `local_chart_output()` registers,
+# and a block class whose outputs are charts.
+as_chart_output <- new_output_family(
+  function(result, options, info, params) {
+    new_block_output(list(title = "Sepals"), "chart_output")
+  },
+  class = "chart_output_family"
+)
+
 chart_block_class <- test_block_class(
   "chart_block",
   inputs = "data",
   expr = function() bbquote(.(data)),
   ui = js_module("chart-block.js", package = NULL),
-  output = "chart_output"
+  output = as_chart_output
 )
 
 # An output class of blockr.viz for charts,
@@ -379,19 +386,20 @@ local_chart_output <- function(frame = parent.frame()) {
     frame = frame
   )
 
+  chart <- new_renderer(
+    "chart_output",
+    js_module("js/chart.js", package = "blockr.viz")
+  )
+
+  local_output_class("chart_output_family", renderer = chart, frame = frame)
+
   local_output_class(
     "chart_output",
     schema = list(
       type = "object",
       properties = list(title = list(type = "string"))
     ),
-    coercion = function(result, options, info, params) {
-      new_block_output(list(title = "Sepals"), "chart_output")
-    },
-    renderer = new_renderer(
-      "chart_output",
-      js_module("js/chart.js", package = "blockr.viz")
-    ),
+    renderer = chart,
     requests = list(
       download = function(result, format, file) {
         stopifnot(identical(file[["type"]], "image/png"))
@@ -425,7 +433,7 @@ adsl_block_class <- test_block_class(
     )
   },
   ui = js_module("adsl-block.js", package = NULL),
-  output = "table_output"
+  output = as_table_output
 )
 
 # Registers the block class of labelled tables for the duration of `frame`.
@@ -463,14 +471,13 @@ local_table_preview <- function(frame = parent.frame()) {
   )
 }
 
-# An output class, with the methods that give its schema, its requests, its
-# renderer and its coercion, where they are given, for the duration of `frame`.
-# A function given for the first three is the method itself, as one that calls
-# `NextMethod()`, and anything else is what the method returns, while the
-# method of `output_coercion()` returns the coercion given.
+# An output class, with the methods that give its schema, its requests and its
+# renderer, where they are given, for the duration of `frame`.
+# A function given is the method itself, as one that calls `NextMethod()`, and
+# anything else is what the method returns.
+# The class of an output family takes a renderer alone.
 local_output_class <- function(class, schema = NULL, requests = NULL,
-                               renderer = NULL, coercion = NULL,
-                               frame = parent.frame()) {
+                               renderer = NULL, frame = parent.frame()) {
 
   method <- function(value) {
     if (is.function(value)) value else function(x, ...) value
@@ -482,15 +489,11 @@ local_output_class <- function(class, schema = NULL, requests = NULL,
       list(
         output_schema = schema,
         output_requests = requests,
-        output_renderer = renderer
+        as_renderer = renderer
       )
     ),
     method
   )
-
-  if (not_null(coercion)) {
-    methods$output_coercion <- function(x, ...) coercion
-  }
 
   table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
 

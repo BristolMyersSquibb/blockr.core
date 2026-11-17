@@ -286,25 +286,43 @@ test_that("an entry names the renderer of its class's outputs", {
     )
   )
 
-  # A class that names no output class shows its results as text
+  # A class that names no output family shows its results as text
   upload <- get_registry_entry("blockr.core-upload_block")
 
   expect_identical(entry_renderer(upload)$id, "blockr.core-text_output")
 
-  # R finds the renderer by dispatch on the output class that the block class
-  # names, even where the output class gives no coercion
-  words <- new_renderer("words_output", js_module("words.js", package = NULL))
+  # R finds the renderer by dispatch on the output family that the block class
+  # names, and a coercion that wraps another family's joins that family
+  entry <- function(family) list(block_class = list(output = family))
 
-  local_output_class("words_output", renderer = words)
-
-  expect_identical(
-    entry_renderer(list(block_class = list(output = "words_output"))),
-    words
+  as_words_output <- new_output_family(
+    function(result, ...) {
+      new_block_output(list(words = result), "words_output")
+    },
+    class = "words_output_family"
   )
 
-  # A class whose output class has no renderer has none up front, so that the
-  # client learns the renderer from the first output
-  expect_null(entry_renderer(list(block_class = list(output = "pages_output"))))
+  words <- new_renderer("words_output", js_module("words.js", package = NULL))
+
+  local_output_class("words_output_family", renderer = words)
+
+  expect_identical(entry_renderer(entry(as_words_output)), words)
+
+  as_head_output <- new_output_family(
+    function(result, ...) as_table_output(utils::head(result), ...),
+    class = "table_output_family"
+  )
+
+  expect_identical(
+    entry_renderer(entry(as_head_output))$id,
+    "blockr.core-table_output"
+  )
+
+  # A class whose family has no renderer has none up front, so that the client
+  # learns the renderer from the first output
+  as_pages_output <- new_output_family(identity, "pages_output_family")
+
+  expect_null(entry_renderer(entry(as_pages_output)))
   expect_null(registry_entry_reply(head, NULL)$renderer)
 })
 

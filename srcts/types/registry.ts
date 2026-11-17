@@ -51,12 +51,11 @@ export interface RegistryEntry {
       }
     >
   >;
-  // The renderer of the class's outputs: that of the output class that the
-  // class names, which R knows where the output class gives its renderer
-  // through its method of `output_renderer()`. Core loads it, and
-  // adds the board options that it names to the board, before it asks for a
-  // block's first output, so that the request carries the board options that
-  // the coercion reads. An output still names the renderer that draws it.
+  // The renderer of the class's outputs: the one that the output family that
+  // the class names gives through its method of `as_renderer()`. Core loads
+  // it, and adds the board options that it names to the board, before it asks
+  // for a block's first output, so that the request carries the board options
+  // that the coercion reads. An output still names the renderer that draws it.
   readonly renderer?: OutputRenderer;
 }
 

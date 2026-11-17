@@ -2,16 +2,19 @@
 % Please edit documentation in R/output-renderer.R
 \name{new_renderer}
 \alias{new_renderer}
-\alias{output_renderer}
-\alias{output_renderer.block_output}
+\alias{as_renderer}
+\alias{as_renderer.block_output}
+\alias{as_renderer.output_family}
 \alias{chosen_renderer}
 \title{Renderers}
 \usage{
 new_renderer(name, module, requests = list(), option = NULL)
 
-output_renderer(x, ...)
+as_renderer(x, ...)
 
-\method{output_renderer}{block_output}(x, ...)
+\method{as_renderer}{block_output}(x, ...)
+
+\method{as_renderer}{output_family}(x, ...)
 
 chosen_renderer(target, default = NULL)
 }
@@ -26,7 +29,7 @@ function, which only a renderer of an output class has}
 \item{option}{The ID of the board option that the renderer draws, or \code{NULL}
 for a renderer of an output class}
 
-\item{x}{An output}
+\item{x}{An output, or an output family}
 
 \item{...}{Generic consistency}
 
@@ -37,9 +40,9 @@ renderer for}
 }
 \value{
 The constructor \code{new_renderer()} returns an object of class
-\code{renderer}, the generic \code{output_renderer()} the renderer that draws an
-output, and \code{chosen_renderer()} the renderer that the app names for
-\code{target}, or \code{default}.
+\code{renderer}, the generic \code{as_renderer()} the renderer that draws an output,
+or the outputs of an output family, and \code{chosen_renderer()} the renderer
+that the app names for \code{target}, or \code{default}.
 }
 \description{
 A renderer is a module that draws the outputs of an output class (see
@@ -52,8 +55,15 @@ beside an app script.
 }
 \details{
 The package that defines an output class gives the renderer that draws its
-outputs through its method of \code{output_renderer()}, as core's method for
-table outputs gives \code{blockr.core-table_output}.
+outputs through two methods of \code{as_renderer()}, as core's methods for table
+outputs give \code{blockr.core-table_output}.
+The method for the class's output family gives R the renderer before any
+output exists (see \code{\link[=new_output_family]{new_output_family()}}), and the method for the class
+gives the renderer of each output, which core's methods take from the
+family.
+R names the family's renderer in the entry of each block class that names
+the family, in the block registry, so that the client loads it before it
+asks for a block's first output.
 S3 dispatch gives a subclass the renderer of its class, unless the subclass
 has a method of its own, so that the outputs of a lazy table are drawn as
 tables until a package or an app script gives the subclass a renderer.
@@ -67,7 +77,7 @@ An app draws with it by naming it in the blockr option \code{renderers}, under
 the output class that it is to draw, as
 \code{options(blockr.renderers = list(table_output = blockr.ui::table_preview()))}
 does (see \code{\link[=blockr_option]{blockr_option()}}).
-A method of \code{output_renderer()} takes the app's choice for its class with
+A method of \code{as_renderer()} takes the app's choice for its class with
 \code{chosen_renderer()}, which gives the renderer that the app names for the
 class, or else the default it is given.
 So loading a package that offers a renderer changes nothing.
@@ -102,12 +112,13 @@ table_preview <- function() {
 
 tbl <- as_table_output(datasets::BOD, options = list(n_rows = 6L))
 
-output_renderer(tbl)
+as_renderer(tbl)
+as_renderer(as_table_output)
 
 # In an app script
 options(blockr.renderers = list(table_output = table_preview()))
 
-output_renderer(tbl)
+as_renderer(tbl)
 
 options(blockr.renderers = NULL)
 

@@ -42,6 +42,8 @@ of class \code{table_output}.
 A table output shows a table: its columns, the rows of one page and the
 total row count. The constructor \code{new_table_output()} makes one, and the
 coercion \code{as_table_output()} makes one from a result, by the result's class.
+It is the output family of table outputs, which a block class names in its
+\code{output} property (see \code{\link[=new_output_family]{new_output_family()}}).
 Its method for data frames pages and sorts the result. A package that knows
 another kind of table, such as a lazy table that it pages in a database,
 adds a method that returns a table output. Every renderer of table outputs

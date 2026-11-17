@@ -3,7 +3,7 @@
 #' To count a package's code, covr rewrites the functions its namespace binds
 #' when the package loads, and it never looks inside a value, so that the
 #' functions a block class holds, its `expr`, the function it gives as
-#' `inputs` and the functions of its requests, show up in no
+#' `inputs`, its `output` and the functions of its requests, show up in no
 #' coverage report. A package that defines block classes therefore calls
 #' `trace_block_classes()` in its `.onLoad()`, which, where covr runs, binds
 #' every function that the package's classes hold in its namespace, before
@@ -90,7 +90,8 @@ class_funs <- function(cls) {
 
   funs <- list(
     inputs = cls[["inputs"]],
-    expr = cls[["expr"]]
+    expr = cls[["expr"]],
+    output = cls[["output"]]
   )
 
   reqs <- lst_xtr(cls[["requests"]], "fun")

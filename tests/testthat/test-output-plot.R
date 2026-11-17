@@ -85,7 +85,7 @@ test_that("a block_eval() method makes a captured plot the block's result", {
       bbquote(plot(.(data)[[.(x)]], .(data)[[.(y)]]))
     },
     ui = js_module("scatter.js"),
-    output = "plot_output"
+    output = as_plot_output
   )
 
   registerS3method(
@@ -103,8 +103,8 @@ test_that("a block_eval() method makes a captured plot the block's result", {
   expect_s3_class(res$result, "captured_plot")
   expect_identical(res$summary, "<captured_plot>")
 
-  coercion <- output_coercion(new_block_output(list(), cls$output))
-  out <- coercion(res$result, list(), list(width = 200, height = 200), list())
+  out <- cls$output(res$result, list(), list(width = 200, height = 200),
+                    list())
 
   expect_s3_class(out, "plot_output")
   expect_true(is_png(out$body))

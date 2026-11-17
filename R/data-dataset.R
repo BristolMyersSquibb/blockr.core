@@ -1,4 +1,4 @@
-#' @include block-class.R
+#' @include block-class.R output-table.R
 NULL
 
 list_datasets <- function(package) {
@@ -34,7 +34,7 @@ dataset_block <- new_block_class(
   },
   ui = js_module("js/dataset-block.js"),
   requests = list(datasets = list_datasets),
-  output = "table_output"
+  output = as_table_output
 )
 
 #' Dataset block

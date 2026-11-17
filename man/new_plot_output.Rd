@@ -52,7 +52,9 @@ class \code{plot_output}, while \code{capture_plot()} returns one of class
 A plot output shows a plot as a PNG image. The image travels as the
 output's binary body, and the output gives the size the plot was drawn at,
 in CSS pixels. The constructor \code{new_plot_output()} makes one. The coercion
-\code{as_plot_output()} makes one from a result, by the result's class. It draws
+\code{as_plot_output()} makes one from a result, by the result's class.
+It is the output family of plot outputs, which a block class names in its
+\code{output} property (see \code{\link[=new_output_family]{new_output_family()}}). It draws
 the plot at the size that \code{info} gives, at its pixel ratio. Where the
 thematic package is installed, it draws with the colors and the font that
 \code{info} gives, so that the plot follows the page's theme. A change of theme

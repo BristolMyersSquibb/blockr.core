@@ -5,8 +5,6 @@
 \alias{output_schema.block_output}
 \alias{output_requests}
 \alias{output_requests.block_output}
-\alias{output_coercion}
-\alias{output_coercion.block_output}
 \alias{volatile}
 \alias{read_json_schema}
 \alias{run_output_class_request}
@@ -19,10 +17,6 @@ output_schema(x, ...)
 output_requests(x, ...)
 
 \method{output_requests}{block_output}(x, ...)
-
-output_coercion(x, ...)
-
-\method{output_coercion}{block_output}(x, ...)
 
 volatile(fun)
 
@@ -70,15 +64,14 @@ for a request of the output class}
 }
 \value{
 The generic \code{output_schema()} returns a JSON Schema, as a list,
-\code{output_requests()} a named list of functions, \code{output_coercion()} the
-coercion that makes the class's outputs, \code{volatile()} the function it is
-given, marked as volatile,
+\code{output_requests()} a named list of functions, \code{volatile()} the function it
+is given, marked as volatile,
 \code{read_json_schema()} the JSON Schema that it reads, as a list, and
 \code{run_output_class_request()} the request's answer.
 }
 \description{
 The package that defines an output class gives R what it needs of the class
-through its methods of four generics, which it registers as it registers
+through its methods of three generics, which it registers as it registers
 any S3 method, so that S3 dispatch gives a subclass what its class gives,
 unless it gives its own.
 A method answers by the class alone, whatever the output holds, since R also
@@ -119,32 +112,28 @@ No request of an output class writes.
 The function \code{run_output_class_request()} runs a request as R does, to test
 an output class, or the requests of a renderer, without Shiny.
 
-The method of \code{output_renderer()} gives the renderer that draws the class's
-outputs (see \code{\link[=new_renderer]{new_renderer()}}).
-
-The method of \code{output_coercion()} returns the class's coercion, the generic
-that makes the class's outputs from a result, as core's method for table
-outputs returns \code{\link[=as_table_output]{as_table_output()}}.
-A block class names the output class of its outputs in its \code{output}
-property (see \code{\link[=new_block_class]{new_block_class()}}).
-R makes the block's outputs with the coercion that the method for that
-output class gives.
-Where no class before \code{block_output} in an output's class vector has a
-method, the generic fails.
-R also names the renderer of the output class in the block class's entry of
-the block registry, before it makes an output.
+The method of \code{as_renderer()} gives the renderer that draws the class's
+outputs (see \code{\link[=as_renderer]{as_renderer()}}).
+The output family of the class, the coercion that makes its outputs, gives
+R that renderer through a method of its own, before R has made any output
+(see \code{\link[=new_output_family]{new_output_family()}}).
+R names it in the entry of each block class that names the family, in the
+block registry.
 The client loads that renderer, and adds the board options that it names to
 the board, before it asks for a block's first output, so that the board
 holds every board option that the coercion reads, such as the \code{n_rows} of
 table outputs.
-A subclass that a method of its class's coercion makes, such as a lazy
-table's, gives no method of its own, since each output that R sends names
-the renderer that draws it, and the client draws it with that one.
+A subclass that a method of the coercion makes, such as a lazy table's,
+gives no method of its own, since each output that R sends names the
+renderer that draws it, and the client draws it with that one.
 }
 \examples{
-as_words_output <- function(result, ...) {
-  new_block_output(list(words = as.character(result)), "words_output")
-}
+as_words_output <- new_output_family(
+  function(result, ...) {
+    new_block_output(list(words = as.character(result)), "words_output")
+  },
+  class = "words_output_family"
+)
 
 output_schema.words_output <- function(x, ...) {
   list(type = "object", properties = list(words = list(type = "array")))
@@ -154,14 +143,9 @@ output_requests.words_output <- function(x, ...) {
   list(count = volatile(function(result) length(result)))
 }
 
-output_coercion.words_output <- function(x, ...) {
-  as_words_output
-}
-
 words <- as_words_output("hello")
 
 output_schema(words)
 run_output_class_request(words, "count", result = c("hello", "world"))
-identical(output_coercion(words), as_words_output)
 
 }

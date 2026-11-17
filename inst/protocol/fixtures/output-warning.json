@@ -1,5 +1,5 @@
 {
-  "description": "An output on another board whose coercion warns: the method of the coercion for the block's result turns a column of text into integers before it makes a table output, and one of the values is no number. R makes the output all the same, so the reply is ok, and it carries the warning with its class vector and the phase output.",
+  "description": "An output on another board whose coercion warns: the block class's coercion turns a column of text into integers before it makes a table output, and one of the values is no number. R makes the output all the same, so the reply is ok, and it carries the warning with its class vector and the phase output.",
   "client": [
     {
       "id": "37",

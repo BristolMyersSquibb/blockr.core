@@ -1,4 +1,4 @@
-#' @include block-class.R
+#' @include block-class.R output-table.R
 #' @rdname new_subset_block
 #' @format NULL
 #' @export
@@ -22,7 +22,7 @@ subset_block <- new_block_class(
     bbquote(subset(.(data), ..(args)), splice = TRUE)
   },
   ui = js_module("js/subset-block.js"),
-  output = "table_output"
+  output = as_table_output
 )
 
 #' Subset block

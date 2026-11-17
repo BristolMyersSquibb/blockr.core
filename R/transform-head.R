@@ -1,4 +1,4 @@
-#' @include block-class.R
+#' @include block-class.R output-table.R
 #' @rdname new_head_block
 #' @format NULL
 #' @export
@@ -20,7 +20,7 @@ head_block <- new_block_class(
   },
   ui = js_module("js/head-block.js"),
   requests = list(n_max = function(data) nrow(data)),
-  output = "table_output"
+  output = as_table_output
 )
 
 #' Head block

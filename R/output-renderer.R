@@ -9,8 +9,15 @@
 #' beside an app script.
 #'
 #' The package that defines an output class gives the renderer that draws its
-#' outputs through its method of `output_renderer()`, as core's method for
-#' table outputs gives `blockr.core-table_output`.
+#' outputs through two methods of `as_renderer()`, as core's methods for table
+#' outputs give `blockr.core-table_output`.
+#' The method for the class's output family gives R the renderer before any
+#' output exists (see [new_output_family()]), and the method for the class
+#' gives the renderer of each output, which core's methods take from the
+#' family.
+#' R names the family's renderer in the entry of each block class that names
+#' the family, in the block registry, so that the client loads it before it
+#' asks for a block's first output.
 #' S3 dispatch gives a subclass the renderer of its class, unless the subclass
 #' has a method of its own, so that the outputs of a lazy table are drawn as
 #' tables until a package or an app script gives the subclass a renderer.
@@ -24,7 +31,7 @@
 #' the output class that it is to draw, as
 #' `options(blockr.renderers = list(table_output = blockr.ui::table_preview()))`
 #' does (see [blockr_option()]).
-#' A method of `output_renderer()` takes the app's choice for its class with
+#' A method of `as_renderer()` takes the app's choice for its class with
 #' `chosen_renderer()`, which gives the renderer that the app names for the
 #' class, or else the default it is given.
 #' So loading a package that offers a renderer changes nothing.
@@ -51,7 +58,7 @@
 #'   function, which only a renderer of an output class has
 #' @param option The ID of the board option that the renderer draws, or `NULL`
 #'   for a renderer of an output class
-#' @param x An output
+#' @param x An output, or an output family
 #' @param target The output class or the board option that an app may name a
 #'   renderer for
 #' @param default The renderer to give where the app names none
@@ -71,19 +78,20 @@
 #'
 #' tbl <- as_table_output(datasets::BOD, options = list(n_rows = 6L))
 #'
-#' output_renderer(tbl)
+#' as_renderer(tbl)
+#' as_renderer(as_table_output)
 #'
 #' # In an app script
 #' options(blockr.renderers = list(table_output = table_preview()))
 #'
-#' output_renderer(tbl)
+#' as_renderer(tbl)
 #'
 #' options(blockr.renderers = NULL)
 #'
 #' @return The constructor `new_renderer()` returns an object of class
-#' `renderer`, the generic `output_renderer()` the renderer that draws an
-#' output, and `chosen_renderer()` the renderer that the app names for
-#' `target`, or `default`.
+#' `renderer`, the generic `as_renderer()` the renderer that draws an output,
+#' or the outputs of an output family, and `chosen_renderer()` the renderer
+#' that the app names for `target`, or `default`.
 #'
 #' @export
 new_renderer <- function(name, module, requests = list(), option = NULL) {
@@ -168,16 +176,26 @@ print.renderer <- function(x, ...) {
 
 #' @rdname new_renderer
 #' @export
-output_renderer <- function(x, ...) {
-  UseMethod("output_renderer")
+as_renderer <- function(x, ...) {
+  UseMethod("as_renderer")
 }
 
 #' @rdname new_renderer
 #' @export
-output_renderer.block_output <- function(x, ...) {
+as_renderer.block_output <- function(x, ...) {
   blockr_abort(
     "R knows no renderer for output class {class(x)[1L]}, which its package ",
-    "gives through a method of `output_renderer()`.",
+    "gives through a method of `as_renderer()`.",
+    class = "output_renderer_missing"
+  )
+}
+
+#' @rdname new_renderer
+#' @export
+as_renderer.output_family <- function(x, ...) {
+  blockr_abort(
+    "R knows no renderer for output family {class(x)[1L]}, which its package ",
+    "gives through a method of `as_renderer()`.",
     class = "output_renderer_missing"
   )
 }
@@ -231,16 +249,17 @@ chosen_renderers <- function() {
   chosen
 }
 
-# The renderer that draws an output, as the method of `output_renderer()` for
-# the most specific of its classes that has one gives it.
+# The renderer that draws an output, or the outputs of an output family, as the
+# method of `as_renderer()` for the most specific of its classes that has one
+# gives it.
 renderer_of <- function(x) {
 
-  res <- output_renderer(x)
+  res <- as_renderer(x)
 
   if (!is_renderer(res) || not_null(res[["option"]])) {
     blockr_abort(
-      "The method of `output_renderer()` for output class {class(x)[1L]} ",
-      "gives no renderer of an output class.",
+      "The method of `as_renderer()` for {class(x)[1L]} gives no renderer of ",
+      "an output class.",
       class = "renderer_invalid"
     )
   }

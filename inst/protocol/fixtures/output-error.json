@@ -1,5 +1,5 @@
 {
-  "description": "An output that fails, as when the coercion of the output class that a block class names has no method for its result, on another board. The reply's status is that of the request alone, so the block still reads ready, while the renderer keeps the last output it holds.",
+  "description": "An output that fails, as when the coercion a block class names has no method for its result, on another board. The reply's status is that of the request alone, so the block still reads ready, while the renderer keeps the last output it holds.",
   "client": [
     {
       "id": "33",

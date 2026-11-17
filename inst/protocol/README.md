@@ -274,8 +274,7 @@ No request times out, since no reply is lost on a live connection and giving up 
 
 ## Outputs
 
-An `output` asks for the output that R makes from a block's result at a revision, with the coercion of the output class that the block's class names in `output`, as the output class's method of `output_coercion()` gives it.
-R knows the block's class by the registry id it keeps with the result ([Outputs](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#outputs)):
+An `output` asks for the output that the output family its block's class names in `output`, a coercion, makes from the block's result at a revision, which R knows by the registry id it keeps with the result ([Outputs](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#outputs)):
 
 | Property | Holds |
 |---|---|
@@ -284,15 +283,14 @@ R knows the block's class by the registry id it keeps with the result ([Outputs]
 | `info` | what the client measured for the output's element: `width` and `height` in CSS pixels, `pixel_ratio`, the colours `bg`, `fg` and `accent`, and `font` |
 | `params` | the output's parameters, which its renderer keeps, such as a table's `{ "page": 2, "sort": { "column": "x" } }`, in the shape that the output class's contract gives |
 
-R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, as the method of `output_renderer()` for the most specific class in the output's class vector that has one gives it, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client loads the first time an output names it and mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other properties its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. A coercion that fails makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
-R replies the same where the output class gives no coercion.
+R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, as the method of `as_renderer()` for the most specific class in the output's class vector that has one gives it, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client loads the first time an output names it and mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other properties its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. A coercion that fails makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
 An `ok` reply carries `conditions` as well: every message and warning that the coercion raised, with the phase `output`.
 
-R also names a renderer before any output exists: in the `renderer` of each block class's entry in the block registry, the renderer of the output class that the class names, as the method of `output_renderer()` for that output class gives it.
+R also names a renderer before any output exists: in the `renderer` of each block class's entry in the block registry, the renderer that the output family the class names gives, through the method of `as_renderer()` for the family's class.
 The client loads that renderer, and adds the board options it names to the board, before it asks for a block's first output, so that the request carries every board option that the coercion reads, such as the `n_rows` by which a table output pages.
 Where the output that comes back names another renderer, as an output of a subclass with a renderer of its own does, the client draws the output with that one.
-An entry has no `renderer` where R knows no renderer for the output class that the class names, and the client then learns the renderer from the block's first output.
-That first request carries the value of every board option that a loaded package defines: the board's, or else the board option's default, which the client sends without adding it to the board, so that the coercion of such an output class, as one that wraps `as_table_output()`, gets `n_rows` on a fresh board too.
+An entry has no `renderer` where R knows no renderer for the class's output family, and the client then learns the renderer from the block's first output.
+That first request carries the value of every board option that a loaded package defines: the board's, or else the board option's default, which the client sends without adding it to the board, so that the family's coercion gets the board options it reads, such as `n_rows`, on a fresh board too.
 
 The contracts of core's output classes, for tables, text and plots, are their TypeScript types in [`srcts/types/outputs.ts`](../../srcts/types/outputs.ts). The build generates the JSON Schema of each class's outputs from its type, into [`inst/outputs`](../outputs/), and R writes the outputs by it. Sample outputs of each class, which every renderer of the class is tested on, are in [`inst/outputs/fixtures`](../outputs/fixtures/).
 

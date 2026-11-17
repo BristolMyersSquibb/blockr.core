@@ -19,7 +19,7 @@ new_block_class(
   expr,
   ui,
   requests = NULL,
-  output = "text_output",
+  output = as_text_output,
   version = 1L
 )
 
@@ -56,9 +56,8 @@ makes the block expression from}
 \item{requests}{Named list of requests, each a function or made by
 \code{\link[=new_block_request]{new_block_request()}}}
 
-\item{output}{Output class of the class's outputs, such as
-\code{"table_output"}, whose method of \code{\link[=output_coercion]{output_coercion()}} gives the coercion
-that makes an output from a result}
+\item{output}{Output family of the class's outputs, such as
+\code{\link[=as_table_output]{as_table_output()}}, the coercion that makes an output from a result}
 
 \item{version}{Version of the shape of the class's state, a whole number
 from 1, which a package raises as it changes that shape, so that the
@@ -142,10 +141,10 @@ package at a URL of its own, read from the path given, each at a URL that
 holds a hash of the file's content. A class further takes a
 named list of \code{requests}, for what its UI asks of R, each a function or made
 by \code{\link[=new_block_request]{new_block_request()}}, which names the board options it reads, and the
-output class of its outputs, as \code{output}, such as \code{"table_output"}, or else
-\code{"text_output"}.
-R makes an output from a result with the coercion that the output class
-gives through its method of \code{\link[=output_coercion]{output_coercion()}}.
+output family of its outputs, as \code{output}, such as \code{as_table_output}, or
+else \code{as_text_output}.
+The family is the coercion that makes an output from a result, and gives
+the renderer of its outputs (see \code{\link[=new_output_family]{new_output_family()}}).
 Any other property that a class leaves out is \code{NULL}.
 
 A UI module is an ES module that exports the major of core's JS API

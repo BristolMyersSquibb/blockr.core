@@ -1,4 +1,4 @@
-#' @include block-class.R
+#' @include block-class.R output-table.R
 #' @rdname new_rbind_block
 #' @format NULL
 #' @export
@@ -7,7 +7,7 @@ rbind_block <- new_block_class(
   inputs = "...",
   expr = function() bbquote(rbind(...)),
   ui = js_module("js/rbind-block.js"),
-  output = "table_output"
+  output = as_table_output
 )
 
 #' Row-bind block

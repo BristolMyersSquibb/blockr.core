@@ -114,13 +114,13 @@ registry_entry_reply <- function(x, renderer = NULL) {
 # The renderer of a block class's outputs, which R names in the class's entry
 # of the block registry, so that the client loads it, and adds the board
 # options that it names to the board, before it asks for a block's first
-# output: the renderer of the output class that the block class names.
-# It is `NULL` where R knows no renderer for that output class, so that the
-# client learns the renderer from the first output, and R reports its error
-# there.
+# output: the renderer that the output family that the block class names gives
+# through its method of `as_renderer()`.
+# It is `NULL` where R knows no renderer for that family, so that the client
+# learns the renderer from the first output, and R reports its error there.
 entry_renderer <- function(x) {
   tryCatch(
-    renderer_of(new_block_output(list(), x[["block_class"]][["output"]])),
+    renderer_of(x[["block_class"]][["output"]]),
     output_renderer_missing = function(e) NULL
   )
 }

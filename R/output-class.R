@@ -1,9 +1,9 @@
 #' Outputs
 #'
-#' A block's result can be any R object. An output is what R shows of it.
-#' A block class names the output class of its outputs in its `output`
-#' property, and the coercion of that class makes an output from the result
-#' (see [new_block_class()]). R sends the output to the client
+#' A block's result can be any R object. An output is what R shows of it: the
+#' output family that a block class names in its `output` property makes an
+#' output from the result (see [new_output_family()]).
+#' R sends the output to the client
 #' as JSON, and a renderer draws it there. So nothing in the protocol assumes a
 #' table.
 #'
@@ -12,7 +12,9 @@
 #' functions. A constructor makes an output of the class and checks its
 #' properties.
 #' A coercion is a generic that makes an output from a result, by the
-#' result's class. Core defines three output classes, for tables, text and
+#' result's class.
+#' It is the output family of the class's outputs.
+#' Core defines three output classes, for tables, text and
 #' plots (see [new_table_output()], [new_text_output()] and
 #' [new_plot_output()]). Their constructors build on `new_block_output()`.
 #' Another package extends an output class with a subclass. Its outputs hold
@@ -24,9 +26,10 @@
 #' for a download, a file name.
 #'
 #' The package that defines an output class gives R what it needs of the
-#' class, its JSON Schema, its requests, its renderer and its coercion, through
-#' its methods of four generics (see [output_schema()]).
+#' class, its JSON Schema, its requests and its renderer, through its methods
+#' of three generics (see [output_schema()]).
 #'
+#' @include utils-assertions.R utils-cnd.R
 #' @param x For `new_block_output()`, the output's properties, as a named list,
 #'   and for `new_reply_body()`, a raw vector or the path of a file
 #' @param class The output's class vector, without `block_output`
@@ -208,10 +211,81 @@ print.reply_body <- function(x, ...) {
   invisible(x)
 }
 
+#' Output families
+#'
+#' An output family is the coercion that makes the outputs of an output class
+#' from a block's result, such as [as_table_output()] for table outputs, as a
+#' function with a class of its own.
+#' A block class names the family of its outputs in its `output` property (see
+#' [new_block_class()]), and R calls the family on a block's result to make an
+#' output.
+#' The family's class lets R ask the family itself for the renderer of its
+#' outputs, through S3 dispatch of [as_renderer()], before R has made any
+#' output.
+#' R names that renderer in the block class's entry of the block registry, so
+#' that the client loads it before it asks for a block's first output.
+#'
+#' The function `new_output_family()` makes a family of a function, by giving
+#' it the class `class`, followed by `output_family` and `function`.
+#' The package that defines an output class gives the family a class of its
+#' own, such as `table_output_family`, and a method of `as_renderer()` for it.
+#' A family that is a generic stays one, since S3 registers its methods and
+#' dispatches on the result as it does for any generic.
+#' A function that wraps the coercion of another family joins that family by
+#' taking its class, and so draws with its renderer.
+#'
+#' @param fun The coercion, a function that makes an output from the result,
+#'   with the board option values, the `info` and the parameters that the
+#'   output was asked with, as `options`, `info` and `params`
+#' @param class The family's class, such as `"table_output_family"`
+#'
+#' @examples
+#' class(as_table_output)
+#' as_renderer(as_table_output)
+#'
+#' # A coercion that wraps the table family's joins the family
+#' as_head_output <- new_output_family(
+#'   function(result, ...) as_table_output(utils::head(result), ...),
+#'   class = "table_output_family"
+#' )
+#'
+#' as_renderer(as_head_output)
+#' as_head_output(datasets::iris, options = list(n_rows = 3L))$total
+#'
+#' @return The function `fun`, of class `class`, `output_family` and
+#' `function`.
+#'
+#' @export
+new_output_family <- function(fun, class) {
+
+  if (!is.function(fun)) {
+    blockr_abort(
+      "An output family is expected to be a function, the coercion that ",
+      "makes its outputs.",
+      class = "output_family_invalid"
+    )
+  }
+
+  if (!is_nonempty_string(class) ||
+        class %in% c("output_family", "function")) {
+    blockr_abort(
+      "The class of an output family is expected to be a string of its own, ",
+      "such as \"table_output_family\".",
+      class = "output_family_invalid"
+    )
+  }
+
+  structure(fun, class = c(class, "output_family", "function"))
+}
+
+is_output_family <- function(x) {
+  is.function(x) && inherits(x, "output_family")
+}
+
 #' Output classes in R
 #'
 #' The package that defines an output class gives R what it needs of the class
-#' through its methods of four generics, which it registers as it registers
+#' through its methods of three generics, which it registers as it registers
 #' any S3 method, so that S3 dispatch gives a subclass what its class gives,
 #' unless it gives its own.
 #' A method answers by the class alone, whatever the output holds, since R also
@@ -250,27 +324,20 @@ print.reply_body <- function(x, ...) {
 #' The function `run_output_class_request()` runs a request as R does, to test
 #' an output class, or the requests of a renderer, without Shiny.
 #'
-#' The method of `output_renderer()` gives the renderer that draws the class's
-#' outputs (see [new_renderer()]).
-#'
-#' The method of `output_coercion()` returns the class's coercion, the generic
-#' that makes the class's outputs from a result, as core's method for table
-#' outputs returns [as_table_output()].
-#' A block class names the output class of its outputs in its `output`
-#' property (see [new_block_class()]).
-#' R makes the block's outputs with the coercion that the method for that
-#' output class gives.
-#' Where no class before `block_output` in an output's class vector has a
-#' method, the generic fails.
-#' R also names the renderer of the output class in the block class's entry of
-#' the block registry, before it makes an output.
+#' The method of `as_renderer()` gives the renderer that draws the class's
+#' outputs (see [as_renderer()]).
+#' The output family of the class, the coercion that makes its outputs, gives
+#' R that renderer through a method of its own, before R has made any output
+#' (see [new_output_family()]).
+#' R names it in the entry of each block class that names the family, in the
+#' block registry.
 #' The client loads that renderer, and adds the board options that it names to
 #' the board, before it asks for a block's first output, so that the board
 #' holds every board option that the coercion reads, such as the `n_rows` of
 #' table outputs.
-#' A subclass that a method of its class's coercion makes, such as a lazy
-#' table's, gives no method of its own, since each output that R sends names
-#' the renderer that draws it, and the client draws it with that one.
+#' A subclass that a method of the coercion makes, such as a lazy table's,
+#' gives no method of its own, since each output that R sends names the
+#' renderer that draws it, and the client draws it with that one.
 #'
 #' @param x An output, and for `run_output_class_request()`, an output or its
 #'   class vector
@@ -290,9 +357,12 @@ print.reply_body <- function(x, ...) {
 #'   for a request of the output class
 #'
 #' @examples
-#' as_words_output <- function(result, ...) {
-#'   new_block_output(list(words = as.character(result)), "words_output")
-#' }
+#' as_words_output <- new_output_family(
+#'   function(result, ...) {
+#'     new_block_output(list(words = as.character(result)), "words_output")
+#'   },
+#'   class = "words_output_family"
+#' )
 #'
 #' output_schema.words_output <- function(x, ...) {
 #'   list(type = "object", properties = list(words = list(type = "array")))
@@ -302,20 +372,14 @@ print.reply_body <- function(x, ...) {
 #'   list(count = volatile(function(result) length(result)))
 #' }
 #'
-#' output_coercion.words_output <- function(x, ...) {
-#'   as_words_output
-#' }
-#'
 #' words <- as_words_output("hello")
 #'
 #' output_schema(words)
 #' run_output_class_request(words, "count", result = c("hello", "world"))
-#' identical(output_coercion(words), as_words_output)
 #'
 #' @return The generic `output_schema()` returns a JSON Schema, as a list,
-#' `output_requests()` a named list of functions, `output_coercion()` the
-#' coercion that makes the class's outputs, `volatile()` the function it is
-#' given, marked as volatile,
+#' `output_requests()` a named list of functions, `volatile()` the function it
+#' is given, marked as volatile,
 #' `read_json_schema()` the JSON Schema that it reads, as a list, and
 #' `run_output_class_request()` the request's answer.
 #'
@@ -344,22 +408,6 @@ output_requests <- function(x, ...) {
 #' @export
 output_requests.block_output <- function(x, ...) {
   list()
-}
-
-#' @rdname output_schema
-#' @export
-output_coercion <- function(x, ...) {
-  UseMethod("output_coercion")
-}
-
-#' @rdname output_schema
-#' @export
-output_coercion.block_output <- function(x, ...) {
-  blockr_abort(
-    "Output class {class(x)[1L]} gives no coercion that makes its outputs, ",
-    "which its package gives through a method of `output_coercion()`.",
-    class = "output_coercion_missing"
-  )
 }
 
 #' @rdname output_schema
