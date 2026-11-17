@@ -2264,6 +2264,11 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
   if (!isObject(given)) {
     throw new TypeError(`The args of the request "${name3}" are an object of state args and parameters.`);
   }
+  if (opts.file !== void 0 && spec.file !== true) {
+    throw new TypeError(
+      `The request "${name3}" of the block class "${entry.id}" takes no file, since its new_block_request() names no argument for one.`
+    );
+  }
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name3}" of block "${block}"`;
   const module = sourceModule({ block }, packageFromId(entry.id));

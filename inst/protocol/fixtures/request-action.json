@@ -1,5 +1,5 @@
 {
-  "description": "An action of the upload block's class, which receives the file the user picked as the request's body, keeps it where its package decides and answers with the path that the UI submits into the block's state. R runs an action once per call and the client never keeps its answer.",
+  "description": "An action of the upload block's class, which receives the file the user picked as the request's body, in the argument that its new_block_request() names, keeps it where its package decides and answers with the path that the UI submits into the block's state. R runs an action once per call and the client never keeps its answer.",
   "client": [
     {
       "id": "25",

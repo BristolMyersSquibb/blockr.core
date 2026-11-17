@@ -267,7 +267,7 @@
   R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
   Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
   Core's UIs, its renderers included, take their face from the theme's sans, `--bc-font-sans`, as their code takes its mono, `--bc-font-mono`, which a frontend sets to restyle them.
-  The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
+  The stub of a block's host answers an upload by the file that a fixture records for it (#438, #663).
 * A stack may have a color, which frontends draw it in, as the stacks of blockr.dock had until now.
   The color is a hex color of six digits, such as `"#66c2a5"`.
   The constructor `new_stack()` takes it as `color`, and `stack_color()` reads it.
@@ -604,6 +604,10 @@
   The registry still rejects with that error, and its `preflight()` still answers `false`.
   It logs no refusal, whether it refuses a command itself, the command refuses with the `refusal()` of its context, or the store refuses the command's deltas.
   Where a plugin runs a command of the user's through `CoreApi`, core raises `board_edit_failed` for a command that failed so, as it does for a refusal, and logs no line of its own (#627).
+* A block class's request takes a file that the client sends only where `new_block_request()` names the argument for it, in `file`.
+  That argument may have any name, and the function `run_block_request()` passes it a file through its own argument `file`.
+  The block registry marks a request that takes a file with `file`, and the client sends no file with any other request.
+  A block class's fixture records the file that a request was sent beside its `args` (#663).
 
 # blockr.core 0.1.4
 

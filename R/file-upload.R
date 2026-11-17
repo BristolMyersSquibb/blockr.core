@@ -59,7 +59,9 @@ upload_block <- new_block_class(
     call("file.path", file_path)
   },
   ui = js_module("js/upload-block.js"),
-  requests = list(upload = new_block_request(keep_upload, action = TRUE))
+  requests = list(
+    upload = new_block_request(keep_upload, action = TRUE, file = "file")
+  )
 )
 
 #' Upload block
@@ -117,7 +119,7 @@ upload_block <- new_block_class(
 #' run_block_request(
 #'   upload_block,
 #'   "upload",
-#'   args = list(file = list(datapath = csv, name = "bod.csv"))
+#'   file = list(datapath = csv, name = "bod.csv")
 #' )
 #'
 #' @return The block class `upload_block` is an object of class

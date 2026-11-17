@@ -915,7 +915,7 @@ proto_registry <- function(...) {
       ),
       state = obj(),
       arguments = obj(),
-      requests = obj(upload = proto_request(action = TRUE)),
+      requests = obj(upload = proto_request(action = TRUE, file = TRUE)),
       renderer = proto_renderer("text")
     )
   )
@@ -1395,7 +1395,8 @@ register_script_blocks <- function(dir) {
       ),
       upload = new_block_request(
         function(file) file[["datapath"]],
-        action = TRUE
+        action = TRUE,
+        file = "file"
       )
     )
   )

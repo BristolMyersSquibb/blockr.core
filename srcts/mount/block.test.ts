@@ -1110,6 +1110,17 @@ describe("a request", () => {
     await expect(Promise.all([one, two])).resolves.toEqual([["uploads/sales.csv"], ["uploads/sales.csv"]]);
   });
 
+  test("sends no file with a request whose new_block_request() names no argument for one", async () => {
+    const { r, host } = await mounted();
+    const file = new File(["a,b\n1,2\n"], "sales.csv", { type: "text/csv" });
+
+    await expect(host.request("listing", {}, { file })).rejects.toThrow(
+      'The request "listing" of the block class "blockr.core-head_block" takes no file, since its new_block_request() names no argument for one.',
+    );
+    await tick();
+    expect(requests(r)).toHaveLength(0);
+  });
+
   test("resolves a download with the File that the reply names", async () => {
     const { r, host } = await mounted();
     const file = new File(["report"], "report.pptx", { type: "application/vnd.ms-powerpoint" });

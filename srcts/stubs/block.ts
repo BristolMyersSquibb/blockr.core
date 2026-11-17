@@ -7,7 +7,7 @@
 // contract tests (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#testing).
 //
 // A file that the module sends, such as an upload,
-// answers a request that R recorded with the file as its arg `file`.
+// answers a request that R recorded with that file.
 
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
@@ -28,6 +28,9 @@ export interface BlockFixture {
     readonly name: string;
     readonly args: Readonly<Record<string, Json>>;
     readonly options: Readonly<Record<OptionId, Json>>;
+    // The file it was sent, where it was sent one, as Shiny's fileInput()
+    // gives a file.
+    readonly file?: Json;
     readonly answer: Json;
   }[];
 }
@@ -127,13 +130,11 @@ export function stubBlockHost<S extends State = State>(
           call.name === name &&
           Object.keys(given).every((arg) => Object.hasOwn(call.args, arg)) &&
           // The host fills in a state arg from the block's state
-          // where the module passes none,
-          // and R gives a file the module sends to the arg `file`.
+          // where the module passes none.
           Object.entries(call.args).every(([arg, value]) =>
-            arg === "file" && opts.file !== undefined && !Object.hasOwn(given, arg)
-              ? sameFile(value, opts.file)
-              : jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state, arg), value),
+            jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state, arg), value),
           ) &&
+          (call.file === undefined ? opts.file === undefined : opts.file !== undefined && sameFile(call.file, opts.file)) &&
           Object.entries(call.options).every(([id, value]) => jsonEqual(own(context.options, id), value)),
       );
       if (found === undefined) {
@@ -169,7 +170,7 @@ export function stubBlockHost<S extends State = State>(
   };
 }
 
-// Whether a file that R recorded as an action's arg `file`,
+// Whether a file that R recorded for a request,
 // as Shiny's fileInput() gives a file, is the one the module sends,
 // by its name, type and size, since its `datapath` is where R wrote it.
 function sameFile(recorded: Json, file: File): boolean {

@@ -244,8 +244,9 @@ R calls a renderer's request as it calls an output class's, and the client keeps
 A renderer brings requests of its own for what its output does not hold, such as the labels of a table's columns ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)).
 R checks the results that a request of any type reads, and replies `missing` where it lacks one, so that a request's function gets only results that R holds.
 R resolves the request of an output class, or of a renderer, against the class vector of the latest output that it made from that result, and replies `error` where it has made none.
-R passes the body that a request carries in the argument `file`, to a block class's action and to the request of an output class, a renderer, a board option or a plugin whose function takes `file`.
+R passes the body that a request carries to a block class's request in the argument that its `new_block_request()` names for a file, and to the request of an output class, a renderer, a board option or a plugin in the argument `file`, where its function takes one.
 That argument is a list of the path of the file that R wrote the bytes to, in `datapath`, and the file's `name`, `type` and `size`.
+R replies `error` to a block class's request that carries a body but names no argument for a file, and the client sends no such request.
 
 R replies `ok` with the answer in `value`, which no schema describes, so that R writes it with every vector as an array, a length-one vector included, as `[150]`, and a module reads a single value as `answer[0]`. An answer that is a file, as a download is, comes as the reply's binary body, with no `value`.
 The reply also carries `conditions`: every message and warning that the request's function raised, with the phase `request` ([Conditions](#conditions)).
@@ -265,7 +266,7 @@ What R runs for the client comes in these flavors, which differ in who defines a
 | Board option's request | The package that ships the board option, through its method of `board_option_requests()` | The board option's UI or renderer, through its `OptionHost` | No | Yes |
 | Plugin's request | The plugin's package, through its method of `plugin_requests()` | The plugin, through `CoreApi` | No | Yes |
 
-The block registry marks a block class's requests that are volatile or actions, with `volatile` or `action`.
+The block registry marks a block class's requests that are volatile or actions, with `volatile` or `action`, and those that take a file, with `file`.
 Under the board lock, R holds an evaluation, with parameters or without, to the block's data inputs and a locked block to its state, and draws every output and runs every request as on any board, with the board option values that the request carries ([Locked boards](#locked-boards)).
 A request that reads blocks, a block class's or a plugin's, has the client evaluate them first, even off screen, and goes to R at the revisions they then have, only where each reads `ready`, so that R never runs a request on a result it does not hold ([Demand](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.10#demand)).
 No request times out, since no reply is lost on a live connection and giving up on a request frees nothing in R, which runs it when its turn comes, while any request may send progress, which shows that a long one is still running.

@@ -113,19 +113,14 @@ request_call.block_class_request <- function(x, reads, registry, ...) {
 
   entry <- get_registry_entry(x[["registry_id"]], registry)
   bound <- bind_inputs(x[["reads"]], reads, entry[["inputs"]])
-  args <- x[["args"]]
-
-  # An action receives the request's body in its argument `file`.
-  if (isTRUE(entry[["requests"]][[x[["name"]]]][["action"]])) {
-    args[["file"]] <- x[["body"]]
-  }
 
   block_request_call(
     x[["registry_id"]],
     x[["name"]],
     input_values(bound),
-    args,
+    x[["args"]],
     x[["options"]],
+    x[["body"]],
     registry
   )
 }

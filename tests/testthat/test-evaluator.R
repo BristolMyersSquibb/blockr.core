@@ -748,6 +748,50 @@ test_that("an action receives the request's body in file", {
   )
 })
 
+test_that("R refuses a body for a request that names no argument for one", {
+
+  dir <- withr::local_tempdir()
+
+  cls <- test_block_class(
+    "peek_block",
+    expr = function() quote(NULL),
+    ui = js_module("peek-block.js", package = NULL),
+    requests = list(
+      peek = new_block_request(
+        function(file = NULL) is.null(file),
+        action = TRUE
+      )
+    )
+  )
+
+  local_block_class(cls)
+
+  session <- local_evaluator()
+
+  req <- list(
+    list(
+      id = "2",
+      kind = "request",
+      type = "block_class",
+      registry_id = "peek_block",
+      block = "p",
+      name = "peek",
+      args = obj(),
+      reads = list(),
+      body = list(type = "text/csv", name = "sales.csv")
+    )
+  )
+  req[[1L]] <- received_body(req[[1L]], charToRaw("a,b\n"), file.path(dir, "b"))
+
+  session$receive(req)
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "error")
+  expect_identical(condition_class(reply), "block_request_args_invalid")
+})
+
 test_that("R answers a board option's request by the board option's class", {
 
   local_request_types()
