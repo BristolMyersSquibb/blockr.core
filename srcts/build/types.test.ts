@@ -412,6 +412,8 @@ test("a package's module mounts on the stubs that core ships, which answer from 
 // A renderer and a block's UI written in React on the React SDK that core
 // ships, a block's UI in plain TypeScript on its binding, and the build script
 // that bundles them with its build preset, as a package writes them.
+// A plugin's component follows the board, a block's status and the
+// notifications about the block through the SDK, as the DAG's nodes do.
 const sdkFiles = {
   "src/text-renderer.tsx": `import type { TextOutput } from "@blockr/core";
 import { outputRenderer } from "@blockr/core/react";
@@ -434,6 +436,21 @@ function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
 export const api = 1;
 
 export default reactModule(Head);
+`,
+  "src/status-badge.tsx": `import type { BlockId, CoreApi } from "@blockr/core";
+import { useBoard, useNotified, useStatus } from "@blockr/core/react";
+import type { ReactElement } from "react";
+
+export function StatusBadge({ core, block }: { core: CoreApi; block: BlockId }): ReactElement {
+  const board = useBoard(core);
+  const status = useStatus(core, block);
+  const errors = useNotified(core, block).filter((notification) => notification.severity === "error");
+  return (
+    <span title={board.name} data-errors={errors.length}>
+      {status?.status ?? "unevaluated"}
+    </span>
+  );
+}
 `,
   "src/head-plain.ts": `import type { BlockModule } from "@blockr/core";
 import { bind } from "@blockr/core/binding";

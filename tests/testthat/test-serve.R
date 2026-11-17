@@ -972,7 +972,7 @@ test_that("the page names the files that it imports, which R serves at once", {
 
 test_that("the page names what the runtime and the modules import up front", {
 
-  # A package whose module imports its vendor file and core's React SDK, and
+  # A package whose module imports its vendor file and core's controls, and
   # whose stylesheet imports a stylesheet of its vendor file, as its build
   # lists them in the preload.json beside them.
   dir <- withr::local_tempdir()
@@ -984,7 +984,7 @@ test_that("the page names what the runtime and the modules import up front", {
   writeLines(".vendor {}", file.path(js, "vendor-5e6f7a8b.css"))
   writeLines(
     paste0(
-      "{\"fake.js\": [\"./vendor-1a2b3c4d.js\", \"@blockr/core/react\"], ",
+      "{\"fake.js\": [\"./vendor-1a2b3c4d.js\", \"@blockr/core/controls\"], ",
       "\"fake.css\": [\"./vendor-5e6f7a8b.css\"]}"
     ),
     file.path(js, "preload.json")
@@ -1023,6 +1023,7 @@ test_that("the page names what the runtime and the modules import up front", {
     system.file("js", "preload.json", package = "blockr.core")
   )[["react.js"]]
 
+  # The runtime also imports core's React SDK, which imports its binding.
   # These keep their priority, since the page needs them before Shiny
   # connects.
   expect_match(page$head, paste0(by_name("react"), "/>"), fixed = TRUE)
@@ -1031,17 +1032,34 @@ test_that("the page names what the runtime and the modules import up front", {
     link(paste0("blockr.core/js/", sub("^[.]/", "", vendor), "\"/>")),
     fixed = TRUE
   )
+  expect_match(
+    page$head,
+    paste0(by_name("@blockr/core/react"), "/>"),
+    fixed = TRUE
+  )
+  expect_match(
+    page$head,
+    paste0(by_name("@blockr/core/binding"), "/>"),
+    fixed = TRUE
+  )
 
-  # The package's module imports the SDK, which imports its binding, and its
-  # vendor file, all of which come at a low priority, since the page needs
-  # them only once R has answered.
+  # The package's module imports the controls and its vendor file.
+  # They come at a low priority, since the page needs them only once R has
+  # answered.
+  # The controls import the SDK and the binding too.
+  # Those two keep the priority that the runtime gives them.
   low <- " fetchpriority=\"low\"/>"
   expect_match(
+    page$head,
+    paste0(by_name("@blockr/core/controls"), low),
+    fixed = TRUE
+  )
+  expect_no_match(
     page$head,
     paste0(by_name("@blockr/core/react"), low),
     fixed = TRUE
   )
-  expect_match(
+  expect_no_match(
     page$head,
     paste0(by_name("@blockr/core/binding"), low),
     fixed = TRUE

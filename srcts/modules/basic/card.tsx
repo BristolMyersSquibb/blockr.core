@@ -43,8 +43,9 @@
 
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
-import { Banners, Footer, Mounted, Pills, useFooter, useNotified, useSized, useStatus } from "../../card/index.ts";
+import { Banners, Footer, Mounted, Pills, useFooter, useSized } from "../../card/index.ts";
 import type { Condition } from "../../protocol/index.ts";
+import { useNotified, useStatus } from "../../react/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
 import type { AddMode } from "../../picker/index.ts";

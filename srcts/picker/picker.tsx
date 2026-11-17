@@ -31,12 +31,13 @@ import { useMemo, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { defaultBlockName, freeInputs } from "../commands/index.ts";
+import { useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { classes, Combobox, TextField, useBoard } from "../ui/index.ts";
+import { classes, Combobox, TextField } from "../ui/index.ts";
 import type { ComboOption } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 

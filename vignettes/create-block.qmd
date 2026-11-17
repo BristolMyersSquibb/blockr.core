@@ -537,6 +537,7 @@ The SDK holds these:
 - The hook `useRequest()` follows a request, which it asks again whenever its args or the revisions of the block's inputs change. Its `loading` says whether it is asking, while `answer` keeps the last answer and `error` says why the latest ask failed.
 - The inputs `Checkbox`, `Checklist`, `Field`, `NumberInput`, `Select`, `Stack` and `TextInput`, each on one bound value.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
+- For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a block through `CoreApi`.
 
 A `Select` or a `Checklist` whose choices a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
 Once they are known, the input shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.

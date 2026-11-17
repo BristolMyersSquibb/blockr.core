@@ -8701,7 +8701,7 @@ function noOtel() {
 }
 
 // srcts/page/card.tsx
-import { useCallback as useCallback3, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useCallback as useCallback2, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
@@ -8877,29 +8877,7 @@ function Mounted({
 }
 
 // srcts/card/status.ts
-import { useCallback as useCallback2, useMemo, useState as useState2, useSyncExternalStore } from "react";
-function useStatus(core, block) {
-  const subscribe = useCallback2(
-    (notify) => core.scheduler.subscribe((changed) => {
-      if (changed.includes(block)) notify();
-    }),
-    [core, block]
-  );
-  return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
-}
-function useNotified(core, block) {
-  const subscribe = useCallback2(
-    (notify) => core.notifications.subscribe(() => {
-      notify();
-    }),
-    [core]
-  );
-  const all = useSyncExternalStore(subscribe, () => core.notifications.get());
-  return useMemo(
-    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
-    [all, block]
-  );
-}
+import { useState as useState2 } from "react";
 function useSized(status) {
   const ready = status?.status === "ready";
   const [sized, setSized] = useState2(ready);
@@ -8908,6 +8886,7 @@ function useSized(status) {
 }
 
 // srcts/page/card.tsx
+import { useNotified, useStatus } from "@blockr/core/react";
 import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var OWNER = "blockr.core";
 function drawCard(el, core, signal5) {
@@ -8940,8 +8919,8 @@ function AloneCard({ core, id: id2 }) {
   const notified = useNotified(core, null);
   const footer = useFooter(status, notified);
   const sized = useSized(status);
-  const mountUi = useCallback3((el) => core.mountBlock(el, id2), [core, id2]);
-  const mountOutput2 = useCallback3((el) => core.mountOutput(el, id2), [core, id2]);
+  const mountUi = useCallback2((el) => core.mountBlock(el, id2), [core, id2]);
+  const mountOutput2 = useCallback2((el) => core.mountOutput(el, id2), [core, id2]);
   const inputs = !core.store.locked(id2);
   const current2 = status?.status === "ready" && !status.running;
   return /* @__PURE__ */ jsxs2(
@@ -8977,13 +8956,13 @@ function AloneCard({ core, id: id2 }) {
   );
 }
 function useBlockName(core, id2) {
-  const subscribe = useCallback3(
+  const subscribe = useCallback2(
     (notify) => core.store.subscribe(() => {
       notify();
     }),
     [core]
   );
-  return useSyncExternalStore2(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
+  return useSyncExternalStore(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
 }
 
 // srcts/page/page.ts
