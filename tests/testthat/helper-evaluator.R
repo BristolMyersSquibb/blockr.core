@@ -517,14 +517,22 @@ report_export <- function(reads, format) {
 # blockr.io gives the requests of its board option data_dir,
 # blockr.code's plugin class gives the request script, for the script of the
 # blocks it reads, and blockr.md's gives the request export, which reports
-# progress. The packages list their plugin classes.
+# progress. The packages list their board option and plugin classes, since the
+# app holds the requests of those alone.
 # R's reply to a hello names the version of each package that the app's
-# plugins come from.
-# So blockr.code and blockr.md are at the version 0.1.0, whatever the library
-# holds.
-# Linting skips the calls of local_plugin_classes(), plugin_ctor() and
-# local_versions(), helpers of another file, which lintr does not see.
+# plugins and board options come from.
+# So blockr.code, blockr.io and blockr.md are at the version 0.1.0, whatever
+# the library holds.
+# Linting skips the calls of local_listing(), local_plugin_classes(),
+# plugin_ctor() and local_versions(), helpers of another file, which lintr
+# does not see.
 local_request_types <- function(frame = parent.frame()) {
+
+  local_listing( # nolint: object_usage_linter.
+    "blockr.io",
+    list(options = list(data_dir = list(module = "js/data-dir.js"))),
+    frame = frame
+  )
 
   local_plugin_classes( # nolint: object_usage_linter.
     Code = plugin_ctor( # nolint: object_usage_linter.
@@ -542,6 +550,7 @@ local_request_types <- function(frame = parent.frame()) {
 
   local_versions( # nolint: object_usage_linter.
     blockr.code = "0.1.0",
+    blockr.io = "0.1.0",
     blockr.md = "0.1.0",
     frame = frame
   )

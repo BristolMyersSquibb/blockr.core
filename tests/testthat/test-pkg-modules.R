@@ -255,13 +255,23 @@ test_that("a reply names the board options of every available package", {
   )
   local_board_option_version("grid_gap", 2L)
 
-  # The version of each comes from its method of `board_option_version()`
+  ping <- function() "pong"
+
+  testthat::local_mocked_s3_method(
+    "board_option_requests",
+    "grid_gap_option",
+    function(x, ...) list(ping = ping)
+  )
+
+  # The version and the requests of each come from its methods of
+  # `board_option_version()` and `board_option_requests()`
   expect_identical(
     app_options()[["grid_gap"]],
     list(
       package = "blockr.test",
       module = test_module("js/grid-gap.js"),
-      version = 2L
+      version = 2L,
+      requests = list(ping = ping)
     )
   )
 

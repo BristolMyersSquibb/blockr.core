@@ -30,8 +30,8 @@
 # It carries the app's board options, `options`, which `app_options()` read
 # from the available packages as the app started, and the modules that those
 # packages offer each other, `modules`, which `offered_modules()` read.
-# R answers a board option's request through the package that lists it, which
-# `options` names.
+# R answers a board option's request with the function that `options` holds
+# for it.
 # Outside an app, as in a test, R reads both from the available packages as
 # the evaluator starts.
 #

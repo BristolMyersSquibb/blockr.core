@@ -757,16 +757,17 @@ test_that("R answers a board option's request by the board option's class", {
   expect_fixture_replies(session, "request-option")
 })
 
-test_that("R loads the package of a board option by name for its request", {
+test_that("R answers a board option's request with the function it holds", {
 
   local_installed_package()
 
   # The evaluator reads the board options of the available packages as it
-  # starts, which loads optprobe, as serve() does as it builds an app
+  # starts, with their requests, which loads optprobe, as serve() does as it
+  # builds an app
   session <- local_evaluator()
 
-  # A process that runs the app without the script that built it has not
-  # loaded the package, as here, where the test unloads it
+  # Whatever the process that runs the app has loaded, R answers with the
+  # function that the app holds, as here, where the test unloads optprobe
   unloadNamespace("optprobe")
 
   session$receive(
@@ -779,11 +780,11 @@ test_that("R loads the package of a board option by name for its request", {
 
   reply <- session$sent[[1L]][[1L]]
 
-  # R loads it by the name that the board option's entry gives, and so finds
-  # its method of board_option_requests()
-  expect_true(isNamespaceLoaded("optprobe"))
   expect_identical(reply$status, "ok")
   expect_identical(reply$value, encode_answer("pong"))
+
+  # R loads no package for it
+  expect_false(isNamespaceLoaded("optprobe"))
 })
 
 test_that("R answers a plugin's request by the ID of the plugin's class", {

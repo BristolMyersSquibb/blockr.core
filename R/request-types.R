@@ -22,9 +22,9 @@
 #'   which has to be the one that `renderer` names.
 #' * The type `option`, a board option's request,
 #'   which the board option's UI sends.
-#'   R finds it among the requests that `board_option_requests()` returns for
-#'   the board option that `option` names, by the board option's class,
-#'   `{id}_option`.
+#'   R finds it among the requests of the board option that `option` names,
+#'   which [serve()] gets from the method of `board_option_requests()` for the
+#'   board option's class, `{id}_option`, as it builds the app.
 #' * The type `plugin`, a plugin's request,
 #'   which a plugin sends through `CoreApi.request()` in the client.
 #'   R finds it among the requests that `plugin_requests()` returns for the
@@ -102,9 +102,8 @@ NULL
 # of the block's `result`, its block expression `expr` and, where R made an
 # output from the result, the class vector of the latest output in `output`.
 # A request of a block class reads the class from the app's block registry,
-# which R hands it in `registry`, and a request of a board option reads the
-# package that lists the option from the app's board options, which R hands it
-# in `options`.
+# which R hands it in `registry`, and a request of a board option finds its
+# function among the app's board options, which R hands it in `options`.
 # Core keeps the generic to itself, since no package adds a type.
 # R reads no request of another type, so the generic needs no default method.
 request_call <- function(x, reads, ...) {
@@ -143,24 +142,18 @@ request_call.renderer_request <- function(x, reads, ...) {
   output_read_call(x, reads, x[["renderer"]])
 }
 
-# A board option's request, which R finds through the method of
-# `board_option_requests()` of the package that lists the option, among the
-# app's board options, `options`.
-# The package registers the method as it loads, and S3 dispatch loads no
-# package, so R loads the package by its name first, as in a process that has
-# not loaded it yet.
+# A board option's request, which R finds among the requests of the option in
+# the app's board options, `options`, which `serve()` got from the method of
+# `board_option_requests()` for the option's class as it built the app.
+# So R dispatches on no class and loads no package to answer it, in whatever
+# process runs the app.
 #' @export
 request_call.option_request <- function(x, reads, options = list(), ...) {
 
   option <- x[["option"]]
   name <- x[["name"]]
-  pkg <- options[[option]][["package"]]
 
-  if (is_string(pkg)) {
-    loadNamespace(pkg)
-  }
-
-  fun <- board_option_requests(new_board_option(option))[[name]]
+  fun <- options[[option]][["requests"]][[name]]
 
   if (!is.function(fun)) {
     blockr_abort(

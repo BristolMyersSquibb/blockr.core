@@ -132,7 +132,7 @@
   an arg spec whose example is not one either (#426, #465, #504, #558, #634).
 * Like its block registry and its plugins, an app holds the board options that the available packages list, and the modules that they offer each other, as `serve()` read them as it built the app.
   So the replies to `hello` name the same ones wherever the app runs, in another R process too, as when a script hands the app to `callr::r_bg()`, or shinytest2 runs it, and a package that is installed or loaded after the app starts reaches none of them.
-  R loads the package of a board option by its name before it runs one of the option's requests, since the package registers its method of `board_option_requests()` as it loads (#671).
+  The app holds the requests of each board option as well, which `serve()` gets from the option's method of `board_option_requests()`, and R answers a request with the function that the app holds, so that it loads no package for it (#671).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
   A JSON board holds the board, with its ID and name, its blocks, links and

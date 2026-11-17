@@ -298,21 +298,26 @@ packages_options <- function(pkgs) {
 }
 
 # The board options of an app: those that the available packages list, by ID,
-# each with its package, where R serves its module and the version of its
-# shape, which the app holds as `serve()` reads them, and R names in its reply
-# to `hello`. R reads them from every available package, as it does the
-# modules that packages offer each other, so that a reply names a board option
-# that a block's request reads, of a package whose block classes and plugins
-# the app offers none of.
-# R asks each board option's package for its version through its method of
-# `board_option_version()`, which the package registered as R read its
-# listing, and so loaded it.
+# each with its package, where R serves its module, the version of its shape
+# and its requests, which the app holds as `serve()` reads them.
+# R names all but the requests in its reply to `hello`, and answers a request
+# of the option with the function that the app holds for it.
+# R reads them from every available package, as it does the modules that
+# packages offer each other, so that a reply names a board option that a
+# block's request reads, of a package whose block classes and plugins the app
+# offers none of.
+# R asks each board option's package for its version and its requests through
+# its methods of `board_option_version()` and `board_option_requests()`, which
+# the package registered as R read its listing, and so loaded it.
 app_options <- function(pkgs = available_packages()) {
 
   options <- packages_options(pkgs)
 
   Map(
-    function(x, id) c(x, list(version = option_version(id))),
+    function(x, id) {
+      requests <- board_option_requests(new_board_option(id))
+      c(x, list(version = option_version(id), requests = requests))
+    },
     options,
     names(options)
   )

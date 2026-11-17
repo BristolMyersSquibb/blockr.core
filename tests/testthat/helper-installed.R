@@ -4,8 +4,9 @@
 # module, in the `._BLOCKR_MODULES_` that it exports.
 # It gives the board option the request ping, which answers "pong", through a
 # method of `board_option_requests()` that R registers as the package loads.
-# It is installed rather than loaded by `pkgload::load_all()`, so that a test
-# can unload it and R can load it again by its name.
+# It is installed rather than loaded by `pkgload::load_all()`, so that R loads
+# it by its name as it reads its listing, as it loads any installed package,
+# and a test can unload it.
 # Core's tests leave the listings of installed packages out of what
 # `available_packages()` gives (see setup-listings.R).
 # So the available packages hold this one alone among them, until `frame`

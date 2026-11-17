@@ -53,9 +53,9 @@ R finds it among the requests of the renderer that draws that output,
 which has to be the one that \code{renderer} names.
 \item The type \code{option}, a board option's request,
 which the board option's UI sends.
-R finds it among the requests that \code{board_option_requests()} returns for
-the board option that \code{option} names, by the board option's class,
-\verb{\{id\}_option}.
+R finds it among the requests of the board option that \code{option} names,
+which \code{\link[=serve]{serve()}} gets from the method of \code{board_option_requests()} for the
+board option's class, \verb{\{id\}_option}, as it builds the app.
 \item The type \code{plugin}, a plugin's request,
 which a plugin sends through \code{CoreApi.request()} in the client.
 R finds it among the requests that \code{plugin_requests()} returns for the
