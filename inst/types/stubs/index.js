@@ -10365,12 +10365,12 @@ function StackGroup({ stack, children }) {
   );
 }
 var TONES = {
-  ready: "bc:text-status-ready",
-  failed: "bc:text-status-failed",
-  invalid: "bc:text-status-invalid",
-  waiting: "bc:text-status-waiting",
-  stale: "bc:text-status-stale",
-  unevaluated: "bc:text-status-unevaluated"
+  ready: "bc:bg-status-ready",
+  failed: "bc:bg-status-failed",
+  invalid: "bc:bg-status-invalid",
+  waiting: "bc:bg-status-waiting",
+  stale: "bc:bg-status-stale",
+  unevaluated: "bc:bg-status-unevaluated"
 };
 function StatusBadge({ status }) {
   if (status === void 0) return null;
@@ -10379,9 +10379,15 @@ function StatusBadge({ status }) {
     {
       "data-status": status.status,
       "aria-busy": status.running,
-      className: `bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:px-2 bc:py-0.5 bc:text-xs ${TONES[status.status]}`,
+      className: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:px-2 bc:py-0.5 bc:text-xs bc:text-text-muted",
       children: [
-        /* @__PURE__ */ jsx11("span", { "aria-hidden": "true", className: `bc:size-2 bc:rounded-full bc:bg-current ${status.running ? "bc:animate-pulse" : ""}` }),
+        /* @__PURE__ */ jsx11(
+          "span",
+          {
+            "aria-hidden": "true",
+            className: `bc:size-2 bc:rounded-full ${TONES[status.status]} ${status.running ? "bc:animate-pulse" : ""}`
+          }
+        ),
         status.running ? `${status.status}, running` : status.status
       ]
     }

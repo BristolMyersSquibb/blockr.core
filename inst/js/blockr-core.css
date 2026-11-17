@@ -706,10 +706,6 @@
   }
 }
 
-.bc\:bg-current {
-  background-color: currentColor;
-}
-
 .bc\:bg-red-500\/10 {
   background-color: var(--bc-color-red-500);
 }
@@ -718,6 +714,30 @@
   .bc\:bg-red-500\/10 {
     background-color: color-mix(in oklab, var(--bc-color-red-500) 10%, transparent);
   }
+}
+
+.bc\:bg-status-failed {
+  background-color: var(--bc-color-status-failed);
+}
+
+.bc\:bg-status-invalid {
+  background-color: var(--bc-color-status-invalid);
+}
+
+.bc\:bg-status-ready {
+  background-color: var(--bc-color-status-ready);
+}
+
+.bc\:bg-status-stale {
+  background-color: var(--bc-color-status-stale);
+}
+
+.bc\:bg-status-unevaluated {
+  background-color: var(--bc-color-status-unevaluated);
+}
+
+.bc\:bg-status-waiting {
+  background-color: var(--bc-color-status-waiting);
 }
 
 .bc\:bg-transparent {
@@ -924,30 +944,6 @@
 
 .bc\:text-inherit {
   color: inherit;
-}
-
-.bc\:text-status-failed {
-  color: var(--bc-color-status-failed);
-}
-
-.bc\:text-status-invalid {
-  color: var(--bc-color-status-invalid);
-}
-
-.bc\:text-status-ready {
-  color: var(--bc-color-status-ready);
-}
-
-.bc\:text-status-stale {
-  color: var(--bc-color-status-stale);
-}
-
-.bc\:text-status-unevaluated {
-  color: var(--bc-color-status-unevaluated);
-}
-
-.bc\:text-status-waiting {
-  color: var(--bc-color-status-waiting);
 }
 
 .bc\:text-text-danger {
