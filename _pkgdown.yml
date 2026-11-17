@@ -42,6 +42,7 @@ reference:
   desc: What R shows of a block's result, which a renderer draws in the client.
   contents:
     - new_block_output
+    - new_output_family
     - output_schema
     - new_table_output
     - new_text_output
