@@ -198,27 +198,36 @@ export function StackGroup({ stack, children }: { stack: Stack; children: ReactN
   );
 }
 
-// The colour of each status, which core's theme holds, so that the badge draws
-// a status in the colour that every plugin draws it in (../../runtime/index.css).
+// The colour of each status, which core's theme holds, so that the badge's dot
+// draws a status in the colour that every plugin draws it in
+// (../../runtime/index.css).
 const TONES: Readonly<Record<Status, string>> = {
-  ready: "bc:text-status-ready",
-  failed: "bc:text-status-failed",
-  invalid: "bc:text-status-invalid",
-  waiting: "bc:text-status-waiting",
-  stale: "bc:text-status-stale",
-  unevaluated: "bc:text-status-unevaluated",
+  ready: "bc:bg-status-ready",
+  failed: "bc:bg-status-failed",
+  invalid: "bc:bg-status-invalid",
+  waiting: "bc:bg-status-waiting",
+  stale: "bc:bg-status-stale",
+  unevaluated: "bc:bg-status-unevaluated",
 };
 
-// The block's status in its colour, and whether R is evaluating it.
+// The block's status, and whether R is evaluating it.
+// The dot takes the colour of the status.
+// The word takes the muted text colour, as the class name beside it does.
+// Under the light theme, the status colours fall short of the contrast of
+// 4.5:1 that WCAG AA asks for text this small.
+// The border is a quarter of the word's colour, so it is grey as well.
 function StatusBadge({ status }: { status: BlockStatus | undefined }): ReactElement | null {
   if (status === undefined) return null;
   return (
     <span
       data-status={status.status}
       aria-busy={status.running}
-      className={`bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:px-2 bc:py-0.5 bc:text-xs ${TONES[status.status]}`}
+      className="bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:px-2 bc:py-0.5 bc:text-xs bc:text-text-muted"
     >
-      <span aria-hidden="true" className={`bc:size-2 bc:rounded-full bc:bg-current ${status.running ? "bc:animate-pulse" : ""}`} />
+      <span
+        aria-hidden="true"
+        className={`bc:size-2 bc:rounded-full ${TONES[status.status]} ${status.running ? "bc:animate-pulse" : ""}`}
+      />
       {status.running ? `${status.status}, running` : status.status}
     </span>
   );

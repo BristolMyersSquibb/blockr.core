@@ -413,7 +413,7 @@ describe("a card", () => {
     expect(output("Merge").className).toContain("bc:flex-1");
   });
 
-  test("draws its block's status in the colour that core's theme holds for the status, which every plugin draws it in", async () => {
+  test("draws the dot of its block's status in the colour that core's theme holds for the status, which every plugin draws it in, and the word in the muted text colour", async () => {
     const { el } = await drawn({
       evaluate: (request) =>
         request.block === "b"
@@ -421,18 +421,20 @@ describe("a card", () => {
           : undefined,
     });
 
-    // The colours of the badge's word, which its dot takes as well.
-    const colours = (name: string): string[] => {
+    // The colours of the badge's dot and of its word.
+    // The border takes a quarter of the word's colour.
+    const colours = (name: string): { dot: string[]; word: string[] } => {
       const shown = find(card(el, name), "header [data-status]");
-      expect(find(shown, '[aria-hidden="true"]').className).toContain("bc:bg-current");
-      return shown.className.split(" ").filter((cls) => cls.startsWith("bc:text-") && cls !== "bc:text-xs");
+      const of = (part: Element): string[] =>
+        part.className.split(" ").filter((cls) => /^bc:(bg|text)-/.test(cls) && cls !== "bc:text-xs");
+      return { dot: of(find(shown, '[aria-hidden="true"]')), word: of(shown) };
     };
     expect(badge(card(el, "Iris"))).toBe("ready");
-    expect(colours("Iris")).toEqual(["bc:text-status-ready"]);
+    expect(colours("Iris")).toEqual({ dot: ["bc:bg-status-ready"], word: ["bc:text-text-muted"] });
     expect(badge(card(el, "Head"))).toBe("failed");
-    expect(colours("Head")).toEqual(["bc:text-status-failed"]);
+    expect(colours("Head")).toEqual({ dot: ["bc:bg-status-failed"], word: ["bc:text-text-muted"] });
     expect(badge(card(el, "Merge"))).toBe("waiting");
-    expect(colours("Merge")).toEqual(["bc:text-status-waiting"]);
+    expect(colours("Merge")).toEqual({ dot: ["bc:bg-status-waiting"], word: ["bc:text-text-muted"] });
   });
 
   test("renames and removes its block from its menu, through core's commands", async () => {
