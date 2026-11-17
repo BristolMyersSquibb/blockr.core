@@ -1930,7 +1930,7 @@ function createAnswers(scheduler, signal5) {
         }
       }
     }).then((answer) => {
-      if (key2 !== void 0 && ask.share === "keep" && answer.reply.status === "ok" && !("volatile" in answer.reply && answer.reply.volatile === true) && current2(ask.request)) {
+      if (key2 !== void 0 && ask.share === "keep" && answer.reply.status === "ok" && current2(ask.request)) {
         kept.set(key2, { answer, request: ask.request });
       }
       return answer;

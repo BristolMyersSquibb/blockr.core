@@ -849,8 +849,6 @@ test_that("R answers the requests of an output class and of a renderer", {
     }
   )
 
-  expect_fixture_replies(session, "request-output-volatile")
-
   hold_result(
     session, "a", 3L,
     recipe = list(registry_id = "adsl_block", state = obj(), inputs = list())
@@ -877,7 +875,7 @@ test_that("R resolves an output's request by an output it made", {
     )
   )
 
-  req <- decode_message(protocol_fixture("request-output-volatile"))$client
+  req <- decode_message(protocol_fixture("request-output"))$client
 
   session$receive(req)
   session$run()

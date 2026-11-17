@@ -72,9 +72,9 @@
   has unless it gives its own: `output_schema()` gives the JSON Schema that R
   writes the outputs by, which `read_json_schema()` reads from a file that the
   package ships, `output_requests()` the requests that the class's renderers
-  call, each of which `volatile()` may mark, `output_renderer()` the
-  renderer that draws the outputs, and `output_coercion()` the coercion that
-  makes them. The function `run_output_class_request()`
+  call, `output_renderer()` the renderer that draws the outputs, and
+  `output_coercion()` the coercion that makes them. The function
+  `run_output_class_request()`
   runs such a request as R does (#422, #440, #465).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table. Its

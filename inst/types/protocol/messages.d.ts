@@ -194,14 +194,12 @@ export type RequestReply = {
     value: Json;
     body?: never;
     conditions: Condition[];
-    volatile?: true;
 } | {
     id: string;
     status: "ok";
     body: Body;
     value?: never;
     conditions: Condition[];
-    volatile?: true;
 };
 export interface OutputRequest extends Traced {
     id: string;

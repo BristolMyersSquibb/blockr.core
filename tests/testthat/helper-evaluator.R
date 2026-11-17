@@ -365,8 +365,7 @@ chart_block_class <- test_block_class(
 )
 
 # An output class of blockr.viz for charts,
-# with a download of the chart and a volatile request for the templates that a
-# directory of the server holds, and a block class whose outputs are charts,
+# with a download of the chart, and a block class whose outputs are charts,
 # for the duration of `frame`.
 local_chart_output <- function(frame = parent.frame()) {
 
@@ -388,8 +387,7 @@ local_chart_output <- function(frame = parent.frame()) {
           pptx_type,
           name = paste0("chart.", format)
         )
-      },
-      templates = volatile(function() c("corporate.potx", "plain.potx"))
+      }
     ),
     frame = frame
   )

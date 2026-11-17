@@ -96,8 +96,7 @@ NULL
 
 # The function that answers a request, which R reads into an object of class
 # `{type}_request`, and the arguments to call it with: a list of the function,
-# in `fun`, its arguments by name, in `args`, and optionally `volatile`, which
-# marks the reply volatile where it is `TRUE`.
+# in `fun`, and its arguments by name, in `args`.
 # The results that the request reads come in `reads`, by block ID, each a list
 # of the block's `result`, its block expression `expr` and, where R made an
 # output from the result, the class vector of the latest output in `output`.
