@@ -8803,7 +8803,7 @@ var MARKS = {
   message: {
     label: "Message",
     noun: "message",
-    text: "bc:text-blue-600 bc:dark:text-blue-400",
+    text: "bc:text-blue-700 bc:dark:text-blue-400",
     tint: "bc:bg-blue-500/10",
     border: "bc:border-border-accent"
   }

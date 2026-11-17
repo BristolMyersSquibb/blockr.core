@@ -253,6 +253,9 @@
   Core's theme also holds a color for each status of a block, as `--bc-color-status-ready`, and for each category of block classes, as `--bc-color-category-input`, so that every plugin that draws a block's status or the mark of its class draws them in the same colors.
   Their defaults are the colors that blockr.ui gives the statuses and the categories, and the statuses take lighter ones under the dark theme.
   The status badge on the cards of core's basic frontend draws its dot in them, and its word in the muted text color (#657, #674).
+  The danger and the warning texts of the theme reach the contrast that WCAG's level AA asks of text, 4.5:1, under either theme, on a card and on the tint of a card's mark too.
+  Under the light theme, they take Tailwind's red-700 and amber-800, and under the dark theme the colors that blockr.ui gives them there, as the statuses do.
+  A card marks a message in blue-700 under the light theme, for the same reason (#677).
   The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   The board option `dark_mode` switches the page's theme in `data-bc-theme`, an attribute of core's own on the page's root element, rather than in Bootstrap's `data-bs-theme` (#589).
   A package that styles the dark theme keys off the same attribute.

@@ -178,6 +178,9 @@ function counted(
 // banner, as the basic frontend's toasts do: in the theme's danger colour for
 // an error, its warning colour for a warning, and its accent, blue, for a
 // message.
+// The blue of a message is blue-700 under the light theme.
+// The shade blue-600 reaches only 4.25:1 on the tint, below the 4.5:1 that
+// WCAG's level AA asks of text.
 export const MARKS: Readonly<Record<Severity, { label: string; noun: string; text: string; tint: string; border: string }>> = {
   error: {
     label: "Error",
@@ -196,7 +199,7 @@ export const MARKS: Readonly<Record<Severity, { label: string; noun: string; tex
   message: {
     label: "Message",
     noun: "message",
-    text: "bc:text-blue-600 bc:dark:text-blue-400",
+    text: "bc:text-blue-700 bc:dark:text-blue-400",
     tint: "bc:bg-blue-500/10",
     border: "bc:border-border-accent",
   },

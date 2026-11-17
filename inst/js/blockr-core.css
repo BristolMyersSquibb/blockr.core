@@ -54,12 +54,13 @@
     --bc-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
     --bc-color-red-500: oklch(63.7% .237 25.331);
-    --bc-color-red-600: oklch(57.7% .245 27.325);
+    --bc-color-red-700: oklch(50.5% .213 27.518);
     --bc-color-amber-500: oklch(76.9% .188 70.08);
-    --bc-color-amber-600: oklch(66.6% .179 58.318);
+    --bc-color-amber-800: oklch(47.3% .137 46.201);
     --bc-color-blue-400: oklch(70.7% .165 254.624);
     --bc-color-blue-500: oklch(62.3% .214 259.815);
     --bc-color-blue-600: oklch(54.6% .245 262.881);
+    --bc-color-blue-700: oklch(48.8% .243 264.376);
     --bc-color-gray-100: oklch(96.7% .003 264.542);
     --bc-color-gray-900: oklch(21% .034 264.665);
     --bc-color-black: #000;
@@ -98,8 +99,8 @@
   }
 
   :root, :host {
-    --bc-color-text-danger: var(--bc-color-red-600);
-    --bc-color-text-warning: var(--bc-color-amber-600);
+    --bc-color-text-danger: var(--bc-color-red-700);
+    --bc-color-text-warning: var(--bc-color-amber-800);
     --bc-color-text-on-accent: var(--bc-color-white);
     --bc-color-border-default: currentColor;
   }
@@ -159,6 +160,8 @@
     --bc-color-status-invalid: #fbbf24;
     --bc-color-status-ready: #4ade80;
     --bc-color-status-failed: #f87171;
+    --bc-color-text-danger: #f87171;
+    --bc-color-text-warning: #fbbf24;
   }
 }
 
@@ -934,8 +937,8 @@
   white-space: pre-wrap;
 }
 
-.bc\:text-blue-600 {
-  color: var(--bc-color-blue-600);
+.bc\:text-blue-700 {
+  color: var(--bc-color-blue-700);
 }
 
 .bc\:text-gray-900 {

@@ -16,6 +16,7 @@
  *   around the element that core draws in, or take the theme's red and blue
  *   or the page's background, so that core suits a light and a dark frontend
  *   alike, and a frontend or a UI kit sets them to restyle core.
+ *   The danger and the warning texts take lighter values under the dark theme.
  * - The theme also holds a color for each status of a block and for each
  *   category of block classes, for every plugin that draws them.
  *   Their defaults are blockr.ui's colors, rather than ones that follow the
@@ -55,11 +56,23 @@
 @source not "../build";
 @source not "../**/*.test.{ts,tsx}";
 
+/*
+ * Under the light theme, the danger and the warning texts take red-700 and
+ * amber-800.
+ * WCAG's level AA asks a contrast of 4.5:1 of text.
+ * Core draws these texts on the page, on a card's bg-subtle, and on the tint
+ * of a card's mark, which lays red-500 or amber-500 at 10% over the card.
+ * The shades red-700 and amber-800 are the lightest that reach 4.5:1 on all
+ * three.
+ * The shade that blockr.ui takes, amber-700, reaches 4.26:1 on the tint.
+ * Under the dark theme, both take lighter values, in the rule that gives the
+ * statuses theirs.
+ */
 @theme {
   --color-text-default: currentColor;
   --color-text-muted: color-mix(in oklab, currentColor 65%, transparent);
-  --color-text-danger: var(--bc-color-red-600);
-  --color-text-warning: var(--bc-color-amber-600);
+  --color-text-danger: var(--bc-color-red-700);
+  --color-text-warning: var(--bc-color-amber-800);
   --color-text-success: var(--bc-color-green-600);
   --color-text-on-accent: var(--bc-color-white);
   --color-border-default: color-mix(in oklab, currentColor 25%, transparent);
@@ -129,6 +142,8 @@
 /*
  * Under the dark theme, each status takes the value that blockr.ui gives its
  * token there.
+ * So do the danger and the warning texts.
+ * Their values under the light theme fall below 4.5:1 on the dark page.
  * The categories keep their colors.
  * The rule sits in the theme's layer, as that of bg-raised does.
  */
@@ -140,6 +155,8 @@
     --bc-color-status-invalid: #fbbf24;
     --bc-color-status-ready: #4ade80;
     --bc-color-status-failed: #f87171;
+    --bc-color-text-danger: #f87171;
+    --bc-color-text-warning: #fbbf24;
   }
 }
 
