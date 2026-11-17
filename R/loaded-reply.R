@@ -12,8 +12,8 @@
 # R loads no package for it: `serve()` loaded the packages of the block
 # classes that the app offers and of the plugins that it runs, and the app's
 # script the others, and loading them registered their methods.
-# In a process that runs the app without the script that built it, the session
-# loaded them as it started (see `serve_app()`).
+# In a process that runs the app without the script that built it, R loaded
+# them as it read the app (see `serve_app()`).
 # These are the properties `packages`, `block_registry`, `modules`, `plugins`,
 # `frontend`, `options` and `renderers` of inst/protocol/README.md, as R values
 # that `encode_message()` writes as the reply's JSON.

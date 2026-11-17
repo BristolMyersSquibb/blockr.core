@@ -300,8 +300,8 @@ receive_request <- function(ev, req, send) {
 # R forgets every block and drops every request still queued,
 # with what it held each block to without the load lock.
 # R loads no package for a `hello`, since the app's script has loaded them.
-# In a process that runs the app without that script, the session loaded them
-# as it started (see `serve_app()`).
+# In a process that runs the app without that script, R loaded them as it read
+# the app (see `serve_app()`).
 start_session <- function(ev, req, send) {
 
   if (!is_string(req[["protocol"]])) {

@@ -179,26 +179,29 @@ test_that("an app's sessions read the block registry that serve() built", {
   expect_identical(replies[[2L]]$status, "ok")
 })
 
-test_that("an app's sessions load the packages that serve() found loaded", {
+test_that("reading an app loads the packages that serve() found loaded", {
 
   local_installed_package()
 
-  # A session loads no package that was not loaded as serve() built the app
-  app <- serve(new_board())
-  served_replies(app, hello_message())
+  # A process that runs the app without the script that built it reads the app
+  # from what R wrote of it, as `serialize()` gives it.
+  # R loads no package there that was not loaded as serve() built the app
+  app <- unserialize(serialize(serve(new_board()), NULL))
 
   expect_false(isNamespaceLoaded("optprobe"))
 
-  # A session loads each package that was loaded as serve() built the app, and
-  # that its process has not loaded, as in a process that runs the app without
-  # the script that built it
+  # And it loads each package that was, which such a process has not loaded
+  # until it reads the app
   loadNamespace("optprobe")
-  app <- serve(new_board())
+  bytes <- serialize(serve(new_board()), NULL)
   unloadNamespace("optprobe")
+
+  app <- unserialize(bytes)
+
+  expect_true(isNamespaceLoaded("optprobe"))
 
   reply <- served_replies(app, hello_message())[[1L]]
 
-  expect_true(isNamespaceLoaded("optprobe"))
   expect_identical(reply$options$probe_gap$package, "optprobe")
 })
 

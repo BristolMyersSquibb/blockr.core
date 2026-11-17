@@ -136,9 +136,10 @@ So each entry needs a name, as in
 
 The app that \code{serve()} returns runs in another R process too, as when a
 script hands it to \code{callr::r_bg()}, or shinytest2 runs it.
-As each session starts, R loads each package that exports
-\code{._BLOCKR_MODULES_} and was loaded as \code{serve()} built the app, where the
-session's process has not loaded it (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}).
+The app holds the namespace of each package that exports
+\code{._BLOCKR_MODULES_} and was loaded as \code{serve()} built it (see
+\code{\link[=read_blocks_yml]{read_blocks_yml()}}).
+As the other process reads the app, R loads each of those packages there.
 So the replies to \code{hello} name the board options and modules of the same
 packages as in the process that called \code{serve()}.
 }

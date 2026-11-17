@@ -131,7 +131,7 @@
   Registration refuses a class whose starting state is not a plain value, and
   an arg spec whose example is not one either (#426, #465, #504, #558, #634).
 * The app that `serve()` returns runs in another R process too, as when a script hands it to `callr::r_bg()`, or shinytest2 runs it.
-  As each session starts, R loads each package that exports `._BLOCKR_MODULES_` and was loaded as `serve()` built the app, where the session's process has not loaded it.
+  The app holds the namespace of each package that exports `._BLOCKR_MODULES_` and was loaded as `serve()` built it, and as the other process reads the app, R loads each of those packages there.
   So the replies to `hello` name the board options and modules of the same packages as in the process that called `serve()` (#671).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
