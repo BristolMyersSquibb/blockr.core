@@ -179,30 +179,22 @@ test_that("an app's sessions read the block registry that serve() built", {
   expect_identical(replies[[2L]]$status, "ok")
 })
 
-test_that("reading an app loads the packages that serve() found loaded", {
+test_that("an app's replies name the board options that serve() read", {
 
   local_installed_package()
 
   # A process that runs the app without the script that built it reads the app
-  # from what R wrote of it, as `serialize()` gives it.
-  # R loads no package there that was not loaded as serve() built the app
-  app <- unserialize(serialize(serve(new_board()), NULL))
-
-  expect_false(isNamespaceLoaded("optprobe"))
-
-  # And it loads each package that was, which such a process has not loaded
-  # until it reads the app
-  loadNamespace("optprobe")
+  # from what R wrote of it, as `serialize()` gives it, and has loaded none of
+  # the packages whose listings serve() read, as here, where the test unloads
+  # optprobe
   bytes <- serialize(serve(new_board()), NULL)
   unloadNamespace("optprobe")
 
-  app <- unserialize(bytes)
+  reply <- served_replies(unserialize(bytes), hello_message())[[1L]]
 
-  expect_true(isNamespaceLoaded("optprobe"))
-
-  reply <- served_replies(app, hello_message())[[1L]]
-
+  # Its replies name them all the same, and R loads no package for them
   expect_identical(reply$options$probe_gap$package, "optprobe")
+  expect_false(isNamespaceLoaded("optprobe"))
 })
 
 test_that("blocks and plugins read their rows alike, and plugins no file", {
@@ -938,7 +930,7 @@ test_that("the page imports the modules of plugins, options and blocks", {
     chr_xtr(modules, "path"),
     c(
       chr_xtr(lst_xtr(plugins, "module"), "path"),
-      chr_xtr(lst_xtr(loaded_options(), "module"), "path"),
+      chr_xtr(lst_xtr(app_options(), "module"), "path"),
       "js/dataset-block.js",
       "js/head-block.js",
       "js/basic-table.js"

@@ -134,14 +134,12 @@ goes into the block's \code{...}, under that name.
 So each entry needs a name, as in
 \code{serve(new_rbind_block(), a = iris, b = mtcars)}.
 
-The app that \code{serve()} returns runs in another R process too, as when a
-script hands it to \code{callr::r_bg()}, or shinytest2 runs it.
-The app holds the namespace of each package that exports
-\code{._BLOCKR_MODULES_} and was loaded as \code{serve()} built it (see
-\code{\link[=read_blocks_yml]{read_blocks_yml()}}).
-As the other process reads the app, R loads each of those packages there.
-So the replies to \code{hello} name the board options and modules of the same
-packages as in the process that called \code{serve()}.
+Like its block registry and its plugins, the app holds the board options
+that the available packages list, and the modules that they offer each
+other, as \code{serve()} read them (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}).
+So the replies to \code{hello} name the same ones wherever the app runs,
+including in another R process, as when a script hands the app to
+\code{callr::r_bg()}, or shinytest2 runs it.
 }
 \section{End-to-end tests}{
 

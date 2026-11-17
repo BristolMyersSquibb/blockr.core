@@ -19,9 +19,8 @@
 #
 # This file runs before setup-registry.R.
 # That file reads the listing of each available package.
-# Reading a listing loads its package.
-# A package loaded there would stay loaded for the whole run.
-# The replies to `hello` hold the board options of every loaded package.
+# Reading a listing loads its package, which would stay loaded for the whole
+# run, with the methods that it registers.
 # The setup files run in the order of their names, so the name of this file
 # sorts before that of setup-registry.R.
 local({

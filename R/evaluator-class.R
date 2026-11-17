@@ -27,6 +27,13 @@
 # Beside them, it carries in `frontend` what the app's frontend reads of the
 # arguments of `serve()`, as JSON, which `frontend_reply()` wrote as the app
 # started, and an empty JSON object for a block that `serve()` serves alone.
+# It carries the app's board options, `options`, which `app_options()` read
+# from the available packages as the app started, and the modules that those
+# packages offer each other, `modules`, which `offered_modules()` read.
+# R answers a board option's request through the package that lists it, which
+# `options` names.
+# Outside an app, as in a test, R reads both from the available packages as
+# the evaluator starts.
 #
 # The reply to `hello` carries the locks that the app sets, which R reads as
 # the evaluator starts, and R holds every evaluation to them
@@ -81,6 +88,8 @@
 new_evaluator <- function(board, data = list(), lock = NULL,
                           registry = block_registry, plugins = list(),
                           frontend = as_json_object(list()),
+                          options = app_options(),
+                          modules = offered_modules(),
                           session_id = NULL) {
 
   if (missing(board) || is.null(board)) {
@@ -123,6 +132,8 @@ new_evaluator <- function(board, data = list(), lock = NULL,
   ev$registry <- registry
   ev$plugins <- plugins
   ev$frontend <- frontend
+  ev$options <- options
+  ev$modules <- modules
   ev$session_id <- session_id
   ev$started <- FALSE
   ev$shared <- character()
@@ -299,9 +310,8 @@ receive_request <- function(ev, req, send) {
 # A later one starts the session afresh:
 # R forgets every block and drops every request still queued,
 # with what it held each block to without the load lock.
-# R loads no package for a `hello`, since the app's script has loaded them.
-# In a process that runs the app without that script, R loaded them as it read
-# the app (see `serve_app()`).
+# R reads no package's listing for a `hello`: it sends what the app holds,
+# the block registry, plugins, board options and modules that `serve()` read.
 start_session <- function(ev, req, send) {
 
   if (!is_string(req[["protocol"]])) {
@@ -332,7 +342,9 @@ start_session <- function(ev, req, send) {
           protocol = protocol_version(),
           capabilities = I(evaluator_capabilities(ev))
         ),
-        loaded_reply(ev$registry, ev$plugins, ev$frontend),
+        loaded_reply(
+          ev$registry, ev$plugins, ev$frontend, ev$options, ev$modules
+        ),
         list(lock = ev$locks),
         ev$opening
       )

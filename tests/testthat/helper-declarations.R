@@ -24,24 +24,18 @@ test_module <- function(path, package = "blockr.test") {
   js_module(path, package = package)
 }
 
-# Has the available packages hold `pkg`, which no library holds, as a loaded
-# package that lists `listing` in its `._BLOCKR_MODULES_`, a list of its parts
-# by name, until `frame` ends.
+# Has the available packages hold `pkg`, which no library holds, as a package
+# that lists `listing` in its `._BLOCKR_MODULES_`, a list of its parts by name,
+# until `frame` ends.
 # A package whose listing gives plugin classes is no fit for it, since R looks
 # up their constructors in the package's namespace, which `pkg` lacks; a test
 # lists those with `local_plugin_classes()`.
-# The function `loaded_listing_packages()` leaves `pkg` out, since an app holds
-# the namespace of each package that it gives (see `serve_app()`).
-# Where R reads the modules that packages offer, or the board options that they
-# list, it reads those of `pkg` too, whichever packages it reads them for.
 local_listing <- function(pkg, listing = list(), frame = parent.frame()) {
 
   force(pkg)
   force(listing)
 
   available <- available_packages
-  offered <- offered_modules
-  options <- loaded_options
   read <- package_listing
 
   given <- lapply(
@@ -51,12 +45,6 @@ local_listing <- function(pkg, listing = list(), frame = parent.frame()) {
 
   testthat::local_mocked_bindings(
     available_packages = function() sort(unique(c(available(), pkg))),
-    offered_modules = function(pkgs = loaded_listing_packages()) {
-      offered(sort(unique(c(pkgs, pkg))))
-    },
-    loaded_options = function(pkgs = loaded_listing_packages()) {
-      options(sort(unique(c(pkgs, pkg))))
-    },
     package_listing = function(pkg_name) {
       if (identical(pkg_name, pkg)) given else read(pkg_name)
     },

@@ -247,7 +247,7 @@ test_that("two packages that list one board option stop the app", {
   expect_named(packages_options("blockr.one"), "grid_gap")
 })
 
-test_that("a reply names the board options of every loaded package", {
+test_that("a reply names the board options of every available package", {
 
   local_listing(
     "blockr.test",
@@ -257,7 +257,7 @@ test_that("a reply names the board options of every loaded package", {
 
   # The version of each comes from its method of `board_option_version()`
   expect_identical(
-    loaded_options()[["grid_gap"]],
+    app_options()[["grid_gap"]],
     list(
       package = "blockr.test",
       module = test_module("js/grid-gap.js"),
@@ -268,7 +268,7 @@ test_that("a reply names the board options of every loaded package", {
   # Core's own are among them
   core <- c("n_rows", "show_conditions", "dark_mode")
 
-  expect_true(all(core %in% names(loaded_options())))
+  expect_true(all(core %in% names(app_options())))
 
   # A package that offers no block class or plugin to the app, such as one
   # whose board option the requests of another package's blocks read

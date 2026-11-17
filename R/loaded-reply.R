@@ -1,29 +1,28 @@
-# What R tells the client about the packages it has loaded, in its reply to
-# `hello`, for neither side to edit: the entries of the app's block registry,
+# What R tells the client about the app's packages, in its reply to `hello`,
+# for neither side to edit: the entries of the app's block registry,
 # `registry`, each with the renderer of its class's outputs, where R serves the
-# modules that the loaded packages offer each other, the app's plugins,
-# `plugins`, each under the ID of its class with the class's name and version,
-# and where R serves the class's module, as `app_plugins()` gives them, what
-# the app's frontend reads of the arguments of `serve()`, `frontend`, as
-# `frontend_reply()` writes it, the board options that the loaded packages
-# list, each with where R serves its module and the version of its shape, the
+# modules that the available packages offer each other, `modules`, as
+# `offered_modules()` gives them, the app's plugins, `plugins`, each under the
+# ID of its class with the class's name and version, and where R serves the
+# class's module, as `app_plugins()` gives them, what the app's frontend reads
+# of the arguments of `serve()`, `frontend`, as `frontend_reply()` writes it,
+# the app's board options, `options`, each with its package, where R serves
+# its module and the version of its shape, as `app_options()` gives them, the
 # renderers that the app names for board options, and the versions of the
 # packages that all of these come from.
-# R loads no package for it: `serve()` loaded the packages of the block
-# classes that the app offers and of the plugins that it runs, and the app's
-# script the others, and loading them registered their methods.
-# In a process that runs the app without the script that built it, R loaded
-# them as it read the app (see `serve_app()`).
+# An app hands it what `serve()` read as it built the app (see `serve_app()`),
+# so that R reads no package's listing for it, in whatever process runs the
+# app.
 # These are the properties `packages`, `block_registry`, `modules`, `plugins`,
 # `frontend`, `options` and `renderers` of inst/protocol/README.md, as R values
 # that `encode_message()` writes as the reply's JSON.
 # Building them builds no block.
 loaded_reply <- function(registry = block_registry, plugins = list(),
-                         frontend = as_json_object(list())) {
+                         frontend = as_json_object(list()),
+                         options = app_options(),
+                         modules = offered_modules()) {
 
   entries <- registry_entries(registry)
-  modules <- offered_modules()
-  options <- loaded_options()
   renderers <- option_renderers()
 
   coercions <- output_coercions()

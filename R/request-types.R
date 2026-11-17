@@ -102,7 +102,9 @@ NULL
 # of the block's `result`, its block expression `expr` and, where R made an
 # output from the result, the class vector of the latest output in `output`.
 # A request of a block class reads the class from the app's block registry,
-# which R hands it in `registry`.
+# which R hands it in `registry`, and a request of a board option reads the
+# package that lists the option from the app's board options, which R hands it
+# in `options`.
 # Core keeps the generic to itself, since no package adds a type.
 # R reads no request of another type, so the generic needs no default method.
 request_call <- function(x, reads, ...) {
@@ -141,11 +143,23 @@ request_call.renderer_request <- function(x, reads, ...) {
   output_read_call(x, reads, x[["renderer"]])
 }
 
+# A board option's request, which R finds through the method of
+# `board_option_requests()` of the package that lists the option, among the
+# app's board options, `options`.
+# The package registers the method as it loads, and S3 dispatch loads no
+# package, so R loads the package by its name first, as in a process that has
+# not loaded it yet.
 #' @export
-request_call.option_request <- function(x, reads, ...) {
+request_call.option_request <- function(x, reads, options = list(), ...) {
 
   option <- x[["option"]]
   name <- x[["name"]]
+  pkg <- options[[option]][["package"]]
+
+  if (is_string(pkg)) {
+    loadNamespace(pkg)
+  }
+
   fun <- board_option_requests(new_board_option(option))[[name]]
 
   if (!is.function(fun)) {
