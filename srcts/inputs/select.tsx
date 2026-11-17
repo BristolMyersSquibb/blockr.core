@@ -2,7 +2,9 @@
 // of plugins and those of blocks all draw with.
 // It follows the select of blockr.ui's design system
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L671-L718),
-// in core's theme, as core's other inputs are drawn.
+// in core's theme, as core's other inputs are drawn, but for the select of
+// several, whose list keeps the choices in their order, as the list of one
+// does, and whose field takes the filter, as the field of one does.
 // It picks one of its choices, or several, out of a list that the user
 // filters by typing.
 // It comes in three forms, by its props:
@@ -28,37 +30,36 @@
 // The popover is a manual one, which the browser closes on no event of its
 // own, so the select closes it.
 //
-// The field of one choice is a text field that shows the pick, into which
-// the user types to filter the list, as the combobox of the WAI-ARIA
+// The field is a text field that shows the pick, or the picks, and into
+// which the user types to filter the list, as the combobox of the WAI-ARIA
 // Authoring Practices has it
 // (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/).
-// The field of several choices is a button that shows the picks as text:
-// one or two by name, and more as a count with the names muted after it.
-// Its list holds the filter box, which shows once the list has more than
-// eight choices.
-// That list shows the picks on top, under "Selected", in the order the user
-// picked them, and then the other choices.
-// Its head holds the count of the picks, and All and None, which act on the
-// choices that the filter keeps.
-// A pick keeps the list open and keeps the filter text.
-// Given `min`, None picks nothing that would leave fewer picks, and the last
-// picks do not untick.
+// The field of several shows one or two picks by name, and more as a count
+// with the names after it.
+// While the list is open, the field shows what the user typed, and the pick
+// or the picks muted until the user types.
+// The list shows the choices in their order, the pick of one in weight 600,
+// and each pick of several with a tick.
+// A pick of several keeps the list open and keeps the filter text, and the
+// list reports the picks once, as it closes.
+// Where the select goes while its list is open, as where its module
+// unmounts, the picks go with it, as though the user never made them.
+// Given `min`, the last picks do not untick.
 //
 // The keys are the pattern's:
-// - Down, Up, Enter and Space open a closed list.
-//   Typing into the field of one choice opens it too, as does typing on the
-//   field of several.
-// - The arrows move the row that the keyboard marks, Enter picks it, and
-//   Escape closes the list.
-//   In a list without a filter text, Space picks it too.
-// - Tab closes the list, and the focus moves on from the field.
-// The list opens on the pick.
+// - Down, Up, Enter and Space open a closed list, and so does typing into the
+//   field, which starts the filter afresh.
+// - The arrows move the row that the keyboard marks, Enter picks it, or ticks
+//   it in the list of several, and Escape closes the list.
+//   In the list of several, Space ticks the row too while the user has typed
+//   nothing.
+// - Tab closes the list, as the focus moves on from the field.
+// The list of one opens on the pick.
 // It marks no row while the pointer opened it until the user presses a key,
 // so that no row reads as a default pick.
-// The focus stays in the field of one choice, and in the filter box of
-// several, which names the row that the keyboard marks in
-// aria-activedescendant.
-// The list closes as the focus leaves it, as on a click outside it.
+// The focus stays in the field, which names the row that the keyboard marks
+// in aria-activedescendant.
+// The list closes as the focus leaves the field, as on a click outside it.
 //
 // The list shows at most MAX_ROWS rows, and then says how many more there are.
 // It shows each choice's group as a heading, which stays in view as the list
@@ -68,7 +69,6 @@
 
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactElement, ReactNode, RefObject } from "react";
-import { flushSync } from "react-dom";
 import { strings } from "../binding/index.ts";
 import type { Choice } from "../binding/index.ts";
 import type { Bound } from "../react/index.ts";
@@ -147,9 +147,6 @@ export type SelectProps = SelectOneProps | SelectSeveralProps | SelectBoundProps
 // How many rows the list shows at most.
 export const MAX_ROWS = 200;
 
-// How many choices a list of several holds before it shows its filter box.
-export const FILTER_AFTER = 8;
-
 export function Select(props: SelectProps): ReactElement {
   if (props.bound !== undefined) {
     return props.multiple === true ? <BoundSeveral {...props} /> : <BoundOne {...props} />;
@@ -157,7 +154,7 @@ export function Select(props: SelectProps): ReactElement {
   if (props.multiple === true) {
     const { onChange, ...rest } = props;
     return (
-      <Several
+      <Picker
         {...rest}
         report={(picks) => {
           onChange(picks);
@@ -165,7 +162,17 @@ export function Select(props: SelectProps): ReactElement {
       />
     );
   }
-  return <One {...props} />;
+  const { value, onChange, ...rest } = props;
+  return (
+    <Picker
+      {...rest}
+      multiple={false}
+      value={value === undefined ? [] : [value]}
+      report={([pick]) => {
+        if (pick !== undefined) onChange(pick);
+      }}
+    />
+  );
 }
 
 function BoundOne({ bound, choices, outdated = false, placeholder, label, empty, disabled }: SelectBoundProps): ReactElement {
@@ -179,16 +186,17 @@ function BoundOne({ bound, choices, outdated = false, placeholder, label, empty,
       : [...known, { value: current, label: invalid ? missing(current) : current }];
   return (
     <>
-      <One
+      <Picker
         label={label}
         choices={shown}
-        value={current}
+        multiple={false}
+        value={current === undefined ? [] : [current]}
         placeholder={placeholder}
         empty={empty}
         disabled={disabled}
         invalid={invalid}
-        onChange={(next) => {
-          void bound.commit(next);
+        report={([next]) => {
+          if (next !== undefined) void bound.commit(next);
         }}
       />
       <Refusal error={bound.error} />
@@ -227,9 +235,10 @@ function BoundSeveral({
 
   return (
     <>
-      <Several
+      <Picker
         label={label}
         choices={shown}
+        multiple
         value={held}
         placeholder={placeholder}
         empty={empty}
@@ -250,21 +259,39 @@ function inOrder(values: readonly string[], choices: readonly Choice[]): string[
   return [...order.filter((value) => values.includes(value)), ...values.filter((value) => !order.includes(value))];
 }
 
-// The field of one choice: a text field that shows the pick, and into which
-// the user types to filter the list.
-function One({
+// What the field takes in either form: the pick of one as an array of it,
+// or an empty one.
+type PickerProps = Omit<Unbound, "bound"> & {
+  readonly multiple: boolean;
+  readonly value: readonly string[];
+  // Hears the picks where they changed, with the value as the list opened:
+  // the pick of one as the user picks it, and the picks of several as the
+  // list closes.
+  readonly report: (picks: readonly string[], opened: readonly string[]) => void;
+  // The fewest picks of several that the caller takes, 0 by default.
+  readonly min?: number;
+  // Whether the field marks itself invalid, as for a value that the choices
+  // lack.
+  readonly invalid?: boolean;
+};
+
+// The field, a text field that shows the pick, or the picks, and into which
+// the user types to filter the list, and the list while it is open.
+function Picker({
   label,
   choices,
+  multiple,
   value,
-  onChange,
-  placeholder = "",
+  report,
+  placeholder = multiple ? "None" : "",
   hint,
   error,
   empty = "No options",
   disabled = false,
   autofocus = false,
+  min = 0,
   invalid = false,
-}: Omit<SelectOneProps, "bound" | "multiple"> & { readonly invalid?: boolean }): ReactElement {
+}: PickerProps): ReactElement {
   const id = useId();
   const listId = `${id}-list`;
   const noteId = `${id}-note`;
@@ -279,40 +306,78 @@ function One({
   // Whether the list marks the row that the keyboard is on, and which row.
   const [keyboard, setKeyboard] = useState(false);
   const [active, setActive] = useState<string | undefined>(undefined);
+  // The picks of several while the list is open, which it reports as it
+  // closes.
+  const [picks, setPicks] = useState<readonly string[]>([]);
+  // What the list of several reports as it closes: the picks, and the value
+  // as the list opened, while it is open, which events read as they come.
+  const pending = useRef<{ readonly picks: readonly string[]; readonly opened: readonly string[] } | null>(null);
 
+  const now = open && multiple ? picks : value;
   const known = choices ?? [];
-  const picked = known.find((choice) => choice.value === value);
-  // How the field shows the pick, or a value that the choices lack as it is.
-  const pickedLabel = picked?.label ?? value;
-  const found = matching(known, query);
+  const byValue = new Map(known.map((choice) => [choice.value, choice]));
+  // A pick of several that the choices lack shows after them, as it is, so
+  // that the user can untick it.
+  const listed = multiple ? [...known, ...value.filter((picked) => !byValue.has(picked)).map((picked) => ({ value: picked, label: picked }))] : known;
+  const found = matching(listed, query);
   const rows = found.slice(0, MAX_ROWS);
   const pickable = rows.filter((choice) => choice.disabled !== true);
   const marked = !keyboard ? undefined : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
+  // Whether a pick may not be unticked, since one fewer would be below `min`.
+  const locked = multiple && min > 0 && now.length <= min;
+  // How the field shows the pick, or the picks, a value that the choices lack
+  // as it is.
+  const names = now.map((picked) => byValue.get(picked)?.label ?? picked);
+  const shown = multiple ? summary(names, choices === undefined ? undefined : listed.length) : names[0];
 
-  // The list opens on the pick, which may lie far down a long list.
+  // The list of one opens on the pick, which may lie far down a long list.
   const shownRow = open ? (marked ?? active) : undefined;
   useLayoutEffect(() => {
     if (shownRow !== undefined) list.current?.ownerDocument.getElementById(optionId(listId, shownRow))?.scrollIntoView({ block: "nearest" });
   }, [shownRow, listId]);
 
-  function show(byKeyboard: boolean): void {
+  // Opens the list, filtered by what the user typed on the closed field.
+  function show(byKeyboard: boolean, typed = ""): void {
     if (open || disabled) return;
+    if (multiple) {
+      pending.current = { picks: value, opened: value };
+      setPicks(value);
+    }
     setOpen(true);
+    setQuery(typed);
     setKeyboard(byKeyboard);
-    setActive(value);
+    setActive(multiple || typed !== "" ? undefined : value[0]);
   }
 
+  // Closes the list, and the list of several reports the picks where they
+  // changed.
   function close(): void {
     setOpen(false);
     setQuery("");
     setKeyboard(false);
     setActive(undefined);
+    const left = pending.current;
+    pending.current = null;
+    if (left !== null && !sameList(left.picks, left.opened)) report(left.picks, left.opened);
   }
 
-  function choose(choice: Choice): void {
+  // Picks the choice of one, which closes the list, or ticks a choice of
+  // several, or unticks it, and the keyboard's row follows it.
+  function pick(choice: Choice): void {
     if (choice.disabled === true) return;
-    close();
-    if (choice.value !== value) onChange(choice.value);
+    if (!multiple) {
+      close();
+      if (choice.value !== value[0]) report([choice.value], value);
+      return;
+    }
+    const left = pending.current;
+    if (left === null) return;
+    const ticked = left.picks.includes(choice.value);
+    if (ticked && min > 0 && left.picks.length <= min) return;
+    const next = ticked ? left.picks.filter((picked) => picked !== choice.value) : [...left.picks, choice.value];
+    pending.current = { picks: next, opened: left.opened };
+    setPicks(next);
+    setActive(choice.value);
   }
 
   // Moves the row that the keyboard marks, which the first press shows where
@@ -329,6 +394,7 @@ function One({
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
     if (event.nativeEvent.isComposing) return;
+    const row = rows.find((choice) => choice.value === marked);
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (open) move(event.key === "ArrowDown" ? 1 : -1);
@@ -338,17 +404,20 @@ function One({
       event.preventDefault();
       if (!open) show(true);
       else if (!keyboard) setKeyboard(true);
-      else {
-        const choice = rows.find((row) => row.value === marked);
-        if (choice !== undefined) choose(choice);
-      }
-    } else if (event.key === " " && !open) {
+      else if (row !== undefined) pick(row);
+    } else if (event.key === " " && (!open || (multiple && keyboard && query === "" && row !== undefined))) {
       event.preventDefault();
-      show(true);
+      if (!open) show(true);
+      else if (row !== undefined) pick(row);
     } else if (event.key === "Escape" && open) {
       // So that a dialog or a form that holds the field stays as it is.
       event.preventDefault();
       close();
+    } else if (!open && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      // Typing on the closed field starts the filter, in place of what the
+      // field shows.
+      event.preventDefault();
+      show(true, event.key);
     }
   }
 
@@ -377,14 +446,17 @@ function One({
           aria-describedby={note === undefined ? undefined : noteId}
           data-autofocus={autofocus || undefined}
           disabled={disabled}
-          className={`${styles.box} ${FIELD} bc:pr-8`}
-          value={open ? query : (pickedLabel ?? "")}
-          placeholder={open ? (pickedLabel ?? placeholder) : placeholder}
+          className={`${styles.box} ${FIELD} bc:pr-8 bc:text-ellipsis`}
+          value={open ? query : (shown ?? "")}
+          placeholder={open ? (shown ?? placeholder) : placeholder}
           onChange={(event) => {
+            if (!open) {
+              show(true, event.target.value);
+              return;
+            }
             setQuery(event.target.value);
             setActive(undefined);
             setKeyboard(true);
-            setOpen(true);
           }}
           onClick={() => {
             show(false);
@@ -416,19 +488,24 @@ function One({
       </div>
       {open ? (
         <List ref={list} anchor={box} name={anchor}>
-          <ul id={listId} role="listbox" aria-label={label} className={LISTBOX}>
+          <ul id={listId} role="listbox" aria-label={label} aria-multiselectable={multiple || undefined} className={LISTBOX}>
             {byGroup(rows).map(([group, members]) => (
               <Group key={group ?? ""} id={group === undefined ? undefined : groupId(listId, group)} title={group}>
-                {members.map((choice) => (
-                  <Row
-                    key={choice.value}
-                    choice={choice}
-                    id={optionId(listId, choice.value)}
-                    marked={choice.value === marked}
-                    picked={choice.value === value}
-                    onPick={choose}
-                  />
-                ))}
+                {members.map((choice) => {
+                  const picked = now.includes(choice.value);
+                  return (
+                    <Row
+                      key={choice.value}
+                      choice={choice}
+                      id={optionId(listId, choice.value)}
+                      marked={choice.value === marked}
+                      picked={picked}
+                      ticks={multiple}
+                      locked={picked && locked}
+                      onPick={pick}
+                    />
+                  );
+                })}
               </Group>
             ))}
           </ul>
@@ -444,349 +521,19 @@ function One({
   );
 }
 
-// The field of several choices: a button that shows the picks as text, and
-// opens the list, whose filter box holds the focus while it is open.
-function Several({
-  label,
-  choices,
-  value,
-  report,
-  placeholder = "None",
-  hint,
-  error,
-  empty = "No options",
-  disabled = false,
-  autofocus = false,
-  min = 0,
-  invalid = false,
-}: Omit<SelectSeveralProps, "bound" | "multiple" | "onChange"> & {
-  // Hears the picks as the list closes where they changed, with the value as
-  // the list opened.
-  readonly report: (picks: readonly string[], opened: readonly string[]) => void;
-  readonly invalid?: boolean;
-}): ReactElement {
-  const id = useId();
-  const labelId = `${id}-label`;
-  const listId = `${id}-list`;
-  const noteId = `${id}-note`;
-  const anchor = anchorName(id);
-  const field = useRef<HTMLButtonElement>(null);
-  const filter = useRef<HTMLInputElement>(null);
-  const list = useRef<HTMLDivElement>(null);
-
-  const [open, setOpen] = useState(false);
-  // The picks while the list is open, which the list reports as it closes.
-  const [picks, setPicks] = useState<readonly string[]>([]);
-  const [query, setQuery] = useState("");
-  const [keyboard, setKeyboard] = useState(false);
-  const [active, setActive] = useState<string | undefined>(undefined);
-  // What the list reports as it closes: the picks, and the value as the list
-  // opened, while it is open, which events read as they come.
-  const pending = useRef<{ readonly picks: readonly string[]; readonly opened: readonly string[] } | null>(null);
-  const reported = useRef(report);
-  useLayoutEffect(() => {
-    reported.current = report;
-  });
-
-  // The list reports the picks where it goes while open, as where its module
-  // unmounts.
-  useLayoutEffect(
-    () => () => {
-      const left = pending.current;
-      pending.current = null;
-      if (left !== null && !sameList(left.picks, left.opened)) reported.current(left.picks, left.opened);
-    },
-    [],
-  );
-
-  useLayoutEffect(() => {
-    if (open) filter.current?.focus({ preventScroll: true });
-  }, [open]);
-
-  const now = open ? picks : value;
-  const known = choices ?? [];
-  const byValue = new Map(known.map((choice) => [choice.value, choice]));
-  const pickedChoices = now.map((picked) => byValue.get(picked) ?? { value: picked, label: picked });
-  const shownPicks = matching(pickedChoices, query);
-  const rest = matching(
-    known.filter((choice) => !now.includes(choice.value)),
-    query,
-  );
-  const restRows = rest.slice(0, Math.max(0, MAX_ROWS - shownPicks.length));
-  // The picks under "Selected", then the other choices: under "Other" where
-  // they have no group and the list shows picks, and otherwise under their
-  // group.
-  const sections: Section[] = [
-    ...(shownPicks.length === 0 ? [] : [{ key: "selected", title: "Selected", rows: shownPicks }]),
-    ...byGroup(restRows).map(
-      ([group, members]): Section =>
-        group === undefined
-          ? { key: "other", title: shownPicks.length === 0 ? undefined : "Other", rows: members }
-          : { key: `group-${group}`, title: group, rows: members },
-    ),
-  ];
-  const rows = sections.flatMap((section) => section.rows);
-  const pickable = rows.filter((choice) => choice.disabled !== true);
-  const marked = !keyboard ? undefined : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
-  // Whether a pick may not be unticked, since one fewer would be below `min`.
-  const locked = min > 0 && now.length <= min;
-  const total = known.length + now.filter((picked) => !byValue.has(picked)).length;
-  const face = summary(
-    pickedChoices.map((choice) => choice.label),
-    choices === undefined ? undefined : total,
-    placeholder,
-  );
-  const filtered = query.trim() !== "";
-  const addable = rest.filter((choice) => choice.disabled !== true);
-  const short = shownPicks.length > 0 && now.length - shownPicks.length < min;
-
-  const shownRow = open ? marked : undefined;
-  useLayoutEffect(() => {
-    if (shownRow !== undefined) list.current?.ownerDocument.getElementById(optionId(listId, shownRow))?.scrollIntoView({ block: "nearest" });
-  }, [shownRow, listId]);
-
-  function show(byKeyboard: boolean, typed = ""): void {
-    if (pending.current !== null || disabled) return;
-    pending.current = { picks: value, opened: value };
-    setPicks(value);
-    setOpen(true);
-    setQuery(typed);
-    setKeyboard(byKeyboard || typed !== "");
-    setActive(undefined);
-  }
-
-  // Closes the list and reports the picks where they changed.
-  // Closed by Escape, by Tab or by a click on the field, the list gives the
-  // focus back to the field, from which Tab moves on.
-  // Closed as the focus left it, it leaves the focus where it went.
-  function close(how: "back" | "tab" | "away"): void {
-    const left = pending.current;
-    if (left === null) return;
-    pending.current = null;
-    const settle = (): void => {
-      setOpen(false);
-      setQuery("");
-      setKeyboard(false);
-      setActive(undefined);
-    };
-    // Tab moves the focus on from the field once the handler returns, so the
-    // list goes before then.
-    if (how === "tab") flushSync(settle);
-    else settle();
-    if (how !== "away") field.current?.focus({ preventScroll: true });
-    if (!sameList(left.picks, left.opened)) report(left.picks, left.opened);
-  }
-
-  function repick(next: readonly string[], moved?: string): void {
-    const left = pending.current;
-    if (left === null) return;
-    pending.current = { picks: next, opened: left.opened };
-    setPicks(next);
-    if (moved !== undefined) setActive(moved);
-  }
-
-  // Ticks a row, or unticks it, and the keyboard's row follows it.
-  function toggle(choice: Choice): void {
-    if (choice.disabled === true) return;
-    if (!now.includes(choice.value)) repick([...now, choice.value], choice.value);
-    else if (!locked) repick(now.filter((picked) => picked !== choice.value), choice.value);
-  }
-
-  function move(by: 1 | -1): void {
-    if (!keyboard) {
-      setKeyboard(true);
-      return;
-    }
-    if (pickable.length === 0) return;
-    const at = pickable.findIndex((choice) => choice.value === marked);
-    setActive(pickable[(at + by + pickable.length) % pickable.length]?.value);
-  }
-
-  function onFilterKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
-    if (event.nativeEvent.isComposing) return;
-    const row = rows.find((choice) => choice.value === marked);
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      move(event.key === "ArrowDown" ? 1 : -1);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (!keyboard) setKeyboard(true);
-      else if (row !== undefined) toggle(row);
-    } else if (event.key === " " && keyboard && query === "" && row !== undefined) {
-      event.preventDefault();
-      toggle(row);
-    } else if (event.key === "Escape") {
-      // So that a dialog or a form that holds the field stays as it is.
-      event.preventDefault();
-      close("back");
-    } else if (event.key === "Tab") {
-      close("tab");
-    }
-  }
-
-  const note = error ?? hint;
-
-  return (
-    <div className={styles.field}>
-      <label id={labelId} htmlFor={id} className={styles.label}>
-        {label}
-      </label>
-      <button
-        ref={field}
-        id={id}
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={listId}
-        aria-labelledby={`${labelId} ${id}`}
-        aria-invalid={invalid || error !== undefined ? true : undefined}
-        aria-describedby={note === undefined ? undefined : noteId}
-        data-autofocus={autofocus || undefined}
-        disabled={disabled}
-        style={{ anchorName: anchor }}
-        className={`${styles.box} ${FIELD} bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:text-left`}
-        // The filter box keeps the focus while the list is open, so that
-        // leaving it does not close the list before the click closes it.
-        onMouseDown={(event) => {
-          if (open) event.preventDefault();
-        }}
-        onClick={(event) => {
-          if (open) close("back");
-          // A click that Enter or Space made has no detail.
-          else show(event.detail === 0);
-        }}
-        onKeyDown={(event) => {
-          if (open || event.nativeEvent.isComposing) return;
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            show(true);
-          } else if (event.key.length === 1 && event.key !== " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
-            // Typing on the field starts the filter.
-            event.preventDefault();
-            show(true, event.key);
-          }
-        }}
-      >
-        <span className="bc:min-w-0 bc:flex-1 bc:truncate">
-          <span className={face.empty ? "bc:text-text-muted" : undefined}>{face.lead}</span>
-          {face.rest === "" ? null : <span className="bc:ml-2 bc:text-text-muted">{face.rest}</span>}
-        </span>
-        <Chevron open={open} />
-      </button>
-      {open ? (
-        <List ref={list} anchor={field} name={anchor} keep={filter}>
-          <div className="bc:grid bc:shrink-0 bc:gap-1 bc:pb-1">
-            <input
-              ref={filter}
-              type="text"
-              role="combobox"
-              autoComplete="off"
-              spellCheck={false}
-              aria-label={label}
-              aria-autocomplete="list"
-              aria-expanded="true"
-              aria-controls={listId}
-              aria-activedescendant={marked === undefined ? undefined : optionId(listId, marked)}
-              placeholder="Filter"
-              // The box holds the focus even while it hides, so that the keys
-              // reach the list.
-              className={known.length > FILTER_AFTER ? FILTER : "bc:sr-only"}
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setActive(undefined);
-                setKeyboard(true);
-              }}
-              onKeyDown={onFilterKeyDown}
-              onBlur={() => {
-                close("away");
-              }}
-            />
-            <div className="bc:flex bc:items-center bc:gap-2 bc:px-2.5 bc:text-xs bc:text-text-muted">
-              <span className="bc:min-w-0 bc:flex-1 bc:truncate">{`${count(now.length)} of ${count(total)} selected`}</span>
-              <button
-                type="button"
-                tabIndex={-1}
-                className={BULK}
-                disabled={addable.length === 0}
-                onClick={() => {
-                  repick([...now, ...addable.map((choice) => choice.value)]);
-                }}
-              >
-                {filtered ? `All ${count(shownPicks.length + rest.length)} shown` : "All"}
-              </button>
-              <button
-                type="button"
-                tabIndex={-1}
-                className={BULK}
-                disabled={shownPicks.length === 0}
-                aria-disabled={short || undefined}
-                onClick={() => {
-                  if (short) return;
-                  const dropped = new Set(shownPicks.map((choice) => choice.value));
-                  repick(now.filter((picked) => !dropped.has(picked)));
-                }}
-              >
-                {filtered ? "None shown" : "None"}
-              </button>
-            </div>
-          </div>
-          <ul id={listId} role="listbox" aria-label={label} aria-multiselectable="true" className={LISTBOX}>
-            {sections.map(({ key, title, rows: members }) => (
-              <Group key={key} id={title === undefined ? undefined : groupId(listId, key)} title={title}>
-                {members.map((choice) => {
-                  const picked = now.includes(choice.value);
-                  return (
-                    <Row
-                      key={choice.value}
-                      choice={choice}
-                      id={optionId(listId, choice.value)}
-                      marked={choice.value === marked}
-                      picked={picked}
-                      ticks
-                      locked={picked && locked}
-                      onPick={toggle}
-                    />
-                  );
-                })}
-              </Group>
-            ))}
-          </ul>
-          <Note choices={choices} empty={empty} found={shownPicks.length + rest.length} rows={rows.length} />
-        </List>
-      ) : null}
-      {note === undefined ? null : (
-        <p id={noteId} className={error === undefined ? styles.hint : styles.alert}>
-          {note}
-        </p>
-      )}
-    </div>
-  );
-}
-
-// The rows of the list of several choices under one heading, or under none.
-interface Section {
-  readonly key: string;
-  readonly title: string | undefined;
-  readonly rows: Choice[];
-}
-
 // The list, as a popover in the top layer, by the field in `anchor`, while it
 // is drawn.
-// A press in it keeps the focus where it is, in the field or in the filter
-// box in `keep`, so that leaving it does not close the list before a click
-// on a row picks the row.
+// A press in it keeps the focus in the field, so that leaving the field does
+// not close the list before a click on a row picks the row.
 function List({
   ref,
   anchor,
   name,
-  keep,
   children,
 }: {
   ref: RefObject<HTMLDivElement | null>;
   anchor: RefObject<HTMLElement | null>;
   name: string;
-  keep?: RefObject<HTMLInputElement | null>;
   children: ReactNode;
 }): ReactElement {
   useTopLayer(ref, anchor);
@@ -797,7 +544,7 @@ function List({
       className={LIST}
       style={{ positionAnchor: name }}
       onMouseDown={(event) => {
-        if (event.target !== keep?.current) event.preventDefault();
+        event.preventDefault();
       }}
     >
       {children}
@@ -1018,20 +765,16 @@ function byGroup(choices: readonly Choice[]): [string | undefined, Choice[]][] {
 }
 
 // How the field of several choices shows the picks, by their labels: one or
-// two by name, more as a count with the names after it, and the placeholder
-// for none.
+// two by name, and more as a count with the names after it, or nothing for
+// none, for which it shows its placeholder.
 // It names the picks alone while the total is unknown, since a count of the
 // picks themselves would read as every choice.
 // It never says "All": the picks are a list of values, and a value that the
 // data gets later is not among them.
-export function summary(
-  names: readonly string[],
-  total: number | undefined,
-  placeholder: string,
-): { lead: string; rest: string; empty: boolean } {
-  if (names.length === 0) return { lead: placeholder, rest: "", empty: true };
-  if (names.length <= 2 || total === undefined) return { lead: names.join(", "), rest: "", empty: false };
-  return { lead: `${count(names.length)} of ${count(total)}`, rest: names.join(", "), empty: false };
+export function summary(names: readonly string[], total: number | undefined): string | undefined {
+  if (names.length === 0) return undefined;
+  if (names.length <= 2 || total === undefined) return names.join(", ");
+  return `${count(names.length)} of ${count(total)}: ${names.join(", ")}`;
 }
 
 function count(n: number): string {
@@ -1073,7 +816,3 @@ const HEADING =
   "bc:sticky bc:top-0 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
 const ROW = "bc:flex bc:min-h-8 bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm";
 const NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
-const FILTER =
-  "bc:h-[30px] bc:min-w-0 bc:justify-self-stretch bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:font-sans bc:text-[13px] bc:text-text-default bc:outline-none";
-const BULK =
-  "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-default bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50 bc:aria-disabled:cursor-default bc:aria-disabled:opacity-50";

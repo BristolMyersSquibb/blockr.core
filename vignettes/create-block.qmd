@@ -867,12 +867,14 @@ test("caps n at the rows of its input and submits a pick", async () => {
   const view = await act(() => mount(head, host));
 
   const n = view.el.querySelector("input") as HTMLInputElement;
-  const direction = view.el.querySelector("select") as HTMLSelectElement;
+  const direction = view.el.querySelector('[role="combobox"]') as HTMLInputElement;
   expect(n.max).toBe("150");
 
   await act(async () => {
-    direction.value = "tail";
-    direction.dispatchEvent(new Event("change", { bubbles: true }));
+    direction.click();
+  });
+  await act(async () => {
+    view.el.querySelector<HTMLElement>('[role="option"][data-value="tail"]')?.click();
   });
   expect(host.submitted).toEqual([{ n: 10, direction: "tail" }]);
 

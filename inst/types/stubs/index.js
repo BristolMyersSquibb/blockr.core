@@ -8867,7 +8867,7 @@ function noOtel() {
 }
 
 // srcts/modules/basic/index.tsx
-import { flushSync as flushSync4 } from "react-dom";
+import { flushSync as flushSync3 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
@@ -9056,7 +9056,7 @@ function useSized(status) {
 
 // srcts/picker/picker.tsx
 import { useMemo as useMemo2, useState as useState8 } from "react";
-import { flushSync as flushSync3 } from "react-dom";
+import { flushSync as flushSync2 } from "react-dom";
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
@@ -9358,7 +9358,6 @@ function useTyped(bound) {
 
 // srcts/inputs/select.tsx
 import { useId as useId2, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState5 } from "react";
-import { flushSync as flushSync2 } from "react-dom";
 
 // srcts/inputs/place.ts
 var MIN_WIDTH = 190;
@@ -9383,24 +9382,34 @@ function clamp(value2, low, high) {
 // srcts/inputs/select.tsx
 import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
 var MAX_ROWS = 200;
-var FILTER_AFTER = 8;
 function Select(props) {
   if (props.bound !== void 0) {
     return props.multiple === true ? /* @__PURE__ */ jsx5(BoundSeveral, { ...props }) : /* @__PURE__ */ jsx5(BoundOne, { ...props });
   }
   if (props.multiple === true) {
-    const { onChange, ...rest } = props;
+    const { onChange: onChange2, ...rest2 } = props;
     return /* @__PURE__ */ jsx5(
-      Several,
+      Picker,
       {
-        ...rest,
+        ...rest2,
         report: (picks) => {
-          onChange(picks);
+          onChange2(picks);
         }
       }
     );
   }
-  return /* @__PURE__ */ jsx5(One, { ...props });
+  const { value: value2, onChange, ...rest } = props;
+  return /* @__PURE__ */ jsx5(
+    Picker,
+    {
+      ...rest,
+      multiple: false,
+      value: value2 === void 0 ? [] : [value2],
+      report: ([pick2]) => {
+        if (pick2 !== void 0) onChange(pick2);
+      }
+    }
+  );
 }
 function BoundOne({ bound, choices, outdated = false, placeholder, label, empty: empty2, disabled }) {
   const current2 = typeof bound.value === "string" ? bound.value : void 0;
@@ -9410,17 +9419,18 @@ function BoundOne({ bound, choices, outdated = false, placeholder, label, empty:
   const shown2 = choices === void 0 || current2 === void 0 || !lacked ? choices : [...known, { value: current2, label: invalid ? missing(current2) : current2 }];
   return /* @__PURE__ */ jsxs3(Fragment3, { children: [
     /* @__PURE__ */ jsx5(
-      One,
+      Picker,
       {
         label,
         choices: shown2,
-        value: current2,
+        multiple: false,
+        value: current2 === void 0 ? [] : [current2],
         placeholder,
         empty: empty2,
         disabled,
         invalid,
-        onChange: (next) => {
-          void bound.commit(next);
+        report: ([next]) => {
+          if (next !== void 0) void bound.commit(next);
         }
       }
     ),
@@ -9452,10 +9462,11 @@ function BoundSeveral({
   };
   return /* @__PURE__ */ jsxs3(Fragment3, { children: [
     /* @__PURE__ */ jsx5(
-      Several,
+      Picker,
       {
         label,
         choices: shown2,
+        multiple: true,
         value: held3,
         placeholder,
         empty: empty2,
@@ -9472,17 +9483,19 @@ function inOrder(values2, choices) {
   const order = choices.map((choice) => choice.value);
   return [...order.filter((value2) => values2.includes(value2)), ...values2.filter((value2) => !order.includes(value2))];
 }
-function One({
+function Picker({
   label,
   choices,
+  multiple,
   value: value2,
-  onChange,
-  placeholder = "",
+  report,
+  placeholder = multiple ? "None" : "",
   hint,
   error,
   empty: empty2 = "No options",
   disabled = false,
   autofocus = false,
+  min = 0,
   invalid = false
 }) {
   const id2 = useId2();
@@ -9496,33 +9509,58 @@ function One({
   const [query, setQuery] = useState5("");
   const [keyboard, setKeyboard] = useState5(false);
   const [active, setActive] = useState5(void 0);
+  const [picks, setPicks] = useState5([]);
+  const pending = useRef3(null);
+  const now = open && multiple ? picks : value2;
   const known = choices ?? [];
-  const picked = known.find((choice) => choice.value === value2);
-  const pickedLabel = picked?.label ?? value2;
-  const found = matching(known, query);
+  const byValue = new Map(known.map((choice) => [choice.value, choice]));
+  const listed = multiple ? [...known, ...value2.filter((picked) => !byValue.has(picked)).map((picked) => ({ value: picked, label: picked }))] : known;
+  const found = matching(listed, query);
   const rows = found.slice(0, MAX_ROWS);
   const pickable = rows.filter((choice) => choice.disabled !== true);
   const marked = !keyboard ? void 0 : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
+  const locked2 = multiple && min > 0 && now.length <= min;
+  const names = now.map((picked) => byValue.get(picked)?.label ?? picked);
+  const shown2 = multiple ? summary(names, choices === void 0 ? void 0 : listed.length) : names[0];
   const shownRow = open ? marked ?? active : void 0;
   useLayoutEffect3(() => {
     if (shownRow !== void 0) list.current?.ownerDocument.getElementById(optionId2(listId, shownRow))?.scrollIntoView({ block: "nearest" });
   }, [shownRow, listId]);
-  function show2(byKeyboard) {
+  function show2(byKeyboard, typed = "") {
     if (open || disabled) return;
+    if (multiple) {
+      pending.current = { picks: value2, opened: value2 };
+      setPicks(value2);
+    }
     setOpen(true);
+    setQuery(typed);
     setKeyboard(byKeyboard);
-    setActive(value2);
+    setActive(multiple || typed !== "" ? void 0 : value2[0]);
   }
   function close() {
     setOpen(false);
     setQuery("");
     setKeyboard(false);
     setActive(void 0);
+    const left2 = pending.current;
+    pending.current = null;
+    if (left2 !== null && !sameList(left2.picks, left2.opened)) report(left2.picks, left2.opened);
   }
-  function choose(choice) {
+  function pick2(choice) {
     if (choice.disabled === true) return;
-    close();
-    if (choice.value !== value2) onChange(choice.value);
+    if (!multiple) {
+      close();
+      if (choice.value !== value2[0]) report([choice.value], value2);
+      return;
+    }
+    const left2 = pending.current;
+    if (left2 === null) return;
+    const ticked = left2.picks.includes(choice.value);
+    if (ticked && min > 0 && left2.picks.length <= min) return;
+    const next = ticked ? left2.picks.filter((picked) => picked !== choice.value) : [...left2.picks, choice.value];
+    pending.current = { picks: next, opened: left2.opened };
+    setPicks(next);
+    setActive(choice.value);
   }
   function move(by) {
     if (!keyboard) {
@@ -9535,6 +9573,7 @@ function One({
   }
   function onKeyDown(event) {
     if (event.nativeEvent.isComposing) return;
+    const row = rows.find((choice) => choice.value === marked);
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (open) move(event.key === "ArrowDown" ? 1 : -1);
@@ -9543,16 +9582,17 @@ function One({
       event.preventDefault();
       if (!open) show2(true);
       else if (!keyboard) setKeyboard(true);
-      else {
-        const choice = rows.find((row) => row.value === marked);
-        if (choice !== void 0) choose(choice);
-      }
-    } else if (event.key === " " && !open) {
+      else if (row !== void 0) pick2(row);
+    } else if (event.key === " " && (!open || multiple && keyboard && query === "" && row !== void 0)) {
       event.preventDefault();
-      show2(true);
+      if (!open) show2(true);
+      else if (row !== void 0) pick2(row);
     } else if (event.key === "Escape" && open) {
       event.preventDefault();
       close();
+    } else if (!open && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      show2(true, event.key);
     }
   }
   const note = error ?? hint;
@@ -9576,14 +9616,17 @@ function One({
           "aria-describedby": note === void 0 ? void 0 : noteId,
           "data-autofocus": autofocus || void 0,
           disabled,
-          className: `${styles.box} ${FIELD} bc:pr-8`,
-          value: open ? query : pickedLabel ?? "",
-          placeholder: open ? pickedLabel ?? placeholder : placeholder,
+          className: `${styles.box} ${FIELD} bc:pr-8 bc:text-ellipsis`,
+          value: open ? query : shown2 ?? "",
+          placeholder: open ? shown2 ?? placeholder : placeholder,
           onChange: (event) => {
+            if (!open) {
+              show2(true, event.target.value);
+              return;
+            }
             setQuery(event.target.value);
             setActive(void 0);
             setKeyboard(true);
-            setOpen(true);
           },
           onClick: () => {
             show2(false);
@@ -9615,271 +9658,7 @@ function One({
       )
     ] }),
     open ? /* @__PURE__ */ jsxs3(List, { ref: list, anchor: box, name: anchor, children: [
-      /* @__PURE__ */ jsx5("ul", { id: listId, role: "listbox", "aria-label": label, className: LISTBOX, children: byGroup(rows).map(([group, members]) => /* @__PURE__ */ jsx5(Group, { id: group === void 0 ? void 0 : groupId(listId, group), title: group, children: members.map((choice) => /* @__PURE__ */ jsx5(
-        Row,
-        {
-          choice,
-          id: optionId2(listId, choice.value),
-          marked: choice.value === marked,
-          picked: choice.value === value2,
-          onPick: choose
-        },
-        choice.value
-      )) }, group ?? "")) }),
-      /* @__PURE__ */ jsx5(Note, { choices, empty: empty2, found: found.length, rows: rows.length })
-    ] }) : null,
-    note === void 0 ? null : /* @__PURE__ */ jsx5("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
-  ] });
-}
-function Several({
-  label,
-  choices,
-  value: value2,
-  report,
-  placeholder = "None",
-  hint,
-  error,
-  empty: empty2 = "No options",
-  disabled = false,
-  autofocus = false,
-  min = 0,
-  invalid = false
-}) {
-  const id2 = useId2();
-  const labelId = `${id2}-label`;
-  const listId = `${id2}-list`;
-  const noteId = `${id2}-note`;
-  const anchor = anchorName(id2);
-  const field = useRef3(null);
-  const filter = useRef3(null);
-  const list = useRef3(null);
-  const [open, setOpen] = useState5(false);
-  const [picks, setPicks] = useState5([]);
-  const [query, setQuery] = useState5("");
-  const [keyboard, setKeyboard] = useState5(false);
-  const [active, setActive] = useState5(void 0);
-  const pending = useRef3(null);
-  const reported = useRef3(report);
-  useLayoutEffect3(() => {
-    reported.current = report;
-  });
-  useLayoutEffect3(
-    () => () => {
-      const left2 = pending.current;
-      pending.current = null;
-      if (left2 !== null && !sameList(left2.picks, left2.opened)) reported.current(left2.picks, left2.opened);
-    },
-    []
-  );
-  useLayoutEffect3(() => {
-    if (open) filter.current?.focus({ preventScroll: true });
-  }, [open]);
-  const now = open ? picks : value2;
-  const known = choices ?? [];
-  const byValue = new Map(known.map((choice) => [choice.value, choice]));
-  const pickedChoices = now.map((picked) => byValue.get(picked) ?? { value: picked, label: picked });
-  const shownPicks = matching(pickedChoices, query);
-  const rest = matching(
-    known.filter((choice) => !now.includes(choice.value)),
-    query
-  );
-  const restRows = rest.slice(0, Math.max(0, MAX_ROWS - shownPicks.length));
-  const sections = [
-    ...shownPicks.length === 0 ? [] : [{ key: "selected", title: "Selected", rows: shownPicks }],
-    ...byGroup(restRows).map(
-      ([group, members]) => group === void 0 ? { key: "other", title: shownPicks.length === 0 ? void 0 : "Other", rows: members } : { key: `group-${group}`, title: group, rows: members }
-    )
-  ];
-  const rows = sections.flatMap((section) => section.rows);
-  const pickable = rows.filter((choice) => choice.disabled !== true);
-  const marked = !keyboard ? void 0 : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
-  const locked2 = min > 0 && now.length <= min;
-  const total = known.length + now.filter((picked) => !byValue.has(picked)).length;
-  const face = summary(
-    pickedChoices.map((choice) => choice.label),
-    choices === void 0 ? void 0 : total,
-    placeholder
-  );
-  const filtered = query.trim() !== "";
-  const addable = rest.filter((choice) => choice.disabled !== true);
-  const short = shownPicks.length > 0 && now.length - shownPicks.length < min;
-  const shownRow = open ? marked : void 0;
-  useLayoutEffect3(() => {
-    if (shownRow !== void 0) list.current?.ownerDocument.getElementById(optionId2(listId, shownRow))?.scrollIntoView({ block: "nearest" });
-  }, [shownRow, listId]);
-  function show2(byKeyboard, typed = "") {
-    if (pending.current !== null || disabled) return;
-    pending.current = { picks: value2, opened: value2 };
-    setPicks(value2);
-    setOpen(true);
-    setQuery(typed);
-    setKeyboard(byKeyboard || typed !== "");
-    setActive(void 0);
-  }
-  function close(how) {
-    const left2 = pending.current;
-    if (left2 === null) return;
-    pending.current = null;
-    const settle2 = () => {
-      setOpen(false);
-      setQuery("");
-      setKeyboard(false);
-      setActive(void 0);
-    };
-    if (how === "tab") flushSync2(settle2);
-    else settle2();
-    if (how !== "away") field.current?.focus({ preventScroll: true });
-    if (!sameList(left2.picks, left2.opened)) report(left2.picks, left2.opened);
-  }
-  function repick(next, moved) {
-    const left2 = pending.current;
-    if (left2 === null) return;
-    pending.current = { picks: next, opened: left2.opened };
-    setPicks(next);
-    if (moved !== void 0) setActive(moved);
-  }
-  function toggle(choice) {
-    if (choice.disabled === true) return;
-    if (!now.includes(choice.value)) repick([...now, choice.value], choice.value);
-    else if (!locked2) repick(now.filter((picked) => picked !== choice.value), choice.value);
-  }
-  function move(by) {
-    if (!keyboard) {
-      setKeyboard(true);
-      return;
-    }
-    if (pickable.length === 0) return;
-    const at = pickable.findIndex((choice) => choice.value === marked);
-    setActive(pickable[(at + by + pickable.length) % pickable.length]?.value);
-  }
-  function onFilterKeyDown(event) {
-    if (event.nativeEvent.isComposing) return;
-    const row = rows.find((choice) => choice.value === marked);
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      move(event.key === "ArrowDown" ? 1 : -1);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (!keyboard) setKeyboard(true);
-      else if (row !== void 0) toggle(row);
-    } else if (event.key === " " && keyboard && query === "" && row !== void 0) {
-      event.preventDefault();
-      toggle(row);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      close("back");
-    } else if (event.key === "Tab") {
-      close("tab");
-    }
-  }
-  const note = error ?? hint;
-  return /* @__PURE__ */ jsxs3("div", { className: styles.field, children: [
-    /* @__PURE__ */ jsx5("label", { id: labelId, htmlFor: id2, className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs3(
-      "button",
-      {
-        ref: field,
-        id: id2,
-        type: "button",
-        "aria-haspopup": "listbox",
-        "aria-expanded": open,
-        "aria-controls": listId,
-        "aria-labelledby": `${labelId} ${id2}`,
-        "aria-invalid": invalid || error !== void 0 ? true : void 0,
-        "aria-describedby": note === void 0 ? void 0 : noteId,
-        "data-autofocus": autofocus || void 0,
-        disabled,
-        style: { anchorName: anchor },
-        className: `${styles.box} ${FIELD} bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:text-left`,
-        onMouseDown: (event) => {
-          if (open) event.preventDefault();
-        },
-        onClick: (event) => {
-          if (open) close("back");
-          else show2(event.detail === 0);
-        },
-        onKeyDown: (event) => {
-          if (open || event.nativeEvent.isComposing) return;
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            show2(true);
-          } else if (event.key.length === 1 && event.key !== " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
-            event.preventDefault();
-            show2(true, event.key);
-          }
-        },
-        children: [
-          /* @__PURE__ */ jsxs3("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate", children: [
-            /* @__PURE__ */ jsx5("span", { className: face.empty ? "bc:text-text-muted" : void 0, children: face.lead }),
-            face.rest === "" ? null : /* @__PURE__ */ jsx5("span", { className: "bc:ml-2 bc:text-text-muted", children: face.rest })
-          ] }),
-          /* @__PURE__ */ jsx5(Chevron, { open })
-        ]
-      }
-    ),
-    open ? /* @__PURE__ */ jsxs3(List, { ref: list, anchor: field, name: anchor, keep: filter, children: [
-      /* @__PURE__ */ jsxs3("div", { className: "bc:grid bc:shrink-0 bc:gap-1 bc:pb-1", children: [
-        /* @__PURE__ */ jsx5(
-          "input",
-          {
-            ref: filter,
-            type: "text",
-            role: "combobox",
-            autoComplete: "off",
-            spellCheck: false,
-            "aria-label": label,
-            "aria-autocomplete": "list",
-            "aria-expanded": "true",
-            "aria-controls": listId,
-            "aria-activedescendant": marked === void 0 ? void 0 : optionId2(listId, marked),
-            placeholder: "Filter",
-            className: known.length > FILTER_AFTER ? FILTER : "bc:sr-only",
-            value: query,
-            onChange: (event) => {
-              setQuery(event.target.value);
-              setActive(void 0);
-              setKeyboard(true);
-            },
-            onKeyDown: onFilterKeyDown,
-            onBlur: () => {
-              close("away");
-            }
-          }
-        ),
-        /* @__PURE__ */ jsxs3("div", { className: "bc:flex bc:items-center bc:gap-2 bc:px-2.5 bc:text-xs bc:text-text-muted", children: [
-          /* @__PURE__ */ jsx5("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate", children: `${count(now.length)} of ${count(total)} selected` }),
-          /* @__PURE__ */ jsx5(
-            "button",
-            {
-              type: "button",
-              tabIndex: -1,
-              className: BULK,
-              disabled: addable.length === 0,
-              onClick: () => {
-                repick([...now, ...addable.map((choice) => choice.value)]);
-              },
-              children: filtered ? `All ${count(shownPicks.length + rest.length)} shown` : "All"
-            }
-          ),
-          /* @__PURE__ */ jsx5(
-            "button",
-            {
-              type: "button",
-              tabIndex: -1,
-              className: BULK,
-              disabled: shownPicks.length === 0,
-              "aria-disabled": short || void 0,
-              onClick: () => {
-                if (short) return;
-                const dropped = new Set(shownPicks.map((choice) => choice.value));
-                repick(now.filter((picked) => !dropped.has(picked)));
-              },
-              children: filtered ? "None shown" : "None"
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ jsx5("ul", { id: listId, role: "listbox", "aria-label": label, "aria-multiselectable": "true", className: LISTBOX, children: sections.map(({ key: key2, title, rows: members }) => /* @__PURE__ */ jsx5(Group, { id: title === void 0 ? void 0 : groupId(listId, key2), title, children: members.map((choice) => {
+      /* @__PURE__ */ jsx5("ul", { id: listId, role: "listbox", "aria-label": label, "aria-multiselectable": multiple || void 0, className: LISTBOX, children: byGroup(rows).map(([group, members]) => /* @__PURE__ */ jsx5(Group, { id: group === void 0 ? void 0 : groupId(listId, group), title: group, children: members.map((choice) => {
         const picked = now.includes(choice.value);
         return /* @__PURE__ */ jsx5(
           Row,
@@ -9888,14 +9667,14 @@ function Several({
             id: optionId2(listId, choice.value),
             marked: choice.value === marked,
             picked,
-            ticks: true,
+            ticks: multiple,
             locked: picked && locked2,
-            onPick: toggle
+            onPick: pick2
           },
           choice.value
         );
-      }) }, key2)) }),
-      /* @__PURE__ */ jsx5(Note, { choices, empty: empty2, found: shownPicks.length + rest.length, rows: rows.length })
+      }) }, group ?? "")) }),
+      /* @__PURE__ */ jsx5(Note, { choices, empty: empty2, found: found.length, rows: rows.length })
     ] }) : null,
     note === void 0 ? null : /* @__PURE__ */ jsx5("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
   ] });
@@ -9904,7 +9683,6 @@ function List({
   ref,
   anchor,
   name: name2,
-  keep,
   children
 }) {
   useTopLayer(ref, anchor);
@@ -9916,7 +9694,7 @@ function List({
       className: LIST,
       style: { positionAnchor: name2 },
       onMouseDown: (event) => {
-        if (event.target !== keep?.current) event.preventDefault();
+        event.preventDefault();
       },
       children
     }
@@ -10060,10 +9838,10 @@ function byGroup(choices) {
   groups.delete(void 0);
   return [...loose === void 0 ? [] : [[void 0, loose]], ...groups];
 }
-function summary(names, total, placeholder) {
-  if (names.length === 0) return { lead: placeholder, rest: "", empty: true };
-  if (names.length <= 2 || total === void 0) return { lead: names.join(", "), rest: "", empty: false };
-  return { lead: `${count(names.length)} of ${count(total)}`, rest: names.join(", "), empty: false };
+function summary(names, total) {
+  if (names.length === 0) return void 0;
+  if (names.length <= 2 || total === void 0) return names.join(", ");
+  return `${count(names.length)} of ${count(total)}: ${names.join(", ")}`;
 }
 function count(n) {
   return n.toLocaleString("en-US");
@@ -10089,8 +9867,6 @@ var LISTBOX = "bc:m-0 bc:min-h-0 bc:flex-1 bc:list-none bc:overflow-y-auto bc:p-
 var HEADING = "bc:sticky bc:top-0 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
 var ROW = "bc:flex bc:min-h-8 bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
-var FILTER = "bc:h-[30px] bc:min-w-0 bc:justify-self-stretch bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:font-sans bc:text-[13px] bc:text-text-default bc:outline-none";
-var BULK = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-default bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50 bc:aria-disabled:cursor-default bc:aria-disabled:opacity-50";
 
 // srcts/ui/edits.ts
 function runCommand(core, id2, args) {
@@ -10334,7 +10110,7 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
     event.preventDefault();
     const form = event.currentTarget;
     const found = check2();
-    flushSync3(() => {
+    flushSync2(() => {
       setErrors(found);
     });
     if (Object.keys(found).length > 0 || entry === void 0 || busy) {
@@ -11556,7 +11332,7 @@ function render({ el, core }) {
   const toasts = createToasts(core.notifications);
   const front = { core, toasts, inView: shown2 };
   const root = createRoot2(el);
-  flushSync4(() => {
+  flushSync3(() => {
     root.render(/* @__PURE__ */ jsx16(BasicBoard, { front }));
   });
   shown2.measure();
@@ -11581,7 +11357,7 @@ function show({ object: object2, el }) {
 }
 
 // srcts/modules/edit-board/index.tsx
-import { flushSync as flushSync6 } from "react-dom";
+import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
@@ -11664,7 +11440,7 @@ function BlockRow({ core, id: id2, block, className }) {
 
 // srcts/modules/edit-board/links.tsx
 import { useState as useState14 } from "react";
-import { flushSync as flushSync5 } from "react-dom";
+import { flushSync as flushSync4 } from "react-dom";
 import { Fragment as Fragment6, jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 function LinksSection({ core, board, locked: locked2 }) {
   const links = Object.entries(board.links);
@@ -11804,7 +11580,7 @@ function LinkForm({
     event.preventDefault();
     const form = event.currentTarget;
     const found = check2();
-    flushSync5(() => {
+    flushSync4(() => {
       setErrors(found);
     });
     if (Object.keys(found).length > 0 || source === void 0 || target2 === void 0 || busy) {
@@ -12293,7 +12069,7 @@ var edit_board_default = {
   ui: {
     render({ el, core }) {
       const root = createRoot3(el);
-      flushSync6(() => {
+      flushSync5(() => {
         root.render(/* @__PURE__ */ jsx21(EditBoard, { core }));
       });
       return () => {

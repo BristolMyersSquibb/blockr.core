@@ -34,12 +34,7 @@ export interface SelectBoundProps extends Common {
 }
 export type SelectProps = SelectOneProps | SelectSeveralProps | SelectBoundProps;
 export declare const MAX_ROWS = 200;
-export declare const FILTER_AFTER = 8;
 export declare function Select(props: SelectProps): ReactElement;
 export declare function matching(choices: readonly Choice[], query: string): Choice[];
-export declare function summary(names: readonly string[], total: number | undefined, placeholder: string): {
-    lead: string;
-    rest: string;
-    empty: boolean;
-};
+export declare function summary(names: readonly string[], total: number | undefined): string | undefined;
 export {};

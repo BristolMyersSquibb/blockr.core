@@ -490,18 +490,11 @@ window.e2e = {
     const list = document.getElementById(field.getAttribute('aria-controls'));
     return [...(list?.querySelectorAll('[role=option]') ?? [])];
   },
-  // Where the user types into a select: the field of one choice, or the
-  // filter box in the open list of several.
-  filter(field) {
-    if (field instanceof HTMLInputElement) return field;
-    const list = document.getElementById(field.getAttribute('aria-controls'));
-    return list?.parentElement?.querySelector('input[role=combobox]');
-  },
-  // Closes the open list of a select of several with Escape, as it reports
-  // its picks.
+  // Closes the list of a select with Escape where it is still open, as that
+  // of several is after a pick, and reports its picks.
   close(field) {
-    if (field instanceof HTMLInputElement) return;
-    e2e.filter(field)?.dispatchEvent(
+    if (!document.getElementById(field.getAttribute('aria-controls'))) return;
+    field.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
     );
   },
@@ -523,11 +516,7 @@ window.e2e = {
     );
     field.focus();
     field.click();
-    const filter = await e2e.until(
-      () => e2e.filter(field),
-      'filter of ' + label
-    );
-    e2e.set(filter, search, 'input');
+    e2e.set(field, search, 'input');
     const found = await e2e.until(
       () => e2e.rows(field).find((o) =>
         o.querySelector('[data-label]')?.textContent === option

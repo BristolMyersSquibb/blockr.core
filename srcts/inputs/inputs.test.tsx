@@ -13,7 +13,7 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture, StubBlockHost } from "../stubs/index.ts";
 import { find, press, texts, toggle, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
-import { fieldOf, filterOf, labelled, listed, optionFromLabel, optionLabels } from "../testing/select.ts";
+import { labelled, listed, optionFromLabel, optionLabels } from "../testing/select.ts";
 import { holdRequests } from "../testing/requests.ts";
 import type { BlockHost, OptionHost } from "../types/hosts.ts";
 import { Checkbox, NumberInput, Select, Stack, TextInput } from "./index.ts";
@@ -106,7 +106,7 @@ function block(state: Form = form({})) {
     n: find(drawn.el, 'input[type="number"]', HTMLInputElement),
     direction: labelled(drawn.el, "Direction"),
     label: labelled(drawn.el, "Label"),
-    by: fieldOf(drawn.el, "By columns"),
+    by: labelled(drawn.el, "By columns"),
     keep: find(drawn.el, ":scope > div > label:last-of-type input", HTMLInputElement),
   };
   return { host, ...drawn, inputs };
@@ -213,11 +213,11 @@ describe("the inputs of a block's UI", () => {
     });
     expect(host.submitted).toEqual([]);
     await step(() => {
-      press(filterOf(inputs.by), "Escape");
+      press(inputs.by, "Escape");
     });
 
     expect(host.submitted).toEqual([form({ by: ["c", "b"] })]);
-    expect(inputs.by.textContent).toBe("c, b");
+    expect(inputs.by.value).toBe("c, b");
   });
 
   test("submit typing still pending as the component unmounts", () => {
@@ -414,17 +414,17 @@ describe("the inputs of a board option's UI", () => {
   test("submit the picked severities in the order of the choices", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
     const { el } = draw(<Conditions host={host} />);
-    const field = fieldOf(el, "Message types to display");
+    const field = labelled(el, "Message types to display");
 
     await step(() => {
       field.click();
     });
-    expect(optionLabels(field)).toEqual(["Selected: error", "Other: message", "Other: warning"]);
+    expect(optionLabels(field)).toEqual(["message", "warning", "error"]);
     await step(() => {
       optionFromLabel(field, "message").click();
     });
     await step(() => {
-      press(filterOf(field), "Escape");
+      press(field, "Escape");
     });
 
     expect(host.submitted).toEqual([["message", "error"]]);
@@ -433,9 +433,9 @@ describe("the inputs of a board option's UI", () => {
   test("show a string that the choices lack as missing, and let the user clear it", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
     const { el } = draw(<Conditions host={host} />);
-    const field = fieldOf(el, "Message types to display");
+    const field = labelled(el, "Message types to display");
 
-    expect([field.textContent, field.getAttribute("aria-invalid")]).toEqual(["error, debug (not available)", "true"]);
+    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["error, debug (not available)", "true"]);
     await step(() => {
       field.click();
     });
@@ -443,24 +443,24 @@ describe("the inputs of a board option's UI", () => {
       optionFromLabel(field, "debug (not available)").click();
     });
     await step(() => {
-      press(filterOf(field), "Escape");
+      press(field, "Escape");
     });
 
     expect(host.submitted).toEqual([["error"]]);
-    expect([field.textContent, field.getAttribute("aria-invalid")]).toEqual(["error", null]);
-    expect(await listed(field, step)).toEqual(["Selected: error", "Other: message", "Other: warning"]);
+    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["error", null]);
+    expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
   });
 
   test("keep outdated choices on screen, and mark no string that they lack until they are current", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
     const { el, redraw } = draw(<Conditions host={host} outdated />);
-    const field = fieldOf(el, "Message types to display");
+    const field = labelled(el, "Message types to display");
 
-    expect([field.textContent, field.getAttribute("aria-invalid")]).toEqual(["error, debug", null]);
-    expect(await listed(field, step)).toEqual(["Selected: error", "Selected: debug", "Other: message", "Other: warning"]);
+    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["error, debug", null]);
+    expect(await listed(field, step)).toEqual(["message", "warning", "error", "debug"]);
 
     redraw(<Conditions host={host} />);
-    expect([field.textContent, field.getAttribute("aria-invalid")]).toEqual(["error, debug (not available)", "true"]);
+    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["error, debug (not available)", "true"]);
     expect(host.submitted).toEqual([]);
   });
 

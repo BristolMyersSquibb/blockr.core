@@ -607,7 +607,7 @@
   Given `value` and `onChange`, it picks for its caller, so that a plugin's UI can run a command with the pick.
   Given `bound`, it binds a block's state arg or a board option's value, as before.
   Where it is given `multiple` as well, it binds an array of strings in place of `Checklist`, which is gone, and submits the picks once, as its list closes.
-  The field of several shows the picks as text, and its list shows them on top, with All and None, and keeps to the fewest picks that `min` gives.
+  The field of several shows the picks as text, its list ticks them in place, and it keeps to the fewest picks that `min` gives.
   A choice may carry a `detail`, a `badge`, a `group`, `keywords` and `disabled`.
   The `select()` of `controls()` takes `multiple`, `ordered` and `empty`, in place of `checklist()`, which is gone.
   Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).

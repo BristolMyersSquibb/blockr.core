@@ -11,8 +11,6 @@ import type { Choice } from "../binding/index.ts";
 import { press, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import {
-  fieldOf,
-  filterOf,
   labelled,
   listFromField,
   listNote,
@@ -266,6 +264,11 @@ describe("a select of one choice", () => {
     expect(field.value).toBe("Iris");
     // A dialog or a form that holds the field stays as it is.
     expect(escape?.defaultPrevented).toBe(true);
+    // Typing on the closed field starts the filter afresh.
+    await step(() => {
+      press(field, "z");
+    });
+    expect([field.value, listNote(field)]).toEqual(["z", "No matches"]);
 
     await step(() => {
       field.click();
@@ -340,72 +343,70 @@ describe("a select of one choice", () => {
 });
 
 describe("a select of several choices", () => {
-  test("shows the picks as text: one or two by name, more as a count with the names after it, and None for none", () => {
-    expect(summary([], 4, "None")).toEqual({ lead: "None", rest: "", empty: true });
-    expect(summary(["Head"], 4, "None")).toEqual({ lead: "Head", rest: "", empty: false });
-    expect(summary(["Head", "Merge"], 4, "None")).toEqual({ lead: "Head, Merge", rest: "", empty: false });
-    expect(summary(["Head", "Merge", "Iris"], 1200, "None")).toEqual({ lead: "3 of 1,200", rest: "Head, Merge, Iris", empty: false });
+  test("shows the picks as text: one or two by name, more as a count with the names after it, and its placeholder for none", () => {
+    expect(summary([], 4)).toBeUndefined();
+    expect(summary(["Head"], 4)).toBe("Head");
+    expect(summary(["Head", "Merge"], 4)).toBe("Head, Merge");
+    expect(summary(["Head", "Merge", "Iris"], 1200)).toBe("3 of 1,200: Head, Merge, Iris");
     // While the choices are unknown, the names alone show.
-    expect(summary(["Head", "Merge", "Iris"], undefined, "None")).toEqual({ lead: "Head, Merge, Iris", rest: "", empty: false });
+    expect(summary(["Head", "Merge", "Iris"], undefined)).toBe("Head, Merge, Iris");
 
-    const { el } = drawn(<Several seen={[]} initial={["b", "c", "a"]} />);
-    const field = fieldOf(el, "Blocks");
-    expect(field).toBeInstanceOf(HTMLButtonElement);
-    expect(field.textContent).toBe("3 of 4Head, Merge, Iris");
-    expect(drawn(<Several seen={[]} initial={[]} />).el.querySelector("button")?.textContent).toBe("None");
+    const field = labelled(drawn(<Several seen={[]} initial={["b", "c", "a"]} />).el, "Blocks");
+    expect([field.getAttribute("role"), field.value]).toEqual(["combobox", "3 of 4: Head, Merge, Iris"]);
+    const none = labelled(drawn(<Several seen={[]} initial={[]} />).el, "Blocks");
+    expect([none.value, none.placeholder]).toEqual(["", "None"]);
   });
 
-  test("lists the picks on top under Selected, in the order picked, and then the other choices under Other or under their group", async () => {
+  test("lists the choices in their order, under their groups, and ticks the picks in place", async () => {
     const choices = [...CHOICES, { value: "e", label: "Notes" }];
     const { el } = drawn(<Several seen={[]} choices={choices} initial={["c", "a"]} />);
-    const field = fieldOf(el, "Blocks");
+    const field = labelled(el, "Blocks");
 
     await step(() => {
       field.click();
     });
-    expect(field.getAttribute("aria-expanded")).toBe("true");
-    expect(optionLabels(field)).toEqual(["Selected: Merge", "Selected: Iris", "Other: Notes", "transform: Head", "transform: Gone"]);
-    expect(pickedLabels(field)).toEqual(["Merge", "Iris"]);
-    expect(listFromField(field)?.parentElement?.textContent).toContain("2 of 5 selected");
+    expect([field.getAttribute("aria-expanded"), listFromField(field)?.getAttribute("aria-multiselectable")]).toEqual(["true", "true"]);
+    expect(optionLabels(field)).toEqual(["Notes", "input: Iris", "transform: Head", "transform: Merge", "transform: Gone"]);
+    expect(pickedLabels(field)).toEqual(["Iris", "Merge"]);
+    // The field shows the picks, muted, while the user has typed nothing.
+    expect([field.value, field.placeholder]).toEqual(["", "Merge, Iris"]);
   });
 
-  test("keeps the list open and the filter text on a pick, and reports the picks once, as the list closes", async () => {
+  test("keeps the list open, its rows in place and the filter text on a pick, and reports the picks once, as the list closes", async () => {
     const seen: (readonly string[])[] = [];
     const { el } = drawn(<Several seen={seen} />);
-    const field = fieldOf(el, "Blocks");
+    const field = labelled(el, "Blocks");
+    const all = ["input: Iris", "transform: Head", "transform: Merge", "transform: Gone"];
 
+    field.focus();
     await step(() => {
       click(field);
     });
-    const filter = filterOf(field);
-    expect(document.activeElement).toBe(filter);
     // The pointer opened the list, so it marks no row.
     expect(markedLabel(field)).toBeNull();
     await step(() => {
-      type(filter, "merge");
+      type(field, "merge");
     });
     expect(optionLabels(field)).toEqual(["transform: Merge"]);
     await step(() => {
       optionFromLabel(field, "Merge").click();
     });
-    expect([filter.value, optionLabels(field)]).toEqual(["merge", ["Selected: Merge"]]);
+    expect([field.value, optionLabels(field), pickedLabels(field)]).toEqual(["merge", ["transform: Merge"], ["Merge"]]);
     await step(() => {
-      type(filter, "");
+      type(field, "");
     });
-    expect(optionLabels(field)).toEqual(["Selected: Head", "Selected: Merge", "input: Iris", "transform: Gone"]);
+    expect([optionLabels(field), pickedLabels(field), field.placeholder]).toEqual([all, ["Head", "Merge"], "Head, Merge"]);
     await step(() => {
       optionFromLabel(field, "Head").click();
     });
-    expect(optionLabels(field)).toEqual(["Selected: Merge", "input: Iris", "transform: Head", "transform: Gone"]);
+    expect([optionLabels(field), pickedLabels(field), field.placeholder]).toEqual([all, ["Merge"], "Merge"]);
     expect(seen).toEqual([]);
 
     await step(() => {
-      press(filter, "Escape");
+      press(field, "Escape");
     });
     expect(listFromField(field)).toBeNull();
-    expect(seen).toEqual([["c"]]);
-    expect(document.activeElement).toBe(field);
-    expect(field.textContent).toBe("Merge");
+    expect([seen, field.value]).toEqual([[["c"]], "Merge"]);
 
     // A list that closes with the picks as they were reports nothing.
     await step(() => {
@@ -418,100 +419,51 @@ describe("a select of several choices", () => {
       optionFromLabel(field, "Iris").click();
     });
     await step(() => {
-      filterOf(field).blur();
+      field.blur();
     });
     expect(listFromField(field)).toBeNull();
     expect(seen).toEqual([["c"]]);
   });
 
-  test("moves the row with the arrows, which Enter ticks, as Space does while the filter is empty", async () => {
+  test("moves the row with the arrows, which Enter ticks, as Space does while the user has typed nothing", async () => {
     const seen: (readonly string[])[] = [];
     const { el } = drawn(<Several seen={seen} initial={[]} />);
-    const field = fieldOf(el, "Blocks");
+    const field = labelled(el, "Blocks");
 
-    // A click that the keyboard makes opens the list on its first row.
+    field.focus();
+    // Down opens the list on its first row.
     await step(() => {
-      field.click();
+      press(field, "ArrowDown");
     });
-    const filter = filterOf(field);
     expect(markedLabel(field)).toBe("Iris");
     await step(() => {
-      press(filter, "Enter");
+      press(field, "Enter");
     });
-    // The row moves under Selected, and the keyboard's row follows it.
-    expect([optionLabels(field)[0], markedLabel(field)]).toEqual(["Selected: Iris", "Iris"]);
+    // The row stays in place, ticked, and the keyboard's row with it.
+    expect([optionLabels(field)[0], pickedLabels(field), markedLabel(field)]).toEqual(["input: Iris", ["Iris"], "Iris"]);
     await step(() => {
-      press(filter, "ArrowDown");
+      press(field, "ArrowDown");
     });
     expect(markedLabel(field)).toBe("Head");
     await step(() => {
-      press(filter, " ");
+      press(field, " ");
     });
+    expect(pickedLabels(field)).toEqual(["Iris", "Head"]);
+    // Tab moves the focus on from the field, which closes the list.
     await step(() => {
-      press(filter, "Tab");
+      field.blur();
     });
     expect(listFromField(field)).toBeNull();
-    expect(document.activeElement).toBe(field);
     expect(seen).toEqual([["a", "b"]]);
-  });
-
-  test("ticks with All and unticks with None the choices that the filter keeps", async () => {
-    const seen: (readonly string[])[] = [];
-    const { el } = drawn(<Several seen={seen} initial={["c"]} />);
-    const field = fieldOf(el, "Blocks");
-    const button = (text: string): HTMLButtonElement => {
-      const found = [...(listFromField(field)?.parentElement?.querySelectorAll("button") ?? [])].find((b) => b.textContent === text);
-      if (found === undefined) throw new Error(`Found no button ${text}.`);
-      return found;
-    };
-
-    await step(() => {
-      click(field);
-    });
-    await step(() => {
-      type(filterOf(field), "block");
-    });
-    // The choice that cannot be picked stays unticked.
-    await step(() => {
-      button("All 4 shown").click();
-    });
-    expect(pickedLabels(field)).toEqual(["Merge", "Iris", "Head"]);
-    expect(button("All 4 shown").disabled).toBe(true);
-    await step(() => {
-      type(filterOf(field), "head");
-    });
-    await step(() => {
-      button("None shown").click();
-    });
-    expect(pickedLabels(field)).toEqual([]);
-    await step(() => {
-      type(filterOf(field), "");
-    });
-    expect(pickedLabels(field)).toEqual(["Merge", "Iris"]);
-    await step(() => {
-      button("None").click();
-    });
-    expect(pickedLabels(field)).toEqual([]);
-    expect(button("None").disabled).toBe(true);
-    await step(() => {
-      press(filterOf(field), "Escape");
-    });
-    expect(seen).toEqual([[]]);
   });
 
   test("keeps the fewest picks that `min` asks for", async () => {
     const seen: (readonly string[])[] = [];
     const { el } = drawn(<Several seen={seen} initial={["a", "b"]} min={1} />);
-    const field = fieldOf(el, "Blocks");
-    const none = (): HTMLButtonElement | undefined =>
-      [...(listFromField(field)?.parentElement?.querySelectorAll("button") ?? [])].find((b) => b.textContent === "None");
+    const field = labelled(el, "Blocks");
 
     await step(() => {
       click(field);
-    });
-    expect(none()?.getAttribute("aria-disabled")).toBe("true");
-    await step(() => {
-      none()?.click();
     });
     await step(() => {
       optionFromLabel(field, "Iris").click();
@@ -524,33 +476,26 @@ describe("a select of several choices", () => {
     });
     expect(pickedLabels(field)).toEqual(["Head"]);
     await step(() => {
-      press(filterOf(field), "Escape");
+      press(field, "Escape");
     });
     expect(seen).toEqual([["b"]]);
   });
 
-  test("shows its filter box once it holds more than eight choices, and filters as the user types on the closed field", async () => {
-    const few = drawn(<Several seen={[]} choices={COLUMNS} initial={[]} />).el;
-    const fewField = fieldOf(few, "Blocks");
-    await step(() => {
-      click(fewField);
-    });
-    expect(filterOf(fewField).className).toBe("bc:sr-only");
-
+  test("starts the filter afresh as the user types on the closed field", async () => {
     const nine = Array.from({ length: 9 }, (_, i) => ({ value: `c${String(i)}`, label: `Column ${String(i)}` }));
-    const many = drawn(<Several seen={[]} choices={nine} initial={[]} />).el;
-    const manyField = fieldOf(many, "Blocks");
+    const field = labelled(drawn(<Several seen={[]} choices={nine} initial={["c1", "c2"]} />).el, "Blocks");
+    expect(field.value).toBe("Column 1, Column 2");
+
     await step(() => {
-      manyField.dispatchEvent(new KeyboardEvent("keydown", { key: "8", bubbles: true }));
+      press(field, "8");
     });
-    expect(filterOf(manyField).className).not.toContain("bc:sr-only");
-    expect([filterOf(manyField).value, optionLabels(manyField)]).toEqual(["8", ["Column 8"]]);
+    expect([field.value, optionLabels(field)]).toEqual(["8", ["Column 8"]]);
   });
 
-  test("reports the picks where it goes with its list open", async () => {
+  test("reports nothing where it goes with its list open, as though the user picked nothing", async () => {
     const seen: (readonly string[])[] = [];
     const { el, unmount } = drawn(<Several seen={seen} />);
-    const field = fieldOf(el, "Blocks");
+    const field = labelled(el, "Blocks");
 
     await step(() => {
       click(field);
@@ -560,7 +505,7 @@ describe("a select of several choices", () => {
     });
     unmount();
 
-    expect(seen).toEqual([["b", "a"]]);
+    expect(seen).toEqual([]);
   });
 });
 
@@ -609,8 +554,8 @@ describe("the list of a select", () => {
       </>,
     );
     const one = labelled(el, "Block");
-    const several = fieldOf(el, "Blocks");
-    const names = [one.parentElement?.style.anchorName, several.style.anchorName];
+    const several = labelled(el, "Blocks");
+    const names = [one.parentElement?.style.anchorName, several.parentElement?.style.anchorName];
     expect(names.every((name) => name?.startsWith("--bc-select-"))).toBe(true);
     expect(new Set(names).size).toBe(2);
 

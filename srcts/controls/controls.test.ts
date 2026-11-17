@@ -7,7 +7,7 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { find, press, texts, type } from "../testing/inputs.ts";
 import { holdRequests } from "../testing/requests.ts";
-import { fieldOf, labelled, listed, picked } from "../testing/select.ts";
+import { labelled, listed, picked } from "../testing/select.ts";
 import { asChoices, controls, PAUSE, strings } from "./index.ts";
 
 type Form = Readonly<{ label: string; direction: string; by?: readonly string[] }>;
@@ -58,7 +58,7 @@ function drawn(state: Form = form({})) {
     ui,
     label: labelled(ui.el, "Label"),
     direction: labelled(ui.el, "Direction"),
-    by: fieldOf(ui.el, "By columns"),
+    by: labelled(ui.el, "By columns"),
   };
 }
 
@@ -81,12 +81,12 @@ describe("the controls of a block's UI", () => {
     own.textContent = "A line of the module's own";
     ui.add(own);
     const by = ui.select("by", { label: "By columns", multiple: true });
-    const field = fieldOf(ui.el, "By columns");
-    expect([field.textContent, field.getAttribute("aria-invalid")]).toEqual(["c", null]);
+    const field = labelled(ui.el, "By columns");
+    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["c", null]);
 
     by.setChoices(asChoices(["a", "b"]));
 
-    expect([field.textContent, field.getAttribute("aria-invalid")]).toEqual(["c (not available)", "true"]);
+    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["c (not available)", "true"]);
     expect(texts(ui.el, "label > span, p, label[for]")).toEqual(["Label", "A line of the module's own", "By columns"]);
   });
 
@@ -127,22 +127,22 @@ describe("the controls of a block's UI", () => {
       },
     });
     const one = labelled(ui.el, "Direction");
-    const several = fieldOf(ui.el, "By columns");
+    const several = labelled(ui.el, "By columns");
     const shown = async () => [
       await listed(one, settled),
       one.getAttribute("aria-invalid"),
       await listed(several, settled),
       several.getAttribute("aria-invalid"),
     ];
-    expect(await shown()).toEqual([[], null, ["Selected: c"], null]);
+    expect(await shown()).toEqual([[], null, ["c"], null]);
 
     release();
     await settled();
-    const marked = [["head", "tail", "middle (not available)"], "true", ["Selected: c (not available)", "Other: head", "Other: tail"], "true"];
+    const marked = [["head", "tail", "middle (not available)"], "true", ["head", "tail", "c (not available)"], "true"];
     expect(await shown()).toEqual(marked);
 
     host.setContext({ inputs: [{ input: "data", revision: 2 }] });
-    expect(await shown()).toEqual([["head", "tail", "middle"], null, ["Selected: c", "Other: head", "Other: tail"], null]);
+    expect(await shown()).toEqual([["head", "tail", "middle"], null, ["head", "tail", "c"], null]);
 
     release();
     await settled();
@@ -173,7 +173,7 @@ describe("the controls of a block's UI", () => {
 
     host.setState(form({}));
     await picked(by, settled, "a");
-    expect(by.textContent).toBe("None");
+    expect([by.value, by.placeholder]).toEqual(["", "None"]);
     expect(texts(ui.el, '[role="alert"]')[0]).toContain("which the fixture does not list");
   });
 
@@ -262,7 +262,7 @@ describe("the controls of a board option's UI", () => {
     });
     document.body.append(ui.el);
 
-    await picked(fieldOf(ui.el, "Message types to display"), settled, "message");
+    await picked(labelled(ui.el, "Message types to display"), settled, "message");
 
     expect(host.submitted).toEqual([["message", "error"]]);
   });

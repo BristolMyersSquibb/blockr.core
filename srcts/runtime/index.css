@@ -172,8 +172,8 @@
  * position-anchor.
  * In a browser without anchor positioning, script places the list so
  * (../inputs/place.ts), as a fixed element.
- * While it is open, the list is a column, in which its rows scroll under its
- * head.
+ * While it is open, the list is a column, in which its rows scroll above the
+ * note that it may show below them.
  */
 @utility select-list {
   box-sizing: border-box;

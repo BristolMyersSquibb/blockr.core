@@ -12,7 +12,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import type { HelloReply } from "../../protocol/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
-import { fieldOf, filterOf, labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
+import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
 import { find, press, texts, type } from "../../testing/inputs.ts";
 import { held, notificationCode } from "../../testing/notifications.ts";
 import { step } from "../../testing/react.ts";
@@ -511,7 +511,8 @@ describe("the stacks", () => {
     expect(color().value).toBe("#66c2a5");
 
     // The blocks of no stack come first, and those of another stack apart.
-    const blocks = fieldOf(add(), "Blocks");
+    const blocks = labelled(add(), "Blocks");
+    blocks.focus();
     await step(() => {
       blocks.click();
     });
@@ -532,9 +533,9 @@ describe("the stacks", () => {
     // A click on the button takes the focus from the list first, which closes
     // it, and the list reports the picks.
     await step(() => {
-      filterOf(blocks).blur();
+      blocks.blur();
     });
-    expect([listFromField(blocks), blocks.textContent]).toEqual([null, "Scatter, Merge"]);
+    expect([listFromField(blocks), blocks.value]).toEqual([null, "Scatter, Merge"]);
     expect(Object.keys(board().stacks)).toEqual(["s1"]);
     await click(button(add(), "Add stack"));
 
@@ -555,15 +556,15 @@ describe("the stacks", () => {
     const edit = (): HTMLFormElement => form(stacks, "Change stack");
     expect(labelled(edit(), "Name").value).toBe("Input");
     expect(find(edit(), 'input[type="checkbox"]', HTMLInputElement).checked).toBe(false);
-    expect(fieldOf(edit(), "Blocks").textContent).toBe("Iris, Head");
+    expect(labelled(edit(), "Blocks").value).toBe("Iris, Head");
 
     await step(() => {
       type(labelled(edit(), "Name"), "Sources");
       find(edit(), 'input[type="checkbox"]', HTMLInputElement).click();
     });
     // Escape closes the list, and leaves the form open.
-    await picked(fieldOf(edit(), "Blocks"), step, "Head", "Scatter");
-    expect(fieldOf(edit(), "Blocks").textContent).toBe("Iris, Scatter");
+    await picked(labelled(edit(), "Blocks"), step, "Head", "Scatter");
+    expect(labelled(edit(), "Blocks").value).toBe("Iris, Scatter");
     await click(button(edit(), "Save"));
 
     expect(board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "f"], color: "#66c2a5" });

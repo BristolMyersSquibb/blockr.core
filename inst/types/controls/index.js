@@ -1,6 +1,6 @@
 // srcts/controls/controls.tsx
 import { Fragment as Fragment3, useLayoutEffect as useLayoutEffect2, useRef as useRef2 } from "react";
-import { flushSync as flushSync2 } from "react-dom";
+import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/util/util.ts
@@ -328,7 +328,6 @@ function useTyped(bound) {
 
 // srcts/inputs/select.tsx
 import { useId, useLayoutEffect, useRef, useState as useState2 } from "react";
-import { flushSync } from "react-dom";
 
 // srcts/inputs/place.ts
 var MIN_WIDTH = 190;
@@ -353,24 +352,34 @@ function clamp(value, low, high) {
 // srcts/inputs/select.tsx
 import { Fragment as Fragment2, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var MAX_ROWS = 200;
-var FILTER_AFTER = 8;
 function Select(props) {
   if (props.bound !== void 0) {
     return props.multiple === true ? /* @__PURE__ */ jsx2(BoundSeveral, { ...props }) : /* @__PURE__ */ jsx2(BoundOne, { ...props });
   }
   if (props.multiple === true) {
-    const { onChange, ...rest } = props;
+    const { onChange: onChange2, ...rest2 } = props;
     return /* @__PURE__ */ jsx2(
-      Several,
+      Picker,
       {
-        ...rest,
+        ...rest2,
         report: (picks) => {
-          onChange(picks);
+          onChange2(picks);
         }
       }
     );
   }
-  return /* @__PURE__ */ jsx2(One, { ...props });
+  const { value, onChange, ...rest } = props;
+  return /* @__PURE__ */ jsx2(
+    Picker,
+    {
+      ...rest,
+      multiple: false,
+      value: value === void 0 ? [] : [value],
+      report: ([pick]) => {
+        if (pick !== void 0) onChange(pick);
+      }
+    }
+  );
 }
 function BoundOne({ bound, choices, outdated = false, placeholder, label, empty, disabled }) {
   const current = typeof bound.value === "string" ? bound.value : void 0;
@@ -380,17 +389,18 @@ function BoundOne({ bound, choices, outdated = false, placeholder, label, empty,
   const shown = choices === void 0 || current === void 0 || !lacked ? choices : [...known, { value: current, label: invalid ? missing(current) : current }];
   return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     /* @__PURE__ */ jsx2(
-      One,
+      Picker,
       {
         label,
         choices: shown,
-        value: current,
+        multiple: false,
+        value: current === void 0 ? [] : [current],
         placeholder,
         empty,
         disabled,
         invalid,
-        onChange: (next) => {
-          void bound.commit(next);
+        report: ([next]) => {
+          if (next !== void 0) void bound.commit(next);
         }
       }
     ),
@@ -422,10 +432,11 @@ function BoundSeveral({
   };
   return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     /* @__PURE__ */ jsx2(
-      Several,
+      Picker,
       {
         label,
         choices: shown,
+        multiple: true,
         value: held,
         placeholder,
         empty,
@@ -442,17 +453,19 @@ function inOrder(values, choices) {
   const order = choices.map((choice) => choice.value);
   return [...order.filter((value) => values.includes(value)), ...values.filter((value) => !order.includes(value))];
 }
-function One({
+function Picker({
   label,
   choices,
+  multiple,
   value,
-  onChange,
-  placeholder = "",
+  report,
+  placeholder = multiple ? "None" : "",
   hint,
   error,
   empty = "No options",
   disabled = false,
   autofocus = false,
+  min = 0,
   invalid = false
 }) {
   const id = useId();
@@ -466,33 +479,58 @@ function One({
   const [query, setQuery] = useState2("");
   const [keyboard, setKeyboard] = useState2(false);
   const [active, setActive] = useState2(void 0);
+  const [picks, setPicks] = useState2([]);
+  const pending = useRef(null);
+  const now = open && multiple ? picks : value;
   const known = choices ?? [];
-  const picked = known.find((choice) => choice.value === value);
-  const pickedLabel = picked?.label ?? value;
-  const found = matching(known, query);
+  const byValue = new Map(known.map((choice) => [choice.value, choice]));
+  const listed = multiple ? [...known, ...value.filter((picked) => !byValue.has(picked)).map((picked) => ({ value: picked, label: picked }))] : known;
+  const found = matching(listed, query);
   const rows = found.slice(0, MAX_ROWS);
   const pickable = rows.filter((choice) => choice.disabled !== true);
   const marked = !keyboard ? void 0 : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
+  const locked = multiple && min > 0 && now.length <= min;
+  const names = now.map((picked) => byValue.get(picked)?.label ?? picked);
+  const shown = multiple ? summary(names, choices === void 0 ? void 0 : listed.length) : names[0];
   const shownRow = open ? marked ?? active : void 0;
   useLayoutEffect(() => {
     if (shownRow !== void 0) list.current?.ownerDocument.getElementById(optionId(listId, shownRow))?.scrollIntoView({ block: "nearest" });
   }, [shownRow, listId]);
-  function show(byKeyboard) {
+  function show(byKeyboard, typed = "") {
     if (open || disabled) return;
+    if (multiple) {
+      pending.current = { picks: value, opened: value };
+      setPicks(value);
+    }
     setOpen(true);
+    setQuery(typed);
     setKeyboard(byKeyboard);
-    setActive(value);
+    setActive(multiple || typed !== "" ? void 0 : value[0]);
   }
   function close() {
     setOpen(false);
     setQuery("");
     setKeyboard(false);
     setActive(void 0);
+    const left = pending.current;
+    pending.current = null;
+    if (left !== null && !sameList(left.picks, left.opened)) report(left.picks, left.opened);
   }
-  function choose(choice) {
+  function pick(choice) {
     if (choice.disabled === true) return;
-    close();
-    if (choice.value !== value) onChange(choice.value);
+    if (!multiple) {
+      close();
+      if (choice.value !== value[0]) report([choice.value], value);
+      return;
+    }
+    const left = pending.current;
+    if (left === null) return;
+    const ticked = left.picks.includes(choice.value);
+    if (ticked && min > 0 && left.picks.length <= min) return;
+    const next = ticked ? left.picks.filter((picked) => picked !== choice.value) : [...left.picks, choice.value];
+    pending.current = { picks: next, opened: left.opened };
+    setPicks(next);
+    setActive(choice.value);
   }
   function move(by) {
     if (!keyboard) {
@@ -505,6 +543,7 @@ function One({
   }
   function onKeyDown(event) {
     if (event.nativeEvent.isComposing) return;
+    const row = rows.find((choice) => choice.value === marked);
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (open) move(event.key === "ArrowDown" ? 1 : -1);
@@ -513,16 +552,17 @@ function One({
       event.preventDefault();
       if (!open) show(true);
       else if (!keyboard) setKeyboard(true);
-      else {
-        const choice = rows.find((row) => row.value === marked);
-        if (choice !== void 0) choose(choice);
-      }
-    } else if (event.key === " " && !open) {
+      else if (row !== void 0) pick(row);
+    } else if (event.key === " " && (!open || multiple && keyboard && query === "" && row !== void 0)) {
       event.preventDefault();
-      show(true);
+      if (!open) show(true);
+      else if (row !== void 0) pick(row);
     } else if (event.key === "Escape" && open) {
       event.preventDefault();
       close();
+    } else if (!open && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      show(true, event.key);
     }
   }
   const note = error ?? hint;
@@ -546,14 +586,17 @@ function One({
           "aria-describedby": note === void 0 ? void 0 : noteId,
           "data-autofocus": autofocus || void 0,
           disabled,
-          className: `${styles.box} ${FIELD} bc:pr-8`,
-          value: open ? query : pickedLabel ?? "",
-          placeholder: open ? pickedLabel ?? placeholder : placeholder,
+          className: `${styles.box} ${FIELD} bc:pr-8 bc:text-ellipsis`,
+          value: open ? query : shown ?? "",
+          placeholder: open ? shown ?? placeholder : placeholder,
           onChange: (event) => {
+            if (!open) {
+              show(true, event.target.value);
+              return;
+            }
             setQuery(event.target.value);
             setActive(void 0);
             setKeyboard(true);
-            setOpen(true);
           },
           onClick: () => {
             show(false);
@@ -585,271 +628,7 @@ function One({
       )
     ] }),
     open ? /* @__PURE__ */ jsxs2(List, { ref: list, anchor: box, name: anchor, children: [
-      /* @__PURE__ */ jsx2("ul", { id: listId, role: "listbox", "aria-label": label, className: LISTBOX, children: byGroup(rows).map(([group, members]) => /* @__PURE__ */ jsx2(Group, { id: group === void 0 ? void 0 : groupId(listId, group), title: group, children: members.map((choice) => /* @__PURE__ */ jsx2(
-        Row,
-        {
-          choice,
-          id: optionId(listId, choice.value),
-          marked: choice.value === marked,
-          picked: choice.value === value,
-          onPick: choose
-        },
-        choice.value
-      )) }, group ?? "")) }),
-      /* @__PURE__ */ jsx2(Note, { choices, empty, found: found.length, rows: rows.length })
-    ] }) : null,
-    note === void 0 ? null : /* @__PURE__ */ jsx2("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
-  ] });
-}
-function Several({
-  label,
-  choices,
-  value,
-  report,
-  placeholder = "None",
-  hint,
-  error,
-  empty = "No options",
-  disabled = false,
-  autofocus = false,
-  min = 0,
-  invalid = false
-}) {
-  const id = useId();
-  const labelId = `${id}-label`;
-  const listId = `${id}-list`;
-  const noteId = `${id}-note`;
-  const anchor = anchorName(id);
-  const field = useRef(null);
-  const filter = useRef(null);
-  const list = useRef(null);
-  const [open, setOpen] = useState2(false);
-  const [picks, setPicks] = useState2([]);
-  const [query, setQuery] = useState2("");
-  const [keyboard, setKeyboard] = useState2(false);
-  const [active, setActive] = useState2(void 0);
-  const pending = useRef(null);
-  const reported = useRef(report);
-  useLayoutEffect(() => {
-    reported.current = report;
-  });
-  useLayoutEffect(
-    () => () => {
-      const left = pending.current;
-      pending.current = null;
-      if (left !== null && !sameList(left.picks, left.opened)) reported.current(left.picks, left.opened);
-    },
-    []
-  );
-  useLayoutEffect(() => {
-    if (open) filter.current?.focus({ preventScroll: true });
-  }, [open]);
-  const now = open ? picks : value;
-  const known = choices ?? [];
-  const byValue = new Map(known.map((choice) => [choice.value, choice]));
-  const pickedChoices = now.map((picked) => byValue.get(picked) ?? { value: picked, label: picked });
-  const shownPicks = matching(pickedChoices, query);
-  const rest = matching(
-    known.filter((choice) => !now.includes(choice.value)),
-    query
-  );
-  const restRows = rest.slice(0, Math.max(0, MAX_ROWS - shownPicks.length));
-  const sections = [
-    ...shownPicks.length === 0 ? [] : [{ key: "selected", title: "Selected", rows: shownPicks }],
-    ...byGroup(restRows).map(
-      ([group, members]) => group === void 0 ? { key: "other", title: shownPicks.length === 0 ? void 0 : "Other", rows: members } : { key: `group-${group}`, title: group, rows: members }
-    )
-  ];
-  const rows = sections.flatMap((section) => section.rows);
-  const pickable = rows.filter((choice) => choice.disabled !== true);
-  const marked = !keyboard ? void 0 : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
-  const locked = min > 0 && now.length <= min;
-  const total = known.length + now.filter((picked) => !byValue.has(picked)).length;
-  const face = summary(
-    pickedChoices.map((choice) => choice.label),
-    choices === void 0 ? void 0 : total,
-    placeholder
-  );
-  const filtered = query.trim() !== "";
-  const addable = rest.filter((choice) => choice.disabled !== true);
-  const short = shownPicks.length > 0 && now.length - shownPicks.length < min;
-  const shownRow = open ? marked : void 0;
-  useLayoutEffect(() => {
-    if (shownRow !== void 0) list.current?.ownerDocument.getElementById(optionId(listId, shownRow))?.scrollIntoView({ block: "nearest" });
-  }, [shownRow, listId]);
-  function show(byKeyboard, typed = "") {
-    if (pending.current !== null || disabled) return;
-    pending.current = { picks: value, opened: value };
-    setPicks(value);
-    setOpen(true);
-    setQuery(typed);
-    setKeyboard(byKeyboard || typed !== "");
-    setActive(void 0);
-  }
-  function close(how) {
-    const left = pending.current;
-    if (left === null) return;
-    pending.current = null;
-    const settle = () => {
-      setOpen(false);
-      setQuery("");
-      setKeyboard(false);
-      setActive(void 0);
-    };
-    if (how === "tab") flushSync(settle);
-    else settle();
-    if (how !== "away") field.current?.focus({ preventScroll: true });
-    if (!sameList(left.picks, left.opened)) report(left.picks, left.opened);
-  }
-  function repick(next, moved) {
-    const left = pending.current;
-    if (left === null) return;
-    pending.current = { picks: next, opened: left.opened };
-    setPicks(next);
-    if (moved !== void 0) setActive(moved);
-  }
-  function toggle(choice) {
-    if (choice.disabled === true) return;
-    if (!now.includes(choice.value)) repick([...now, choice.value], choice.value);
-    else if (!locked) repick(now.filter((picked) => picked !== choice.value), choice.value);
-  }
-  function move(by) {
-    if (!keyboard) {
-      setKeyboard(true);
-      return;
-    }
-    if (pickable.length === 0) return;
-    const at = pickable.findIndex((choice) => choice.value === marked);
-    setActive(pickable[(at + by + pickable.length) % pickable.length]?.value);
-  }
-  function onFilterKeyDown(event) {
-    if (event.nativeEvent.isComposing) return;
-    const row = rows.find((choice) => choice.value === marked);
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      move(event.key === "ArrowDown" ? 1 : -1);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (!keyboard) setKeyboard(true);
-      else if (row !== void 0) toggle(row);
-    } else if (event.key === " " && keyboard && query === "" && row !== void 0) {
-      event.preventDefault();
-      toggle(row);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      close("back");
-    } else if (event.key === "Tab") {
-      close("tab");
-    }
-  }
-  const note = error ?? hint;
-  return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
-    /* @__PURE__ */ jsx2("label", { id: labelId, htmlFor: id, className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs2(
-      "button",
-      {
-        ref: field,
-        id,
-        type: "button",
-        "aria-haspopup": "listbox",
-        "aria-expanded": open,
-        "aria-controls": listId,
-        "aria-labelledby": `${labelId} ${id}`,
-        "aria-invalid": invalid || error !== void 0 ? true : void 0,
-        "aria-describedby": note === void 0 ? void 0 : noteId,
-        "data-autofocus": autofocus || void 0,
-        disabled,
-        style: { anchorName: anchor },
-        className: `${styles.box} ${FIELD} bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:text-left`,
-        onMouseDown: (event) => {
-          if (open) event.preventDefault();
-        },
-        onClick: (event) => {
-          if (open) close("back");
-          else show(event.detail === 0);
-        },
-        onKeyDown: (event) => {
-          if (open || event.nativeEvent.isComposing) return;
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            show(true);
-          } else if (event.key.length === 1 && event.key !== " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
-            event.preventDefault();
-            show(true, event.key);
-          }
-        },
-        children: [
-          /* @__PURE__ */ jsxs2("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate", children: [
-            /* @__PURE__ */ jsx2("span", { className: face.empty ? "bc:text-text-muted" : void 0, children: face.lead }),
-            face.rest === "" ? null : /* @__PURE__ */ jsx2("span", { className: "bc:ml-2 bc:text-text-muted", children: face.rest })
-          ] }),
-          /* @__PURE__ */ jsx2(Chevron, { open })
-        ]
-      }
-    ),
-    open ? /* @__PURE__ */ jsxs2(List, { ref: list, anchor: field, name: anchor, keep: filter, children: [
-      /* @__PURE__ */ jsxs2("div", { className: "bc:grid bc:shrink-0 bc:gap-1 bc:pb-1", children: [
-        /* @__PURE__ */ jsx2(
-          "input",
-          {
-            ref: filter,
-            type: "text",
-            role: "combobox",
-            autoComplete: "off",
-            spellCheck: false,
-            "aria-label": label,
-            "aria-autocomplete": "list",
-            "aria-expanded": "true",
-            "aria-controls": listId,
-            "aria-activedescendant": marked === void 0 ? void 0 : optionId(listId, marked),
-            placeholder: "Filter",
-            className: known.length > FILTER_AFTER ? FILTER : "bc:sr-only",
-            value: query,
-            onChange: (event) => {
-              setQuery(event.target.value);
-              setActive(void 0);
-              setKeyboard(true);
-            },
-            onKeyDown: onFilterKeyDown,
-            onBlur: () => {
-              close("away");
-            }
-          }
-        ),
-        /* @__PURE__ */ jsxs2("div", { className: "bc:flex bc:items-center bc:gap-2 bc:px-2.5 bc:text-xs bc:text-text-muted", children: [
-          /* @__PURE__ */ jsx2("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate", children: `${count(now.length)} of ${count(total)} selected` }),
-          /* @__PURE__ */ jsx2(
-            "button",
-            {
-              type: "button",
-              tabIndex: -1,
-              className: BULK,
-              disabled: addable.length === 0,
-              onClick: () => {
-                repick([...now, ...addable.map((choice) => choice.value)]);
-              },
-              children: filtered ? `All ${count(shownPicks.length + rest.length)} shown` : "All"
-            }
-          ),
-          /* @__PURE__ */ jsx2(
-            "button",
-            {
-              type: "button",
-              tabIndex: -1,
-              className: BULK,
-              disabled: shownPicks.length === 0,
-              "aria-disabled": short || void 0,
-              onClick: () => {
-                if (short) return;
-                const dropped = new Set(shownPicks.map((choice) => choice.value));
-                repick(now.filter((picked) => !dropped.has(picked)));
-              },
-              children: filtered ? "None shown" : "None"
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ jsx2("ul", { id: listId, role: "listbox", "aria-label": label, "aria-multiselectable": "true", className: LISTBOX, children: sections.map(({ key, title, rows: members }) => /* @__PURE__ */ jsx2(Group, { id: title === void 0 ? void 0 : groupId(listId, key), title, children: members.map((choice) => {
+      /* @__PURE__ */ jsx2("ul", { id: listId, role: "listbox", "aria-label": label, "aria-multiselectable": multiple || void 0, className: LISTBOX, children: byGroup(rows).map(([group, members]) => /* @__PURE__ */ jsx2(Group, { id: group === void 0 ? void 0 : groupId(listId, group), title: group, children: members.map((choice) => {
         const picked = now.includes(choice.value);
         return /* @__PURE__ */ jsx2(
           Row,
@@ -858,14 +637,14 @@ function Several({
             id: optionId(listId, choice.value),
             marked: choice.value === marked,
             picked,
-            ticks: true,
+            ticks: multiple,
             locked: picked && locked,
-            onPick: toggle
+            onPick: pick
           },
           choice.value
         );
-      }) }, key)) }),
-      /* @__PURE__ */ jsx2(Note, { choices, empty, found: shownPicks.length + rest.length, rows: rows.length })
+      }) }, group ?? "")) }),
+      /* @__PURE__ */ jsx2(Note, { choices, empty, found: found.length, rows: rows.length })
     ] }) : null,
     note === void 0 ? null : /* @__PURE__ */ jsx2("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
   ] });
@@ -874,7 +653,6 @@ function List({
   ref,
   anchor,
   name,
-  keep,
   children
 }) {
   useTopLayer(ref, anchor);
@@ -886,7 +664,7 @@ function List({
       className: LIST,
       style: { positionAnchor: name },
       onMouseDown: (event) => {
-        if (event.target !== keep?.current) event.preventDefault();
+        event.preventDefault();
       },
       children
     }
@@ -1030,10 +808,10 @@ function byGroup(choices) {
   groups.delete(void 0);
   return [...loose === void 0 ? [] : [[void 0, loose]], ...groups];
 }
-function summary(names, total, placeholder) {
-  if (names.length === 0) return { lead: placeholder, rest: "", empty: true };
-  if (names.length <= 2 || total === void 0) return { lead: names.join(", "), rest: "", empty: false };
-  return { lead: `${count(names.length)} of ${count(total)}`, rest: names.join(", "), empty: false };
+function summary(names, total) {
+  if (names.length === 0) return void 0;
+  if (names.length <= 2 || total === void 0) return names.join(", ");
+  return `${count(names.length)} of ${count(total)}: ${names.join(", ")}`;
 }
 function count(n) {
   return n.toLocaleString("en-US");
@@ -1059,8 +837,6 @@ var LISTBOX = "bc:m-0 bc:min-h-0 bc:flex-1 bc:list-none bc:overflow-y-auto bc:p-
 var HEADING = "bc:sticky bc:top-0 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
 var ROW = "bc:flex bc:min-h-8 bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
-var FILTER = "bc:h-[30px] bc:min-w-0 bc:justify-self-stretch bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:font-sans bc:text-[13px] bc:text-text-default bc:outline-none";
-var BULK = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-default bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50 bc:aria-disabled:cursor-default bc:aria-disabled:opacity-50";
 
 // srcts/controls/controls.tsx
 import { Fragment as Fragment4, jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
@@ -1076,7 +852,7 @@ function controls(host, signal) {
   const redraw = () => {
     if (ended) return;
     const drawn = items.map((item) => /* @__PURE__ */ jsx3(Fragment3, { children: item.draw() }, item.id));
-    flushSync2(() => {
+    flushSync(() => {
       root.render(
         /* @__PURE__ */ jsxs3(Fragment4, { children: [
           drawn,

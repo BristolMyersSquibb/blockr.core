@@ -17,7 +17,7 @@ import showConditionsModule, * as showConditionsExports from "../modules/show-co
 import { stubOptionHost } from "../stubs/index.ts";
 import { find, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
-import { fieldOf, labelled, listed, picked } from "../testing/select.ts";
+import { labelled, listed, picked } from "../testing/select.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { coreOptions, darkMode, nRows, optionSchemas, setTheme, showConditions } from "./index.ts";
@@ -217,9 +217,9 @@ describe("the UIs of core's board options", () => {
 
   test("show_conditions is a select of the severities that submits the picks in their order", async () => {
     const { el, host } = await mounted("show_conditions", showConditions, ["error"]);
-    const field = fieldOf(el, "Message types to display");
-    expect(field.textContent).toBe("error");
-    expect(await listed(field, step)).toEqual(["Selected: error", "Other: message", "Other: warning"]);
+    const field = labelled(el, "Message types to display");
+    expect(field.value).toBe("error");
+    expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
 
     await picked(field, step, "message");
 
