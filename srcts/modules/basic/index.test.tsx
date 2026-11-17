@@ -550,6 +550,34 @@ describe("a card's block before", () => {
     expect(Object.values(board().links)).toContainEqual({ from: first?.[0], to: "c", input: "y" });
   });
 
+  test("takes the link into the one input of its block that no link feeds, without asking which", async () => {
+    const { el, core, board } = await drawn();
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "ab" }));
+    await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
+
+    // The head block has one input, which no link feeds now.
+    await menu(el, "Head", "Add block before");
+    expect(dialog(el).querySelector("select")).toBeNull();
+    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    await step(() => {
+      type(labelled(dialog(el), "ID"), "first");
+    });
+    expect(button(dialog(el), "Add block").disabled).toBe(false);
+    await click(button(dialog(el), "Add block"));
+    expect(Object.values(board().links)).toContainEqual({ from: "first", to: "b", input: "data" });
+
+    // A link feeds the merge block's x, so the new link goes into its y.
+    await menu(el, "Merge", "Add block before");
+    expect(dialog(el).querySelector("select")).toBeNull();
+    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    await step(() => {
+      type(labelled(dialog(el), "ID"), "second");
+    });
+    expect(button(dialog(el), "Add block").disabled).toBe(false);
+    await click(button(dialog(el), "Add block"));
+    expect(Object.values(board().links)).toContainEqual({ from: "second", to: "c", input: "y" });
+  });
+
   test("says why it adds none where another edit feeds the block's last free input meanwhile", async () => {
     const { el, core, board } = await drawn();
     await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
