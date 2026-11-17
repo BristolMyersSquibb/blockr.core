@@ -305,3 +305,132 @@ test_that("a block of a collapsed stack evaluates again as its data changes", {
     utils::head(datasets::ChickWeight, 3L)
   )
 })
+
+# The tests below check what the basic frontend offers other plugins, which
+# the page gives through `blockrTest`.
+# They run in Chrome, with the browser's layout and hit testing, which core's
+# vitest tests lack.
+
+test_that("a click into a card gives its block focus", {
+
+  skip_if_not(
+    installed_with_show(),
+    "The blockr.core installed gives end-to-end tests no focus()."
+  )
+
+  app <- local_app(
+    quote(
+      serve(
+        new_board(
+          c(a = new_dataset_block("BOD"), b = new_dataset_block("BOD"))
+        ),
+        plugins = subset(available_plugins(), package == "blockr.core")
+      )
+    )
+  )
+
+  wait_for_statuses(app, ready("a", "b"))
+
+  # No block has focus as the board opens.
+  expect_null(app_focus(app))
+
+  # The user clicks with the mouse, into the padding of each card in turn.
+  for (id in c("b", "a")) {
+    click_at(app, card_point(app, id))
+    wait_until(
+      function() identical(app_focus(app), id),
+      function() paste("the focus on", id)
+    )
+  }
+})
+
+test_that("the basic frontend shows a block, and so puts it on screen", {
+
+  skip_if_not(
+    installed_with_show(),
+    "The blockr.core installed gives end-to-end tests no show()."
+  )
+
+  # The window is 600 pixels high.
+  # The basic frontend draws the cards in one column, so the card of `a` fills
+  # the window, and the card of `c` lies below it.
+  app <- local_app(
+    quote(
+      serve(
+        new_board(
+          c(
+            a = new_dataset_block("BOD"),
+            b = new_dataset_block("BOD"),
+            c = new_dataset_block("BOD")
+          )
+        ),
+        plugins = subset(available_plugins(), package == "blockr.core")
+      )
+    ),
+    width = 1000,
+    height = 600
+  )
+
+  wait_for_statuses(app, ready("a", "b", "c"))
+  wait_until(
+    function() "a" %in% app_on_screen(app),
+    function() "the block a on screen"
+  )
+  expect_false("c" %in% app_on_screen(app))
+
+  # As a plugin asks, the frontend scrolls the card of `c` into view.
+  # The browser then reports the card in view, and the card of `a` out of it.
+  app_show(app, "c")
+
+  wait_until(
+    function() {
+      shown <- app_on_screen(app)
+      "c" %in% shown && !"a" %in% shown
+    },
+    function() "the block c on screen, and a off it"
+  )
+
+  # Showing a block gives it focus.
+  expect_identical(app_focus(app), "c")
+})
+
+test_that("the card of a block that fails shows the error that core holds", {
+
+  skip_if_not(
+    installed_with_show(),
+    "The blockr.core installed gives end-to-end tests no notifications()."
+  )
+
+  app <- local_app(
+    quote(
+      serve(
+        new_board(
+          c(
+            a = new_dataset_block("BOD"),
+            b = new_fixed_block("stop(\"The block fails.\")")
+          ),
+          list(from = "a", to = "b")
+        ),
+        plugins = subset(available_plugins(), package == "blockr.core")
+      )
+    )
+  )
+
+  wait_for_statuses(app, c(ready("a"), b = "failed"))
+
+  # R raises an error as it evaluates `b`.
+  # Core holds one notification for it, the condition of the status of `b`.
+  notes <- app_notifications(app)
+
+  expect_length(notes, 1L)
+  expect_identical(notes[[1L]]$severity, "error")
+  expect_identical(notes[[1L]]$message, "The block fails.")
+  expect_identical(notes[[1L]]$about, list(block = "b"))
+  expect_identical(notes[[1L]]$source$kind, "r")
+
+  # The card of `b` shows it, as its pill of errors is open from the start.
+  wait_until(
+    function() grepl("The block fails.", card_text(app, "b"), fixed = TRUE),
+    function() "the error on the card of b"
+  )
+})

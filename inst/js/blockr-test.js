@@ -18,6 +18,24 @@ function blockrTest(core) {
           return status === void 0 ? [] : [[id, structuredClone(status)]];
         })
       );
+    },
+    focus() {
+      return open()?.focus.get() ?? null;
+    },
+    onScreen() {
+      const shown = open()?.onScreen.get() ?? null;
+      return shown === null ? null : structuredClone(shown);
+    },
+    notifications() {
+      const now = open();
+      return now === void 0 ? [] : structuredClone(now.notifications.get());
+    },
+    async show(object) {
+      const now = open();
+      if (now === void 0) {
+        throw new Error("No board is open yet, so the frontend has nothing to show.");
+      }
+      await now.show(object);
     }
   };
 }

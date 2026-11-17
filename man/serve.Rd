@@ -145,11 +145,26 @@ For a block that \code{serve()} serves alone, \code{result} is the block's resul
 R holds no result of a block whose latest evaluation failed, so \code{result}
 leaves that block out.
 The client holds the board and each block's status.
+It also holds three parts of what a frontend offers other plugins: which
+block has focus, which blocks and plugins are on screen, and the
+notifications.
 So the page puts the object \code{blockrTest} on \code{window}, which a test reads
 with \code{AppDriver$get_js()}.
 Its function \code{board()} gives a copy of the board that the client holds, and
 its function \code{statuses()} gives each block's status by block ID, as in
 \code{app$get_js("blockrTest.statuses()")}.
+Its function \code{focus()} gives the ID of the block that has focus, or \code{null}
+where none has.
+Its function \code{onScreen()} gives the IDs of the blocks and the plugins on
+screen, in \code{blocks} and \code{plugins}, or \code{null} until the frontend sets them.
+Its function \code{notifications()} gives the notifications that hold, in the
+order they came.
+Its function \code{show()} has the frontend show a block or a plugin, as a
+plugin asks it to, as in \code{app$get_js("blockrTest.show({ block: 'a' })")}.
+Showing takes no undo step, and under core's basic frontend it changes
+nothing on the board.
+Another frontend may change the state that the board holds for it, as the
+dock does where it brings a panel forward.
 }
 
 \examples{
