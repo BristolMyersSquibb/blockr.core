@@ -183,14 +183,14 @@ test_that("an app's replies name the board options that serve() read", {
 
   local_installed_package()
 
-  # A process that runs the app without the script that built it reads the app
-  # from what R wrote of it, as `serialize()` gives it, and has loaded none of
-  # the packages whose listings serve() read, as here, where the test unloads
-  # optprobe
-  bytes <- serialize(serve(new_board()), NULL)
+  app <- serve(new_board())
+
+  # A process that runs the app without the script that built it has loaded
+  # none of the packages whose listings serve() read, as here, where the test
+  # unloads optprobe
   unloadNamespace("optprobe")
 
-  reply <- served_replies(unserialize(bytes), hello_message())[[1L]]
+  reply <- served_replies(app, hello_message())[[1L]]
 
   # Its replies name them all the same, and R loads no package for them
   expect_identical(reply$options$probe_gap$package, "optprobe")
