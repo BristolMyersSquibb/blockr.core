@@ -18,6 +18,7 @@
     "react-dom/client",
     "react",
     "react/jsx-runtime",
+    "@blockr/core/binding",
     "@blockr/core/react"
   ],
   "blockr-core-controls.js": [
@@ -53,6 +54,7 @@
     "react/jsx-runtime"
   ],
   "dark-mode-option.js": [
+    "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
@@ -66,10 +68,12 @@
     "react-dom/client",
     "react",
     "@blockr/core/react",
+    "@blockr/core/binding",
     "react/jsx-runtime"
   ],
   "filebrowser-block.js": [
     "react",
+    "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
@@ -87,6 +91,7 @@
     "react/jsx-runtime"
   ],
   "n-rows-option.js": [
+    "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
@@ -133,6 +138,7 @@
     "react/jsx-runtime"
   ],
   "show-conditions-option.js": [
+    "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],

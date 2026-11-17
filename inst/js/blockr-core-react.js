@@ -206,7 +206,6 @@ var Boundary = class extends Component {
 
 // srcts/inputs/inputs.tsx
 import { useState as useState2 } from "react";
-import { strings } from "@blockr/core/binding";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -324,37 +323,6 @@ function NumberInput({
     /* @__PURE__ */ jsx2(Refusal, { error: checked.reason ?? bound.error })
   ] });
 }
-function Select({
-  bound,
-  label,
-  placeholder,
-  choices,
-  outdated = false
-}) {
-  const current = typeof bound.value === "string" ? bound.value : void 0;
-  const known = choices ?? [];
-  const lacked = current !== void 0 && !known.some((choice) => choice.value === current);
-  const invalid = lacked && choices !== void 0 && !outdated;
-  const shown = lacked ? [...known, { value: current, label: invalid ? missing(current) : current }] : known;
-  return /* @__PURE__ */ jsxs(Fragment, { children: [
-    /* @__PURE__ */ jsx2(Field, { label, children: /* @__PURE__ */ jsxs(
-      "select",
-      {
-        className: styles.box,
-        value: current ?? "",
-        "aria-invalid": invalid,
-        onChange: (event) => {
-          void bound.commit(event.target.value);
-        },
-        children: [
-          current === void 0 && /* @__PURE__ */ jsx2("option", { value: "", disabled: true, children: placeholder }),
-          shown.map((choice) => /* @__PURE__ */ jsx2("option", { value: choice.value, children: choice.label }, choice.value))
-        ]
-      }
-    ) }),
-    /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
-  ] });
-}
 function Checkbox({ bound, label }) {
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
@@ -374,51 +342,6 @@ function Checkbox({ bound, label }) {
     /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
   ] });
 }
-function Checklist({
-  bound,
-  legend,
-  choices,
-  empty,
-  ordered = false,
-  outdated = false
-}) {
-  const held2 = strings(bound.value);
-  const known = choices ?? [];
-  const shown = [...known, ...held2.filter((value) => !known.includes(value))];
-  const toggle = (value, checked) => {
-    const now = strings(bound.get());
-    const next = checked ? now.includes(value) ? now : [...now, value] : now.filter((other) => other !== value);
-    void bound.commit(
-      ordered ? [...known.filter((choice) => next.includes(choice)), ...next.filter((other) => !known.includes(other))] : next
-    );
-  };
-  return /* @__PURE__ */ jsxs("fieldset", { className: styles.fieldset, children: [
-    /* @__PURE__ */ jsx2("legend", { className: styles.legend, children: legend }),
-    /* @__PURE__ */ jsxs("div", { className: styles.list, children: [
-      shown.map((value) => {
-        const invalid = choices !== void 0 && !outdated && !known.includes(value);
-        return /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
-          /* @__PURE__ */ jsx2(
-            "input",
-            {
-              type: "checkbox",
-              className: styles.checkbox,
-              value,
-              checked: held2.includes(value),
-              "aria-invalid": invalid,
-              onChange: (event) => {
-                toggle(value, event.target.checked);
-              }
-            }
-          ),
-          invalid ? missing(value) : value
-        ] }, value);
-      }),
-      choices !== void 0 && empty !== void 0 && shown.length === 0 && /* @__PURE__ */ jsx2("p", { className: styles.hint, children: empty })
-    ] }),
-    /* @__PURE__ */ jsx2(Refusal, { error: bound.error })
-  ] });
-}
 function missing(value) {
   return `${value} (not available)`;
 }
@@ -434,9 +357,745 @@ function useTyped(bound) {
   }
   return [text, setText];
 }
+
+// srcts/inputs/select.tsx
+import { useId, useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState3 } from "react";
+import { flushSync as flushSync2 } from "react-dom";
+import { strings } from "@blockr/core/binding";
+
+// srcts/inputs/place.ts
+var MIN_WIDTH = 190;
+var GAP = 4;
+var EDGE = 8;
+function listWidth(field) {
+  return Math.max(field.width, MIN_WIDTH);
+}
+function listSpot(field, list, view) {
+  const below = field.bottom + GAP;
+  const above = field.top - GAP - list.height;
+  const top = below + list.height > view.height - EDGE && above >= EDGE ? above : below;
+  return {
+    left: clamp(field.left, EDGE, view.width - EDGE - list.width),
+    top: clamp(top, EDGE, view.height - EDGE - list.height)
+  };
+}
+function clamp(value, low, high) {
+  return Math.max(low, Math.min(value, high));
+}
+
+// srcts/inputs/select.tsx
+import { Fragment as Fragment2, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+var MAX_ROWS = 200;
+var FILTER_AFTER = 8;
+function Select(props) {
+  if (props.bound !== void 0) {
+    return props.multiple === true ? /* @__PURE__ */ jsx3(BoundSeveral, { ...props }) : /* @__PURE__ */ jsx3(BoundOne, { ...props });
+  }
+  if (props.multiple === true) {
+    const { onChange, ...rest } = props;
+    return /* @__PURE__ */ jsx3(
+      Several,
+      {
+        ...rest,
+        report: (picks) => {
+          onChange(picks);
+        }
+      }
+    );
+  }
+  return /* @__PURE__ */ jsx3(One, { ...props });
+}
+function BoundOne({ bound, choices, outdated = false, placeholder, label, empty, disabled }) {
+  const current = typeof bound.value === "string" ? bound.value : void 0;
+  const known = choices ?? [];
+  const lacked = current !== void 0 && !known.some((choice) => choice.value === current);
+  const invalid = lacked && choices !== void 0 && !outdated;
+  const shown = choices === void 0 || current === void 0 || !lacked ? choices : [...known, { value: current, label: invalid ? missing(current) : current }];
+  return /* @__PURE__ */ jsxs2(Fragment2, { children: [
+    /* @__PURE__ */ jsx3(
+      One,
+      {
+        label,
+        choices: shown,
+        value: current,
+        placeholder,
+        empty,
+        disabled,
+        invalid,
+        onChange: (next) => {
+          void bound.commit(next);
+        }
+      }
+    ),
+    /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
+  ] });
+}
+function BoundSeveral({
+  bound,
+  choices,
+  outdated = false,
+  ordered = false,
+  placeholder,
+  label,
+  empty,
+  disabled,
+  min
+}) {
+  const held2 = strings(bound.value);
+  const known = choices ?? [];
+  const marking = choices !== void 0 && !outdated;
+  const lacked = held2.filter((value) => !known.some((choice) => choice.value === value));
+  const shown = choices === void 0 ? void 0 : [...known, ...lacked.map((value) => ({ value, label: marking ? missing(value) : value }))];
+  const report = (picks, opened) => {
+    const added = picks.filter((value) => !opened.includes(value));
+    const removed = opened.filter((value) => !picks.includes(value));
+    const now = strings(bound.get());
+    const next = [...now.filter((value) => !removed.includes(value)), ...added.filter((value) => !now.includes(value))];
+    void bound.commit(ordered ? inOrder(next, known) : next);
+  };
+  return /* @__PURE__ */ jsxs2(Fragment2, { children: [
+    /* @__PURE__ */ jsx3(
+      Several,
+      {
+        label,
+        choices: shown,
+        value: held2,
+        placeholder,
+        empty,
+        disabled,
+        min,
+        invalid: marking && lacked.length > 0,
+        report
+      }
+    ),
+    /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
+  ] });
+}
+function inOrder(values, choices) {
+  const order = choices.map((choice) => choice.value);
+  return [...order.filter((value) => values.includes(value)), ...values.filter((value) => !order.includes(value))];
+}
+function One({
+  label,
+  choices,
+  value,
+  onChange,
+  placeholder = "",
+  hint,
+  error,
+  empty = "No options",
+  disabled = false,
+  autofocus = false,
+  invalid = false
+}) {
+  const id = useId();
+  const listId = `${id}-list`;
+  const noteId = `${id}-note`;
+  const anchor = anchorName(id);
+  const box = useRef2(null);
+  const input = useRef2(null);
+  const list = useRef2(null);
+  const [open, setOpen] = useState3(false);
+  const [query, setQuery] = useState3("");
+  const [keyboard, setKeyboard] = useState3(false);
+  const [active, setActive] = useState3(void 0);
+  const known = choices ?? [];
+  const picked = known.find((choice) => choice.value === value);
+  const pickedLabel = picked?.label ?? value;
+  const found = matching(known, query);
+  const rows = found.slice(0, MAX_ROWS);
+  const pickable = rows.filter((choice) => choice.disabled !== true);
+  const marked = !keyboard ? void 0 : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
+  const shownRow = open ? marked ?? active : void 0;
+  useLayoutEffect2(() => {
+    if (shownRow !== void 0) list.current?.ownerDocument.getElementById(optionId(listId, shownRow))?.scrollIntoView({ block: "nearest" });
+  }, [shownRow, listId]);
+  function show(byKeyboard) {
+    if (open || disabled) return;
+    setOpen(true);
+    setKeyboard(byKeyboard);
+    setActive(value);
+  }
+  function close() {
+    setOpen(false);
+    setQuery("");
+    setKeyboard(false);
+    setActive(void 0);
+  }
+  function choose(choice) {
+    if (choice.disabled === true) return;
+    close();
+    if (choice.value !== value) onChange(choice.value);
+  }
+  function move(by) {
+    if (!keyboard) {
+      setKeyboard(true);
+      return;
+    }
+    if (pickable.length === 0) return;
+    const at = pickable.findIndex((choice) => choice.value === marked);
+    setActive(pickable[(at + by + pickable.length) % pickable.length]?.value);
+  }
+  function onKeyDown(event) {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (open) move(event.key === "ArrowDown" ? 1 : -1);
+      else show(true);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      if (!open) show(true);
+      else if (!keyboard) setKeyboard(true);
+      else {
+        const choice = rows.find((row) => row.value === marked);
+        if (choice !== void 0) choose(choice);
+      }
+    } else if (event.key === " " && !open) {
+      event.preventDefault();
+      show(true);
+    } else if (event.key === "Escape" && open) {
+      event.preventDefault();
+      close();
+    }
+  }
+  const note = error ?? hint;
+  return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
+    /* @__PURE__ */ jsx3("label", { htmlFor: id, className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs2("div", { ref: box, className: "bc:relative bc:grid", style: { anchorName: anchor }, children: [
+      /* @__PURE__ */ jsx3(
+        "input",
+        {
+          ref: input,
+          id,
+          type: "text",
+          role: "combobox",
+          autoComplete: "off",
+          spellCheck: false,
+          "aria-autocomplete": "list",
+          "aria-expanded": open,
+          "aria-controls": listId,
+          "aria-activedescendant": open && marked !== void 0 ? optionId(listId, marked) : void 0,
+          "aria-invalid": invalid || error !== void 0 ? true : void 0,
+          "aria-describedby": note === void 0 ? void 0 : noteId,
+          "data-autofocus": autofocus || void 0,
+          disabled,
+          className: `${styles.box} ${FIELD} bc:pr-8`,
+          value: open ? query : pickedLabel ?? "",
+          placeholder: open ? pickedLabel ?? placeholder : placeholder,
+          onChange: (event) => {
+            setQuery(event.target.value);
+            setActive(void 0);
+            setKeyboard(true);
+            setOpen(true);
+          },
+          onClick: () => {
+            show(false);
+          },
+          onKeyDown,
+          onBlur: close
+        }
+      ),
+      /* @__PURE__ */ jsx3(
+        "button",
+        {
+          type: "button",
+          tabIndex: -1,
+          disabled,
+          "aria-label": open ? `Close the choices of ${label}` : `Show the choices of ${label}`,
+          className: "bc:absolute bc:inset-y-0 bc:right-0 bc:flex bc:w-8 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:disabled:cursor-default",
+          onMouseDown: (event) => {
+            event.preventDefault();
+          },
+          onClick: () => {
+            if (open) close();
+            else {
+              show(false);
+              input.current?.focus();
+            }
+          },
+          children: /* @__PURE__ */ jsx3(Chevron, { open })
+        }
+      )
+    ] }),
+    open ? /* @__PURE__ */ jsxs2(List, { ref: list, anchor: box, name: anchor, children: [
+      /* @__PURE__ */ jsx3("ul", { id: listId, role: "listbox", "aria-label": label, className: LISTBOX, children: byGroup(rows).map(([group, members]) => /* @__PURE__ */ jsx3(Group, { id: group === void 0 ? void 0 : groupId(listId, group), title: group, children: members.map((choice) => /* @__PURE__ */ jsx3(
+        Row,
+        {
+          choice,
+          id: optionId(listId, choice.value),
+          marked: choice.value === marked,
+          picked: choice.value === value,
+          onPick: choose
+        },
+        choice.value
+      )) }, group ?? "")) }),
+      /* @__PURE__ */ jsx3(Note, { choices, empty, found: found.length, rows: rows.length })
+    ] }) : null,
+    note === void 0 ? null : /* @__PURE__ */ jsx3("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
+  ] });
+}
+function Several({
+  label,
+  choices,
+  value,
+  report,
+  placeholder = "None",
+  hint,
+  error,
+  empty = "No options",
+  disabled = false,
+  autofocus = false,
+  min = 0,
+  invalid = false
+}) {
+  const id = useId();
+  const labelId = `${id}-label`;
+  const listId = `${id}-list`;
+  const noteId = `${id}-note`;
+  const anchor = anchorName(id);
+  const field = useRef2(null);
+  const filter = useRef2(null);
+  const list = useRef2(null);
+  const [open, setOpen] = useState3(false);
+  const [picks, setPicks] = useState3([]);
+  const [query, setQuery] = useState3("");
+  const [keyboard, setKeyboard] = useState3(false);
+  const [active, setActive] = useState3(void 0);
+  const pending = useRef2(null);
+  const reported = useRef2(report);
+  useLayoutEffect2(() => {
+    reported.current = report;
+  });
+  useLayoutEffect2(
+    () => () => {
+      const left = pending.current;
+      pending.current = null;
+      if (left !== null && !sameList(left.picks, left.opened)) reported.current(left.picks, left.opened);
+    },
+    []
+  );
+  useLayoutEffect2(() => {
+    if (open) filter.current?.focus({ preventScroll: true });
+  }, [open]);
+  const now = open ? picks : value;
+  const known = choices ?? [];
+  const byValue = new Map(known.map((choice) => [choice.value, choice]));
+  const pickedChoices = now.map((picked) => byValue.get(picked) ?? { value: picked, label: picked });
+  const shownPicks = matching(pickedChoices, query);
+  const rest = matching(
+    known.filter((choice) => !now.includes(choice.value)),
+    query
+  );
+  const restRows = rest.slice(0, Math.max(0, MAX_ROWS - shownPicks.length));
+  const sections = [
+    ...shownPicks.length === 0 ? [] : [{ key: "selected", title: "Selected", rows: shownPicks }],
+    ...byGroup(restRows).map(
+      ([group, members]) => group === void 0 ? { key: "other", title: shownPicks.length === 0 ? void 0 : "Other", rows: members } : { key: `group-${group}`, title: group, rows: members }
+    )
+  ];
+  const rows = sections.flatMap((section) => section.rows);
+  const pickable = rows.filter((choice) => choice.disabled !== true);
+  const marked = !keyboard ? void 0 : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
+  const locked = min > 0 && now.length <= min;
+  const total = known.length + now.filter((picked) => !byValue.has(picked)).length;
+  const face = summary(
+    pickedChoices.map((choice) => choice.label),
+    choices === void 0 ? void 0 : total,
+    placeholder
+  );
+  const filtered = query.trim() !== "";
+  const addable = rest.filter((choice) => choice.disabled !== true);
+  const short = shownPicks.length > 0 && now.length - shownPicks.length < min;
+  const shownRow = open ? marked : void 0;
+  useLayoutEffect2(() => {
+    if (shownRow !== void 0) list.current?.ownerDocument.getElementById(optionId(listId, shownRow))?.scrollIntoView({ block: "nearest" });
+  }, [shownRow, listId]);
+  function show(byKeyboard, typed = "") {
+    if (pending.current !== null || disabled) return;
+    pending.current = { picks: value, opened: value };
+    setPicks(value);
+    setOpen(true);
+    setQuery(typed);
+    setKeyboard(byKeyboard || typed !== "");
+    setActive(void 0);
+  }
+  function close(how) {
+    const left = pending.current;
+    if (left === null) return;
+    pending.current = null;
+    const settle = () => {
+      setOpen(false);
+      setQuery("");
+      setKeyboard(false);
+      setActive(void 0);
+    };
+    if (how === "tab") flushSync2(settle);
+    else settle();
+    if (how !== "away") field.current?.focus({ preventScroll: true });
+    if (!sameList(left.picks, left.opened)) report(left.picks, left.opened);
+  }
+  function repick(next, moved) {
+    const left = pending.current;
+    if (left === null) return;
+    pending.current = { picks: next, opened: left.opened };
+    setPicks(next);
+    if (moved !== void 0) setActive(moved);
+  }
+  function toggle(choice) {
+    if (choice.disabled === true) return;
+    if (!now.includes(choice.value)) repick([...now, choice.value], choice.value);
+    else if (!locked) repick(now.filter((picked) => picked !== choice.value), choice.value);
+  }
+  function move(by) {
+    if (!keyboard) {
+      setKeyboard(true);
+      return;
+    }
+    if (pickable.length === 0) return;
+    const at = pickable.findIndex((choice) => choice.value === marked);
+    setActive(pickable[(at + by + pickable.length) % pickable.length]?.value);
+  }
+  function onFilterKeyDown(event) {
+    if (event.nativeEvent.isComposing) return;
+    const row = rows.find((choice) => choice.value === marked);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      move(event.key === "ArrowDown" ? 1 : -1);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      if (!keyboard) setKeyboard(true);
+      else if (row !== void 0) toggle(row);
+    } else if (event.key === " " && keyboard && query === "" && row !== void 0) {
+      event.preventDefault();
+      toggle(row);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      close("back");
+    } else if (event.key === "Tab") {
+      close("tab");
+    }
+  }
+  const note = error ?? hint;
+  return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
+    /* @__PURE__ */ jsx3("label", { id: labelId, htmlFor: id, className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs2(
+      "button",
+      {
+        ref: field,
+        id,
+        type: "button",
+        "aria-haspopup": "listbox",
+        "aria-expanded": open,
+        "aria-controls": listId,
+        "aria-labelledby": `${labelId} ${id}`,
+        "aria-invalid": invalid || error !== void 0 ? true : void 0,
+        "aria-describedby": note === void 0 ? void 0 : noteId,
+        "data-autofocus": autofocus || void 0,
+        disabled,
+        style: { anchorName: anchor },
+        className: `${styles.box} ${FIELD} bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:text-left`,
+        onMouseDown: (event) => {
+          if (open) event.preventDefault();
+        },
+        onClick: (event) => {
+          if (open) close("back");
+          else show(event.detail === 0);
+        },
+        onKeyDown: (event) => {
+          if (open || event.nativeEvent.isComposing) return;
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            show(true);
+          } else if (event.key.length === 1 && event.key !== " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            event.preventDefault();
+            show(true, event.key);
+          }
+        },
+        children: [
+          /* @__PURE__ */ jsxs2("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate", children: [
+            /* @__PURE__ */ jsx3("span", { className: face.empty ? "bc:text-text-muted" : void 0, children: face.lead }),
+            face.rest === "" ? null : /* @__PURE__ */ jsx3("span", { className: "bc:ml-2 bc:text-text-muted", children: face.rest })
+          ] }),
+          /* @__PURE__ */ jsx3(Chevron, { open })
+        ]
+      }
+    ),
+    open ? /* @__PURE__ */ jsxs2(List, { ref: list, anchor: field, name: anchor, keep: filter, children: [
+      /* @__PURE__ */ jsxs2("div", { className: "bc:grid bc:shrink-0 bc:gap-1 bc:pb-1", children: [
+        /* @__PURE__ */ jsx3(
+          "input",
+          {
+            ref: filter,
+            type: "text",
+            role: "combobox",
+            autoComplete: "off",
+            spellCheck: false,
+            "aria-label": label,
+            "aria-autocomplete": "list",
+            "aria-expanded": "true",
+            "aria-controls": listId,
+            "aria-activedescendant": marked === void 0 ? void 0 : optionId(listId, marked),
+            placeholder: "Filter",
+            className: known.length > FILTER_AFTER ? FILTER : "bc:sr-only",
+            value: query,
+            onChange: (event) => {
+              setQuery(event.target.value);
+              setActive(void 0);
+              setKeyboard(true);
+            },
+            onKeyDown: onFilterKeyDown,
+            onBlur: () => {
+              close("away");
+            }
+          }
+        ),
+        /* @__PURE__ */ jsxs2("div", { className: "bc:flex bc:items-center bc:gap-2 bc:px-2.5 bc:text-xs bc:text-text-muted", children: [
+          /* @__PURE__ */ jsx3("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate", children: `${count(now.length)} of ${count(total)} selected` }),
+          /* @__PURE__ */ jsx3(
+            "button",
+            {
+              type: "button",
+              tabIndex: -1,
+              className: BULK,
+              disabled: addable.length === 0,
+              onClick: () => {
+                repick([...now, ...addable.map((choice) => choice.value)]);
+              },
+              children: filtered ? `All ${count(shownPicks.length + rest.length)} shown` : "All"
+            }
+          ),
+          /* @__PURE__ */ jsx3(
+            "button",
+            {
+              type: "button",
+              tabIndex: -1,
+              className: BULK,
+              disabled: shownPicks.length === 0,
+              "aria-disabled": short || void 0,
+              onClick: () => {
+                if (short) return;
+                const dropped = new Set(shownPicks.map((choice) => choice.value));
+                repick(now.filter((picked) => !dropped.has(picked)));
+              },
+              children: filtered ? "None shown" : "None"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx3("ul", { id: listId, role: "listbox", "aria-label": label, "aria-multiselectable": "true", className: LISTBOX, children: sections.map(({ key, title, rows: members }) => /* @__PURE__ */ jsx3(Group, { id: title === void 0 ? void 0 : groupId(listId, key), title, children: members.map((choice) => {
+        const picked = now.includes(choice.value);
+        return /* @__PURE__ */ jsx3(
+          Row,
+          {
+            choice,
+            id: optionId(listId, choice.value),
+            marked: choice.value === marked,
+            picked,
+            ticks: true,
+            locked: picked && locked,
+            onPick: toggle
+          },
+          choice.value
+        );
+      }) }, key)) }),
+      /* @__PURE__ */ jsx3(Note, { choices, empty, found: shownPicks.length + rest.length, rows: rows.length })
+    ] }) : null,
+    note === void 0 ? null : /* @__PURE__ */ jsx3("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
+  ] });
+}
+function List({
+  ref,
+  anchor,
+  name,
+  keep,
+  children
+}) {
+  useTopLayer(ref, anchor);
+  return /* @__PURE__ */ jsx3(
+    "div",
+    {
+      ref,
+      popover: "manual",
+      className: LIST,
+      style: { positionAnchor: name },
+      onMouseDown: (event) => {
+        if (event.target !== keep?.current) event.preventDefault();
+      },
+      children
+    }
+  );
+}
+function useTopLayer(list, anchor) {
+  useLayoutEffect2(() => {
+    const el = list.current;
+    const field = anchor.current;
+    if (el === null || field === null) return;
+    el.showPopover?.();
+    const stop = anchored(el) ? void 0 : follow2(el, field);
+    return () => {
+      stop?.();
+      try {
+        el.hidePopover?.();
+      } catch {
+      }
+    };
+  }, [list, anchor]);
+}
+function anchored(el) {
+  return el.ownerDocument.defaultView?.CSS.supports("position-area", "block-end") === true;
+}
+function follow2(el, field) {
+  const doc = el.ownerDocument;
+  const win = doc.defaultView ?? window;
+  const place = () => {
+    const box = field.getBoundingClientRect();
+    el.style.minWidth = `${String(listWidth(box))}px`;
+    const spot = listSpot(box, el.getBoundingClientRect(), { width: win.innerWidth, height: win.innerHeight });
+    el.style.left = `${String(Math.round(spot.left))}px`;
+    el.style.top = `${String(Math.round(spot.top))}px`;
+  };
+  place();
+  const resizes = new win.ResizeObserver(place);
+  resizes.observe(el);
+  win.addEventListener("resize", place);
+  doc.addEventListener("scroll", place, true);
+  return () => {
+    resizes.disconnect();
+    win.removeEventListener("resize", place);
+    doc.removeEventListener("scroll", place, true);
+  };
+}
+function Group({ id, title, children }) {
+  if (id === void 0 || title === void 0) return /* @__PURE__ */ jsx3(Fragment2, { children });
+  return /* @__PURE__ */ jsxs2("li", { role: "presentation", children: [
+    /* @__PURE__ */ jsx3("div", { id, className: HEADING, children: title }),
+    /* @__PURE__ */ jsx3("ul", { role: "group", "aria-labelledby": id, className: "bc:m-0 bc:list-none bc:p-0", children })
+  ] });
+}
+function Row({
+  choice,
+  id,
+  marked,
+  picked,
+  ticks = false,
+  locked = false,
+  onPick
+}) {
+  const off = choice.disabled === true || locked;
+  return /* @__PURE__ */ jsxs2(
+    "li",
+    {
+      id,
+      role: "option",
+      "data-value": choice.value,
+      "aria-selected": picked,
+      "aria-disabled": off || void 0,
+      className: `${ROW} ${marked ? "bc:bg-bg-subtle bc:outline bc:outline-1 bc:outline-border-accent" : ""} ${choice.disabled === true ? "bc:cursor-default bc:opacity-50" : locked ? "bc:cursor-default" : "bc:cursor-pointer bc:hover:bg-bg-subtle"}`,
+      onClick: () => {
+        onPick(choice);
+      },
+      children: [
+        ticks ? /* @__PURE__ */ jsx3("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: picked ? /* @__PURE__ */ jsx3(Tick, {}) : null }) : null,
+        /* @__PURE__ */ jsx3("span", { "data-label": "", className: `bc:min-w-0 bc:max-w-full bc:shrink-0 bc:truncate ${!ticks && picked ? "bc:font-semibold" : ""}`, children: choice.label }),
+        choice.detail === void 0 || choice.detail === "" ? null : /* @__PURE__ */ jsx3("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate bc:text-[13px] bc:text-text-muted", children: choice.detail }),
+        choice.badge === void 0 ? null : /* @__PURE__ */ jsx3("span", { className: "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted", children: choice.badge })
+      ]
+    }
+  );
+}
+function Note({
+  choices,
+  empty,
+  found,
+  rows
+}) {
+  const text = choices === void 0 ? "Loading\u2026" : choices.length === 0 && found === 0 ? empty : found === 0 ? "No matches" : found > rows ? `${count(found - rows)} more. Type to narrow the list.` : void 0;
+  return text === void 0 ? null : /* @__PURE__ */ jsx3("p", { className: NOTE, children: text });
+}
+function Chevron({ open }) {
+  return /* @__PURE__ */ jsx3(
+    "svg",
+    {
+      width: "12",
+      height: "12",
+      viewBox: "0 0 12 12",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.4",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      className: `bc:shrink-0 bc:text-text-muted bc:transition-transform ${open ? "bc:rotate-180" : ""}`,
+      children: /* @__PURE__ */ jsx3("polyline", { points: "3 4.5 6 7.5 9 4.5" })
+    }
+  );
+}
+function Tick() {
+  return /* @__PURE__ */ jsx3(
+    "svg",
+    {
+      width: "14",
+      height: "14",
+      viewBox: "0 0 16 16",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.5",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      children: /* @__PURE__ */ jsx3("path", { d: "M3.5 8.5l3 3 6-7" })
+    }
+  );
+}
+function matching(choices, query) {
+  const needle = query.trim().toLowerCase();
+  if (needle === "") return [...choices];
+  return choices.filter(
+    (choice) => [choice.label, choice.detail ?? "", choice.value, choice.group ?? "", choice.badge ?? "", ...choice.keywords ?? []].some(
+      (text) => text.toLowerCase().includes(needle)
+    )
+  );
+}
+function byGroup(choices) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const choice of choices) groups.set(choice.group, [...groups.get(choice.group) ?? [], choice]);
+  const loose = groups.get(void 0);
+  groups.delete(void 0);
+  return [...loose === void 0 ? [] : [[void 0, loose]], ...groups];
+}
+function summary(names, total, placeholder) {
+  if (names.length === 0) return { lead: placeholder, rest: "", empty: true };
+  if (names.length <= 2 || total === void 0) return { lead: names.join(", "), rest: "", empty: false };
+  return { lead: `${count(names.length)} of ${count(total)}`, rest: names.join(", "), empty: false };
+}
+function count(n) {
+  return n.toLocaleString("en-US");
+}
+function sameList(a, b) {
+  return a.length === b.length && a.every((value, i) => value === b[i]);
+}
+function anchorName(id) {
+  return `--bc-select-${safe(id)}`;
+}
+function optionId(list, value) {
+  return `${list}-option-${safe(value)}`;
+}
+function groupId(list, key) {
+  return `${list}-group-${safe(key)}`;
+}
+function safe(text) {
+  return text.replace(/[^A-Za-z0-9_-]/g, (c) => `_${c.charCodeAt(0).toString(16)}`);
+}
+var FIELD = "bc:disabled:cursor-default bc:disabled:opacity-50";
+var LIST = "bc:select-list bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:p-1 bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:dark:text-gray-100";
+var LISTBOX = "bc:m-0 bc:min-h-0 bc:flex-1 bc:list-none bc:overflow-y-auto bc:p-0";
+var HEADING = "bc:sticky bc:top-0 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
+var ROW = "bc:flex bc:min-h-8 bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm";
+var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
+var FILTER = "bc:h-[30px] bc:min-w-0 bc:justify-self-stretch bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:font-sans bc:text-[13px] bc:text-text-default bc:outline-none";
+var BULK = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-default bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50 bc:aria-disabled:cursor-default bc:aria-disabled:opacity-50";
 export {
   Checkbox,
-  Checklist,
   Field,
   NumberInput,
   Select,

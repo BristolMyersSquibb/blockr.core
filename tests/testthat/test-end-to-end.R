@@ -38,33 +38,24 @@ test_that("a merge block served alone joins its data as its UI says", {
   wait_for_statuses(app, set_names("invalid", id))
   expect_null(app_results(app))
 
-  # Each step clicks one checkbox, which checks it or clears it, with the join
-  # that the block then makes.
+  # The first step picks the column to join by. Each step after it clicks one
+  # checkbox, which checks it or clears it. Each comes with the join that the
+  # block then makes.
+  keep_x <- "Keep the rows of x that y does not match"
+  keep_y <- "Keep the rows of y that x does not match"
   joins <- list(
-    list("Time", merge(x, y, by = "Time")),
-    list(
-      "Keep the rows of x that y does not match",
-      merge(x, y, by = "Time", all.x = TRUE)
-    ),
-    list(
-      "Keep the rows of y that x does not match",
-      merge(x, y, by = "Time", all = TRUE)
-    ),
-    list(
-      "Keep the rows of x that y does not match",
-      merge(x, y, by = "Time", all.y = TRUE)
-    ),
-    list(
-      "Keep the rows of y that x does not match",
-      merge(x, y, by = "Time")
-    )
+    list(list("pick", "By columns", "Time"), merge(x, y, by = "Time")),
+    list(list("check", keep_x), merge(x, y, by = "Time", all.x = TRUE)),
+    list(list("check", keep_y), merge(x, y, by = "Time", all = TRUE)),
+    list(list("check", keep_x), merge(x, y, by = "Time", all.y = TRUE)),
+    list(list("check", keep_y), merge(x, y, by = "Time"))
   )
 
   for (join in joins) {
 
     before <- app_revisions(app, id)
 
-    act(app, "check", join[[1L]])
+    do.call(act, c(list(app), join[[1L]]))
     wait_for_statuses(app, ready(id), after = before)
 
     expect_identical(app_results(app), join[[2L]])
@@ -135,7 +126,7 @@ test_that("a board built up from an empty one evaluates its blocks", {
 
   wait_for_statuses(app, set_names("waiting", c))
 
-  # The dropdowns name each block by its name, and find it by its ID too,
+  # The selects name each block by its name, and find it by its ID too,
   # which tells apart the two dataset blocks.
   for (link in list(c(a, "x"), c(b, "y"))) {
 
@@ -168,7 +159,7 @@ test_that("a board built up from an empty one evaluates its blocks", {
   # With both of its inputs linked, the merge block still joins by no column.
   wait_for_statuses(app, c(ready(a, b), set_names("invalid", c)))
 
-  act(app, "check", "Time", block = c)
+  act(app, "pick", "By columns", "Time", block = c)
   wait_for_statuses(app, ready(a, b, c))
 
   res <- app_results(app)
@@ -212,7 +203,7 @@ test_that("the user edits the stacks of a board", {
   change <- "form[aria-label='Change stack']"
   add <- "form[aria-label='Add stack']"
 
-  # The dropdown of blocks names each block by its name, and finds it by its
+  # The select of blocks names each block by its name, and finds it by its
   # ID too, which tells apart the two dataset blocks.
   labels <- c(a = "Dataset", b = "Dataset", c = "Merge")
 

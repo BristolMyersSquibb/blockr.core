@@ -288,10 +288,22 @@ function createSource(host: BlockHost | OptionHost): Source {
   };
 }
 
-// A choice of a select or a checklist: the value it sets, and how it reads.
+// A choice of a select: the value it sets, and how it reads.
+// The rest is optional.
 export interface Choice {
   readonly value: string;
   readonly label: string;
+  // Muted text after the label, such as a block class's description or a
+  // block's id.
+  readonly detail?: string;
+  // A short tag after the label, such as the package of a block class.
+  readonly badge?: string;
+  // The heading under which the list shows the choice.
+  readonly group?: string;
+  // Further words that the filter finds the choice by.
+  readonly keywords?: readonly string[];
+  // Whether the list shows the choice but does not let the user pick it.
+  readonly disabled?: boolean;
 }
 
 // A choice for each value, which reads as the value.

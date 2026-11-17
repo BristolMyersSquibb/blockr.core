@@ -13,7 +13,8 @@
 
 import { Fragment, useState } from "react";
 import type { ReactElement } from "react";
-import { Field, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
+import { asChoices } from "../../binding/index.ts";
+import { reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -79,21 +80,14 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
   return (
     <Stack>
       {names.length > 1 && (
-        <Field label="Volume">
-          <select
-            className={styles.box}
-            value={volume ?? ""}
-            onChange={(event) => {
-              go({ volume: event.target.value, dirs: [] });
-            }}
-          >
-            {names.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <Select
+          label="Volume"
+          choices={asChoices(names)}
+          value={volume}
+          onChange={(name) => {
+            go({ volume: name, dirs: [] });
+          }}
+        />
       )}
       <nav aria-label="Directory" className="bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm">
         {[volume ?? "", ...dirs].map((name, i) => (

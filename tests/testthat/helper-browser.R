@@ -459,13 +459,23 @@ window.e2e = {
       ), 'button ' + text);
     button.click();
   },
+  // Picks the choice of the value given in the select of the label given, as
+  // a user opens its list and clicks the choice, once R has answered for the
+  // choices, and closes the list of several again, which reports its picks.
+  // A select of one choice that shows it greyed out has nothing to pick.
   async pick(label, value, within) {
-    const select = await e2e.until(() => {
-      const found = e2e.label(within, label)?.querySelector('select');
-      const known = [...(found?.options ?? [])].some((o) => o.value === value);
-      return known && found;
-    }, 'choice ' + value + ' of ' + label);
-    e2e.set(select, value, 'change');
+    const field = await e2e.until(
+      () => e2e.labelled(within, label),
+      'field ' + label
+    );
+    if (field.disabled && field.value === value) return;
+    field.click();
+    const found = await e2e.until(
+      () => e2e.rows(field).find((o) => o.dataset.value === value),
+      'choice ' + value + ' of ' + label
+    );
+    found.click();
+    e2e.close(field);
   },
   // The field that the label of the text given names, through its for
   // attribute or by holding it.
@@ -475,6 +485,26 @@ window.e2e = {
     return label &&
       (document.getElementById(label.htmlFor) || label.querySelector('input'));
   },
+  // The rows of the open list of the select of the field given.
+  rows(field) {
+    const list = document.getElementById(field.getAttribute('aria-controls'));
+    return [...(list?.querySelectorAll('[role=option]') ?? [])];
+  },
+  // Where the user types into a select: the field of one choice, or the
+  // filter box in the open list of several.
+  filter(field) {
+    if (field instanceof HTMLInputElement) return field;
+    const list = document.getElementById(field.getAttribute('aria-controls'));
+    return list?.parentElement?.querySelector('input[role=combobox]');
+  },
+  // Closes the open list of a select of several with Escape, as it reports
+  // its picks.
+  close(field) {
+    if (field instanceof HTMLInputElement) return;
+    e2e.filter(field)?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+    );
+  },
   // Types the text into the field of the label given.
   async fill(label, value, within) {
     const field = await e2e.until(
@@ -483,9 +513,9 @@ window.e2e = {
     );
     e2e.set(field, value, 'input');
   },
-  // Picks the option of the label given in the searchable dropdown of the
-  // label given, as a user types the search into its field and clicks the
-  // option in the list that the search narrows.
+  // Picks the choice of the label given in the select of the label given, as
+  // a user types the search into it and clicks the choice in the list that
+  // the search narrows, and closes the list of several again.
   async choose(label, search, option, within) {
     const field = await e2e.until(
       () => e2e.labelled(within, label),
@@ -493,15 +523,19 @@ window.e2e = {
     );
     field.focus();
     field.click();
-    e2e.set(field, search, 'input');
-    const found = await e2e.until(() => {
-      const list = document.getElementById(field.getAttribute('aria-controls'));
-      return [...(list?.querySelectorAll('[role=option]') ?? [])].find((o) =>
-        o.querySelector('span > span')?.textContent.replace(/^\u2713 /, '') ===
-          option
-      );
-    }, 'option ' + option + ' of ' + label);
+    const filter = await e2e.until(
+      () => e2e.filter(field),
+      'filter of ' + label
+    );
+    e2e.set(filter, search, 'input');
+    const found = await e2e.until(
+      () => e2e.rows(field).find((o) =>
+        o.querySelector('[data-label]')?.textContent === option
+      ),
+      'option ' + option + ' of ' + label
+    );
     found.click();
+    e2e.close(field);
   },
   async check(label, within) {
     const box = await e2e.until(

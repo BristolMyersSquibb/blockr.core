@@ -1,17 +1,18 @@
 // srcts/modules/merge-block/index.tsx
-import { strings } from "@blockr/core/binding";
-import { Checkbox, Checklist, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
+import { asChoices, strings } from "@blockr/core/binding";
+import { Checkbox, reactModule, Select, Stack, useRequest, useValue } from "@blockr/core/react";
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 function MergeBlock({ host }) {
   const shared = useRequest(host, "shared");
   return /* @__PURE__ */ jsxs(Stack, { children: [
     /* @__PURE__ */ jsx(
-      Checklist,
+      Select,
       {
         bound: useValue(host, "by"),
-        legend: "By columns",
-        choices: shared.answer === void 0 ? void 0 : strings(shared.answer),
+        multiple: true,
+        label: "By columns",
+        choices: shared.answer === void 0 ? void 0 : asChoices(strings(shared.answer)),
         empty: "The inputs share no column.",
         outdated: shared.loading || shared.error !== null
       }

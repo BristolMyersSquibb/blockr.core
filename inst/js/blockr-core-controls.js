@@ -142,6 +142,9 @@ function controls(host, signal) {
         label: options.label,
         placeholder: options.placeholder,
         choices,
+        multiple: options.multiple,
+        ordered: options.ordered,
+        empty: options.empty,
         outdated
       }
     ));
@@ -159,31 +162,6 @@ function controls(host, signal) {
   function checkbox(key, options) {
     input(key, (bound) => /* @__PURE__ */ jsx(inputs.Checkbox, { bound, label: options.label }));
   }
-  function checklist(key, options) {
-    let choices = options.choices;
-    let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx(
-      inputs.Checklist,
-      {
-        bound,
-        legend: options.legend,
-        choices,
-        empty: options.empty,
-        ordered: options.ordered,
-        outdated
-      }
-    ));
-    return {
-      setChoices(next) {
-        choices = next;
-        redraw();
-      },
-      setOutdated(next) {
-        outdated = next;
-        redraw();
-      }
-    };
-  }
   function cleanup() {
     if (ended) return;
     ended = true;
@@ -192,7 +170,7 @@ function controls(host, signal) {
     root.unmount();
   }
   signal.addEventListener("abort", cleanup, { once: true });
-  return { el, add, get, bind, text, number, select, checkbox, checklist, follow, alert, cleanup };
+  return { el, add, get, bind, text, number, select, checkbox, follow, alert, cleanup };
 }
 function Slot({ node }) {
   const ref = useRef(null);

@@ -32,7 +32,8 @@ var optionSchemas = {
 };
 
 // srcts/options/ui.tsx
-import { Checklist, NumberInput, Select } from "@blockr/core/react";
+import { asChoices } from "@blockr/core/binding";
+import { NumberInput, Select } from "@blockr/core/react";
 import { reactModule, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 function numberUi(label, min) {
@@ -41,11 +42,11 @@ function numberUi(label, min) {
   }
   return reactModule(NumberUi);
 }
-function checklistUi(legend, choices) {
-  function ChecklistUi({ host }) {
-    return /* @__PURE__ */ jsx(Checklist, { bound: useValue(host), legend, choices, ordered: true });
+function multiSelectUi(label, choices) {
+  function MultiSelectUi({ host }) {
+    return /* @__PURE__ */ jsx(Select, { bound: useValue(host), multiple: true, label, choices: asChoices(choices), ordered: true });
   }
-  return reactModule(ChecklistUi);
+  return reactModule(MultiSelectUi);
 }
 function selectUi(label, placeholder, choices) {
   function SelectUi({ host }) {
@@ -79,7 +80,7 @@ var showConditions = {
     if (value === void 0) return ["warning", "error"];
     return checked("show_conditions", takesSeverities, value, typeof value === "string" ? [value] : value);
   },
-  ui: checklistUi("Message types to display", SEVERITIES)
+  ui: multiSelectUi("Message types to display", SEVERITIES)
 };
 var darkMode = {
   label: "Light/dark mode",

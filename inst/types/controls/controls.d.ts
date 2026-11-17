@@ -9,9 +9,13 @@ export interface Select {
     setChoices(choices: readonly Choice[]): void;
     setOutdated(outdated: boolean): void;
 }
-export interface Checklist {
-    setChoices(choices: readonly string[]): void;
-    setOutdated(outdated: boolean): void;
+export interface SelectOptions {
+    readonly label: string;
+    readonly placeholder?: string;
+    readonly choices?: readonly Choice[];
+    readonly multiple?: boolean;
+    readonly ordered?: boolean;
+    readonly empty?: string;
 }
 export interface Controls<K extends string = string> {
     readonly el: HTMLElement;
@@ -27,20 +31,10 @@ export interface Controls<K extends string = string> {
         label: string;
         min?: number;
     }): NumberInput;
-    select(key: K, options: {
-        label: string;
-        placeholder: string;
-        choices?: readonly Choice[];
-    }): Select;
+    select(key: K, options: SelectOptions): Select;
     checkbox(key: K, options: {
         label: string;
     }): void;
-    checklist(key: K, options: {
-        legend: string;
-        choices?: readonly string[];
-        empty?: string;
-        ordered?: boolean;
-    }): Checklist;
     follow(name: string, options: FollowOptions): Followed;
     alert(error: unknown): void;
     readonly cleanup: () => void;

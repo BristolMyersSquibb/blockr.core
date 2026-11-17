@@ -43,12 +43,21 @@ export interface Select {
   setOutdated(outdated: boolean): void;
 }
 
-export interface Checklist {
-  setChoices(choices: readonly string[]): void;
-  // Says whether the choices may be for older data,
-  // as from the option `loading` of follow() until the request answers.
-  // Meanwhile the checklist keeps them, and marks no string.
-  setOutdated(outdated: boolean): void;
+// What a select of the controls takes besides its key.
+export interface SelectOptions {
+  readonly label: string;
+  // What the field shows while nothing is picked, "None" by default for
+  // several choices.
+  readonly placeholder?: string;
+  readonly choices?: readonly Choice[];
+  // Whether it picks an array of strings, rather than one string.
+  readonly multiple?: boolean;
+  // Where it picks several, whether it submits them in the order of the
+  // choices, as for severities, rather than in the order the user picked
+  // them.
+  readonly ordered?: boolean;
+  // What its list says once its choices are known and there are none.
+  readonly empty?: string;
 }
 
 // The controls of a module, by the keys of the values they bind:
@@ -74,31 +83,19 @@ export interface Controls<K extends string = string> {
   // and no larger than the number that setMax() gives,
   // but while setOutdated() says that it may be for older data.
   number(key: K, options: { label: string; min?: number }): NumberInput;
-  // A select of one string, which shows `placeholder` while the value is
-  // unset.
+  // A select of one string, or of an array of strings where `multiple`,
+  // which shows `placeholder` while nothing is picked.
   // It takes no choices until they are given, here or through setChoices(),
   // and shows a value meanwhile as it is.
   // Once they are, it shows a value that they lack as missing,
   // and marks itself invalid,
   // but not while setOutdated() says that they may be for older data.
   // So its choices must list every value it takes, not a part of them.
-  select(key: K, options: { label: string; placeholder: string; choices?: readonly Choice[] }): Select;
+  // It submits one string as the user picks it, and several once, as its list
+  // closes, after those the value holds, or where `ordered`, in the order of
+  // the choices.
+  select(key: K, options: SelectOptions): Select;
   checkbox(key: K, options: { label: string }): void;
-  // A checkbox for each string that an array may hold,
-  // which says `empty` once its choices are known and there are none.
-  // It takes no choices until they are given, here or through setChoices(),
-  // and shows a string the value holds and they lack,
-  // marked as missing once they are given, so that the user can clear it.
-  // It marks no string while setOutdated() says that the choices may be for
-  // older data.
-  // So its choices must list every string it takes, not a part of them.
-  // It submits the checked strings in the order the user checked them,
-  // after those the value holds, or where `ordered`, in the order of the
-  // choices, as for severities.
-  checklist(
-    key: K,
-    options: { legend: string; choices?: readonly string[]; empty?: string; ordered?: boolean },
-  ): Checklist;
   // A request of the block's class or of the board option,
   // asked as the module mounts and again whenever what it reads changes.
   follow(name: string, options: FollowOptions): Followed;
@@ -256,7 +253,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     };
   }
 
-  function select(key: string, options: { label: string; placeholder: string; choices?: readonly Choice[] }): Select {
+  function select(key: string, options: SelectOptions): Select {
     let choices = options.choices;
     let outdated = false;
     input(key, (bound) => (
@@ -265,6 +262,9 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
         label={options.label}
         placeholder={options.placeholder}
         choices={choices}
+        multiple={options.multiple}
+        ordered={options.ordered}
+        empty={options.empty}
         outdated={outdated}
       />
     ));
@@ -284,34 +284,6 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     input(key, (bound) => <inputs.Checkbox bound={bound} label={options.label} />);
   }
 
-  function checklist(
-    key: string,
-    options: { legend: string; choices?: readonly string[]; empty?: string; ordered?: boolean },
-  ): Checklist {
-    let choices = options.choices;
-    let outdated = false;
-    input(key, (bound) => (
-      <inputs.Checklist
-        bound={bound}
-        legend={options.legend}
-        choices={choices}
-        empty={options.empty}
-        ordered={options.ordered}
-        outdated={outdated}
-      />
-    ));
-    return {
-      setChoices(next) {
-        choices = next;
-        redraw();
-      },
-      setOutdated(next) {
-        outdated = next;
-        redraw();
-      },
-    };
-  }
-
   function cleanup(): void {
     if (ended) return;
     ended = true;
@@ -322,7 +294,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
 
   signal.addEventListener("abort", cleanup, { once: true });
 
-  return { el, add, get, bind, text, number, select, checkbox, checklist, follow, alert, cleanup };
+  return { el, add, get, bind, text, number, select, checkbox, follow, alert, cleanup };
 }
 
 // An element that the module draws itself, which React puts in a wrapper that

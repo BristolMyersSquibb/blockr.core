@@ -601,6 +601,16 @@
   The registry still rejects with that error, and its `preflight()` still answers `false`.
   It logs no refusal, whether it refuses a command itself, the command refuses with the `refusal()` of its context, or the store refuses the command's deltas.
   Where a plugin runs a command of the user's through `CoreApi`, core raises `board_edit_failed` for a command that failed so, as it does for a refusal, and logs no line of its own (#627).
+* Core's React SDK offers one select, `Select`, which core's own UIs, frontends, the UIs of plugins and those of blocks all draw with, following the select of the design system of blockr.ui.
+  It picks one choice, or several where it is given `multiple`, out of a list that the user filters by typing.
+  It opens the list in the browser's top layer, below its field, or above the field where the window has no room below, so that no panel clips the list.
+  Given `value` and `onChange`, it picks for its caller, so that a plugin's UI can run a command with the pick.
+  Given `bound`, it binds a block's state arg or a board option's value, as before.
+  Where it is given `multiple` as well, it binds an array of strings in place of `Checklist`, which is gone, and submits the picks once, as its list closes.
+  The field of several shows the picks as text, and its list shows them on top, with All and None, and keeps to the fewest picks that `min` gives.
+  A choice may carry a `detail`, a `badge`, a `group`, `keywords` and `disabled`.
+  The `select()` of `controls()` takes `multiple`, `ordered` and `empty`, in place of `checklist()`, which is gone.
+  Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).
 
 # blockr.core 0.1.4
 

@@ -1,6 +1,7 @@
 // srcts/modules/filebrowser-block/index.tsx
 import { Fragment, useState } from "react";
-import { Field, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
+import { asChoices } from "@blockr/core/binding";
+import { reactModule, Select, Stack, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -63,17 +64,17 @@ function FileBrowserBlock({ host }) {
   };
   const names = Object.keys(volumes);
   return /* @__PURE__ */ jsxs(Stack, { children: [
-    names.length > 1 && /* @__PURE__ */ jsx(Field, { label: "Volume", children: /* @__PURE__ */ jsx(
-      "select",
+    names.length > 1 && /* @__PURE__ */ jsx(
+      Select,
       {
-        className: styles.box,
-        value: volume ?? "",
-        onChange: (event) => {
-          go({ volume: event.target.value, dirs: [] });
-        },
-        children: names.map((name) => /* @__PURE__ */ jsx("option", { value: name, children: name }, name))
+        label: "Volume",
+        choices: asChoices(names),
+        value: volume,
+        onChange: (name) => {
+          go({ volume: name, dirs: [] });
+        }
       }
-    ) }),
+    ),
     /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsxs(Fragment, { children: [
       i > 0 && /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
       /* @__PURE__ */ jsx(

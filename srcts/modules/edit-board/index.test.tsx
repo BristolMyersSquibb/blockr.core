@@ -12,8 +12,8 @@ import { afterEach, describe, expect, test } from "vitest";
 import type { HelloReply } from "../../protocol/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
-import { labelled, optionFromLabel, optionLabels } from "../../testing/combobox.ts";
-import { find, pick, press, texts, type } from "../../testing/inputs.ts";
+import { fieldOf, filterOf, labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
+import { find, press, texts, type } from "../../testing/inputs.ts";
 import { held, notificationCode } from "../../testing/notifications.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
@@ -78,12 +78,6 @@ function button(el: ParentNode, text: string): HTMLButtonElement {
   const found = [...el.querySelectorAll("button")].find((b) => b.getAttribute("aria-label") === text || b.textContent.trim() === text);
   if (found === undefined) throw new Error(`Found no button ${text}.`);
   return found;
-}
-
-// The select of the label given, as a label holds it.
-function select(el: ParentNode, label: string): HTMLSelectElement {
-  const found = [...el.querySelectorAll("label")].find((l) => l.querySelector("span")?.textContent === label);
-  return find(found ?? document.createElement("label"), "select", HTMLSelectElement);
 }
 
 // The row of a table, by its name, such as "Iris → Head" for a link.
@@ -306,8 +300,8 @@ describe("the links", () => {
     await chosen(add(), "From", "Scatter");
     expect(await targets()).toEqual(["Head", "Bind"]);
     await chosen(add(), "To", "Head");
-    // Head has one input, which the form shows.
-    expect([...select(add(), "Input").options].map((o) => o.value)).toEqual(["data"]);
+    // Head has one input, which the form shows, with nothing to pick.
+    expect([labelled(add(), "Input").value, labelled(add(), "Input").disabled]).toEqual(["data", true]);
     await click(button(add(), "Add link"));
     expect(Object.values(board().links)).toContainEqual({ from: "f", to: "b", input: "data" });
     expect(labelled(add(), "To").value).toBe("");
@@ -328,7 +322,7 @@ describe("the links", () => {
 
     await chosen(add(), "From", "Scatter");
     await chosen(add(), "To", "Bind");
-    expect(add().querySelector("select")).toBeNull();
+    expect(texts(add(), "label")).not.toContain("Input");
     await step(() => {
       type(labelled(add(), "Input name"), "plotted");
     });
@@ -369,7 +363,7 @@ describe("the links", () => {
     expect([labelled(edit(), "From").value, labelled(edit(), "To").value]).toEqual(["Iris", "Merge"]);
     // The link feeds x, and the form offers Merge's other input as well, y,
     // which bc feeds.
-    expect([...select(edit(), "Input").options].map((o) => o.value)).toEqual(["x", "y"]);
+    expect(await listed(labelled(edit(), "Input"), step)).toEqual(["x", "y"]);
     await click(button(edit(), "Cancel"));
     expect(links.querySelector('form[aria-label="Change link"]')).toBeNull();
     expect(document.activeElement).toBe(button(links, "Edit the link from Iris to Merge"));
@@ -399,11 +393,9 @@ describe("the links", () => {
 
     // The link from Iris feeds Merge's x, and the one from Head its y.
     await click(button(links, "Edit the link from Iris to Merge"));
-    expect(note(select(edit(), "Input"))).toBeUndefined();
-    await step(() => {
-      pick(select(edit(), "Input"), "y");
-    });
-    expect(note(select(edit(), "Input"))).toBe('The link from "Head" feeds "y". Saving gives that link "x", so the two links swap their inputs.');
+    expect(note(labelled(edit(), "Input"))).toBeUndefined();
+    await picked(labelled(edit(), "Input"), step, "y");
+    expect(note(labelled(edit(), "Input"))).toBe('The link from "Head" feeds "y". Saving gives that link "x", so the two links swap their inputs.');
     await click(button(edit(), "Save"));
     expect([board().links.ac, board().links.bc]).toEqual([
       { from: "a", to: "c", input: "y" },
@@ -424,7 +416,7 @@ describe("the links", () => {
     await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
     await click(button(links, "Edit the link from Iris to Head"));
     await chosen(edit(), "To", "Merge");
-    expect([...select(edit(), "Input").options].map((o) => o.value)).toEqual(["y"]);
+    expect([labelled(edit(), "Input").value, labelled(edit(), "Input").disabled]).toEqual(["y", true]);
   });
 
   test("into a variadic block, move to the place that the user picks in the row's edit form, keeping their IDs and their ends, as a step of its own", async () => {
@@ -436,11 +428,9 @@ describe("the links", () => {
 
     // The links into Bind, Head's first and Wide sepals' second.
     await click(button(links, "Edit the link from Wide sepals to Bind"));
-    expect([...select(edit(), "Position").options].map((o) => o.value)).toEqual(["1", "2"]);
-    expect(select(edit(), "Position").value).toBe("2");
-    await step(() => {
-      pick(select(edit(), "Position"), "1");
-    });
+    expect(await listed(labelled(edit(), "Position"), step)).toEqual(["1", "2"]);
+    expect(labelled(edit(), "Position").value).toBe("2");
+    await picked(labelled(edit(), "Position"), step, "1");
     await click(button(edit(), "Save"));
 
     expect(into()).toEqual(["de", "be"]);
@@ -462,16 +452,14 @@ describe("the links", () => {
 
     // Merge's inputs are fixed, so its link's form offers no place.
     await click(button(links, "Edit the link from Iris to Merge"));
-    expect(texts(edit(), "label > span")).toContain("Input");
-    expect(texts(edit(), "label > span")).not.toContain("Position");
+    expect(texts(edit(), "label")).toContain("Input");
+    expect(texts(edit(), "label")).not.toContain("Position");
 
     // On the board, the link comes before Bind's two, so it would be first.
     await chosen(edit(), "To", "Bind");
-    expect([...select(edit(), "Position").options].map((o) => o.value)).toEqual(["1", "2", "3"]);
-    expect(select(edit(), "Position").value).toBe("1");
-    await step(() => {
-      pick(select(edit(), "Position"), "3");
-    });
+    expect(await listed(labelled(edit(), "Position"), step)).toEqual(["1", "2", "3"]);
+    expect(labelled(edit(), "Position").value).toBe("1");
+    await picked(labelled(edit(), "Position"), step, "3");
     await click(button(edit(), "Save"));
     expect(into()).toEqual(["be", "de", "ac"]);
     expect(board().links.ac).toEqual({ from: "a", to: "e", input: "" });
@@ -523,7 +511,7 @@ describe("the stacks", () => {
     expect(color().value).toBe("#66c2a5");
 
     // The blocks of no stack come first, and those of another stack apart.
-    const blocks = labelled(add(), "Blocks");
+    const blocks = fieldOf(add(), "Blocks");
     await step(() => {
       blocks.click();
     });
@@ -541,6 +529,12 @@ describe("the stacks", () => {
     await step(() => {
       optionFromLabel(blocks, "Merge").click();
     });
+    // A click on the button takes the focus from the list first, which closes
+    // it, and the list reports the picks.
+    await step(() => {
+      filterOf(blocks).blur();
+    });
+    expect([listFromField(blocks), blocks.textContent]).toEqual([null, "Scatter, Merge"]);
     expect(Object.keys(board().stacks)).toEqual(["s1"]);
     await click(button(add(), "Add stack"));
 
@@ -561,14 +555,15 @@ describe("the stacks", () => {
     const edit = (): HTMLFormElement => form(stacks, "Change stack");
     expect(labelled(edit(), "Name").value).toBe("Input");
     expect(find(edit(), 'input[type="checkbox"]', HTMLInputElement).checked).toBe(false);
-    expect(texts(edit(), 'ul[aria-label="Blocks, picked"] li > span')).toEqual(["Iris", "Head"]);
+    expect(fieldOf(edit(), "Blocks").textContent).toBe("Iris, Head");
 
     await step(() => {
       type(labelled(edit(), "Name"), "Sources");
       find(edit(), 'input[type="checkbox"]', HTMLInputElement).click();
-      find(edit(), 'button[aria-label="Remove Head"]').click();
     });
-    await chosen(edit(), "Blocks", "Scatter");
+    // Escape closes the list, and leaves the form open.
+    await picked(fieldOf(edit(), "Blocks"), step, "Head", "Scatter");
+    expect(fieldOf(edit(), "Blocks").textContent).toBe("Iris, Scatter");
     await click(button(edit(), "Save"));
 
     expect(board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "f"], color: "#66c2a5" });

@@ -28,19 +28,21 @@
 //   table shows as each link's place among the block's links.
 // Under the board lock, it lists the links alone.
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { flushSync } from "react-dom";
+import { asChoices } from "../../binding/index.ts";
+import type { Choice } from "../../binding/index.ts";
 import { freeInputs, linkFeeding } from "../../commands/index.ts";
 import { createGraph } from "../../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../../picker/index.ts";
+import { Select } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import type { RegistryEntry } from "../../types/registry.ts";
-import { classes, Combobox, Pager, runCommand, TableSearch, TextField, useTableView } from "../../ui/index.ts";
-import type { ComboOption } from "../../ui/index.ts";
+import { classes, Pager, runCommand, TableSearch, TextField, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
 
@@ -225,7 +227,6 @@ function LinkForm({
   const [place, setPlace] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
-  const hintId = useId();
 
   // The blocks that the form offers, with the links of the board but the one
   // that the form changes, which is about to move.
@@ -314,24 +315,22 @@ function LinkForm({
       }}
     >
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
-        <Combobox
+        <Select
           label="From"
-          options={fromOptions}
+          choices={fromOptions}
           value={source}
           placeholder="Search blocks"
-          empty="No block matches."
           error={errors.from}
           onChange={(value) => {
             setFrom(value);
             setErrors((now) => without(now, "from"));
           }}
         />
-        <Combobox
+        <Select
           label="To"
-          options={toOptions}
+          choices={toOptions}
           value={target}
           placeholder="Search blocks"
-          empty="No block that takes a link matches."
           error={errors.to}
           hint={toOptions.length === 0 ? "No block takes a link from this block." : undefined}
           onChange={(value) => {
@@ -359,51 +358,19 @@ function LinkForm({
             }}
           />
           {among === undefined ? null : (
-            <label className={styles.field}>
-              <span className={styles.label}>Position</span>
-              <select
-                className={styles.box}
-                value={position}
-                disabled={among.others.length === 0}
-                onChange={(event) => {
-                  setPlace(Number(event.target.value));
-                }}
-              >
-                {Array.from({ length: among.others.length + 1 }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              label="Position"
+              choices={asChoices(Array.from({ length: among.others.length + 1 }, (_, i) => String(i + 1)))}
+              value={position === undefined ? undefined : String(position)}
+              disabled={among.others.length === 0}
+              onChange={(value) => {
+                setPlace(Number(value));
+              }}
+            />
           )}
         </div>
       ) : (
-        <div className={styles.field}>
-          <label className={styles.field}>
-            <span className={styles.label}>Input</span>
-            <select
-              className={styles.box}
-              value={chosen}
-              disabled={offered.length < 2}
-              aria-describedby={hint === undefined ? undefined : hintId}
-              onChange={(event) => {
-                setInput(event.target.value);
-              }}
-            >
-              {offered.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-          {hint === undefined ? null : (
-            <p id={hintId} className={styles.hint}>
-              {hint}
-            </p>
-          )}
-        </div>
+        <Select label="Input" choices={asChoices(offered)} value={chosen} disabled={offered.length < 2} hint={hint} onChange={setInput} />
       )}
       {editing === undefined && Object.keys(board.blocks).length < 2 ? (
         <p className={styles.hint}>A link joins two blocks, so the board needs two blocks first.</p>
@@ -428,8 +395,8 @@ function LinkForm({
   );
 }
 
-// A block as a dropdown offers it: by its name, with its id and its class.
-export function blockOption(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): ComboOption {
+// A block as a select offers it: by its name, with its id and its class.
+export function blockOption(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): Choice {
   const block = own(board.blocks, id);
   const cls = block === undefined ? undefined : (own(registry, block.registry_id)?.name ?? block.registry_id);
   return {

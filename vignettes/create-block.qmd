@@ -535,11 +535,14 @@ The SDK holds these:
 - The function `reactModule()` makes a module from a component.
 - The hook `useValue()` binds a state arg to an input, by the contract's rules.
 - The hook `useRequest()` follows a request, which it asks again whenever its args or the revisions of the block's inputs change. Its `loading` says whether it is asking, while `answer` keeps the last answer and `error` says why the latest ask failed.
-- The inputs `Checkbox`, `Checklist`, `Field`, `NumberInput`, `Select`, `Stack` and `TextInput`, each on one bound value.
+- The inputs `Checkbox`, `Field`, `NumberInput`, `Select`, `Stack` and `TextInput`, each on one bound value.
+  A `Select` picks one string, or an array of strings where it is given `multiple`, out of a list that the user filters by typing.
+  Its list opens in the browser's top layer, so that no panel clips it.
+  Given `value` and `onChange` in place of `bound`, it picks for its caller instead, as in the UI of a plugin.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
 - For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a block through `CoreApi`.
 
-A `Select` or a `Checklist` whose choices a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
+A `Select` whose choices a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
 Once they are known, the input shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.
 The last answer is for older data while the request asks again, as after the block's inputs changed, and after an ask failed.
 The module then sets `outdated` on the input, which keeps the choices on screen but marks no value that they lack.
@@ -683,7 +686,8 @@ export default {
 };
 ```
 
-A select or a checklist of the controls has no choices until the module gives them, in its options or through `setChoices()` once a request answers.
+A select of the controls has no choices until the module gives them, in its options or through `setChoices()` once a request answers.
+Given `multiple`, it picks an array of strings, which it submits once, as its list closes.
 The option `loading` of `follow()` runs each time the request is asked, and the option `answer` once it answers.
 In `loading`, a module calls `setOutdated(true)` on each input whose choices or `max` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
 

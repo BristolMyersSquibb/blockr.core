@@ -246,7 +246,7 @@ export const viewsPlugin: PluginClass = {
 // A block's UI module that draws with the controls core ships,
 // as a package writes it.
 const mergeModule = `import type { BlockModule } from "@blockr/core";
-import { controls, strings } from "@blockr/core/controls";
+import { asChoices, controls, strings } from "@blockr/core/controls";
 
 type MergeState = { by?: string[]; all_x: boolean };
 
@@ -255,14 +255,14 @@ export const api = 1;
 const merge: BlockModule<MergeState> = {
   render({ el, host, signal }) {
     const ui = controls(host, signal);
-    const by = ui.checklist("by", { legend: "By columns", empty: "No column is shared." });
+    const by = ui.select("by", { label: "By columns", multiple: true, empty: "No column is shared." });
     ui.checkbox("all_x", { label: "Keep the rows of x that y does not match" });
     ui.follow("shared", {
       loading() {
         by.setOutdated(true);
       },
       answer(answer) {
-        by.setChoices(strings(answer));
+        by.setChoices(asChoices(strings(answer)));
         by.setOutdated(false);
       },
     });

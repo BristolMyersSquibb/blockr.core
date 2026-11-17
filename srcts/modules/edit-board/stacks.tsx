@@ -8,9 +8,9 @@
 //   rename_stack and sets its colour and blocks with change_stack once the
 //   user saves it, each where it changed. Its Remove button removes the stack
 //   with remove_stack, which leaves the stack's blocks on the board.
-// The form picks the blocks in a searchable dropdown that shows each block
-// picked as a chip, so that it stays usable on a board of many blocks.
-// A block sits in one stack at most. So the dropdown lists the blocks in no
+// The form picks the blocks in a select of several, whose list the user
+// filters, so that it stays usable on a board of many blocks.
+// A block sits in one stack at most. So the select lists the blocks in no
 // stack first, and apart from them those that another stack holds, naming the
 // stack, which a block that the user picks leaves.
 // A new stack starts with a name and a colour that no other stack has, such
@@ -20,12 +20,13 @@
 
 import { useId, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
+import type { Choice } from "../../binding/index.ts";
+import { Select } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, MultiCombobox, Pager, runCommand, TableSearch, TextField, useTableView } from "../../ui/index.ts";
-import type { ComboOption } from "../../ui/index.ts";
+import { classes, Pager, runCommand, TableSearch, TextField, useTableView } from "../../ui/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
 import { blockName, blockOption } from "./links.tsx";
 
@@ -226,8 +227,8 @@ function StackForm({
     if (id === editing?.id) continue;
     for (const block of stack.blocks) holder.set(block, stack.name);
   }
-  const options: ComboOption[] = Object.keys(board.blocks)
-    .map((id): ComboOption => {
+  const options: Choice[] = Object.keys(board.blocks)
+    .map((id): Choice => {
       const option = blockOption(board, registry, id);
       const other = holder.get(id);
       return other === undefined
@@ -290,12 +291,13 @@ function StackForm({
         />
         <ColorField color={color} onChange={setColor} />
       </div>
-      <MultiCombobox
+      <Select
+        multiple
         label="Blocks"
-        options={options}
-        values={kept}
-        placeholder="Search blocks to add"
-        empty="No other block matches."
+        choices={options}
+        value={kept}
+        placeholder="No blocks"
+        empty="The board holds no block."
         hint="A block sits in one stack at most."
         onChange={setBlocks}
       />

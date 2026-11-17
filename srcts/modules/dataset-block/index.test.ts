@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost } from "../../stubs/index.ts";
-import { find, pick, texts } from "../../testing/inputs.ts";
+import { labelled, listed, picked } from "../../testing/select.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
@@ -28,14 +28,20 @@ afterEach(() => {
 async function mounted(state: State, requests = fixture.requests) {
   const host = stubBlockHost<State>({ ...fixture, requests }, { state });
   const view = await mountOnPage(dataset, host);
-  return { host, view, select: find(view.el, "select", HTMLSelectElement) };
+  return { host, view, select: labelled(view.el, "Dataset") };
+}
+
+// What the select shows: its field's text, the rows of its list and whether
+// it marks itself invalid.
+async function shown(select: HTMLInputElement): Promise<[string, string[], string | null]> {
+  return [select.value, await listed(select, step), select.getAttribute("aria-invalid")];
 }
 
 test("shows the state, with a choice of each data frame the package ships", async () => {
   const { host, select } = await mounted(iris);
   await settle();
 
-  expect([select.value, texts(select, "option")]).toEqual(["iris", ["BOD", "iris", "mtcars"]]);
+  expect(await shown(select)).toEqual(["iris", ["BOD", "iris", "mtcars"], null]);
   expect(host.requested).toEqual([{ name: "datasets", args: {} }]);
   expect(host.submitted).toEqual([]);
 });
@@ -43,18 +49,11 @@ test("shows the state, with a choice of each data frame the package ships", asyn
 test("shows a dataset that the choices lack as it is until they arrive, then as missing", async () => {
   const unanswered = await mounted({ dataset: "Nile", package: "datasets" }, []);
   await settle();
-  expect([texts(unanswered.select, "option"), unanswered.select.getAttribute("aria-invalid")]).toEqual([
-    ["Nile"],
-    "false",
-  ]);
+  expect(await shown(unanswered.select)).toEqual(["Nile", [], null]);
 
   const { host, select } = await mounted({ dataset: "Nile", package: "datasets" });
   await settle();
-  expect([select.value, texts(select, "option"), select.getAttribute("aria-invalid")]).toEqual([
-    "Nile",
-    ["BOD", "iris", "mtcars", "Nile (not available)"],
-    "true",
-  ]);
+  expect(await shown(select)).toEqual(["Nile (not available)", ["BOD", "iris", "mtcars", "Nile (not available)"], "true"]);
   expect(host.submitted).toEqual([]);
 });
 
@@ -62,8 +61,8 @@ test("never picks a dataset once the choices arrive", async () => {
   const { host, select } = await mounted({ package: "datasets" });
   await settle();
 
-  expect(select.value).toBe("");
-  expect(texts(select, "option")).toEqual(["Choose a dataset", "BOD", "iris", "mtcars"]);
+  expect([select.value, select.placeholder]).toEqual(["", "Choose a dataset"]);
+  expect(await shown(select)).toEqual(["", ["BOD", "iris", "mtcars"], null]);
   expect(host.submitted).toEqual([]);
 });
 
@@ -71,9 +70,7 @@ test("submits the dataset the user picks, and takes one set from outside", async
   const { host, select } = await mounted(iris);
   await settle();
 
-  await step(() => {
-    pick(select, "BOD");
-  });
+  await picked(select, step, "BOD");
   expect(host.submitted).toEqual([bod]);
 
   await step(() => {
@@ -92,27 +89,26 @@ test("asks again where the package changes, and keeps its choices where that fai
   await settle();
 
   expect(host.requested).toHaveLength(2);
-  expect(texts(select, "option")).toEqual(["BOD", "iris", "mtcars"]);
+  expect(await shown(select)).toEqual(["iris", ["BOD", "iris", "mtcars"], null]);
 });
 
 test("marks no dataset while it asks for the datasets of another package, nor once that ask failed", async () => {
   const host = stubBlockHost<State>(fixture, { state: iris });
   const release = holdRequests(host);
   const view = await mountOnPage(dataset, host);
-  const select = find(view.el, "select", HTMLSelectElement);
-  const shown = () => [select.value, texts(select, "option"), select.getAttribute("aria-invalid")];
+  const select = labelled(view.el, "Dataset");
   release();
   await settle();
-  expect(shown()).toEqual(["iris", ["BOD", "iris", "mtcars"], "false"]);
+  expect(await shown(select)).toEqual(["iris", ["BOD", "iris", "mtcars"], null]);
 
   await step(() => {
     host.setState({ dataset: "Boston", package: "MASS" });
   });
-  expect(shown()).toEqual(["Boston", ["BOD", "iris", "mtcars", "Boston"], "false"]);
+  expect(await shown(select)).toEqual(["Boston", ["BOD", "iris", "mtcars", "Boston"], null]);
 
   // The fixture records no datasets of MASS.
   release();
   await settle();
-  expect(shown()).toEqual(["Boston", ["BOD", "iris", "mtcars", "Boston"], "false"]);
+  expect(await shown(select)).toEqual(["Boston", ["BOD", "iris", "mtcars", "Boston"], null]);
   expect(host.submitted).toEqual([]);
 });

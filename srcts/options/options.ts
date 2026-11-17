@@ -31,7 +31,7 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { asLogical, asNumber } from "../util/index.ts";
 import { optionSchemas } from "./schemas.ts";
-import { checklistUi, numberUi, selectUi } from "./ui.tsx";
+import { multiSelectUi, numberUi, selectUi } from "./ui.tsx";
 
 // What a board option's default reads of CoreApi.
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
@@ -66,7 +66,7 @@ export const showConditions: Omit<Option, "id"> = {
     if (value === undefined) return ["warning", "error"];
     return checked("show_conditions", takesSeverities, value, typeof value === "string" ? [value] : value);
   },
-  ui: checklistUi("Message types to display", SEVERITIES),
+  ui: multiSelectUi("Message types to display", SEVERITIES),
 };
 
 // Whether the board shows in its light or its dark theme. Today's fallback is

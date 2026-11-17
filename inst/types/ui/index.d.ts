@@ -1,6 +1,4 @@
-export { Combobox, MultiCombobox } from "./combobox.tsx";
 export { runCommand } from "./edits.ts";
-export type { ComboOption } from "./combobox.tsx";
 export { TextField } from "./fields.tsx";
 export { useHistory } from "./hooks.ts";
 export { Pager, TableSearch, useTableView } from "./table.tsx";

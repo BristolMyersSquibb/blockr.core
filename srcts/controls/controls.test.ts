@@ -5,8 +5,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
-import { find, pick, press, texts, toggle, type } from "../testing/inputs.ts";
+import { find, press, texts, type } from "../testing/inputs.ts";
 import { holdRequests } from "../testing/requests.ts";
+import { fieldOf, labelled, listed, picked } from "../testing/select.ts";
 import { asChoices, controls, PAUSE, strings } from "./index.ts";
 
 type Form = Readonly<{ label: string; direction: string; by?: readonly string[] }>;
@@ -17,6 +18,13 @@ const fixture: BlockFixture = {
   states: [form({}), form({ label: "yz" }), form({ direction: "tail" }), form({ by: ["b", "a"] })],
   requests: [],
 };
+
+// Does what the user does, and lets React draw what it changed, which React
+// does in a microtask.
+async function settled(fn: () => void = () => undefined): Promise<void> {
+  fn();
+  await vi.advanceTimersByTimeAsync(0);
+}
 
 let abort: AbortController;
 
@@ -43,58 +51,59 @@ function drawn(state: Form = form({})) {
       { value: "tail", label: "Tail" },
     ],
   });
-  ui.checklist("by", { legend: "By columns", choices: ["a", "b"] });
+  ui.select("by", { label: "By columns", multiple: true, choices: asChoices(["a", "b"]) });
   document.body.append(ui.el);
   return {
     host,
     ui,
-    label: find(ui.el, 'input[type="text"]', HTMLInputElement),
-    direction: find(ui.el, "select", HTMLSelectElement),
-    by: (value: string) => find(ui.el, `input[value="${value}"]`, HTMLInputElement),
+    label: labelled(ui.el, "Label"),
+    direction: labelled(ui.el, "Direction"),
+    by: fieldOf(ui.el, "By columns"),
   };
 }
 
 describe("the controls of a block's UI", () => {
   test("show the state, and take a state they did not make in the elements they drew", () => {
     const { host, ui, label, direction } = drawn();
-    expect([label.value, direction.value]).toEqual(["x", "head"]);
+    expect([label.value, direction.value]).toEqual(["x", "Head"]);
 
     host.setState(form({ label: "yz", direction: "tail" }));
 
-    expect(find(ui.el, 'input[type="text"]')).toBe(label);
-    expect([label.value, direction.value]).toEqual(["yz", "tail"]);
+    expect(labelled(ui.el, "Label")).toBe(label);
+    expect([label.value, direction.value]).toEqual(["yz", "Tail"]);
   });
 
   test("draw a control before the call that makes or changes it returns, among the module's own elements", () => {
-    const host = stubBlockHost<Form>(fixture, { state: form({}) });
+    const host = stubBlockHost<Form>(fixture, { state: form({ by: ["c"] }) });
     const ui = controls(host, abort.signal);
     ui.text("label", { label: "Label" });
     const own = document.createElement("p");
     own.textContent = "A line of the module's own";
     ui.add(own);
-    const by = ui.checklist("by", { legend: "By columns" });
-    expect(ui.el.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    const by = ui.select("by", { label: "By columns", multiple: true });
+    const field = fieldOf(ui.el, "By columns");
+    expect([field.textContent, field.getAttribute("aria-invalid")]).toEqual(["c", null]);
 
-    by.setChoices(["a", "b"]);
+    by.setChoices(asChoices(["a", "b"]));
 
-    expect(ui.el.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
-    expect(texts(ui.el, "label > span, p, legend")).toEqual(["Label", "A line of the module's own", "By columns"]);
+    expect([field.textContent, field.getAttribute("aria-invalid")]).toEqual(["c (not available)", "true"]);
+    expect(texts(ui.el, "label > span, p, label[for]")).toEqual(["Label", "A line of the module's own", "By columns"]);
   });
 
-  test("show a value as it is until a select's choices are given, and as missing where they lack it", () => {
+  test("show a value as it is until a select's choices are given, and as missing where they lack it", async () => {
     const host = stubBlockHost<Form>(fixture, { state: form({ direction: "middle" }) });
     const ui = controls(host, abort.signal);
     const direction = ui.select("direction", { label: "Direction", placeholder: "Choose an end" });
-    const select = find(ui.el, "select", HTMLSelectElement);
-    const shown = () => [select.value, texts(select, "option"), select.getAttribute("aria-invalid")];
-    expect(shown()).toEqual(["middle", ["middle"], "false"]);
+    const field = labelled(ui.el, "Direction");
+    const shown = async () => [field.value, await listed(field, settled), field.getAttribute("aria-invalid")];
+    expect(await shown()).toEqual(["middle", [], null]);
 
     direction.setChoices([
       { value: "head", label: "Head" },
       { value: "tail", label: "Tail" },
     ]);
 
-    expect(shown()).toEqual(["middle", ["Head", "Tail", "middle (not available)"], "true"]);
+    expect(await shown()).toEqual(["middle (not available)", ["Head", "Tail", "middle (not available)"], "true"]);
     expect(host.submitted).toEqual([]);
   });
 
@@ -104,7 +113,7 @@ describe("the controls of a block's UI", () => {
     const release = holdRequests(host);
     const ui = controls(host, abort.signal);
     const direction = ui.select("direction", { label: "Direction", placeholder: "Choose an end" });
-    const by = ui.checklist("by", { legend: "By columns" });
+    const by = ui.select("by", { label: "By columns", multiple: true });
     ui.follow("ends", {
       loading() {
         direction.setOutdated(true);
@@ -112,31 +121,32 @@ describe("the controls of a block's UI", () => {
       },
       answer(answer) {
         direction.setChoices(asChoices(strings(answer)));
-        by.setChoices(strings(answer));
+        by.setChoices(asChoices(strings(answer)));
         direction.setOutdated(false);
         by.setOutdated(false);
       },
     });
-    const select = find(ui.el, "select", HTMLSelectElement);
-    const shown = () => [
-      texts(select, "option"),
-      select.getAttribute("aria-invalid"),
-      texts(ui.el, "fieldset label"),
-      find(ui.el, 'input[value="c"]').getAttribute("aria-invalid"),
+    const one = labelled(ui.el, "Direction");
+    const several = fieldOf(ui.el, "By columns");
+    const shown = async () => [
+      await listed(one, settled),
+      one.getAttribute("aria-invalid"),
+      await listed(several, settled),
+      several.getAttribute("aria-invalid"),
     ];
-    expect(shown()).toEqual([["middle"], "false", ["c"], "false"]);
+    expect(await shown()).toEqual([[], null, ["Selected: c"], null]);
 
     release();
-    await vi.advanceTimersByTimeAsync(0);
-    const marked = [["head", "tail", "middle (not available)"], "true", ["head", "tail", "c (not available)"], "true"];
-    expect(shown()).toEqual(marked);
+    await settled();
+    const marked = [["head", "tail", "middle (not available)"], "true", ["Selected: c (not available)", "Other: head", "Other: tail"], "true"];
+    expect(await shown()).toEqual(marked);
 
     host.setContext({ inputs: [{ input: "data", revision: 2 }] });
-    expect(shown()).toEqual([["head", "tail", "middle"], "false", ["head", "tail", "c"], "false"]);
+    expect(await shown()).toEqual([["head", "tail", "middle"], null, ["Selected: c", "Other: head", "Other: tail"], null]);
 
     release();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(shown()).toEqual(marked);
+    await settled();
+    expect(await shown()).toEqual(marked);
     expect(host.submitted).toEqual([]);
   });
 
@@ -145,7 +155,7 @@ describe("the controls of a block's UI", () => {
 
     type(label, "yz");
     host.setState(form({ direction: "tail" }));
-    expect([label.value, direction.value]).toEqual(["yz", "tail"]);
+    expect([label.value, direction.value]).toEqual(["yz", "Tail"]);
     await vi.advanceTimersByTimeAsync(PAUSE);
     expect(host.submitted).toEqual([form({ label: "yz", direction: "tail" })]);
 
@@ -158,21 +168,20 @@ describe("the controls of a block's UI", () => {
   test("submit a pick at once, and say why the host refused one, showing the state again", async () => {
     const { host, ui, direction, by } = drawn();
 
-    pick(direction, "tail");
+    await picked(direction, settled, "Tail");
     expect(host.submitted).toEqual([form({ direction: "tail" })]);
 
     host.setState(form({}));
-    toggle(by("a"));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(by("a").checked).toBe(false);
+    await picked(by, settled, "a");
+    expect(by.textContent).toBe("None");
     expect(texts(ui.el, '[role="alert"]')[0]).toContain("which the fixture does not list");
   });
 
-  test("submit a checked string after those the state holds, from the state as it is then", () => {
+  test("submit the picks of several once, as the list closes, after the strings the state holds then", async () => {
     const { host, by } = drawn();
 
     host.setState(form({ by: ["b"] }));
-    toggle(by("a"));
+    await picked(by, settled, "a");
 
     expect(host.submitted).toEqual([form({ by: ["b", "a"] })]);
   });
@@ -242,13 +251,18 @@ describe("the controls of a board option's UI", () => {
     expect(shown()).toEqual(["50", "30", "true"]);
   });
 
-  test("submit the checked strings in the order of the choices where ordered", () => {
+  test("submit the picks of several in the order of the choices where ordered", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
     const ui = controls(host, abort.signal);
-    ui.checklist("show_conditions", { legend: "Message types to display", choices: ["message", "warning", "error"], ordered: true });
+    ui.select("show_conditions", {
+      label: "Message types to display",
+      multiple: true,
+      choices: asChoices(["message", "warning", "error"]),
+      ordered: true,
+    });
     document.body.append(ui.el);
 
-    toggle(find(ui.el, 'input[value="message"]', HTMLInputElement));
+    await picked(fieldOf(ui.el, "Message types to display"), settled, "message");
 
     expect(host.submitted).toEqual([["message", "error"]]);
   });

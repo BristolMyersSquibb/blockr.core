@@ -4,9 +4,9 @@
 // that both add a block the same way.
 // The user fills in the form, and the block goes onto the board only as the
 // user submits it, with these fields:
-// - The block's class, which a searchable dropdown picks among the block
-//   registry's entries, by their names, descriptions, keywords and registry
-//   ids, grouped by category.
+// - The block's class, which a select picks among the block registry's
+//   entries, by their names, descriptions, keywords and registry ids, grouped
+//   by category.
 // - The input that the new link feeds, where the mode adds one (below).
 // - The new block's id and its name, which the user may leave empty, where
 //   the command mints the id, or takes the name from the block's class.
@@ -31,14 +31,15 @@ import { useMemo, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { defaultBlockName, freeInputs } from "../commands/index.ts";
-import { useBoard } from "../react/index.ts";
+import { asChoices } from "../binding/index.ts";
+import type { Choice } from "../binding/index.ts";
+import { Select, useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { classes, Combobox, TextField } from "../ui/index.ts";
-import type { ComboOption } from "../ui/index.ts";
+import { classes, TextField } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 
 // Where the new block goes.
@@ -138,13 +139,13 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
         void submit(event);
       }}
     >
-      <Combobox
+      <Select
         label="Block class"
         autofocus={autofocus}
-        options={options}
+        choices={options}
         value={picked}
         placeholder={options.length === 0 ? "No block class to pick" : "Search by name, description or keyword"}
-        empty="No block class matches."
+        empty="No block class to pick."
         error={errors.registry}
         hint={entry?.description === "" ? undefined : entry?.description}
         onChange={(value) => {
@@ -156,24 +157,7 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
           setErrors((now) => without(now, "registry"));
         }}
       />
-      {link.kind === "pick" ? (
-        <label className={styles.field}>
-          <span className={styles.label}>{link.label}</span>
-          <select
-            className={styles.box}
-            value={chosen}
-            onChange={(event) => {
-              setInput(event.target.value);
-            }}
-          >
-            {link.inputs.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
+      {link.kind === "pick" ? <Select label={link.label} choices={asChoices(link.inputs)} value={chosen} onChange={setInput} /> : null}
       {link.kind === "name" ? (
         <TextField
           label={link.label}
@@ -281,9 +265,9 @@ export function isVariadic(free: readonly string[]): boolean {
   return free.length === 1 && free[0] === "";
 }
 
-// A block class as the dropdown offers it: by its name, with its description
+// A block class as the select offers it: by its name, with its description
 // and its package, under its category.
-function classOption(entry: RegistryEntry): ComboOption {
+function classOption(entry: RegistryEntry): Choice {
   const pkg = packageFromId(entry.id);
   return {
     value: entry.id,
@@ -300,8 +284,8 @@ const UNCATEGORIZED = "uncategorized";
 
 // The options by group and then by label, the groups by name, but for the
 // classes without a category, which come last.
-function byGroupAndLabel(a: ComboOption, b: ComboOption): number {
-  const last = (option: ComboOption): number => (option.group?.toLowerCase() === UNCATEGORIZED ? 1 : 0);
+function byGroupAndLabel(a: Choice, b: Choice): number {
+  const last = (option: Choice): number => (option.group?.toLowerCase() === UNCATEGORIZED ? 1 : 0);
   return last(a) - last(b) || (a.group ?? "").localeCompare(b.group ?? "") || a.label.localeCompare(b.label);
 }
 

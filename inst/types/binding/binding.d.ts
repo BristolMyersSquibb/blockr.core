@@ -29,6 +29,11 @@ export declare function follow(host: BlockHost | OptionHost, name: string, optio
 export interface Choice {
     readonly value: string;
     readonly label: string;
+    readonly detail?: string;
+    readonly badge?: string;
+    readonly group?: string;
+    readonly keywords?: readonly string[];
+    readonly disabled?: boolean;
 }
 export declare function asChoices(values: readonly string[]): readonly Choice[];
 export declare function strings(value: unknown): readonly string[];

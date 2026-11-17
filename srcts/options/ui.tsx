@@ -5,7 +5,8 @@
 
 import type { ReactElement } from "react";
 import type { Choice } from "../binding/index.ts";
-import { Checklist, NumberInput, Select } from "../inputs/index.ts";
+import { asChoices } from "../binding/index.ts";
+import { NumberInput, Select } from "../inputs/index.ts";
 import { reactModule, useValue } from "../react/index.ts";
 import type { ModuleProps } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
@@ -19,13 +20,13 @@ export function numberUi(label: string, min: number): OptionModule<number> {
   return reactModule(NumberUi);
 }
 
-// A checkbox for each choice, such as each severity of show_conditions, which
-// submits the checked ones in the order of the choices.
-export function checklistUi(legend: string, choices: readonly string[]): OptionModule<string[]> {
-  function ChecklistUi({ host }: ModuleProps<OptionHost<string[]>>): ReactElement {
-    return <Checklist bound={useValue(host)} legend={legend} choices={choices} ordered />;
+// A select of several of the choices, such as the severities of
+// show_conditions, which submits the picks in the order of the choices.
+export function multiSelectUi(label: string, choices: readonly string[]): OptionModule<string[]> {
+  function MultiSelectUi({ host }: ModuleProps<OptionHost<string[]>>): ReactElement {
+    return <Select bound={useValue(host)} multiple label={label} choices={asChoices(choices)} ordered />;
   }
-  return reactModule(ChecklistUi);
+  return reactModule(MultiSelectUi);
 }
 
 // A select of one of the choices, such as light or dark for dark_mode.
