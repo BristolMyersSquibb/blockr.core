@@ -95,6 +95,14 @@
 #' So each entry needs a name, as in
 #' `serve(new_rbind_block(), a = iris, b = mtcars)`.
 #'
+#' The app that `serve()` returns runs in another R process too, as when a
+#' script hands it to `callr::r_bg()`, or shinytest2 runs it.
+#' As each session starts, R loads each package that exports
+#' `._BLOCKR_MODULES_` and was loaded as `serve()` built the app, where the
+#' session's process has not loaded it (see [read_blocks_yml()]).
+#' So the replies to `hello` name the board options and modules of the same
+#' packages as in the process that called `serve()`.
+#'
 #' @section End-to-end tests:
 #' In Shiny's test mode, as the package shinytest2 starts an app, the app gives
 #' end-to-end tests what they check.
@@ -352,6 +360,18 @@ check_outside_classes <- function(classes) {
 # `write_log()`).
 # R also works out here which modules the page imports as it starts, which the
 # page names for the browser to fetch at once (see `page_modules()`).
+# R keeps the names of the loaded packages that export `._BLOCKR_MODULES_`,
+# as `serve()` is called.
+# Each session loads those of them that its process has not loaded, before its
+# evaluator starts.
+# This matters in a process that runs the app without the script that built
+# it, such as one that `callr::r_bg()` starts, or one that shinytest2 runs the
+# app in.
+# Such a process loads only the packages whose functions the app holds.
+# Once the session has loaded the others, the replies to `hello` name the
+# board options and modules of the same packages as in the process that called
+# `serve()`.
+# That process has loaded every one of them, so its sessions load none.
 serve_app <- function(board, registry, data = list(), alone = FALSE,
                       plugins = list(), frontend = as_json_object(list())) {
 
@@ -367,6 +387,8 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
   # names, so that two packages that list one stop the app here.
   loaded_options()
 
+  packages <- loaded_listing_packages()
+
   modules <- page_modules(board, registry, plugins)
   dark_mode <- board_dark_mode(board)
 
@@ -379,6 +401,10 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
       )
     },
     server = function(input, output, session) {
+
+      for (pkg in setdiff(packages, loaded_listing_packages())) {
+        loadNamespace(pkg)
+      }
 
       ev <- new_evaluator(
         board, data, lock, registry, plugins, frontend,

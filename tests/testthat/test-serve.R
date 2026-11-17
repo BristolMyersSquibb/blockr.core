@@ -179,6 +179,29 @@ test_that("an app's sessions read the block registry that serve() built", {
   expect_identical(replies[[2L]]$status, "ok")
 })
 
+test_that("an app's sessions load the packages that serve() found loaded", {
+
+  local_installed_package()
+
+  # A session loads no package that was not loaded as serve() built the app
+  app <- serve(new_board())
+  served_replies(app, hello_message())
+
+  expect_false(isNamespaceLoaded("optprobe"))
+
+  # A session loads each package that was loaded as serve() built the app, and
+  # that its process has not loaded, as in a process that runs the app without
+  # the script that built it
+  loadNamespace("optprobe")
+  app <- serve(new_board())
+  unloadNamespace("optprobe")
+
+  reply <- served_replies(app, hello_message())[[1L]]
+
+  expect_true(isNamespaceLoaded("optprobe"))
+  expect_identical(reply$options$probe_gap$package, "optprobe")
+})
+
 test_that("blocks and plugins read their rows alike, and plugins no file", {
 
   # A YAML file of block classes gives rows in its order, with the id `NA` for
