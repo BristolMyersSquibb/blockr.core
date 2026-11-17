@@ -45,6 +45,7 @@ function statuses(replies: [BlockId, Outcome["status"]][] = []) {
     graph,
     revisions,
     outcomes: new Map(replies.map(([id, status]) => [id, outcome(status, id)])),
+    unsent: new Map(),
     inputs,
     running: new Set(),
     before: new Map(),

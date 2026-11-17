@@ -71,20 +71,28 @@ describe("a block's notifications", () => {
     s.stop();
   });
 
-  test("are core's for the error of an evaluation that the transport could not send, which the scheduler writes itself, and none for why a block waits, which its status gives as its reason", async () => {
+  test("are core's for an evaluation that the transport could not send, from the status's unsent, also where the holder reads a copy of the status, and none for why a block waits, which its status gives as its reason", async () => {
     const s = await stubCore({ refuse: ["evaluate"] });
     s.core.scheduler.demand("test", ["b"]);
     await s.settled();
+    // A holder that reads copies of the statuses, as a package's module or an
+    // end-to-end test holds them.
+    const copies = createNotifications(s.core.store, { plugins: HELLO.plugins });
+    copies.follow({
+      status: (id) => structuredClone(s.core.scheduler.status(id)),
+      subscribe: (fn) => s.core.scheduler.subscribe(fn),
+    });
 
+    const unsent = {
+      severity: "error",
+      message: "The evaluation could not be sent to R: The transport is closed.",
+      source: { kind: "core", code: "evaluation_unsent" },
+      about: { block: "a" },
+    };
+    expect(s.core.scheduler.status("a")).toMatchObject({ status: "failed", conditions: [], unsent: unsent.message });
     expect(s.core.scheduler.status("b")?.reason).toBe('This block is waiting for block "a".');
-    expect(held(s.core, (n) => concerning("a")(n) || concerning("b")(n))).toEqual([
-      {
-        severity: "error",
-        message: "The evaluation could not be sent to R: The transport is closed.",
-        source: { kind: "core", code: "evaluation_unsent" },
-        about: { block: "a" },
-      },
-    ]);
+    expect(held(s.core, (n) => concerning("a")(n) || concerning("b")(n))).toEqual([unsent]);
+    expect(copies.api.get().map(({ severity, message, source, about }) => ({ severity, message, source, about }))).toEqual([unsent]);
     s.stop();
   });
 

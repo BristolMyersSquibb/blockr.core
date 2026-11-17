@@ -14,7 +14,7 @@ import type { Binding } from "../binding/index.ts";
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { BlockId, Board, OptionId } from "../types/board.ts";
-import type { CoreApi, Notification } from "../types/core-api.ts";
+import type { CoreApi, CoreFailure, Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { errorMessage, own } from "../util/index.ts";
@@ -26,7 +26,7 @@ export interface OutputSnapshot {
   readonly params: Json;
   readonly options: Readonly<Record<OptionId, Json>>;
   readonly loading: boolean;
-  readonly error: Condition | null;
+  readonly error: Condition | CoreFailure | null;
 }
 
 // The last snapshot of each host, which a component reads again until one of

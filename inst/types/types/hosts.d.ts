@@ -1,7 +1,7 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
-import type { Raised, RequestOpts } from "./core-api.ts";
+import type { CoreFailure, Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
 export type State = Readonly<Record<string, Json>>;
@@ -71,7 +71,7 @@ export interface OutputHost {
     params(): Json;
     options(): Readonly<Record<OptionId, Json>>;
     loading(): boolean;
-    error(): Condition | null;
+    error(): Condition | CoreFailure | null;
     on(event: "output", fn: () => void): () => void;
     setParams(params: Json): void;
     request<T = Json>(name: string, args?: Record<string, Json>, opts?: OutputRequestOpts): Promise<T | Blob>;

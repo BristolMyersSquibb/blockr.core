@@ -544,8 +544,10 @@
   Core draws nothing in the element of a module that cannot draw, which it leaves empty, so that the frontend alone says where a failure shows.
   Where a board option that a block's UI module, a renderer or a plugin's UI requires does not go onto the board, core raises that the module cannot draw, which concerns the block or the plugin, beside the notification about the board option.
   Core raises one for each condition of R's reply to an ask of a block's output, ok or error, in place of those before.
-  Where the ask fails without an error from R, core raises one with the condition that the output's host gives through `error()`, until the block's next output arrives.
-  Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601, #606).
+  Where the ask fails without an error from R, the output's host gives core's failure through `error()` in place of R's condition: a `CoreFailure`, `{ kind: "core", code, message }`, of the code `output_unanswered`.
+  Core then raises a notification of that code, until the block's next output arrives.
+  Where the transport could not send a block's evaluation, the block's status reads `failed` and holds why in `unsent`, not as a condition, and core raises a notification of the code `evaluation_unsent` from it.
+  Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601, #606, #659).
 * A plugin takes the conditions of R's reply to one of its own requests itself, through a function that it passes to `core.request()` in `conditions`, beside `progress`.
   Core hands that function the conditions of each reply, ok or error, and raises no notification for them.
   It also leaves the notifications of the request's earlier replies as they are, and a reply of error still rejects with its conditions.

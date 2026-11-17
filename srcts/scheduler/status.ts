@@ -15,6 +15,8 @@ import type { Inputs } from "./recipes.ts";
 // A block's status is the first of these that holds:
 // - It reads `waiting` while an input or a block upstream keeps it from
 //   running.
+// - It reads `failed` while the transport could not send the evaluation of
+//   its revision, and `stale` once the revision moves on, until R replies.
 // - It reads `unevaluated` before its first reply.
 // - It reads `stale` while its revision is newer than its latest reply's.
 // - Otherwise it reads what that reply says: `ready` for ok, `failed` for
@@ -32,12 +34,13 @@ export interface BlockStatus {
   readonly status: Status;
   // The block's current revision.
   readonly revision: number;
-  // The revision that its latest reply was for, null before its first.
+  // The revision that R's latest reply for it was for, null before its first.
   readonly evaluated: number | null;
   // Whether an evaluation of it is sent and not yet answered.
   readonly running: boolean;
   // From the latest reply, which replaces those of the reply before. A block
-  // that an input or a block upstream keeps waiting has none.
+  // that an input or a block upstream keeps waiting has none, and so has a
+  // block whose latest evaluation the transport could not send.
   readonly conditions: readonly Condition[];
   // Its standard output and error.
   readonly stdout: string;
@@ -48,6 +51,11 @@ export interface BlockStatus {
   // Where an input or a block upstream keeps the block waiting, the scheduler
   // writes it, naming what the block waits for.
   readonly reason: string | null;
+  // Why the transport could not send the block's latest evaluation, as "The
+  // evaluation could not be sent to R: The transport is closed.". It holds
+  // until R next replies for the block. R never got that evaluation, so this
+  // is no condition.
+  readonly unsent: string | null;
 }
 
 // What a reply to an evaluation says about the block. An error that R raised
@@ -65,16 +73,12 @@ export interface Outcome {
 
 const NO_CONDITIONS: readonly Condition[] = Object.freeze([]);
 
-// The errors of the evaluations that the transport could not send, the one
-// condition that the scheduler writes itself, rather than R. A condition of
-// R's may have no phase either, as where a lock refuses an evaluation, so the
-// phase does not tell them apart.
-const unsentErrors = new WeakSet<Condition>();
-
-// Whether the scheduler wrote the condition itself, as the error of an
-// evaluation that the transport could not send.
-export function isUnsentError(condition: Condition): boolean {
-  return unsentErrors.has(condition);
+// An evaluation that the transport could not send, which the scheduler keeps
+// apart from R's replies: the revision that it was of, and why, as the block's
+// status gives it.
+export interface Unsent {
+  readonly revision: number;
+  readonly message: string;
 }
 
 // The outcome of an evaluation of a revision, from R's reply to it. A reply of
@@ -93,24 +97,10 @@ export function replyOutcome(reply: Reply, revision: number): Outcome | undefine
   };
 }
 
-// The outcome of an evaluation that the transport could not send. It fails with
-// the transport's error, as it would with R's.
-export function unsent(revision: number, message: string): Outcome {
-  const error: Condition = {
-    severity: "error",
-    class: ["blockr_error", "error", "condition"],
-    message: `The evaluation could not be sent to R: ${message}`,
-  };
-  unsentErrors.add(error);
-  return {
-    status: "error",
-    revision,
-    summary: null,
-    reason: null,
-    conditions: [error],
-    stdout: "",
-    stderr: "",
-  };
+// The evaluation of a revision that the transport could not send, with the
+// transport's error.
+export function unsent(revision: number, error: string): Unsent {
+  return { revision, message: `The evaluation could not be sent to R: ${error}` };
 }
 
 // What a block reads with no reply to show.
@@ -125,6 +115,32 @@ export function unevaluated(revision: number, running: boolean): BlockStatus {
     stderr: "",
     summary: null,
     reason: null,
+    unsent: null,
+  };
+}
+
+// What a block reads once the transport could not send its latest
+// evaluation: failed while that evaluation is of its revision now, and stale
+// once the revision moves on. It has no conditions, summary or reason, since R
+// never got that evaluation. Its `evaluated` names the revision of R's latest
+// reply.
+export function failedToSend(
+  failure: Unsent,
+  revision: number,
+  evaluated: number | null,
+  running: boolean,
+): BlockStatus {
+  return {
+    status: failure.revision === revision ? "failed" : "stale",
+    revision,
+    evaluated,
+    running,
+    conditions: NO_CONDITIONS,
+    stdout: "",
+    stderr: "",
+    summary: null,
+    reason: null,
+    unsent: failure.message,
   };
 }
 
@@ -154,6 +170,7 @@ export function replied(
     stderr: outcome.stderr,
     summary: outcome.summary,
     reason: outcome.reason,
+    unsent: null,
   };
 }
 
@@ -175,6 +192,7 @@ export function waiting(
     stderr: "",
     summary: null,
     reason: why,
+    unsent: null,
   };
 }
 
@@ -207,19 +225,24 @@ export function sameStatus(a: BlockStatus, b: BlockStatus): boolean {
     a.stderr === b.stderr &&
     a.summary === b.summary &&
     a.reason === b.reason &&
+    a.unsent === b.unsent &&
     a.conditions.length === b.conditions.length &&
     a.conditions.every((condition, i) => condition === b.conditions[i])
   );
 }
 
 // Every block's status, upstream first. Each comes from the block's revision,
-// its latest reply and its inputs, and from the statuses of the blocks it
+// R's latest reply, the evaluation that the transport could not send since,
+// if any, and the block's inputs, and from the statuses of the blocks it
 // reads. A status that reads as before keeps its object. The blocks whose
 // status changed include those that left the board.
 export function blockStatuses(input: {
   readonly graph: Graph;
   readonly revisions: ReadonlyMap<BlockId, number>;
   readonly outcomes: ReadonlyMap<BlockId, Outcome>;
+  // The latest evaluation of each block that the transport could not send,
+  // where R has not replied for the block since.
+  readonly unsent: ReadonlyMap<BlockId, Unsent>;
   readonly inputs: ReadonlyMap<BlockId, Inputs>;
   // The blocks with an evaluation sent and not yet answered.
   readonly running: ReadonlySet<BlockId>;
@@ -232,14 +255,17 @@ export function blockStatuses(input: {
     const revision = input.revisions.get(id);
     if (revision === undefined) continue;
     const outcome = input.outcomes.get(id);
+    const failure = input.unsent.get(id);
     const running = input.running.has(id);
     const reason = keptWaiting(input.inputs.get(id), statuses);
     const now =
       reason !== undefined
         ? waiting(reason, revision, outcome?.revision ?? null, running)
-        : outcome === undefined
-          ? unevaluated(revision, running)
-          : replied(outcome, revision, running);
+        : failure !== undefined
+          ? failedToSend(failure, revision, outcome?.revision ?? null, running)
+          : outcome === undefined
+            ? unevaluated(revision, running)
+            : replied(outcome, revision, running);
     const before = input.before.get(id);
     if (before !== undefined && sameStatus(before, now)) {
       statuses.set(id, before);

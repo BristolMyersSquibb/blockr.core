@@ -374,6 +374,7 @@ describe("statuses", () => {
       stderr: "",
       summary: null,
       reason: 'This block is waiting for its input "data" to be linked.',
+      unsent: null,
     });
     expect(blockStatus(scheduler, "e").reason).toBe("This block is waiting for a block to be linked to it.");
     expect(blockStatus(scheduler, "c").reason).toBe('This block is waiting for block "b".');
@@ -651,32 +652,53 @@ describe("demand and scheduling", () => {
     expect(r.evaluations().map((request) => request.block).sort()).toEqual(["a", "b", "c", "d", "e", "f"]);
   });
 
-  test("fail a block whose evaluation the transport could not send, naming why, until its revision moves", async () => {
+  test("fail a block whose evaluation the transport could not send, naming why in unsent rather than as a condition, until its revision moves", async () => {
     const { r, store, scheduler } = await setup();
-    r.refuse.add("evaluate");
     scheduler.demand("test", ["a"]);
     scheduler.start();
+    await tick();
+    const first = pendingRequest(r, "a");
+    const warning: Condition = { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "expr", message: "Old data." };
+    r.evaluated(first, "ok", { conditions: [warning], stdout: "Loading." });
+    await tick();
+
+    r.refuse.add("evaluate");
+    scheduler.invalidate("a");
     await tick();
     // The refusal comes back during that tick. Fake timers put a timer that is
     // set during a tick 1 ms later.
     await tick(1);
 
-    expect(blockStatus(scheduler, "a")).toMatchObject({
+    // R never got the evaluation, so the status holds nothing of R's reply,
+    // and `evaluated` names the revision that R last replied for.
+    const why = "The evaluation could not be sent to R: The transport is closed.";
+    expect(blockStatus(scheduler, "a")).toEqual({
       status: "failed",
-      conditions: [
-        {
-          severity: "error",
-          class: ["blockr_error", "error", "condition"],
-          message: "The evaluation could not be sent to R: The transport is closed.",
-        },
-      ],
+      revision: blockStatus(scheduler, "a").revision,
+      evaluated: first.revision,
+      running: false,
+      conditions: [],
+      stdout: "",
+      stderr: "",
+      summary: null,
+      reason: null,
+      unsent: why,
     });
+    expect(blockStatus(scheduler, "a").revision).toBeGreaterThan(first.revision);
     expect(blockStatus(scheduler, "b").status).toBe("waiting");
+    expect(r.pending()).toEqual([]);
 
+    // Once its revision moves, the block reads stale and keeps why until R
+    // replies for it.
     r.refuse.clear();
     store.apply({ blocks: { mod: { a: { state: { dataset: "mtcars" } } } } });
     await tick();
     expect(r.pending().map((request) => request.block)).toEqual(["a"]);
+    expect(blockStatus(scheduler, "a")).toMatchObject({ status: "stale", evaluated: first.revision, unsent: why });
+
+    r.evaluated(pendingRequest(r, "a"));
+    await tick();
+    expect(blockStatus(scheduler, "a")).toMatchObject({ status: "ready", unsent: null, summary: "<data.frame> [150 × 5]" });
   });
 
   test("refuse a blockr option that is no number of 0 or more nor -1, and an evaluation_queue that is no whole number", async () => {

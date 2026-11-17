@@ -13,6 +13,7 @@ export interface BlockStatus {
     readonly stderr: string;
     readonly summary: string | null;
     readonly reason: string | null;
+    readonly unsent: string | null;
 }
 export interface Outcome {
     readonly status: "ok" | "error" | "invalid" | "waiting";
@@ -23,10 +24,14 @@ export interface Outcome {
     readonly stdout: string;
     readonly stderr: string;
 }
-export declare function isUnsentError(condition: Condition): boolean;
+export interface Unsent {
+    readonly revision: number;
+    readonly message: string;
+}
 export declare function replyOutcome(reply: Reply, revision: number): Outcome | undefined;
-export declare function unsent(revision: number, message: string): Outcome;
+export declare function unsent(revision: number, error: string): Unsent;
 export declare function unevaluated(revision: number, running: boolean): BlockStatus;
+export declare function failedToSend(failure: Unsent, revision: number, evaluated: number | null, running: boolean): BlockStatus;
 export declare function replied(outcome: Outcome, revision: number, running: boolean): BlockStatus;
 export declare function waiting(why: string, revision: number, evaluated: number | null, running: boolean): BlockStatus;
 export declare function waitingFor(what: {
@@ -39,6 +44,7 @@ export declare function blockStatuses(input: {
     readonly graph: Graph;
     readonly revisions: ReadonlyMap<BlockId, number>;
     readonly outcomes: ReadonlyMap<BlockId, Outcome>;
+    readonly unsent: ReadonlyMap<BlockId, Unsent>;
     readonly inputs: ReadonlyMap<BlockId, Inputs>;
     readonly running: ReadonlySet<BlockId>;
     readonly before: ReadonlyMap<BlockId, BlockStatus>;
