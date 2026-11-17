@@ -58,11 +58,12 @@ which \code{\link[=serve]{serve()}} gets from the method of \code{board_option_r
 board option's class, \verb{\{id\}_option}, as it builds the app.
 \item The type \code{plugin}, a plugin's request,
 which a plugin sends through \code{CoreApi.request()} in the client.
-R finds it among the requests that \code{plugin_requests()} returns for the
-plugin class whose ID \code{plugin} names, as \code{blockr.md-md_plugin}, which an
-available package lists (see \code{\link[=available_plugins]{available_plugins()}}).
+R finds it among the requests of the app's plugin whose class's ID
+\code{plugin} names, as \code{blockr.md-md_plugin}, which \code{\link[=serve]{serve()}} gets from the
+method of \code{plugin_requests()} for the class as it builds the app.
 R calls the method on the plugin that the class's constructor makes,
-called without args.
+called without args, and refuses a request of a plugin class that the app
+does not run.
 }
 
 No package adds a type of its own,

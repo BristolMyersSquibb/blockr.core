@@ -220,11 +220,12 @@ Each of core's types names the request in `name`, such as `"n_max"`:
 | `block_class` | a block class | among the requests of the class that `registry_id` names, with `block` naming the block that asks | `registry_id`, `block`, `reads` and `options` |
 | `output_class` | an output class | among those that the method of `output_requests()` for the class vector of the latest output that R made from the result that `output` names, as `{ "block": "c", "revision": 7 }`, gives, a subclass's before its class's | `output`, `options` and `params` |
 | `renderer` | a renderer of an output class | among the requests of the renderer that draws that output, which has to be the one that `renderer` names, as `"blockr.ui-table_preview"`, never among those of the output class | `renderer`, `output`, `options` and `params` |
-| `option` | a board option | among the requests that `board_option_requests()` returns for the board option that `option` names, by its class `{id}_option`, for which the package that ships the board option has a method | `option` |
-| `plugin` | a plugin class | among the requests that `plugin_requests()` returns for the plugin class whose id `plugin` names, as `"blockr.md-md_plugin"`, which an available package lists, called on the plugin that the class's constructor makes, for which the package of the class has a method | `plugin` and `reads` |
+| `option` | a board option | among the requests of the board option that `option` names, which R got as `serve()` built the app from the method of `board_option_requests()` for its class `{id}_option`, which the package that lists the board option has | `option` |
+| `plugin` | a plugin class | among the requests of the app's plugin whose class's id `plugin` names, as `"blockr.md-md_plugin"`, which R got as `serve()` built the app from the method of `plugin_requests()` for the class, which the package of the class has, called on the plugin that the class's constructor makes | `plugin` and `reads` |
 
 A plugin's request belongs to one of the app's plugins.
 The code that sends it names the plugin by the id of its class, through `CoreApi.request()`, and the request names it so in `plugin`, by which R finds the request, since R holds no board ([A plugin's requests](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#a-plugins-requests)).
+R refuses a request of a plugin class that the app does not run.
 
 The properties of core's types:
 

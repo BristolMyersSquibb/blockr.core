@@ -528,8 +528,8 @@ test_that("R logs every condition that it sends, naming what it concerns", {
     messages[[5L]],
     paste(
       "Request x of plugin class blockr.notes-notes_plugin:",
-      "No available package lists plugin class blockr.notes-notes_plugin, so",
-      "R has no request x of it."
+      "The app runs no plugin of class blockr.notes-notes_plugin, so R has no",
+      "request x of it."
     )
   )
 
@@ -785,6 +785,53 @@ test_that("R answers a board option's request with the function it holds", {
 
   # R loads no package for it
   expect_false(isNamespaceLoaded("optprobe"))
+})
+
+test_that("R answers a plugin's request with the function it holds", {
+
+  local_plugin_classes(
+    Notes = plugin_ctor(function() NULL, "notes_plugin", "blockr.notes"),
+    Code = plugin_ctor(function() NULL, "code_plugin", "blockr.code")
+  )
+  local_versions(blockr.notes = "0.1.0")
+
+  for (cls in c("notes_plugin", "code_plugin")) {
+    testthat::local_mocked_s3_method(
+      "plugin_requests",
+      cls,
+      function(x, ...) list(ping = function() "pong")
+    )
+  }
+
+  # The app runs the notes plugin, and not the code plugin
+  session <- local_evaluator(
+    plugins = app_plugins(subset(available_plugins(), id != "code_plugin"))
+  )
+
+  ping <- function(id, plugin) {
+    list(id = id, kind = "request", type = "plugin", plugin = plugin,
+         name = "ping", args = obj(), reads = list())
+  }
+
+  # R refuses a request of a plugin class that the app does not run, which an
+  # available package lists all the same
+  session$receive(list(ping("2", "blockr.code-code_plugin")))
+  session$run()
+
+  expect_identical(
+    condition_class(last_reply(session)),
+    "plugin_request_unknown"
+  )
+
+  # Whatever plugin classes the process that runs the app finds, R answers
+  # with the function that the app holds, as here, where it finds none
+  testthat::local_mocked_bindings(available_plugin_classes = function() list())
+
+  session$receive(list(ping("3", "blockr.notes-notes_plugin")))
+  session$run()
+
+  expect_identical(last_reply(session)$status, "ok")
+  expect_identical(last_reply(session)$value, encode_answer("pong"))
 })
 
 test_that("R answers a plugin's request by the ID of the plugin's class", {

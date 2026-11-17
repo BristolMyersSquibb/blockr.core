@@ -27,11 +27,12 @@
 #'   board option's class, `{id}_option`, as it builds the app.
 #' * The type `plugin`, a plugin's request,
 #'   which a plugin sends through `CoreApi.request()` in the client.
-#'   R finds it among the requests that `plugin_requests()` returns for the
-#'   plugin class whose ID `plugin` names, as `blockr.md-md_plugin`, which an
-#'   available package lists (see [available_plugins()]).
+#'   R finds it among the requests of the app's plugin whose class's ID
+#'   `plugin` names, as `blockr.md-md_plugin`, which [serve()] gets from the
+#'   method of `plugin_requests()` for the class as it builds the app.
 #'   R calls the method on the plugin that the class's constructor makes,
-#'   called without args.
+#'   called without args, and refuses a request of a plugin class that the app
+#'   does not run.
 #'
 #' No package adds a type of its own,
 #' and R replies `error` to a request of a type that is not core's.
@@ -102,8 +103,9 @@ NULL
 # of the block's `result`, its block expression `expr` and, where R made an
 # output from the result, the class vector of the latest output in `output`.
 # A request of a block class reads the class from the app's block registry,
-# which R hands it in `registry`, and a request of a board option finds its
-# function among the app's board options, which R hands it in `options`.
+# which R hands it in `registry`, a request of a board option finds its
+# function among the app's board options, which R hands it in `options`, and a
+# plugin's request among the app's plugins, which R hands it in `plugins`.
 # Core keeps the generic to itself, since no package adds a type.
 # R reads no request of another type, so the generic needs no default method.
 request_call <- function(x, reads, ...) {
@@ -176,25 +178,27 @@ request_call.option_request <- function(x, reads, options = list(), ...) {
 }
 
 # A plugin's request, which R finds by the ID of the plugin's class among the
-# requests of the class, which an available package lists.
+# requests of the app's plugins, `plugins`, which `serve()` got from the
+# class's method of `plugin_requests()` as it built the app.
+# So R reads no package's listing to answer it, and refuses a request of a
+# plugin class that the app does not run.
 # Its function gets the blocks that the request reads in `reads`, each with its
 # result and its block expression alone, and the request's body in `file`.
 #' @export
-request_call.plugin_request <- function(x, reads, ...) {
+request_call.plugin_request <- function(x, reads, plugins = list(), ...) {
 
   plugin <- x[["plugin"]]
   name <- x[["name"]]
-  available <- available_plugin_classes()
 
-  if (!plugin %in% names(available)) {
+  if (!plugin %in% names(plugins)) {
     blockr_abort(
-      "No available package lists plugin class {plugin}, so R has no request ",
-      "{name} of it.",
+      "The app runs no plugin of class {plugin}, so R has no request {name} ",
+      "of it.",
       class = "plugin_request_unknown"
     )
   }
 
-  fun <- plugin_class_requests(plugin, available)[[name]]
+  fun <- plugins[[plugin]][["requests"]][[name]]
 
   if (!is.function(fun)) {
     blockr_abort(

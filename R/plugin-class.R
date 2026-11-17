@@ -469,8 +469,8 @@ plugin_listing_faults <- function(entries) {
 
 # The plugin that the constructor of the plugin class with the ID `id`,
 # `{pkg}-{id}`, makes when called without args, on which R calls the class's
-# methods of `plugin_version()` and `plugin_requests()`, since the class is
-# known by its ID alone.
+# methods, such as that of `frontend_args()`, since the class is known by its
+# ID alone.
 # The class is one that an available package lists.
 plugin_of_class <- function(id, available = available_plugin_classes()) {
 
@@ -511,18 +511,17 @@ checked_plugin_version <- function(x) {
   version
 }
 
-# The requests of the plugin class with the ID `id`, a list of functions by
-# name: what the method of `plugin_requests()` for the class returns, called on
-# the plugin that the class's constructor makes.
-plugin_class_requests <- function(id, available = available_plugin_classes()) {
+# The requests that the class of the plugin `x` gives, through its method of
+# `plugin_requests()`, a list of functions by name.
+checked_plugin_requests <- function(x) {
 
-  reqs <- plugin_requests(plugin_of_class(id, available))
+  reqs <- plugin_requests(x)
 
   if (!is.list(reqs) || is.object(reqs) || !all(lgl_ply(reqs, is.function)) ||
         !has_unique_names(reqs)) {
     blockr_abort(
-      "The method of `plugin_requests()` for plugin class {id} returns no ",
-      "list of functions by name.",
+      "The method of `plugin_requests()` for plugin class ",
+      "{plugin_class_id(x)} returns no list of functions by name.",
       class = "plugin_requests_invalid"
     )
   }
@@ -532,7 +531,12 @@ plugin_class_requests <- function(id, available = available_plugin_classes()) {
 
 # The app's plugins, which run on every board that the app opens, from the
 # rows that `serve()` takes in `plugins`, by the ID of each plugin's class, in
-# the order of the rows: each with its class's name, version and module.
+# the order of the rows: each with its class's name, version, module and
+# requests, which R answers the plugin's requests with.
+# R gets the version and the requests from the class's methods of
+# `plugin_version()` and `plugin_requests()`, called on the plugin that the
+# class's constructor makes, and stops the app where the version is no whole
+# number from 1 or the requests are no list of functions by name.
 # R reads the rows and refuses them where they name a class that no available
 # package lists, or a class twice. It tells a frontend and a storage plugin by
 # the R class of the plugin that the class's constructor makes.
@@ -612,7 +616,8 @@ app_plugins <- function(rows, available = available_plugin_classes()) {
       list(
         name = available[[id]][["name"]],
         version = checked_plugin_version(plugins[[id]]),
-        module = available[[id]][["module"]]
+        module = available[[id]][["module"]],
+        requests = checked_plugin_requests(plugins[[id]])
       )
     }
   )

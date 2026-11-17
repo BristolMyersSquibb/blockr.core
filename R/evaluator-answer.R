@@ -219,7 +219,8 @@ answer_object_request <- function(ev, job) {
     req,
     held_reads(ev, req[["reads"]]),
     registry = ev$registry,
-    options = ev$options
+    options = ev$options,
+    plugins = ev$plugins
   )
 
   answer_call(job[["id"]], call, call[["volatile"]])

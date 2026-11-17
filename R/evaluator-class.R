@@ -24,6 +24,8 @@
 # `app_plugins()` worked out as the app started, each under the ID of its
 # class with its class's name and version and where R serves its class's
 # module, and none for a block that `serve()` serves alone.
+# R answers a plugin's request with the function that `plugins` holds for it,
+# and refuses one of a plugin class that the app does not run.
 # Beside them, it carries in `frontend` what the app's frontend reads of the
 # arguments of `serve()`, as JSON, which `frontend_reply()` wrote as the app
 # started, and an empty JSON object for a block that `serve()` serves alone.
