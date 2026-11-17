@@ -21,6 +21,7 @@ export interface Delta {
     readonly options?: Values<OptionId>;
     readonly name?: string;
     readonly patches?: readonly Patch[];
+    readonly undo?: false;
 }
 export declare function isDeltas(delta: Delta | readonly Delta[]): delta is readonly Delta[];
 export interface Values<K extends string> {
