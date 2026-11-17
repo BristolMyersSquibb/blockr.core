@@ -428,8 +428,7 @@ page_modules <- function(board, registry, plugins = list()) {
   ids <- intersect(ids, ls(envir = registry))
 
   entries <- lapply(ids, get_registry_entry, registry)
-  coercions <- output_coercions()
-  renderers <- Filter(not_null, lapply(entries, entry_renderer, coercions))
+  renderers <- Filter(not_null, lapply(entries, entry_renderer))
 
   modules <- c(
     lst_xtr(plugins, "module"),

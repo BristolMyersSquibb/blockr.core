@@ -135,23 +135,17 @@ test_that("core gives each of its output classes its schema", {
 
 test_that("an output class gives the coercion that makes its outputs", {
 
-  coercions <- output_coercions()
+  coercion <- function(cls) output_coercion(new_block_output(list(), cls))
 
-  expect_identical(coercions$table_output, as_table_output)
-  expect_identical(coercions$text_output, as_text_output)
-  expect_identical(coercions$plot_output, as_plot_output)
-  expect_null(output_coercion(new_block_output(list(), "words_output")))
-
-  expect_identical(coercion_class(as_table_output), "table_output")
-  expect_identical(coercion_class(as_plot_output), "plot_output")
-  expect_null(coercion_class(function(result, ...) result))
+  expect_identical(coercion("table_output"), as_table_output)
+  expect_identical(coercion("text_output"), as_text_output)
+  expect_identical(coercion("plot_output"), as_plot_output)
 
   # A subclass that a method of its class's coercion makes gives no method of
   # its own, and S3 dispatch gives it its class's
   lazy <- new_block_output(list(), c("lazy_table_output", "table_output"))
 
   expect_identical(output_coercion(lazy), as_table_output)
-  expect_identical(coercion_class(as_table_output), "table_output")
 
   as_words_output <- function(result, ...) {
     new_block_output(list(words = result), "words_output")
@@ -159,14 +153,13 @@ test_that("an output class gives the coercion that makes its outputs", {
 
   local_output_class("words_output", coercion = as_words_output)
 
-  expect_identical(coercion_class(as_words_output), "words_output")
+  expect_identical(coercion("words_output"), as_words_output)
 
-  # A coercion makes the outputs of one class
-  local_output_class("pages_output", coercion = as_table_output)
-
+  # A class whose package gives no coercion has none
   expect_error(
-    coercion_class(as_table_output),
-    class = "output_coercion_invalid"
+    coercion("pages_output"),
+    "Output class pages_output gives no coercion",
+    class = "output_coercion_missing"
   )
 })
 

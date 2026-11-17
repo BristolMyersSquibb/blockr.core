@@ -1,8 +1,9 @@
 #' Outputs
 #'
-#' A block's result can be any R object. An output is what R shows of it: the
-#' coercion that a block class names in its `output` property makes an output
-#' from the result (see [new_block_class()]). R sends the output to the client
+#' A block's result can be any R object. An output is what R shows of it.
+#' A block class names the output class of its outputs in its `output`
+#' property, and the coercion of that class makes an output from the result
+#' (see [new_block_class()]). R sends the output to the client
 #' as JSON, and a renderer draws it there. So nothing in the protocol assumes a
 #' table.
 #'
@@ -255,11 +256,14 @@ print.reply_body <- function(x, ...) {
 #' The method of `output_coercion()` returns the class's coercion, the generic
 #' that makes the class's outputs from a result, as core's method for table
 #' outputs returns [as_table_output()].
-#' A block class names that coercion in its `output` property (see
-#' [new_block_class()]), so the method tells R which output class a block
-#' class's outputs are of before R makes one.
-#' R then names the renderer of that class in the block class's entry of the
-#' block registry.
+#' A block class names the output class of its outputs in its `output`
+#' property (see [new_block_class()]).
+#' R makes the block's outputs with the coercion that the method for that
+#' output class gives.
+#' Where no class before `block_output` in an output's class vector has a
+#' method, the generic fails.
+#' R also names the renderer of the output class in the block class's entry of
+#' the block registry, before it makes an output.
 #' The client loads that renderer, and adds the board options that it names to
 #' the board, before it asks for a block's first output, so that the board
 #' holds every board option that the coercion reads, such as the `n_rows` of
@@ -267,7 +271,6 @@ print.reply_body <- function(x, ...) {
 #' A subclass that a method of its class's coercion makes, such as a lazy
 #' table's, gives no method of its own, since each output that R sends names
 #' the renderer that draws it, and the client draws it with that one.
-#' Two classes whose methods return the same coercion are an error.
 #'
 #' @param x An output, and for `run_output_class_request()`, an output or its
 #'   class vector
@@ -311,8 +314,8 @@ print.reply_body <- function(x, ...) {
 #'
 #' @return The generic `output_schema()` returns a JSON Schema, as a list,
 #' `output_requests()` a named list of functions, `output_coercion()` the
-#' coercion that makes the class's outputs, or `NULL` where the class gives
-#' none, `volatile()` the function it is given, marked as volatile,
+#' coercion that makes the class's outputs, `volatile()` the function it is
+#' given, marked as volatile,
 #' `read_json_schema()` the JSON Schema that it reads, as a list, and
 #' `run_output_class_request()` the request's answer.
 #'
@@ -352,46 +355,11 @@ output_coercion <- function(x, ...) {
 #' @rdname output_schema
 #' @export
 output_coercion.block_output <- function(x, ...) {
-  NULL
-}
-
-# The coercion that each output class gives through its method of
-# `output_coercion()`, by class, among the methods that R finds from core's
-# namespace: those that packages register, and those that an app script
-# defines.
-output_coercions <- function() {
-
-  methods <- utils::.S3methods(
-    "output_coercion",
-    envir = asNamespace("blockr.core")
+  blockr_abort(
+    "Output class {class(x)[1L]} gives no coercion that makes its outputs, ",
+    "which its package gives through a method of `output_coercion()`.",
+    class = "output_coercion_missing"
   )
-
-  classes <- sub("^output_coercion[.]", "", as.character(methods))
-  classes <- set_names(nm = setdiff(classes, "block_output"))
-
-  res <- lapply(classes, function(cls) {
-    output_coercion(structure(list(), class = c(cls, "block_output")))
-  })
-
-  Filter(is.function, res)
-}
-
-# The output class whose method of `output_coercion()` gives the coercion,
-# among the `coercions` that `output_coercions()` gives, or `NULL` where none
-# gives it.
-coercion_class <- function(coercion, coercions = output_coercions()) {
-
-  hits <- names(Filter(function(x) identical(x, coercion), coercions))
-
-  if (length(hits) > 1L) {
-    blockr_abort(
-      "Output classes {hits} give the same coercion through their methods of ",
-      "`output_coercion()`, where a coercion makes the outputs of one class.",
-      class = "output_coercion_invalid"
-    )
-  }
-
-  if (length(hits)) hits else NULL
 }
 
 #' @rdname output_schema

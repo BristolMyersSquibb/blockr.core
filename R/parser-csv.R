@@ -1,4 +1,4 @@
-#' @include block-class.R output-table.R
+#' @include block-class.R
 #' @rdname new_csv_block
 #' @format NULL
 #' @export
@@ -19,7 +19,7 @@ csv_block <- new_block_class(
     )
   },
   ui = js_module("js/csv-block.js"),
-  output = as_table_output
+  output = "table_output"
 )
 
 #' CSV block

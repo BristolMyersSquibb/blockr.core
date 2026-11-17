@@ -143,8 +143,8 @@ export interface OptionHost<V extends Json = Json> {
 
 export interface OutputHost {
   readonly block: BlockId;
-  // The output it holds, which its block class's coercion made from the
-  // block's result.
+  // The output it holds, which the coercion of the output class that its
+  // block class names made from the block's result.
   output(): Json;
   // The binary body it came with, if any, such as a plot's PNG.
   body(): Blob | null;

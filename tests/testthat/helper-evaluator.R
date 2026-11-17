@@ -359,16 +359,25 @@ chart_block_class <- test_block_class(
   inputs = "data",
   expr = function() bbquote(.(data)),
   ui = js_module("chart-block.js", package = NULL),
-  output = function(result, options, info, params) {
-    new_block_output(list(title = "Sepals"), "chart_output")
-  }
+  output = "chart_output"
 )
 
 # An output class of blockr.viz for charts,
 # with a download of the chart and a volatile request for the templates that a
 # directory of the server holds, and a block class whose outputs are charts,
 # for the duration of `frame`.
+# R's reply to a hello names the version of each package that a renderer of a
+# block class's outputs comes from, as the chart renderer comes from
+# blockr.viz.
+# So blockr.viz is at the version 0.1.0, which no library holds.
+# Linting skips the call of local_versions(), a helper of another file, which
+# lintr does not see.
 local_chart_output <- function(frame = parent.frame()) {
+
+  local_versions( # nolint: object_usage_linter.
+    blockr.viz = "0.1.0",
+    frame = frame
+  )
 
   local_output_class(
     "chart_output",
@@ -376,6 +385,9 @@ local_chart_output <- function(frame = parent.frame()) {
       type = "object",
       properties = list(title = list(type = "string"))
     ),
+    coercion = function(result, options, info, params) {
+      new_block_output(list(title = "Sepals"), "chart_output")
+    },
     renderer = new_renderer(
       "chart_output",
       js_module("js/chart.js", package = "blockr.viz")
@@ -413,7 +425,7 @@ adsl_block_class <- test_block_class(
     )
   },
   ui = js_module("adsl-block.js", package = NULL),
-  output = as_table_output
+  output = "table_output"
 )
 
 # Registers the block class of labelled tables for the duration of `frame`.

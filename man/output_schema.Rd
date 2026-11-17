@@ -71,8 +71,8 @@ for a request of the output class}
 \value{
 The generic \code{output_schema()} returns a JSON Schema, as a list,
 \code{output_requests()} a named list of functions, \code{output_coercion()} the
-coercion that makes the class's outputs, or \code{NULL} where the class gives
-none, \code{volatile()} the function it is given, marked as volatile,
+coercion that makes the class's outputs, \code{volatile()} the function it is
+given, marked as volatile,
 \code{read_json_schema()} the JSON Schema that it reads, as a list, and
 \code{run_output_class_request()} the request's answer.
 }
@@ -125,11 +125,14 @@ outputs (see \code{\link[=new_renderer]{new_renderer()}}).
 The method of \code{output_coercion()} returns the class's coercion, the generic
 that makes the class's outputs from a result, as core's method for table
 outputs returns \code{\link[=as_table_output]{as_table_output()}}.
-A block class names that coercion in its \code{output} property (see
-\code{\link[=new_block_class]{new_block_class()}}), so the method tells R which output class a block
-class's outputs are of before R makes one.
-R then names the renderer of that class in the block class's entry of the
-block registry.
+A block class names the output class of its outputs in its \code{output}
+property (see \code{\link[=new_block_class]{new_block_class()}}).
+R makes the block's outputs with the coercion that the method for that
+output class gives.
+Where no class before \code{block_output} in an output's class vector has a
+method, the generic fails.
+R also names the renderer of the output class in the block class's entry of
+the block registry, before it makes an output.
 The client loads that renderer, and adds the board options that it names to
 the board, before it asks for a block's first output, so that the board
 holds every board option that the coercion reads, such as the \code{n_rows} of
@@ -137,7 +140,6 @@ table outputs.
 A subclass that a method of its class's coercion makes, such as a lazy
 table's, gives no method of its own, since each output that R sends names
 the renderer that draws it, and the client draws it with that one.
-Two classes whose methods return the same coercion are an error.
 }
 \examples{
 as_words_output <- function(result, ...) {

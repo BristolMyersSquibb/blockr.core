@@ -4,8 +4,8 @@
 #' lines that its renderer scrolls. The constructor `new_text_output()` makes
 #' one. The coercion `as_text_output()` makes one from a result, by the
 #' result's class. Its default method prints any result. R shows the results of
-#' a block class through `as_text_output()` where the class names no coercion
-#' in its `output` property (see [new_block_class()]).
+#' a block class through `as_text_output()` where the class names no other
+#' output class in its `output` property (see [new_block_class()]).
 #'
 #' @param text The text to show, as a string
 #' @param ... For `new_text_output()`, further properties, which a subclass

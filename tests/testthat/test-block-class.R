@@ -12,7 +12,7 @@ test_that("a block class holds its properties", {
   expect_identical(class_inputs(merge_class), c("x", "y"))
   expect_identical(class_inputs(rbind_class), "...")
 
-  expect_null(head_class$output)
+  expect_identical(head_class$output, "text_output")
   expect_identical(head_class$version, 1L)
 
   lst <- new_block_class("lst_block", inputs = alist(x = , y = ),
@@ -94,7 +94,12 @@ test_that("new_block_class() checks a class once", {
   )
 
   expect_error(
-    new_block_class("x_block", "data", expr, ui, output = "as_text"),
+    new_block_class("x_block", "data", expr, ui, output = as_text_output),
+    class = "block_class_output_invalid"
+  )
+
+  expect_error(
+    new_block_class("x_block", "data", expr, ui, output = "block_output"),
     class = "block_class_output_invalid"
   )
 

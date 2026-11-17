@@ -1,4 +1,4 @@
-#' @include block-class.R output-table.R
+#' @include block-class.R
 #' @rdname new_merge_block
 #' @format NULL
 #' @export
@@ -20,7 +20,7 @@ merge_block <- new_block_class(
   },
   ui = js_module("js/merge-block.js"),
   requests = list(shared = function(x, y) intersect(names(x), names(y))),
-  output = as_table_output
+  output = "table_output"
 )
 
 #' Merge block

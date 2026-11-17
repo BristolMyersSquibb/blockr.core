@@ -37,8 +37,8 @@ A text output shows a result as \code{\link[=print]{print()}} shows it, at R's o
 lines that its renderer scrolls. The constructor \code{new_text_output()} makes
 one. The coercion \code{as_text_output()} makes one from a result, by the
 result's class. Its default method prints any result. R shows the results of
-a block class through \code{as_text_output()} where the class names no coercion
-in its \code{output} property (see \code{\link[=new_block_class]{new_block_class()}}).
+a block class through \code{as_text_output()} where the class names no other
+output class in its \code{output} property (see \code{\link[=new_block_class]{new_block_class()}}).
 }
 \examples{
 new_text_output("Hello")

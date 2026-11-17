@@ -24,8 +24,7 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
   options <- loaded_options()
   renderers <- option_renderers()
 
-  coercions <- output_coercions()
-  drawn <- lapply(entries, entry_renderer, coercions)
+  drawn <- lapply(entries, entry_renderer)
 
   # The packages that the reply's parts come from, whose versions it names
   sources <- c(
@@ -115,24 +114,13 @@ registry_entry_reply <- function(x, renderer = NULL) {
 # The renderer of a block class's outputs, which R names in the class's entry
 # of the block registry, so that the client loads it, and adds the board
 # options that it names to the board, before it asks for a block's first
-# output: the renderer of the output class whose method of `output_coercion()`
-# gives the coercion that the block class names, or `as_text_output()` where it
-# names none, from the `coercions` that `output_coercions()` gives. It is
-# `NULL` where no output class gives that coercion, or where R knows no
-# renderer for the class, so that the client learns the renderer from the first
-# output, and R reports its error there.
-entry_renderer <- function(x, coercions = output_coercions()) {
-
-  cls <- x[["block_class"]]
-  coercion <- coal(cls[["output"]], as_text_output, fail_all = FALSE)
-  class <- coercion_class(coercion, coercions)
-
-  if (is.null(class)) {
-    return(NULL)
-  }
-
+# output: the renderer of the output class that the block class names.
+# It is `NULL` where R knows no renderer for that output class, so that the
+# client learns the renderer from the first output, and R reports its error
+# there.
+entry_renderer <- function(x) {
   tryCatch(
-    renderer_of(structure(list(), class = c(class, "block_output"))),
+    renderer_of(new_block_output(list(), x[["block_class"]][["output"]])),
     output_renderer_missing = function(e) NULL
   )
 }

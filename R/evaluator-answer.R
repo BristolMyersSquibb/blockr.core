@@ -142,9 +142,12 @@ answer_evaluate <- function(ev, job) {
 }
 
 # Makes a block's output from its result at a revision.
-# R calls the coercion that the block's class names,
-# or `as_text_output()` where it names none, with the board option values,
-# the `info` and the parameters that the request carries.
+# R calls the coercion of the output class that the block's class names,
+# as the output class's method of `output_coercion()` gives it,
+# with the board option values, the `info` and the parameters that the request
+# carries.
+# Where the output class gives no coercion, R replies `error`,
+# as it does where the coercion fails.
 # The output carries the renderer that draws it, with where R serves the
 # renderer's module.
 # Its reply carries every message and warning raised while R made it,
@@ -161,11 +164,11 @@ answer_output <- function(ev, job) {
   }
 
   cls <- get_registry_entry(held[["registry_id"]], ev$registry)[["block_class"]]
-  coercion <- coal(cls[["output"]], as_text_output, fail_all = FALSE)
 
   made <- run_phase(
     "output",
     {
+      coercion <- output_coercion(new_block_output(list(), cls[["output"]]))
       res <- coercion(
         held[["result"]],
         options = req[["options"]],

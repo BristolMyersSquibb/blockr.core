@@ -1,4 +1,4 @@
-#' @include block-class.R output-table.R
+#' @include block-class.R
 #' @rdname new_fixed_block
 #' @format NULL
 #' @export
@@ -7,7 +7,7 @@ fixed_block <- new_block_class(
   inputs = "data",
   expr = function(expr) str2lang(expr),
   ui = js_module("js/fixed-block.js"),
-  output = as_table_output
+  output = "table_output"
 )
 
 #' Fixed block

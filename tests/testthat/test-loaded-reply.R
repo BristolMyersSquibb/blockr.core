@@ -286,24 +286,26 @@ test_that("an entry names the renderer of its class's outputs", {
     )
   )
 
-  # A class that names no coercion shows its results as text
+  # A class that names no output class shows its results as text
   upload <- get_registry_entry("blockr.core-upload_block")
 
   expect_identical(entry_renderer(upload)$id, "blockr.core-text_output")
 
-  # A class whose coercion no output class gives has no renderer up front, so
-  # that the client learns it from the first output
-  raw <- list(
-    block_class = list(output = function(result, ...) new_text_output("raw"))
+  # R finds the renderer by dispatch on the output class that the block class
+  # names, even where the output class gives no coercion
+  words <- new_renderer("words_output", js_module("words.js", package = NULL))
+
+  local_output_class("words_output", renderer = words)
+
+  expect_identical(
+    entry_renderer(list(block_class = list(output = "words_output"))),
+    words
   )
 
-  expect_null(entry_renderer(raw))
+  # A class whose output class has no renderer has none up front, so that the
+  # client learns the renderer from the first output
+  expect_null(entry_renderer(list(block_class = list(output = "pages_output"))))
   expect_null(registry_entry_reply(head, NULL)$renderer)
-
-  # Nor has one whose output class has no renderer
-  local_output_class("words_output", coercion = identity)
-
-  expect_null(entry_renderer(list(block_class = list(output = identity))))
 })
 
 test_that("the renderer the app names for an output class is in the entry", {

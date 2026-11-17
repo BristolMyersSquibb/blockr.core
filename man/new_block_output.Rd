@@ -24,9 +24,10 @@ The constructor \code{new_block_output()} returns an object of class
 \code{block_output} and \code{new_reply_body()} one of class \code{reply_body}.
 }
 \description{
-A block's result can be any R object. An output is what R shows of it: the
-coercion that a block class names in its \code{output} property makes an output
-from the result (see \code{\link[=new_block_class]{new_block_class()}}). R sends the output to the client
+A block's result can be any R object. An output is what R shows of it.
+A block class names the output class of its outputs in its \code{output}
+property, and the coercion of that class makes an output from the result
+(see \code{\link[=new_block_class]{new_block_class()}}). R sends the output to the client
 as JSON, and a renderer draws it there. So nothing in the protocol assumes a
 table.
 }

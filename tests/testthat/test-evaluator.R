@@ -468,7 +468,7 @@ test_that("R logs every condition that it sends, naming what it concerns", {
     "list_block",
     expr = function() quote(list(1, 2)),
     ui = js_module("list-block.js", package = NULL),
-    output = as_table_output
+    output = "table_output"
   )
 
   local_block_class(cls)
@@ -573,7 +573,7 @@ test_that("an output that fails replies error with the phase output", {
     "list_block",
     expr = function() quote(list(1, 2)),
     ui = js_module("list-block.js", package = NULL),
-    output = as_table_output
+    output = "table_output"
   )
 
   local_block_class(cls)
@@ -588,19 +588,67 @@ test_that("an output that fails replies error with the phase output", {
   expect_fixture_replies(session, "output-error")
 })
 
+test_that("an output of a class that gives no coercion replies error", {
+
+  cls <- test_block_class(
+    "words_block",
+    expr = function() quote(c("hello", "world")),
+    ui = js_module("words-block.js", package = NULL),
+    output = "words_output"
+  )
+
+  local_block_class(cls)
+
+  session <- local_evaluator()
+
+  hold_result(
+    session, "w", 1L,
+    recipe = list(registry_id = "words_block", state = obj(), inputs = list())
+  )
+
+  session$receive(list(output_request("4", "w", 1L)))
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "error")
+  expect_identical(reply$conditions[[1L]]$phase, "output")
+  expect_identical(condition_class(reply), "output_coercion_missing")
+})
+
 test_that("an output that warns replies ok with the warning, which R logs", {
 
   cls <- test_block_class(
     "count_block",
-    expr = function() quote(data.frame(n = c("3", "n/a"))),
+    expr = function() {
+      quote(
+        structure(
+          data.frame(n = c("3", "n/a")),
+          class = c("counts", "data.frame")
+        )
+      )
+    },
     ui = js_module("count-block.js", package = NULL),
-    output = function(result, ...) {
-      result$n <- as.integer(result$n)
-      as_table_output(result, ...)
-    }
+    output = "table_output"
   )
 
   local_block_class(cls)
+
+  # The method of `as_table_output()` for the block's result turns its column
+  # of text into integers before it makes a table output
+  registerS3method(
+    "as_table_output",
+    "counts",
+    function(result, ...) {
+      as_table_output(data.frame(n = as.integer(result$n)), ...)
+    },
+    envir = asNamespace("blockr.core")
+  )
+
+  table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
+
+  withr::defer(rm(list = "as_table_output.counts", envir = table))
+
   local_fixture_renderer_urls()
 
   session <- local_evaluator()

@@ -1,4 +1,4 @@
-#' @include block-class.R output-table.R
+#' @include block-class.R
 #' @rdname new_static_block
 #' @format NULL
 #' @export
@@ -17,7 +17,7 @@ static_block <- new_block_class(
     str2lang(expression)
   },
   ui = js_module("js/static-block.js"),
-  output = as_table_output
+  output = "table_output"
 )
 
 #' Static block

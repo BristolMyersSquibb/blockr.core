@@ -16,7 +16,7 @@ Called for its side effect, returning \code{NULL} invisibly.
 To count a package's code, covr rewrites the functions its namespace binds
 when the package loads, and it never looks inside a value, so that the
 functions a block class holds, its \code{expr}, the function it gives as
-\code{inputs}, its \code{output} and the functions of its requests, show up in no
+\code{inputs} and the functions of its requests, show up in no
 coverage report. A package that defines block classes therefore calls
 \code{trace_block_classes()} in its \code{.onLoad()}, which, where covr runs, binds
 every function that the package's classes hold in its namespace, before
