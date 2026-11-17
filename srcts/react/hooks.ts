@@ -4,12 +4,17 @@
 // A component that edits a value of its host binds it,
 // so that it meets the contract of a block's UI as every bound control does,
 // and follows the requests it shows the answers of.
+// A component that holds CoreApi, as the UI of a plugin does, follows the
+// board, a block's status and the notifications in the same way.
+// Core's own frontend and cards follow them through these hooks too.
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { bind, follow } from "../binding/index.ts";
 import type { Binding } from "../binding/index.ts";
 import type { Condition } from "../protocol/index.ts";
-import type { OptionId } from "../types/board.ts";
+import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
+import type { BlockId, Board, OptionId } from "../types/board.ts";
+import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { errorMessage, own } from "../util/index.ts";
@@ -168,4 +173,58 @@ export function useRequest(host: BlockHost | OptionHost, name: string, options: 
 
 function held(host: BlockHost | OptionHost, key: string): Json | undefined {
   return "option" in host ? host.value() : own(host.state(), key);
+}
+
+// The board, which the store keeps the same object until it announces a
+// change.
+export function useBoard(core: Pick<CoreApi, "store">): Board {
+  const subscribe = useCallback(
+    (notify: () => void) =>
+      core.store.subscribe(() => {
+        notify();
+      }),
+    [core],
+  );
+  return useSyncExternalStore(subscribe, () => core.store.board());
+}
+
+// The block's status, which the scheduler keeps the same object until it
+// announces that it changed.
+export function useStatus(
+  core: { readonly scheduler: Pick<Scheduler, "status" | "subscribe"> },
+  block: BlockId,
+): BlockStatus | undefined {
+  const subscribe = useCallback(
+    (notify: () => void) =>
+      core.scheduler.subscribe((changed) => {
+        if (changed.includes(block)) notify();
+      }),
+    [core, block],
+  );
+  return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
+}
+
+// The notifications about the block, or every notification of the board given
+// null, in the order they came.
+// CoreApi keeps the same array of them until one comes or goes, so the
+// component draws them again only then.
+export function useNotified(
+  core: { readonly notifications: Pick<CoreApi["notifications"], "get" | "subscribe"> },
+  block: BlockId | null,
+): readonly Notification[] {
+  const subscribe = useCallback(
+    (notify: () => void) =>
+      core.notifications.subscribe(() => {
+        notify();
+      }),
+    [core],
+  );
+  const all = useSyncExternalStore(subscribe, () => core.notifications.get());
+  return useMemo(
+    () =>
+      block === null
+        ? all
+        : all.filter((notification) => notification.about !== undefined && "block" in notification.about && notification.about.block === block),
+    [all, block],
+  );
 }

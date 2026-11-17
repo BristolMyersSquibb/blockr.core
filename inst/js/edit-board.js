@@ -4,512 +4,7 @@ import { createRoot } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
 import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState8 } from "react";
-
-// srcts/ui/combobox.tsx
-import { useId, useLayoutEffect as useLayoutEffect2, useMemo, useRef as useRef2, useState as useState2 } from "react";
-
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
-  label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
-  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
-};
-
-// srcts/ui/ui.tsx
-import { useLayoutEffect, useRef, useState } from "react";
-import { jsx } from "react/jsx-runtime";
-var classes = {
-  button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
-  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
-  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle",
-  // The board's page, which draws no background of its own, so that the
-  // page's, which the browser draws in the page's theme, shows to its edges.
-  page: "bc:text-gray-900 bc:dark:text-gray-100",
-  // What sits over the board, as a dialog or a menu does,
-  // on the background that core's theme gives it, bg-raised.
-  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
-  card: "bc:bg-bg-subtle",
-  heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
-  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
-};
-function NameField({
-  label,
-  name: name2,
-  onSubmit,
-  onDone
-}) {
-  const [text, setText] = useState(name2);
-  const ref = useRef(null);
-  const done = useRef(false);
-  useLayoutEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-  function finish(submit) {
-    if (done.current) return;
-    done.current = true;
-    const trimmed = text.trim();
-    if (submit && trimmed !== "" && trimmed !== name2) onSubmit(trimmed);
-    onDone();
-  }
-  return /* @__PURE__ */ jsx(
-    "input",
-    {
-      ref,
-      type: "text",
-      "aria-label": label,
-      value: text,
-      spellCheck: false,
-      className: `${styles.box} bc:min-w-40`,
-      onChange: (event) => {
-        setText(event.target.value);
-      },
-      onKeyDown: (event) => {
-        if (event.key === "Enter" && !event.nativeEvent.isComposing) finish(true);
-        else if (event.key === "Escape") finish(false);
-      },
-      onBlur: () => {
-        finish(true);
-      }
-    }
-  );
-}
-
-// srcts/ui/combobox.tsx
-import { jsx as jsx2, jsxs } from "react/jsx-runtime";
-function Combobox(props) {
-  const { value: value2, onChange } = props;
-  return /* @__PURE__ */ jsx2(Field, { ...props, picked: value2 === void 0 ? [] : [value2], pick: onChange, multiple: false });
-}
-function MultiCombobox(props) {
-  const { values, onChange } = props;
-  return /* @__PURE__ */ jsx2(
-    Field,
-    {
-      ...props,
-      picked: values,
-      pick: (value2) => {
-        onChange([...values, value2]);
-      },
-      unpick: (value2) => {
-        onChange(values.filter((v) => v !== value2));
-      },
-      multiple: true
-    }
-  );
-}
-function Field({
-  label,
-  options,
-  hint,
-  error,
-  placeholder,
-  empty = "No option matches.",
-  autofocus = false,
-  picked,
-  pick,
-  unpick,
-  multiple
-}) {
-  const id2 = useId();
-  const listId = `${id2}-list`;
-  const noteId = `${id2}-note`;
-  const input2 = useRef2(null);
-  const list = useRef2(null);
-  const byValue = useMemo(() => new Map(options.map((option) => [option.value, option])), [options]);
-  const single = multiple ? void 0 : byValue.get(picked[0] ?? "");
-  const [open, setOpen] = useState2(false);
-  const [query, setQuery] = useState2("");
-  const [active, setActive] = useState2(void 0);
-  const shown = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const taken = new Set(multiple ? picked : []);
-    return options.filter(
-      (option) => !taken.has(option.value) && (needle === "" || [option.label, option.detail ?? "", option.group ?? "", option.badge ?? "", ...option.keywords ?? []].some(
-        (text2) => text2.toLowerCase().includes(needle)
-      ))
-    );
-  }, [options, query, picked, multiple]);
-  const pickable = shown.filter((option) => option.disabled !== true);
-  const marked = active !== void 0 && pickable.some((option) => option.value === active) ? active : pickable[0]?.value;
-  useLayoutEffect2(() => {
-    if (!open || marked === void 0) return;
-    list.current?.ownerDocument.getElementById(optionId(listId, marked))?.scrollIntoView({ block: "nearest" });
-  }, [open, marked, listId]);
-  function show() {
-    if (!open) {
-      setOpen(true);
-      setActive(multiple ? void 0 : single?.value);
-    }
-  }
-  function close() {
-    setOpen(false);
-    setQuery("");
-    setActive(void 0);
-  }
-  function choose(option) {
-    if (option.disabled === true) return;
-    pick(option.value);
-    if (multiple) {
-      setQuery("");
-      setActive(void 0);
-      input2.current?.focus();
-    } else {
-      close();
-    }
-  }
-  function move(by) {
-    if (!open) {
-      show();
-      return;
-    }
-    if (pickable.length === 0) return;
-    const at = pickable.findIndex((option) => option.value === marked);
-    const next = pickable[(at + by + pickable.length) % pickable.length];
-    setActive(next?.value);
-  }
-  function onKeyDown(event) {
-    if (event.nativeEvent.isComposing) return;
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      move(1);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      move(-1);
-    } else if (event.key === "Enter" && open) {
-      event.preventDefault();
-      const option = byValue.get(marked ?? "");
-      if (option !== void 0) choose(option);
-    } else if (event.key === "Escape" && open) {
-      event.preventDefault();
-      close();
-    } else if (event.key === "Backspace" && multiple && query === "" && picked.length > 0) {
-      const last = picked[picked.length - 1];
-      if (last !== void 0) unpick?.(last);
-    }
-  }
-  const groups = optionsByGroup(shown);
-  const note = error ?? hint;
-  const text = open ? query : multiple ? "" : single?.label ?? "";
-  return /* @__PURE__ */ jsxs("div", { className: styles.field, children: [
-    /* @__PURE__ */ jsx2("label", { htmlFor: id2, className: styles.label, children: label }),
-    multiple && picked.length > 0 ? /* @__PURE__ */ jsx2("ul", { "aria-label": `${label}, picked`, className: "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0", children: picked.map((value2) => {
-      const option = byValue.get(value2);
-      const name2 = option?.label ?? value2;
-      return /* @__PURE__ */ jsxs(
-        "li",
-        {
-          className: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:text-xs",
-          children: [
-            /* @__PURE__ */ jsx2("span", { children: name2 }),
-            /* @__PURE__ */ jsx2(
-              "button",
-              {
-                type: "button",
-                className: `${classes.quiet} bc:rounded-full bc:px-1`,
-                "aria-label": `Remove ${name2}`,
-                onClick: () => {
-                  unpick?.(value2);
-                  input2.current?.focus();
-                },
-                children: /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\xD7" })
-              }
-            )
-          ]
-        },
-        value2
-      );
-    }) }) : null,
-    /* @__PURE__ */ jsxs("div", { className: "bc:relative bc:grid", children: [
-      /* @__PURE__ */ jsx2(
-        "input",
-        {
-          ref: input2,
-          id: id2,
-          type: "text",
-          role: "combobox",
-          autoComplete: "off",
-          spellCheck: false,
-          "aria-autocomplete": "list",
-          "aria-expanded": open,
-          "aria-controls": listId,
-          "aria-activedescendant": open && marked !== void 0 ? optionId(listId, marked) : void 0,
-          "aria-invalid": error === void 0 ? void 0 : true,
-          "aria-describedby": note === void 0 ? void 0 : noteId,
-          "data-autofocus": autofocus || void 0,
-          className: `${styles.box} bc:pr-8`,
-          value: text,
-          placeholder,
-          onChange: (event) => {
-            setQuery(event.target.value);
-            setActive(void 0);
-            setOpen(true);
-          },
-          onClick: show,
-          onKeyDown,
-          onBlur: close
-        }
-      ),
-      /* @__PURE__ */ jsx2(
-        "button",
-        {
-          type: "button",
-          tabIndex: -1,
-          "aria-label": open ? `Close the options of ${label}` : `Show the options of ${label}`,
-          className: "bc:absolute bc:inset-y-0 bc:right-0 bc:flex bc:w-8 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:text-text-muted",
-          onMouseDown: (event) => {
-            event.preventDefault();
-          },
-          onClick: () => {
-            if (open) close();
-            else {
-              show();
-              input2.current?.focus();
-            }
-          },
-          children: /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\u25BE" })
-        }
-      ),
-      open ? /* @__PURE__ */ jsxs(
-        "ul",
-        {
-          ref: list,
-          id: listId,
-          role: "listbox",
-          "aria-label": label,
-          "aria-multiselectable": multiple || void 0,
-          className: `${classes.surface} bc:absolute bc:inset-x-0 bc:top-full bc:z-30 bc:m-0 bc:mt-1 bc:max-h-72 bc:list-none bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:shadow-lg`,
-          children: [
-            shown.length === 0 ? /* @__PURE__ */ jsx2("li", { className: `${styles.hint} bc:px-2 bc:py-1`, children: empty }) : null,
-            groups.map(
-              ([group, members]) => group === void 0 ? members.map((option) => /* @__PURE__ */ jsx2(Option, { option, id: optionId(listId, option.value), marked: option.value === marked, picked: picked.includes(option.value), choose }, option.value)) : /* @__PURE__ */ jsxs("li", { role: "presentation", children: [
-                /* @__PURE__ */ jsx2(
-                  "div",
-                  {
-                    id: groupId(listId, group),
-                    className: "bc:px-2 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted",
-                    children: group
-                  }
-                ),
-                /* @__PURE__ */ jsx2("ul", { role: "group", "aria-labelledby": groupId(listId, group), className: "bc:m-0 bc:list-none bc:p-0", children: members.map((option) => /* @__PURE__ */ jsx2(Option, { option, id: optionId(listId, option.value), marked: option.value === marked, picked: picked.includes(option.value), choose }, option.value)) })
-              ] }, group)
-            )
-          ]
-        }
-      ) : null
-    ] }),
-    note === void 0 ? null : /* @__PURE__ */ jsx2("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
-  ] });
-}
-function Option({
-  option,
-  id: id2,
-  marked,
-  picked,
-  choose
-}) {
-  return /* @__PURE__ */ jsxs(
-    "li",
-    {
-      id: id2,
-      role: "option",
-      "data-value": option.value,
-      "aria-selected": picked,
-      "aria-disabled": option.disabled === true || void 0,
-      className: `bc:grid bc:cursor-pointer bc:gap-0.5 bc:rounded bc:px-2 bc:py-1 bc:text-sm ${marked ? "bc:bg-bg-subtle bc:outline bc:outline-1 bc:outline-border-accent" : ""} ${option.disabled === true ? "bc:cursor-default bc:opacity-50" : ""}`,
-      onMouseDown: (event) => {
-        event.preventDefault();
-      },
-      onClick: () => {
-        choose(option);
-      },
-      children: [
-        /* @__PURE__ */ jsxs("span", { className: "bc:flex bc:items-baseline bc:gap-2", children: [
-          /* @__PURE__ */ jsxs("span", { className: `bc:min-w-0 bc:flex-1 ${picked ? "bc:font-semibold" : "bc:font-medium"}`, children: [
-            picked ? /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\u2713 " }) : null,
-            option.label
-          ] }),
-          option.badge === void 0 ? null : /* @__PURE__ */ jsx2("span", { className: "bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:font-normal bc:text-text-muted", children: option.badge })
-        ] }),
-        option.detail === void 0 || option.detail === "" ? null : /* @__PURE__ */ jsx2("span", { className: "bc:text-xs bc:text-text-muted", children: option.detail })
-      ]
-    }
-  );
-}
-function optionsByGroup(options) {
-  const groups = /* @__PURE__ */ new Map();
-  for (const option of options) groups.set(option.group, [...groups.get(option.group) ?? [], option]);
-  const loose = groups.get(void 0);
-  groups.delete(void 0);
-  return [...loose === void 0 ? [] : [[void 0, loose]], ...groups];
-}
-function optionId(list, value2) {
-  return `${list}-option-${safe(value2)}`;
-}
-function groupId(list, group) {
-  return `${list}-group-${safe(group)}`;
-}
-function safe(text) {
-  return text.replace(/[^A-Za-z0-9_-]/g, (c) => `_${c.charCodeAt(0).toString(16)}`);
-}
-
-// srcts/ui/edits.ts
-function runCommand(core, id2, args) {
-  return core.commands.run(id2, args).then(
-    () => true,
-    () => false
-  );
-}
-
-// srcts/ui/fields.tsx
-import { useId as useId2 } from "react";
-import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
-function TextField({
-  label,
-  value: value2,
-  hint,
-  error,
-  placeholder,
-  identifier = false,
-  onChange,
-  onLeave
-}) {
-  const id2 = useId2();
-  const noteId = `${id2}-note`;
-  const note = error ?? hint;
-  return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
-    /* @__PURE__ */ jsx3("label", { htmlFor: id2, className: styles.label, children: label }),
-    /* @__PURE__ */ jsx3(
-      "input",
-      {
-        id: id2,
-        type: "text",
-        className: styles.box,
-        value: value2,
-        placeholder,
-        spellCheck: identifier ? false : void 0,
-        autoCapitalize: identifier ? "none" : void 0,
-        autoCorrect: identifier ? "off" : void 0,
-        autoComplete: "off",
-        "aria-invalid": error === void 0 ? void 0 : true,
-        "aria-describedby": note === void 0 ? void 0 : noteId,
-        onChange: (event) => {
-          onChange(event.target.value);
-        },
-        onBlur: onLeave
-      }
-    ),
-    note === void 0 ? null : /* @__PURE__ */ jsx3("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
-  ] });
-}
-
-// srcts/ui/hooks.ts
-import { useCallback, useSyncExternalStore } from "react";
-function useBoard(core) {
-  const subscribe = useStore(core);
-  return useSyncExternalStore(subscribe, () => core.store.board());
-}
-function useStore(core) {
-  return useCallback(
-    (notify) => core.store.subscribe(() => {
-      notify();
-    }),
-    [core]
-  );
-}
-
-// srcts/ui/table.tsx
-import { useState as useState3 } from "react";
-import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
-var PAGE_SIZE = 10;
-function useTableView(rows, text, size = PAGE_SIZE) {
-  const [query, setQueryState] = useState3("");
-  const [page, setPage] = useState3(0);
-  const needle = query.trim().toLowerCase();
-  const matching = needle === "" ? rows : rows.filter((row) => text(row).toLowerCase().includes(needle));
-  const pages = Math.max(1, Math.ceil(matching.length / size));
-  const shown = Math.min(page, pages - 1);
-  const first = shown * size;
-  return {
-    rows: matching.slice(first, first + size),
-    query,
-    setQuery: (next) => {
-      setQueryState(next);
-      setPage(0);
-    },
-    page: shown,
-    pages,
-    setPage,
-    found: matching.length,
-    first
-  };
-}
-function TableSearch({ label, view }) {
-  return /* @__PURE__ */ jsx4("search", { children: /* @__PURE__ */ jsxs3("label", { className: styles.field, children: [
-    /* @__PURE__ */ jsx4("span", { className: styles.label, children: label }),
-    /* @__PURE__ */ jsx4(
-      "input",
-      {
-        type: "search",
-        spellCheck: false,
-        autoComplete: "off",
-        className: styles.box,
-        value: view.query,
-        onChange: (event) => {
-          view.setQuery(event.target.value);
-        }
-      }
-    )
-  ] }) });
-}
-function Pager({ label, view }) {
-  const { page, pages, found, first, rows } = view;
-  if (pages < 2) return null;
-  return /* @__PURE__ */ jsxs3("nav", { "aria-label": label, className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted", children: [
-    /* @__PURE__ */ jsxs3("span", { "aria-live": "polite", children: [
-      "Rows ",
-      first + 1,
-      "\u2013",
-      first + rows.length,
-      " of ",
-      found
-    ] }),
-    /* @__PURE__ */ jsxs3("span", { className: "bc:flex bc:gap-1", children: [
-      /* @__PURE__ */ jsx4(
-        "button",
-        {
-          type: "button",
-          className: classes.button,
-          disabled: page === 0,
-          onClick: () => {
-            view.setPage(page - 1);
-          },
-          children: "Previous"
-        }
-      ),
-      /* @__PURE__ */ jsx4(
-        "button",
-        {
-          type: "button",
-          className: classes.button,
-          disabled: page >= pages - 1,
-          onClick: () => {
-            view.setPage(page + 1);
-          },
-          children: "Next"
-        }
-      )
-    ] })
-  ] });
-}
+import { useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/modules/edit-board/blocks.tsx
 import { useCallback as useCallback2, useState as useState5 } from "react";
@@ -708,6 +203,503 @@ function defaultBlockName(registryId2) {
   const pkg = packageFromId(registryId2);
   const name2 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
   return sentenceCase(name2.replace(/_block$/, ""));
+}
+
+// srcts/picker/picker.tsx
+import { useBoard } from "@blockr/core/react";
+
+// srcts/styles/styles.ts
+var styles = {
+  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
+  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
+  label: "bc:text-sm bc:font-medium",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
+  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
+  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
+  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
+  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
+  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+};
+
+// srcts/ui/combobox.tsx
+import { useId, useLayoutEffect as useLayoutEffect2, useMemo, useRef as useRef2, useState as useState2 } from "react";
+
+// srcts/ui/ui.tsx
+import { useLayoutEffect, useRef, useState } from "react";
+import { jsx } from "react/jsx-runtime";
+var classes = {
+  button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
+  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle",
+  // The board's page, which draws no background of its own, so that the
+  // page's, which the browser draws in the page's theme, shows to its edges.
+  page: "bc:text-gray-900 bc:dark:text-gray-100",
+  // What sits over the board, as a dialog or a menu does,
+  // on the background that core's theme gives it, bg-raised.
+  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
+  card: "bc:bg-bg-subtle",
+  heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
+  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
+};
+function NameField({
+  label,
+  name: name2,
+  onSubmit,
+  onDone
+}) {
+  const [text, setText] = useState(name2);
+  const ref = useRef(null);
+  const done = useRef(false);
+  useLayoutEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+  function finish(submit) {
+    if (done.current) return;
+    done.current = true;
+    const trimmed = text.trim();
+    if (submit && trimmed !== "" && trimmed !== name2) onSubmit(trimmed);
+    onDone();
+  }
+  return /* @__PURE__ */ jsx(
+    "input",
+    {
+      ref,
+      type: "text",
+      "aria-label": label,
+      value: text,
+      spellCheck: false,
+      className: `${styles.box} bc:min-w-40`,
+      onChange: (event) => {
+        setText(event.target.value);
+      },
+      onKeyDown: (event) => {
+        if (event.key === "Enter" && !event.nativeEvent.isComposing) finish(true);
+        else if (event.key === "Escape") finish(false);
+      },
+      onBlur: () => {
+        finish(true);
+      }
+    }
+  );
+}
+
+// srcts/ui/combobox.tsx
+import { jsx as jsx2, jsxs } from "react/jsx-runtime";
+function Combobox(props) {
+  const { value: value2, onChange } = props;
+  return /* @__PURE__ */ jsx2(Field, { ...props, picked: value2 === void 0 ? [] : [value2], pick: onChange, multiple: false });
+}
+function MultiCombobox(props) {
+  const { values, onChange } = props;
+  return /* @__PURE__ */ jsx2(
+    Field,
+    {
+      ...props,
+      picked: values,
+      pick: (value2) => {
+        onChange([...values, value2]);
+      },
+      unpick: (value2) => {
+        onChange(values.filter((v) => v !== value2));
+      },
+      multiple: true
+    }
+  );
+}
+function Field({
+  label,
+  options,
+  hint,
+  error,
+  placeholder,
+  empty = "No option matches.",
+  autofocus = false,
+  picked,
+  pick,
+  unpick,
+  multiple
+}) {
+  const id2 = useId();
+  const listId = `${id2}-list`;
+  const noteId = `${id2}-note`;
+  const input2 = useRef2(null);
+  const list = useRef2(null);
+  const byValue = useMemo(() => new Map(options.map((option) => [option.value, option])), [options]);
+  const single = multiple ? void 0 : byValue.get(picked[0] ?? "");
+  const [open, setOpen] = useState2(false);
+  const [query, setQuery] = useState2("");
+  const [active, setActive] = useState2(void 0);
+  const shown = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const taken = new Set(multiple ? picked : []);
+    return options.filter(
+      (option) => !taken.has(option.value) && (needle === "" || [option.label, option.detail ?? "", option.group ?? "", option.badge ?? "", ...option.keywords ?? []].some(
+        (text2) => text2.toLowerCase().includes(needle)
+      ))
+    );
+  }, [options, query, picked, multiple]);
+  const pickable = shown.filter((option) => option.disabled !== true);
+  const marked = active !== void 0 && pickable.some((option) => option.value === active) ? active : pickable[0]?.value;
+  useLayoutEffect2(() => {
+    if (!open || marked === void 0) return;
+    list.current?.ownerDocument.getElementById(optionId2(listId, marked))?.scrollIntoView({ block: "nearest" });
+  }, [open, marked, listId]);
+  function show() {
+    if (!open) {
+      setOpen(true);
+      setActive(multiple ? void 0 : single?.value);
+    }
+  }
+  function close() {
+    setOpen(false);
+    setQuery("");
+    setActive(void 0);
+  }
+  function choose(option) {
+    if (option.disabled === true) return;
+    pick(option.value);
+    if (multiple) {
+      setQuery("");
+      setActive(void 0);
+      input2.current?.focus();
+    } else {
+      close();
+    }
+  }
+  function move(by) {
+    if (!open) {
+      show();
+      return;
+    }
+    if (pickable.length === 0) return;
+    const at = pickable.findIndex((option) => option.value === marked);
+    const next = pickable[(at + by + pickable.length) % pickable.length];
+    setActive(next?.value);
+  }
+  function onKeyDown(event) {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      move(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      move(-1);
+    } else if (event.key === "Enter" && open) {
+      event.preventDefault();
+      const option = byValue.get(marked ?? "");
+      if (option !== void 0) choose(option);
+    } else if (event.key === "Escape" && open) {
+      event.preventDefault();
+      close();
+    } else if (event.key === "Backspace" && multiple && query === "" && picked.length > 0) {
+      const last = picked[picked.length - 1];
+      if (last !== void 0) unpick?.(last);
+    }
+  }
+  const groups = optionsByGroup(shown);
+  const note = error ?? hint;
+  const text = open ? query : multiple ? "" : single?.label ?? "";
+  return /* @__PURE__ */ jsxs("div", { className: styles.field, children: [
+    /* @__PURE__ */ jsx2("label", { htmlFor: id2, className: styles.label, children: label }),
+    multiple && picked.length > 0 ? /* @__PURE__ */ jsx2("ul", { "aria-label": `${label}, picked`, className: "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:gap-1 bc:p-0", children: picked.map((value2) => {
+      const option = byValue.get(value2);
+      const name2 = option?.label ?? value2;
+      return /* @__PURE__ */ jsxs(
+        "li",
+        {
+          className: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-full bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:text-xs",
+          children: [
+            /* @__PURE__ */ jsx2("span", { children: name2 }),
+            /* @__PURE__ */ jsx2(
+              "button",
+              {
+                type: "button",
+                className: `${classes.quiet} bc:rounded-full bc:px-1`,
+                "aria-label": `Remove ${name2}`,
+                onClick: () => {
+                  unpick?.(value2);
+                  input2.current?.focus();
+                },
+                children: /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\xD7" })
+              }
+            )
+          ]
+        },
+        value2
+      );
+    }) }) : null,
+    /* @__PURE__ */ jsxs("div", { className: "bc:relative bc:grid", children: [
+      /* @__PURE__ */ jsx2(
+        "input",
+        {
+          ref: input2,
+          id: id2,
+          type: "text",
+          role: "combobox",
+          autoComplete: "off",
+          spellCheck: false,
+          "aria-autocomplete": "list",
+          "aria-expanded": open,
+          "aria-controls": listId,
+          "aria-activedescendant": open && marked !== void 0 ? optionId2(listId, marked) : void 0,
+          "aria-invalid": error === void 0 ? void 0 : true,
+          "aria-describedby": note === void 0 ? void 0 : noteId,
+          "data-autofocus": autofocus || void 0,
+          className: `${styles.box} bc:pr-8`,
+          value: text,
+          placeholder,
+          onChange: (event) => {
+            setQuery(event.target.value);
+            setActive(void 0);
+            setOpen(true);
+          },
+          onClick: show,
+          onKeyDown,
+          onBlur: close
+        }
+      ),
+      /* @__PURE__ */ jsx2(
+        "button",
+        {
+          type: "button",
+          tabIndex: -1,
+          "aria-label": open ? `Close the options of ${label}` : `Show the options of ${label}`,
+          className: "bc:absolute bc:inset-y-0 bc:right-0 bc:flex bc:w-8 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:text-text-muted",
+          onMouseDown: (event) => {
+            event.preventDefault();
+          },
+          onClick: () => {
+            if (open) close();
+            else {
+              show();
+              input2.current?.focus();
+            }
+          },
+          children: /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\u25BE" })
+        }
+      ),
+      open ? /* @__PURE__ */ jsxs(
+        "ul",
+        {
+          ref: list,
+          id: listId,
+          role: "listbox",
+          "aria-label": label,
+          "aria-multiselectable": multiple || void 0,
+          className: `${classes.surface} bc:absolute bc:inset-x-0 bc:top-full bc:z-30 bc:m-0 bc:mt-1 bc:max-h-72 bc:list-none bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:shadow-lg`,
+          children: [
+            shown.length === 0 ? /* @__PURE__ */ jsx2("li", { className: `${styles.hint} bc:px-2 bc:py-1`, children: empty }) : null,
+            groups.map(
+              ([group, members]) => group === void 0 ? members.map((option) => /* @__PURE__ */ jsx2(Option, { option, id: optionId2(listId, option.value), marked: option.value === marked, picked: picked.includes(option.value), choose }, option.value)) : /* @__PURE__ */ jsxs("li", { role: "presentation", children: [
+                /* @__PURE__ */ jsx2(
+                  "div",
+                  {
+                    id: groupId(listId, group),
+                    className: "bc:px-2 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted",
+                    children: group
+                  }
+                ),
+                /* @__PURE__ */ jsx2("ul", { role: "group", "aria-labelledby": groupId(listId, group), className: "bc:m-0 bc:list-none bc:p-0", children: members.map((option) => /* @__PURE__ */ jsx2(Option, { option, id: optionId2(listId, option.value), marked: option.value === marked, picked: picked.includes(option.value), choose }, option.value)) })
+              ] }, group)
+            )
+          ]
+        }
+      ) : null
+    ] }),
+    note === void 0 ? null : /* @__PURE__ */ jsx2("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
+  ] });
+}
+function Option({
+  option,
+  id: id2,
+  marked,
+  picked,
+  choose
+}) {
+  return /* @__PURE__ */ jsxs(
+    "li",
+    {
+      id: id2,
+      role: "option",
+      "data-value": option.value,
+      "aria-selected": picked,
+      "aria-disabled": option.disabled === true || void 0,
+      className: `bc:grid bc:cursor-pointer bc:gap-0.5 bc:rounded bc:px-2 bc:py-1 bc:text-sm ${marked ? "bc:bg-bg-subtle bc:outline bc:outline-1 bc:outline-border-accent" : ""} ${option.disabled === true ? "bc:cursor-default bc:opacity-50" : ""}`,
+      onMouseDown: (event) => {
+        event.preventDefault();
+      },
+      onClick: () => {
+        choose(option);
+      },
+      children: [
+        /* @__PURE__ */ jsxs("span", { className: "bc:flex bc:items-baseline bc:gap-2", children: [
+          /* @__PURE__ */ jsxs("span", { className: `bc:min-w-0 bc:flex-1 ${picked ? "bc:font-semibold" : "bc:font-medium"}`, children: [
+            picked ? /* @__PURE__ */ jsx2("span", { "aria-hidden": "true", children: "\u2713 " }) : null,
+            option.label
+          ] }),
+          option.badge === void 0 ? null : /* @__PURE__ */ jsx2("span", { className: "bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:font-normal bc:text-text-muted", children: option.badge })
+        ] }),
+        option.detail === void 0 || option.detail === "" ? null : /* @__PURE__ */ jsx2("span", { className: "bc:text-xs bc:text-text-muted", children: option.detail })
+      ]
+    }
+  );
+}
+function optionsByGroup(options) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const option of options) groups.set(option.group, [...groups.get(option.group) ?? [], option]);
+  const loose = groups.get(void 0);
+  groups.delete(void 0);
+  return [...loose === void 0 ? [] : [[void 0, loose]], ...groups];
+}
+function optionId2(list, value2) {
+  return `${list}-option-${safe(value2)}`;
+}
+function groupId(list, group) {
+  return `${list}-group-${safe(group)}`;
+}
+function safe(text) {
+  return text.replace(/[^A-Za-z0-9_-]/g, (c) => `_${c.charCodeAt(0).toString(16)}`);
+}
+
+// srcts/ui/edits.ts
+function runCommand(core, id2, args) {
+  return core.commands.run(id2, args).then(
+    () => true,
+    () => false
+  );
+}
+
+// srcts/ui/fields.tsx
+import { useId as useId2 } from "react";
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+function TextField({
+  label,
+  value: value2,
+  hint,
+  error,
+  placeholder,
+  identifier = false,
+  onChange,
+  onLeave
+}) {
+  const id2 = useId2();
+  const noteId = `${id2}-note`;
+  const note = error ?? hint;
+  return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
+    /* @__PURE__ */ jsx3("label", { htmlFor: id2, className: styles.label, children: label }),
+    /* @__PURE__ */ jsx3(
+      "input",
+      {
+        id: id2,
+        type: "text",
+        className: styles.box,
+        value: value2,
+        placeholder,
+        spellCheck: identifier ? false : void 0,
+        autoCapitalize: identifier ? "none" : void 0,
+        autoCorrect: identifier ? "off" : void 0,
+        autoComplete: "off",
+        "aria-invalid": error === void 0 ? void 0 : true,
+        "aria-describedby": note === void 0 ? void 0 : noteId,
+        onChange: (event) => {
+          onChange(event.target.value);
+        },
+        onBlur: onLeave
+      }
+    ),
+    note === void 0 ? null : /* @__PURE__ */ jsx3("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
+  ] });
+}
+
+// srcts/ui/hooks.ts
+import { useCallback, useSyncExternalStore } from "react";
+
+// srcts/ui/table.tsx
+import { useState as useState3 } from "react";
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+var PAGE_SIZE = 10;
+function useTableView(rows, text, size = PAGE_SIZE) {
+  const [query, setQueryState] = useState3("");
+  const [page, setPage] = useState3(0);
+  const needle = query.trim().toLowerCase();
+  const matching = needle === "" ? rows : rows.filter((row) => text(row).toLowerCase().includes(needle));
+  const pages = Math.max(1, Math.ceil(matching.length / size));
+  const shown = Math.min(page, pages - 1);
+  const first = shown * size;
+  return {
+    rows: matching.slice(first, first + size),
+    query,
+    setQuery: (next) => {
+      setQueryState(next);
+      setPage(0);
+    },
+    page: shown,
+    pages,
+    setPage,
+    found: matching.length,
+    first
+  };
+}
+function TableSearch({ label, view }) {
+  return /* @__PURE__ */ jsx4("search", { children: /* @__PURE__ */ jsxs3("label", { className: styles.field, children: [
+    /* @__PURE__ */ jsx4("span", { className: styles.label, children: label }),
+    /* @__PURE__ */ jsx4(
+      "input",
+      {
+        type: "search",
+        spellCheck: false,
+        autoComplete: "off",
+        className: styles.box,
+        value: view.query,
+        onChange: (event) => {
+          view.setQuery(event.target.value);
+        }
+      }
+    )
+  ] }) });
+}
+function Pager({ label, view }) {
+  const { page, pages, found, first, rows } = view;
+  if (pages < 2) return null;
+  return /* @__PURE__ */ jsxs3("nav", { "aria-label": label, className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted", children: [
+    /* @__PURE__ */ jsxs3("span", { "aria-live": "polite", children: [
+      "Rows ",
+      first + 1,
+      "\u2013",
+      first + rows.length,
+      " of ",
+      found
+    ] }),
+    /* @__PURE__ */ jsxs3("span", { className: "bc:flex bc:gap-1", children: [
+      /* @__PURE__ */ jsx4(
+        "button",
+        {
+          type: "button",
+          className: classes.button,
+          disabled: page === 0,
+          onClick: () => {
+            view.setPage(page - 1);
+          },
+          children: "Previous"
+        }
+      ),
+      /* @__PURE__ */ jsx4(
+        "button",
+        {
+          type: "button",
+          className: classes.button,
+          disabled: page >= pages - 1,
+          onClick: () => {
+            view.setPage(page + 1);
+          },
+          children: "Next"
+        }
+      )
+    ] })
+  ] });
 }
 
 // srcts/picker/picker.tsx
@@ -1601,7 +1593,7 @@ function sameBlocks(a, b) {
 // srcts/modules/edit-board/board.tsx
 import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 function EditBoard({ core }) {
-  const board = useBoard(core);
+  const board = useBoard2(core);
   const locked2 = core.lock.board;
   return /* @__PURE__ */ jsxs8("div", { className: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default", children: [
     locked2 ? null : /* @__PURE__ */ jsx9(BlocksSection, { core, board }),

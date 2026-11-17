@@ -1,51 +1,10 @@
-// The hooks through which a card follows its block's status and the
-// notifications about it, as React's useSyncExternalStore follows a store, and
-// whether the card gives the block's output a height of its own.
+// The hook that says whether a card gives its block's output a height of its
+// own.
+// The card follows the block's status and the notifications about it through
+// useStatus() and useNotified() of core's React SDK.
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
-import type { BlockId } from "../types/board.ts";
-import type { CoreApi, Notification } from "../types/core-api.ts";
-
-// The block's status, which the scheduler keeps the same object until it
-// announces that it changed.
-export function useStatus(
-  core: { readonly scheduler: Pick<Scheduler, "status" | "subscribe"> },
-  block: BlockId,
-): BlockStatus | undefined {
-  const subscribe = useCallback(
-    (notify: () => void) =>
-      core.scheduler.subscribe((changed) => {
-        if (changed.includes(block)) notify();
-      }),
-    [core, block],
-  );
-  return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
-}
-
-// The notifications about the block, or every notification of the board given
-// null, in the order they came. CoreApi keeps the same array of them until one
-// comes or goes, so the card draws them again only then.
-export function useNotified(
-  core: { readonly notifications: Pick<CoreApi["notifications"], "get" | "subscribe"> },
-  block: BlockId | null,
-): readonly Notification[] {
-  const subscribe = useCallback(
-    (notify: () => void) =>
-      core.notifications.subscribe(() => {
-        notify();
-      }),
-    [core],
-  );
-  const all = useSyncExternalStore(subscribe, () => core.notifications.get());
-  return useMemo(
-    () =>
-      block === null
-        ? all
-        : all.filter((notification) => notification.about !== undefined && "block" in notification.about && notification.about.block === block),
-    [all, block],
-  );
-}
+import { useState } from "react";
+import type { BlockStatus } from "../scheduler/index.ts";
 
 // Whether the card gives the block's output a height of its own: from the
 // first time that the block reads ready on, for as long as the card is drawn.
