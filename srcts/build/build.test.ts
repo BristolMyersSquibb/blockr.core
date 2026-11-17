@@ -416,8 +416,27 @@ test("names the colors of core's UIs as variables of its theme, which follow the
   expect(css).toContain("--bc-color-border-default: color-mix(in oklab, currentColor 25%, transparent);");
   // A colour with an accent of its own takes the theme's, which the stylesheet
   // then holds too.
-  expect(css).toContain("--bc-color-text-danger: var(--bc-color-red-600);");
-  expect(css).toMatch(/--bc-color-red-600: oklch\(/);
+  expect(css).toContain("--bc-color-text-danger: var(--bc-color-red-700);");
+  expect(css).toMatch(/--bc-color-red-700: oklch\(/);
+});
+
+test("draws the danger and the warning texts in shades that reach 4.5:1 under the light theme, and lighter ones under the dark theme", async () => {
+  await write({ "test.css": `@import "${core}";\n@source inline("bc:text-text-danger bc:text-text-warning");\n` });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  const start = css.indexOf("@layer theme {");
+  const theme = css.slice(start, css.indexOf("\n}\n", start));
+  // Under the light theme, each takes the lightest shade of the theme's red or
+  // amber that reaches 4.5:1 on a card and on the tint of a card's mark.
+  expect(theme).toMatch(/:root, :host \{[^}]*--bc-color-text-danger: var\(--bc-color-red-700\);/);
+  expect(theme).toMatch(/:root, :host \{[^}]*--bc-color-text-warning: var\(--bc-color-amber-800\);/);
+  // Under the dark theme, each takes the value that blockr.ui gives its token
+  // there. The rule sits in the theme's layer, so that a frontend that sets the
+  // variable outside a layer wins over it.
+  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-text-danger: #f87171;/);
+  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-text-warning: #fbbf24;/);
+  expect(css.replace(theme, "")).not.toMatch(/--bc-color-text-(danger|warning):/);
 });
 
 test("draws what floats over the board on the page's background, which the dark theme lightens, as a variable of its theme", async () => {

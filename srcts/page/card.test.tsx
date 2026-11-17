@@ -305,7 +305,7 @@ describe("the card of a block that serve() serves alone", () => {
     });
     expect(pills(el)).toEqual(["1 message"]);
     const messages = pill(el, "1 message");
-    expect(messages.className).toContain("bc:text-blue-600");
+    expect(messages.className).toContain("bc:text-blue-700");
     expect(messages.getAttribute("aria-expanded")).toBe("false");
     expect(status(el).className).not.toContain("bc:opacity-50");
     expect(banners(el)).toEqual([]);
