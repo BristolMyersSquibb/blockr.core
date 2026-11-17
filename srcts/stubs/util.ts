@@ -19,6 +19,7 @@ export const READY: BlockStatus = Object.freeze({
   stderr: "",
   summary: null,
   reason: null,
+  unsent: null,
 });
 
 // A block's context, a ready block named "Block" with no linked inputs and no

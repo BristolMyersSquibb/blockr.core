@@ -1,6 +1,6 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { Raised } from "../types/core-api.ts";
+import type { CoreFailure, Raised } from "../types/core-api.ts";
 import type { OutputHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
@@ -32,6 +32,6 @@ export interface StubOutputHost extends OutputHost {
     readonly logged: readonly LogLine[];
     setOutput(output: Json, body?: Blob | null, params?: Json): void;
     setLoading(loading: boolean): void;
-    setError(error: Condition | null): void;
+    setError(error: Condition | CoreFailure | null): void;
 }
 export declare function stubOutputHost(options?: StubOutputHostOptions): StubOutputHost;

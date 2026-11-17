@@ -8,9 +8,10 @@
 //   derives from the scheduler, ahead of any frontend, rather than copies. Its
 //   id comes from the block, the severity, the source and the message, so that
 //   the same condition in the block's next reply keeps its id, and two that
-//   share all four are one. Its source is R, or core for the error of an
-//   evaluation that the transport could not send, which the scheduler writes
-//   itself.
+//   share all four are one. Its source is R.
+// - One of core's for each block whose status holds `unsent`, why the
+//   transport could not send the block's latest evaluation, with an id made
+//   in the same way.
 // - One for each condition of R's latest reply to each request that a module
 //   or a plugin made, ok or error, in place of those of the request's reply
 //   before, so that a request that fails again keeps its notifications, and
@@ -40,7 +41,6 @@
 
 import { announceTo, onAbort } from "../mount/index.ts";
 import type { Condition } from "../protocol/index.ts";
-import { isUnsentError } from "../scheduler/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
@@ -206,16 +206,22 @@ export function createNotifications(
     return moved;
   }
 
-  // Holds the notifications of the conditions of a block's status in place of
-  // those it held, and says whether that changed what holds.
+  // Holds the notifications of the conditions of a block's status, and the
+  // one of its `unsent`, in place of those it held, and says whether that
+  // changed what holds.
   function fromStatus(block: BlockId, status: BlockStatus | undefined): boolean {
     const about = { block };
     const next = new Map<string, Notification>();
+    const add = (given: Omit<Notification, "id" | "about">): void => {
+      const id = JSON.stringify(["status", block, given.severity, given.source, given.message]);
+      if (!next.has(id)) next.set(id, frozen(id, { ...given, about }));
+    };
     if (status !== undefined && present(about)) {
       for (const condition of status.conditions) {
-        const source = statusSource(condition);
-        const id = JSON.stringify(["status", block, condition.severity, source, condition.message]);
-        if (!next.has(id)) next.set(id, frozen(id, { severity: condition.severity, message: condition.message, source, about }));
+        add({ severity: condition.severity, message: condition.message, source: statusSource(condition) });
+      }
+      if (status.unsent !== null) {
+        add({ severity: "error", message: status.unsent, source: { kind: "core", code: "evaluation_unsent" } });
       }
     }
     return replace(JSON.stringify(["status", block]), about, next);
@@ -357,11 +363,9 @@ function raisedId(given: Omit<Notification, "id">): string {
   ]);
 }
 
-// Who raised a condition of a block's status: R, or core for the error of an
-// evaluation that the transport could not send, which the scheduler wrote
-// itself.
+// Who raised a condition of a block's status: R, in the phase of the block's
+// evaluation that the condition names, if any.
 function statusSource(condition: Condition): NotificationSource {
-  if (isUnsentError(condition)) return { kind: "core", code: "evaluation_unsent" };
   const { phase } = condition;
   return {
     kind: "r",

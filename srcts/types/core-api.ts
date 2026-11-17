@@ -294,6 +294,18 @@ export type CoreCode =
   // that holds no condition.
   | "output_unanswered";
 
+// Why core could not get or draw a block's output where R gave no error, as
+// the output host's error() gives it in place of R's condition. Its code is
+// that of the notification that core raises for the same failure:
+// output_unanswered for an ask that got no reply or an error reply that holds
+// no error, and module_failed for a renderer that lacks the board options that
+// it names.
+export interface CoreFailure {
+  readonly kind: "core";
+  readonly code: Extract<CoreCode, "output_unanswered" | "module_failed">;
+  readonly message: string;
+}
+
 // A package's module in the client: a plugin class's, one that core mounts for
 // a block or a board option, its UI module or a renderer, or a board option's,
 // whose onChange() raises it.

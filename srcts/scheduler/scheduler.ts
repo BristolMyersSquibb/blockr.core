@@ -7,7 +7,8 @@
 // - It has R evaluate what is demanded, with everything upstream of it.
 //   Evaluations go by the evaluation priority each demand gives, and in
 //   topological order within one priority.
-// - It keeps each block's status from R's replies.
+// - It keeps each block's status from R's replies, and from the evaluations
+//   that the transport could not send.
 //
 // There is one scheduler per board. Core creates it beside the store and hands
 // it to frontends and plugins through `CoreApi`, and ends it as another
@@ -59,7 +60,7 @@ import { inputsByBlock } from "./recipes.ts";
 import type { Inputs } from "./recipes.ts";
 import { bump, counter, opening, revise } from "./revisions.ts";
 import { blockStatuses, keptWaiting, replyOutcome, unsent } from "./status.ts";
-import type { BlockStatus, Outcome } from "./status.ts";
+import type { BlockStatus, Outcome, Unsent } from "./status.ts";
 
 export interface Scheduler {
   // Keeps the blocks evaluated, with everything upstream of them, until the
@@ -207,7 +208,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // What the scheduler knows:
   // - The board as it last saw it, the block registry the board opened with,
   //   and the inputs that R binds itself.
-  // - Each block's revision, and what R's latest reply for it said.
+  // - Each block's revision, what R's latest reply for it said, and the
+  //   evaluation of it that the transport could not send since, if any.
   // - The evaluations sent to R and not yet answered, and the outputs and
   //   requests.
   // - The demands and the one-time evaluations.
@@ -217,6 +219,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   const bound = signal<ReadonlySet<string>>(new Set(options.bound ?? []));
   const revisions = signal<ReadonlyMap<BlockId, number>>(new Map());
   const outcomes = signal<ReadonlyMap<BlockId, Outcome>>(new Map());
+  const unsentEvaluations = signal<ReadonlyMap<BlockId, Unsent>>(new Map());
   const sent = signal<ReadonlyMap<number, Sent>>(new Map());
   const asked = signal<ReadonlyMap<number, Asked>>(new Map());
   const demands = signal<ReadonlyMap<number, Demanding>>(new Map());
@@ -236,6 +239,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       graph: graph.value,
       revisions: revisions.value,
       outcomes: outcomes.value,
+      unsent: unsentEvaluations.value,
       inputs: inputs.value,
       running: running(sent.value),
       before: last,
@@ -264,6 +268,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     bound.value,
     revisions.value,
     outcomes.value,
+    unsentEvaluations.value,
     sent.value,
     asked.value,
     demands.value,
@@ -352,6 +357,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
     const gone = new Set(revised.gone);
     outcomes.value = new Map([...outcomes.value].filter(([id]) => !gone.has(id)));
+    unsentEvaluations.value = new Map([...unsentEvaluations.value].filter(([id]) => !gone.has(id)));
     update(evaluations.left(oneTimes.value, gone));
     client.forget(revised.gone);
   });
@@ -488,7 +494,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   // A reply's outcome becomes the block's where it is for the block's current
   // revision, and no input or block upstream keeps the block waiting. A block
-  // that R said waits takes it, as from its save button. A reply of
+  // that R said waits takes it, as from its save button. It replaces the
+  // evaluation that the transport could not send, if any. A reply of
   // `cancelled` or `missing` has no outcome. A reply to an evaluation for a
   // one-time evaluation with parameters goes to that one-time evaluation too.
   const answered = action((id: number, reply: Reply) => {
@@ -503,6 +510,11 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       keptWaiting(inputs.value.get(evaluation.block), statuses.value) === undefined
     ) {
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
+      if (unsentEvaluations.value.has(evaluation.block)) {
+        const rest = new Map(unsentEvaluations.value);
+        rest.delete(evaluation.block);
+        unsentEvaluations.value = rest;
+      }
     }
     if (evaluation.oneTime !== undefined) {
       update(
@@ -521,7 +533,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // An evaluation that got no answer, since the transport could not send it or
   // the session ended first. The one-time evaluation with parameters that it
   // was for rejects with why. Otherwise, where the transport could not send
-  // it, the block fails with why, rather than being sent again and again.
+  // it, the block fails with why, rather than being sent again and again. The
+  // scheduler keeps why beside R's latest reply, until R's next reply for the
+  // block drops it.
   const unanswered = action((id: number, error: unknown) => {
     const evaluation = done(id);
     if (evaluation === undefined || ended()) return;
@@ -531,8 +545,10 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       !(error instanceof SessionEndedError) &&
       revisions.value.get(evaluation.block) === evaluation.revision
     ) {
-      const outcome = unsent(evaluation.revision, errorMessage(error));
-      outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
+      unsentEvaluations.value = new Map(unsentEvaluations.value).set(
+        evaluation.block,
+        unsent(evaluation.revision, errorMessage(error)),
+      );
     }
   });
 

@@ -60,6 +60,7 @@ export type {
   BoardObject,
   CoreApi,
   CoreCode,
+  CoreFailure,
   CoreSource,
   EvaluatePhase,
   FrontendModule,

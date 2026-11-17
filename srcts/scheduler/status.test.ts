@@ -1,6 +1,7 @@
 // @vitest-environment node
 
-// Every block's status, from its revision, its latest reply and its inputs.
+// Every block's status, from its revision, its latest reply, the evaluation
+// that the transport could not send since, if any, and its inputs.
 
 import { describe, expect, test } from "vitest";
 import { createGraph } from "../graph/index.ts";
@@ -10,8 +11,8 @@ import { hello } from "../testing/store.ts";
 import type { Board, BlockId } from "../types/board.ts";
 import { inputsByBlock } from "./recipes.ts";
 import { counter, opening } from "./revisions.ts";
-import { blockStatuses, keptWaiting, waitingError } from "./status.ts";
-import type { BlockStatus, Outcome } from "./status.ts";
+import { blockStatuses, keptWaiting, unsent, waitingError } from "./status.ts";
+import type { BlockStatus, Outcome, Unsent } from "./status.ts";
 
 const failure: Condition = {
   severity: "error",
@@ -43,10 +44,13 @@ function statuses(
     running = [],
     before = new Map(),
     revisions = opening(createGraph(board), counter()),
+    failures = () => [],
   }: {
     running?: BlockId[];
     before?: ReadonlyMap<BlockId, BlockStatus>;
     revisions?: ReadonlyMap<BlockId, number>;
+    // The evaluations that the transport could not send.
+    failures?: (revisions: ReadonlyMap<BlockId, number>) => [BlockId, Unsent][];
   } = {},
 ) {
   const graph = createGraph(board);
@@ -54,6 +58,7 @@ function statuses(
     graph,
     revisions,
     outcomes: new Map(outcomes(revisions)),
+    unsent: new Map(failures(revisions)),
     inputs: inputsByBlock(board, graph, hello.block_registry, new Set()),
     running: new Set(running),
     before,
@@ -101,6 +106,44 @@ describe("statuses", () => {
   test("read stale where the reply is for an older revision, keeping what it said", () => {
     const { statuses: found } = statuses(sample, () => [["b", outcome("error", 1, [failure])]]);
     expect(found.get("b")).toMatchObject({ status: "stale", evaluated: 1, conditions: [failure] });
+  });
+
+  test("read failed while the transport could not send the evaluation of the block's revision, and stale once that moves on, with why in unsent and nothing of R's reply", () => {
+    const why = "The evaluation could not be sent to R: The transport is closed.";
+    const replies = (revisions: ReadonlyMap<BlockId, number>): [BlockId, Outcome][] => [
+      ["a", outcome("ok", at(revisions, "a"))],
+      ["b", outcome("error", 1, [failure])],
+    ];
+    const closed = (revisions: ReadonlyMap<BlockId, number>): [BlockId, Unsent][] => [
+      ["b", unsent(at(revisions, "b"), "The transport is closed.")],
+      ["d", unsent(1, "The transport is closed.")],
+    ];
+    const { statuses: found } = statuses(sample, replies, { failures: closed });
+
+    expect(found.get("b")).toEqual({
+      status: "failed",
+      revision: 2,
+      evaluated: 1,
+      running: false,
+      conditions: [],
+      stdout: "",
+      stderr: "",
+      summary: null,
+      reason: null,
+      unsent: why,
+    });
+    expect(found.get("d")).toMatchObject({ status: "stale", evaluated: null, conditions: [], unsent: why });
+    expect(found.get("a")).toMatchObject({ status: "ready", unsent: null });
+    expect(found.get("c")).toMatchObject({ status: "waiting", reason: 'This block is waiting for block "b".', unsent: null });
+
+    // A status whose `unsent` reads as before keeps its object.
+    const same = statuses(sample, replies, { failures: closed, before: found });
+    expect(same.changed).toEqual([]);
+    const other = statuses(sample, replies, {
+      failures: (revisions) => [["b", unsent(at(revisions, "b"), "The message is too large.")]],
+      before: found,
+    });
+    expect(other.changed).toEqual(["b", "d"]);
   });
 
   test("read waiting for an unlinked input, with a reason that names it and no condition", () => {

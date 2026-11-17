@@ -36,7 +36,7 @@
 // Core raises a notification for each condition of R's reply to an ask of the
 // block's output, ok or error, which concerns the block, in place of those
 // before. Where an ask fails without an error from R, as where it gets no
-// reply, core raises one of its own with the condition that the host's
+// reply, core raises one of its own with the failure that the host's
 // `error()` gives. A frontend chooses which of them to show: a card shows those
 // whose severity `show_conditions` names. A renderer that cannot draw, as one
 // that fails to load or throws in render(), raises one that concerns the
@@ -57,7 +57,7 @@ import type { Store } from "../store/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Condition, OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { SourceModule } from "../types/core-api.ts";
+import type { CoreFailure, SourceModule } from "../types/core-api.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
@@ -229,22 +229,21 @@ interface Announcing extends OutputHost {
   drop(): void;
 }
 
-// The condition of an output that R could not make, which core writes itself
-// where R gives none.
-function noOutput(message: string): Condition {
-  return { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message };
+// Core's failure at the output of a block, with the code of the notification
+// that core raises for it.
+function coreFailure(code: CoreFailure["code"], message: string): CoreFailure {
+  return { kind: "core", code, message };
 }
 
 // Why R could not make the output of the block, from R's error reply: the
 // reply's condition of the severity error. Where the coercion failed, that is
 // the error that stopped it, and the reply holds it after the messages and
 // warnings that the coercion raised before. Where the reply holds no error,
-// core writes its own condition.
-function whyFailed(reply: Reply, block: BlockId): { readonly condition: Condition; readonly by: "r" | "core" } {
+// it is core's failure.
+function whyFailed(reply: Reply, block: BlockId): Condition | CoreFailure {
   const conditions = "conditions" in reply ? reply.conditions : [];
   const error = conditions.find((condition) => condition.severity === "error");
-  if (error !== undefined) return { condition: error, by: "r" };
-  return { condition: noOutput(`R failed to make the output of block "${block}".`), by: "core" };
+  return error ?? coreFailure("output_unanswered", `R failed to make the output of block "${block}".`);
 }
 
 // Mounts the output of the block in the element until the returned cleanup
@@ -284,7 +283,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   let info = measure.info(el);
   let held: Made | undefined;
   let asking: { readonly key: string; leave(): void } | undefined;
-  let error: Condition | null = null;
+  let error: Condition | CoreFailure | null = null;
   // What withdraws the notification that the renderer cannot draw without the
   // board options that it names, while it holds.
   let unfit: (() => void) | undefined;
@@ -511,7 +510,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         left = true;
         mine.callers -= 1;
         if (asking === ask) asking = undefined;
-        if (!ended()) failed(noOutput(errorMessage(failure)));
+        if (!ended()) failed(coreFailure("output_unanswered", errorMessage(failure)));
       },
     );
     return ask;
@@ -524,7 +523,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         take({ asked, output: (reply as OutputReply).output, body });
         return;
       case "error":
-        failed(whyFailed(reply, block).condition);
+        failed(whyFailed(reply, block));
         return;
       default:
         // A reply of `missing` comes where the block's revision moved on, or
@@ -538,45 +537,44 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // Raises the notifications of R's reply to an ask of the block's output, in
   // place of those before, for the block, whichever mount asked: one for each
   // condition of the reply, ok or error. Where R could not make the output and
-  // gave no error, core raises one of its own with the condition that the
+  // gave no error, core raises one of its own with the failure that the
   // host's `error()` gives.
   function heard(reply: Reply): void {
     if (deps.replaced.aborted) return;
     if (reply.status === "ok" && "output" in reply) {
       hold(reply.conditions);
     } else if (reply.status === "error") {
-      const { condition, by } = whyFailed(reply, block);
-      hold("conditions" in reply ? reply.conditions : [], by === "core" ? [condition] : []);
+      const why = whyFailed(reply, block);
+      hold("conditions" in reply ? reply.conditions : [], "kind" in why ? [why] : []);
     }
   }
 
   // An ask of the block's output that got no reply.
   function unanswered(message: string): void {
-    if (!deps.replaced.aborted) hold([], [noOutput(message)]);
+    if (!deps.replaced.aborted) hold([], [coreFailure("output_unanswered", message)]);
   }
 
-  // Raises a notification of each condition, those that R wrote and then those
-  // that core did, in place of those before.
-  function hold(byR: readonly Condition[], byCore: readonly Condition[] = []): void {
+  // Raises a notification of each condition that R wrote and then of each of
+  // core's failures, in place of those before.
+  function hold(byR: readonly Condition[], byCore: readonly CoreFailure[] = []): void {
     const before = shelf.notified;
-    const raise = (condition: Condition, by: "r" | "core") =>
+    const fromR = (condition: Condition) =>
       deps.raise({
         severity: condition.severity,
         message: condition.message,
-        source:
-          by === "r"
-            ? { kind: "r", class: condition.class, request: { type: "output" } }
-            : { kind: "core", code: "output_unanswered" },
+        source: { kind: "r", class: condition.class, request: { type: "output" } },
         about: { block },
       });
-    shelf.notified = [...byR.map((condition) => raise(condition, "r")), ...byCore.map((condition) => raise(condition, "core"))];
+    const fromCore = (failure: CoreFailure) =>
+      deps.raise({ severity: "error", message: failure.message, source: { kind: "core", code: failure.code }, about: { block } });
+    shelf.notified = [...byR.map(fromR), ...byCore.map(fromCore)];
     for (const withdraw of before) withdraw();
   }
 
   // Keeps why the latest ask failed, which the host's error() gives, while the
   // renderer keeps what it holds.
-  function failed(condition: Condition): void {
-    error = condition;
+  function failed(why: Condition | CoreFailure): void {
+    error = why;
     announce();
   }
 
@@ -598,7 +596,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     const before = unfit;
     unfit = deps.raise(notification);
     before?.();
-    failed(noOutput(errorMessage(failure)));
+    failed(coreFailure("module_failed", errorMessage(failure)));
   }
 
   // Withdraws that the renderer cannot draw without the board options that it

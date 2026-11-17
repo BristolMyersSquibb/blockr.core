@@ -428,7 +428,8 @@ describe("asking", () => {
       },
     ]);
 
-    // Where R gives no condition, core writes the one that error() gives.
+    // Where R gives no condition, core raises its own failure, which error()
+    // gives.
     s.scheduler.invalidate("b");
     await evaluateAll(s.r);
     s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [] });
@@ -485,18 +486,49 @@ describe("asking", () => {
     expect(table.host().output()).toMatchObject({ total: 150 });
     expect(s.raised).toEqual([fromR(warning), fromR(failure)]);
 
-    // Where the reply holds no error, core writes the condition, as where it
-    // holds none, and raises it beside the reply's.
+    // Where the reply holds no error, error() gives core's failure, as where it
+    // holds no condition, and core raises it beside the reply's.
     s.scheduler.invalidate("b");
     await evaluateAll(s.r);
     s.r.reply({ id: lastOutput(s.r).id, status: "error", conditions: [warning] });
     await tick();
     const written = 'R failed to make the output of block "b".';
-    expect(table.host().error()).toMatchObject({ severity: "error", message: written });
+    expect(table.host().error()).toEqual({ kind: "core", code: "output_unanswered", message: written });
     expect(s.raised).toEqual([
       fromR(warning),
       { severity: "error", message: written, source: { kind: "core", code: "output_unanswered" }, about: { block: "b" } },
     ]);
+  });
+
+  test("gives core's failure through error() where an ask gets no reply, and raises it as a notification that concerns the block", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(table.host().error()).toBeNull();
+
+    s.r.refuse.add("output");
+    table.host().setParams({ page: 2 });
+    await tick();
+    // The refusal comes back during that tick. Fake timers put a timer that is
+    // set during a tick 1 ms later.
+    await tick(1);
+    const why = "The transport is closed.";
+    expect(table.host().error()).toEqual({ kind: "core", code: "output_unanswered", message: why });
+    expect(table.host().output()).toMatchObject({ total: 150 });
+    expect(s.raised).toEqual([
+      { severity: "error", message: why, source: { kind: "core", code: "output_unanswered" }, about: { block: "b" } },
+    ]);
+
+    // The next output clears both.
+    s.r.refuse.clear();
+    table.host().setParams({ page: 3 });
+    await tick();
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(table.host().error()).toBeNull();
+    expect(s.raised).toEqual([]);
   });
 
   test("raises a notification for each condition of an output, which concerns the block, in place of those before", async () => {
@@ -663,7 +695,7 @@ describe("board options", () => {
     reported.restore();
     const why = `The default of the board option "once", which the renderer "${TABLE.id}" requires, failed: No value any more.`;
     const lacking = `Without the board option "once", the renderer "${TABLE.id}" cannot draw.`;
-    expect(table.host().error()?.message).toBe(lacking);
+    expect(table.host().error()).toEqual({ kind: "core", code: "module_failed", message: lacking });
     expect(table.host().output()).toMatchObject({ total: 150 });
     expect(outputs(s.r)).toHaveLength(1);
     expect(reported.errors().map((line) => line.message)).toEqual([why]);

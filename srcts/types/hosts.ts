@@ -12,7 +12,7 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
-import type { Raised, RequestOpts } from "./core-api.ts";
+import type { CoreFailure, Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
 
@@ -156,10 +156,11 @@ export interface OutputHost {
   options(): Readonly<Record<OptionId, Json>>;
   // Whether core is asking R for a newer output.
   loading(): boolean;
-  // Why the latest ask failed, while output() keeps what it held. Core raises
-  // it as a notification about the block too, which the frontend places, so a
-  // renderer need not show it.
-  error(): Condition | null;
+  // Why the latest ask failed, while output() keeps what it held: R's
+  // condition where R's error reply holds one, and core's failure otherwise.
+  // Core raises it as a notification about the block too, which the frontend
+  // places, so a renderer need not show it.
+  error(): Condition | CoreFailure | null;
   on(event: "output", fn: () => void): () => void;
   // Asks R for an output made with these, which params() returns once it
   // arrives.

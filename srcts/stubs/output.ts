@@ -5,7 +5,7 @@
 
 import type { Condition } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { Raised } from "../types/core-api.ts";
+import type { CoreFailure, Raised } from "../types/core-api.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputFixtures } from "../types/outputs.ts";
@@ -57,7 +57,7 @@ export interface StubOutputHost extends OutputHost {
   // Says whether core is asking R for a newer output, and why the latest ask
   // failed, and announces it.
   setLoading(loading: boolean): void;
-  setError(error: Condition | null): void;
+  setError(error: Condition | CoreFailure | null): void;
 }
 
 export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputHost {
@@ -67,7 +67,7 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
   let params: Json = options.params ?? (options.output === undefined ? (first?.params ?? {}) : {});
   const values = options.options ?? (options.output === undefined ? (first?.options ?? {}) : {});
   let loading = false;
-  let error: Condition | null = null;
+  let error: Condition | CoreFailure | null = null;
   const emitted: { name: string; payload: Json }[] = [];
   const asked: Json[] = [];
   const requested: { name: string; args: Readonly<Record<string, Json>>; scope: "class" | "renderer" }[] = [];

@@ -358,7 +358,8 @@ var READY = Object.freeze({
   stdout: "",
   stderr: "",
   summary: null,
-  reason: null
+  reason: null,
+  unsent: null
 });
 function stubBlockContext(given = {}) {
   return Object.freeze({
@@ -1148,10 +1149,6 @@ var PROTOCOL_VERSION = "1.0";
 
 // srcts/scheduler/status.ts
 var NO_CONDITIONS = Object.freeze([]);
-var unsentErrors = /* @__PURE__ */ new WeakSet();
-function isUnsentError(condition) {
-  return unsentErrors.has(condition);
-}
 function replyOutcome(reply, revision) {
   if (reply.status === "cancelled" || reply.status === "missing") return void 0;
   const evaluated = reply;
@@ -1165,22 +1162,8 @@ function replyOutcome(reply, revision) {
     stderr: evaluated.stderr ?? ""
   };
 }
-function unsent(revision, message) {
-  const error = {
-    severity: "error",
-    class: ["blockr_error", "error", "condition"],
-    message: `The evaluation could not be sent to R: ${message}`
-  };
-  unsentErrors.add(error);
-  return {
-    status: "error",
-    revision,
-    summary: null,
-    reason: null,
-    conditions: [error],
-    stdout: "",
-    stderr: ""
-  };
+function unsent(revision, error) {
+  return { revision, message: `The evaluation could not be sent to R: ${error}` };
 }
 function unevaluated(revision, running2) {
   return {
@@ -1192,7 +1175,22 @@ function unevaluated(revision, running2) {
     stdout: "",
     stderr: "",
     summary: null,
-    reason: null
+    reason: null,
+    unsent: null
+  };
+}
+function failedToSend(failure, revision, evaluated, running2) {
+  return {
+    status: failure.revision === revision ? "failed" : "stale",
+    revision,
+    evaluated,
+    running: running2,
+    conditions: NO_CONDITIONS,
+    stdout: "",
+    stderr: "",
+    summary: null,
+    reason: null,
+    unsent: failure.message
   };
 }
 var REPLIED = {
@@ -1211,7 +1209,8 @@ function replied(outcome, revision, running2) {
     stdout: outcome.stdout,
     stderr: outcome.stderr,
     summary: outcome.summary,
-    reason: outcome.reason
+    reason: outcome.reason,
+    unsent: null
   };
 }
 function waiting(why, revision, evaluated, running2) {
@@ -1224,7 +1223,8 @@ function waiting(why, revision, evaluated, running2) {
     stdout: "",
     stderr: "",
     summary: null,
-    reason: why
+    reason: why,
+    unsent: null
   };
 }
 function waitingFor(what) {
@@ -1239,7 +1239,7 @@ function waitingFor(what) {
   return `This block is waiting for its ${inputs} ${quoted(what.unlinked)} to be linked.`;
 }
 function sameStatus(a, b) {
-  return a.status === b.status && a.revision === b.revision && a.evaluated === b.evaluated && a.running === b.running && a.stdout === b.stdout && a.stderr === b.stderr && a.summary === b.summary && a.reason === b.reason && a.conditions.length === b.conditions.length && a.conditions.every((condition, i) => condition === b.conditions[i]);
+  return a.status === b.status && a.revision === b.revision && a.evaluated === b.evaluated && a.running === b.running && a.stdout === b.stdout && a.stderr === b.stderr && a.summary === b.summary && a.reason === b.reason && a.unsent === b.unsent && a.conditions.length === b.conditions.length && a.conditions.every((condition, i) => condition === b.conditions[i]);
 }
 function blockStatuses(input2) {
   const statuses = /* @__PURE__ */ new Map();
@@ -1248,9 +1248,10 @@ function blockStatuses(input2) {
     const revision = input2.revisions.get(id2);
     if (revision === void 0) continue;
     const outcome = input2.outcomes.get(id2);
+    const failure = input2.unsent.get(id2);
     const running2 = input2.running.has(id2);
     const reason = keptWaiting(input2.inputs.get(id2), statuses);
-    const now = reason !== void 0 ? waiting(reason, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
+    const now = reason !== void 0 ? waiting(reason, revision, outcome?.revision ?? null, running2) : failure !== void 0 ? failedToSend(failure, revision, outcome?.revision ?? null, running2) : outcome === void 0 ? unevaluated(revision, running2) : replied(outcome, revision, running2);
     const before = input2.before.get(id2);
     if (before !== void 0 && sameStatus(before, now)) {
       statuses.set(id2, before);
@@ -1672,6 +1673,7 @@ function createScheduler(options) {
   const bound = signal(new Set(options.bound ?? []));
   const revisions = signal(/* @__PURE__ */ new Map());
   const outcomes = signal(/* @__PURE__ */ new Map());
+  const unsentEvaluations = signal(/* @__PURE__ */ new Map());
   const sent2 = signal(/* @__PURE__ */ new Map());
   const asked = signal(/* @__PURE__ */ new Map());
   const demands = signal(/* @__PURE__ */ new Map());
@@ -1687,6 +1689,7 @@ function createScheduler(options) {
       graph: graph.value,
       revisions: revisions.value,
       outcomes: outcomes.value,
+      unsent: unsentEvaluations.value,
       inputs: inputs.value,
       running: running(sent2.value),
       before: last
@@ -1708,6 +1711,7 @@ function createScheduler(options) {
     bound.value,
     revisions.value,
     outcomes.value,
+    unsentEvaluations.value,
     sent2.value,
     asked.value,
     demands.value,
@@ -1767,6 +1771,7 @@ function createScheduler(options) {
     if (revised.gone.length === 0) return;
     const gone = new Set(revised.gone);
     outcomes.value = new Map([...outcomes.value].filter(([id2]) => !gone.has(id2)));
+    unsentEvaluations.value = new Map([...unsentEvaluations.value].filter(([id2]) => !gone.has(id2)));
     update(left(oneTimes.value, gone));
     client.forget(revised.gone);
   });
@@ -1876,6 +1881,11 @@ function createScheduler(options) {
     const outcome = replyOutcome(reply, evaluation.revision);
     if (outcome !== void 0 && evaluation.revision === revisions.value.get(evaluation.block) && keptWaiting(inputs.value.get(evaluation.block), statuses.value) === void 0) {
       outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
+      if (unsentEvaluations.value.has(evaluation.block)) {
+        const rest = new Map(unsentEvaluations.value);
+        rest.delete(evaluation.block);
+        unsentEvaluations.value = rest;
+      }
     }
     if (evaluation.oneTime !== void 0) {
       update(
@@ -1896,8 +1906,10 @@ function createScheduler(options) {
     if (evaluation.oneTime !== void 0) {
       end(evaluation.oneTime.id, { error });
     } else if (!(error instanceof SessionEndedError) && revisions.value.get(evaluation.block) === evaluation.revision) {
-      const outcome = unsent(evaluation.revision, errorMessage(error));
-      outcomes.value = new Map(outcomes.value).set(evaluation.block, outcome);
+      unsentEvaluations.value = new Map(unsentEvaluations.value).set(
+        evaluation.block,
+        unsent(evaluation.revision, errorMessage(error))
+      );
     }
   });
   function schedule() {
@@ -2871,14 +2883,13 @@ function createShelves() {
     }
   };
 }
-function noOutput(message) {
-  return { severity: "error", class: ["blockr_error", "error", "condition"], phase: "output", message };
+function coreFailure(code, message) {
+  return { kind: "core", code, message };
 }
 function whyFailed(reply, block) {
   const conditions = "conditions" in reply ? reply.conditions : [];
   const error = conditions.find((condition) => condition.severity === "error");
-  if (error !== void 0) return { condition: error, by: "r" };
-  return { condition: noOutput(`R failed to make the output of block "${block}".`), by: "core" };
+  return error ?? coreFailure("output_unanswered", `R failed to make the output of block "${block}".`);
 }
 function mountOutput(deps, el, block) {
   const { store, scheduler, loader, measure } = deps;
@@ -3076,7 +3087,7 @@ function mountOutput(deps, el, block) {
         left2 = true;
         mine.callers -= 1;
         if (asking === ask) asking = void 0;
-        if (!ended()) failed3(noOutput(errorMessage(failure)));
+        if (!ended()) failed3(coreFailure("output_unanswered", errorMessage(failure)));
       }
     );
     return ask;
@@ -3088,7 +3099,7 @@ function mountOutput(deps, el, block) {
         take({ asked, output: reply.output, body });
         return;
       case "error":
-        failed3(whyFailed(reply, block).condition);
+        failed3(whyFailed(reply, block));
         return;
       default:
         announce2();
@@ -3099,26 +3110,27 @@ function mountOutput(deps, el, block) {
     if (reply.status === "ok" && "output" in reply) {
       hold(reply.conditions);
     } else if (reply.status === "error") {
-      const { condition, by } = whyFailed(reply, block);
-      hold("conditions" in reply ? reply.conditions : [], by === "core" ? [condition] : []);
+      const why = whyFailed(reply, block);
+      hold("conditions" in reply ? reply.conditions : [], "kind" in why ? [why] : []);
     }
   }
   function unanswered(message) {
-    if (!deps.replaced.aborted) hold([], [noOutput(message)]);
+    if (!deps.replaced.aborted) hold([], [coreFailure("output_unanswered", message)]);
   }
   function hold(byR, byCore = []) {
     const before = shelf.notified;
-    const raise = (condition, by) => deps.raise({
+    const fromR = (condition) => deps.raise({
       severity: condition.severity,
       message: condition.message,
-      source: by === "r" ? { kind: "r", class: condition.class, request: { type: "output" } } : { kind: "core", code: "output_unanswered" },
+      source: { kind: "r", class: condition.class, request: { type: "output" } },
       about: { block }
     });
-    shelf.notified = [...byR.map((condition) => raise(condition, "r")), ...byCore.map((condition) => raise(condition, "core"))];
+    const fromCore = (failure) => deps.raise({ severity: "error", message: failure.message, source: { kind: "core", code: failure.code }, about: { block } });
+    shelf.notified = [...byR.map(fromR), ...byCore.map(fromCore)];
     for (const withdraw of before) withdraw();
   }
-  function failed3(condition) {
-    error = condition;
+  function failed3(why) {
+    error = why;
     announce2();
   }
   function fail(failure, by) {
@@ -3135,7 +3147,7 @@ function mountOutput(deps, el, block) {
     const before = unfit;
     unfit = deps.raise(notification);
     before?.();
-    failed3(noOutput(errorMessage(failure)));
+    failed3(coreFailure("module_failed", errorMessage(failure)));
   }
   function fit2() {
     const before = unfit;
@@ -8152,11 +8164,16 @@ function createNotifications(store, options = {}) {
   function fromStatus(block, status) {
     const about = { block };
     const next = /* @__PURE__ */ new Map();
+    const add = (given) => {
+      const id2 = JSON.stringify(["status", block, given.severity, given.source, given.message]);
+      if (!next.has(id2)) next.set(id2, frozen(id2, { ...given, about }));
+    };
     if (status !== void 0 && present(about)) {
       for (const condition of status.conditions) {
-        const source = statusSource(condition);
-        const id2 = JSON.stringify(["status", block, condition.severity, source, condition.message]);
-        if (!next.has(id2)) next.set(id2, frozen(id2, { severity: condition.severity, message: condition.message, source, about }));
+        add({ severity: condition.severity, message: condition.message, source: statusSource(condition) });
+      }
+      if (status.unsent !== null) {
+        add({ severity: "error", message: status.unsent, source: { kind: "core", code: "evaluation_unsent" } });
       }
     }
     return replace(JSON.stringify(["status", block]), about, next);
@@ -8290,7 +8307,6 @@ function raisedId(given) {
   ]);
 }
 function statusSource(condition) {
-  if (isUnsentError(condition)) return { kind: "core", code: "evaluation_unsent" };
   const { phase } = condition;
   return {
     kind: "r",
