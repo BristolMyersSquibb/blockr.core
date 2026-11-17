@@ -8,6 +8,9 @@
 # each block's latest result, which R exports,
 # and the board and each block's status, which the page gives through
 # `blockrTest`.
+# The page also gives what a frontend offers other plugins through
+# `blockrTest`: which block has focus, which blocks are on screen, the
+# notifications, and showing a block.
 
 # Whether the app's port takes connections, as once the app has started.
 port_open <- function(port) {
@@ -152,6 +155,12 @@ installed_with_blockr_test <- function() {
   installed_has("blockrTest", "js", "blockr-test.js")
 }
 
+# Whether the `blockrTest` of the blockr.core installed, which the app runs,
+# has show(), which came with focus(), onScreen() and notifications().
+installed_with_show <- function() {
+  installed_has("async show(", "js", "blockr-test.js")
+}
+
 # Starts the app that `call` returns, a call to serve(), in another R process
 # with blockr.core attached, on a port of its own.
 start_served_app <- function(call, timeout = 30) {
@@ -230,7 +239,9 @@ page_showing <- function(page, url, texts, timeout = 30) {
 # It waits until the client has opened the board.
 # It then puts `e2e` on the page, the helpers through which a test acts on the
 # page (`e2e_js` below).
-local_app <- function(call, frame = parent.frame()) {
+# The arguments in `...` go to `AppDriver$new()`, as the size of the
+# browser's window does in `width` and `height`.
+local_app <- function(call, ..., frame = parent.frame()) {
 
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("shinytest2")
@@ -248,7 +259,8 @@ local_app <- function(call, frame = parent.frame()) {
   app <- shinytest2::AppDriver$new(
     dir,
     load_timeout = 30 * 1000,
-    timeout = 30 * 1000
+    timeout = 30 * 1000,
+    ...
   )
 
   withr::defer(app$stop(), envir = frame)
@@ -286,6 +298,82 @@ app_revisions <- function(app, blocks) {
 # Each block's latest result, as R exports it.
 app_results <- function(app) {
   app$get_values(export = "result")$export$result
+}
+
+# The ID of the block that has focus, as the page gives it, or `NULL` where
+# none has.
+app_focus <- function(app) {
+  app$get_js("blockrTest.focus()")
+}
+
+# The IDs of the blocks on screen, as the page gives them, or none where the
+# frontend has set nothing.
+app_on_screen <- function(app) {
+  as.character(unlist(app$get_js("blockrTest.onScreen()")$blocks))
+}
+
+# The notifications that hold, in the order they came, as the page gives them.
+app_notifications <- function(app) {
+  app$get_js("blockrTest.notifications()")
+}
+
+# Has the frontend show the block of the ID given, as a plugin asks it to, and
+# waits until the frontend has.
+app_show <- function(app, block) {
+  app$get_js(paste0("blockrTest.show({ block: ", js_value(block), " })"))
+  invisible(app)
+}
+
+# The text of the card of the block of the ID given, as the page shows it.
+card_text <- function(app, id) {
+  app$get_js(
+    paste0("(async () => (await e2e.card(", js_value(id), ")).innerText)()")
+  )
+}
+
+# A point on the card of the block of the ID given, once the page has
+# scrolled the card into view.
+# It lies on the card's padding, at the middle of its left edge.
+# So the browser's hit testing finds the card itself there, rather than what
+# the card holds.
+card_point <- function(app, id) {
+
+  box <- app$get_js(
+    paste0(
+      "(async () => {\n",
+      "  const card = await e2e.card(", js_value(id), ");\n",
+      "  card.scrollIntoView({ block: 'nearest' });\n",
+      "  const box = card.getBoundingClientRect();\n",
+      "  return [box.x, box.y, box.height];\n",
+      "})()"
+    )
+  )
+
+  c(x = box[[1L]] + 4, y = box[[2L]] + box[[3L]] / 2)
+}
+
+# Sends the mouse event of the type given at the point given, as a user's
+# mouse does, through Chrome's DevTools protocol.
+# The left button is down where `buttons` is 1.
+mouse <- function(app, type, at, buttons = 0L, ...) {
+  invisible(
+    app$get_chromote_session()$Input$dispatchMouseEvent(
+      type = type,
+      x = at[["x"]],
+      y = at[["y"]],
+      button = "left",
+      buttons = buttons,
+      ...
+    )
+  )
+}
+
+# Clicks at the point given, as a user does: the pointer moves there, and the
+# left button goes down and up.
+click_at <- function(app, at) {
+  mouse(app, "mouseMoved", at)
+  mouse(app, "mousePressed", at, 1L, clickCount = 1L)
+  mouse(app, "mouseReleased", at, 0L, clickCount = 1L)
 }
 
 # Waits until `check()` gives `TRUE`, and fails with what `what()` says once

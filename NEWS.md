@@ -478,7 +478,10 @@
   The scatter block fails where its data lacks one of its columns, rather than draw `x` against the row index where only `y` is missing (#542).
 * In Shiny's test mode, as the package shinytest2 starts an app, the app that `serve()` returns gives end-to-end tests what they check, which `blockr_test_exports()` gave until now.
   R exports each block's latest result through `exportTestValues()` as `result`: a list by block ID for a board, and the block's result for a block that `serve()` serves alone.
-  The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read (#443).
+  The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read.
+  It also gives each part of what a frontend offers other plugins, so that a frontend's browser tests check them all.
+  Its `focus()` gives the ID of the block that has focus, or `null`, its `onScreen()` gives the blocks and the plugins on screen, and its `notifications()` gives the notifications that hold.
+  Its `show()` has the frontend show a block or a plugin, as a plugin asks it to (#443, #680).
 * The cards of core's basic frontend show their block's status as the card of a block that `serve()` serves alone does, in place of the summary below the output and the list of conditions.
   A footer, one centered line at the end of the output's box, shows a ready block's summary.
   Below the box sits a pill for each severity of the conditions of R's reply that the board option `show_conditions` names, and the pill of the messages also counts why an invalid or a waiting block does not run.

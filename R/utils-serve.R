@@ -105,11 +105,23 @@
 #' R holds no result of a block whose latest evaluation failed, so `result`
 #' leaves that block out.
 #' The client holds the board and each block's status.
+#' It also holds three parts of what a frontend offers other plugins: which
+#' block has focus, which blocks and plugins are on screen, and the
+#' notifications.
 #' So the page puts the object `blockrTest` on `window`, which a test reads
 #' with `AppDriver$get_js()`.
 #' Its function `board()` gives a copy of the board that the client holds, and
 #' its function `statuses()` gives each block's status by block ID, as in
 #' `app$get_js("blockrTest.statuses()")`.
+#' Its function `focus()` gives the ID of the block that has focus, or `null`
+#' where none has.
+#' Its function `onScreen()` gives the IDs of the blocks and the plugins on
+#' screen, in `blocks` and `plugins`, or `null` until the frontend sets them.
+#' Its function `notifications()` gives the notifications that hold, in the
+#' order they came.
+#' Its function `show()` has the frontend show a block or a plugin, as a
+#' plugin asks it to, as in `app$get_js("blockrTest.show({ block: 'a' })")`.
+#' Showing changes nothing on the board.
 #'
 #' @param x A board, the path of a JSON board, or a block
 #' @param ... For a board or the path of a JSON board, the arguments of the
@@ -510,7 +522,7 @@ latest_results <- function(ev, alone = FALSE) {
 # serves now.
 # In Shiny's test mode, as shinytest2 starts an app, the module script also
 # imports `blockrTest()` from core's module for end-to-end tests, and puts what
-# it returns on `window`, for the tests to read.
+# it returns on `window`, for the tests to use.
 # A page outside test mode loads none of that module.
 serve_page <- function(alone = FALSE,
                        test = isTRUE(shiny::getShinyOption("testmode")),
