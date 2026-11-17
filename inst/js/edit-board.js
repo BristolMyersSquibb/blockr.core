@@ -817,7 +817,7 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
             }
           }
         ) : null,
-        link.kind === "none" && mode.kind === "before" ? /* @__PURE__ */ jsx5("p", { className: styles.alert, children: link.why }) : null,
+        link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx5("p", { className: styles.alert, children: link.why }) : null,
         /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx5(
             TextField,
@@ -847,7 +847,7 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
             }
           )
         ] }),
-        /* @__PURE__ */ jsx5("div", { children: /* @__PURE__ */ jsx5("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "none" && mode.kind === "before", children: "Add block" }) })
+        /* @__PURE__ */ jsx5("div", { children: /* @__PURE__ */ jsx5("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "no_free_inputs", children: "Add block" }) })
       ]
     }
   );
@@ -858,7 +858,7 @@ function linkChoice(mode, board, registry, entry) {
     const free = freeInputs(board, registry, mode.to) ?? [];
     const of = `of "${target2?.name ?? mode.to}"`;
     if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
-    if (free.length === 0) return { kind: "none", why: `Every input ${of} takes a link already.` };
+    if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
     return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
   }
   if (mode.kind === "after" && entry !== void 0) {

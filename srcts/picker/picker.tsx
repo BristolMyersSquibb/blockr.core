@@ -189,7 +189,7 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
           }}
         />
       ) : null}
-      {link.kind === "none" && mode.kind === "before" ? <p className={styles.alert}>{link.why}</p> : null}
+      {link.kind === "no_free_inputs" ? <p className={styles.alert}>{link.why}</p> : null}
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
         <TextField
           label="ID"
@@ -214,7 +214,7 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
         />
       </div>
       <div>
-        <button type="submit" className={classes.primary} disabled={busy || (link.kind === "none" && mode.kind === "before")}>
+        <button type="submit" className={classes.primary} disabled={busy || link.kind === "no_free_inputs"}>
           Add block
         </button>
       </div>
@@ -226,12 +226,16 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
 // - "pick": the input among several, where the input is fixed.
 // - "name": an optional name, where the input is variadic, which the variadic
 //   block's other links take in `taken`.
-// - "none": nothing, where the input is the only one, or where the mode adds
-//   no link, or, before a block, why no link can go into it.
+// - "none": nothing, where the mode adds no link, where the user has not
+//   picked the class of a block added after another yet, or where the link
+//   has one input to go into, which the command then finds.
+// - "no_free_inputs": nothing, before a block whose inputs all take a link
+//   already. The form shows `why` instead, and adds no block.
 type LinkChoice =
   | { readonly kind: "pick"; readonly label: string; readonly inputs: readonly string[] }
   | { readonly kind: "name"; readonly label: string; readonly taken: readonly string[] }
-  | { readonly kind: "none"; readonly why?: string };
+  | { readonly kind: "none" }
+  | { readonly kind: "no_free_inputs"; readonly why: string };
 
 function linkChoice(
   mode: AddMode,
@@ -244,7 +248,7 @@ function linkChoice(
     const free = freeInputs(board, registry, mode.to) ?? [];
     const of = `of "${target?.name ?? mode.to}"`;
     if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
-    if (free.length === 0) return { kind: "none", why: `Every input ${of} takes a link already.` };
+    if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
     return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
   }
   if (mode.kind === "after" && entry !== undefined) {
