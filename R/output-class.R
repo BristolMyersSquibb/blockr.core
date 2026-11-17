@@ -243,8 +243,7 @@ print.reply_body <- function(x, ...) {
 #' * Any other argument, from the `args` that the renderer passes.
 #'
 #' A request may answer with a reply body, such as a file to download.
-#' The client keeps a request's answers, as it keeps the output, unless the
-#' class wraps the request's function in `volatile()`.
+#' The client keeps a request's answers, as it keeps the output.
 #' No request of an output class writes.
 #' The function `run_output_class_request()` runs a request as R does, to test
 #' an output class, or the requests of a renderer, without Shiny.
@@ -272,7 +271,6 @@ print.reply_body <- function(x, ...) {
 #' @param x An output, and for `run_output_class_request()`, an output or its
 #'   class vector
 #' @param ... Generic consistency
-#' @param fun The function of a request
 #' @param path The path of the file that holds a JSON Schema, relative to the
 #'   package's `inst/`, or as given outside a package
 #' @param package The package that ships the file (`NULL` outside a package)
@@ -296,7 +294,7 @@ print.reply_body <- function(x, ...) {
 #' }
 #'
 #' output_requests.words_output <- function(x, ...) {
-#'   list(count = volatile(function(result) length(result)))
+#'   list(count = function(result) length(result))
 #' }
 #'
 #' output_coercion.words_output <- function(x, ...) {
@@ -312,8 +310,7 @@ print.reply_body <- function(x, ...) {
 #' @return The generic `output_schema()` returns a JSON Schema, as a list,
 #' `output_requests()` a named list of functions, `output_coercion()` the
 #' coercion that makes the class's outputs, or `NULL` where the class gives
-#' none, `volatile()` the function it is given, marked as volatile,
-#' `read_json_schema()` the JSON Schema that it reads, as a list, and
+#' none, `read_json_schema()` the JSON Schema that it reads, as a list, and
 #' `run_output_class_request()` the request's answer.
 #'
 #' @export
@@ -396,26 +393,6 @@ coercion_class <- function(coercion, coercions = output_coercions()) {
 
 #' @rdname output_schema
 #' @export
-volatile <- function(fun) {
-
-  if (!is.function(fun)) {
-    blockr_abort(
-      "A volatile request is a function, which `volatile()` marks.",
-      class = "output_class_requests_invalid"
-    )
-  }
-
-  attr(fun, "volatile") <- TRUE
-
-  fun
-}
-
-is_volatile <- function(fun) {
-  isTRUE(attr(fun, "volatile", exact = TRUE))
-}
-
-#' @rdname output_schema
-#' @export
 read_json_schema <- function(path, package = pkg_name(parent.frame())) {
 
   if (!is_string(path)) {
@@ -438,9 +415,9 @@ read_json_schema <- function(path, package = pkg_name(parent.frame())) {
   decode_schema(file)
 }
 
-# A request of an output: where the request names a renderer, one of the
-# requests of the renderer that draws the output, which has to be the one
-# named, and otherwise one of the output class's, as its method of
+# The function of a request of an output: where the request names a renderer,
+# one of the requests of the renderer that draws the output, which has to be
+# the one named, and otherwise one of the output class's, as its method of
 # `output_requests()` gives them, a subclass's before its class's.
 output_class_request <- function(class, name, renderer = NULL) {
 
@@ -470,7 +447,7 @@ output_class_request <- function(class, name, renderer = NULL) {
     )
   }
 
-  list(fun = fun, volatile = is_volatile(fun))
+  fun
 }
 
 #' @rdname output_schema
@@ -486,7 +463,7 @@ run_output_class_request <- function(x, name, result, args = list(),
 }
 
 # The function of a request of an output, or of a renderer,
-# with the arguments that R binds for it and whether the request is volatile,
+# with the arguments that R binds for it,
 # so that R can resolve a request apart from running it.
 output_request_call <- function(x, name, result, args, options, params, file,
                                 renderer) {
@@ -506,7 +483,7 @@ output_request_call <- function(x, name, result, args, options, params, file,
   }
 
   class <- if (is.character(x)) x else class(x)
-  req <- output_class_request(class, name, renderer)
+  fun <- output_class_request(class, name, renderer)
 
   if (!has_unique_names(args)) {
     blockr_abort(
@@ -523,16 +500,15 @@ output_request_call <- function(x, name, result, args, options, params, file,
   }
 
   list(
-    fun = req[["fun"]],
+    fun = fun,
     args = request_call_args(
-      req[["fun"]],
+      fun,
       name,
       args,
       bound,
       c("result", "options", "params", "file"),
       "output_class_request_args_invalid"
-    ),
-    volatile = isTRUE(req[["volatile"]])
+    )
   )
 }
 

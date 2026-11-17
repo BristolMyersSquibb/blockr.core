@@ -6,7 +6,7 @@ upload_file <- function(name = "sales.csv") {
 }
 
 upload <- function(file) {
-  run_block_request(upload_block, "upload", args = list(file = file))
+  run_block_request(upload_block, "upload", file = file)
 }
 
 test_that("upload block constructor", {
@@ -91,6 +91,6 @@ test_that("the upload block's fixture", {
   expect_block_fixture(
     upload_block,
     states = list(list(file_path = "uploads/3f9a2c/sales.csv")),
-    requests = list(list(name = "upload", args = list(file = file)))
+    requests = list(list(name = "upload", file = file))
   )
 })

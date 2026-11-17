@@ -96,8 +96,7 @@ NULL
 
 # The function that answers a request, which R reads into an object of class
 # `{type}_request`, and the arguments to call it with: a list of the function,
-# in `fun`, its arguments by name, in `args`, and optionally `volatile`, which
-# marks the reply volatile where it is `TRUE`.
+# in `fun`, and its arguments by name, in `args`.
 # The results that the request reads come in `reads`, by block ID, each a list
 # of the block's `result`, its block expression `expr` and, where R made an
 # output from the result, the class vector of the latest output in `output`.
@@ -114,19 +113,14 @@ request_call.block_class_request <- function(x, reads, registry, ...) {
 
   entry <- get_registry_entry(x[["registry_id"]], registry)
   bound <- bind_inputs(x[["reads"]], reads, entry[["inputs"]])
-  args <- x[["args"]]
-
-  # An action receives the request's body in its argument `file`.
-  if (isTRUE(entry[["requests"]][[x[["name"]]]][["action"]])) {
-    args[["file"]] <- x[["body"]]
-  }
 
   block_request_call(
     x[["registry_id"]],
     x[["name"]],
     input_values(bound),
-    args,
+    x[["args"]],
     x[["options"]],
+    x[["body"]],
     registry
   )
 }

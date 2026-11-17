@@ -90,7 +90,8 @@
                 "inputs": [],
                 "state_args": [],
                 "options": [],
-                "action": true
+                "action": true,
+                "file": true
               }
             },
             "renderer": {

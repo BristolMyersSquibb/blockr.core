@@ -154,10 +154,11 @@ test_that("a request made by new_block_request() says what it reads and does", {
   expect_null(plain$options)
   expect_identical(request_option_ids(plain), character())
 
-  act <- new_block_request(function(file) file, action = TRUE)
+  act <- new_block_request(function(upload) upload, action = TRUE,
+                           file = "upload")
 
-  expect_identical(request_file_arg(act), "file")
-  expect_identical(request_file_arg(req), character())
+  expect_identical(act$file, "upload")
+  expect_null(req$file)
 
   expect_snapshot({
     print(req)
@@ -193,6 +194,69 @@ test_that("a request made by new_block_request() says what it reads and does", {
     new_block_request(f, volatile = NA),
     class = "block_request_invalid"
   )
+
+  for (file in list("nope", c("path", "options"), "", NA_character_, 1)) {
+    expect_error(
+      new_block_request(f, file = file),
+      class = "block_request_invalid"
+    )
+  }
+
+  expect_error(
+    new_block_request(function(...) NULL, file = "..."),
+    class = "block_request_invalid"
+  )
+
+  expect_error(
+    new_block_request(f, options = list(path = new_n_rows_option),
+                      file = "path"),
+    class = "block_request_invalid"
+  )
+})
+
+test_that("a request takes a file only in the argument that it names", {
+
+  cls <- new_block_class(
+    "file_block",
+    expr = function(path = "") bbquote(.(path)),
+    ui = js_module("file.js"),
+    requests = list(
+      count = new_block_request(
+        function(upload, sep = ",") c(upload[["name"]], sep),
+        file = "upload"
+      ),
+      save = new_block_request(function(file = "out.csv") file, action = TRUE),
+      peek = function(file = NULL) if (is.null(file)) "no file" else "file"
+    )
+  )
+
+  sent <- list(datapath = "x.tmp", name = "sales.csv", type = "text/csv",
+               size = 18L)
+
+  expect_identical(
+    run_block_request(cls, "count", args = list(sep = ";"), file = sent),
+    c("sales.csv", ";")
+  )
+
+  expect_identical(
+    run_block_request(cls, "save", args = list(file = "report.csv")),
+    "report.csv"
+  )
+  expect_identical(run_block_request(cls, "save"), "out.csv")
+  expect_identical(run_block_request(cls, "peek"), "no file")
+
+  expect_error(
+    run_block_request(cls, "save", file = sent),
+    class = "block_request_args_invalid"
+  )
+  expect_error(
+    run_block_request(cls, "peek", file = sent),
+    class = "block_request_args_invalid"
+  )
+  expect_error(
+    run_block_request(cls, "count", args = list(upload = "x")),
+    class = "block_request_args_invalid"
+  )
 })
 
 test_that("a registry entry describes each request", {
@@ -208,25 +272,27 @@ test_that("a registry entry describes each request", {
         options = list(rows = new_n_rows_option)
       ),
       dirs = new_block_request(function(path = "") NULL, volatile = TRUE),
-      upload = new_block_request(function(file, column) NULL, action = TRUE)
+      upload = new_block_request(function(sent, column) NULL, action = TRUE,
+                                 file = "sent")
     )
   )
 
   expect_identical(
     request_entry(cls$requests$values, cls),
     list(inputs = "data", state_args = "column", options = c(rows = "n_rows"),
-         volatile = FALSE, action = FALSE)
+         volatile = FALSE, action = FALSE, file = NULL)
   )
 
   expect_identical(
     request_entry(cls$requests$dirs, cls),
     list(inputs = character(), state_args = character(),
-         options = character(), volatile = TRUE, action = FALSE)
+         options = character(), volatile = TRUE, action = FALSE, file = NULL)
   )
 
   expect_identical(
     request_entry(cls$requests$upload, cls),
     list(inputs = character(), state_args = "column",
-         options = character(), volatile = FALSE, action = TRUE)
+         options = character(), volatile = FALSE, action = TRUE,
+         file = "sent")
   )
 })

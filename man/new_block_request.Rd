@@ -5,9 +5,22 @@
 \alias{run_block_request}
 \title{Block class requests}
 \usage{
-new_block_request(fun, options = NULL, volatile = FALSE, action = FALSE)
+new_block_request(
+  fun,
+  options = NULL,
+  volatile = FALSE,
+  action = FALSE,
+  file = NULL
+)
 
-run_block_request(x, name, inputs = list(), args = list(), options = list())
+run_block_request(
+  x,
+  name,
+  inputs = list(),
+  args = list(),
+  options = list(),
+  file = NULL
+)
 }
 \arguments{
 \item{fun}{The request's function}
@@ -18,6 +31,11 @@ arguments that take their values, and for \code{run_block_request()}, the
 values of the board options it reads, by id}
 
 \item{volatile, action}{Whether the request is volatile or an action}
+
+\item{file}{For \code{new_block_request()}, the name of the argument of \code{fun}
+that takes a file that the client sends, or \code{NULL} for a request that
+takes none, and for \code{run_block_request()}, that file, as a list of its
+\code{datapath}, \code{name}, \code{type} and \code{size}, or \code{NULL}}
 
 \item{x}{A registry id or a block class}
 
@@ -58,8 +76,17 @@ for is left missing.
 A request's answer is kept by the client, but for a \code{volatile} request,
 which goes to R every time and suits a cheap lookup outside the board, such
 as a directory listing, and for an \code{action}, which acts rather than reads,
-such as an upload, which receives the file the user picked in its argument
-\code{file}. R runs an action once per call, and it may write.
+such as an upload. R runs an action once per call, and it may write.
+
+A request takes a file that the client sends, such as the file that a user
+picked for an upload, only where \code{new_block_request()} names the argument
+that takes it, in \code{file}.
+That argument may have any name.
+It gets a list of the path of the temporary file that R wrote the bytes to,
+in \code{datapath}, and the file's \code{name}, \code{type} and \code{size}, as
+\code{shiny::fileInput()} gives a file.
+The client passes no value of its own for that argument, and sends no file
+with a request that names none.
 }
 \examples{
 new_dir_option <- function(value) {
@@ -79,16 +106,24 @@ dir_block <- new_block_class(
     preview = new_block_request(
       function(path, dir, n = 3L) readLines(file.path(dir, path), n),
       options = list(dir = new_dir_option)
+    ),
+    count = new_block_request(
+      function(upload) length(readLines(upload$datapath)),
+      file = "upload"
     )
   )
 )
 
 dir_block$requests$preview
+dir_block$requests$count
 
 pkg <- system.file(package = "blockr.core")
 
 run_block_request(dir_block, "files", options = list(dir = pkg))
 run_block_request(dir_block, "preview", args = list(path = "DESCRIPTION"),
                   options = list(dir = pkg))
+run_block_request(dir_block, "count",
+                  file = list(datapath = file.path(pkg, "DESCRIPTION"),
+                              name = "DESCRIPTION"))
 
 }

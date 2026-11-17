@@ -88,7 +88,7 @@ describe("the stub of a block's host", () => {
     expect(host.state()).toEqual({ n: 2, direction: "head" });
   });
 
-  test("answers an upload that R recorded with the file as its arg file, by the file's name, type and size", async () => {
+  test("answers an upload by the file that R recorded for it, by the file's name, type and size", async () => {
     const uploads = json("tests", "testthat", "_snaps", "file-upload", "upload_block.json") as BlockFixture;
     const host = stubBlockHost(uploads, { state: {} });
     const file = new File(["Time,demand\n1,8.3\n"], "sales.csv", { type: "text/csv" });

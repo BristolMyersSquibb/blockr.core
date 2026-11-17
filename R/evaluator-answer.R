@@ -221,7 +221,7 @@ answer_object_request <- function(ev, job) {
     registry = ev$registry
   )
 
-  answer_call(job[["id"]], call, call[["volatile"]])
+  answer_call(job[["id"]], call)
 }
 
 # Runs a request's function with the arguments that R bound for it,
@@ -229,9 +229,7 @@ answer_object_request <- function(ev, job) {
 # The answer is a value, written with every vector as an array, or a reply body.
 # The reply carries every message and warning that the function raised.
 # R logs each of them (see `log_reply()`).
-# R marks a reply volatile where it resolved the request to one that its output
-# class makes volatile.
-answer_call <- function(id, call, volatile = FALSE) {
+answer_call <- function(id, call) {
 
   ran <- run_phase(
     "request",
@@ -252,8 +250,7 @@ answer_call <- function(id, call, volatile = FALSE) {
     } else {
       list(value = ran[["value"]])
     },
-    list(conditions = lapply(ran[["conditions"]], condition_reply)),
-    if (isTRUE(volatile)) list(volatile = TRUE)
+    list(conditions = lapply(ran[["conditions"]], condition_reply))
   )
 }
 

@@ -70,7 +70,7 @@ write.csv(datasets::BOD, csv, row.names = FALSE)
 run_block_request(
   upload_block,
   "upload",
-  args = list(file = list(datapath = csv, name = "bod.csv"))
+  file = list(datapath = csv, name = "bod.csv")
 )
 
 }
