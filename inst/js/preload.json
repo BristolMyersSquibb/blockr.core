@@ -17,7 +17,8 @@
     "react-dom",
     "react-dom/client",
     "react",
-    "react/jsx-runtime"
+    "react/jsx-runtime",
+    "@blockr/core/react"
   ],
   "blockr-core-controls.js": [
     "react",
@@ -44,7 +45,8 @@
     "react",
     "react-dom",
     "react-dom/client",
-    "react/jsx-runtime"
+    "react/jsx-runtime",
+    "@blockr/core/react"
   ],
   "csv-block.js": [
     "@blockr/core/react",
@@ -63,6 +65,7 @@
     "react-dom",
     "react-dom/client",
     "react",
+    "@blockr/core/react",
     "react/jsx-runtime"
   ],
   "filebrowser-block.js": [

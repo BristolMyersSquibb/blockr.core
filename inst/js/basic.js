@@ -3,7 +3,7 @@ import { flushSync as flushSync2 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback7, useEffect as useEffect3, useMemo as useMemo4, useState as useState10 } from "react";
+import { useCallback as useCallback6, useEffect as useEffect3, useMemo as useMemo3, useState as useState10 } from "react";
 import { createPortal } from "react-dom";
 
 // srcts/card/footer.tsx
@@ -178,29 +178,7 @@ function Mounted({
 }
 
 // srcts/card/status.ts
-import { useCallback as useCallback2, useMemo, useState as useState2, useSyncExternalStore } from "react";
-function useStatus(core, block) {
-  const subscribe = useCallback2(
-    (notify) => core.scheduler.subscribe((changed) => {
-      if (changed.includes(block)) notify();
-    }),
-    [core, block]
-  );
-  return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
-}
-function useNotified(core, block) {
-  const subscribe = useCallback2(
-    (notify) => core.notifications.subscribe(() => {
-      notify();
-    }),
-    [core]
-  );
-  const all = useSyncExternalStore(subscribe, () => core.notifications.get());
-  return useMemo(
-    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
-    [all, block]
-  );
-}
+import { useState as useState2 } from "react";
 function useSized(status) {
   const ready = status?.status === "ready";
   const [sized, setSized] = useState2(ready);
@@ -315,8 +293,9 @@ function defaultBlockName(registryId2) {
 }
 
 // srcts/picker/picker.tsx
-import { useMemo as useMemo3, useState as useState6 } from "react";
+import { useMemo as useMemo2, useState as useState6 } from "react";
 import { flushSync } from "react-dom";
+import { useBoard } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -334,7 +313,7 @@ var styles = {
 };
 
 // srcts/ui/combobox.tsx
-import { useId as useId2, useLayoutEffect as useLayoutEffect3, useMemo as useMemo2, useRef as useRef3, useState as useState4 } from "react";
+import { useId as useId2, useLayoutEffect as useLayoutEffect3, useMemo, useRef as useRef3, useState as useState4 } from "react";
 
 // srcts/ui/ui.tsx
 import { useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState3 } from "react";
@@ -420,12 +399,12 @@ function Field({
   const noteId = `${id2}-note`;
   const input2 = useRef3(null);
   const list = useRef3(null);
-  const byValue = useMemo2(() => new Map(options.map((option) => [option.value, option])), [options]);
+  const byValue = useMemo(() => new Map(options.map((option) => [option.value, option])), [options]);
   const single = multiple ? void 0 : byValue.get(picked[0] ?? "");
   const [open, setOpen] = useState4(false);
   const [query, setQuery] = useState4("");
   const [active, setActive] = useState4(void 0);
-  const shown = useMemo2(() => {
+  const shown = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const taken = new Set(multiple ? picked : []);
     return options.filter(
@@ -708,24 +687,17 @@ function TextField({
 }
 
 // srcts/ui/hooks.ts
-import { useCallback as useCallback3, useSyncExternalStore as useSyncExternalStore2 } from "react";
-function useBoard(core) {
-  const subscribe = useStore(core);
-  return useSyncExternalStore2(subscribe, () => core.store.board());
-}
+import { useCallback as useCallback2, useSyncExternalStore } from "react";
 function useHistory(core) {
-  const subscribe = useStore(core);
-  const canUndo = useSyncExternalStore2(subscribe, () => core.store.canUndo());
-  const canRedo = useSyncExternalStore2(subscribe, () => core.store.canRedo());
-  return { canUndo, canRedo };
-}
-function useStore(core) {
-  return useCallback3(
+  const subscribe = useCallback2(
     (notify) => core.store.subscribe(() => {
       notify();
     }),
     [core]
   );
+  const canUndo = useSyncExternalStore(subscribe, () => core.store.canUndo());
+  const canRedo = useSyncExternalStore(subscribe, () => core.store.canRedo());
+  return { canUndo, canRedo };
 }
 
 // srcts/ui/table.tsx
@@ -744,11 +716,11 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
   const [name2, setName] = useState6("");
   const [errors, setErrors] = useState6({});
   const [busy, setBusy] = useState6(false);
-  const entries = useMemo3(
+  const entries = useMemo2(
     () => Object.values(registry).filter((entry2) => mode.kind !== "after" || entry2.inputs.length > 0),
     [registry, mode.kind]
   );
-  const options = useMemo3(() => entries.map(classOption).sort(byGroupAndLabel), [entries]);
+  const options = useMemo2(() => entries.map(classOption).sort(byGroupAndLabel), [entries]);
   const entry = picked === void 0 ? void 0 : own(registry, picked);
   const link = linkChoice(mode, board, registry, entry);
   const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
@@ -949,8 +921,12 @@ function without2(errors, key) {
   return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key));
 }
 
+// srcts/modules/basic/board.tsx
+import { useBoard as useBoard3 } from "@blockr/core/react";
+
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5, useRef as useRef5, useState as useState8 } from "react";
+import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect5, useRef as useRef5, useState as useState8 } from "react";
+import { useNotified, useStatus } from "@blockr/core/react";
 
 // srcts/modules/basic/context.ts
 import { createContext, useContext } from "react";
@@ -1083,9 +1059,9 @@ var BlockCard = memo(function BlockCard2({
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ block: id2 }, el);
   }, [inView2, id2]);
-  const mountUi = useCallback4((el) => core.mountBlock(el, id2), [core, id2]);
-  const mountOutput = useCallback4((el) => core.mountOutput(el, id2), [core, id2]);
-  const focus = useCallback4(() => {
+  const mountUi = useCallback3((el) => core.mountBlock(el, id2), [core, id2]);
+  const mountOutput = useCallback3((el) => core.mountOutput(el, id2), [core, id2]);
+  const focus = useCallback3(() => {
     if (core.focus.get() !== id2) core.focus.set(id2);
   }, [core, id2]);
   const locked2 = core.lock.board;
@@ -1248,11 +1224,12 @@ function stackBlocks(board, stack) {
 }
 
 // srcts/modules/basic/options.tsx
-import { useCallback as useCallback5 } from "react";
+import { useCallback as useCallback4 } from "react";
+import { useBoard as useBoard2 } from "@blockr/core/react";
 import { jsx as jsx10, jsxs as jsxs8 } from "react/jsx-runtime";
 function OptionsDialog({ onClose }) {
   const { core } = useFrontEnd();
-  const board = useBoard(core);
+  const board = useBoard2(core);
   const registered = core.options.registered();
   const categories = /* @__PURE__ */ new Map();
   for (const id2 of Object.keys(board.options)) {
@@ -1270,12 +1247,12 @@ function OptionsDialog({ onClose }) {
 }
 function OptionUi({ id: id2 }) {
   const { core } = useFrontEnd();
-  const mount = useCallback5((el) => core.mountOption(el, id2), [core, id2]);
+  const mount = useCallback4((el) => core.mountOption(el, id2), [core, id2]);
   return /* @__PURE__ */ jsx10(Mounted, { mount });
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback6, useLayoutEffect as useLayoutEffect6, useRef as useRef6 } from "react";
+import { useCallback as useCallback5, useLayoutEffect as useLayoutEffect6, useRef as useRef6 } from "react";
 import { jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 function placed(core) {
   return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
@@ -1300,7 +1277,7 @@ function PluginSection({ id: id2, plugin }) {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
   }, [inView2, id2]);
-  const mount = useCallback6((el) => core.mountPlugin(el, id2), [core, id2]);
+  const mount = useCallback5((el) => core.mountPlugin(el, id2), [core, id2]);
   return /* @__PURE__ */ jsxs9("details", { open: true, className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`, children: [
     /* @__PURE__ */ jsx11("summary", { className: `${classes.heading} bc:cursor-pointer`, children: plugin.name }),
     /* @__PURE__ */ jsx11("div", { ref, className: "bc:mt-3 bc:min-w-0", children: /* @__PURE__ */ jsx11(Mounted, { mount, className: "bc:min-w-0" }) })
@@ -1308,7 +1285,7 @@ function PluginSection({ id: id2, plugin }) {
 }
 
 // srcts/modules/basic/toasts.ts
-import { useSyncExternalStore as useSyncExternalStore3 } from "react";
+import { useSyncExternalStore as useSyncExternalStore2 } from "react";
 var SHOWN_FOR = 5e3;
 var FADES_FOR = 300;
 function createToasts(notifications) {
@@ -1426,10 +1403,10 @@ function aboutBlock(notification) {
   return about !== void 0 && "block" in about;
 }
 function useToasts(toasts) {
-  return useSyncExternalStore3(toasts.subscribe, toasts.list);
+  return useSyncExternalStore2(toasts.subscribe, toasts.list);
 }
 function useShownIn(toasts) {
-  return useSyncExternalStore3(toasts.subscribe, toasts.shownIn);
+  return useSyncExternalStore2(toasts.subscribe, toasts.shownIn);
 }
 function concerned(about, core, board) {
   if (about === void 0) return "Board";
@@ -1760,15 +1737,15 @@ function BasicBoard({ front }) {
 }
 function Page() {
   const { core } = useFrontEnd();
-  const board = useBoard(core);
-  const items = useMemo4(() => layoutItems(board), [board]);
+  const board = useBoard3(core);
+  const items = useMemo3(() => layoutItems(board), [board]);
   const shown = board.options.show_conditions;
-  const severities = useMemo4(() => asSeverities(shown), [shown]);
+  const severities = useMemo3(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState10(null);
-  const add = useCallback7((mode) => {
+  const add = useCallback6((mode) => {
     setDialog({ kind: "add", mode });
   }, []);
-  const close = useCallback7(() => {
+  const close = useCallback6(() => {
     setDialog(null);
   }, []);
   const card = (id2) => {
@@ -1815,17 +1792,17 @@ function Page() {
 }
 function AddBlockDialog({ mode, onClose }) {
   const front = useFrontEnd();
-  const board = useBoard(front.core);
+  const board = useBoard3(front.core);
   const target2 = mode.kind === "add" ? void 0 : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target2 === void 0 ? "Add block" : `Add block ${mode.kind} "${target2.name}"`;
-  const run = useCallback7((command, args) => runCommand(front.core, command, args), [front.core]);
+  const run = useCallback6((command, args) => runCommand(front.core, command, args), [front.core]);
   return /* @__PURE__ */ jsx13(Dialog, { title, onClose, children: /* @__PURE__ */ jsx13(BlockPicker, { core: front.core, mode, run, onAdded: onClose, autofocus: true }) });
 }
 function Toasts() {
   const { core, toasts } = useFrontEnd();
   const list = useToasts(toasts);
   const inside = useShownIn(toasts);
-  const board = useBoard(core);
+  const board = useBoard3(core);
   if (list.length === 0) return null;
   const shown = /* @__PURE__ */ jsx13(
     "section",

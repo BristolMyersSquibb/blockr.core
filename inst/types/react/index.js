@@ -256,6 +256,37 @@ function useRequest(host, name, options = {}) {
 function held(host, key) {
   return "option" in host ? host.value() : own(host.state(), key);
 }
+function useBoard(core) {
+  const subscribe = useCallback(
+    (notify) => core.store.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  return useSyncExternalStore(subscribe, () => core.store.board());
+}
+function useStatus(core, block) {
+  const subscribe = useCallback(
+    (notify) => core.scheduler.subscribe((changed) => {
+      if (changed.includes(block)) notify();
+    }),
+    [core, block]
+  );
+  return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
+}
+function useNotified(core, block) {
+  const subscribe = useCallback(
+    (notify) => core.notifications.subscribe(() => {
+      notify();
+    }),
+    [core]
+  );
+  const all = useSyncExternalStore(subscribe, () => core.notifications.get());
+  return useMemo(
+    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
+    [all, block]
+  );
+}
 
 // srcts/react/module.tsx
 import { Component } from "react";
@@ -572,7 +603,10 @@ export {
   TextInput,
   outputRenderer,
   reactModule,
+  useBoard,
+  useNotified,
   useOutput,
   useRequest,
+  useStatus,
   useValue
 };

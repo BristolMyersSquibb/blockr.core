@@ -17,8 +17,8 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
+import { useBoard } from "../../react/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { useBoard } from "../../ui/index.ts";
 import { BlocksSection } from "./blocks.tsx";
 import { LinksSection } from "./links.tsx";
 import { StacksSection } from "./stacks.tsx";

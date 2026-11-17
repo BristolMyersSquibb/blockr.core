@@ -1,5 +1,7 @@
 import type { Condition } from "../protocol/index.ts";
-import type { OptionId } from "../types/board.ts";
+import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
+import type { BlockId, Board, OptionId } from "../types/board.ts";
+import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 export interface OutputSnapshot {
@@ -32,3 +34,10 @@ export interface RequestOptions {
 }
 export declare function useRequest<S extends State>(host: BlockHost<S>, name: string, options?: RequestOptions): Answered;
 export declare function useRequest<V extends Json>(host: OptionHost<V>, name: string, options?: RequestOptions): Answered;
+export declare function useBoard(core: Pick<CoreApi, "store">): Board;
+export declare function useStatus(core: {
+    readonly scheduler: Pick<Scheduler, "status" | "subscribe">;
+}, block: BlockId): BlockStatus | undefined;
+export declare function useNotified(core: {
+    readonly notifications: Pick<CoreApi["notifications"], "get" | "subscribe">;
+}, block: BlockId | null): readonly Notification[];
