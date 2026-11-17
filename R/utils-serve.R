@@ -121,7 +121,10 @@
 #' order they came.
 #' Its function `show()` has the frontend show a block or a plugin, as a
 #' plugin asks it to, as in `app$get_js("blockrTest.show({ block: 'a' })")`.
-#' Showing changes nothing on the board.
+#' Showing takes no undo step, and under core's basic frontend it changes
+#' nothing on the board.
+#' Another frontend may change the state that the board holds for it, as the
+#' dock does where it brings a panel forward.
 #'
 #' @param x A board, the path of a JSON board, or a block
 #' @param ... For a board or the path of a JSON board, the arguments of the

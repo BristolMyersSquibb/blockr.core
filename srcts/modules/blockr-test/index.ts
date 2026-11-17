@@ -14,10 +14,14 @@
 // A page outside test mode loads none of this module.
 // R exports each block's latest result itself, through exportTestValues().
 // The object reads the board that is open, which core makes anew as another
-// board opens, and gives copies, so that nothing changes the board through it.
+// board opens, and gives copies, so that nothing that a test does to them
+// reaches the page.
 // Its show() has the frontend show a block or a plugin, as a plugin asks it
 // to.
-// Showing changes nothing on the board either.
+// Showing takes no undo step, and under core's basic frontend it changes
+// nothing on the board.
+// Another frontend may change the state that the board holds for it, as the
+// dock does where it brings a panel forward.
 // The module imports nothing but types, so its bundle holds nothing of core's
 // runtime.
 

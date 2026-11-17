@@ -161,7 +161,10 @@ Its function \code{notifications()} gives the notifications that hold, in the
 order they came.
 Its function \code{show()} has the frontend show a block or a plugin, as a
 plugin asks it to, as in \code{app$get_js("blockrTest.show({ block: 'a' })")}.
-Showing changes nothing on the board.
+Showing takes no undo step, and under core's basic frontend it changes
+nothing on the board.
+Another frontend may change the state that the board holds for it, as the
+dock does where it brings a panel forward.
 }
 
 \examples{
