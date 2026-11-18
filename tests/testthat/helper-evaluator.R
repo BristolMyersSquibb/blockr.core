@@ -177,12 +177,10 @@ sample_recipe <- function(block, inputs = list()) {
   )
 }
 
-# An upstream result that a recipe's input or a request's read names.
-read_of <- function(block, revision, input = NULL) {
-  c(
-    if (not_null(input)) list(input = input),
-    list(block = block, revision = revision)
-  )
+# A recipe's input, by the input it feeds, with the upstream result it binds.
+# A block class's request names each result that it reads the same way.
+recipe_input <- function(block, revision, input) {
+  list(input = input, block = block, revision = revision)
 }
 
 # An evaluation, which carries the block's lock where `locked` is `TRUE` or
@@ -515,14 +513,22 @@ report_export <- function(reads, format) {
 # blockr.io gives the requests of its board option data_dir,
 # blockr.code's plugin class gives the request script, for the script of the
 # blocks it reads, and blockr.md's gives the request export, which reports
-# progress. The packages list their plugin classes.
+# progress. The packages list their board option and plugin classes, since the
+# app holds the requests of those alone.
 # R's reply to a hello names the version of each package that the app's
-# plugins come from.
-# So blockr.code and blockr.md are at the version 0.1.0, whatever the library
-# holds.
-# Linting skips the calls of local_plugin_classes(), plugin_ctor() and
-# local_versions(), helpers of another file, which lintr does not see.
+# plugins and board options come from.
+# So blockr.code, blockr.io and blockr.md are at the version 0.1.0, whatever
+# the library holds.
+# Linting skips the calls of local_listing(), local_plugin_classes(),
+# plugin_ctor() and local_versions(), helpers of another file, which lintr
+# does not see.
 local_request_types <- function(frame = parent.frame()) {
+
+  local_listing( # nolint: object_usage_linter.
+    "blockr.io",
+    list(options = list(data_dir = list(module = "js/data-dir.js"))),
+    frame = frame
+  )
 
   local_plugin_classes( # nolint: object_usage_linter.
     Code = plugin_ctor( # nolint: object_usage_linter.
@@ -540,6 +546,7 @@ local_request_types <- function(frame = parent.frame()) {
 
   local_versions( # nolint: object_usage_linter.
     blockr.code = "0.1.0",
+    blockr.io = "0.1.0",
     blockr.md = "0.1.0",
     frame = frame
   )
@@ -589,7 +596,8 @@ locked_recipe_a <- function(dataset = "iris") {
 
 # The recipe of the head block b of that board, which the board lock leaves
 # open, with the rows given and the inputs given.
-locked_recipe_b <- function(n = 6L, inputs = list(read_of("a", 1L, "data"))) {
+locked_recipe_b <- function(n = 6L,
+                            inputs = list(recipe_input("a", 1L, "data"))) {
   list(
     registry_id = "blockr.core-head_block",
     state = list(n = n, direction = "head"),

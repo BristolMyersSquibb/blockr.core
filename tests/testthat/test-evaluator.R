@@ -152,7 +152,7 @@ test_that("a later hello starts the session afresh, forgetting every block", {
   session$receive(
     list(
       evaluate_request(
-        "12", "b", 3L, sample_recipe("b", list(read_of("a", 2L, "data")))
+        "12", "b", 3L, sample_recipe("b", list(recipe_input("a", 2L, "data")))
       )
     )
   )
@@ -185,7 +185,7 @@ test_that("R evaluates a block from its recipe, as the fixture has it", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
 
   expect_fixture_replies(session, "evaluate")
 })
@@ -205,8 +205,8 @@ test_that("R binds a variadic block's inputs in link order", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
-  hold_result(session, "d", 6L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
+  hold_result(session, "d", 6L, list(recipe_input("a", 2L, "data")))
 
   expect_fixture_replies(session, "evaluate-variadic")
 })
@@ -216,7 +216,7 @@ test_that("R replies invalid where the state cannot run", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
 
   expect_fixture_replies(session, "evaluate-invalid")
 
@@ -234,10 +234,10 @@ test_that("R logs why a block is invalid or waiting at debug", {
   reset_logging()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
   hold_result(
     session, "c", 4L,
-    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+    list(recipe_input("a", 2L, "x"), recipe_input("b", 3L, "y"))
   )
 
   # The waiting block reads c, whose result R drops once c is invalid.
@@ -270,10 +270,10 @@ test_that("R passes the parameters of a one-time evaluation to block_eval()", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
   hold_result(
     session, "c", 4L,
-    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+    list(recipe_input("a", 2L, "x"), recipe_input("b", 3L, "y"))
   )
 
   expect_fixture_replies(session, "evaluate-params")
@@ -295,10 +295,10 @@ test_that("R replies waiting where a block runs only once asked", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
   hold_result(
     session, "c", 4L,
-    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+    list(recipe_input("a", 2L, "x"), recipe_input("b", 3L, "y"))
   )
 
   expect_fixture_replies(session, "evaluate-waiting")
@@ -310,7 +310,7 @@ test_that("R replies missing to a revision it does not hold", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 5L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 5L, list(recipe_input("a", 2L, "data")))
 
   expect_fixture_replies(session, "evaluate-missing")
 })
@@ -329,9 +329,9 @@ test_that("an evaluation that fails leaves R no result of its block", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "d", 6L, list(read_of("a", 2L, "data")))
+  hold_result(session, "d", 6L, list(recipe_input("a", 2L, "data")))
 
-  failing <- sample_recipe("d", list(read_of("a", 2L, "data")))
+  failing <- sample_recipe("d", list(recipe_input("a", 2L, "data")))
   failing$state$subset <- "Sepal.Widht > 4"
 
   session$receive(
@@ -528,8 +528,8 @@ test_that("R logs every condition that it sends, naming what it concerns", {
     messages[[5L]],
     paste(
       "Request x of plugin class blockr.notes-notes_plugin:",
-      "No available package lists plugin class blockr.notes-notes_plugin, so",
-      "R has no request x of it."
+      "The app runs no plugin of class blockr.notes-notes_plugin, so R has no",
+      "request x of it."
     )
   )
 
@@ -556,12 +556,12 @@ test_that("R makes a block's output, as the fixtures of outputs have it", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
   hold_result(
     session, "c", 4L,
-    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+    list(recipe_input("a", 2L, "x"), recipe_input("b", 3L, "y"))
   )
-  hold_result(session, "f", 5L, list(read_of("a", 2L, "data")))
+  hold_result(session, "f", 5L, list(recipe_input("a", 2L, "data")))
 
   expect_fixture_replies(session, "output")
   expect_fixture_replies(session, "output-plot")
@@ -801,6 +801,83 @@ test_that("R answers a board option's request by the board option's class", {
   expect_fixture_replies(session, "request-option")
 })
 
+test_that("R answers a board option's request with the function it holds", {
+
+  local_installed_package()
+
+  # The evaluator reads the board options of the available packages as it
+  # starts, with their requests, which loads optprobe, as serve() does as it
+  # builds an app
+  session <- local_evaluator()
+
+  # Whatever the process that runs the app has loaded, R answers with the
+  # function that the app holds, as here, where the test unloads optprobe
+  unloadNamespace("optprobe")
+
+  session$receive(
+    list(
+      list(id = "2", kind = "request", type = "option", option = "probe_gap",
+           name = "ping", args = obj())
+    )
+  )
+  session$run()
+
+  reply <- session$sent[[1L]][[1L]]
+
+  expect_identical(reply$status, "ok")
+  expect_identical(reply$value, encode_answer("pong"))
+
+  # R loads no package for it
+  expect_false(isNamespaceLoaded("optprobe"))
+})
+
+test_that("R answers a plugin's request with the function it holds", {
+
+  local_plugin_classes(
+    Notes = plugin_ctor(function() NULL, "notes_plugin", "blockr.notes"),
+    Code = plugin_ctor(function() NULL, "code_plugin", "blockr.code")
+  )
+  local_versions(blockr.notes = "0.1.0")
+
+  for (cls in c("notes_plugin", "code_plugin")) {
+    testthat::local_mocked_s3_method(
+      "plugin_requests",
+      cls,
+      function(x, ...) list(ping = function() "pong")
+    )
+  }
+
+  # The app runs the notes plugin, and not the code plugin
+  session <- local_evaluator(
+    plugins = app_plugins(subset(available_plugins(), id != "code_plugin"))
+  )
+
+  ping <- function(id, plugin) {
+    list(id = id, kind = "request", type = "plugin", plugin = plugin,
+         name = "ping", args = obj(), reads = list())
+  }
+
+  # R refuses a request of a plugin class that the app does not run, which an
+  # available package lists all the same
+  session$receive(list(ping("2", "blockr.code-code_plugin")))
+  session$run()
+
+  expect_identical(
+    condition_class(last_reply(session)),
+    "plugin_request_unknown"
+  )
+
+  # Whatever plugin classes the process that runs the app finds, R answers
+  # with the function that the app holds, as here, where it finds none
+  testthat::local_mocked_bindings(available_plugin_classes = function() list())
+
+  session$receive(list(ping("3", "blockr.notes-notes_plugin")))
+  session$run()
+
+  expect_identical(last_reply(session)$status, "ok")
+  expect_identical(last_reply(session)$value, encode_answer("pong"))
+})
+
 test_that("R answers a plugin's request by the ID of the plugin's class", {
 
   local_request_types()
@@ -808,7 +885,7 @@ test_that("R answers a plugin's request by the ID of the plugin's class", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
 
   expect_fixture_replies(session, "request-plugin")
 })
@@ -820,10 +897,10 @@ test_that("a request's function sends progress notes while it runs", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
   hold_result(
     session, "c", 4L,
-    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+    list(recipe_input("a", 2L, "x"), recipe_input("b", 3L, "y"))
   )
 
   expect_fixture_replies(session, "request-progress")
@@ -835,10 +912,10 @@ test_that("a request's function sends progress notes while it runs", {
   quiet$run()
 
   hold_result(quiet, "a", 2L)
-  hold_result(quiet, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(quiet, "b", 3L, list(recipe_input("a", 2L, "data")))
   hold_result(
     quiet, "c", 4L,
-    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+    list(recipe_input("a", 2L, "x"), recipe_input("b", 3L, "y"))
   )
 
   quiet$sent <- list()
@@ -872,7 +949,7 @@ test_that("R answers the requests of an output class and of a renderer", {
     recipe = list(
       registry_id = "chart_block",
       state = obj(),
-      inputs = list(read_of("a", 2L, "data"))
+      inputs = list(recipe_input("a", 2L, "data"))
     )
   )
 
@@ -915,7 +992,7 @@ test_that("R resolves an output's request by an output it made", {
     recipe = list(
       registry_id = "chart_block",
       state = obj(),
-      inputs = list(read_of("a", 2L, "data"))
+      inputs = list(recipe_input("a", 2L, "data"))
     )
   )
 
@@ -955,10 +1032,10 @@ test_that("a request names its failures by phase, and lacking results", {
 
   session$receive(
     list(
-      request("2", "nonsense", reads = list(read_of("a", 2L, "data"))),
-      request("3", "n_max", reads = list(read_of("a", 7L, "data"))),
+      request("2", "nonsense", reads = list(recipe_input("a", 2L, "data"))),
+      request("3", "n_max", reads = list(recipe_input("a", 7L, "data"))),
       request("4", "n_max", args = list(n = 1L),
-              reads = list(read_of("a", 2L, "data")))
+              reads = list(recipe_input("a", 2L, "data")))
     )
   )
 
@@ -990,7 +1067,7 @@ test_that("R runs one request at a time, between them handling messages", {
     list(
       evaluate_request("11", "a", 2L, sample_recipe("a")),
       evaluate_request(
-        "12", "b", 3L, sample_recipe("b", list(read_of("a", 2L, "data")))
+        "12", "b", 3L, sample_recipe("b", list(recipe_input("a", 2L, "data")))
       )
     )
   )
@@ -1015,13 +1092,16 @@ test_that("a cancel drops a request that has not started", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
 
   session$receive(
     list(
       evaluate_request(
         "17", "c", 4L,
-        sample_recipe("c", list(read_of("a", 2L, "x"), read_of("b", 3L, "y")))
+        sample_recipe(
+          "c",
+          list(recipe_input("a", 2L, "x"), recipe_input("b", 3L, "y"))
+        )
       )
     )
   )
@@ -1044,11 +1124,11 @@ test_that("a forget drops results and the queued requests that read them", {
   session <- local_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
-  hold_result(session, "d", 6L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
+  hold_result(session, "d", 6L, list(recipe_input("a", 2L, "data")))
   hold_result(
     session, "e", 7L,
-    list(read_of("b", 3L, ""), read_of("d", 6L, ""))
+    list(recipe_input("b", 3L, ""), recipe_input("d", 6L, ""))
   )
 
   session$receive(list(output_request("34", "e", 7L)))
@@ -1486,7 +1566,7 @@ test_that("R calls a plugin's request with its args, reads and body", {
       plugin = "blockr.notes-notes_plugin",
       name = "save",
       args = list(text = "hello"),
-      reads = list(read_of("a", 2L)),
+      reads = list(list(block = "a", revision = 2L)),
       body = list(type = "text/plain", name = "notes.txt")
     ),
     charToRaw("Notes"),
@@ -1519,7 +1599,7 @@ test_that("R calls a plugin's request with its args, reads and body", {
         plugin = "blockr.notes-notes_plugin",
         name = "count",
         args = list(a = 1L, b = 2L),
-        reads = list(read_of("a", 2L))
+        reads = list(list(block = "a", revision = 2L))
       ),
       list(
         id = "4",
@@ -1559,7 +1639,7 @@ test_that("R checks what a request of any type reads, and forgets it", {
       type = "plugin",
       plugin = "blockr.code-code_plugin",
       name = "script",
-      reads = list(read_of("a", revision))
+      reads = list(list(block = "a", revision = revision))
     )
   }
 

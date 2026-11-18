@@ -71,17 +71,29 @@ In version 0.1, `serve()` takes the app's plugins as a function, which `custom_p
 In version 0.2, `serve()` takes them in `plugins` as rows of a data frame, a row for each plugin class, with the class's package in `package` and its id in `id`.
 They default to `available_plugins()`, a row for each plugin class that an available package lists.
 An available package is a blockr package that is installed, or that `pkgload::load_all()` loaded.
-So an app runs a plugin of each class that its packages offer, without the script naming any:
+The default of `plugins` is a convenience for interactive use, and it may change.
+It may come to leave out a plugin that a script relies on.
+The app then serves the board without that plugin, and nothing says so.
+
+So a script puts each plugin that its app relies on in the `plugins` of `new_board()`.
+Where the app's plugins then lack the class of such a plugin, `serve()` stops and names the class.
+In version 0.1, `serve()` runs core's plugins by default.
+Among them, `manage_blocks()` lets the user add blocks.
+In version 0.2, core's Edit board plugin takes the place of `manage_blocks()`.
+Where the user should add blocks, a script puts that plugin on its board:
 
 ```{r, eval = FALSE}
 # blockr.core 0.1
-serve(new_board(), plugins = custom_plugins(manage_project()))
+serve(new_board())
 ```
 
 ```{r}
 # blockr.core 0.2
-serve(new_board())
+serve(new_board(plugins = list(edit = new_edit_board_plugin())))
 ```
+
+In version 0.1, the same script runs `generate_code()` too.
+Where its app relies on the code export, the script puts the plugin of blockr.code on its board as well, as the table below says.
 
 Wherever blockr.session is installed, its storage plugin takes the place of core's.
 Core's storage plugin saves a board as a download and opens an upload.
@@ -101,7 +113,8 @@ So they hold a frontend, since `serve()` refuses rows that hold none.
 Where the app should save boards as files and open them, the rows hold core's storage plugin.
 Where the user should add blocks and edit links and stacks, they hold core's Edit board plugin.
 Core's basic frontend runs only where no other row is a frontend, and core's storage plugin only where no other row is a storage plugin.
-A locked app may leave out the Edit board plugin:
+A locked app may leave the Edit board plugin out of its rows.
+Its board then holds no Edit board plugin, or `serve()` stops:
 
 ```{r}
 # blockr.core 0.2
@@ -116,13 +129,13 @@ Each plugin that a script of version 0.1 passes has this place in version 0.2:
 | Version 0.1 | Version 0.2 |
 |---|---|
 | `preserve_board()` | Core's storage plugin, `file_storage_plugin`, whose Save and Open save a board as a download and open an upload. It runs unless another storage plugin does. |
-| `manage_blocks()`, `manage_links()` and `manage_stacks()` | Core's Edit board plugin, `edit_board_plugin`, which adds, renames and removes blocks, and adds, changes and removes links and stacks. It runs by default. |
-| `generate_code()` | The plugin of blockr.code, which runs by default where blockr.code is installed. |
+| `manage_blocks()`, `manage_links()` and `manage_stacks()` | Core's Edit board plugin, `edit_board_plugin`, which adds, renames and removes blocks, and adds, changes and removes links and stacks. A script puts it on its board, as `edit = new_edit_board_plugin()`. |
+| `generate_code()` | The plugin of blockr.code, which a script puts on its board with the plugin's constructor from blockr.code. |
 | `edit_block()` and `edit_stack()` | The frontend, which draws each block's card and each stack, and changes them through core's commands. |
 | `notify_user()` | The frontend, which shows every notification. |
 | `ctrl_block()` | Nothing, since every block is open to external control through core's commands. |
 | The `generate_flat_code()` of blockr.code | The plugin of blockr.code, as for `generate_code()`. |
-| The `manage_project()` of blockr.session | The storage plugin of blockr.session, which runs by default where blockr.session is installed. |
+| The `manage_project()` of blockr.session | The storage plugin of blockr.session, which a script puts on its board with the plugin's constructor from blockr.session. |
 | The `ai_ctrl_block()` of blockr.ai | Nothing, since the assistant of blockr.assistant takes its place. |
 
 Gone with these are `custom_plugins()`, the container `plugins()`, `as_plugins()` and `blockr_app_plugins()`.
@@ -133,9 +146,12 @@ So `new_board()` takes neither `class` nor `...`, nor the `ctor` and `pkg` of ve
 
 A board gives only the state of its plugins.
 The board's constructor takes that state in `plugins`, as a list of plugins that the constructors of their packages make.
-The board holds nothing for a plugin that keeps no state, such as core's three.
+A script may give a plugin a name in that list, as `edit` above.
+The state of another plugin may then refer to the plugin by that name.
+The board holds each plugin in the list, even one that keeps no state, such as core's Edit board plugin.
+The JSON board that R sends to the browser leaves out each plugin that keeps no state.
 Each of the app's plugins runs on every board that the app opens, with the state that the board holds for it, or with its class's default state where the board holds none.
-The function `serve()` refuses a board with a plugin of a class that the app does not run, naming the class, since the board would open without that plugin's state.
+The function `serve()` refuses a board with a plugin of a class that the app does not run, naming the class, since the board would open without that plugin.
 
 A plugin class comes from a package, which lists it in its `._BLOCKR_MODULES_` with the module that defines it in the browser.
 So a script that defined a plugin of its own with the `new_plugin()` of version 0.1 moves the plugin into a package.

@@ -115,9 +115,9 @@
   registration gives, `link` as `url`, its inputs, the schema of its state,
   the state a new block starts with and its requests.
   Beside the entries come the versions of the packages, the modules that the
-  loaded packages offer each other, the app's plugins, each with its class's
+  available packages offer each other, the app's plugins, each with its class's
   name and version and where R serves its class's module, the board options
-  that the loaded packages list, each with its package, its module and the
+  that the available packages list, each with its package, its module and the
   version of its shape, and the renderers that the app names for board
   options (#560).
   R serves each module and stylesheet at a URL that
@@ -130,6 +130,10 @@
   own, read from the path given, and nothing beside it.
   Registration refuses a class whose starting state is not a plain value
   (#426, #465, #504, #558, #634).
+* Like its block registry and its plugins, an app holds the board options that the available packages list, and the modules that they offer each other, as `serve()` read them as it built the app.
+  So the replies to `hello` name the same ones wherever the app runs, in another R process too, as when a script hands the app to `callr::r_bg()`, or shinytest2 runs it, and a package that is installed or loaded after the app starts reaches none of them.
+  The app holds the requests of each board option and of each of its plugins as well, which `serve()` gets from the methods of `board_option_requests()` and `plugin_requests()`.
+  R answers such a request with the function that the app holds, so that it loads no package and reads no package's listing for it, and refuses a request of a plugin class that the app does not run (#671).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
   A JSON board holds the board, with its ID and name, its blocks, links and
@@ -470,7 +474,7 @@
   A board option's UI reads its own value alone, so core adds no other board option for it, and its module no longer names board options.
   Where the board lacks its value, core adds it with its default before the UI draws.
   Until now, the UI showed the default without the board holding it.
-  An output whose block class's entry names no renderer is asked with the value of every board option that a loaded package defines: the board's, or else the default, which the client sends without adding it to the board.
+  An output whose block class's entry names no renderer is asked with the value of every board option that the reply to `hello` names: the board's, or else the default, which the client sends without adding it to the board.
   Where a board option that a block's UI module, a renderer or a board option's UI names does not go onto the board, as where its default fails, core shows why in the element in place of what would draw there, and reports it, naming the board option and what requires it.
   A renderer that has drawn keeps its output and gets the error through its host's `error()`, and core asks R for no output until the board holds a value.
   Plugins read a board option's value from the board through `core.options.value()` (#508).
