@@ -623,6 +623,19 @@
   That argument may have any name, and the function `run_block_request()` passes it a file through its own argument `file`.
   The block registry marks a request that takes a file with `file`, and the client sends no file with any other request.
   A block class's fixture records the file that a request was sent beside its `args` (#663).
+* Core's React SDK offers one select, `ComboBox`, which core's own UIs, frontends, the UIs of plugins and those of blocks all draw with: [React Aria's `ComboBox`](https://react-aria.adobe.com/ComboBox), in core's theme, after the `ComboBox` of React Aria's Tailwind starter kit.
+  It takes the props of React Aria's `ComboBox`, the `label`, `description`, `errorMessage` and `placeholder` that the starter kit adds, and the `renderEmptyState` of React Aria's `ListBox`.
+  It picks one item, or several where its `selectionMode` is `"multiple"`, out of a list that the user filters by typing into its field, and draws the items that `ComboBoxItem` and `ComboBoxSection` give, with React Aria's `Text` for an item's description.
+  The field of several shows each pick as a chip, which its button removes, as Backspace in the empty field removes the last one.
+  A button at the field's right, before the one that opens the list, clears the pick, or every pick, but where the select `isRequired`.
+  A bound select of one leaves its state arg unset so, through the new `unset()` of the binding of `bind()` and of `Bound` in the SDK, as a new block leaves an arg without a default.
+  For that, a block host's `submit()` leaves a state arg that its change gives as `undefined` unset, through the `unset` of `set_block`.
+  React Aria draws the list as wide as the field, in a portal at the end of the page's body, or in the dialog or the popover that holds the select, as these sit in the browser's top layer.
+  Given `value` and `onChange`, it picks for its caller, so that a plugin's UI can run a command with the pick.
+  Given `bound`, it binds a block's state arg or a board option's value, as before: one string, or an array of strings, which it submits once, as its list closes, in place of `Checklist`, which is gone.
+  The page loads the parts of React Aria that core draws with in core's vendor file, and the types of `@blockr/core` name React Aria as a dependency.
+  The `comboBox()` of `controls()` takes `items`, `selectionMode`, `ordered` and `renderEmptyState`, in place of `select()` and `checklist()`, which are gone, as are `Choice` and `asChoices()`.
+  Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).
 
 # blockr.core 0.1.4
 

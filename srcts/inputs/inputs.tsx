@@ -9,11 +9,11 @@
 // and says below itself why the host refused what it submitted.
 // A label holds its input, so that it needs no id,
 // as a block's UI may be mounted in several places at once.
+// The select is in ./select.tsx.
+// Its list and its rows take ids, which React makes anew for each mount.
 
 import { useState } from "react";
 import type { ReactElement, ReactNode } from "react";
-import { strings } from "../binding/index.ts";
-import type { Choice } from "../binding/index.ts";
 import { styles } from "../styles/index.ts";
 import type { Bound } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
@@ -165,61 +165,6 @@ interface Read {
   readonly reason?: string;
 }
 
-// A select of one string, which shows `placeholder` while the value is unset.
-// It takes its choices as `undefined` until they are known, such as until a
-// request answers, and shows a value meanwhile as it is.
-// Once they are known, it shows a value that they lack, such as a column that
-// the data no longer has, as missing, and marks itself invalid.
-// While it is `outdated`, as while the request that gives its choices asks
-// again, the choices may be for older data.
-// It then keeps them on screen, and shows a value that they lack as it is.
-// So its choices must list every value it takes, not a part of them.
-export function Select({
-  bound,
-  label,
-  placeholder,
-  choices,
-  outdated = false,
-}: {
-  bound: Bound;
-  label: string;
-  placeholder: string;
-  choices?: readonly Choice[];
-  outdated?: boolean;
-}): ReactElement {
-  const current = typeof bound.value === "string" ? bound.value : undefined;
-  const known = choices ?? [];
-  const lacked = current !== undefined && !known.some((choice) => choice.value === current);
-  const invalid = lacked && choices !== undefined && !outdated;
-  const shown = lacked ? [...known, { value: current, label: invalid ? missing(current) : current }] : known;
-  return (
-    <>
-      <Field label={label}>
-        <select
-          className={styles.box}
-          value={current ?? ""}
-          aria-invalid={invalid}
-          onChange={(event) => {
-            void bound.commit(event.target.value);
-          }}
-        >
-          {current === undefined && (
-            <option value="" disabled>
-              {placeholder}
-            </option>
-          )}
-          {shown.map((choice) => (
-            <option key={choice.value} value={choice.value}>
-              {choice.label}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Refusal error={bound.error} />
-    </>
-  );
-}
-
 export function Checkbox({ bound, label }: { bound: Bound; label: string }): ReactElement {
   return (
     <>
@@ -239,88 +184,13 @@ export function Checkbox({ bound, label }: { bound: Bound; label: string }): Rea
   );
 }
 
-// A checkbox for each string that an array may hold,
-// which says `empty` once its choices are known and there are none.
-// It takes its choices as `undefined` until they are known.
-// It shows a string the value holds and the choices lack,
-// such as a column only one input has, so that the user can clear it,
-// and marks it as missing once the choices are known.
-// While it is `outdated`, as while the request that gives its choices asks
-// again, the choices may be for older data.
-// It then keeps them on screen, and marks no string.
-// So its choices must list every string it takes, not a part of them.
-// It submits the checked strings in the order the user checked them,
-// after those the value holds, or where `ordered`, in the order of the
-// choices, as for severities.
-// It builds each submit from the value the host holds then,
-// so that it keeps a string the assistant added in the meantime.
-export function Checklist({
-  bound,
-  legend,
-  choices,
-  empty,
-  ordered = false,
-  outdated = false,
-}: {
-  bound: Bound;
-  legend: string;
-  choices?: readonly string[];
-  empty?: string;
-  ordered?: boolean;
-  outdated?: boolean;
-}): ReactElement {
-  const held = strings(bound.value);
-  const known = choices ?? [];
-  const shown = [...known, ...held.filter((value) => !known.includes(value))];
-
-  const toggle = (value: string, checked: boolean): void => {
-    const now = strings(bound.get());
-    const next = checked
-      ? now.includes(value)
-        ? now
-        : [...now, value]
-      : now.filter((other) => other !== value);
-    void bound.commit(
-      ordered ? [...known.filter((choice) => next.includes(choice)), ...next.filter((other) => !known.includes(other))] : next,
-    );
-  };
-
-  return (
-    <fieldset className={styles.fieldset}>
-      <legend className={styles.legend}>{legend}</legend>
-      <div className={styles.list}>
-        {shown.map((value) => {
-          const invalid = choices !== undefined && !outdated && !known.includes(value);
-          return (
-            <label key={value} className={styles.check}>
-              <input
-                type="checkbox"
-                className={styles.checkbox}
-                value={value}
-                checked={held.includes(value)}
-                aria-invalid={invalid}
-                onChange={(event) => {
-                  toggle(value, event.target.checked);
-                }}
-              />
-              {invalid ? missing(value) : value}
-            </label>
-          );
-        })}
-        {choices !== undefined && empty !== undefined && shown.length === 0 && <p className={styles.hint}>{empty}</p>}
-      </div>
-      <Refusal error={bound.error} />
-    </fieldset>
-  );
-}
-
-// How a select or a checklist shows a value that its choices lack.
-function missing(value: string): string {
+// How a select shows a value that its choices lack.
+export function missing(value: string): string {
   return `${value} (not available)`;
 }
 
 // Says why the host refused what an input submitted.
-function Refusal({ error }: { error: string | null }): ReactElement | null {
+export function Refusal({ error }: { error: string | null }): ReactElement | null {
   return error === null ? null : (
     <p role="alert" className={styles.alert}>
       {error}

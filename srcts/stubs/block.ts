@@ -15,7 +15,7 @@ import type { Raised } from "../types/core-api.ts";
 import type { BlockContext, BlockHost, HostRequestOpts, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
-import { asError, isObject, jsonEqual, own, packageFromId } from "../util/index.ts";
+import { asError, isObject, jsonEqual, own, packageFromId, without } from "../util/index.ts";
 import { announcer, lineHolder, notifier, stubBlockContext } from "./util.ts";
 
 // A block class's fixture file: the states that a block of the class may
@@ -106,7 +106,9 @@ export function stubBlockHost<S extends State = State>(
       if (!isObject(change)) {
         return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
       }
-      const next = { ...state, ...defined(change) };
+      // A state arg that the change gives as undefined, the host unsets.
+      const unset = Object.entries(change).flatMap(([arg, value]) => (value === undefined ? [arg] : []));
+      const next = without({ ...state, ...defined(change) }, unset) as S;
       submitted.push(next);
       if (!fixture.states.some((listed) => jsonEqual(listed, next))) {
         return Promise.reject(

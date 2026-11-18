@@ -38,12 +38,6 @@ export function press(input: HTMLElement, key: string, init: KeyboardEventInit =
   input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...init }));
 }
 
-// Picks a choice of a select as a user does.
-export function pick(select: HTMLSelectElement, value: string): void {
-  setValue(select, value);
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
 // Checks or clears a checkbox as a user does, by clicking it.
 export function toggle(checkbox: HTMLInputElement): void {
   checkbox.click();
@@ -70,7 +64,7 @@ export function picking(file: File | undefined): { accept: string; connected: bo
 
 // Sets the value through the setter of the element's class rather than of the
 // element itself, where React keeps track of the values it sets.
-function setValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string): void {
+function setValue(element: HTMLInputElement | HTMLTextAreaElement, value: string): void {
   if (!Reflect.set(Object.getPrototypeOf(element) as object, "value", value, element)) {
     throw new Error("The element has no value to set.");
   }

@@ -5,8 +5,8 @@
 // so the select marks no dataset.
 
 import type { ReactElement } from "react";
-import { asChoices, strings } from "../../binding/index.ts";
-import { reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
+import { strings } from "../../binding/index.ts";
+import { ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
@@ -20,13 +20,15 @@ function DatasetBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const datasets = useRequest(host, "datasets", { reads: pkg ?? null });
   return (
     <Stack>
-      <Select
+      <ComboBox
         bound={useValue(host, "dataset")}
         label="Dataset"
         placeholder="Choose a dataset"
-        choices={datasets.answer === undefined ? undefined : asChoices(strings(datasets.answer))}
+        defaultItems={strings(datasets.answer).map((id) => ({ id }))}
         outdated={datasets.loading || datasets.error !== null}
-      />
+      >
+        {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+      </ComboBox>
     </Stack>
   );
 }

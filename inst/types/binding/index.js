@@ -36,7 +36,7 @@ function bind(host, key, show, options = {}) {
   const submit = async (value) => {
     if (jsonEqual(source.get(key), value)) return true;
     try {
-      await source.submit(key, value);
+      await (value === void 0 ? source.unset(key) : source.submit(key, value));
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -63,6 +63,11 @@ function bind(host, key, show, options = {}) {
     get: () => source.get(key),
     async commit(value) {
       const took = await submit(value);
+      if (!took) display(true);
+      return took;
+    },
+    async unset() {
+      const took = await submit(void 0);
       if (!took) display(true);
       return took;
     },
@@ -144,6 +149,10 @@ function createSource(host) {
         check(key);
         return host.submit(value);
       },
+      unset(key) {
+        check(key);
+        return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+      },
       onValues: (fn) => host.on("value", fn),
       onContext: () => () => void 0,
       inputs: () => null,
@@ -154,21 +163,18 @@ function createSource(host) {
     check: () => void 0,
     get: (key) => own(host.state(), key),
     submit: (key, value) => host.submit({ [key]: value }),
+    unset: (key) => host.submit({ [key]: void 0 }),
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input) => ({ input: input.input, revision: input.revision })),
     request: (name, args, opts) => host.request(name, args, opts)
   };
 }
-function asChoices(values) {
-  return values.map((value) => ({ value, label: value }));
-}
 function strings(value) {
   return Array.isArray(value) ? value.filter((x) => typeof x === "string") : [];
 }
 export {
   PAUSE,
-  asChoices,
   bind,
   follow,
   strings

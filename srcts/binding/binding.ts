@@ -12,7 +12,8 @@
 //   but not while the user is typing in the control.
 // - A binding submits only when the user acts,
 //   never to fill in a value once data arrives.
-//   A pick, such as in a select, it submits at once.
+//   A pick, such as in a select, it submits at once, and so it unsets a state
+//   arg that the user clears.
 //   Typing, which changes the control with every keystroke,
 //   it submits once the user pauses, presses Enter or leaves the control,
 //   so that a burst of typing is one edit and one undo step,
@@ -45,6 +46,11 @@ export interface Binding {
   // Where the host refused it, the control is shown the value the host holds
   // again.
   commit(value: Json): Promise<boolean>;
+  // Unsets the state arg, as the user clears an arg without a default, at
+  // once, unless the host holds no value under it already, and resolves with
+  // whether the host took it, as commit() does.
+  // A board option always holds a value, so that of a board option refuses.
+  unset(): Promise<boolean>;
   // Takes what the user typed, which it submits once the user pauses,
   // unless the user types on.
   // Until then, the control is shown nothing the host announces.
@@ -128,12 +134,12 @@ export function bind(
     show(value);
   };
 
-  // Submits the value, unless the host holds it already,
-  // and resolves with whether the host took it.
-  const submit = async (value: Json): Promise<boolean> => {
+  // Submits the value, unless the host holds it already, or unsets the state
+  // arg given undefined, and resolves with whether the host took it.
+  const submit = async (value: Json | undefined): Promise<boolean> => {
     if (jsonEqual(source.get(key), value)) return true;
     try {
-      await source.submit(key, value);
+      await (value === undefined ? source.unset(key) : source.submit(key, value));
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -164,6 +170,11 @@ export function bind(
     get: () => source.get(key),
     async commit(value) {
       const took = await submit(value);
+      if (!took) display(true);
+      return took;
+    },
+    async unset() {
+      const took = await submit(undefined);
       if (!took) display(true);
       return took;
     },
@@ -246,6 +257,7 @@ interface Source {
   check(key: string): void;
   get(key: string): Json | undefined;
   submit(key: string, value: Json): Promise<void>;
+  unset(key: string): Promise<void>;
   // Follows the values, and what a request reads besides them.
   onValues(fn: () => void): () => void;
   onContext(fn: () => void): () => void;
@@ -271,6 +283,10 @@ function createSource(host: BlockHost | OptionHost): Source {
         check(key);
         return host.submit(value);
       },
+      unset(key) {
+        check(key);
+        return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+      },
       onValues: (fn) => host.on("value", fn),
       onContext: () => () => undefined,
       inputs: () => null,
@@ -281,22 +297,12 @@ function createSource(host: BlockHost | OptionHost): Source {
     check: () => undefined,
     get: (key) => own(host.state(), key),
     submit: (key, value) => host.submit({ [key]: value }),
+    unset: (key) => host.submit({ [key]: undefined }),
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input) => ({ input: input.input, revision: input.revision })),
     request: (name, args, opts) => host.request(name, args, opts),
   };
-}
-
-// A choice of a select or a checklist: the value it sets, and how it reads.
-export interface Choice {
-  readonly value: string;
-  readonly label: string;
-}
-
-// A choice for each value, which reads as the value.
-export function asChoices(values: readonly string[]): readonly Choice[] {
-  return values.map((value) => ({ value, label: value }));
 }
 
 // The strings in an array, such as the answer of a request that R writes from

@@ -11,11 +11,11 @@ import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
-import { labelled, listFromField, optionFromLabel, optionLabels } from "../../testing/combobox.ts";
-import { find, pick, picking, press, texts, type } from "../../testing/inputs.ts";
+import { find, picking, press, texts, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
 import { logged } from "../../testing/logged.ts";
+import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
 import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
@@ -465,6 +465,9 @@ describe("a card", () => {
     await step(() => {
       classes.click();
     });
+    // The dialog holds the select's list, as the rest of the page is inert
+    // while the dialog is open.
+    expect(listFromField(classes)?.closest("dialog")).toBe(dialog(el));
     expect(optionLabels(classes)).not.toContain("input: dataset block");
     await step(() => {
       optionFromLabel(classes, "subset block").click();
@@ -480,9 +483,7 @@ describe("a card", () => {
 
     await menu(el, "Iris", "Add block after");
     await chosen(dialog(el), "Block class", "merge", "merge block");
-    await step(() => {
-      pick(find(dialog(el), "select", HTMLSelectElement), "y");
-    });
+    await picked(labelled(dialog(el), "Input of the new merge block"), step, "y");
     await step(() => {
       type(labelled(dialog(el), "ID"), "joined");
     });
@@ -538,11 +539,9 @@ describe("a card's block before", () => {
     await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
 
     await menu(el, "Merge", "Add block before");
-    const select = find(dialog(el), "select", HTMLSelectElement);
-    expect([...select.options].map((option) => option.value)).toEqual(["x", "y"]);
-    await step(() => {
-      pick(select, "y");
-    });
+    const input = labelled(dialog(el), 'Input of "Merge"');
+    expect(await listed(input, step)).toEqual(["x", "y"]);
+    await picked(input, step, "y");
     await chosen(dialog(el), "Block class", "dataset", "dataset block");
     await click(button(dialog(el), "Add block"));
 
@@ -557,7 +556,8 @@ describe("a card's block before", () => {
 
     // The head block has one input, which no link feeds now.
     await menu(el, "Head", "Add block before");
-    expect(dialog(el).querySelector("select")).toBeNull();
+    // The block class is the one thing to pick.
+    expect(dialog(el).querySelectorAll('[role="combobox"]')).toHaveLength(1);
     await chosen(dialog(el), "Block class", "dataset", "dataset block");
     await step(() => {
       type(labelled(dialog(el), "ID"), "first");
@@ -568,7 +568,8 @@ describe("a card's block before", () => {
 
     // A link feeds the merge block's x, so the new link goes into its y.
     await menu(el, "Merge", "Add block before");
-    expect(dialog(el).querySelector("select")).toBeNull();
+    // The block class is the one thing to pick.
+    expect(dialog(el).querySelectorAll('[role="combobox"]')).toHaveLength(1);
     await chosen(dialog(el), "Block class", "dataset", "dataset block");
     await step(() => {
       type(labelled(dialog(el), "ID"), "second");
@@ -597,7 +598,7 @@ describe("what floats over the board", () => {
   // dark theme, those of its hover and of a dialog's backdrop aside.
   const backgrounds = (el: Element): string[] => el.className.split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
 
-  test("is drawn on the background that core's theme gives it: a card's menu, the dialogs and the list of a searchable dropdown", async () => {
+  test("is drawn on the background that core's theme gives it: a card's menu, the dialogs and the list of a select", async () => {
     const { el, settled } = await drawn();
 
     await click(find(card(el, "Head"), 'button[aria-label="Actions of Head"]'));
@@ -609,7 +610,7 @@ describe("what floats over the board", () => {
     await step(() => {
       classes.click();
     });
-    const list = listFromField(classes);
+    const list = listFromField(classes)?.parentElement ?? null;
     expect(list).not.toBeNull();
     expect(list === null ? [] : backgrounds(list)).toEqual(["bc:bg-bg-raised"]);
     await click(button(dialog(el), "Close"));
@@ -642,9 +643,7 @@ describe("the toolbar", () => {
     expect(dialog(el).textContent).toContain("Preview rows");
     expect(dialog(el).textContent).toContain("Message types to display");
 
-    await step(() => {
-      pick(find(dialog(el), 'section[aria-label="Theme options"] select', HTMLSelectElement), "dark");
-    });
+    await picked(labelled(find(dialog(el), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
     expect(board().options.dark_mode).toBe("dark");
     expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
   });
@@ -1493,9 +1492,7 @@ describe("a locked board", () => {
 
     await click(button(el, "Options"));
     await settled();
-    await step(() => {
-      pick(find(dialog(el), 'section[aria-label="Theme options"] select', HTMLSelectElement), "dark");
-    });
+    await picked(labelled(find(dialog(el), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
     expect(board().options.dark_mode).toBe("dark");
   });
 

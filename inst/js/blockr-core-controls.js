@@ -34,14 +34,14 @@ function controls(host, signal) {
   const el = document.createElement("div");
   el.className = styles.stack;
   const root = createRoot(el);
-  const items = [];
+  const entries = [];
   const bindings = [];
   const followed = [];
   let error = null;
   let ended = false;
   const redraw = () => {
     if (ended) return;
-    const drawn = items.map((item) => /* @__PURE__ */ jsx(Fragment, { children: item.draw() }, item.id));
+    const drawn = entries.map((entry) => /* @__PURE__ */ jsx(Fragment, { children: entry.draw() }, entry.id));
     flushSync(() => {
       root.render(
         /* @__PURE__ */ jsxs(Fragment2, { children: [
@@ -52,7 +52,7 @@ function controls(host, signal) {
     });
   };
   function put(draw) {
-    items.push({ id: items.length, draw });
+    entries.push({ id: entries.length, draw });
     redraw();
   }
   function add(node) {
@@ -84,6 +84,7 @@ function controls(host, signal) {
         error: refusal,
         get: () => binding.get(),
         commit: (next) => binding.commit(next),
+        unset: () => binding.unset(),
         type: (next) => {
           binding.type(next);
         },
@@ -132,22 +133,27 @@ function controls(host, signal) {
       }
     };
   }
-  function select(key, options) {
-    let choices = options.choices;
+  function comboBox(key, options) {
+    let items = options.items;
     let outdated = false;
     input(key, (bound) => /* @__PURE__ */ jsx(
-      inputs.Select,
+      inputs.ComboBox,
       {
         bound,
         label: options.label,
         placeholder: options.placeholder,
-        choices,
-        outdated
+        defaultItems: items,
+        selectionMode: options.selectionMode ?? "single",
+        ordered: options.ordered,
+        isRequired: options.isRequired,
+        renderEmptyState: options.renderEmptyState,
+        outdated,
+        children: (item) => /* @__PURE__ */ jsx(inputs.ComboBoxItem, { id: item.id, children: item.name ?? item.id })
       }
     ));
     return {
-      setChoices(next) {
-        choices = next;
+      setItems(next) {
+        items = next;
         redraw();
       },
       setOutdated(next) {
@@ -159,31 +165,6 @@ function controls(host, signal) {
   function checkbox(key, options) {
     input(key, (bound) => /* @__PURE__ */ jsx(inputs.Checkbox, { bound, label: options.label }));
   }
-  function checklist(key, options) {
-    let choices = options.choices;
-    let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx(
-      inputs.Checklist,
-      {
-        bound,
-        legend: options.legend,
-        choices,
-        empty: options.empty,
-        ordered: options.ordered,
-        outdated
-      }
-    ));
-    return {
-      setChoices(next) {
-        choices = next;
-        redraw();
-      },
-      setOutdated(next) {
-        outdated = next;
-        redraw();
-      }
-    };
-  }
   function cleanup() {
     if (ended) return;
     ended = true;
@@ -192,7 +173,7 @@ function controls(host, signal) {
     root.unmount();
   }
   signal.addEventListener("abort", cleanup, { once: true });
-  return { el, add, get, bind, text, number, select, checkbox, checklist, follow, alert, cleanup };
+  return { el, add, get, bind, text, number, comboBox, checkbox, follow, alert, cleanup };
 }
 function Slot({ node }) {
   const ref = useRef(null);
@@ -203,10 +184,9 @@ function Slot({ node }) {
 }
 
 // srcts/controls/index.ts
-import { asChoices, PAUSE, strings } from "@blockr/core/binding";
+import { PAUSE, strings } from "@blockr/core/binding";
 export {
   PAUSE,
-  asChoices,
   controls,
   strings,
   styles

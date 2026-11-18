@@ -1,17 +1,26 @@
-import type { Binding, Choice, Followed, FollowOptions } from "../binding/index.ts";
+import type { Binding, Followed, FollowOptions } from "../binding/index.ts";
 import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 export interface NumberInput {
     setMax(max: number | undefined): void;
     setOutdated(outdated: boolean): void;
 }
-export interface Select {
-    setChoices(choices: readonly Choice[]): void;
+export interface ComboBox {
+    setItems(items: readonly Item[]): void;
     setOutdated(outdated: boolean): void;
 }
-export interface Checklist {
-    setChoices(choices: readonly string[]): void;
-    setOutdated(outdated: boolean): void;
+export interface Item {
+    readonly id: string;
+    readonly name?: string;
+}
+export interface ComboBoxOptions {
+    readonly label: string;
+    readonly placeholder?: string;
+    readonly items?: readonly Item[];
+    readonly selectionMode?: "single" | "multiple";
+    readonly ordered?: boolean;
+    readonly isRequired?: boolean;
+    readonly renderEmptyState?: () => string;
 }
 export interface Controls<K extends string = string> {
     readonly el: HTMLElement;
@@ -27,20 +36,10 @@ export interface Controls<K extends string = string> {
         label: string;
         min?: number;
     }): NumberInput;
-    select(key: K, options: {
-        label: string;
-        placeholder: string;
-        choices?: readonly Choice[];
-    }): Select;
+    comboBox(key: K, options: ComboBoxOptions): ComboBox;
     checkbox(key: K, options: {
         label: string;
     }): void;
-    checklist(key: K, options: {
-        legend: string;
-        choices?: readonly string[];
-        empty?: string;
-        ordered?: boolean;
-    }): Checklist;
     follow(name: string, options: FollowOptions): Followed;
     alert(error: unknown): void;
     readonly cleanup: () => void;

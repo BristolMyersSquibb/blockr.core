@@ -5,10 +5,11 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { PAUSE } from "../../binding/index.ts";
 import { READY, stubBlockHost } from "../../stubs/index.ts";
-import { find, pick, press, type } from "../../testing/inputs.ts";
+import { find, press, type } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle, unmount, wait } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
+import { labelled, picked } from "../../testing/select.ts";
 import * as head from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -32,13 +33,13 @@ async function mounted(state: State = six) {
   const host = stubBlockHost<State>(fixture, { state });
   const view = await mountOnPage(head, host);
   const n = find(view.el, 'input[type="number"]', HTMLInputElement);
-  const direction = find(view.el, "select", HTMLSelectElement);
+  const direction = labelled(view.el, "Direction");
   return { host, view, n, direction };
 }
 
 test("shows the state, and takes the rows of its input as the most the input takes", async () => {
   const { host, n, direction } = await mounted();
-  expect([n.value, direction.value]).toEqual(["6", "head"]);
+  expect([n.value, direction.value]).toEqual(["6", "Head"]);
 
   await settle();
   expect(n.max).toBe("150");
@@ -54,7 +55,7 @@ test("takes a state it did not make, in the elements it drew", async () => {
   });
 
   expect(find(view.el, 'input[type="number"]')).toBe(n);
-  expect([n.value, direction.value]).toEqual(["10", "tail"]);
+  expect([n.value, direction.value]).toEqual(["10", "Tail"]);
   expect(host.submitted).toEqual([]);
 });
 
@@ -146,9 +147,7 @@ test("goes back to the state as the user leaves a number above the rows, which c
 test("submits the direction as the user picks it", async () => {
   const { host, direction } = await mounted(tenHead);
 
-  await step(() => {
-    pick(direction, "tail");
-  });
+  await picked(direction, step, "Tail");
 
   expect(host.submitted).toEqual([tenTail]);
 });
@@ -162,7 +161,7 @@ test("leaves the input the user is typing in as the state changes, and submits o
   await step(() => {
     host.setState(tenTail);
   });
-  expect([n.value, direction.value]).toEqual(["20", "tail"]);
+  expect([n.value, direction.value]).toEqual(["20", "Tail"]);
 
   await wait(PAUSE);
   expect(host.submitted).toEqual([twentyTail]);

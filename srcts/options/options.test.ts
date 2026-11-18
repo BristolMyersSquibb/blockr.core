@@ -15,8 +15,9 @@ import nRowsModule, * as nRowsExports from "../modules/n-rows-option/index.ts";
 // eslint-disable-next-line no-restricted-imports
 import showConditionsModule, * as showConditionsExports from "../modules/show-conditions-option/index.ts";
 import { stubOptionHost } from "../stubs/index.ts";
-import { find, pick, texts, toggle, type } from "../testing/inputs.ts";
+import { find, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
+import { chipLabels, labelled, listed, picked } from "../testing/select.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { coreOptions, darkMode, nRows, optionSchemas, setTheme, showConditions } from "./index.ts";
@@ -214,27 +215,23 @@ describe("the UIs of core's board options", () => {
     expect(host.submitted).toEqual([25]);
   });
 
-  test("show_conditions is a checkbox for each severity that submits the checked ones in their order", async () => {
+  test("show_conditions is a select of the severities that submits the picks in their order", async () => {
     const { el, host } = await mounted("show_conditions", showConditions, ["error"]);
-    expect(el.querySelector("legend")?.textContent).toBe("Message types to display");
-    expect(texts(el, "label")).toEqual(["message", "warning", "error"]);
+    const field = labelled(el, "Message types to display");
+    expect(chipLabels(field)).toEqual(["error"]);
+    expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
 
-    await step(() => {
-      toggle(find(el, 'input[value="message"]', HTMLInputElement));
-    });
+    await picked(field, step, "message");
 
     expect(host.submitted).toEqual([["message", "error"]]);
   });
 
   test("dark_mode is a select of light and dark that submits the user's choice", async () => {
     const { el, host } = await mounted("dark_mode", darkMode, "light");
-    const select = find(el, "select", HTMLSelectElement);
-    expect(el.querySelector("label")?.textContent).toContain("Light/dark mode");
-    expect(select.value).toBe("light");
+    const field = labelled(el, "Light/dark mode");
+    expect(field.value).toBe("Light");
 
-    await step(() => {
-      pick(select, "dark");
-    });
+    await picked(field, step, "Dark");
 
     expect(host.submitted).toEqual(["dark"]);
   });

@@ -28,19 +28,19 @@
 //   table shows as each link's place among the block's links.
 // Under the board lock, it lists the links alone.
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { freeInputs, linkFeeding } from "../../commands/index.ts";
 import { createGraph } from "../../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../../picker/index.ts";
+import { ComboBox, ComboBoxItem, Text } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import type { RegistryEntry } from "../../types/registry.ts";
-import { classes, Combobox, Pager, runCommand, TableSearch, TextField, useTableView } from "../../ui/index.ts";
-import type { ComboOption } from "../../ui/index.ts";
+import { classes, Pager, runCommand, TableSearch, TextField, useSearch, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
 
@@ -225,7 +225,6 @@ function LinkForm({
   const [place, setPlace] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
-  const hintId = useId();
 
   // The blocks that the form offers, with the links of the board but the one
   // that the form changes, which is about to move.
@@ -239,10 +238,12 @@ function LinkForm({
 
   const fromOptions = Object.entries(board.blocks)
     .filter(([id]) => !downstream.has(id))
-    .map(([id]) => blockOption(board, registry, id));
+    .map(([id]) => blockItem(board, registry, id));
   const toOptions = Object.entries(board.blocks)
     .filter(([id]) => !upstream.has(id) && takesLink(others, registry, id))
-    .map(([id]) => blockOption(board, registry, id));
+    .map(([id]) => blockItem(board, registry, id));
+  const fromSearch = useSearch(fromOptions, blockTexts);
+  const toSearch = useSearch(toOptions, blockTexts);
 
   const free = target === undefined ? [] : (freeInputs(others, registry, target) ?? []);
   const variadic = isVariadic(free);
@@ -314,33 +315,37 @@ function LinkForm({
       }}
     >
       <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
-        <Combobox
+        <ComboBox
           label="From"
-          options={fromOptions}
-          value={source}
+          {...fromSearch}
+          value={source ?? null}
           placeholder="Search blocks"
-          empty="No block matches."
-          error={errors.from}
-          onChange={(value) => {
-            setFrom(value);
+          isInvalid={errors.from !== undefined}
+          errorMessage={errors.from}
+          onChange={(key) => {
+            setFrom(key === null ? undefined : String(key));
             setErrors((now) => without(now, "from"));
           }}
-        />
-        <Combobox
+        >
+          {blockRow}
+        </ComboBox>
+        <ComboBox
           label="To"
-          options={toOptions}
-          value={target}
+          {...toSearch}
+          value={target ?? null}
           placeholder="Search blocks"
-          empty="No block that takes a link matches."
-          error={errors.to}
-          hint={toOptions.length === 0 ? "No block takes a link from this block." : undefined}
-          onChange={(value) => {
-            setTo(value);
+          isInvalid={errors.to !== undefined}
+          errorMessage={errors.to}
+          description={toOptions.length === 0 ? "No block takes a link from this block." : undefined}
+          onChange={(key) => {
+            setTo(key === null ? undefined : String(key));
             setInput(undefined);
             setPlace(undefined);
             setErrors((now) => without(without(now, "to"), "input"));
           }}
-        />
+        >
+          {blockRow}
+        </ComboBox>
       </div>
       {target === undefined ? null : variadic ? (
         <div className={among === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>
@@ -359,51 +364,34 @@ function LinkForm({
             }}
           />
           {among === undefined ? null : (
-            <label className={styles.field}>
-              <span className={styles.label}>Position</span>
-              <select
-                className={styles.box}
-                value={position}
-                disabled={among.others.length === 0}
-                onChange={(event) => {
-                  setPlace(Number(event.target.value));
-                }}
-              >
-                {Array.from({ length: among.others.length + 1 }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ComboBox
+              label="Position"
+              isRequired
+              defaultItems={Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) }))}
+              value={position === undefined ? null : String(position)}
+              isDisabled={among.others.length === 0}
+              onChange={(key) => {
+                if (key !== null) setPlace(Number(key));
+              }}
+            >
+              {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+            </ComboBox>
           )}
         </div>
       ) : (
-        <div className={styles.field}>
-          <label className={styles.field}>
-            <span className={styles.label}>Input</span>
-            <select
-              className={styles.box}
-              value={chosen}
-              disabled={offered.length < 2}
-              aria-describedby={hint === undefined ? undefined : hintId}
-              onChange={(event) => {
-                setInput(event.target.value);
-              }}
-            >
-              {offered.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-          {hint === undefined ? null : (
-            <p id={hintId} className={styles.hint}>
-              {hint}
-            </p>
-          )}
-        </div>
+        <ComboBox
+          label="Input"
+          isRequired
+          defaultItems={offered.map((id) => ({ id }))}
+          value={chosen ?? null}
+          isDisabled={offered.length < 2}
+          description={hint}
+          onChange={(key) => {
+            if (key !== null) setInput(String(key));
+          }}
+        >
+          {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+        </ComboBox>
       )}
       {editing === undefined && Object.keys(board.blocks).length < 2 ? (
         <p className={styles.hint}>A link joins two blocks, so the board needs two blocks first.</p>
@@ -428,16 +416,35 @@ function LinkForm({
   );
 }
 
-// A block as a dropdown offers it: by its name, with its id and its class.
-export function blockOption(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): ComboOption {
+// A block as a select offers it: by its name, with its id and its class
+// after it, by which the select finds it too.
+export interface BlockItem {
+  readonly id: BlockId;
+  readonly name: string;
+  readonly detail: string;
+}
+
+export function blockItem(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): BlockItem {
   const block = own(board.blocks, id);
   const cls = block === undefined ? undefined : (own(registry, block.registry_id)?.name ?? block.registry_id);
-  return {
-    value: id,
-    label: block?.name ?? id,
-    detail: cls === undefined ? id : `${id} · ${cls}`,
-    keywords: [id],
-  };
+  return { id, name: block?.name ?? id, detail: cls === undefined ? id : `${id} · ${cls}` };
+}
+
+// The texts by which a select finds a block.
+export function blockTexts(item: BlockItem): readonly string[] {
+  return [item.name, item.detail, item.id];
+}
+
+// A block's row in a select's list.
+export function blockRow(item: BlockItem): ReactElement {
+  return (
+    <ComboBoxItem id={item.id} textValue={item.name}>
+      <Text slot="label" className="bc:shrink-0 bc:truncate">
+        {item.name}
+      </Text>
+      <Text slot="description">{item.detail}</Text>
+    </ComboBoxItem>
+  );
 }
 
 // Whether the block takes a link: a variadic block always, and another block

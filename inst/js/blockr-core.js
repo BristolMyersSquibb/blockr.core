@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-ccb64a4e.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-0cfb4d33.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -224,7 +224,7 @@ function checkRaised(notification) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-ccb64a4e.js";
+import { Validator } from "./vendor-0cfb4d33.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -3482,7 +3482,8 @@ function blockHost(deps) {
         return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
       }
       const set = Object.fromEntries(Object.entries(change).filter(([, value2]) => value2 !== void 0));
-      return commands.run("blockr.core-set_block", { id: block, state: set });
+      const unset = Object.entries(change).flatMap(([arg, value2]) => value2 === void 0 ? [arg] : []);
+      return commands.run("blockr.core-set_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
     },
     request(name3, args = {}, opts = {}) {
       if (!bound()) return Promise.reject(unboundError());
@@ -3752,10 +3753,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-ccb64a4e.js";
+import { computed as computed3, signal as signal4 } from "./vendor-0cfb4d33.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-ccb64a4e.js";
+import { signal as signal3 } from "./vendor-0cfb4d33.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -5853,7 +5854,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-ccb64a4e.js";
+import { computed as computed2, signal as signal2 } from "./vendor-0cfb4d33.js";
 function createRegistrations(migration = () => void 0) {
   const classes = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
