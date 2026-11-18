@@ -298,11 +298,12 @@ export type CoreCode =
 // the output host's error() gives it in place of R's condition. Its code is
 // that of the notification that core raises for the same failure:
 // output_unanswered for an ask that got no reply or an error reply that holds
-// no error, and module_failed for a renderer that lacks the board options that
-// it names.
+// no error, module_failed for a renderer that lacks the board options that it
+// names, and board_option_failed where a board option that the coercion of
+// the block's outputs reads does not go onto the board.
 export interface CoreFailure {
   readonly kind: "core";
-  readonly code: Extract<CoreCode, "output_unanswered" | "module_failed">;
+  readonly code: Extract<CoreCode, "output_unanswered" | "module_failed" | "board_option_failed">;
   readonly message: string;
 }
 

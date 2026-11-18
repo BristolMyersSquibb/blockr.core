@@ -159,7 +159,8 @@ unknown_total_output <- function(result, options, info, params) {
   new_table_output(
     columns = table_columns(cols, names(result)),
     rows = utils::head(result, options$n_rows),
-    total = NA
+    total = NA,
+    page_size = options$n_rows
   )
 }
 

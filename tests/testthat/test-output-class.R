@@ -180,6 +180,55 @@ test_that("an output family is a coercion with a class of its own", {
                class = "output_family_invalid")
 })
 
+test_that("an output family holds the board options its coercion reads", {
+
+  expect_identical(family_option_ids(as_table_output), "n_rows")
+  expect_identical(family_option_ids(as_plot_output), character())
+
+  as_themed_output <- new_output_family(
+    function(result, ...) new_text_output(format(result)),
+    class = "themed_output_family",
+    options = new_dark_mode_option
+  )
+
+  expect_identical(family_option_ids(as_themed_output), "dark_mode")
+
+  expect_error(
+    new_output_family(identity, "themed_output_family", options = "dark_mode"),
+    class = "output_family_invalid"
+  )
+  expect_error(
+    new_output_family(identity, "themed_output_family", options = identity),
+    class = "output_family_invalid"
+  )
+})
+
+test_that("an output family joins another by taking it", {
+
+  as_head_output <- new_output_family(
+    function(result, ...) as_table_output(utils::head(result), ...),
+    family = as_table_output
+  )
+
+  # It has the family's class, reads its board options and holds it, so that
+  # the family's package loads wherever the coercion does
+  expect_identical(class(as_head_output), class(as_table_output))
+  expect_identical(family_option_ids(as_head_output), "n_rows")
+  expect_identical(attr(as_head_output, "family"), as_table_output)
+
+  out <- as_head_output(datasets::iris, options = list(n_rows = 4L))
+
+  expect_identical(out$total, 6L)
+  expect_identical(out$page_size, 4L)
+
+  expect_error(new_output_family(identity, family = identity),
+               class = "output_family_invalid")
+  expect_error(
+    new_output_family(identity, "head_output_family", family = as_table_output),
+    class = "output_family_invalid"
+  )
+})
+
 test_that("an output is written by the schema of its most specific class", {
 
   local_output_class(

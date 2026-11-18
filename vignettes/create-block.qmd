@@ -341,18 +341,28 @@ So a block class never names how its output looks.
 A package that needs an output class of its own makes one with `new_block_output()`.
 It gives the class's JSON Schema, requests and renderer through its methods of `output_schema()`, `output_requests()` and `as_renderer()`.
 Its coercion is the output family of the class's outputs, which `new_output_family()` makes from a function by giving it a class of its own, as `as_table_output()` has the class `table_output_family`.
-The package gives the family's class a method of `as_renderer()` too, so that the client knows a block's renderer before the block's first output:
+The family also holds the constructors of the board options that its coercion reads, as a request holds those that it reads:
 
-1. R names the renderer that the block class's output family gives in the class's entry of the block registry.
-2. The client loads the renderer, which names the board options that the coercion reads, such as `n_rows`.
+```{r, eval = FALSE}
+as_table_output <- new_output_family(
+  function(result, options = list(), info = list(), params = list(), ...) {
+    UseMethod("as_table_output")
+  },
+  class = "table_output_family",
+  options = new_n_rows_option
+)
+```
+
+1. R names the board options that the block class's output family reads in the class's entry of the block registry, with the renderer that the family's method of `as_renderer()` gives.
+2. The client puts those board options on the board, and loads the renderer, which names the board options that it reads itself.
 3. The client asks R for the block's first output, with the values of those board options.
 
-A coercion that wraps the coercion of another family joins that family by taking its class, and so gets its renderer:
+A coercion that wraps the coercion of another family joins that family by taking it as `family`, and so reads its board options and draws with its renderer:
 
 ```{r, eval = FALSE}
 as_head_output <- new_output_family(
   function(result, ...) as_table_output(utils::head(result), ...),
-  class = "table_output_family"
+  family = as_table_output
 )
 ```
 

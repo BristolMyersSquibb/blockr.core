@@ -6,7 +6,7 @@ table_json <- function(x) {
   as.character(encode_message(shape_output(x)$output))
 }
 
-test_that("a table output holds columns, a page of rows and a total", {
+test_that("a table output holds columns, rows, a total and which page it is", {
 
   out <- new_table_output(
     columns = data.frame(name = c("x", "y"), class = c("integer", "factor")),
@@ -22,9 +22,21 @@ test_that("a table output holds columns, a page of rows and a total", {
     paste0(
       "{\"columns\":[{\"name\":\"x\",\"class\":\"integer\"},",
       "{\"name\":\"y\",\"class\":\"factor\"}],",
-      "\"rows\":[[1,\"a\"],[2,\"b\"]],\"total\":5}"
+      "\"rows\":[[1,\"a\"],[2,\"b\"]],\"total\":5,",
+      "\"page\":1,\"page_size\":2}"
     )
   )
+
+  out <- new_table_output(
+    columns = data.frame(name = "x", class = "integer"),
+    rows = data.frame(x = 1:2),
+    total = 5L,
+    page = 3,
+    page_size = 2
+  )
+
+  expect_identical(out$page, 3L)
+  expect_identical(out$page_size, 2L)
 
   sub <- new_table_output(
     columns = data.frame(name = "x", class = "integer"),
@@ -76,6 +88,12 @@ test_that("a table output checks its properties", {
                      2L),
     class = "table_output_invalid"
   )
+  expect_error(new_table_output(cols, rows, 2L, page = 0L),
+               class = "table_output_invalid")
+  expect_error(new_table_output(cols, rows, 2L, page_size = 1L),
+               class = "table_output_invalid")
+  expect_error(new_table_output(cols, rows, 2L, page_size = 2.5),
+               class = "table_output_invalid")
 })
 
 test_that("a table output's total row count may be unknown", {
@@ -98,6 +116,8 @@ test_that("a data frame's table output pages by n_rows and its parameters", {
                          params = list(page = 2L))
 
   expect_identical(out$total, 7L)
+  expect_identical(out$page, 2L)
+  expect_identical(out$page_size, 3L)
   expect_identical(out$rows$Sepal.Length, iris$Sepal.Length[4:6])
   expect_identical(out$columns$name, names(iris))
   expect_identical(out$columns$class, c(rep("numeric", 4L), "factor"))
@@ -111,6 +131,7 @@ test_that("a data frame's table output pages by n_rows and its parameters", {
                          params = list(page = 2L, page_size = 10L))
 
   expect_identical(out$rows$Sepal.Length, iris$Sepal.Length[11:20])
+  expect_identical(out$page_size, 10L)
 
   # The client sends n_rows with every output request, so R reads no blockr
   # option for it

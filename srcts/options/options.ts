@@ -37,7 +37,7 @@ import { checklistUi, numberUi, selectUi } from "./ui.tsx";
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
 
 // The rows of a table output's page, which the coercion of table outputs
-// reads, so that every renderer of table outputs requires it.
+// reads, so that the table family holds its constructor in R.
 export const nRows: Omit<Option, "id"> = {
   label: "Preview rows",
   category: "Table options",

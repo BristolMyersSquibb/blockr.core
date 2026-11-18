@@ -600,7 +600,7 @@ test_that("an output that warns replies ok with the warning, which R logs", {
         result$n <- as.integer(result$n)
         as_table_output(result, ...)
       },
-      class = "table_output_family"
+      family = as_table_output
     )
   )
 

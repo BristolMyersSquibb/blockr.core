@@ -80,6 +80,7 @@ VignetteBuilder: quarto
 Config/roxygen2/version: 8.0.0
 Collate: 
     'arg-spec.R'
+    'utils-ply.R'
     'utils-cnd.R'
     'utils-assertions.R'
     'output-class.R'
@@ -88,7 +89,6 @@ Collate:
     'block-expr.R'
     'utils-expr.R'
     'utils-pkg.R'
-    'utils-ply.R'
     'utils-misc.R'
     'block-class.R'
     'block-coverage.R'

@@ -4,9 +4,10 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers).
 // It draws the page of rows that the output holds under the table's columns,
 // and pages and sorts through the output's parameters, which it sets through
-// its host, so that R makes the page asked for. It names n_rows, by which the
-// coercion pages, as the board option it requires. What it computes is in
-// ./table.ts, and this file only draws. The table takes its colours from the
+// its host, so that R makes the page asked for. It reads no board option:
+// the output holds the page and the page size, by which it draws its pager,
+// while the table family reads n_rows, by which R pages the table. What it
+// computes is in ./table.ts, and this file only draws. The table takes its colours from the
 // element it draws in, so that it suits a light and a dark frontend alike.
 
 import { useEffect, useRef } from "react";
@@ -30,10 +31,10 @@ import type { Page, Sort } from "./table.ts";
 
 export const api = 1;
 
-export default outputRenderer<TableOutput, TableParams>(Table, { options: ["n_rows"] });
+export default outputRenderer<TableOutput, TableParams>(Table);
 
-function Table({ output, params, options, error, host }: OutputProps<TableOutput, TableParams>): ReactElement {
-  const page = tablePage(output, params, options.n_rows);
+function Table({ output, params, error, host }: OutputProps<TableOutput, TableParams>): ReactElement {
+  const page = tablePage(output);
   const sorted = sortedColumn(output, params.sort);
   const ask = (to: number, sort: Sort | undefined): void => {
     host.setParams(paramsFor(to, sort, params));

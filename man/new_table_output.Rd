@@ -6,7 +6,15 @@
 \alias{as_table_output.data.frame}
 \title{Table outputs}
 \usage{
-new_table_output(columns, rows, total, ..., class = character())
+new_table_output(
+  columns,
+  rows,
+  total,
+  page = 1L,
+  page_size = max(nrow(rows), 1L),
+  ...,
+  class = character()
+)
 
 as_table_output(result, options = list(), info = list(), params = list(), ...)
 
@@ -20,6 +28,11 @@ as_table_output(result, options = list(), info = list(), params = list(), ...)
 each of \code{columns}}
 
 \item{total}{The table's total row count, or \code{NA} where it is unknown}
+
+\item{page}{The page that \code{rows} holds, the first by default}
+
+\item{page_size}{How many rows a page holds, by default as many as \code{rows}
+holds, so that the table has one page}
 
 \item{...}{For \code{new_table_output()}, further properties, which a subclass
 adds, and otherwise passed on to methods}
@@ -39,8 +52,9 @@ Both \code{new_table_output()} and \code{as_table_output()} return an object
 of class \code{table_output}.
 }
 \description{
-A table output shows a table: its columns, the rows of one page and the
-total row count. The constructor \code{new_table_output()} makes one, and the
+A table output shows a table: its columns, the rows of one page, the total
+row count, which page it shows and how many rows a page holds.
+The constructor \code{new_table_output()} makes one, and the
 coercion \code{as_table_output()} makes one from a result, by the result's class.
 It is the output family of table outputs, which a block class names in its
 \code{output} property (see \code{\link[=new_output_family]{new_output_family()}}).
@@ -55,9 +69,12 @@ option values in \code{options}, what the client measured for the output's
 element in \code{info}, and the output's parameters in \code{params}. The method for
 data frames reads three parameters. It shows page \code{params$page}, the first
 by default. A page holds \code{params$page_size} rows, or else as many as the
-board option \code{n_rows} gives. Every renderer of table outputs names \code{n_rows},
-so that the client adds it to the board before it asks for the first table
-output of a block, and sends its value with every output request. The rows
+board option \code{n_rows} gives.
+The family holds the constructor of \code{n_rows} (see \code{\link[=new_output_family]{new_output_family()}}), so
+that the client puts it on the board before it asks for the first table
+output of a block, and sends its value with every output request.
+The output holds the page and the page size, by which a renderer draws its
+pager, so that no renderer reads \code{n_rows} itself. The rows
 are sorted by the column that \code{params$sort$column} names, from the largest
 value where \code{params$sort$desc} is \code{TRUE}. Asking for a page past the last
 one, or for a sort by a column that the table lacks, is an error, so that

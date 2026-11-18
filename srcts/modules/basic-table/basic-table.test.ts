@@ -93,9 +93,9 @@ function words(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-test("names n_rows as the board option it requires, by which the coercion pages", () => {
+test("names no board option, since the output holds its page and the rows of a page", () => {
   expect(basicTable.api).toBe(1);
-  expect(basicTable.default.options).toEqual(["n_rows"]);
+  expect(basicTable.default.options ?? []).toEqual([]);
 });
 
 describe("drawing a page", () => {
@@ -189,7 +189,7 @@ describe("paging", () => {
 
     const rows = sample(0).output.rows.slice(0, 2);
     const sized = await mounted(0, {
-      output: { ...sample(0).output, rows } as unknown as Json,
+      output: { ...sample(0).output, rows, page: 2, page_size: 2 } as unknown as Json,
       params: { page: 2, page_size: 2 },
       waiting: true,
     });
@@ -214,7 +214,7 @@ describe("paging", () => {
 
     const rows = sample(4).output.rows.slice(0, 2);
     await step(() => {
-      full.host.setOutput({ ...sample(4).output, rows } as unknown as Json, null, { page: 2 });
+      full.host.setOutput({ ...sample(4).output, rows, page: 2 } as unknown as Json, null, { page: 2 });
     });
     expect(full.counts()).toBe("Rows 4–5");
     expect(full.page()).toBe("Page 2");

@@ -716,6 +716,7 @@ proto_registry <- function(...) {
       requests = obj(
         datasets = proto_request(state_args = "package")
       ),
+      output_options = I("n_rows"),
       renderer = proto_renderer("table")
     ),
     head_block = obj(
@@ -766,6 +767,7 @@ proto_registry <- function(...) {
         )
       ),
       requests = obj(n_max = proto_request("data")),
+      output_options = I("n_rows"),
       renderer = proto_renderer("table")
     ),
     merge_block = obj(
@@ -807,6 +809,7 @@ proto_registry <- function(...) {
         )
       ),
       requests = obj(shared = proto_request(c("x", "y"))),
+      output_options = I("n_rows"),
       renderer = proto_renderer("table")
     ),
     subset_block = obj(
@@ -841,6 +844,7 @@ proto_registry <- function(...) {
         )
       ),
       requests = obj(),
+      output_options = I("n_rows"),
       renderer = proto_renderer("table")
     ),
     rbind_block = obj(
@@ -863,6 +867,7 @@ proto_registry <- function(...) {
       state = obj(),
       arguments = obj(),
       requests = obj(),
+      output_options = I("n_rows"),
       renderer = proto_renderer("table")
     ),
     scatter_block = obj(
@@ -896,6 +901,7 @@ proto_registry <- function(...) {
         )
       ),
       requests = obj(columns = proto_request("data")),
+      output_options = I(character()),
       renderer = proto_renderer("plot")
     ),
     upload_block = obj(
@@ -916,6 +922,7 @@ proto_registry <- function(...) {
       state = obj(),
       arguments = obj(),
       requests = obj(upload = proto_request(action = TRUE, file = TRUE)),
+      output_options = I(character()),
       renderer = proto_renderer("text")
     )
   )

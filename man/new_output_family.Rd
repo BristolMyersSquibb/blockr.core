@@ -4,18 +4,25 @@
 \alias{new_output_family}
 \title{Output families}
 \usage{
-new_output_family(fun, class)
+new_output_family(fun, class = NULL, options = NULL, family = NULL)
 }
 \arguments{
 \item{fun}{The coercion, a function that makes an output from the result,
 with the board option values, the \code{info} and the parameters that the
 output was asked with, as \code{options}, \code{info} and \code{params}}
 
-\item{class}{The family's class, such as \code{"table_output_family"}}
+\item{class}{The class of a family of its own, such as
+\code{"table_output_family"}}
+
+\item{options}{The constructors of the board options that \code{fun} reads, a
+function such as \code{new_n_rows_option} or a list of them}
+
+\item{family}{The output family whose coercion \code{fun} wraps, which \code{fun}
+joins, in place of \code{class}}
 }
 \value{
-The function \code{fun}, of class \code{class}, \code{output_family} and
-\code{function}.
+The function \code{fun}, of class \code{class}, or of the class of \code{family},
+followed by \code{output_family} and \code{function}.
 }
 \description{
 An output family is the coercion that makes the outputs of an output class
@@ -24,21 +31,34 @@ function with a class of its own.
 A block class names the family of its outputs in its \code{output} property (see
 \code{\link[=new_block_class]{new_block_class()}}), and R calls the family on a block's result to make an
 output.
-The family's class lets R ask the family itself for the renderer of its
-outputs, through S3 dispatch of \code{\link[=as_renderer]{as_renderer()}}, before R has made any
-output.
-R names that renderer in the block class's entry of the block registry, so
-that the client loads it before it asks for a block's first output.
 }
 \details{
+A family holds the constructors of the board options that its coercion
+reads, as a request that \code{\link[=new_block_request]{new_block_request()}} makes holds those that the
+request reads, so that the table family holds \code{\link[=new_n_rows_option]{new_n_rows_option()}}, by
+which it pages a data frame.
+R names their IDs in the entry of each block class that names the family,
+in the block registry, and the client puts them on the board and sends
+their values with every output request, the first one included.
+A renderer then names only the board options that it reads itself.
+The family's class lets R ask the family itself for the renderer of its
+outputs, through S3 dispatch of \code{\link[=as_renderer]{as_renderer()}}, before R has made any
+output, and R names that renderer in the entry as well, so that the page
+loads it early.
+
 The function \code{new_output_family()} makes a family of a function, by giving
-it the class \code{class}, followed by \code{output_family} and \code{function}.
+it the class \code{class}, followed by \code{output_family} and \code{function}, and the
+board option constructors \code{options}.
 The package that defines an output class gives the family a class of its
 own, such as \code{table_output_family}, and a method of \code{as_renderer()} for it.
 A family that is a generic stays one, since S3 registers its methods and
 dispatches on the result as it does for any generic.
 A function that wraps the coercion of another family joins that family by
-taking its class, and so draws with its renderer.
+taking it as \code{family}, in place of \code{class}.
+It then has the family's class, and so draws with its renderer, and reads
+the family's board options, beside any of its own in \code{options}.
+It also holds the family, so that the family's package loads wherever the
+function does, as where an app runs in a process of its own.
 }
 \examples{
 class(as_table_output)
@@ -47,9 +67,10 @@ as_renderer(as_table_output)
 # A coercion that wraps the table family's joins the family
 as_head_output <- new_output_family(
   function(result, ...) as_table_output(utils::head(result), ...),
-  class = "table_output_family"
+  family = as_table_output
 )
 
+identical(class(as_head_output), class(as_table_output))
 as_renderer(as_head_output)
 as_head_output(datasets::iris, options = list(n_rows = 3L))$total
 

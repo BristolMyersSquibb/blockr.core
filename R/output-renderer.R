@@ -16,8 +16,9 @@
 #' gives the renderer of each output, which core's methods take from the
 #' family.
 #' R names the family's renderer in the entry of each block class that names
-#' the family, in the block registry, so that the client loads it before it
-#' asks for a block's first output.
+#' the family, in the block registry, so that the page loads it early.
+#' A renderer names only the board options that it reads itself, since the
+#' family names those that its coercion reads (see [new_output_family()]).
 #' S3 dispatch gives a subclass the renderer of its class, unless the subclass
 #' has a method of its own, so that the outputs of a lazy table are drawn as
 #' tables until a package or an app script gives the subclass a renderer.

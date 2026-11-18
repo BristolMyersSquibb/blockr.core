@@ -59,7 +59,9 @@
             "setosa"
           ]
         ],
-        "total": 7
+        "total": 7,
+        "page": 2,
+        "page_size": 3
       }
     },
     {
@@ -131,7 +133,9 @@
             27
           ]
         ],
-        "total": 153
+        "total": 153,
+        "page": 4,
+        "page_size": 50
       }
     },
     {
@@ -249,7 +253,9 @@
             "<lm>"
           ]
         ],
-        "total": 5
+        "total": 5,
+        "page": 1,
+        "page_size": 50
       }
     },
     {
@@ -286,7 +292,9 @@
           }
         ],
         "rows": [],
-        "total": 0
+        "total": 0,
+        "page": 1,
+        "page_size": 50
       }
     },
     {
@@ -345,7 +353,9 @@
             "setosa"
           ]
         ],
-        "total": null
+        "total": null,
+        "page": 1,
+        "page_size": 3
       }
     }
   ]

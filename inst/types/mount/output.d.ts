@@ -53,9 +53,9 @@ export interface OutputDeps {
     readonly replaced: AbortSignal;
     readonly addOptions: (ids: readonly OptionId[], by: string) => Promise<readonly string[]>;
     readonly keepOptions: (ids: readonly OptionId[], by: string, failed: (failures: readonly string[]) => void) => {
+        readonly added: Promise<readonly string[]>;
         readonly stop: () => void;
     };
-    readonly resolveDefaults: (ids: readonly OptionId[], by: string) => Promise<Readonly<Record<OptionId, Json>>>;
     readonly emit: (event: OutputEvent) => void;
     readonly raise: Raise;
     readonly replied: Replied;

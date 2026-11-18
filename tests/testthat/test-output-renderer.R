@@ -113,7 +113,7 @@ test_that("an output family is drawn by what its class's method gives", {
   # A coercion that wraps another family's joins that family
   as_head_output <- new_output_family(
     function(result, ...) as_table_output(utils::head(result), ...),
-    class = "table_output_family"
+    family = as_table_output
   )
 
   expect_identical(as_renderer(as_head_output), as_renderer(as_table_output))

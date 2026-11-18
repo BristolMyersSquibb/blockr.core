@@ -56,6 +56,7 @@
             "requests": {
               "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
             },
+            "output_options": ["n_rows"],
             "renderer": {
               "id": "blockr.core-table_output",
               "module": "blockr.core/basic-table.js?v=b7e2a915"

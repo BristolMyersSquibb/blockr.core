@@ -68,8 +68,9 @@ package_versions <- function(packages) {
 # gives, with `register_block()`'s `link` as `url`, and what the client cannot
 # read off a class that stays in R. Those are its data inputs, where R serves
 # its UI module, the schema of its state that the module ships, the state a
-# new block starts with, its arg specs, its requests and the renderer of its
-# outputs, `renderer` from `entry_renderer()`, where R knows one. A class whose
+# new block starts with, its arg specs, its requests, the board options that
+# its output family reads and the renderer of its outputs, `renderer` from
+# `entry_renderer()`, where R knows one. A class whose
 # module ships no schema has the empty schema, which allows any state, and its
 # state is written bare, so that its module takes a value of length one in
 # either form.
@@ -105,17 +106,18 @@ registry_entry_reply <- function(x, renderer = NULL) {
       arguments = as_json_object(
         lapply(x[["arguments"]], arg_spec_reply, what)
       ),
-      requests = as_json_object(lapply(x[["requests"]], request_entry_reply))
+      requests = as_json_object(lapply(x[["requests"]], request_entry_reply)),
+      output_options = I(family_option_ids(x[["block_class"]][["output"]]))
     ),
     if (not_null(renderer)) list(renderer = output_renderer_reply(renderer))
   )
 }
 
 # The renderer of a block class's outputs, which R names in the class's entry
-# of the block registry, so that the client loads it, and adds the board
-# options that it names to the board, before it asks for a block's first
-# output: the renderer that the output family that the block class names gives
-# through its method of `as_renderer()`.
+# of the block registry, so that the page loads it early, and the client adds
+# the board options that it names to the board before it asks for a block's
+# first output: the renderer that the output family that the block class names
+# gives through its method of `as_renderer()`.
 # It is `NULL` where R knows no renderer for that family, so that the client
 # learns the renderer from the first output, and R reports its error there.
 entry_renderer <- function(x) {

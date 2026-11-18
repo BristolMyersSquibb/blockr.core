@@ -7,10 +7,10 @@ var NUMBERS = /* @__PURE__ */ new Set(["numeric", "integer"]);
 function isNumber(column) {
   return NUMBERS.has(column.class);
 }
-function tablePage(table, params, nRows) {
+function tablePage(table) {
   const rows = table.rows.length;
-  const size = params.page_size ?? (nRows === void 0 ? Math.max(rows, 1) : asCount(nRows));
-  const page = params.page ?? 1;
+  const size = table.page_size;
+  const page = table.page;
   const last = table.total === null ? null : Math.max(1, Math.ceil(table.total / size));
   return {
     page,
@@ -61,17 +61,13 @@ function createSort(column, desc) {
 function count(n) {
   return n.toLocaleString("en-US");
 }
-function asCount(value) {
-  if (typeof value === "number" && Number.isInteger(value) && value >= 1) return value;
-  throw new TypeError(`The board option n_rows is ${JSON.stringify(value)}, where a table pages by a whole number of at least 1.`);
-}
 
 // srcts/modules/basic-table/index.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
-var basic_table_default = outputRenderer(Table, { options: ["n_rows"] });
-function Table({ output, params, options, error, host }) {
-  const page = tablePage(output, params, options.n_rows);
+var basic_table_default = outputRenderer(Table);
+function Table({ output, params, error, host }) {
+  const page = tablePage(output);
   const sorted = sortedColumn(output, params.sort);
   const ask = (to, sort) => {
     host.setParams(paramsFor(to, sort, params));

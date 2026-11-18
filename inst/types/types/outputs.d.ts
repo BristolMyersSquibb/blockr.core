@@ -11,6 +11,8 @@ export interface TableOutput extends BlockOutput {
     columns: TableColumn[];
     rows: Json[][];
     total: number | null;
+    page: number;
+    page_size: number;
 }
 export interface TableColumn {
     name: string;

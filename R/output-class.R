@@ -29,7 +29,7 @@
 #' class, its JSON Schema, its requests and its renderer, through its methods
 #' of three generics (see [output_schema()]).
 #'
-#' @include utils-assertions.R utils-cnd.R
+#' @include utils-assertions.R utils-cnd.R utils-ply.R
 #' @param x For `new_block_output()`, the output's properties, as a named list,
 #'   and for `new_reply_body()`, a raw vector or the path of a file
 #' @param class The output's class vector, without `block_output`
@@ -219,25 +219,43 @@ print.reply_body <- function(x, ...) {
 #' A block class names the family of its outputs in its `output` property (see
 #' [new_block_class()]), and R calls the family on a block's result to make an
 #' output.
+#'
+#' A family holds the constructors of the board options that its coercion
+#' reads, as a request that [new_block_request()] makes holds those that the
+#' request reads, so that the table family holds [new_n_rows_option()], by
+#' which it pages a data frame.
+#' R names their IDs in the entry of each block class that names the family,
+#' in the block registry, and the client puts them on the board and sends
+#' their values with every output request, the first one included.
+#' A renderer then names only the board options that it reads itself.
 #' The family's class lets R ask the family itself for the renderer of its
 #' outputs, through S3 dispatch of [as_renderer()], before R has made any
-#' output.
-#' R names that renderer in the block class's entry of the block registry, so
-#' that the client loads it before it asks for a block's first output.
+#' output, and R names that renderer in the entry as well, so that the page
+#' loads it early.
 #'
 #' The function `new_output_family()` makes a family of a function, by giving
-#' it the class `class`, followed by `output_family` and `function`.
+#' it the class `class`, followed by `output_family` and `function`, and the
+#' board option constructors `options`.
 #' The package that defines an output class gives the family a class of its
 #' own, such as `table_output_family`, and a method of `as_renderer()` for it.
 #' A family that is a generic stays one, since S3 registers its methods and
 #' dispatches on the result as it does for any generic.
 #' A function that wraps the coercion of another family joins that family by
-#' taking its class, and so draws with its renderer.
+#' taking it as `family`, in place of `class`.
+#' It then has the family's class, and so draws with its renderer, and reads
+#' the family's board options, beside any of its own in `options`.
+#' It also holds the family, so that the family's package loads wherever the
+#' function does, as where an app runs in a process of its own.
 #'
 #' @param fun The coercion, a function that makes an output from the result,
 #'   with the board option values, the `info` and the parameters that the
 #'   output was asked with, as `options`, `info` and `params`
-#' @param class The family's class, such as `"table_output_family"`
+#' @param class The class of a family of its own, such as
+#'   `"table_output_family"`
+#' @param options The constructors of the board options that `fun` reads, a
+#'   function such as `new_n_rows_option` or a list of them
+#' @param family The output family whose coercion `fun` wraps, which `fun`
+#'   joins, in place of `class`
 #'
 #' @examples
 #' class(as_table_output)
@@ -246,17 +264,19 @@ print.reply_body <- function(x, ...) {
 #' # A coercion that wraps the table family's joins the family
 #' as_head_output <- new_output_family(
 #'   function(result, ...) as_table_output(utils::head(result), ...),
-#'   class = "table_output_family"
+#'   family = as_table_output
 #' )
 #'
+#' identical(class(as_head_output), class(as_table_output))
 #' as_renderer(as_head_output)
 #' as_head_output(datasets::iris, options = list(n_rows = 3L))$total
 #'
-#' @return The function `fun`, of class `class`, `output_family` and
-#' `function`.
+#' @return The function `fun`, of class `class`, or of the class of `family`,
+#' followed by `output_family` and `function`.
 #'
 #' @export
-new_output_family <- function(fun, class) {
+new_output_family <- function(fun, class = NULL, options = NULL,
+                              family = NULL) {
 
   if (!is.function(fun)) {
     blockr_abort(
@@ -266,20 +286,72 @@ new_output_family <- function(fun, class) {
     )
   }
 
-  if (!is_nonempty_string(class) ||
-        class %in% c("output_family", "function")) {
+  if (is.function(options)) {
+    options <- list(options)
+  }
+
+  if (!is.null(options) && !is_family_option_ctors(options)) {
     blockr_abort(
-      "The class of an output family is expected to be a string of its own, ",
-      "such as \"table_output_family\".",
+      "The board options that an output family reads are expected to be ",
+      "given by their constructors, a function such as `new_n_rows_option` ",
+      "or a list of them.",
       class = "output_family_invalid"
     )
   }
 
-  structure(fun, class = c(class, "output_family", "function"))
+  if (is.null(family)) {
+
+    if (!is_nonempty_string(class) ||
+          class %in% c("output_family", "function")) {
+      blockr_abort(
+        "The class of an output family is expected to be a string of its ",
+        "own, such as \"table_output_family\", where it joins no family.",
+        class = "output_family_invalid"
+      )
+    }
+
+  } else {
+
+    if (!is_output_family(family) || !is.null(class)) {
+      blockr_abort(
+        "An output family joins another by taking it as `family`, an output ",
+        "family such as `as_table_output`, in place of a class of its own.",
+        class = "output_family_invalid"
+      )
+    }
+
+    class <- setdiff(class(family), c("output_family", "function"))
+    options <- c(attr(family, "options"), options)
+  }
+
+  structure(
+    fun,
+    options = if (length(options)) unname(options),
+    family = family,
+    class = c(class, "output_family", "function")
+  )
 }
 
 is_output_family <- function(x) {
   is.function(x) && inherits(x, "output_family")
+}
+
+# Whether `x` is a list of board option constructors, each a function that
+# makes a board option of its ID, called without a value.
+is_family_option_ctors <- function(x) {
+  is.list(x) && all(
+    lgl_ply(x, function(new) {
+      is.function(new) &&
+        tryCatch(is_board_option(new()), error = function(e) FALSE)
+    })
+  )
+}
+
+# The IDs of the board options that an output family reads, as their
+# constructors give them, which R names in the entry of each block class that
+# names the family, in the block registry.
+family_option_ids <- function(x) {
+  unique(chr_ply(call_option_ctors(attr(x, "options")), board_option_id))
 }
 
 #' Output classes in R

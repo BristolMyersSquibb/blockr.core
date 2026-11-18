@@ -65,7 +65,10 @@
 * Outputs show a block's result in the client. The output family that a
   block class names in `output`, a coercion that `new_output_family()` gives
   a class of its own, makes an output from a result, and R sends the
-  output as JSON, so nothing assumes a table. The class vector of an output
+  output as JSON, so nothing assumes a table.
+  The family holds the constructors of the board options that its coercion reads, as `as_table_output` holds `new_n_rows_option`, and R names their IDs in the entry of each block class that names the family, so that the client sends their values with every output request.
+  A coercion that wraps another family's joins that family by taking it in `family`, and so reads its board options and draws with its renderer.
+  The class vector of an output
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a
   file. The package that defines an output class gives what R needs of it
@@ -78,7 +81,7 @@
   `run_output_class_request()`
   runs such a request as R does (#422, #440, #465, #685).
 * Core defines three output classes. A table output holds one page of rows
-  and the total row count, which may be unknown, as for a lazy table. Its
+  and the total row count, which may be unknown, as for a lazy table, with the page it shows and how many rows a page holds, by which a renderer draws its pager. Its
   coercion `as_table_output()` pages a data frame by the board option
   `n_rows` and sorts it by the renderer's parameters. A text output holds what
   `print()` shows, and `as_text_output()` shows the results of a block class
@@ -103,9 +106,11 @@
   serves the renderer's module.
   R also names it in the entry of each block class that names the class's
   output family, as the family's method of `as_renderer()` gives it, so that
-  the client loads the renderer, and adds the board
-  options that it names to the board, before it asks for a block's first
-  output. Another package offers a renderer through a
+  the page loads the renderer early, and the client adds the board
+  options that it names to the board before it asks for a block's first
+  output.
+  A renderer names only the board options that it reads itself, since the output family names those that its coercion reads.
+  Another package offers a renderer through a
   function that makes it, and an app draws with it by naming it in the blockr
   option `renderers`, for an output class or a board option, which a method
   takes with `chosen_renderer()`, so loading a package changes nothing. Such a
@@ -469,7 +474,6 @@
   A board option's UI reads its own value alone, so core adds no other board option for it, and its module no longer names board options.
   Where the board lacks its value, core adds it with its default before the UI draws.
   Until now, the UI showed the default without the board holding it.
-  An output whose block class's entry names no renderer is asked with the value of every board option that a loaded package defines: the board's, or else the default, which the client sends without adding it to the board.
   Where a board option that a block's UI module, a renderer or a board option's UI names does not go onto the board, as where its default fails, core shows why in the element in place of what would draw there, and reports it, naming the board option and what requires it.
   A renderer that has drawn keeps its output and gets the error through its host's `error()`, and core asks R for no output until the board holds a value.
   Plugins read a board option's value from the board through `core.options.value()` (#508).

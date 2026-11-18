@@ -51,7 +51,7 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
     entry,
     c("id", "name", "description", "keywords", "category", "icon", "inputs",
       "module", "version", "schema", "state", "arguments", "requests",
-      "renderer")
+      "output_options", "renderer")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -310,7 +310,7 @@ test_that("an entry names the renderer of its class's outputs", {
 
   as_head_output <- new_output_family(
     function(result, ...) as_table_output(utils::head(result), ...),
-    class = "table_output_family"
+    family = as_table_output
   )
 
   expect_identical(
@@ -324,6 +324,38 @@ test_that("an entry names the renderer of its class's outputs", {
 
   expect_null(entry_renderer(entry(as_pages_output)))
   expect_null(registry_entry_reply(head, NULL)$renderer)
+})
+
+test_that("an entry names the board options that its class's outputs read", {
+
+  head <- get_registry_entry("blockr.core-head_block")
+  upload <- get_registry_entry("blockr.core-upload_block")
+
+  expect_identical(
+    json(registry_entry_reply(head)$output_options),
+    "[\"n_rows\"]"
+  )
+  expect_identical(json(registry_entry_reply(upload)$output_options), "[]")
+
+  # A family that joins another reads the other's board options, beside its
+  # own, each once
+  as_head_output <- new_output_family(
+    function(result, ...) as_table_output(utils::head(result), ...),
+    family = as_table_output
+  )
+
+  as_themed_output <- new_output_family(
+    function(result, ...) as_head_output(result, ...),
+    family = as_head_output,
+    options = list(new_dark_mode_option, new_n_rows_option)
+  )
+
+  expect_identical(family_option_ids(as_head_output), "n_rows")
+  expect_identical(
+    family_option_ids(as_themed_output),
+    c("n_rows", "dark_mode")
+  )
+  expect_identical(family_option_ids(as_text_output), character())
 })
 
 test_that("the renderer the app names for an output class is in the entry", {

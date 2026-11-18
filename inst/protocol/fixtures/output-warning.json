@@ -31,7 +31,9 @@
           },
           "columns": [{ "name": "n", "class": "integer" }],
           "rows": [[3], [null]],
-          "total": 2
+          "total": 2,
+          "page": 1,
+          "page_size": 50
         },
         "conditions": [
           {

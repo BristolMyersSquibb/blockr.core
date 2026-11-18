@@ -2909,12 +2909,11 @@ function mountOutput(deps, el, block) {
   const shelf = deps.shelves.of(block);
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
+  const outputOptions = entry.output_options ?? [];
   let renderer = entry.renderer;
   let ready;
   let keeping;
   const preparing = /* @__PURE__ */ new Map();
-  let unwritten;
-  let fetching = false;
   let info = measure.info(el);
   let held3;
   let asking;
@@ -2949,7 +2948,6 @@ function mountOutput(deps, el, block) {
   }
   function expect(given) {
     renderer = given;
-    unwritten = void 0;
     if (ready?.renderer.id === given.id) return;
     prepare(given).then(
       (prepared) => {
@@ -2971,12 +2969,12 @@ function mountOutput(deps, el, block) {
     return new Error(withoutOptions(`the renderer "${given.id}"`, missing2));
   }
   function named3() {
-    if (renderer === void 0) return null;
-    return ready?.renderer.id === renderer.id ? ready.named : void 0;
+    if (renderer === void 0) return outputOptions;
+    if (ready?.renderer.id !== renderer.id) return void 0;
+    return [.../* @__PURE__ */ new Set([...outputOptions, ...ready.named])];
   }
   function values2(ids2) {
     const options2 = store.board().options;
-    if (ids2 === null) return { ...unwritten, ...options2 };
     return Object.fromEntries(
       ids2.flatMap((id2) => {
         const value2 = own(options2, id2);
@@ -2988,30 +2986,14 @@ function mountOutput(deps, el, block) {
     if (info === null) return void 0;
     const ids2 = named3();
     if (ids2 === void 0) return void 0;
-    if (ids2?.some((id2) => !Object.hasOwn(store.board().options, id2)) === true) return void 0;
+    if (ids2.some((id2) => !Object.hasOwn(store.board().options, id2))) return void 0;
     const status = scheduler.status(block);
     if (status?.status !== "ready") return void 0;
-    if (ids2 === null && unwritten === void 0) {
-      fetchDefaults();
-      return void 0;
-    }
     return { asked: { revision: status.revision, options: values2(ids2), info, params: shelf.params }, ids: ids2 };
-  }
-  function fetchDefaults() {
-    if (fetching) return;
-    fetching = true;
-    const lacking = Object.keys(store.options.registered()).filter((id2) => !Object.hasOwn(store.board().options, id2));
-    void deps.resolveDefaults(lacking, `the first output of block "${block}"`).then((found2) => {
-      fetching = false;
-      if (ended() || renderer !== void 0) return;
-      unwritten = found2;
-      sync();
-    });
   }
   function fits2(asked, want, ids2) {
     if (asked.revision !== want.revision || !jsonEqual(asked.info, want.info)) return false;
     if (!jsonEqual(asked.params, want.params)) return false;
-    if (ids2 === null) return jsonEqual(asked.options, want.options);
     return ids2.every((id2) => jsonEqual(own(asked.options, id2), own(want.options, id2)));
   }
   function sync() {
@@ -3137,9 +3119,9 @@ function mountOutput(deps, el, block) {
     error = why;
     announce2();
   }
-  function fail(failure, by) {
+  function fail(failure, by2) {
     if (ended()) return;
-    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by) });
+    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) });
     if (failure instanceof ModuleError) {
       if (!broken.has(failure)) {
         log.error(failure);
@@ -3422,12 +3404,23 @@ function mountOutput(deps, el, block) {
     );
   });
   const offEnd = onAbort(deps.replaced, end);
+  const by = `the outputs of block class "${entry.id}"`;
+  const keepingOutputOptions = deps.keepOptions(outputOptions, by, lackOutputOptions);
+  void keepingOutputOptions.added.then((failures) => {
+    if (failures.length > 0) lackOutputOptions();
+  });
+  function lackOutputOptions() {
+    if (ended()) return;
+    const missing2 = outputOptions.filter((id2) => !Object.hasOwn(store.board().options, id2));
+    failed3(coreFailure("board_option_failed", withoutOptions(by, missing2)));
+  }
   function end() {
     if (ended()) return;
     controller.abort();
     offEnd();
     offStore();
     offScheduler();
+    keepingOutputOptions.stop();
     keeping?.stop();
     shelf.mounts.delete(sync);
     stopWatching();
@@ -3549,28 +3542,6 @@ function createMounts(options) {
       }
     };
   }
-  async function resolveDefaults(ids2, by) {
-    const found = await Promise.all(
-      ids2.map(async (id2) => {
-        const def = own(store.options.registered(), id2);
-        if (def === void 0 || Object.hasOwn(store.board().options, id2)) return [];
-        let value2;
-        try {
-          value2 = await resolveDefault(id2, def);
-        } catch (error) {
-          failure(id2, `The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
-          return [];
-        }
-        const unfit = compile(`the board option "${id2}"`, def.schema)(value2);
-        if (unfit.length > 0) {
-          failure(id2, `The default of the board option "${id2}", which ${by} requires, ${unfit.join(" ")}`);
-          return [];
-        }
-        return [[id2, value2]];
-      })
-    );
-    return Object.fromEntries(found.flat());
-  }
   function mountBlock(el, block) {
     if (replaced2.aborted) throw new Error(REPLACED);
     const found = own(store.board().blocks, block);
@@ -3668,7 +3639,7 @@ function createMounts(options) {
   return {
     mountBlock,
     mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, resolveDefaults, emit, raise, replied: replied2, notify },
+      { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, emit, raise, replied: replied2, notify },
       el,
       block
     ),
@@ -12228,6 +12199,7 @@ var hello_default = {
                 options: []
               }
             },
+            output_options: ["n_rows"],
             renderer: {
               id: "blockr.core-table_output",
               module: "blockr.core/basic-table.js?v=b7e2a915"
@@ -12272,6 +12244,7 @@ var hello_default = {
             requests: {
               n_max: { inputs: ["data"], state_args: [], options: [] }
             },
+            output_options: ["n_rows"],
             renderer: {
               id: "blockr.core-table_output",
               module: "blockr.core/basic-table.js?v=b7e2a915"
@@ -12326,6 +12299,7 @@ var hello_default = {
                 options: []
               }
             },
+            output_options: ["n_rows"],
             renderer: {
               id: "blockr.core-table_output",
               module: "blockr.core/basic-table.js?v=b7e2a915"
@@ -12371,6 +12345,7 @@ var hello_default = {
               }
             },
             requests: {},
+            output_options: ["n_rows"],
             renderer: {
               id: "blockr.core-table_output",
               module: "blockr.core/basic-table.js?v=b7e2a915"
@@ -12401,6 +12376,7 @@ var hello_default = {
             state: {},
             arguments: {},
             requests: {},
+            output_options: ["n_rows"],
             renderer: {
               id: "blockr.core-table_output",
               module: "blockr.core/basic-table.js?v=b7e2a915"
@@ -12450,6 +12426,7 @@ var hello_default = {
                 options: []
               }
             },
+            output_options: [],
             renderer: {
               id: "blockr.core-plot_output",
               module: "blockr.core/basic-plot.js?v=f19d4a73"
@@ -12481,6 +12458,7 @@ var hello_default = {
                 file: true
               }
             },
+            output_options: [],
             renderer: {
               id: "blockr.core-text_output",
               module: "blockr.core/basic-text.js?v=3c8f61d0"
@@ -12671,7 +12649,9 @@ var table_output_default = {
             "setosa"
           ]
         ],
-        total: 7
+        total: 7,
+        page: 2,
+        page_size: 3
       }
     },
     {
@@ -12743,7 +12723,9 @@ var table_output_default = {
             27
           ]
         ],
-        total: 153
+        total: 153,
+        page: 4,
+        page_size: 50
       }
     },
     {
@@ -12861,7 +12843,9 @@ var table_output_default = {
             "<lm>"
           ]
         ],
-        total: 5
+        total: 5,
+        page: 1,
+        page_size: 50
       }
     },
     {
@@ -12898,7 +12882,9 @@ var table_output_default = {
           }
         ],
         rows: [],
-        total: 0
+        total: 0,
+        page: 1,
+        page_size: 50
       }
     },
     {
@@ -12957,7 +12943,9 @@ var table_output_default = {
             "setosa"
           ]
         ],
-        total: null
+        total: null,
+        page: 1,
+        page_size: 3
       }
     }
   ]

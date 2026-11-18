@@ -28,14 +28,13 @@ export function isNumber(column: TableColumn): boolean {
   return NUMBERS.has(column.class);
 }
 
-// Where the page that the output holds sits. A page holds the rows that the
-// parameters give, or else as many as the board option n_rows gives, by which
-// the coercion pages, or else every row, where nothing gives n_rows. Where the
-// total is unknown, a page with fewer rows than a page holds is the last.
-export function tablePage(table: TableOutput, params: TableParams, nRows: Json | undefined): Page {
+// Where the page that the output holds sits, by the page and the page size
+// that R made it with. Where the total is unknown, a page with fewer rows than
+// a page holds is the last.
+export function tablePage(table: TableOutput): Page {
   const rows = table.rows.length;
-  const size = params.page_size ?? (nRows === undefined ? Math.max(rows, 1) : asCount(nRows));
-  const page = params.page ?? 1;
+  const size = table.page_size;
+  const page = table.page;
   const last = table.total === null ? null : Math.max(1, Math.ceil(table.total / size));
   return {
     page,
@@ -110,9 +109,3 @@ function count(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-// The board option n_rows as the rows that a page holds, a whole number of at
-// least 1. Any other value fails, rather than page by another.
-function asCount(value: Json): number {
-  if (typeof value === "number" && Number.isInteger(value) && value >= 1) return value;
-  throw new TypeError(`The board option n_rows is ${JSON.stringify(value)}, where a table pages by a whole number of at least 1.`);
-}
