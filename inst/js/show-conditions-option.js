@@ -32,7 +32,7 @@ var optionSchemas = {
 };
 
 // srcts/options/ui.tsx
-import { Checklist, NumberInput, Select } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, NumberInput } from "@blockr/core/react";
 import { reactModule, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 function numberUi(label, min) {
@@ -41,15 +41,16 @@ function numberUi(label, min) {
   }
   return reactModule(NumberUi);
 }
-function checklistUi(legend, choices) {
-  function ChecklistUi({ host }) {
-    return /* @__PURE__ */ jsx(Checklist, { bound: useValue(host), legend, choices, ordered: true });
+function multiSelectUi(label, values) {
+  const items = values.map((id) => ({ id }));
+  function MultiSelectUi({ host }) {
+    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), selectionMode: "multiple", label, defaultItems: items, ordered: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.id }) });
   }
-  return reactModule(ChecklistUi);
+  return reactModule(MultiSelectUi);
 }
-function selectUi(label, placeholder, choices) {
+function selectUi(label, placeholder, items) {
   function SelectUi({ host }) {
-    return /* @__PURE__ */ jsx(Select, { bound: useValue(host), label, placeholder, choices });
+    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), label, placeholder, defaultItems: items, isRequired: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.name }) });
   }
   return reactModule(SelectUi);
 }
@@ -79,7 +80,7 @@ var showConditions = {
     if (value === void 0) return ["warning", "error"];
     return checked("show_conditions", takesSeverities, value, typeof value === "string" ? [value] : value);
   },
-  ui: checklistUi("Message types to display", SEVERITIES)
+  ui: multiSelectUi("Message types to display", SEVERITIES)
 };
 var darkMode = {
   label: "Light/dark mode",
@@ -93,8 +94,8 @@ var darkMode = {
     return checked("dark_mode", takesTheme, value);
   },
   ui: selectUi("Light/dark mode", "Choose a mode", [
-    { value: "light", label: "Light" },
-    { value: "dark", label: "Dark" }
+    { id: "light", name: "Light" },
+    { id: "dark", name: "Dark" }
   ]),
   onChange(value) {
     setTheme(value);

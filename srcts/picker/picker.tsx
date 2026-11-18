@@ -4,9 +4,9 @@
 // that both add a block the same way.
 // The user fills in the form, and the block goes onto the board only as the
 // user submits it, with these fields:
-// - The block's class, which a searchable dropdown picks among the block
-//   registry's entries, by their names, descriptions, keywords and registry
-//   ids, grouped by category.
+// - The block's class, which a select picks among the block registry's
+//   entries, by their names, descriptions, keywords and registry ids, grouped
+//   by category.
 // - The input that the new link feeds, where the mode adds one (below).
 // - The new block's id and its name, which the user may leave empty, where
 //   the command mints the id, or takes the name from the block's class.
@@ -31,14 +31,13 @@ import { useMemo, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { defaultBlockName, freeInputs } from "../commands/index.ts";
-import { useBoard } from "../react/index.ts";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Text, useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { classes, Combobox, TextField } from "../ui/index.ts";
-import type { ComboOption } from "../ui/index.ts";
+import { classes, TextField, useSearch } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 
 // Where the new block goes.
@@ -80,7 +79,12 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
     () => Object.values(registry).filter((entry) => mode.kind !== "after" || entry.inputs.length > 0),
     [registry, mode.kind],
   );
-  const options = useMemo(() => entries.map(classOption).sort(byGroupAndLabel), [entries]);
+  const options = useMemo(() => entries.map(classItem).sort(byGroupAndName), [entries]);
+  const search = useSearch(
+    options,
+    (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
+    "No block class to pick.",
+  );
   const entry = picked === undefined ? undefined : own(registry, picked);
   const link = linkChoice(mode, board, registry, entry);
   const chosen = link.kind === "pick" ? (input !== undefined && link.inputs.includes(input) ? input : link.inputs[0]) : undefined;
@@ -138,41 +142,51 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
         void submit(event);
       }}
     >
-      <Combobox
+      <ComboBox
         label="Block class"
-        autofocus={autofocus}
-        options={options}
-        value={picked}
+        autoFocus={autofocus}
+        {...search}
+        items={byCategory(search.items)}
+        value={picked ?? null}
         placeholder={options.length === 0 ? "No block class to pick" : "Search by name, description or keyword"}
-        empty="No block class matches."
-        error={errors.registry}
-        hint={entry?.description === "" ? undefined : entry?.description}
-        onChange={(value) => {
-          setPicked(value);
+        isInvalid={errors.registry !== undefined}
+        errorMessage={errors.registry}
+        description={entry?.description === "" ? undefined : entry?.description}
+        onChange={(key) => {
+          setPicked(key === null ? undefined : String(key));
           // After a block, the inputs to pick among are those of the class
           // picked, while before a block they are that block's, whatever the
           // class.
           if (mode.kind === "after") setInput(undefined);
           setErrors((now) => without(now, "registry"));
         }}
-      />
+      >
+        {(category) => (
+          <ComboBoxSection id={category.id} title={category.name} items={category.items}>
+            {(item) => (
+              <ComboBoxItem id={item.id} textValue={item.name}>
+                <Text slot="label" className="bc:shrink-0 bc:truncate">
+                  {item.name}
+                </Text>
+                {item.description === "" ? null : <Text slot="description">{item.description}</Text>}
+                {item.pkg === null ? null : <span className={BADGE}>{item.pkg}</span>}
+              </ComboBoxItem>
+            )}
+          </ComboBoxSection>
+        )}
+      </ComboBox>
       {link.kind === "pick" ? (
-        <label className={styles.field}>
-          <span className={styles.label}>{link.label}</span>
-          <select
-            className={styles.box}
-            value={chosen}
-            onChange={(event) => {
-              setInput(event.target.value);
-            }}
-          >
-            {link.inputs.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ComboBox
+          label={link.label}
+          isRequired
+          defaultItems={link.inputs.map((input) => ({ id: input }))}
+          value={chosen ?? null}
+          onChange={(key) => {
+            if (key !== null) setInput(String(key));
+          }}
+        >
+          {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+        </ComboBox>
       ) : null}
       {link.kind === "name" ? (
         <TextField
@@ -281,29 +295,52 @@ export function isVariadic(free: readonly string[]): boolean {
   return free.length === 1 && free[0] === "";
 }
 
-// A block class as the dropdown offers it: by its name, with its description
-// and its package, under its category.
-function classOption(entry: RegistryEntry): ComboOption {
-  const pkg = packageFromId(entry.id);
+// A block class as the select offers it: by its name, with its description
+// and its package, under its category, and found by those, by its keywords
+// and by its registry id too.
+interface ClassItem {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly pkg: string | null;
+  readonly category: string;
+  readonly keywords: readonly string[];
+}
+
+function classItem(entry: RegistryEntry): ClassItem {
   return {
-    value: entry.id,
-    label: entry.name,
-    detail: entry.description,
-    ...(pkg === null ? {} : { badge: pkg }),
-    group: entry.category === "" ? UNCATEGORIZED : entry.category,
-    keywords: [...entry.keywords, entry.id],
+    id: entry.id,
+    name: entry.name,
+    description: entry.description,
+    pkg: packageFromId(entry.id),
+    category: entry.category === "" ? UNCATEGORIZED : entry.category,
+    keywords: entry.keywords,
   };
 }
 
 // The category of a class that gives none, as R's registry names it.
 const UNCATEGORIZED = "uncategorized";
 
-// The options by group and then by label, the groups by name, but for the
-// classes without a category, which come last.
-function byGroupAndLabel(a: ComboOption, b: ComboOption): number {
-  const last = (option: ComboOption): number => (option.group?.toLowerCase() === UNCATEGORIZED ? 1 : 0);
-  return last(a) - last(b) || (a.group ?? "").localeCompare(b.group ?? "") || a.label.localeCompare(b.label);
+// The classes by category and then by name, the categories by name, but for
+// the classes without a category, which come last.
+function byGroupAndName(a: ClassItem, b: ClassItem): number {
+  const last = (item: ClassItem): number => (item.category.toLowerCase() === UNCATEGORIZED ? 1 : 0);
+  return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
 }
+
+// The classes under their categories, in their order.
+function byCategory(items: readonly ClassItem[]): { readonly id: string; readonly name: string; readonly items: ClassItem[] }[] {
+  const categories = new Map<string, ClassItem[]>();
+  for (const item of items) {
+    const members = categories.get(item.category) ?? [];
+    members.push(item);
+    categories.set(item.category, members);
+  }
+  return [...categories].map(([name, members]) => ({ id: `category:${name}`, name, items: members }));
+}
+
+// The class of a package's badge after a block class's name.
+const BADGE = "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted";
 
 // The arg of the name given, where the field holds more than blanks, and none
 // otherwise, so that the command fills it in.

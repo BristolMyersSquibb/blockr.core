@@ -617,7 +617,8 @@ function blockHost(deps: HostDeps): MountedHost {
         return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
       }
       const set = Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined));
-      return commands.run("blockr.core-set_block", { id: block, state: set as State });
+      const unset = Object.entries(change).flatMap(([arg, value]) => (value === undefined ? [arg] : []));
+      return commands.run("blockr.core-set_block", { id: block, state: set as State, ...(unset.length === 0 ? {} : { unset }) });
     },
     request<T = Json>(
       name: string,

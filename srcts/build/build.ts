@@ -20,11 +20,16 @@
 //   @preact/signals-core and the JSON Schema validator of @cfworker/json-schema,
 //   are bundled, minified, into one file, vendor-<hash>.js, since the page
 //   loads all of them up front.
+//   So are the parts of React Aria that srcts/aria/index.ts names, which the
+//   inputs draw with, as the one place in core's code that imports React
+//   Aria. The file bundles those parts alone, since the whole of React Aria is
+//   several times the size of React.
 //   React's entry points, such as `react` and `react-dom/client`, are written
 //   as ES modules of their own, such as react.js and react-dom-client.js,
 //   which read React from that file.
 //   The runtime, the modules and the SDK, the binding, the controls and the
-//   OpenTelemetry module import the other packages from that file by its name.
+//   OpenTelemetry module import the other packages from that file by its name,
+//   and React Aria where they import srcts/aria/index.ts.
 //   So blockr-core.js holds core's own code alone, and the page runs one copy
 //   of each package.
 //   The vendor check of ./vendor-check.ts, which core ships to packages beside
@@ -249,39 +254,51 @@ function licensedSources(metafile: esbuild.Metafile, dir: string): Map<string, s
 // fails the build.
 const VENDOR_IMPORTS = ["@preact/signals-core", "@cfworker/json-schema"] as const;
 
+// The file in srcts that names the parts of React Aria that core's code draws
+// with, which the build bundles into vendor-<hash>.js by those names.
+function ariaFile(src: string): string {
+  return join(src, "aria", "index.ts");
+}
+
 // Bundles React, ReactDOM and the packages that VENDOR_IMPORTS names into one
-// minified file in `out`, as vendor-3f2a9c1d.js, and returns its name and what
-// it holds from other projects.
+// minified file in `out`, as vendor-3f2a9c1d.js, with the parts of React Aria
+// that srcts/aria/index.ts names, where srcts holds it, and returns its name
+// and what it holds from other projects.
 // The file exports each of React's entry points as a namespace of its own,
 // entry0 for `react` and so on, which React's ES modules read.
 // It exports the names of the other packages as they are, which core's code
-// imports.
-async function vendorBundle(out: string): Promise<{ file: string; sources: string[] }> {
+// imports, and the names that srcts/aria/index.ts exports.
+async function vendorBundle(out: string, src: string): Promise<{ file: string; sources: string[] }> {
+  const aria = ariaFile(src);
   return vendored(out, "vendor", {
     stdin: {
       contents: [
         ...REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`),
         ...VENDOR_IMPORTS.map((name) => `export * from ${JSON.stringify(name)};`),
+        ...(existsSync(aria) ? [`export * from ${JSON.stringify(aria)};`] : []),
       ].join("\n"),
       resolveDir: repo,
       loader: "js",
     },
+    nodePaths: [join(repo, "node_modules")],
   });
 }
 
 // Leaves each import of a package that VENDOR_IMPORTS names an import of the
-// vendor file, `file`, by its name beside the file that imports it.
+// vendor file, `file`, by its name beside the file that imports it, and so
+// each import of srcts/aria/index.ts, in `src`.
 // The packages have no side effects, as their package.json files say.
 // So a file that imports none of their names, as from code of core's that it
 // bundles, keeps no import of the vendor file.
-function vendorImports(file: string): esbuild.Plugin {
+function vendorImports(file: string, src: string): esbuild.Plugin {
   const names: readonly string[] = VENDOR_IMPORTS;
+  const aria = ariaFile(src);
+  const vendor = { path: `./${file}`, external: true, sideEffects: false };
   return {
     name: "blockr.core-vendor-imports",
     setup(build) {
-      build.onResolve({ filter: /^[^./]/ }, (args) =>
-        names.includes(args.path) ? { path: `./${file}`, external: true, sideEffects: false } : undefined,
-      );
+      build.onResolve({ filter: /^[^./]/ }, (args) => (names.includes(args.path) ? vendor : undefined));
+      build.onResolve({ filter: /^\.\.?\// }, (args) => (resolve(args.resolveDir, args.path) === aria ? vendor : undefined));
     },
   };
 }
@@ -406,8 +423,8 @@ export async function build(root: string): Promise<string[]> {
     logLevel: "warning",
     metafile: true,
   } satisfies esbuild.BuildOptions;
-  const vendor = await vendorBundle(out);
-  const plugins = (own?: Import) => [vendorImports(vendor.file), sourceImports(src, own), ...preset.plugins, vendorCheck];
+  const vendor = await vendorBundle(out, src);
+  const plugins = (own?: Import) => [vendorImports(vendor.file, src), sourceImports(src, own), ...preset.plugins, vendorCheck];
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
   const otel = await otelSdk(src, out);
   const sdk = otel?.file;
@@ -842,6 +859,12 @@ function packageVersion(name: string): string {
 // So no signal or validator passes between the stubs and a package's code,
 // and a package may depend on other versions of the two packages.
 // Then npm puts core's versions in the node_modules of `@blockr/core`.
+// The SDK draws its inputs with React Aria, whose parts srcts/aria/index.ts
+// names, from react-aria-components and react-aria, which the bundles leave
+// imports too.
+// The package names them as its dependencies, at the versions that core's
+// vendor file bundles, since core's declarations name their types, while a
+// package draws with React Aria only through the components of the SDK.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -859,6 +882,8 @@ export const TYPES_PACKAGE = {
   dependencies: {
     "@preact/signals-core": packageVersion("@preact/signals-core"),
     "@cfworker/json-schema": packageVersion("@cfworker/json-schema"),
+    "react-aria-components": packageVersion("react-aria-components"),
+    "react-aria": packageVersion("react-aria"),
   },
   peerDependencies: {
     react: packageVersion("react"),

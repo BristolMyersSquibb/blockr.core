@@ -6,7 +6,7 @@
 // so the number input marks no number above it.
 
 import type { ReactElement } from "react";
-import { NumberInput, reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
+import { ComboBox, ComboBoxItem, NumberInput, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
@@ -14,8 +14,8 @@ import type { State } from "./state.ts";
 export const api = 1;
 
 const ends = [
-  { value: "head", label: "Head" },
-  { value: "tail", label: "Tail" },
+  { id: "head", name: "Head" },
+  { id: "tail", name: "Tail" },
 ];
 
 function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
@@ -25,7 +25,9 @@ function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   return (
     <Stack>
       <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} outdated={outdated} />
-      <Select bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" choices={ends} />
+      <ComboBox bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" defaultItems={ends} isRequired>
+        {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
+      </ComboBox>
     </Stack>
   );
 }

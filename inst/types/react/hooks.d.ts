@@ -18,6 +18,7 @@ export interface Bound {
     readonly error: string | null;
     get(): Json | undefined;
     commit(value: Json): Promise<boolean>;
+    unset(): Promise<boolean>;
     type(value: Json | undefined): void;
     flush(): void;
 }

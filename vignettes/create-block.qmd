@@ -487,7 +487,7 @@ The host gives the module everything it may use:
 | `state()` | the block's state |
 | `context()` | the block's name, status, linked inputs and the values of the board options that the module names |
 | `on("state", fn)`, `on("context", fn)` | a subscription to changes of either, which returns the function that ends it |
-| `submit(change)` | one edit of the state, which rejects with what refused it |
+| `submit(change)` | one edit of the state, which leaves unset a state arg that `change` gives as `undefined`, and rejects with what refused it |
 | `request(name, args, opts)` | a request of the class, with state args and parameters in `args` |
 | `evaluate(params)` | a one-time evaluation of the block with parameters, which its `block_eval()` method reads |
 | `module(id)` | a module that another package offers, by its ID |
@@ -514,15 +514,15 @@ This is the head block's UI, with a number input whose maximum the request `n_ma
 ```tsx
 import type { ReactElement } from "react";
 import type { BlockHost } from "@blockr/core";
-import { NumberInput, reactModule, Select, Stack, useRequest, useValue } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, NumberInput, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
 import type { ModuleProps } from "@blockr/core/react";
 import type { State } from "./state.ts";
 
 export const api = 1;
 
 const ends = [
-  { value: "head", label: "Head" },
-  { value: "tail", label: "Tail" },
+  { id: "head", name: "Head" },
+  { id: "tail", name: "Tail" },
 ];
 
 function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
@@ -532,7 +532,9 @@ function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   return (
     <Stack>
       <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} outdated={outdated} />
-      <Select bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" choices={ends} />
+      <ComboBox bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" defaultItems={ends}>
+        {(end) => <ComboBoxItem id={end.id}>{end.name}</ComboBoxItem>}
+      </ComboBox>
     </Stack>
   );
 }
@@ -545,14 +547,19 @@ The SDK holds these:
 - The function `reactModule()` makes a module from a component.
 - The hook `useValue()` binds a state arg to an input, by the contract's rules.
 - The hook `useRequest()` follows a request, which it asks again whenever its args or the revisions of the block's inputs change. Its `loading` says whether it is asking, while `answer` keeps the last answer and `error` says why the latest ask failed.
-- The inputs `Checkbox`, `Checklist`, `Field`, `NumberInput`, `Select`, `Stack` and `TextInput`, each on one bound value.
+- The inputs `Checkbox`, `Field`, `NumberInput`, `Stack` and `TextInput`, each on one bound value.
+- The select `ComboBox`, which is [React Aria's `ComboBox`](https://react-aria.adobe.com/ComboBox) in core's theme, with the items `ComboBoxItem` and `ComboBoxSection`, and React Aria's `Text`, which holds an item's description.
+  It takes the props of React Aria's `ComboBox`, and picks one string, or an array of strings where its `selectionMode` is `"multiple"`, by the ids of its items, out of a list that the user filters by typing.
+  The field of several shows each pick as a chip, which the user removes by its button, and a button at the field's right clears the pick, or every pick, unless the select `isRequired`.
+  A bound select of one leaves its state arg unset so.
+  Given `value` and `onChange` in place of `bound`, it picks for its caller instead, as in the UI of a plugin.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
 - For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a block through `CoreApi`.
 
-A `Select` or a `Checklist` whose choices a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
-Once they are known, the input shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.
+A `ComboBox` whose items a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
+Once they are known, the select shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.
 The last answer is for older data while the request asks again, as after the block's inputs changed, and after an ask failed.
-The module then sets `outdated` on the input, which keeps the choices on screen but marks no value that they lack.
+The module then sets `outdated` on the select, which keeps the items on screen but marks no value that they lack.
 A `NumberInput` whose `max` a request gives takes `outdated` too, as in the head block above, and then marks no number above it.
 
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
@@ -671,8 +678,8 @@ A package that builds nothing reaches the controls through its host, as the modu
 export const api = 1;
 
 const ends = [
-  { value: "head", label: "Head" },
-  { value: "tail", label: "Tail" },
+  { id: "head", name: "Head" },
+  { id: "tail", name: "Tail" },
 ];
 
 /** @type {import("@blockr/core").BlockModule<{ n: number; direction: "head" | "tail" }>} */
@@ -683,7 +690,7 @@ export default {
     );
     const ui = controls(host, signal);
     const n = ui.number("n", { label: "Number of rows", min: 0 });
-    ui.select("direction", { label: "Direction", placeholder: "Choose an end", choices: ends });
+    ui.comboBox("direction", { label: "Direction", placeholder: "Choose an end", items: ends });
     ui.follow("n_max", {
       loading() {
         n.setOutdated(true);
@@ -699,11 +706,13 @@ export default {
 };
 ```
 
-A select or a checklist of the controls has no choices until the module gives them, in its options or through `setChoices()` once a request answers.
+A select of the controls, which `comboBox()` makes, takes React Aria's names for the props of the `ComboBox` of the SDK, and items each of an `id` and an optional `name`.
+It has no items until the module gives them, in its options or through `setItems()` once a request answers.
+Given the `selectionMode` `"multiple"`, it picks an array of strings, which it submits once, as its list closes.
 The option `loading` of `follow()` runs each time the request is asked, and the option `answer` once it answers.
-In `loading`, a module calls `setOutdated(true)` on each input whose choices or `max` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
+In `loading`, a module calls `setOutdated(true)` on each input whose items or `max` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
 
-A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React.
+A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.
 A package that builds nothing writes the schema of the state by hand, with the description of each state arg in its property's `description`.
 
 ### Where the files go
@@ -875,12 +884,16 @@ test("caps n at the rows of its input and submits a pick", async () => {
   const view = await act(() => mount(head, host));
 
   const n = view.el.querySelector("input") as HTMLInputElement;
-  const direction = view.el.querySelector("select") as HTMLSelectElement;
+  const direction = view.el.querySelector('[role="combobox"]') as HTMLInputElement;
   expect(n.max).toBe("150");
 
   await act(async () => {
-    direction.value = "tail";
-    direction.dispatchEvent(new Event("change", { bubbles: true }));
+    direction.click();
+  });
+  // React Aria draws the list at the end of the page's body, and marks each
+  // option with the id of its item.
+  await act(async () => {
+    document.querySelector<HTMLElement>('[role="option"][data-key="tail"]')?.click();
   });
   expect(host.submitted).toEqual([{ n: 10, direction: "tail" }]);
 

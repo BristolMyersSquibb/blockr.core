@@ -1,8 +1,8 @@
-export { Combobox, MultiCombobox } from "./combobox.tsx";
 export { runCommand } from "./edits.ts";
-export type { ComboOption } from "./combobox.tsx";
 export { TextField } from "./fields.tsx";
 export { useHistory } from "./hooks.ts";
+export { useSearch } from "./search.ts";
+export type { Search } from "./search.ts";
 export { Pager, TableSearch, useTableView } from "./table.tsx";
 export type { TableView } from "./table.tsx";
 export { classes, NameField } from "./ui.tsx";

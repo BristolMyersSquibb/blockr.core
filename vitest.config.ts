@@ -19,6 +19,10 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     include: ["srcts/**/*.test.{ts,tsx}"],
+    // A test that walks a UI through several of its selects, which React Aria
+    // draws, takes a second or two alone, and longer while the other test files
+    // run beside it.
+    testTimeout: 15_000,
     // Fails a test that logs an error that it does not capture.
     setupFiles: ["./srcts/testing/setup.ts"],
   },

@@ -9,6 +9,7 @@ import { find, texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
+import { labelled, picked } from "../../testing/select.ts";
 import * as browser from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -54,8 +55,21 @@ test("starts at the root of the first volume for a block with no file, and draws
 
   expect(host.requested).toEqual([{ name: "list_dir", args: { volume: "here", path: "" } }]);
   expect(entries()).toEqual(["data/", "notes.txt"]);
-  expect(view.el.querySelector("select")).toBeNull();
+  expect(view.el.querySelector('[role="combobox"]')).toBeNull();
   expect(texts(view.el, "p")).toEqual([]);
+});
+
+test("draws a picker of the volumes where there are several, and lists the root of the volume the user picks", async () => {
+  const { host, view } = await mounted({ volumes: { here: ".", srv: "/srv" } });
+  const volume = labelled(view.el, "Volume");
+  expect(volume.value).toBe("here");
+
+  await picked(volume, step, "srv");
+  await settle();
+
+  expect(volume.value).toBe("srv");
+  expect(host.requested.at(-1)).toEqual({ name: "list_dir", args: { volume: "srv", path: "" } });
+  expect(host.submitted).toEqual([]);
 });
 
 test("opens the directory the user clicks, and submits the path of the file the user clicks", async () => {
