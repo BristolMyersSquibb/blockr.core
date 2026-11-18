@@ -109,7 +109,10 @@ blockr_ser.board <- function(x, ...) {
 
   board <- list(
     id = board_id(x),
-    versions = plugin_versions_of(plugins),
+    # The version of the class of each plugin, by the class's ID,
+    # in the order of the plugins, as a JSON board records them:
+    # what the class's method of `plugin_version()` gives for the plugin.
+    versions = as_json_object(lapply(plugins, checked_plugin_version)),
     name = board_name(x),
     blocks = blockr_ser(blocks),
     links = blockr_ser(board_links(x)),
@@ -235,13 +238,6 @@ board_packages <- function(board) {
   )
 
   package_versions(packages[!is.na(packages)])
-}
-
-# The version of the class of each plugin, by the class's ID, in the order of
-# the plugins, as a JSON board records them: what the class's method of
-# `plugin_version()` gives for the plugin.
-plugin_versions_of <- function(plugins) {
-  as_json_object(lapply(plugins, checked_plugin_version))
 }
 
 # A value as a board's JSON holds it: `NULL`, a vector of logicals, numbers or
