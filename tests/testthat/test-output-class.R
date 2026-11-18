@@ -223,6 +223,15 @@ test_that("an output family joins another by taking it", {
 
   expect_error(new_output_family(identity, family = identity),
                class = "output_family_invalid")
+
+  # A coercion that took the class of a family whose package gives its
+  # renderer would draw as the family's outputs, but read none of the
+  # family's board options
+  expect_error(
+    new_output_family(identity, "table_output_family"),
+    "as `family`",
+    class = "output_family_invalid"
+  )
   expect_error(
     new_output_family(identity, "head_output_family", family = as_table_output),
     class = "output_family_invalid"

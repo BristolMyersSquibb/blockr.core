@@ -67,7 +67,7 @@
   a class of its own, makes an output from a result, and R sends the
   output as JSON, so nothing assumes a table.
   The family holds the constructors of the board options that its coercion reads, as `as_table_output` holds `new_n_rows_option`, and R names their IDs in the entry of each block class that names the family, so that the client sends their values with every output request.
-  A coercion that wraps another family's joins that family by taking it in `family`, and so reads its board options and draws with its renderer.
+  A coercion that wraps another family's joins that family by taking it in `family`, and so reads its board options and draws with its renderer, and `new_output_family()` refuses the class of such a family in `class`.
   The class vector of an output
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a

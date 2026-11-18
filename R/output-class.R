@@ -244,6 +244,9 @@ print.reply_body <- function(x, ...) {
 #' taking it as `family`, in place of `class`.
 #' It then has the family's class, and so draws with its renderer, and reads
 #' the family's board options, beside any of its own in `options`.
+#' The class of a family whose package gives its renderer is refused as
+#' `class`, since a family that took it would read none of those board
+#' options.
 #' It also holds the family, so that the family's package loads wherever the
 #' function does, as where an app runs in a process of its own.
 #'
@@ -310,6 +313,15 @@ new_output_family <- function(fun, class = NULL, options = NULL,
       )
     }
 
+    if (is_family_class(class)) {
+      blockr_abort(
+        "Class {class} is that of an output family whose package gives its ",
+        "renderer. A coercion joins that family by taking the family as ",
+        "`family`, so that it reads the family's board options too.",
+        class = "output_family_invalid"
+      )
+    }
+
   } else {
 
     if (!is_output_family(family) || !is.null(class)) {
@@ -334,6 +346,20 @@ new_output_family <- function(fun, class = NULL, options = NULL,
 
 is_output_family <- function(x) {
   is.function(x) && inherits(x, "output_family")
+}
+
+# Whether `class` is the class of an output family whose package has
+# registered a method of `as_renderer()` for it, as a package does once it
+# has defined its families, as it loads. The methods of core's generics are
+# registered in core's namespace, which is still being built where core
+# defines its own families.
+is_family_class <- function(class) {
+
+  ns <- topenv(environment(is_family_class))
+  table <- get0(".__S3MethodsTable__.", envir = ns, inherits = FALSE)
+
+  is.environment(table) &&
+    exists(paste0("as_renderer.", class), envir = table, inherits = FALSE)
 }
 
 # Whether `x` is a list of board option constructors, each a function that

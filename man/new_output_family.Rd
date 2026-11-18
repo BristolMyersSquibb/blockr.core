@@ -57,6 +57,9 @@ A function that wraps the coercion of another family joins that family by
 taking it as \code{family}, in place of \code{class}.
 It then has the family's class, and so draws with its renderer, and reads
 the family's board options, beside any of its own in \code{options}.
+The class of a family whose package gives its renderer is refused as
+\code{class}, since a family that took it would read none of those board
+options.
 It also holds the family, so that the family's package loads wherever the
 function does, as where an app runs in a process of its own.
 }
