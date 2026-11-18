@@ -227,9 +227,10 @@ serve.block <- function(x, ..., data = list()) {
   serve_app(encode_message(blockr_ser(board)), registry, data, alone = TRUE)
 }
 
-# Refuses a board that the script builds with a plugin of a class that the app
-# does not run, since the client would drop its state, naming the class of
-# each such plugin. The app's plugins are given by the IDs of their classes.
+# Refuses a board that the script builds with a plugin of a class
+# that the app does not run, since the board would open without that plugin,
+# naming the class of each such plugin.
+# The app's plugins are given by the IDs of their classes.
 check_board_plugins <- function(board, plugins) {
 
   unknown <- setdiff(names(board_plugins(board)), names(plugins))
@@ -238,7 +239,7 @@ check_board_plugins <- function(board, plugins) {
     blockr_abort(
       "The board holds {qty(unknown)}{?a plugin/plugins} of the ",
       "class{?es} {unknown}, which the app does not run, so that the board ",
-      "would open without {?its/their} state.",
+      "would open without {?it/them}.",
       class = "board_plugins_invalid"
     )
   }
