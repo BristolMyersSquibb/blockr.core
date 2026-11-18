@@ -118,6 +118,32 @@ export interface CoreApi {
     // the block with focus leaves the board, which leaves no block with focus.
     subscribe(fn: (block: BlockId | null) => void): () => void;
   };
+  // The board objects that the user selected, which whatever selects sets, as
+  // the DAG does as the user selects nodes, links and stacks. The DAG opens
+  // the menu of a selection with what it holds, and a frontend that pins its
+  // place for advanced actions may follow it, as the dock's sidebar does
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
+  // Core's basic frontend selects nothing. Core holds the selection for the
+  // page, outside the board, as it holds focus, so that nothing saves or
+  // undoes it, and nothing is selected as a board opens.
+  readonly selection: {
+    // The board objects that the user selected, the same array until they
+    // change, which is empty where nothing is selected.
+    get(): readonly BoardObject[];
+    // Selects the board objects given in place of those selected, or with an
+    // empty array selects nothing. A board object given twice is selected
+    // once, and the same board objects in another order change nothing, so
+    // that get() still gives the same array. It throws for what is no array
+    // of board objects, and for a board object that the board does not hold:
+    // a block, a link or a stack that the board lacks, a board option whose
+    // value the board lacks, or a plugin that the app does not run. The
+    // selection then stays as it was.
+    set(objects: readonly BoardObject[]): void;
+    // Calls `fn` with the board objects selected whenever they change, as
+    // where a selected board object leaves the board, which leaves the
+    // selection with it.
+    subscribe(fn: (objects: readonly BoardObject[]) => void): () => void;
+  };
   // Which blocks and plugins are on screen, which the user sees now as the
   // frontend lays them out, and which a plugin such as the assistant reads to
   // tell what the user sees: under the dock, the panel that each tab group of

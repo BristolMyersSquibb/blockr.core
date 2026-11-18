@@ -7648,6 +7648,7 @@ function createCore(parts) {
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const focus = createFocus(store, parts.signal);
+  const selection = createSelection(store, plugins, parts.signal);
   const edits = refusing(store, commands, notifications.raiseAgain);
   const api = {
     store: edits.store,
@@ -7683,6 +7684,7 @@ function createCore(parts) {
       return createLog(given);
     },
     focus,
+    selection,
     onScreen: createOnScreen(parts.signal),
     show(object2) {
       if (parts.signal?.aborted === true) return Promise.resolve();
@@ -7898,6 +7900,74 @@ function createFocus(store, signal5) {
       };
     }
   };
+}
+var NOTHING_SELECTED = Object.freeze([]);
+function createSelection(store, plugins, signal5) {
+  let selected = NOTHING_SELECTED;
+  const listeners = /* @__PURE__ */ new Set();
+  function holds(object2, board) {
+    if ("block" in object2) return Object.hasOwn(board.blocks, object2.block);
+    if ("link" in object2) return Object.hasOwn(board.links, object2.link);
+    if ("stack" in object2) return Object.hasOwn(board.stacks, object2.stack);
+    if ("option" in object2) return Object.hasOwn(board.options, object2.option);
+    return Object.hasOwn(plugins.appPlugins(), object2.plugin);
+  }
+  const offStore = store.subscribe((_change, board) => {
+    const kept = selected.filter((object2) => holds(object2, board));
+    if (kept.length === selected.length) return;
+    selected = Object.freeze(kept);
+    announceTo(listeners, selected);
+  });
+  signal5?.addEventListener(
+    "abort",
+    () => {
+      offStore();
+      listeners.clear();
+    },
+    { once: true }
+  );
+  return {
+    get: () => selected,
+    set(objects) {
+      const given = selectionGiven(objects);
+      const lacking = given.find((object2) => !store.hasBoard() || !holds(object2, store.board()));
+      if (lacking !== void 0) throw new Error(unheld(lacking));
+      if (sameIds(selected.map(objectKey), given.map(objectKey))) return;
+      selected = given;
+      announceTo(listeners, selected);
+    },
+    subscribe(fn) {
+      const wrapped = (objects) => {
+        fn(objects);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
+}
+function selectionGiven(given) {
+  if (!Array.isArray(given) || !given.every(isBoardObject)) {
+    throw new TypeError(`A selection is an array of board objects, as [{ block: "a" }, { link: "ab" }], not ${JSON.stringify(given)}.`);
+  }
+  const copies = /* @__PURE__ */ new Map();
+  for (const object2 of given) {
+    const copy = Object.freeze({ ...object2 });
+    const key2 = objectKey(copy);
+    if (!copies.has(key2)) copies.set(key2, copy);
+  }
+  return Object.freeze([...copies.values()]);
+}
+function objectKey(object2) {
+  return JSON.stringify(object2);
+}
+function unheld(object2) {
+  if ("block" in object2) return `The board holds no block ${JSON.stringify(object2.block)} to select.`;
+  if ("link" in object2) return `The board holds no link ${JSON.stringify(object2.link)} to select.`;
+  if ("stack" in object2) return `The board holds no stack ${JSON.stringify(object2.stack)} to select.`;
+  if ("option" in object2) return `The board holds no board option ${JSON.stringify(object2.option)} to select.`;
+  return `The app runs no plugin ${JSON.stringify(object2.plugin)} to select.`;
 }
 
 // srcts/core/frontends.ts
