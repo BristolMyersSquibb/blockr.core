@@ -31,8 +31,7 @@ run_output_class_request(
 )
 }
 \arguments{
-\item{x}{An output, and for \code{run_output_class_request()}, an output or its
-class vector}
+\item{x}{An output}
 
 \item{...}{Generic consistency}
 
@@ -68,9 +67,7 @@ The package that defines an output class gives R what it needs of the class
 through its methods of two generics, which it registers as it registers
 any S3 method, so that S3 dispatch gives a subclass what its class gives,
 unless it gives its own.
-A method answers by the class alone, whatever the output holds, since R also
-calls it on an empty output of the class, as it resolves a request of an
-output that it made before.
+R calls each method on an output that it makes.
 }
 \details{
 The method of \code{output_schema()} returns the JSON Schema of the class's
@@ -89,6 +86,13 @@ does not hold, such as a download of what they show.
 A subclass that adds requests puts them before those of its class, which
 \code{NextMethod()} returns, so that a request of its own takes the place of one
 of the same name.
+R keeps the requests that the method returns for an output with the block's
+result, and answers the requests of that output by them.
+So a method may give requests by what the output holds, as a table's might
+give one that counts the rows only where the output holds no \code{total}.
+A request's function may capture the output, which R then keeps with the
+requests.
+R fails to make an output whose method returns no named list of functions.
 R calls a request's function with these arguments, each where the function
 takes it:
 \itemize{
@@ -104,6 +108,8 @@ The client keeps a request's answers, as it keeps the output.
 No request of an output class writes.
 The function \code{run_output_class_request()} runs a request as R does, to test
 an output class, or the requests of a renderer, without Shiny.
+It takes an output, on which it calls the method of \code{output_requests()}, as
+R does on each output that it makes.
 
 The renderer that draws the class's outputs comes from the output family
 that makes them, which a deployment may replace (see \code{\link[=new_output_family]{new_output_family()}}).
