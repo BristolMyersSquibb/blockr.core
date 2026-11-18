@@ -446,7 +446,7 @@
   The registry applies the deltas of every command as one step of the origin, or applies none where one command refuses.
   It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
   The step of a list is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
-  Where the registry refuses a list of the origin `"user"` that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
+  Where the registry refuses a list that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
   The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
@@ -566,10 +566,13 @@
   Core then raises a notification of that code, until the block's next output arrives.
   Where the transport could not send a block's evaluation, the block's status reads `failed` and holds why in `unsent`, not as a condition, and core raises a notification of the code `evaluation_unsent` from it.
   Core raises one for each condition of R's reply to a request, ok or error, until R next replies to a request of the same name for the same block, board option or plugin (#539, #601, #606, #659).
-* A plugin takes the conditions of R's reply to one of its own requests itself, through a function that it passes to `core.request()` in `conditions`, beside `progress`.
-  Core hands that function the conditions of each reply, ok or error, and raises no notification for them.
-  It also leaves the notifications of the request's earlier replies as they are, and a reply of error still rejects with its conditions.
-  So the assistant can hand the errors and warnings of the model's own R code to the model alone, rather than to the user as well (#644).
+* A call through which core raises notifications for its caller takes a `notifier`, a function to which core hands those notifications in place of raising them.
+  A request, through `core.request()` or a host's `request()`, takes it beside `progress`, and core hands it the notifications of each reply, ok or error, with none for a reply without conditions.
+  An edit through `core.commands.run()` or the store's `apply()`, `undo()` and `redo()`, an opening through the store's `open()`, and a host's `submit()` take it in an object as their last argument, and core hands it the notification of a refusal before the call rejects or throws.
+  Core then raises none of those notifications and leaves those that earlier calls raised as they are, while the call still rejects or throws with the reason.
+  So the assistant can hand the errors and warnings of the model's own R code and its refused edits to the model alone, rather than to the user as well.
+  The function `bind()` passes the host's `submit()` the notifier that its options give, and `useValue()` and core's controls pass one, since they show the reason below the input.
+  The request option `conditions` is gone, and `notifier` takes its place (#644, #709).
 * Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
   A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
   The card of a block that `serve()` serves alone shows every notification of the board.
@@ -606,14 +609,14 @@
   The spans name the session by `session.id`, and so do R's log records that R writes while it handles a message of the session.
   The client names its service in its spans and its log records by the blockr option `otel_client_service_name`, as their `service.name`, and as `"blockr"` where that option is not set, while R's records name the service that `OTEL_SERVICE_NAME` gives.
   The page's import map names `@opentelemetry/api`, which core ships as a file of its own, so that the modules of packages record spans into the same traces, and the types of `@blockr/core` name it as their peer (#552).
-* Where the store or the command registry refuses an edit of the origin `"user"` that a plugin makes through `CoreApi`, a command, a delta, an undo or a redo, core raises a notification of the code `board_edit_failed`, which concerns the board, and the call still rejects or throws.
+* Where the store or the command registry refuses an edit that a plugin makes through `CoreApi`, a command, a delta, an undo or a redo, core raises a notification of the code `board_edit_failed`, which concerns the board, whatever the edit's origin, and the call still rejects or throws.
   So the user learns why an edit was refused, whichever plugin made it.
   Core's basic frontend and its Edit board plugin raise none of their own.
-  An edit of another origin only rejects or throws, as the assistant's, whose tool hands the refusal to its model.
-  A refused `submit()` of a block's or a board option's UI module only rejects, since the module says why, as core's inputs do below themselves.
+  Where the store refuses what a block's or a board option's UI module submits through its host's `submit()`, core raises `board_edit_failed` about the block or the board option, and `submit()` still rejects.
   Where the store refuses a board that `open()` is given, core raises `board_open_failed`, which concerns the board, and `open()` still rejects with the reason.
+  A caller that shows the reason itself takes the notification through the call's `notifier` instead.
   Core logs each of these refusals at debug, since the call hands the reason to its caller.
-  Core raises a refusal anew each time it comes again, so that a frontend that has shown it shows it again (#616).
+  Core raises a refusal anew each time it comes again, so that a frontend that has shown it shows it again (#616, #709).
 * The command registry logs at error what a command's own `preflight()`, `prepare()` or `run()` throws, whoever runs the command and whatever its origin.
   The line holds a `CommandError` that names the command, with what the command threw, and its stack, as the cause.
   The registry still rejects with that error, and its `preflight()` still answers `false`.

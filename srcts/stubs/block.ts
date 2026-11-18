@@ -16,7 +16,7 @@ import type { BlockContext, BlockHost, HostRequestOpts, State } from "../types/h
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import { asError, isObject, jsonEqual, own, packageFromId, without } from "../util/index.ts";
-import { announcer, lineHolder, notifier, stubBlockContext } from "./util.ts";
+import { announcer, lineHolder, raisedHolder, stubBlockContext } from "./util.ts";
 
 // A block class's fixture file: the states that a block of the class may
 // hold, each as the block holds it, and what the class's requests answered in
@@ -86,7 +86,7 @@ export function stubBlockHost<S extends State = State>(
   const requested: { name: string; args: Readonly<Record<string, Json>>; file?: File }[] = [];
   const evaluated: Record<string, Json>[] = [];
   const on = announcer(["state", "context"] as const);
-  const { notified, notify } = notifier();
+  const { notified, notify } = raisedHolder();
   const { logged, log } = lineHolder(packageFromId(options.class ?? "stub"));
 
   return {

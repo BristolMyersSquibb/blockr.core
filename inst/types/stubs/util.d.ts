@@ -8,7 +8,7 @@ export declare function announcer<E extends string>(events: readonly E[]): {
     listen: (event: E, fn: () => void) => () => void;
     announce: (event: E) => void;
 };
-export declare function notifier(): {
+export declare function raisedHolder(): {
     notified: readonly Raised[];
     notify: (notification: Raised) => () => void;
 };

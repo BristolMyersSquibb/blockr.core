@@ -1,5 +1,5 @@
 import type { Commands } from "../commands/index.ts";
-import type { Condition, Lock, Phase } from "../protocol/index.ts";
+import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
@@ -168,8 +168,9 @@ export interface RequestOpts {
         value?: number;
         message?: string;
     }): void;
-    conditions?(conditions: readonly Condition[]): void;
+    notifier?(notifications: readonly Notification[]): void;
 }
+export type Notifier = (notifications: readonly Notification[]) => void;
 export interface OutputEvents {
     subscribe(fn: (event: {
         block: BlockId;
