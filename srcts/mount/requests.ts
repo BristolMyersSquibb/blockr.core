@@ -96,6 +96,11 @@ export async function blockRequest(
   if (!isObject(given)) {
     throw new TypeError(`The args of the request "${name}" are an object of state args and parameters.`);
   }
+  if (opts.file !== undefined && spec.file !== true) {
+    throw new TypeError(
+      `The request "${name}" of the block class "${entry.id}" takes no file, since its new_block_request() names no argument for one.`,
+    );
+  }
   const share = spec.action === true || opts.file !== undefined ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name}" of block "${block}"`;
   // The block's UI module, which made the request, with the package of its

@@ -25,6 +25,7 @@
 #' A module test then compares the state a module submits with it as it is.
 #' Each request is written with its `name`,
 #' the `args` and `options` it was called with,
+#' the `file` it was sent, where it was sent one,
 #' and its `answer`, with every vector as an array,
 #' as R writes a request's answer.
 #'
@@ -46,7 +47,8 @@
 #' @param inputs Sample upstream results by data input, with a variadic block's
 #'   under `...`
 #' @param requests A list of request calls, each a list of the request's `name`
-#'   and, optionally, its `args` and `options` (see [run_block_request()])
+#'   and, optionally, its `args`, `options` and `file` (see
+#'   [run_block_request()])
 #' @param name The fixture's file name, without extension, which defaults to
 #'   the class's id
 #'
@@ -142,13 +144,19 @@ record_request <- function(call, cls, inputs) {
 
   args <- coal(call[["args"]], list(), fail_all = FALSE)
   options <- coal(call[["options"]], list(), fail_all = FALSE)
+  file <- call[["file"]]
 
-  list(
-    name = call[["name"]],
-    args = as_json_object(args),
-    options = as_json_object(options),
-    answer = encode_answer(
-      run_block_request(cls, call[["name"]], inputs, args, options)
+  c(
+    list(
+      name = call[["name"]],
+      args = as_json_object(args),
+      options = as_json_object(options)
+    ),
+    if (not_null(file)) list(file = file),
+    list(
+      answer = encode_answer(
+        run_block_request(cls, call[["name"]], inputs, args, options, file)
+      )
     )
   )
 }

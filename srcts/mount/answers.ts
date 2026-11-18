@@ -13,9 +13,8 @@
 // - Core drops an answer once the revisions it read are superseded. No host
 //   method hands out such an answer, and a module keeps the last answer it
 //   got on screen while it asks again.
-// - Core keeps nothing of a volatile request, nor of a reply that R marks
-//   volatile, and neither keeps nor merges an action, which R runs once per
-//   call, or a request that sends a file.
+// - Core keeps nothing of a volatile request, and neither keeps nor merges an
+//   action, which R runs once per call, or a request that sends a file.
 // - Core keeps answers for the board it makes the mounts for. As another board
 //   opens, the signal that ends the mounts drops them and gives up the
 //   requests on their way to R, as a page that starts with that board holds
@@ -145,7 +144,6 @@ export function createAnswers(
           key !== undefined &&
           ask.share === "keep" &&
           answer.reply.status === "ok" &&
-          !("volatile" in answer.reply && answer.reply.volatile === true) &&
           current(ask.request)
         ) {
           kept.set(key, { answer, request: ask.request });

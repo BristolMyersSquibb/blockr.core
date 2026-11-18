@@ -72,9 +72,9 @@
   has unless it gives its own: `output_schema()` gives the JSON Schema that R
   writes the outputs by, which `read_json_schema()` reads from a file that the
   package ships, `output_requests()` the requests that the class's renderers
-  call, each of which `volatile()` may mark, `output_renderer()` the
-  renderer that draws the outputs, and `output_coercion()` the coercion that
-  makes them. The function `run_output_class_request()`
+  call, `output_renderer()` the renderer that draws the outputs, and
+  `output_coercion()` the coercion that makes them. The function
+  `run_output_class_request()`
   runs such a request as R does (#422, #440, #465).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table. Its
@@ -267,7 +267,7 @@
   R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
   Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
   Core's UIs, its renderers included, take their face from the theme's sans, `--bc-font-sans`, as their code takes its mono, `--bc-font-mono`, which a frontend sets to restyle them.
-  The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
+  The stub of a block's host answers an upload by the file that a fixture records for it (#438, #663).
 * A stack may have a color, which frontends draw it in, as the stacks of blockr.dock had until now.
   The color is a hex color of six digits, such as `"#66c2a5"`.
   The constructor `new_stack()` takes it as `color`, and `stack_color()` reads it.
@@ -478,7 +478,10 @@
   The scatter block fails where its data lacks one of its columns, rather than draw `x` against the row index where only `y` is missing (#542).
 * In Shiny's test mode, as the package shinytest2 starts an app, the app that `serve()` returns gives end-to-end tests what they check, which `blockr_test_exports()` gave until now.
   R exports each block's latest result through `exportTestValues()` as `result`: a list by block ID for a board, and the block's result for a block that `serve()` serves alone.
-  The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read (#443).
+  The page puts `blockrTest` on `window`, whose `board()` gives a copy of the board that the client holds, and whose `statuses()` gives each block's status by block ID, for `AppDriver$get_js()` to read.
+  It also gives each part of what a frontend offers other plugins, so that a frontend's browser tests check them all.
+  Its `focus()` gives the ID of the block that has focus, or `null`, its `onScreen()` gives the blocks and the plugins on screen, and its `notifications()` gives the notifications that hold.
+  Its `show()` has the frontend show a block or a plugin, as a plugin asks it to (#443, #680).
 * The cards of core's basic frontend show their block's status as the card of a block that `serve()` serves alone does, in place of the summary below the output and the list of conditions.
   A footer, one centered line at the end of the output's box, shows a ready block's summary.
   Below the box sits a pill for each severity of the conditions of R's reply that the board option `show_conditions` names, and the pill of the messages also counts why an invalid or a waiting block does not run.
@@ -601,6 +604,10 @@
   The registry still rejects with that error, and its `preflight()` still answers `false`.
   It logs no refusal, whether it refuses a command itself, the command refuses with the `refusal()` of its context, or the store refuses the command's deltas.
   Where a plugin runs a command of the user's through `CoreApi`, core raises `board_edit_failed` for a command that failed so, as it does for a refusal, and logs no line of its own (#627).
+* A block class's request takes a file that the client sends only where `new_block_request()` names the argument for it, in `file`.
+  That argument may have any name, and the function `run_block_request()` passes it a file through its own argument `file`.
+  The block registry marks a request that takes a file with `file`, and the client sends no file with any other request.
+  A block class's fixture records the file that a request was sent beside its `args` (#663).
 * Core's React SDK offers one select, `Select`, which core's own UIs, frontends, the UIs of plugins and those of blocks all draw with, following the select of the design system of blockr.ui.
   It picks one choice, or several where it is given `multiple`, out of a list that the user filters by typing.
   It opens the list in the browser's top layer, below its field, or above the field where the window has no room below, so that no panel clips the list.

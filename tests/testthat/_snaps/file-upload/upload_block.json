@@ -7,15 +7,14 @@
   "requests": [
     {
       "name": "upload",
-      "args": {
-        "file": {
-          "datapath": "upload.tmp",
-          "name": "sales.csv",
-          "type": "text/csv",
-          "size": 18
-        }
-      },
+      "args": {},
       "options": {},
+      "file": {
+        "datapath": "upload.tmp",
+        "name": "sales.csv",
+        "type": "text/csv",
+        "size": 18
+      },
       "answer": ["uploads/3f9a2c/sales.csv"]
     }
   ]

@@ -349,12 +349,10 @@ export interface RendererRequest extends Traced {
 }
 
 // An answer as R writes it, every vector as an array, or a file, with every
-// message and warning that the request's function raised. R marks with
-// `volatile` its reply to a request of an output class that it resolved to one
-// that the class makes volatile, whose answer the client never keeps.
+// message and warning that the request's function raised.
 export type RequestReply =
-  | { id: string; status: "ok"; value: Json; body?: never; conditions: Condition[]; volatile?: true }
-  | { id: string; status: "ok"; body: Body; value?: never; conditions: Condition[]; volatile?: true };
+  | { id: string; status: "ok"; value: Json; body?: never; conditions: Condition[] }
+  | { id: string; status: "ok"; body: Body; value?: never; conditions: Condition[] };
 
 // Outputs
 
