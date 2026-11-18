@@ -27,36 +27,24 @@
 #'     don't rules, enumerations, pitfalls. Optional.}
 #'   \item{`@blockKeywords <terms>`}{Comma-separated search terms for block
 #'     discovery; a term may contain spaces. Optional.}
-#'   \item{`@blockDetails <text>`}{Longer human-facing description (e.g. for a
-#'     help popover). Optional; when omitted it falls back to the constructor's
-#'     `@details` or, failing that, its `@section` prose.}
 #'   \item{`@blockLink <url>`}{URL of the block's help or documentation page.
 #'     Optional; when omitted it is derived from the package's pkgdown `url`
 #'     (`_pkgdown.yml` or `DESCRIPTION`) and the documented topic, as
 #'     `<url>/reference/<topic>.html`.}
-#'   \item{`@blockArg <name> <description>`}{One constructor argument's
-#'     specification. The text after the name is a free-text description;
-#'     `[example] <expr>` and `[type] <expr>` markers (each on its own line)
-#'     supply an R expression -- evaluated when documentation is generated --
-#'     for a worked example value and an `arg_*()` type descriptor (see
-#'     [new_arg_spec()]). An explicit `[description] <text>` marker may replace
-#'     the inline description. Optional and repeatable.}
-#'   \item{`@blockExamples <expr>`}{Block-level worked example configurations,
-#'     as an R expression -- evaluated when documentation is generated -- that
-#'     yields a list of complete configurations (each a named list keyed by
-#'     argument). Optional; supersedes the per-argument `[example]` assembly.}
 #'   \item{`@blockCtor <name>`}{Constructor name override. Optional: the
 #'     documented object otherwise supplies the name.}
 #' }
+#'
+#' No tag describes a state arg.
+#' The schema of the block's state, which the class's UI module ships, gives
+#' each state arg's type and description (see `vignette("create-block")`).
 #'
 #' @section The file:
 #' The roclet writes `inst/registry/blocks.yml` as a mapping of each block
 #' constructor, by name, to the registry metadata of the class that it makes:
 #' the class's `id`, `name`, `description` and `category`, each a string, and,
-#' where the tags give them, its `icon`, `details`, `link` and `guidance`, each
-#' a string, its `keywords`, a list of strings, its `arguments`, a mapping of
-#' each argument to its arg spec, with `description`, `example` and `type`, and
-#' its `examples`, a list of mappings.
+#' where the tags give them, its `icon`, `link` and `guidance`, each a string,
+#' and its `keywords`, a list of strings.
 #' A package that writes the file by hand, or lists its block classes in its
 #' `._BLOCKR_MODULES_` without one, gives the same fields.
 #' R reads the listing as [available_blocks()] lists the package's classes and
@@ -103,36 +91,8 @@ roxy_tag_parse.roxy_tag_blockKeywords <- function(x) {
 }
 
 #' @exportS3Method roxygen2::roxy_tag_parse
-roxy_tag_parse.roxy_tag_blockDetails <- function(x) {
-  roxygen2::tag_value(x, multiline = TRUE)
-}
-
-#' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_blockLink <- function(x) {
   roxygen2::tag_value(x)
-}
-
-#' @exportS3Method roxygen2::roxy_tag_parse
-roxy_tag_parse.roxy_tag_blockExamples <- function(x) {
-  roxygen2::tag_value(x, multiline = TRUE)
-}
-
-#' @exportS3Method roxygen2::roxy_tag_parse
-roxy_tag_parse.roxy_tag_blockArg <- function(x) {
-
-  raw <- trimws(x[["raw"]])
-  split <- regexpr("[[:space:]]", raw)
-
-  if (split < 0L) {
-    return(roxygen2::roxy_tag_warning(x, "requires an argument name"))
-  }
-
-  x[["val"]] <- c(
-    list(name = substr(raw, 1L, split - 1L)),
-    block_arg_fields(substring(raw, split + 1L))
-  )
-
-  x
 }
 
 #' @exportS3Method roxygen2::roxy_tag_parse
@@ -255,12 +215,6 @@ block_roclet_entry <- function(block, base_url) {
     category = block_tag_value(block, "blockCategory")
   )
 
-  details <- block_details(block)
-
-  if (not_null(details)) {
-    entry[["details"]] <- details
-  }
-
   link <- block_link(block, base_url)
 
   if (not_null(link)) {
@@ -285,78 +239,7 @@ block_roclet_entry <- function(block, base_url) {
     entry[["keywords"]] <- keywords
   }
 
-  args <- block_roclet_args(block)
-
-  if (length(args)) {
-    entry[["arguments"]] <- args
-  }
-
-  examples <- block_examples(block)
-
-  if (length(examples)) {
-    entry[["examples"]] <- examples
-  }
-
   entry
-}
-
-block_roclet_args <- function(block) {
-
-  vals <- lapply(roxygen2::block_get_tags(block, "blockArg"), `[[`, "val")
-
-  set_names(lapply(vals, block_arg_spec), chr_xtr(vals, "name"))
-}
-
-block_arg_fields <- function(body) {
-
-  lines <- strsplit(body, "\n", fixed = TRUE)[[1L]]
-
-  fields <- list()
-  key <- "description"
-
-  for (line in lines) {
-
-    marker <- regmatches(
-      line,
-      regexec("^[[:space:]]*\\[(description|example|type)\\][[:space:]]*(.*)$",
-              line)
-    )[[1L]]
-
-    if (length(marker)) {
-      key <- marker[[2L]]
-      value <- marker[[3L]]
-    } else {
-      value <- trimws(line)
-    }
-
-    fields[[key]] <- trimws(paste(c(fields[[key]], value), collapse = " "))
-  }
-
-  Filter(nzchar, fields)
-}
-
-block_arg_spec <- function(val) {
-  compact_arg(
-    val[["description"]],
-    eval_arg_expr(val[["example"]]),
-    eval_arg_expr(val[["type"]])
-  )
-}
-
-eval_arg_expr <- function(expr) {
-
-  if (is.null(expr)) {
-    return(NULL)
-  }
-
-  eval(str2lang(expr), new.env(parent = asNamespace("blockr.core")))
-}
-
-compact_arg <- function(description, example, type) {
-
-  arg <- list(description = description, example = example, type = type)
-
-  arg[!lgl_ply(arg, is.null)]
 }
 
 require_block_tag <- function(block, tag) {
@@ -378,13 +261,6 @@ block_tag_value <- function(block, tag) {
   if (is.null(hit)) NULL else hit$val
 }
 
-block_tag_raw <- function(block, tag) {
-
-  hit <- roxygen2::block_get_tag(block, tag)
-
-  if (is.null(hit)) NULL else trimws(hit[["raw"]])
-}
-
 block_keywords <- function(block) {
 
   value <- block_tag_value(block, "blockKeywords")
@@ -400,27 +276,6 @@ block_keywords <- function(block) {
 
 block_guidance <- function(block) {
   reflow_text(block_tag_value(block, "blockGuidance"))
-}
-
-block_details <- function(block) {
-
-  explicit <- coal(
-    block_tag_value(block, "blockDetails"),
-    block_tag_raw(block, "details"),
-    fail_all = FALSE
-  )
-
-  if (not_null(explicit)) {
-    return(reflow_text(explicit))
-  }
-
-  section <- block_tag_raw(block, "section")
-
-  if (is.null(section)) {
-    return(NULL)
-  }
-
-  reflow_text(sub("^[^:]+:[[:space:]]*", "", section))
 }
 
 block_link <- function(block, base_url) {
@@ -495,10 +350,6 @@ pkgdown_site_url <- function(base_path) {
   }
 
   trimws(strsplit(url, "[,[:space:]]+")[[1L]][1L])
-}
-
-block_examples <- function(block) {
-  eval_arg_expr(block_tag_value(block, "blockExamples"))
 }
 
 reflow_text <- function(text) {

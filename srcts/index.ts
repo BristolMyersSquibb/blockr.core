@@ -20,6 +20,7 @@ export type {
   Board,
   JsonBlock,
   JsonOption,
+  JsonPlugin,
   JsonBoard,
   Link,
   LinkId,
@@ -29,7 +30,7 @@ export type {
   Stack,
   StackId,
 } from "./types/board.ts";
-export type { ArgSpec, RegistryEntry } from "./types/registry.ts";
+export type { RegistryEntry } from "./types/registry.ts";
 export type { Log, LogLevel, LogLine } from "./types/log.ts";
 export type {
   BlockOutput,

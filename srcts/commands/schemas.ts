@@ -2,16 +2,15 @@
 // block's id and name, which core gives and builds the args of its commands
 // from. A
 // block's state is not among them. Each block class gives the schema of its
-// state, which its UI ships, and stateSchema() describes it by the class's arg
-// specs. That schema is the same for every block of the class. So for one
-// class, the args of a command that takes a block's state are the command's
-// `args` with that schema in place of `state`, which is what a form or a tool
-// of the assistant's for that class takes.
+// state, which its UI ships, with each state arg's type and description, in
+// the class's entry of the block registry. That schema is the same for every
+// block of the class. So for one class, the args of a command that takes a
+// block's state are the command's `args` with that schema in place of
+// `state`, which is what a form or a tool of the assistant's for that class
+// takes.
 
 import { HEX_COLOR } from "../store/index.ts";
-import type { Json, JsonSchema } from "../types/json.ts";
-import type { RegistryEntry } from "../types/registry.ts";
-import { isObject, own } from "../util/index.ts";
+import type { JsonSchema } from "../types/json.ts";
 
 // An id is any string that is neither empty nor made of digits alone, since a
 // JS object puts keys that look like integers first.
@@ -120,43 +119,3 @@ export const statePatches: JsonSchema = {
   description:
     "Changes of a plugin's state, as JSON Patch operations, which apply in their order and which the schema of the plugin's class types.",
 };
-
-const described = new WeakMap<RegistryEntry, JsonSchema>();
-
-// The schema of a block class's state as its UI ships it, with each state arg
-// that the schema leaves undescribed described by its arg spec, its
-// description and its example, for forms and the assistant's tools. It is the
-// same for every block of the class, so it is made once per class.
-export function stateSchema(entry: RegistryEntry): JsonSchema {
-  const known = described.get(entry);
-  if (known !== undefined) return known;
-
-  const { properties } = entry.schema;
-  let schema = entry.schema;
-  if (isRecord(properties)) {
-    schema = {
-      ...schema,
-      properties: Object.fromEntries(
-        Object.entries(properties).map(([arg, property]) => {
-          const spec = own(entry.arguments, arg);
-          if (spec === undefined || !isRecord(property)) return [arg, property];
-          return [
-            arg,
-            {
-              ...(spec.description === undefined ? {} : { description: spec.description }),
-              ...(spec.example === undefined ? {} : { examples: [spec.example] }),
-              ...property,
-            },
-          ];
-        }),
-      ),
-    };
-  }
-
-  described.set(entry, schema);
-  return schema;
-}
-
-function isRecord(x: Json | undefined): x is Readonly<Record<string, Json>> {
-  return isObject(x);
-}

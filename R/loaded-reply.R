@@ -31,7 +31,7 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
   sources <- c(
     unlst(
       lapply(
-        list(entries, modules, options, renderers,
+        list(lst_xtr(entries, "block_class"), modules, options, renderers,
              unlist(drawn, recursive = FALSE, use.names = FALSE)),
         lst_xtr,
         "package"
@@ -70,16 +70,13 @@ package_versions <- function(packages) {
 # gives, with `register_block()`'s `link` as `url`, and what the client cannot
 # read off a class that stays in R. Those are its data inputs, where R serves
 # its UI module, the schema of its state that the module ships, the state a
-# new block starts with, its arg specs, its requests, the board options that
-# its output family reads and the renderers of its outputs, `renderers` from
+# new block starts with, its requests, the board options that its output
+# family reads and the renderers of its outputs, `renderers` from
 # `entry_renderers()`. A class whose
 # module ships no schema has the empty schema, which allows any state, and its
 # state is written bare, so that its module takes a value of length one in
 # either form.
 registry_entry_reply <- function(x, renderers = entry_renderers(x)) {
-
-  what <- paste("Block class", x[["block_class"]][["id"]])
-
   c(
     list(
       id = x[["id"]],
@@ -89,7 +86,6 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x)) {
     Filter(
       not_null,
       list(
-        details = x[["details"]],
         url = x[["link"]],
         guidance = x[["guidance"]]
       )
@@ -100,14 +96,11 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x)) {
       icon = x[["icon"]],
       inputs = I(x[["inputs"]])
     ),
-    served_module(x[["ui"]]),
+    served_module(x[["block_class"]][["ui"]]),
     list(
       version = x[["block_class"]][["version"]],
       schema = coal(x[["schema"]], as_json_object(list()), fail_all = FALSE),
       state = entry_state(x),
-      arguments = as_json_object(
-        lapply(x[["arguments"]], arg_spec_reply, what)
-      ),
       requests = as_json_object(lapply(x[["requests"]], request_entry_reply)),
       output_options = I(family_option_ids(x[["block_class"]][["output"]])),
       renderers = I(lapply(unname(renderers), output_renderer_reply))
@@ -137,48 +130,6 @@ entry_state <- function(x) {
   as_json_object(
     shape_by_schema(plain_value(x[["state"]], what), x[["schema"]])
   )
-}
-
-# An arg spec as the client gets it, the `ArgSpec` of srcts/types/registry.ts,
-# without the parts it leaves unset, with its example written by its type.
-arg_spec_reply <- function(x, what) {
-
-  type <- arg_spec_type(x)
-  example <- arg_spec_example(x)
-
-  if (not_null(example)) {
-    example <- shape_by_schema(
-      plain_value(example, paste(what, "has an arg spec whose example")),
-      type
-    )
-  }
-
-  Filter(
-    not_null,
-    list(
-      description = arg_spec_description(x),
-      example = example,
-      type = arg_type_reply(type)
-    )
-  )
-}
-
-# An arg spec's type, the JSON Schema it is, without the R attribute through
-# which `arg_object()` learns which of its properties are required, and with
-# the `properties` of an object without any as an empty object.
-arg_type_reply <- function(x) {
-
-  if (!is.list(x)) {
-    return(x)
-  }
-
-  res <- lapply(x, arg_type_reply)
-
-  if ("properties" %in% names(res)) {
-    res[["properties"]] <- as_json_object(res[["properties"]])
-  }
-
-  res
 }
 
 # A request as the block registry describes it to the client: the data inputs

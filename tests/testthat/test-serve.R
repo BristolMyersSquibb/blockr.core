@@ -62,10 +62,8 @@ test_that("serve() registers the board's classes that the registry lacks", {
   expect_contains(ls(registry), ids)
   expect_false(any(ids %in% list_blocks()))
   expect_identical(get_registry_entry("note_block", registry)$name, "Note")
-  expect_identical(
-    get_registry_entry("blockr.core-static_block", registry)$package,
-    "blockr.core"
-  )
+  static <- get_registry_entry("blockr.core-static_block", registry)
+  expect_identical(static$block_class$package, "blockr.core")
 
   # A class that the block registry holds keeps its entry
   expect_identical(get_registry_entry("blockr.core-head_block", registry), head)
@@ -577,7 +575,12 @@ test_that("serve() refuses a board with a plugin that the app does not run", {
   )
   expect_identical(
     reply$board$board$plugins,
-    list(`blockr.test-notes_plugin` = list(text = "To do"))
+    list(
+      `blockr.test-notes_plugin` = list(
+        state = list(text = "To do"),
+        version = 1L
+      )
+    )
   )
 
   expect_error(

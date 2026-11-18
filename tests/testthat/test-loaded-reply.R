@@ -27,13 +27,11 @@ test_that("an entry has the metadata registration gives, with link as url", {
   entry <- declared_fields()$block_registry$letters_block
 
   expect_identical(
-    entry[c("id", "name", "description", "details", "url", "guidance",
-            "category")],
+    entry[c("id", "name", "description", "url", "guidance", "category")],
     list(
       id = "letters_block",
       name = "letters block",
       description = "Pick columns",
-      details = "Keeps the columns it is given.",
       url = "https://example.com/letters",
       guidance = "Set `columns` to the names of columns to keep.",
       category = "transform"
@@ -50,8 +48,8 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
   expect_named(
     entry,
     c("id", "name", "description", "keywords", "category", "icon", "inputs",
-      "module", "version", "schema", "state", "arguments", "requests",
-      "output_options", "renderers")
+      "module", "version", "schema", "state", "requests", "output_options",
+      "renderers")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -65,11 +63,13 @@ test_that("an entry holds what the client cannot read off a class in R", {
   expect_identical(json(letters$inputs), "[\"data\"]")
   expect_match(letters$module, "^blockr-modules/[0-9a-f]{8}/letters-block.js$")
   expect_match(letters$css, "^blockr-modules/[0-9a-f]{8}/letters-block.css$")
+  # The schema describes each state arg, as the module ships it.
   expect_identical(
     json(letters$schema),
     paste0(
       "{\"type\":\"object\",\"properties\":{\"columns\":{\"type\":\"array\",",
-      "\"items\":{\"type\":\"string\"}},\"sep\":{\"type\":\"string\"}}}"
+      "\"items\":{\"type\":\"string\"},\"description\":\"Columns to keep.\"},",
+      "\"sep\":{\"type\":\"string\",\"description\":\"Separator.\"}}}"
     )
   )
 
@@ -87,7 +87,7 @@ test_that("an entry holds no block class, constructor or package", {
   expect_length(
     intersect(
       names(entry),
-      c("block_class", "constructor", "package", "ui", "link", "examples")
+      c("block_class", "constructor", "package", "ui", "link")
     ),
     0L
   )
@@ -105,52 +105,6 @@ test_that("the starting state is written by the schema of the class's state", {
 
   # Without a schema, a value is written bare.
   expect_identical(json(reply$block_registry$count_block$state), "{\"n\":3}")
-})
-
-test_that("an arg spec's example is written by its type", {
-
-  reply <- declared_fields()
-
-  expect_identical(
-    json(reply$block_registry$letters_block$arguments),
-    paste0(
-      "{\"columns\":{\"description\":\"Columns to keep.\",\"example\":[\"x\"],",
-      "\"type\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},",
-      "\"sep\":{\"description\":\"Separator.\",\"type\":{\"type\":\"string\"}}}"
-    )
-  )
-
-  # The arg specs default to every state arg, each with nothing set.
-  expect_identical(
-    json(reply$block_registry$count_block$arguments),
-    "{\"n\":{}}"
-  )
-})
-
-test_that("an arg spec's type is the JSON Schema that it denotes", {
-
-  type <- arg_object(
-    pairs = arg_array(arg_object(key = arg_string(), value = arg_number())),
-    mode = arg_enum("a", required = FALSE)
-  )
-
-  expect_identical(
-    json(arg_type_reply(type)),
-    paste0(
-      "{\"type\":\"object\",\"properties\":{\"pairs\":{\"type\":\"array\",",
-      "\"items\":{\"type\":\"object\",\"properties\":{\"key\":{\"type\":",
-      "\"string\"},\"value\":{\"type\":\"number\"}},\"required\":[\"key\",",
-      "\"value\"],\"additionalProperties\":false}},\"mode\":{\"type\":",
-      "\"string\",\"enum\":[\"a\"]}},\"required\":[\"pairs\"],",
-      "\"additionalProperties\":false}"
-    )
-  )
-
-  # An object without properties keeps its `properties` an object.
-  expect_identical(
-    json(arg_type_reply(list(type = "object", properties = list()))),
-    "{\"type\":\"object\",\"properties\":{}}"
-  )
 })
 
 test_that("a request says what it reads, and whether volatile or an action", {
@@ -466,24 +420,4 @@ test_that("registration refuses a starting state the client cannot get", {
     class = "board_value_invalid"
   )
   expect_false("factor_block" %in% list_blocks())
-})
-
-test_that("registration refuses an example the client cannot get", {
-
-  cls <- new_block_class(
-    "call_block",
-    expr = function(x = 1L) bbquote(identity(.(x))),
-    ui = js_module("call-block.js", package = NULL)
-  )
-
-  expect_error(
-    register_block(
-      block_constructor(cls),
-      "Call",
-      "Has a call for an example",
-      arguments = new_arg_specs(x = new_arg_spec("A number", quote(x + 1)))
-    ),
-    class = "board_value_invalid"
-  )
-  expect_false("call_block" %in% list_blocks())
 })

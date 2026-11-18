@@ -5,7 +5,6 @@ export interface RegistryEntry {
     readonly id: RegistryId;
     readonly name: string;
     readonly description: string;
-    readonly details?: string;
     readonly url?: string;
     readonly guidance?: string;
     readonly keywords: readonly string[];
@@ -17,7 +16,6 @@ export interface RegistryEntry {
     readonly version: number;
     readonly schema: JsonSchema;
     readonly state: Readonly<Record<string, Json>>;
-    readonly arguments: Readonly<Record<string, ArgSpec>>;
     readonly requests: Readonly<Record<string, {
         readonly inputs: readonly string[];
         readonly state_args: readonly string[];
@@ -28,9 +26,4 @@ export interface RegistryEntry {
     }>>;
     readonly output_options?: readonly OptionId[];
     readonly renderers?: readonly OutputRenderer[];
-}
-export interface ArgSpec {
-    readonly description?: string;
-    readonly example?: Json;
-    readonly type?: JsonSchema;
 }

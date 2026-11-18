@@ -5,6 +5,7 @@
 // as filebrowser-block.schema.json.
 
 export type State = Readonly<{
+  /** Path of the selected file. */
   file_path?: string;
   volumes: Readonly<Record<string, string>>;
 }>;

@@ -128,8 +128,8 @@ export function withOptions(
 // the plugins given too, after its own, each under the id of its class, with
 // an opening board that holds the state given of each, as an app script's
 // board would, and with the versions given of their classes, which the
-// reply's plugins carry and the board records, 1 for a class that they leave
-// out. R serves the module of each class at pluginUrl().
+// reply's plugins carry and the board records beside each state, 1 for a
+// class that they leave out. R serves the module of each class at pluginUrl().
 export function withPlugins(
   plugins: Readonly<Record<PluginClassId, GivenPlugin>>,
   replied: HelloReply = hello,
@@ -137,7 +137,7 @@ export function withPlugins(
 ): HelloReply {
   const version = (cls: PluginClassId): number => versions[cls] ?? 1;
   const held = Object.entries(plugins).flatMap(([cls, given]) =>
-    given.state === undefined ? [] : [[cls, given.state] as const],
+    given.state === undefined ? [] : [[cls, { state: given.state, version: version(cls) }] as const],
   );
   return {
     ...replied,
@@ -151,10 +151,6 @@ export function withPlugins(
       ...replied.board,
       board: {
         ...replied.board.board,
-        versions: {
-          ...replied.board.board.versions,
-          ...Object.fromEntries(held.map(([cls]) => [cls, version(cls)])),
-        },
         plugins: { ...replied.board.board.plugins, ...Object.fromEntries(held) },
       },
     },

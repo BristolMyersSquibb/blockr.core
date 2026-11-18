@@ -5854,8 +5854,10 @@ function isVersion(value2) {
 }
 function checkVersions(board) {
   const failures = [];
-  if (!isObject(board.versions) || !Object.values(board.versions).every(isVersion)) {
-    failures.push("The board records the versions of its plugin classes as no whole numbers from 1 by class.");
+  for (const [cls, plugin] of Object.entries(board.plugins)) {
+    if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
+      failures.push(`The plugin "${cls}" is recorded as no state with the version of its class's state.`);
+    }
   }
   for (const [id2, block] of Object.entries(board.blocks)) {
     if (isObject(block) && !isVersion(block.version)) {
@@ -5879,7 +5881,8 @@ function unversioned(board) {
         without(block, ["version"])
       ])
     ),
-    options: Object.fromEntries(Object.entries(board.options).map(([id2, option]) => [id2, option.value]))
+    options: Object.fromEntries(Object.entries(board.options).map(([id2, option]) => [id2, option.value])),
+    plugins: Object.fromEntries(Object.entries(board.plugins).map(([cls, plugin]) => [cls, plugin.state]))
   };
 }
 function migrate(board, json, reply, registrations) {
@@ -5889,7 +5892,7 @@ function migrate(board, json, reply, registrations) {
     Object.entries(board.plugins).map(([cls, state2]) => {
       const def = registrations.plugin(cls)?.def;
       if (def === void 0) return [cls, state2];
-      const from = own(json.versions, cls);
+      const from = own(json.plugins, cls)?.version;
       const to = own(reply.plugins, cls)?.version ?? 1;
       if (from === void 0 || from === to) return [cls, state2];
       if (from > to) {
@@ -6384,9 +6387,6 @@ function createStore(options = {}) {
         return version === void 0 ? [] : [[pkg, version]];
       })
     );
-    const versions = Object.fromEntries(
-      classes2.map((cls) => [cls, own(hello?.plugins ?? {}, cls)?.version ?? 1])
-    );
     const blocks = Object.fromEntries(
       Object.entries(next.blocks).map(([id3, block]) => [
         id3,
@@ -6405,11 +6405,17 @@ function createStore(options = {}) {
         { value: value2, version: own(hello?.options ?? {}, id3)?.version ?? 1 }
       ])
     );
-    const { id: id2, name: name2, links, stacks, plugins } = next;
+    const plugins = Object.fromEntries(
+      Object.entries(next.plugins).map(([cls, state2]) => [
+        cls,
+        { state: state2, version: own(hello?.plugins ?? {}, cls)?.version ?? 1 }
+      ])
+    );
+    const { id: id2, name: name2, links, stacks } = next;
     return {
       format: FORMAT,
       packages: recorded,
-      board: { id: id2, versions, name: name2, blocks, links, stacks, options: options2, plugins }
+      board: { id: id2, name: name2, blocks, links, stacks, options: options2, plugins }
     };
   }
   function save() {
@@ -12175,25 +12181,19 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                dataset: { type: "string" },
-                package: { type: "string" }
+                dataset: {
+                  type: "string",
+                  description: "Selects the dataset to use."
+                },
+                package: {
+                  type: "string",
+                  description: "R package to source the dataset from."
+                }
               },
               required: ["package"],
               additionalProperties: false
             },
             state: { package: "datasets" },
-            arguments: {
-              dataset: {
-                description: "Selects the dataset to use.",
-                example: "iris",
-                type: { type: "string" }
-              },
-              package: {
-                description: "R package to source the dataset from.",
-                example: "datasets",
-                type: { type: "string" }
-              }
-            },
             requests: {
               datasets: {
                 inputs: [],
@@ -12213,7 +12213,6 @@ var hello_default = {
             id: "blockr.core-head_block",
             name: "head/tail block",
             description: "Data head/tail",
-            details: "Row-subsetting the first or last `n` rows of a `data.frame` (as provided by [utils::head()] and [utils::tail()]) is implemented as `head_block`.",
             url: "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",
             guidance: 'Keeps the first or last `n` rows of the input with `utils::head()` / `utils::tail()`. `direction` chooses the end: "head" for the first rows, "tail" for the last.',
             keywords: ["head", "tail", "first", "last", "rows", "limit"],
@@ -12226,25 +12225,20 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                n: { type: "integer", minimum: 0 },
-                direction: { enum: ["head", "tail"] }
+                n: {
+                  type: "integer",
+                  minimum: 0,
+                  description: "Number of rows to keep."
+                },
+                direction: {
+                  enum: ["head", "tail"],
+                  description: "Row end to keep, either head (first) or tail (last)."
+                }
               },
               required: ["n", "direction"],
               additionalProperties: false
             },
             state: { n: 6, direction: "head" },
-            arguments: {
-              n: {
-                description: "Number of rows to keep.",
-                example: 10,
-                type: { type: "integer" }
-              },
-              direction: {
-                description: "Row end to keep, either head (first) or tail (last).",
-                example: "tail",
-                type: { type: "string", enum: ["head", "tail"] }
-              }
-            },
             requests: {
               n_max: { inputs: ["data"], state_args: [], options: [] }
             },
@@ -12276,28 +12270,24 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                by: { type: "array", items: { type: "string" } },
-                all_x: { type: "boolean" },
-                all_y: { type: "boolean" }
+                by: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Shared key column(s) to join on."
+                },
+                all_x: {
+                  type: "boolean",
+                  description: "Keep unmatched rows from the first input."
+                },
+                all_y: {
+                  type: "boolean",
+                  description: "Keep unmatched rows from the second input."
+                }
               },
               required: ["all_x", "all_y"],
               additionalProperties: false
             },
             state: { all_x: false, all_y: false },
-            arguments: {
-              by: {
-                description: "Shared key column(s) to join on.",
-                type: { type: "array", items: { type: "string" } }
-              },
-              all_x: {
-                description: "Keep unmatched rows from the first input.",
-                type: { type: "boolean" }
-              },
-              all_y: {
-                description: "Keep unmatched rows from the second input.",
-                type: { type: "boolean" }
-              }
-            },
             requests: {
               shared: {
                 inputs: ["x", "y"],
@@ -12333,25 +12323,19 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                subset: { type: "string" },
-                select: { type: "string" }
+                subset: {
+                  type: "string",
+                  description: "Logical row-filter expression, as a string."
+                },
+                select: {
+                  type: "string",
+                  description: "Column-selection expression, as a string."
+                }
               },
               required: ["subset", "select"],
               additionalProperties: false
             },
             state: { subset: "", select: "" },
-            arguments: {
-              subset: {
-                description: "Logical row-filter expression, as a string.",
-                example: "Sepal.Width > 3",
-                type: { type: "string" }
-              },
-              select: {
-                description: "Column-selection expression, as a string.",
-                example: "Species",
-                type: { type: "string" }
-              }
-            },
             requests: {},
             output_options: ["n_rows"],
             renderers: [
@@ -12384,7 +12368,6 @@ var hello_default = {
               additionalProperties: false
             },
             state: {},
-            arguments: {},
             requests: {},
             output_options: ["n_rows"],
             renderers: [
@@ -12413,24 +12396,18 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                x: { type: "string" },
-                y: { type: "string" }
+                x: {
+                  type: "string",
+                  description: "Column for the horizontal axis."
+                },
+                y: {
+                  type: "string",
+                  description: "Column for the vertical axis."
+                }
               },
               additionalProperties: false
             },
             state: {},
-            arguments: {
-              x: {
-                description: "Column for the horizontal axis.",
-                example: "Sepal.Length",
-                type: { type: "string" }
-              },
-              y: {
-                description: "Column for the vertical axis.",
-                example: "Sepal.Width",
-                type: { type: "string" }
-              }
-            },
             requests: {
               columns: {
                 inputs: ["data"],
@@ -12462,7 +12439,6 @@ var hello_default = {
               additionalProperties: false
             },
             state: {},
-            arguments: {},
             requests: {
               upload: {
                 inputs: [],
@@ -12529,7 +12505,6 @@ var hello_default = {
           packages: { "blockr.core": "0.2.0" },
           board: {
             id: "brisk_otter",
-            versions: {},
             name: "Iris review",
             blocks: {
               a: {

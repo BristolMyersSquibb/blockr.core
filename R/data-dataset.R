@@ -72,12 +72,6 @@ dataset_block <- new_block_class(
 #'   `package` to the source package (default "datasets"), then `dataset` to the
 #'   name of a data.frame object it exports.
 #' @blockKeywords dataset, data, import, package, source
-#' @blockArg dataset Selects the dataset to use.
-#'   [example] "iris"
-#'   [type] arg_string()
-#' @blockArg package R package to source the dataset from.
-#'   [example] "datasets"
-#'   [type] arg_string()
 #'
 #' @examples
 #' new_dataset_block("iris")

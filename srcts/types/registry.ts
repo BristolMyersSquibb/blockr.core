@@ -9,12 +9,11 @@ import type { OutputRenderer } from "./outputs.ts";
 
 export interface RegistryEntry {
   readonly id: RegistryId;
-  // The metadata that registration gives, as today: name, description,
-  // details, url (the link that `register_block()` takes), guidance, keywords,
-  // category and icon, the icon as SVG markup.
+  // The metadata that registration gives: name, description, url (the link
+  // that `register_block()` takes), guidance, keywords, category and icon, the
+  // icon as SVG markup.
   readonly name: string;
   readonly description: string;
-  readonly details?: string;
   readonly url?: string;
   readonly guidance?: string;
   readonly keywords: readonly string[];
@@ -29,12 +28,12 @@ export interface RegistryEntry {
   // The version of the shape of the block's state, which a package raises as
   // it changes that shape, and which a JSON board records with each block.
   readonly version: number;
-  // The schema of the block's state, as its module ships it.
+  // The schema of the block's state, as its module ships it, which gives each
+  // state arg's type, and may give its description, for forms and models
+  // alike.
   readonly schema: JsonSchema;
   // What a new block starts with, from `expr` called without args.
   readonly state: Readonly<Record<string, Json>>;
-  // The arg specs, which describe each state arg for models and tools.
-  readonly arguments: Readonly<Record<string, ArgSpec>>;
   readonly requests: Readonly<
     Record<
       string,
@@ -68,12 +67,4 @@ export interface RegistryEntry {
   // first output, so that the request carries those too. Each output names
   // the one that draws it.
   readonly renderers?: readonly OutputRenderer[];
-}
-
-// An arg spec, as `new_arg_spec()` makes it, without the properties it
-// leaves unset.
-export interface ArgSpec {
-  readonly description?: string;
-  readonly example?: Json;
-  readonly type?: JsonSchema;
 }

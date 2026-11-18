@@ -69,12 +69,6 @@ scatter_block <- new_block_class(
 #'   `x` and `y` are column names from the input data; axis labels follow the
 #'   column names.
 #' @blockKeywords scatter, scatter plot, chart, visualization, points
-#' @blockArg x Column for the horizontal axis.
-#'   [example] "Sepal.Length"
-#'   [type] arg_string()
-#' @blockArg y Column for the vertical axis.
-#'   [example] "Sepal.Width"
-#'   [type] arg_string()
 #'
 #' @examples
 #' new_scatter_block(x = "Time", y = "demand")

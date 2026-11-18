@@ -19,11 +19,8 @@ register_block(
   description,
   category = NULL,
   icon = NULL,
-  arguments = NULL,
-  details = NULL,
   link = NULL,
   guidance = NULL,
-  examples = list(),
   keywords = NULL,
   overwrite = FALSE
 )
@@ -56,21 +53,10 @@ blocks are uncategorized.}
 
 \item{icon}{Icon}
 
-\item{arguments}{Block argument specification, either a \code{\link[=new_arg_specs]{new_arg_specs()}}
-object or a (possibly empty) named character vector of argument
-descriptions}
-
-\item{details}{Optional longer human-facing description (e.g. for a help
-popover), complementing the short \code{description}}
-
 \item{link}{Optional URL to a block's help or documentation page}
 
 \item{guidance}{Optional model-facing construction guidance (do/don't rules,
-enums, pitfalls), distinct from the human-facing \code{details}}
-
-\item{examples}{Optional list of complete worked configurations (each a
-named list keyed by argument name); supersedes the per-argument example
-assembly}
+enums, pitfalls)}
 
 \item{keywords}{Optional character vector of free-text search terms for block
 discovery}
@@ -82,8 +68,7 @@ discovery}
 \item{uid}{Registry ids of the entries to remove}
 
 \item{...}{For \code{register_blocks()}, arguments forwarded to
-\code{register_block()}; for \code{new_arg_specs()}, named \code{new_arg_spec()} objects
-(or strings), one per constructor formal}
+\code{register_block()}}
 
 \item{id}{Block ID as reported by \code{list_blocks()}}
 }
@@ -96,8 +81,9 @@ Listing via \code{list_blocks()} returns a character vector, and
 class. Block
 construction via \code{create_block()} returns a newly instantiated \code{block}
 object, and the lookup \code{registry_id_from_block()} returns the registry id
-that a block's class gives, a string. A block's argument specification is
-built and read with \code{\link[=new_arg_spec]{new_arg_spec()}} and friends.
+that a block's class gives, a string.
+The categories that registration expects a class to name come from
+\code{suggested_categories()}, as a character vector.
 }
 \description{
 Listing of blocks is available via a block registry, which holds each block
@@ -171,30 +157,30 @@ registering it holds it.
 So a later \code{serve()} or \code{register_block()} changes no app that \code{serve()}
 built before.
 
-An entry holds, beside the metadata, the block class, its constructor, its
-data inputs, its UI module and the JSON Schema of the block's state that the
-module ships beside it, as \verb{<name>.schema.json} for a module \verb{<name>.js},
+An entry holds, beside the metadata, the block class, its data inputs and
+the JSON Schema of the block's state that the class's UI module ships beside
+it, as \verb{<name>.schema.json} for a module \verb{<name>.js},
 decoded with an array of length one marked with \code{\link[=I]{I()}}, so that R writes it
 back as the module ships it, and whose properties must be the state args
 where it ships one, a description of each request, with the inputs and
 state args it names, the ids of the board options it reads, named by the
 arguments that take their values, whether it is volatile or an action, and
 the argument that takes a file, where it takes one,
-and the state a new block starts with, from \code{expr} called without args. The
-arg specs default to every state arg, and their examples are checked by
-calling \code{expr} with them.
+and the state a new block starts with, from \code{expr} called without args.
+The schema is what describes the block's state, to the client and to
+models alike.
+Each of its properties gives a state arg's type, and may give the arg's
+description (see \code{vignette("create-block")}).
 
 R sends the client what it needs of each entry, in its reply to \code{hello},
 without building a block: the metadata, with \code{link} as \code{url}, the data
 inputs, where R serves the UI module, the schema, the state a new block
-starts with, the arg specs and the requests. R serves the
+starts with and the requests. R serves the
 module, and the stylesheet beside it, at a URL that holds a hash of the
 file's content, so that no browser runs a changed file from its cache. It
-writes the starting state by the schema of the block's state, and the
-example of each arg spec by the type it gives. So registration refuses a
-class whose starting state is not a plain value, as a block's state has to
-be (see \code{\link[=blockr_ser]{blockr_ser()}}), and refuses an arg spec whose example is not one
-either.
+writes the starting state by the schema of the block's state.
+So registration refuses a class whose starting state is not a plain value,
+as a block's state has to be (see \code{\link[=blockr_ser]{blockr_ser()}}).
 
 Blocks can be registered (i.e. added to the registry) via \code{register_block()}
 with scalar-valued arguments and \code{register_blocks()}, where arguments may be

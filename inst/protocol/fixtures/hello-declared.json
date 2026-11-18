@@ -29,7 +29,6 @@
             "version": 1,
             "schema": {},
             "state": { "n": 3 },
-            "arguments": { "n": {} },
             "requests": {},
             "output_options": [],
             "renderers": [
@@ -43,7 +42,6 @@
             "id": "letters_block",
             "name": "letters block",
             "description": "Pick columns",
-            "details": "Keeps the columns it is given.",
             "url": "https://example.com/letters",
             "guidance": "Set `columns` to the names of columns to keep.",
             "keywords": ["letters", "columns"],
@@ -56,22 +54,15 @@
             "schema": {
               "type": "object",
               "properties": {
-                "columns": { "type": "array", "items": { "type": "string" } },
-                "sep": { "type": "string" }
+                "columns": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Columns to keep."
+                },
+                "sep": { "type": "string", "description": "Separator." }
               }
             },
             "state": { "columns": ["x"], "sep": "," },
-            "arguments": {
-              "columns": {
-                "description": "Columns to keep.",
-                "example": ["x"],
-                "type": { "type": "array", "items": { "type": "string" } }
-              },
-              "sep": {
-                "description": "Separator.",
-                "type": { "type": "string" }
-              }
-            },
             "requests": {
               "columns": {
                 "inputs": ["data"],
@@ -139,14 +130,13 @@
           "packages": { "blockr.core": "0.2.0", "blockr.test": "0.1.0" },
           "board": {
             "id": "calm_heron",
-            "versions": { "blockr.test-grid_plugin": 2 },
             "name": "Calm heron",
             "blocks": {},
             "links": {},
             "stacks": {},
             "options": {},
             "plugins": {
-              "blockr.test-grid_plugin": { "columns": 2 }
+              "blockr.test-grid_plugin": { "state": { "columns": 2 }, "version": 2 }
             }
           }
         }

@@ -79,7 +79,6 @@ Config/testthat/edition: 3
 VignetteBuilder: quarto
 Config/roxygen2/version: 8.0.0
 Collate: 
-    'arg-spec.R'
     'block-request.R'
     'block-expr.R'
     'utils-expr.R'
