@@ -148,7 +148,9 @@ entry_state <- function(x) {
 
 # A request as the block registry describes it to the client: the data inputs
 # and state args that its function names, the IDs of the board options it
-# reads, and whether it is volatile or an action, each said only where it is.
+# reads, whether it is volatile or an action, and whether it takes a file, each
+# of the last three said only where it is so.
+# The client needs no name of the argument that takes the file.
 request_entry_reply <- function(x) {
   c(
     list(
@@ -157,7 +159,8 @@ request_entry_reply <- function(x) {
       options = I(unname(x[["options"]]))
     ),
     if (isTRUE(x[["volatile"]])) list(volatile = TRUE),
-    if (isTRUE(x[["action"]])) list(action = TRUE)
+    if (isTRUE(x[["action"]])) list(action = TRUE),
+    if (not_null(x[["file"]])) list(file = TRUE)
   )
 }
 

@@ -55,6 +55,11 @@ export interface Delta {
   readonly options?: Values<OptionId>;
   readonly name?: string;
   readonly patches?: readonly Patch[];
+  // False where undo never takes back what the delta changes. The command
+  // registry sets it on each delta of a command with `undo: false`. The store
+  // keeps no inverse of such a delta, as it keeps no board option values
+  // (./store.ts).
+  readonly undo?: false;
 }
 
 // Whether a step is given as several deltas rather than one. The store's

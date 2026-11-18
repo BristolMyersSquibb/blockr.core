@@ -23,6 +23,7 @@ export interface RegistryEntry {
         readonly options: readonly OptionId[];
         readonly volatile?: true;
         readonly action?: true;
+        readonly file?: true;
     }>>;
     readonly renderer?: OutputRenderer;
 }

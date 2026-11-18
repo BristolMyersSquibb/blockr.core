@@ -460,11 +460,10 @@ function stubBlockHost(fixture, options = {}) {
       if (opts.signal?.aborted === true) return Promise.reject(asError(opts.signal.reason));
       const found = fixture.requests.find(
         (call) => call.name === name2 && Object.keys(given).every((arg) => Object.hasOwn(call.args, arg)) && // The host fills in a state arg from the block's state
-        // where the module passes none,
-        // and R gives a file the module sends to the arg `file`.
+        // where the module passes none.
         Object.entries(call.args).every(
-          ([arg, value2]) => arg === "file" && opts.file !== void 0 && !Object.hasOwn(given, arg) ? sameFile(value2, opts.file) : jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state2, arg), value2)
-        ) && Object.entries(call.options).every(([id2, value2]) => jsonEqual(own(context4.options, id2), value2))
+          ([arg, value2]) => jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state2, arg), value2)
+        ) && (call.file === void 0 ? opts.file === void 0 : opts.file !== void 0 && sameFile(call.file, opts.file)) && Object.entries(call.options).every(([id2, value2]) => jsonEqual(own(context4.options, id2), value2))
       );
       if (found === void 0) {
         return Promise.reject(
@@ -2214,7 +2213,7 @@ function createAnswers(scheduler, signal5) {
         }
       }
     }).then((answer2) => {
-      if (key2 !== void 0 && ask.share === "keep" && answer2.reply.status === "ok" && !("volatile" in answer2.reply && answer2.reply.volatile === true) && current2(ask.request)) {
+      if (key2 !== void 0 && ask.share === "keep" && answer2.reply.status === "ok" && current2(ask.request)) {
         kept.set(key2, { answer: answer2, request: ask.request });
       }
       return answer2;
@@ -2547,6 +2546,11 @@ async function blockRequest(deps, block, entry, name2, given, opts) {
   }
   if (!isObject(given)) {
     throw new TypeError(`The args of the request "${name2}" are an object of state args and parameters.`);
+  }
+  if (opts.file !== void 0 && spec.file !== true) {
+    throw new TypeError(
+      `The request "${name2}" of the block class "${entry.id}" takes no file, since its new_block_request() names no argument for one.`
+    );
   }
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name2}" of block "${block}"`;
@@ -6206,8 +6210,8 @@ function createStore(options = {}) {
         const locked2 = lockFailures(current3, committed.inverse.delta);
         if (locked2.length > 0) throw fail(locked2);
       }
-      const undoable = !isEmpty(committed.inverse.delta);
-      if (!undoable && committed.changed.options.size === 0) continue;
+      const inverse = isEmpty(committed.inverse.delta) ? void 0 : committed.inverse;
+      if (inverse === void 0 && committed.changed.options.size === 0) continue;
       const failures = check(
         committed.board,
         registry.value,
@@ -6216,7 +6220,7 @@ function createStore(options = {}) {
       );
       if (failures.length > 0) throw fail(failures);
       applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
-      if (undoable) inverses.unshift(committed.inverse);
+      if (inverse !== void 0 && given.undo !== false) inverses.unshift(inverse);
       current3 = committed.board;
     }
     return { applied, inverses };
@@ -6267,14 +6271,15 @@ function createStore(options = {}) {
   }
   function apply(delta, origin = "user", opts = {}) {
     guard2();
-    const deltas = isDeltas(delta) ? delta : [delta];
-    if (deltas.length === 0) return;
+    const given = isDeltas(delta) ? delta : [delta];
+    if (given.length === 0) return;
+    const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
     busy = true;
     try {
       const { start: start2, applied, inverses } = runOnBoard(deltas);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start2);
-      if (inverses.length > 0 && opts.undo !== false) {
+      if (inverses.length > 0) {
         history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
       }
       for (const { delta: delta2, board: next } of applied) {
@@ -7172,7 +7177,7 @@ function createCommands(store, options = {}) {
   function build({ command: command2, context: context4 }, board, args) {
     const returned = attempt2(command2, () => command2.run(board, args, context4));
     const deltas2 = isDeltas(returned) ? returned : [returned];
-    return deltas2.map(withEdits);
+    return deltas2.map((delta) => withEdits(command2.undo === false ? { ...delta, undo: false } : delta));
   }
   function deltas(item, args) {
     const board = current2(item.command.id);
@@ -7205,7 +7210,7 @@ function createCommands(store, options = {}) {
       }
     });
     const [first] = checked3;
-    if (first === void 0) return then([], []);
+    if (first === void 0) return then([]);
     const inputs = /* @__PURE__ */ new Map();
     let built = [];
     let again = true;
@@ -7238,16 +7243,15 @@ function createCommands(store, options = {}) {
         }
       }
     }
-    return within(() => then(built, checked3.map(({ item }) => item.command)));
+    return within(() => then(built));
   }
   function runList(list, origin) {
     const ids2 = list.map(({ id: id2 }) => id2);
     return traced(
       "command list",
       { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(list, (built, listed) => {
-        const undo = listed.every((command2) => command2.undo === false) ? false : void 0;
-        store.apply(built, origin, { undo });
+      () => planned(list, (built) => {
+        store.apply(built, origin);
       })
     );
   }
@@ -7309,7 +7313,7 @@ function createCommands(store, options = {}) {
         const step2 = deltas(item, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
         within(() => {
-          store.apply(ready, origin, { undo: item.command.undo });
+          store.apply(ready, origin);
         });
       });
     },
@@ -12444,7 +12448,8 @@ var hello_default = {
                 inputs: [],
                 state_args: [],
                 options: [],
-                action: true
+                action: true,
+                file: true
               }
             },
             renderer: {

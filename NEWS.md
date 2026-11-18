@@ -72,9 +72,9 @@
   has unless it gives its own: `output_schema()` gives the JSON Schema that R
   writes the outputs by, which `read_json_schema()` reads from a file that the
   package ships, `output_requests()` the requests that the class's renderers
-  call, each of which `volatile()` may mark, `output_renderer()` the
-  renderer that draws the outputs, and `output_coercion()` the coercion that
-  makes them. The function `run_output_class_request()`
+  call, `output_renderer()` the renderer that draws the outputs, and
+  `output_coercion()` the coercion that makes them. The function
+  `run_output_class_request()`
   runs such a request as R does (#422, #440, #465).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table. Its
@@ -267,7 +267,7 @@
   R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
   Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
   Core's UIs, its renderers included, take their face from the theme's sans, `--bc-font-sans`, as their code takes its mono, `--bc-font-mono`, which a frontend sets to restyle them.
-  The stub of a block's host answers an upload that a fixture records with the file as the action's argument `file` (#438).
+  The stub of a block's host answers an upload by the file that a fixture records for it (#438, #663).
 * A stack may have a color, which frontends draw it in, as the stacks of blockr.dock had until now.
   The color is a hex color of six digits, such as `"#66c2a5"`.
   The constructor `new_stack()` takes it as `color`, and `stack_color()` reads it.
@@ -423,9 +423,11 @@
   So a plugin class's commands can refuse what its plugins lock, and mint IDs as core's commands do.
   A command throws what `refusal()` makes to refuse from its `preflight()`, `prepare()` or `run()`, and the command registry rejects with it as it is, as with its own refusals.
   Core's own commands read the board lock and mint IDs through the context too.
-  A command with `undo: false` takes no undo step.
+  Undo never takes back what a command with `undo: false` changes, whether the command runs alone or in a list.
   That suits a command that changes only what the user looks at, such as which of the dock's views shows.
-  The command registry passes `{ undo: false }` on to `store.apply()`, which applies and announces such a step as any other, but keeps no inverse of it and leaves the undo and redo steps as they are (#600, #627).
+  The command registry gives each delta of such a command `undo: false`, and the store applies and announces such a delta as any other, but keeps no inverse of it, as it keeps no board option values.
+  A step of which the store keeps no inverse leaves the undo and redo steps as they are.
+  The option `{ undo: false }` of `store.apply()` gives every delta of the step `undo: false` (#600, #627, #662).
 * The client's store keeps one undo history for the steps of every origin, in the order the board took them, so that a frontend's Undo takes back the assistant's edits as it takes back the user's own.
   Its `undo()` takes back the history's last step, whoever took it, or, given an origin, that origin's last step, past the steps of others after it.
   Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
@@ -435,10 +437,11 @@
   It plans each command on the board that the deltas of the commands before it leave, so that a list can add a block and then link it.
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
   Where the board changes while a command of the list waits in its `prepare()`, the registry plans the list again from its first command, on the board as it is then, and no command prepares twice.
-  The registry applies the deltas of every command as one step of the origin, which is an undo step unless every command of the list has `undo: false`, or applies none where one command refuses.
+  The registry applies the deltas of every command as one step of the origin, or applies none where one command refuses.
   It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
+  The step of a list is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
   Where the registry refuses a list of the origin `"user"` that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
-  The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619).
+  The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.
@@ -609,6 +612,10 @@
   The registry still rejects with that error, and its `preflight()` still answers `false`.
   It logs no refusal, whether it refuses a command itself, the command refuses with the `refusal()` of its context, or the store refuses the command's deltas.
   Where a plugin runs a command of the user's through `CoreApi`, core raises `board_edit_failed` for a command that failed so, as it does for a refusal, and logs no line of its own (#627).
+* A block class's request takes a file that the client sends only where `new_block_request()` names the argument for it, in `file`.
+  That argument may have any name, and the function `run_block_request()` passes it a file through its own argument `file`.
+  The block registry marks a request that takes a file with `file`, and the client sends no file with any other request.
+  A block class's fixture records the file that a request was sent beside its `args` (#663).
 
 # blockr.core 0.1.4
 

@@ -254,7 +254,6 @@ test_that("a subclass's requests come before those of its class", {
 
   expect_error(run_output_class_request("bad_output", "x", 1),
                class = "output_class_requests_invalid")
-  expect_error(volatile(1), class = "output_class_requests_invalid")
 })
 
 test_that("a request takes the result, board options, parameters and file", {
@@ -271,7 +270,7 @@ test_that("a request takes the result, board options, parameters and file", {
           format = format
         )
       },
-      dots = volatile(function(...) list(...)),
+      dots = function(...) list(...),
       some = function(params) params
     )
   )
@@ -308,9 +307,6 @@ test_that("a request takes the result, board options, parameters and file", {
                              params = list(page = 1L)),
     list(page = 1L)
   )
-
-  expect_true(output_class_request("arg_output", "dots")$volatile)
-  expect_false(output_class_request("arg_output", "all")$volatile)
 
   expect_error(
     run_output_class_request("arg_output", "some", 1, args = list(x = 1)),

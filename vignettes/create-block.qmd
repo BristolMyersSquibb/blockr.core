@@ -295,8 +295,10 @@ Core's upload block keeps the file that a user picks through the action `upload`
 upload_block$requests$upload
 ```
 
-R calls an action with the file that the module sends in the argument `file`.
-That is a list of the path where R wrote the bytes, and the file's name, MIME type and size, as Shiny's `fileInput()` gives them.
+A request takes a file that the module sends only where `new_block_request()` names the argument for it, in `file`.
+The upload names its argument `file`, but the argument may have any name.
+R passes the file in that argument, as a list of the path where R wrote the bytes, and the file's name, MIME type and size, as Shiny's `fileInput()` gives them.
+The client sends no file with a request that names no such argument.
 The action keeps the file where its package decides and returns its path.
 The module then submits that path into the block's state, as `file_path`.
 

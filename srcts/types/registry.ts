@@ -48,6 +48,10 @@ export interface RegistryEntry {
         readonly volatile?: true;
         // Acts rather than reads, and runs once per call.
         readonly action?: true;
+        // Takes a file that the client sends, in the argument that its
+        // `new_block_request()` names. The client sends no file with any
+        // other request.
+        readonly file?: true;
       }
     >
   >;

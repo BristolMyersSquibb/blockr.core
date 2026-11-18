@@ -166,7 +166,8 @@ decoded with an array of length one marked with \code{\link[=I]{I()}}, so that R
 back as the module ships it, and whose properties must be the state args
 where it ships one, a description of each request, with the inputs and
 state args it names, the ids of the board options it reads, named by the
-arguments that take their values, and whether it is volatile or an action,
+arguments that take their values, whether it is volatile or an action, and
+the argument that takes a file, where it takes one,
 and the state a new block starts with, from \code{expr} called without args.
 The schema is what describes the block's state, to the client and to
 models alike.

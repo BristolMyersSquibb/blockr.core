@@ -121,7 +121,7 @@ test_that("a request says what it reads, and whether volatile or an action", {
       "\"files\":{\"inputs\":[],\"state_args\":[],\"options\":[],",
       "\"volatile\":true},",
       "\"upload\":{\"inputs\":[],\"state_args\":[],\"options\":[],",
-      "\"action\":true}}"
+      "\"action\":true,\"file\":true}}"
     )
   )
 })

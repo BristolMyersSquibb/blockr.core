@@ -21,7 +21,8 @@ expect_block_fixture(
 under \code{...}}
 
 \item{requests}{A list of request calls, each a list of the request's \code{name}
-and, optionally, its \code{args} and \code{options} (see \code{\link[=run_block_request]{run_block_request()}})}
+and, optionally, its \code{args}, \code{options} and \code{file} (see
+\code{\link[=run_block_request]{run_block_request()}})}
 
 \item{name}{The fixture's file name, without extension, which defaults to
 the class's id}
@@ -56,6 +57,7 @@ and by the JSON Schema that the class's UI module ships.
 A module test then compares the state a module submits with it as it is.
 Each request is written with its \code{name},
 the \code{args} and \code{options} it was called with,
+the \code{file} it was sent, where it was sent one,
 and its \code{answer}, with every vector as an array,
 as R writes a request's answer.
 

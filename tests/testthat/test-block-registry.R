@@ -21,7 +21,8 @@ test_that("registry", {
     entry$requests,
     list(
       n_max = list(inputs = "data", state_args = character(),
-                   options = character(), volatile = FALSE, action = FALSE)
+                   options = character(), volatile = FALSE, action = FALSE,
+                   file = NULL)
     )
   )
 

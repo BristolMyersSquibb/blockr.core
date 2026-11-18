@@ -436,17 +436,6 @@ protocol_r_values <- function() {
         )
       )
     ),
-    `request-output-volatile` = list(
-      list(
-        obj(
-          id = "36",
-          status = "ok",
-          value = encode_answer(c("corporate.potx", "plain.potx")),
-          conditions = list(),
-          volatile = TRUE
-        )
-      )
-    ),
     `request-renderer` = list(
       list(
         obj(
@@ -894,7 +883,7 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(),
-      requests = obj(upload = proto_request(action = TRUE)),
+      requests = obj(upload = proto_request(action = TRUE, file = TRUE)),
       renderer = proto_renderer("text")
     )
   )
@@ -1375,7 +1364,8 @@ register_script_blocks <- function(dir) {
       ),
       upload = new_block_request(
         function(file) file[["datapath"]],
-        action = TRUE
+        action = TRUE,
+        file = "file"
       )
     )
   )
