@@ -151,6 +151,13 @@ export interface CoreApi {
   // own where nothing sets it. It rejects where R cannot give the value, as for
   // a blockr option whose R option and environment variable disagree.
   blockrOption(name: string): Promise<Json | undefined>;
+  // A new id, such as "calm_heron", that `taken` does not hold, in the shape
+  // that the blockr option rand_id names, as core's commands mint ids. It
+  // serves a caller that names an object before a batch adds it. A batch hands
+  // no value from one command to the next, so a caller that adds a block and
+  // links it in one batch mints the block's id first, as the block picker
+  // does.
+  mintId(taken: (id: string) => boolean): string;
   // The block's UI module, its output, and a board option's UI or the
   // renderer R picked for it, each mounted in the element until the cleanup
   // that the call returns runs.

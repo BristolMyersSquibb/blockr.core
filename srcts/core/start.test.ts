@@ -517,7 +517,7 @@ describe("starting the page", () => {
     ]);
   });
 
-  test("has core's commands mint ids in the shape that the blockr option rand_id names", async () => {
+  test("has core's commands and CoreApi's mintId() mint ids in the shape that the blockr option rand_id names", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
@@ -525,12 +525,14 @@ describe("starting the page", () => {
     s.r.options({ rand_id: "uuid" });
     const core = await s.started.ready;
     const before = Object.keys(core.store.board().blocks);
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
     await core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block" });
 
     const minted = Object.keys(core.store.board().blocks).filter((id) => !before.includes(id));
     expect(minted).toHaveLength(1);
-    expect(minted[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(minted[0]).toMatch(uuid);
+    expect(core.mintId((id) => Object.hasOwn(core.store.board().blocks, id))).toMatch(uuid);
   });
 
   test("imports the module of each of the app's plugin classes and board options before it opens the board, once for the page", async () => {

@@ -36,6 +36,7 @@ import { announceTo, createMounts } from "../mount/index.ts";
 import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
 import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
+import { asRandId, mintId } from "../store/index.ts";
 import type { Origin, Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi, OnScreen, OutputEvents, Raised } from "../types/core-api.ts";
@@ -58,6 +59,10 @@ export interface CoreParts {
   readonly scheduler: Scheduler;
   readonly loader: Loader;
   readonly blockrOptions: BlockrOptions;
+  // The blockr option rand_id as R sent it: the shape of the ids that
+  // mintId() mints. Core hands the same value to the command registry, so that
+  // both mint ids in one shape. It is "adjective_animal" unless given.
+  readonly randId?: Json | undefined;
   // The locks that the app sets, from R's reply to `hello`.
   readonly lock: Lock;
   // The renderers that the app names for board options, from R's latest reply
@@ -98,6 +103,7 @@ export interface Core {
 
 export function createCore(parts: CoreParts): Core {
   const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const randId = asRandId(parts.randId);
   const { raise } = notifications;
   // The notifications follow the scheduler ahead of any frontend, so that
   // what a frontend reads of them as the scheduler announces a status holds
@@ -223,6 +229,7 @@ export function createCore(parts: CoreParts): Core {
       pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name, args, opts) as Promise<T | Blob>,
     module: <T = unknown>(id: string) => loader.module(id) as Promise<T>,
     blockrOption: (name) => blockrOptions.read(name),
+    mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),

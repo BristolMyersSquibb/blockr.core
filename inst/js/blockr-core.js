@@ -4721,6 +4721,11 @@ var RAND_IDS = [
 function isRandId(value2) {
   return typeof value2 === "string" && RAND_IDS.includes(value2);
 }
+function asRandId(randId) {
+  if (randId === void 0) return "adjective_animal";
+  if (isRandId(randId)) return randId;
+  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
+}
 function isId(id2) {
   return typeof id2 === "string" && id2 !== "" && !/^\d+$/.test(id2);
 }
@@ -6447,11 +6452,7 @@ function coreCommands(store) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [
-      id2,
-      { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null },
-      entry
-    ];
+    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
   function linkable(board2, to, given) {
     if (!Object.hasOwn(board2.blocks, to)) return false;
@@ -6467,21 +6468,11 @@ function coreCommands(store) {
       `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`
     );
   }
-  function newInput(command2, entry, given) {
-    if (named(given)) return given;
-    if (entry.inputs.includes("...")) return "";
-    return one(
-      command2,
-      entry.inputs,
-      `The block class "${entry.id}" has no input to take a link.`,
-      `The block class "${entry.id}" has the inputs ${quoted(entry.inputs)}, so the args have to name the one to use.`
-    );
-  }
   const blocks = [
     command({
       id: "blockr.core-add_block",
       label: "Add block",
-      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given.",
+      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
       args: object(newBlock, ["registry_id"]),
       run(board2, args, { mintId: mintId2 }) {
         const [id2, block] = added(this.id, board2, args, mintId2);
@@ -6538,94 +6529,6 @@ function coreCommands(store) {
             mod: {
               [id2]: { ...state2 === void 0 ? {} : { state: state2 }, ...unset === void 0 ? {} : { unset } }
             }
-          }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-append_block",
-      label: "Append block",
-      description: "Adds a block that takes the result of another, through a new link from that block into an input of the new block.",
-      args: object(
-        {
-          from: { ...blockId, description: "The block whose result the new block takes." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of the new block that takes the result, which may be left out where the new block has one input or is variadic."
-          }
-        },
-        ["from", "registry_id"]
-      ),
-      preflight: (board2, { from }) => Object.hasOwn(board2.blocks, from),
-      run(board2, args, { mintId: mintId2 }) {
-        const [id2, block, entry] = added(this.id, board2, args, mintId2);
-        const input2 = newInput(this.id, entry, args.input);
-        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        return {
-          blocks: { add: { [id2]: block } },
-          links: { add: { [link]: { from: args.from, to: id2, input: input2 } } }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-prepend_block",
-      label: "Prepend block",
-      description: "Adds a block whose result another takes, through a new link from the new block into an input of that block.",
-      args: object(
-        {
-          to: { ...blockId, description: "The block that takes the new block's result." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of that block that takes the result, which may be left out where only one of its inputs is free or it is variadic."
-          }
-        },
-        ["to", "registry_id"]
-      ),
-      preflight: (board2, { to, input: input2 }) => linkable(board2, to, input2),
-      run(board2, args, { mintId: mintId2 }) {
-        const input2 = linkInput(this.id, board2, args.to, args.input);
-        const [id2, block] = added(this.id, board2, args, mintId2);
-        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        return {
-          blocks: { add: { [id2]: block } },
-          links: { add: { [link]: { from: id2, to: args.to, input: input2 } } }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-insert_block",
-      label: "Insert block",
-      description: "Adds a block on a link, which it replaces with a link from the link's source into an input of the new block and one from the new block into the input that the link fed.",
-      args: object(
-        {
-          link: { ...linkId, description: "The link that the new block goes on." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of the new block that takes the result of the link's source, which may be left out where the new block has one input or is variadic."
-          }
-        },
-        ["link", "registry_id"]
-      ),
-      preflight: (board2, { link }) => Object.hasOwn(board2.links, link),
-      run(board2, args, { mintId: mintId2 }) {
-        const split = own(board2.links, args.link);
-        if (split === void 0) return [];
-        const [id2, block, entry] = added(this.id, board2, args, mintId2);
-        const input2 = newInput(this.id, entry, args.input);
-        const near = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        const far = mintId2((id3) => Object.hasOwn(board2.links, id3) || id3 === near);
-        return {
-          blocks: { add: { [id2]: block } },
-          links: {
-            rm: [args.link],
-            add: {
-              [near]: { from: split.from, to: id2, input: input2 },
-              [far]: { from: id2, to: split.to, input: split.input }
-            },
-            before: { [far]: args.link }
           }
         };
       }
@@ -6937,7 +6840,7 @@ function createCommands(store, options = {}) {
     () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
   );
   const ended = () => options.signal?.aborted === true;
-  const randId = options.randId === void 0 ? "adjective_animal" : asRandId(options.randId);
+  const randId = asRandId(options.randId);
   const shared = {
     lock: options.lock ?? { board: false, load: false },
     mintId: (taken) => mintId(taken, randId),
@@ -7157,10 +7060,6 @@ function createCommands(store, options = {}) {
     registry.register(command2);
   }
   return registry;
-}
-function asRandId(randId) {
-  if (isRandId(randId)) return randId;
-  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 function isCommandId(id2) {
   const pkg = packageFromId(id2);
@@ -7443,6 +7342,7 @@ async function evaluateReads2(deps, what, blocks, signal5) {
 // srcts/core/core.ts
 function createCore(parts) {
   const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const randId = asRandId(parts.randId);
   const { raise } = notifications;
   notifications.follow(scheduler);
   const optionPackage = (id2) => own(parts.options, id2)?.package;
@@ -7549,6 +7449,7 @@ function createCore(parts) {
     request: (plugin, name3, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name3, args, opts),
     module: (id2) => loader.module(id2),
     blockrOption: (name3) => blockrOptions.read(name3),
+    mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),
@@ -8410,6 +8311,7 @@ function start(options) {
       scheduler,
       loader,
       blockrOptions,
+      randId,
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,

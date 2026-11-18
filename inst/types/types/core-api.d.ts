@@ -42,6 +42,7 @@ export interface CoreApi {
     request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
     module<T = unknown>(id: string): Promise<T>;
     blockrOption(name: string): Promise<Json | undefined>;
+    mintId(taken: (id: string) => boolean): string;
     mountBlock(el: HTMLElement, block: BlockId): () => void;
     mountOutput(el: HTMLElement, block: BlockId): () => void;
     mountOption(el: HTMLElement, option: OptionId): () => void;

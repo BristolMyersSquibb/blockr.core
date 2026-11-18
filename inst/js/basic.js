@@ -313,8 +313,9 @@ var styles = {
 };
 
 // srcts/ui/edits.ts
-function runCommand(core, id2, args) {
-  return core.commands.run(id2, args).then(
+function runCommand(core, target2, args) {
+  const running = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
+  return running.then(
     () => true,
     () => false
   );
@@ -460,7 +461,7 @@ import { jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
 
 // srcts/picker/picker.tsx
 import { jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
-function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
+function BlockPicker({ core, mode, onAdded, autofocus = false }) {
   const board = useBoard(core);
   const registry = core.blockRegistry();
   const [picked, setPicked] = useState6(void 0);
@@ -504,12 +505,14 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
     const args = {
       registry_id: entry.id,
       ...filled("id", id2),
-      ...filled("name", name2),
+      ...filled("name", name2)
+    };
+    const into = {
       ...chosen === void 0 ? {} : { input: chosen },
       ...link.kind === "name" ? filled("input", inputName) : {}
     };
     setBusy(true);
-    const ran = mode.kind === "after" ? await run("blockr.core-append_block", { ...args, from: mode.from }) : mode.kind === "before" ? await run("blockr.core-prepend_block", { ...args, to: mode.to }) : await run("blockr.core-add_block", args);
+    const ran = mode.kind === "add" ? await runCommand(core, "blockr.core-add_block", args) : await runCommand(core, addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(void 0);
@@ -632,6 +635,14 @@ function linkChoice(mode, board, registry, entry) {
     if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
   }
   return { kind: "none" };
+}
+function addAndLink(core, mode, args, into) {
+  const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
+  const ends = mode.kind === "after" ? { from: mode.from, to: block } : { from: block, to: mode.to };
+  return [
+    { id: "blockr.core-add_block", args: { ...args, id: block } },
+    { id: "blockr.core-add_link", args: { ...ends, ...into } }
+  ];
 }
 function namesInto(board, to, except) {
   return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
@@ -1568,8 +1579,7 @@ function AddBlockDialog({ mode, onClose }) {
   const board = useBoard3(front.core);
   const target2 = mode.kind === "add" ? void 0 : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target2 === void 0 ? "Add block" : `Add block ${mode.kind} "${target2.name}"`;
-  const run = useCallback6((command, args) => runCommand(front.core, command, args), [front.core]);
-  return /* @__PURE__ */ jsx12(Dialog, { title, onClose, children: /* @__PURE__ */ jsx12(BlockPicker, { core: front.core, mode, run, onAdded: onClose, autofocus: true }) });
+  return /* @__PURE__ */ jsx12(Dialog, { title, onClose, children: /* @__PURE__ */ jsx12(BlockPicker, { core: front.core, mode, onAdded: onClose, autofocus: true }) });
 }
 function Toasts() {
   const { core, toasts } = useFrontEnd();
