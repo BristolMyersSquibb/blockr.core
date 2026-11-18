@@ -103,7 +103,7 @@ test_that("with both locks, R evaluates an open block by its opening links", {
   # The bindings come from the opening board, whatever the request names.
   reply <- evaluated(
     session, "3", "b", 2L,
-    locked_recipe_b(inputs = list(read_of("b", 1L, "data")))
+    locked_recipe_b(inputs = list(recipe_input("b", 1L, "data")))
   )
   expect_identical(reply$status, "error")
   expect_match(
@@ -316,7 +316,7 @@ test_that("with both locks, R takes the parameters from the request", {
   recipe <- list(
     registry_id = "blockr.io-write_block",
     state = set_names(list(), character()),
-    inputs = list(read_of("a", 1L, ""))
+    inputs = list(recipe_input("a", 1L, ""))
   )
 
   expect_identical(evaluated(session, "2", "w", 1L, recipe)$status, "waiting")
@@ -432,12 +432,12 @@ test_that("without the load lock, R holds a block to its first evaluation", {
   session <- local_board_locked_evaluator()
 
   hold_result(session, "a", 2L)
-  hold_result(session, "d", 6L, list(read_of("a", 2L, "data")))
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "d", 6L, list(recipe_input("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
 
   reply <- evaluated(
     session, "1", "b", 4L,
-    sample_recipe("b", list(read_of("d", 6L, "data")))
+    sample_recipe("b", list(recipe_input("d", 6L, "data")))
   )
   expect_identical(reply$status, "error")
   expect_identical(
