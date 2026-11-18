@@ -123,13 +123,15 @@ function isVersion(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1;
 }
 
-// The versions that a JSON board records, which its migrations key on:
-// one for each plugin class whose plugins it holds, one for each block's state
-// and one for each board option's value, which it holds beside the value.
+// The versions that a JSON board records, which its migrations key on, each
+// beside what it versions: one for each plugin's state, one for each block's
+// state and one for each board option's value.
 function checkVersions(board: Readonly<Record<string, unknown>>): void {
   const failures: string[] = [];
-  if (!isObject(board.versions) || !Object.values(board.versions).every(isVersion)) {
-    failures.push("The board records the versions of its plugin classes as no whole numbers from 1 by class.");
+  for (const [cls, plugin] of Object.entries(board.plugins as Readonly<Record<string, unknown>>)) {
+    if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
+      failures.push(`The plugin "${cls}" is recorded as no state with the version of its class's state.`);
+    }
   }
   for (const [id, block] of Object.entries(board.blocks as Readonly<Record<string, unknown>>)) {
     if (isObject(block) && !isVersion(block.version)) {
@@ -145,8 +147,8 @@ function checkVersions(board: Readonly<Record<string, unknown>>): void {
 }
 
 // The board that a JSON board holds, without the versions that it records,
-// which only its migrations read, so that each board option holds its value,
-// and without what core's board does not hold.
+// which only its migrations read, so that each board option holds its value
+// and each plugin its state, and without what core's board does not hold.
 function unversioned(board: JsonBoard["board"]): Board {
   const record = board as unknown as Readonly<Record<string, unknown>>;
   return {
@@ -158,6 +160,7 @@ function unversioned(board: JsonBoard["board"]): Board {
       ]),
     ),
     options: Object.fromEntries(Object.entries(board.options).map(([id, option]) => [id, option.value])),
+    plugins: Object.fromEntries(Object.entries(board.plugins).map(([cls, plugin]) => [cls, plugin.state])),
   } as unknown as Board;
 }
 
@@ -169,9 +172,7 @@ function unversioned(board: JsonBoard["board"]): Board {
 // the value of each board option whose version is below the one R gives, by
 // the board option's `migrate`.
 // R gives version 1 for a board option that it names no version of.
-// A class or a board option without a migration keeps what the board holds,
-// and so does a plugin class whose version the JSON board records none of,
-// since its writer knew no version of it.
+// A class or a board option without a migration keeps what the board holds.
 // A version above the one R gives refuses the board, since no migration
 // converts a board back.
 // The board holds only the plugins that the store keeps, so that the version
@@ -194,7 +195,7 @@ function migrate(
     Object.entries(board.plugins).map(([cls, state]) => {
       const def = registrations.plugin(cls)?.def;
       if (def === undefined) return [cls, state];
-      const from = own(json.versions, cls);
+      const from = own(json.plugins, cls)?.version;
       const to = own(reply.plugins, cls)?.version ?? 1;
       if (from === undefined || from === to) return [cls, state];
       if (from > to) {
