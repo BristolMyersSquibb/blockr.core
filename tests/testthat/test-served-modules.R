@@ -1,7 +1,3 @@
-hash_of <- function(file) {
-  substr(unname(tools::md5sum(file)), 1L, 8L)
-}
-
 served_copy <- function(prefix, ...) {
   file.path(dir_path(file.path(served_dir(), prefix)), ...)
 }
@@ -17,7 +13,7 @@ test_that("R serves a package's file under the package's name", {
 
   expect_identical(
     served_url(js_module("js/grid.js", package = "blockr.test")),
-    paste0("blockr.test/js/grid.js?v=", hash_of(file))
+    paste0("blockr.test/js/grid.js?v=", file_hash(file))
   )
 
   # Shiny serves a directory of R's own under the package's name.
@@ -124,7 +120,7 @@ test_that("R serves a file from no package at a URL of its own", {
   local_empty_declarations()
 
   file <- file.path(dir, "app", "letters-block.js")
-  hash <- hash_of(file)
+  hash <- file_hash(file)
 
   expect_identical(
     served_url(js_module(file, package = NULL)),
@@ -153,7 +149,7 @@ test_that("R serves a file from no package at a URL of its own", {
 
   expect_identical(
     served_url(js_module(other, package = NULL)),
-    paste0("blockr-modules/", hash_of(other), "/letters-block.js")
+    paste0("blockr-modules/", file_hash(other), "/letters-block.js")
   )
 })
 
@@ -167,7 +163,7 @@ test_that("a URL encodes what a file's path holds beyond letters and digits", {
 
   expect_identical(
     served_url(js_module(file, package = NULL)),
-    paste0("blockr-modules/", hash_of(file), "/my%20block.js")
+    paste0("blockr-modules/", file_hash(file), "/my%20block.js")
   )
 })
 
@@ -184,7 +180,7 @@ test_that("a module comes with the stylesheet beside it, where it has one", {
     served_module(js_module("js/grid.js", package = "blockr.test")),
     list(
       module = served_url(js_module("js/grid.js", package = "blockr.test")),
-      css = paste0("blockr.test/js/grid.css?v=", hash_of(css))
+      css = paste0("blockr.test/js/grid.css?v=", file_hash(css))
     )
   )
   expect_named(
@@ -300,7 +296,7 @@ test_that("a running app serves a module that R names to the client", {
     path,
     paste0(
       "blockr-modules/",
-      hash_of(file.path(dir, "app", "letters-block.js")),
+      file_hash(file.path(dir, "app", "letters-block.js")),
       "/letters-block.js"
     )
   )
