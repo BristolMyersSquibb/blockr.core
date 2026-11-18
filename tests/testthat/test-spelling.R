@@ -3,16 +3,15 @@ test_that("block metadata spelling", {
   skip_on_cran()
   skip_if_not_installed("spelling")
 
-  # Registry metadata never reaches man/: `@blockDescr`, `@blockGuidance` and
-  # `@blockArg` text is read by registry consumers only, so the package-level
-  # check in tests/spelling.R cannot see it.
+  # Registry metadata never reaches man/: `@blockDescr` and `@blockGuidance`
+  # text is read by registry consumers only, and so are the descriptions of
+  # state args in the schemas of core's block classes, so the package-level
+  # check in tests/spelling.R cannot see them.
   prose <- function(entry) {
     c(
       entry[["name"]],
       entry[["description"]],
-      entry[["details"]],
-      entry[["guidance"]],
-      unlist(lst_xtr(entry[["arguments"]], "description"))
+      entry[["guidance"]]
     )
   }
 
@@ -22,8 +21,24 @@ test_that("block metadata spelling", {
 
   expect_gt(length(entries), 0L)
 
+  schemas <- list.files(
+    system.file("js", package = "blockr.core"),
+    pattern = "-block[.]schema[.]json$",
+    full.names = TRUE
+  )
+
+  expect_gt(length(schemas), 0L)
+
+  args <- lapply(
+    schemas,
+    function(file) {
+      props <- yyjsonr::read_json_file(file)[["properties"]]
+      unlist(lst_xtr(props, "description"))
+    }
+  )
+
   file <- withr::local_tempfile(fileext = ".md")
-  writeLines(unlist(lapply(entries, prose)), file)
+  writeLines(c(unlist(lapply(entries, prose)), unlist(args)), file)
 
   words <- spelling::spell_check_files(
     file,

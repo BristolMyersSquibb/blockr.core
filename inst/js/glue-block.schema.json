@@ -3,7 +3,8 @@
   "type": "object",
   "properties": {
     "text": {
-      "type": "string"
+      "type": "string",
+      "description": "Template string evaluated with glue::glue()."
     }
   },
   "required": [

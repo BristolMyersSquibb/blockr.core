@@ -3,7 +3,8 @@
   "type": "object",
   "properties": {
     "file_path": {
-      "type": "string"
+      "type": "string",
+      "description": "Path of the selected file."
     },
     "volumes": {
       "type": "object",

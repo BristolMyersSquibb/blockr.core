@@ -4,6 +4,8 @@
 // as dataset-block.schema.json.
 
 export type State = Readonly<{
+  /** Selects the dataset to use. */
   dataset?: string;
+  /** R package to source the dataset from. */
   package: string;
 }>;

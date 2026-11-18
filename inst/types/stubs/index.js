@@ -12264,25 +12264,19 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                dataset: { type: "string" },
-                package: { type: "string" }
+                dataset: {
+                  type: "string",
+                  description: "Selects the dataset to use."
+                },
+                package: {
+                  type: "string",
+                  description: "R package to source the dataset from."
+                }
               },
               required: ["package"],
               additionalProperties: false
             },
             state: { package: "datasets" },
-            arguments: {
-              dataset: {
-                description: "Selects the dataset to use.",
-                example: "iris",
-                type: { type: "string" }
-              },
-              package: {
-                description: "R package to source the dataset from.",
-                example: "datasets",
-                type: { type: "string" }
-              }
-            },
             requests: {
               datasets: {
                 inputs: [],
@@ -12299,7 +12293,6 @@ var hello_default = {
             id: "blockr.core-head_block",
             name: "head/tail block",
             description: "Data head/tail",
-            details: "Row-subsetting the first or last `n` rows of a `data.frame` (as provided by [utils::head()] and [utils::tail()]) is implemented as `head_block`.",
             url: "https://bristolmyerssquibb.github.io/blockr.core/reference/new_head_block.html",
             guidance: 'Keeps the first or last `n` rows of the input with `utils::head()` / `utils::tail()`. `direction` chooses the end: "head" for the first rows, "tail" for the last.',
             keywords: ["head", "tail", "first", "last", "rows", "limit"],
@@ -12312,25 +12305,20 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                n: { type: "integer", minimum: 0 },
-                direction: { enum: ["head", "tail"] }
+                n: {
+                  type: "integer",
+                  minimum: 0,
+                  description: "Number of rows to keep."
+                },
+                direction: {
+                  enum: ["head", "tail"],
+                  description: "Row end to keep, either head (first) or tail (last)."
+                }
               },
               required: ["n", "direction"],
               additionalProperties: false
             },
             state: { n: 6, direction: "head" },
-            arguments: {
-              n: {
-                description: "Number of rows to keep.",
-                example: 10,
-                type: { type: "integer" }
-              },
-              direction: {
-                description: "Row end to keep, either head (first) or tail (last).",
-                example: "tail",
-                type: { type: "string", enum: ["head", "tail"] }
-              }
-            },
             requests: {
               n_max: { inputs: ["data"], state_args: [], options: [] }
             },
@@ -12359,28 +12347,24 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                by: { type: "array", items: { type: "string" } },
-                all_x: { type: "boolean" },
-                all_y: { type: "boolean" }
+                by: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Shared key column(s) to join on."
+                },
+                all_x: {
+                  type: "boolean",
+                  description: "Keep unmatched rows from the first input."
+                },
+                all_y: {
+                  type: "boolean",
+                  description: "Keep unmatched rows from the second input."
+                }
               },
               required: ["all_x", "all_y"],
               additionalProperties: false
             },
             state: { all_x: false, all_y: false },
-            arguments: {
-              by: {
-                description: "Shared key column(s) to join on.",
-                type: { type: "array", items: { type: "string" } }
-              },
-              all_x: {
-                description: "Keep unmatched rows from the first input.",
-                type: { type: "boolean" }
-              },
-              all_y: {
-                description: "Keep unmatched rows from the second input.",
-                type: { type: "boolean" }
-              }
-            },
             requests: {
               shared: {
                 inputs: ["x", "y"],
@@ -12413,25 +12397,19 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                subset: { type: "string" },
-                select: { type: "string" }
+                subset: {
+                  type: "string",
+                  description: "Logical row-filter expression, as a string."
+                },
+                select: {
+                  type: "string",
+                  description: "Column-selection expression, as a string."
+                }
               },
               required: ["subset", "select"],
               additionalProperties: false
             },
             state: { subset: "", select: "" },
-            arguments: {
-              subset: {
-                description: "Logical row-filter expression, as a string.",
-                example: "Sepal.Width > 3",
-                type: { type: "string" }
-              },
-              select: {
-                description: "Column-selection expression, as a string.",
-                example: "Species",
-                type: { type: "string" }
-              }
-            },
             requests: {},
             renderer: {
               id: "blockr.core-table_output",
@@ -12461,7 +12439,6 @@ var hello_default = {
               additionalProperties: false
             },
             state: {},
-            arguments: {},
             requests: {},
             renderer: {
               id: "blockr.core-table_output",
@@ -12487,24 +12464,18 @@ var hello_default = {
             schema: {
               type: "object",
               properties: {
-                x: { type: "string" },
-                y: { type: "string" }
+                x: {
+                  type: "string",
+                  description: "Column for the horizontal axis."
+                },
+                y: {
+                  type: "string",
+                  description: "Column for the vertical axis."
+                }
               },
               additionalProperties: false
             },
             state: {},
-            arguments: {
-              x: {
-                description: "Column for the horizontal axis.",
-                example: "Sepal.Length",
-                type: { type: "string" }
-              },
-              y: {
-                description: "Column for the vertical axis.",
-                example: "Sepal.Width",
-                type: { type: "string" }
-              }
-            },
             requests: {
               columns: {
                 inputs: ["data"],
@@ -12533,7 +12504,6 @@ var hello_default = {
               additionalProperties: false
             },
             state: {},
-            arguments: {},
             requests: {
               upload: {
                 inputs: [],

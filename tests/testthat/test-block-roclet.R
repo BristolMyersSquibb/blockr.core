@@ -25,12 +25,6 @@ test_that("the roclet reads block metadata off constructor tags", {
 #' @blockGuidance Keeps the first `n` rows;
 #'   `direction` picks the end.
 #' @blockKeywords head, tail, multi word
-#' @blockArg n Number of rows to keep
-#'   [example] 10L
-#'   [type] arg_integer()
-#' @blockArg direction Which end, head or tail
-#'   [example] \"tail\"
-#'   [type] arg_enum(c(\"head\", \"tail\"))
 #' @export
 ", block_ctor_src())
 
@@ -46,69 +40,9 @@ test_that("the roclet reads block metadata off constructor tags", {
     "Keeps the first `n` rows; `direction` picks the end."
   )
   expect_identical(res[["keywords"]], c("head", "tail", "multi word"))
-
-  args <- res[["arguments"]]
-  expect_identical(args[["n"]][["description"]], "Number of rows to keep")
-  expect_identical(args[["n"]][["example"]], 10L)
-  expect_identical(args[["n"]][["type"]][["type"]], "integer")
-  expect_identical(
-    args[["direction"]][["description"]],
-    "Which end, head or tail"
-  )
-  expect_identical(args[["direction"]][["example"]], "tail")
-  expect_identical(
-    as.character(args[["direction"]][["type"]][["enum"]]),
-    c("head", "tail")
-  )
 })
 
-test_that("@blockArg allows an explicit description and type-only args", {
-
-  skip_if_not_installed("roxygen2")
-
-  txt <- paste0("
-#' Title
-#' @block demo block
-#' @blockDescr A demo
-#' @blockCategory transform
-#' @blockArg x
-#'   [type] arg_string()
-#'   [description] The x column
-#' @export
-", block_ctor_src())
-
-  args <- roxygen2::roc_proc_text(
-    block_registration_roclet(), txt
-  )[[1L]][["arguments"]]
-
-  expect_named(args, "x")
-  expect_identical(args[["x"]][["description"]], "The x column")
-  expect_identical(args[["x"]][["type"]][["type"]], "string")
-  expect_null(args[["x"]][["example"]])
-})
-
-test_that("@blockExamples yields block-level worked configs", {
-
-  skip_if_not_installed("roxygen2")
-
-  txt <- paste0("
-#' Title
-#' @block demo block
-#' @blockDescr A demo
-#' @blockCategory transform
-#' @blockExamples list(
-#'   list(n = 10L),
-#'   list(n = 3L)
-#' )
-#' @export
-", block_ctor_src())
-
-  res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
-
-  expect_identical(res[["examples"]], list(list(n = 10L), list(n = 3L)))
-})
-
-test_that("details falls back to @section and @blockLink is captured", {
+test_that("@blockLink is captured", {
 
   skip_if_not_installed("roxygen2")
 
@@ -124,27 +58,10 @@ test_that("details falls back to @section and @blockLink is captured", {
 
   res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
 
-  expect_identical(res[["details"]], "Prose about the block.")
   expect_identical(res[["link"]], "https://example.com/demo")
-})
 
-test_that("@blockDetails overrides the @section fallback", {
-
-  skip_if_not_installed("roxygen2")
-
-  txt <- paste0("
-#' Title
-#' @block demo block
-#' @blockDescr A demo
-#' @blockCategory transform
-#' @blockDetails An explicit detail.
-#' @section Demo block: Ignored prose.
-#' @export
-", block_ctor_src())
-
-  res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
-
-  expect_identical(res[["details"]], "An explicit detail.")
+  # The help page's prose stays there, rather than in the class's entry
+  expect_null(res[["details"]])
 })
 
 test_that("block_link derives a pkgdown URL, gated on the URL existing", {
@@ -283,37 +200,6 @@ new_demo_block <- function() NULL
   )
 })
 
-test_that("listed arguments become arg specs, examples included", {
-
-  expect_null(listed_block_arguments(list()))
-  expect_null(listed_block_arguments(list(arguments = list())))
-
-  spec <- listed_block_arguments(
-    list(
-      arguments = list(
-        x = list(
-          description = "d",
-          example = "e",
-          type = list(type = "integer")
-        )
-      )
-    )
-  )
-
-  expect_s3_class(spec, "arg_specs")
-  expect_identical(arg_spec_description(spec[["x"]]), "d")
-  expect_identical(arg_spec_example(spec[["x"]]), "e")
-  expect_identical(arg_spec_type(spec[["x"]]), list(type = "integer"))
-
-  desc_only <- listed_block_arguments(
-    list(arguments = list(x = list(description = "d")))
-  )
-
-  expect_identical(arg_spec_description(desc_only[["x"]]), "d")
-  expect_null(arg_spec_example(desc_only[["x"]]))
-  expect_null(arg_spec_type(desc_only[["x"]]))
-})
-
 test_that("a package that lists no block classes registers none", {
 
   registry <- new.env()
@@ -335,22 +221,11 @@ test_that("the shipped core registry is complete", {
   # Each with the id of its class, which core's classes take from their
   # constructors' names
   expect_identical(chr_xtr(reg, "id"), sub("^new_", "", names(reg)))
-  expect_identical(
-    reg[["new_dataset_block"]][["arguments"]][["dataset"]][["example"]],
-    "iris"
-  )
 
   head <- reg[["new_head_block"]]
-  expect_identical(head[["arguments"]][["n"]][["type"]][["type"]], "integer")
-  expect_identical(
-    head[["arguments"]][["direction"]][["type"]][["enum"]],
-    c("head", "tail")
-  )
   expect_true(is_string(head[["guidance"]]))
   expect_gt(length(head[["keywords"]]), 0L)
 
-  expect_true(is_string(reg[["new_dataset_block"]][["details"]]))
-  expect_length(reg[["new_merge_block"]][["examples"]], 2L)
   expect_match(
     reg[["new_dataset_block"]][["link"]],
     "/reference/new_dataset_block\\.html$"

@@ -58,16 +58,6 @@ merge_block <- new_block_class(
 #'   join type: both FALSE for an inner join, both TRUE for a full outer join,
 #'   all_x alone for a left join, all_y alone for a right join.
 #' @blockKeywords merge, join, inner join, outer join, left join, right join
-#' @blockArg by Shared key column(s) to join on.
-#'   [type] arg_array(arg_string())
-#' @blockArg all_x Keep unmatched rows from the first input.
-#'   [type] arg_boolean()
-#' @blockArg all_y Keep unmatched rows from the second input.
-#'   [type] arg_boolean()
-#' @blockExamples list(
-#'   list(by = "Time", all_x = TRUE, all_y = FALSE),
-#'   list(by = "Time", all_x = TRUE, all_y = TRUE)
-#' )
 #'
 #' @examples
 #' new_merge_block(by = "Time")
