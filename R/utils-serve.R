@@ -95,6 +95,13 @@
 #' So each entry needs a name, as in
 #' `serve(new_rbind_block(), a = iris, b = mtcars)`.
 #'
+#' Like its block registry and its plugins, the app holds the board options
+#' that the available packages list, and the modules that they offer each
+#' other, as `serve()` read them (see [read_blocks_yml()]).
+#' So the replies to `hello` name the same ones wherever the app runs,
+#' including in another R process, as when a script hands the app to
+#' `callr::r_bg()`, or shinytest2 runs it.
+#'
 #' @section End-to-end tests:
 #' In Shiny's test mode, as the package shinytest2 starts an app, the app gives
 #' end-to-end tests what they check.
@@ -355,6 +362,9 @@ check_outside_classes <- function(classes) {
 # does what the app's frontend reads of the arguments of `serve()`,
 # `frontend`, as `frontend_reply()` gives it, an empty JSON object for a block
 # that `serve()` serves alone.
+# So do the board options and the modules that the available packages list,
+# which R reads here, so that the replies name the same ones in whatever
+# process runs the app.
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -379,11 +389,11 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 
   lock <- lock_board(board, data, registry)
 
-  # The board options of the loaded packages, which every reply to `hello`
-  # names, so that two packages that list one stop the app here.
-  loaded_options()
+  # Two packages that list one board option stop the app here
+  options <- app_options()
+  offered <- offered_modules()
 
-  modules <- page_modules(board, registry, plugins)
+  modules <- page_modules(board, registry, plugins, options)
   dark_mode <- board_dark_mode(board)
 
   shiny::shinyApp(
@@ -398,6 +408,8 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 
       ev <- new_evaluator(
         board, data, lock, registry, plugins, frontend,
+        options = options,
+        modules = offered,
         session_id = session$token
       )
 
@@ -414,13 +426,14 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 # The modules that the page imports as it starts, for the opening board given
 # as JSON.
 # Core imports the module of each of the app's plugins, `plugins`, and of each
-# board option that the loaded packages list, before it opens the board.
+# of its board options, `options`, before it opens the board.
 # The frontend then imports the UI module of the class of each block on the
 # board, and the module of the class's renderer, from the app's block
 # registry, `registry`.
 # A block whose class the registry lacks adds nothing, since the board fails
 # to open with it.
-page_modules <- function(board, registry, plugins = list()) {
+page_modules <- function(board, registry, plugins = list(),
+                         options = app_options()) {
 
   json <- if (inherits(board, "json")) board else encode_message(board)
   blocks <- decode_message(json)[["board"]][["blocks"]]
@@ -434,7 +447,7 @@ page_modules <- function(board, registry, plugins = list()) {
 
   modules <- c(
     lst_xtr(plugins, "module"),
-    lst_xtr(loaded_options(), "module"),
+    lst_xtr(options, "module"),
     lst_xtr(entries, "ui"),
     lst_xtr(renderers, "module")
   )

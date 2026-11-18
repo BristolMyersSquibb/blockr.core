@@ -230,14 +230,19 @@ test_that("core's method of complete_plugin() returns the plugin as it is", {
   )
 })
 
-test_that("a plugin class's method gives its requests, or it has none", {
+test_that("the app holds the requests of each plugin's class, or none", {
 
   local_plugin_classes(
     Notes = plugin_ctor(function() NULL, "notes_plugin"),
     Bad = plugin_ctor(function() NULL, "bad_plugin")
   )
 
-  expect_identical(plugin_class_requests("blockr.test-notes_plugin"), list())
+  rows <- subset(available_plugins(), id != "bad_plugin")
+
+  expect_identical(
+    app_plugins(rows)[["blockr.test-notes_plugin"]]$requests,
+    list()
+  )
 
   testthat::local_mocked_s3_method(
     "plugin_requests",
@@ -245,11 +250,12 @@ test_that("a plugin class's method gives its requests, or it has none", {
     function(x, ...) list(save = function(text) toupper(text))
   )
 
-  reqs <- plugin_class_requests("blockr.test-notes_plugin")
+  reqs <- app_plugins(rows)[["blockr.test-notes_plugin"]]$requests
 
   expect_named(reqs, "save")
   expect_identical(reqs$save("a"), "A")
 
+  # A method that gives anything but a list of functions by name stops the app
   for (bad in list(list(function() 1), list(save = 1), "save")) {
 
     testthat::local_mocked_s3_method(
@@ -259,7 +265,9 @@ test_that("a plugin class's method gives its requests, or it has none", {
     )
 
     expect_error(
-      plugin_class_requests("blockr.test-bad_plugin"),
+      app_plugins(available_plugins()),
+      "for plugin class blockr.test-bad_plugin returns",
+      fixed = TRUE,
       class = "plugin_requests_invalid"
     )
   }

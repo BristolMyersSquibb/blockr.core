@@ -73,14 +73,23 @@ local_load_all_package <- function(frame = parent.frame(), registers = FALSE) {
     )
   }
 
-  for (path in names(files)) {
-    file <- file.path(pkg, path)
-    dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
-    writeLines(files[[path]], file)
-  }
+  write_package_files(pkg, files)
 
   pkgload::load_all(pkg, attach = FALSE, helpers = FALSE, quiet = TRUE)
   withr::defer(pkgload::unload("regprobe", quiet = TRUE), envir = frame)
 
   invisible(normalizePath(pkg))
+}
+
+# Writes the files of a test package into its directory `dir`, from `files`,
+# the lines of each file by its path in the package.
+write_package_files <- function(dir, files) {
+
+  for (path in names(files)) {
+    file <- file.path(dir, path)
+    dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
+    writeLines(files[[path]], file)
+  }
+
+  invisible(dir)
 }

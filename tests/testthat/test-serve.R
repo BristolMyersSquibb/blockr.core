@@ -179,6 +179,24 @@ test_that("an app's sessions read the block registry that serve() built", {
   expect_identical(replies[[2L]]$status, "ok")
 })
 
+test_that("an app's replies name the board options that serve() read", {
+
+  local_installed_package()
+
+  app <- serve(new_board())
+
+  # A process that runs the app without the script that built it has loaded
+  # none of the packages whose listings serve() read, as here, where the test
+  # unloads optprobe
+  unloadNamespace("optprobe")
+
+  reply <- served_replies(app, hello_message())[[1L]]
+
+  # Its replies name them all the same, and R loads no package for them
+  expect_identical(reply$options$probe_gap$package, "optprobe")
+  expect_false(isNamespaceLoaded("optprobe"))
+})
+
 test_that("blocks and plugins read their rows alike, and plugins no file", {
 
   # A YAML file of block classes gives rows in its order, with the id `NA` for
@@ -912,7 +930,7 @@ test_that("the page imports the modules of plugins, options and blocks", {
     chr_xtr(modules, "path"),
     c(
       chr_xtr(lst_xtr(plugins, "module"), "path"),
-      chr_xtr(lst_xtr(loaded_options(), "module"), "path"),
+      chr_xtr(lst_xtr(app_options(), "module"), "path"),
       "js/dataset-block.js",
       "js/head-block.js",
       "js/basic-table.js"

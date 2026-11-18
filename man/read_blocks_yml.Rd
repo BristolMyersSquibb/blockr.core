@@ -90,9 +90,10 @@ is a defect of the package's build, while a part that R cannot read stops
 what reads it, with a classed error that names the package and each fault.
 
 R tells the client, in its reply to \code{hello}, where it serves the module of
-the class of each plugin that the app runs, of each board option that a
-loaded package lists and of each module that a loaded package offers
-others, with the versions of the packages they come from.
+the class of each plugin that the app runs, of each board option that an
+available package lists and of each module that an available package offers
+others, as \code{\link[=serve]{serve()}} read them as it built the app, with the versions of the
+packages they come from.
 It names where it serves a renderer's module in each output that the
 renderer draws (see \code{\link[=new_renderer]{new_renderer()}}).
 It serves a module, and the stylesheet beside it, under the package's name,
