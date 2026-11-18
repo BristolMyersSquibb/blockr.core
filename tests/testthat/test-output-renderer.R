@@ -128,15 +128,20 @@ test_that("an output family is drawn by what its class's method gives", {
 
   local_output_class("words_output_family", renderer = "words.js")
 
-  expect_error(renderer_of(as_words_output), class = "renderer_invalid")
+  expect_error(
+    validate_renderer(as_renderer(as_words_output), as_words_output),
+    class = "renderer_invalid"
+  )
 })
 
 test_that("an output is drawn by what its class's method gives", {
 
+  out <- new_block_output(list(), "x_output")
+
   local_output_class("x_output", renderer = "x.js")
 
   expect_error(
-    renderer_of(new_block_output(list(), "x_output")),
+    validate_renderer(as_renderer(out), out),
     class = "renderer_invalid"
   )
 
@@ -146,7 +151,7 @@ test_that("an output is drawn by what its class's method gives", {
   )
 
   expect_error(
-    renderer_of(new_block_output(list(), "x_output")),
+    validate_renderer(as_renderer(out), out),
     class = "renderer_invalid"
   )
 })

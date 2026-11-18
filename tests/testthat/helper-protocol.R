@@ -1156,7 +1156,7 @@ proto_table_output <- function(data, ...) {
 proto_output <- function(x) {
 
   parts <- shape_output(x)
-  drawn <- renderer_of(x)
+  drawn <- validate_renderer(as_renderer(x), x)
   renderer <- obj(
     id = drawn$id,
     module = proto_renderer_urls()[[drawn$module$path]]

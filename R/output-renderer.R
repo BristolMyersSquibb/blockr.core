@@ -249,22 +249,19 @@ chosen_renderers <- function() {
   chosen
 }
 
-# The renderer that draws an output, or the outputs of an output family, as the
-# method of `as_renderer()` for the most specific of its classes that has one
-# gives it.
-renderer_of <- function(x) {
+# Checks that `x`, what the method of `as_renderer()` for `from` gave, is a
+# renderer of an output class, where `from` is an output or an output family.
+validate_renderer <- function(x, from) {
 
-  res <- as_renderer(x)
-
-  if (!is_renderer(res) || not_null(res[["option"]])) {
+  if (!is_renderer(x) || not_null(x[["option"]])) {
     blockr_abort(
-      "The method of `as_renderer()` for {class(x)[1L]} gives no renderer of ",
-      "an output class.",
+      "The method of `as_renderer()` for {class(from)[1L]} gives no renderer ",
+      "of an output class.",
       class = "renderer_invalid"
     )
   }
 
-  res
+  invisible(x)
 }
 
 # The renderers that the app names for board options, by ID, which R sends in
@@ -280,7 +277,7 @@ option_renderers <- function() {
 # has to draw.
 renderer_request <- function(renderer, out, name) {
 
-  drawn <- renderer_of(out)
+  drawn <- validate_renderer(as_renderer(out), out)
 
   if (!identical(drawn[["id"]], renderer)) {
     blockr_abort(

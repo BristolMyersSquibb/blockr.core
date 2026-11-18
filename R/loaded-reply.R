@@ -119,8 +119,11 @@ registry_entry_reply <- function(x, renderer = NULL) {
 # It is `NULL` where R knows no renderer for that family, so that the client
 # learns the renderer from the first output, and R reports its error there.
 entry_renderer <- function(x) {
+
+  family <- x[["block_class"]][["output"]]
+
   tryCatch(
-    renderer_of(x[["block_class"]][["output"]]),
+    validate_renderer(as_renderer(family), family),
     output_renderer_missing = function(e) NULL
   )
 }

@@ -173,7 +173,7 @@ output_sample <- function(description, coercion, result, options = list(),
 
   out <- coercion(result, options = options, info = info, params = params)
   parts <- shape_output(out)
-  drawn <- renderer_of(out)
+  drawn <- validate_renderer(as_renderer(out), out)
   urls <- list(
     `js/basic-table.js` = "blockr.core/basic-table.js?v=b7e2a915",
     `js/basic-text.js` = "blockr.core/basic-text.js?v=3c8f61d0",

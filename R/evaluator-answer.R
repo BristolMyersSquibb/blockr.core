@@ -175,7 +175,9 @@ answer_output <- function(ev, job) {
       list(
         class = class(res),
         parts = shape_output(res),
-        renderer = output_renderer_reply(renderer_of(res))
+        renderer = output_renderer_reply(
+          validate_renderer(as_renderer(res), res)
+        )
       )
     }
   )
