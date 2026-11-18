@@ -465,6 +465,9 @@ describe("a card", () => {
     await step(() => {
       classes.click();
     });
+    // The dialog holds the select's list, as the rest of the page is inert
+    // while the dialog is open.
+    expect(listFromField(classes)?.closest("dialog")).toBe(dialog(el));
     expect(optionLabels(classes)).not.toContain("input: dataset block");
     await step(() => {
       optionFromLabel(classes, "subset block").click();

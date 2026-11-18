@@ -7,8 +7,11 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { find, press, texts, type } from "../testing/inputs.ts";
 import { holdRequests } from "../testing/requests.ts";
-import { labelled, listed, picked } from "../testing/select.ts";
-import { asChoices, controls, PAUSE, strings } from "./index.ts";
+import { chipLabels, labelled, listed, picked } from "../testing/select.ts";
+import { controls, PAUSE, strings } from "./index.ts";
+
+// Items of the ids given, which read as their ids.
+const ids = (values: readonly string[]) => values.map((id) => ({ id }));
 
 type Form = Readonly<{ label: string; direction: string; by?: readonly string[] }>;
 
@@ -43,15 +46,15 @@ function drawn(state: Form = form({})) {
   const host = stubBlockHost<Form>(fixture, { state });
   const ui = controls(host, abort.signal);
   ui.text("label", { label: "Label" });
-  ui.select("direction", {
+  ui.comboBox("direction", {
     label: "Direction",
     placeholder: "Choose an end",
-    choices: [
-      { value: "head", label: "Head" },
-      { value: "tail", label: "Tail" },
+    items: [
+      { id: "head", name: "Head" },
+      { id: "tail", name: "Tail" },
     ],
   });
-  ui.select("by", { label: "By columns", multiple: true, choices: asChoices(["a", "b"]) });
+  ui.comboBox("by", { label: "By columns", selectionMode: "multiple", items: ids(["a", "b"]) });
   document.body.append(ui.el);
   return {
     host,
@@ -80,48 +83,49 @@ describe("the controls of a block's UI", () => {
     const own = document.createElement("p");
     own.textContent = "A line of the module's own";
     ui.add(own);
-    const by = ui.select("by", { label: "By columns", multiple: true });
+    const by = ui.comboBox("by", { label: "By columns", selectionMode: "multiple" });
     const field = labelled(ui.el, "By columns");
-    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["c", null]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["c"], null]);
 
-    by.setChoices(asChoices(["a", "b"]));
+    by.setItems(ids(["a", "b"]));
 
-    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["c (not available)", "true"]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["c (not available)"], "true"]);
     expect(texts(ui.el, "label > span, p, label[for]")).toEqual(["Label", "A line of the module's own", "By columns"]);
   });
 
-  test("show a value as it is until a select's choices are given, and as missing where they lack it", async () => {
+  test("show a value as it is until a select's items are given, and as missing where they lack it", async () => {
     const host = stubBlockHost<Form>(fixture, { state: form({ direction: "middle" }) });
     const ui = controls(host, abort.signal);
-    const direction = ui.select("direction", { label: "Direction", placeholder: "Choose an end" });
+    const direction = ui.comboBox("direction", { label: "Direction", placeholder: "Choose an end" });
     const field = labelled(ui.el, "Direction");
-    const shown = async () => [field.value, await listed(field, settled), field.getAttribute("aria-invalid")];
+    // The field shows a pick that the items lack in place of its placeholder.
+    const shown = async () => [field.value || field.placeholder, await listed(field, settled), field.getAttribute("aria-invalid")];
     expect(await shown()).toEqual(["middle", [], null]);
 
-    direction.setChoices([
-      { value: "head", label: "Head" },
-      { value: "tail", label: "Tail" },
+    direction.setItems([
+      { id: "head", name: "Head" },
+      { id: "tail", name: "Tail" },
     ]);
 
-    expect(await shown()).toEqual(["middle (not available)", ["Head", "Tail", "middle (not available)"], "true"]);
+    expect(await shown()).toEqual(["middle (not available)", ["Head", "Tail"], "true"]);
     expect(host.submitted).toEqual([]);
   });
 
-  test("keep the choices while the request that gives them asks again, and mark nothing until it answers", async () => {
+  test("keep the items while the request that gives them asks again, and mark nothing until it answers", async () => {
     const requests = [{ name: "ends", args: {}, options: {}, answer: ["head", "tail"] }];
     const host = stubBlockHost<Form>({ ...fixture, requests }, { state: form({ direction: "middle", by: ["c"] }) });
     const release = holdRequests(host);
     const ui = controls(host, abort.signal);
-    const direction = ui.select("direction", { label: "Direction", placeholder: "Choose an end" });
-    const by = ui.select("by", { label: "By columns", multiple: true });
+    const direction = ui.comboBox("direction", { label: "Direction", placeholder: "Choose an end" });
+    const by = ui.comboBox("by", { label: "By columns", selectionMode: "multiple" });
     ui.follow("ends", {
       loading() {
         direction.setOutdated(true);
         by.setOutdated(true);
       },
       answer(answer) {
-        direction.setChoices(asChoices(strings(answer)));
-        by.setChoices(asChoices(strings(answer)));
+        direction.setItems(ids(strings(answer)));
+        by.setItems(ids(strings(answer)));
         direction.setOutdated(false);
         by.setOutdated(false);
       },
@@ -129,20 +133,21 @@ describe("the controls of a block's UI", () => {
     const one = labelled(ui.el, "Direction");
     const several = labelled(ui.el, "By columns");
     const shown = async () => [
-      await listed(one, settled),
+      one.value || one.placeholder,
       one.getAttribute("aria-invalid"),
-      await listed(several, settled),
+      chipLabels(several),
       several.getAttribute("aria-invalid"),
+      await listed(several, settled),
     ];
-    expect(await shown()).toEqual([[], null, ["c"], null]);
+    expect(await shown()).toEqual(["middle", null, ["c"], null, []]);
 
     release();
     await settled();
-    const marked = [["head", "tail", "middle (not available)"], "true", ["head", "tail", "c (not available)"], "true"];
+    const marked = ["middle (not available)", "true", ["c (not available)"], "true", ["head", "tail"]];
     expect(await shown()).toEqual(marked);
 
     host.setContext({ inputs: [{ input: "data", revision: 2 }] });
-    expect(await shown()).toEqual([["head", "tail", "middle"], null, ["head", "tail", "c"], null]);
+    expect(await shown()).toEqual(["middle", null, ["c"], null, ["head", "tail"]]);
 
     release();
     await settled();
@@ -173,7 +178,7 @@ describe("the controls of a block's UI", () => {
 
     host.setState(form({}));
     await picked(by, settled, "a");
-    expect([by.value, by.placeholder]).toEqual(["", "None"]);
+    expect(chipLabels(by)).toEqual([]);
     expect(texts(ui.el, '[role="alert"]')[0]).toContain("which the fixture does not list");
   });
 
@@ -251,13 +256,13 @@ describe("the controls of a board option's UI", () => {
     expect(shown()).toEqual(["50", "30", "true"]);
   });
 
-  test("submit the picks of several in the order of the choices where ordered", async () => {
+  test("submit the picks of several in the order of the items where ordered", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
     const ui = controls(host, abort.signal);
-    ui.select("show_conditions", {
+    ui.comboBox("show_conditions", {
       label: "Message types to display",
-      multiple: true,
-      choices: asChoices(["message", "warning", "error"]),
+      selectionMode: "multiple",
+      items: ids(["message", "warning", "error"]),
       ordered: true,
     });
     document.body.append(ui.el);

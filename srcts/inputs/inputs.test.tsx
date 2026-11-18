@@ -6,17 +6,16 @@ import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { asChoices, PAUSE } from "../binding/index.ts";
-import type { Choice } from "../binding/index.ts";
+import { PAUSE } from "../binding/index.ts";
 import { useRequest, useValue } from "../react/index.ts";
 import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture, StubBlockHost } from "../stubs/index.ts";
 import { find, press, texts, toggle, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
-import { labelled, listed, optionFromLabel, optionLabels } from "../testing/select.ts";
+import { chipLabels, labelled, listed, optionFromLabel, optionLabels, removeChip } from "../testing/select.ts";
 import { holdRequests } from "../testing/requests.ts";
 import type { BlockHost, OptionHost } from "../types/hosts.ts";
-import { Checkbox, NumberInput, Select, Stack, TextInput } from "./index.ts";
+import { Checkbox, ComboBox, ComboBoxItem, NumberInput, Stack, TextInput } from "./index.ts";
 
 type Form = Readonly<{ n: number; direction: string; label: string; by?: readonly string[]; keep: boolean }>;
 
@@ -83,21 +82,28 @@ function BlockForm({ host }: { host: BlockHost<Form> }): ReactElement {
         min={0}
         max={Array.isArray(max) && typeof max[0] === "number" ? max[0] : undefined}
       />
-      <Select
+      <ComboBox
         bound={useValue(host, "direction")}
         label="Direction"
         placeholder="Choose an end"
-        choices={[
-          { value: "head", label: "Head" },
-          { value: "tail", label: "Tail" },
+        defaultItems={[
+          { id: "head", name: "Head" },
+          { id: "tail", name: "Tail" },
         ]}
-      />
+      >
+        {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
+      </ComboBox>
       <TextInput bound={useValue(host, "label")} label="Label" />
-      <Select bound={useValue(host, "by")} multiple label="By columns" choices={asChoices(["a", "b", "c"])} />
+      <ComboBox bound={useValue(host, "by")} selectionMode="multiple" label="By columns" defaultItems={ids(["a", "b", "c"])}>
+        {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+      </ComboBox>
       <Checkbox bound={useValue(host, "keep")} label="Keep" />
     </Stack>
   );
 }
+
+// Items of the ids given, which read as their ids.
+const ids = (values: readonly string[]) => values.map((id) => ({ id }));
 
 function block(state: Form = form({})) {
   const host: StubBlockHost<Form> = stubBlockHost<Form>(fixture, { state });
@@ -217,7 +223,7 @@ describe("the inputs of a block's UI", () => {
     });
 
     expect(host.submitted).toEqual([form({ by: ["c", "b"] })]);
-    expect(inputs.by.value).toBe("c, b");
+    expect(chipLabels(inputs.by)).toEqual(["c", "b"]);
   });
 
   test("submit typing still pending as the component unmounts", () => {
@@ -239,40 +245,35 @@ function Rows({ host, max, outdated }: { host: OptionHost<number>; max?: number;
 
 function Conditions({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
   return (
-    <Select
+    <ComboBox
       bound={useValue(host)}
-      multiple
+      selectionMode="multiple"
       label="Message types to display"
-      choices={asChoices(["message", "warning", "error"])}
+      defaultItems={ids(["message", "warning", "error"])}
       ordered
       outdated={outdated}
-    />
+    >
+      {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+    </ComboBox>
   );
 }
 
 
-const modes: readonly Choice[] = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
+interface Mode {
+  readonly id: string;
+  readonly name: string;
+}
+
+const modes: readonly Mode[] = [
+  { id: "light", name: "Light" },
+  { id: "dark", name: "Dark" },
 ];
 
-function Mode({
-  host,
-  choices,
-  outdated,
-}: {
-  host: OptionHost<string>;
-  choices?: readonly Choice[];
-  outdated?: boolean;
-}): ReactElement {
+function Mode({ host, items, outdated }: { host: OptionHost<string>; items?: readonly Mode[]; outdated?: boolean }): ReactElement {
   return (
-    <Select
-      bound={useValue(host)}
-      label="Light/dark mode"
-      placeholder="Choose a mode"
-      choices={choices}
-      outdated={outdated}
-    />
+    <ComboBox bound={useValue(host)} label="Light/dark mode" placeholder="Choose a mode" defaultItems={items} outdated={outdated}>
+      {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
+    </ComboBox>
   );
 }
 
@@ -430,70 +431,63 @@ describe("the inputs of a board option's UI", () => {
     expect(host.submitted).toEqual([["message", "error"]]);
   });
 
-  test("show a string that the choices lack as missing, and let the user clear it", async () => {
+  test("show a string that the items lack as missing, whose chip the user removes", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
     const { el } = draw(<Conditions host={host} />);
     const field = labelled(el, "Message types to display");
 
-    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["error, debug (not available)", "true"]);
-    await step(() => {
-      field.click();
-    });
-    await step(() => {
-      optionFromLabel(field, "debug (not available)").click();
-    });
-    await step(() => {
-      press(field, "Escape");
-    });
+    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
+    await removeChip(field, step, "debug (not available)");
 
     expect(host.submitted).toEqual([["error"]]);
-    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["error", null]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error"], null]);
     expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
   });
 
-  test("keep outdated choices on screen, and mark no string that they lack until they are current", async () => {
+  test("keep outdated items on screen, and mark no string that they lack until they are current", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
     const { el, redraw } = draw(<Conditions host={host} outdated />);
     const field = labelled(el, "Message types to display");
 
-    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["error, debug", null]);
-    expect(await listed(field, step)).toEqual(["message", "warning", "error", "debug"]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug"], null]);
+    expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
 
     redraw(<Conditions host={host} />);
-    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["error, debug (not available)", "true"]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
     expect(host.submitted).toEqual([]);
   });
 
-  test("show a mode that the choices lack as it is until they are known, and as missing while they lack it", async () => {
+  // The field shows a pick that the items lack in place of its placeholder.
+  const shownMode = async (field: HTMLInputElement) => [field.value || field.placeholder, await listed(field, step), field.getAttribute("aria-invalid")];
+
+  test("show a mode that the items lack as it is until they are known, and as missing while they lack it", async () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
     const { el, redraw } = draw(<Mode host={host} />);
     const field = labelled(el, "Light/dark mode");
-    const shown = async () => [field.value, await listed(field, step), field.getAttribute("aria-invalid")];
-    expect(await shown()).toEqual(["auto", [], null]);
+    expect(await shownMode(field)).toEqual(["auto", [], null]);
 
-    redraw(<Mode host={host} choices={modes} />);
-    expect(await shown()).toEqual(["auto (not available)", ["Light", "Dark", "auto (not available)"], "true"]);
+    redraw(<Mode host={host} items={modes} />);
+    expect(await shownMode(field)).toEqual(["auto (not available)", ["Light", "Dark"], "true"]);
 
-    redraw(<Mode host={host} choices={[...modes, { value: "auto", label: "Auto" }]} />);
-    expect(await shown()).toEqual(["Auto", ["Light", "Dark", "Auto"], null]);
+    redraw(<Mode host={host} items={[...modes, { id: "auto", name: "Auto" }]} />);
+    expect(await shownMode(field)).toEqual(["Auto", ["Light", "Dark", "Auto"], null]);
     expect(host.submitted).toEqual([]);
   });
 
-  test("keep outdated choices on screen, and show a mode that they lack as it is until they are current", async () => {
+  test("keep outdated items on screen, and show a mode that they lack as it is until they are current", async () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
-    const { el, redraw } = draw(<Mode host={host} choices={modes} outdated />);
+    const { el, redraw } = draw(<Mode host={host} items={modes} outdated />);
     const field = labelled(el, "Light/dark mode");
-    const shown = async () => [field.value, await listed(field, step), field.getAttribute("aria-invalid")];
-    expect(await shown()).toEqual(["auto", ["Light", "Dark", "auto"], null]);
+    expect(await shownMode(field)).toEqual(["auto", ["Light", "Dark"], null]);
 
-    redraw(<Mode host={host} choices={modes} />);
-    expect(await shown()).toEqual(["auto (not available)", ["Light", "Dark", "auto (not available)"], "true"]);
+    redraw(<Mode host={host} items={modes} />);
+    expect(await shownMode(field)).toEqual(["auto (not available)", ["Light", "Dark"], "true"]);
     expect(host.submitted).toEqual([]);
   });
 
   test("submit the mode the user picks", async () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "light" });
-    const { el } = draw(<Mode host={host} choices={modes} />);
+    const { el } = draw(<Mode host={host} items={modes} />);
     const field = labelled(el, "Light/dark mode");
 
     await step(() => {

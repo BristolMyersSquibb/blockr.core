@@ -50,12 +50,15 @@ async function write(files: Record<string, string>): Promise<void> {
 // Through a link to `inst/types`, the types would find React in the
 // node_modules of core's repo, which a package does not have.
 // The test would then pass where a package's type check fails.
-// With them comes OpenTelemetry's API, which npm installs as their peer, as
-// the types of `@blockr/core` name it.
+// With them come OpenTelemetry's API, which npm installs as their peer, as
+// the types of `@blockr/core` name it, and React Aria, which npm installs as
+// their dependency, whose types the SDK's declarations name.
 async function installTypes(): Promise<void> {
   await cp(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), { recursive: true });
-  await mkdir(join(root, "node_modules", "@opentelemetry"), { recursive: true });
-  await symlink(join(repo, "node_modules", "@opentelemetry", "api"), join(root, "node_modules", "@opentelemetry", "api"), "dir");
+  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria"]) {
+    await mkdir(dirname(join(root, "node_modules", name)), { recursive: true });
+    await symlink(join(repo, "node_modules", name), join(root, "node_modules", name), "dir");
+  }
 }
 
 async function files(dir: string): Promise<string[]> {
@@ -159,6 +162,8 @@ test("what a package's tests load imports no package but those that `@blockr/cor
   expect(manifest.dependencies).toEqual({
     "@preact/signals-core": await installedVersion("@preact/signals-core"),
     "@cfworker/json-schema": await installedVersion("@cfworker/json-schema"),
+    "react-aria-components": await installedVersion("react-aria-components"),
+    "react-aria": await installedVersion("react-aria"),
   });
 
   // The stubs draw core's UIs, the board options' among them, with React.
@@ -246,7 +251,7 @@ export const viewsPlugin: PluginClass = {
 // A block's UI module that draws with the controls core ships,
 // as a package writes it.
 const mergeModule = `import type { BlockModule } from "@blockr/core";
-import { asChoices, controls, strings } from "@blockr/core/controls";
+import { controls, strings } from "@blockr/core/controls";
 
 type MergeState = { by?: string[]; all_x: boolean };
 
@@ -255,14 +260,18 @@ export const api = 1;
 const merge: BlockModule<MergeState> = {
   render({ el, host, signal }) {
     const ui = controls(host, signal);
-    const by = ui.select("by", { label: "By columns", multiple: true, empty: "No column is shared." });
+    const by = ui.comboBox("by", {
+      label: "By columns",
+      selectionMode: "multiple",
+      renderEmptyState: () => "No column is shared.",
+    });
     ui.checkbox("all_x", { label: "Keep the rows of x that y does not match" });
     ui.follow("shared", {
       loading() {
         by.setOutdated(true);
       },
       answer(answer) {
-        by.setChoices(asChoices(strings(answer)));
+        by.setItems(strings(answer).map((id) => ({ id })));
         by.setOutdated(false);
       },
     });
@@ -500,7 +509,9 @@ test.each(["bundler", "nodenext"] as const)(
       Object.keys(sdkFiles).map((file) => join(root, file)),
       {
         target: ts.ScriptTarget.ES2022,
-        lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+        // The declarations of React Aria, which those of the SDK name, use the
+        // types of Intl that ES2023 adds.
+        lib: ["lib.es2023.d.ts", "lib.dom.d.ts"],
         module: resolution === "bundler" ? ts.ModuleKind.Preserve : ts.ModuleKind.NodeNext,
         moduleResolution: resolution === "bundler" ? ts.ModuleResolutionKind.Bundler : ts.ModuleResolutionKind.NodeNext,
         jsx: ts.JsxEmit.ReactJSX,

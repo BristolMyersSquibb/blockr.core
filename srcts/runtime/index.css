@@ -161,50 +161,6 @@
 }
 
 /*
- * The list of a select, which the browser shows in its top layer as a
- * popover, so that no panel clips it (../inputs/select.tsx).
- * CSS anchor positioning places it 4px below the select's field, lined up
- * with the field's left edge, or above the field where the window has no room
- * below.
- * It is at least as wide as the field and at least 190px wide, at most 320px
- * tall, and it keeps 8px from the window's edges, which its margins hold.
- * The field takes the anchor name, and the list names it in
- * position-anchor.
- * In a browser without anchor positioning, script places the list so
- * (../inputs/place.ts), as a fixed element.
- * While it is open, the list is a column, in which its rows scroll above the
- * note that it may show below them.
- */
-@utility select-list {
-  box-sizing: border-box;
-  max-width: calc(100vw - 16px);
-  max-height: min(320px, calc(100vh - 16px));
-  overflow: hidden;
-
-  &:popover-open {
-    display: flex;
-    flex-direction: column;
-  }
-
-  @supports (position-area: block-end) {
-    position-area: block-end span-inline-end;
-    position-try-fallbacks:
-      flip-block,
-      flip-inline,
-      flip-block flip-inline;
-    inset: auto;
-    margin: 4px 8px 8px 0;
-    min-width: max(anchor-size(width), 190px);
-  }
-
-  @supports not (position-area: block-end) {
-    position: fixed;
-    inset: auto;
-    margin: 0;
-  }
-}
-
-/*
  * The loading note, which the page shows while core starts, as the page
  * starts and as another board opens, and which R's page holds from the start:
  * a spinner over the line "Loading the board…", in the middle of the window,

@@ -36,7 +36,8 @@ async function mounted(state: State, requests = fixture.requests) {
 // What a select shows: its field's text, the rows of its list and whether it
 // marks itself invalid.
 async function shown(select: HTMLInputElement): Promise<[string, string[], string | null]> {
-  return [select.value, await listed(select, step), select.getAttribute("aria-invalid")];
+  // The field shows a pick that the items lack in place of its placeholder.
+  return [select.value || select.placeholder, await listed(select, step), select.getAttribute("aria-invalid")];
 }
 
 test("shows the state, with a choice of each column of its input on each axis", async () => {
@@ -55,7 +56,7 @@ test("never picks a column once the columns arrive", async () => {
   await settle();
 
   expect([x.value, y.value, x.placeholder]).toEqual(["", "", "Choose a column"]);
-  expect(await shown(x)).toEqual(["", columns, null]);
+  expect(await shown(x)).toEqual(["Choose a column", columns, null]);
   expect(host.submitted).toEqual([]);
 });
 
@@ -66,7 +67,7 @@ test("shows a column that its input lacks as it is until the columns arrive, the
 
   const { host, x, y } = await mounted({ x: "wt", y: "Sepal.Width" });
   await settle();
-  expect(await shown(x)).toEqual(["wt (not available)", [...columns, "wt (not available)"], "true"]);
+  expect(await shown(x)).toEqual(["wt (not available)", columns, "true"]);
   expect(await shown(y)).toEqual(["Sepal.Width", columns, null]);
   expect(host.submitted).toEqual([]);
 });
@@ -81,19 +82,19 @@ test("marks no column while the columns are asked again, as once its input chang
 
   release();
   await settle();
-  const marked = ["wt (not available)", [...columns, "wt (not available)"], "true"];
+  const marked = ["wt (not available)", columns, "true"];
   expect(await shown(x)).toEqual(marked);
 
   await step(() => {
     host.setContext({ inputs: [{ input: "data", revision: 2 }] });
   });
-  expect(await shown(x)).toEqual(["wt", [...columns, "wt"], null]);
+  expect(await shown(x)).toEqual(["wt", columns, null]);
 
   // R answers no more, as where the input failed.
   requests.splice(0);
   release();
   await settle();
-  expect(await shown(x)).toEqual(["wt", [...columns, "wt"], null]);
+  expect(await shown(x)).toEqual(["wt", columns, null]);
 
   requests.push(...fixture.requests);
   await step(() => {

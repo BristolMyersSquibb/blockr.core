@@ -12,7 +12,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import type { HelloReply } from "../../protocol/index.ts";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
-import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
+import { chipLabels, labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
 import { find, press, texts, type } from "../../testing/inputs.ts";
 import { held, notificationCode } from "../../testing/notifications.ts";
 import { step } from "../../testing/react.ts";
@@ -92,7 +92,12 @@ function rows(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): string[] {
 
 // The line below a field, its hint or its error.
 function note(field: HTMLElement): string | undefined {
-  return field.ownerDocument.getElementById(field.getAttribute("aria-describedby") ?? "")?.textContent;
+  const ids = (field.getAttribute("aria-describedby") ?? "").split(" ");
+  const texts = ids.flatMap((id) => {
+    const text = field.ownerDocument.getElementById(id)?.textContent ?? "";
+    return text === "" ? [] : [text];
+  });
+  return texts.length === 0 ? undefined : texts.join(" ");
 }
 
 // Does what the user does, and lets what it set off run, the commands that a
@@ -535,7 +540,7 @@ describe("the stacks", () => {
     await step(() => {
       blocks.blur();
     });
-    expect([listFromField(blocks), blocks.value]).toEqual([null, "Scatter, Merge"]);
+    expect([listFromField(blocks), chipLabels(blocks)]).toEqual([null, ["Scatter", "Merge"]]);
     expect(Object.keys(board().stacks)).toEqual(["s1"]);
     await click(button(add(), "Add stack"));
 
@@ -556,7 +561,7 @@ describe("the stacks", () => {
     const edit = (): HTMLFormElement => form(stacks, "Change stack");
     expect(labelled(edit(), "Name").value).toBe("Input");
     expect(find(edit(), 'input[type="checkbox"]', HTMLInputElement).checked).toBe(false);
-    expect(labelled(edit(), "Blocks").value).toBe("Iris, Head");
+    expect(chipLabels(labelled(edit(), "Blocks"))).toEqual(["Iris", "Head"]);
 
     await step(() => {
       type(labelled(edit(), "Name"), "Sources");
@@ -564,7 +569,7 @@ describe("the stacks", () => {
     });
     // Escape closes the list, and leaves the form open.
     await picked(labelled(edit(), "Blocks"), step, "Head", "Scatter");
-    expect(labelled(edit(), "Blocks").value).toBe("Iris, Scatter");
+    expect(chipLabels(labelled(edit(), "Blocks"))).toEqual(["Iris", "Scatter"]);
     await click(button(edit(), "Save"));
 
     expect(board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "f"], color: "#66c2a5" });

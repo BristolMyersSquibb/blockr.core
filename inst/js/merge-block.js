@@ -1,20 +1,21 @@
 // srcts/modules/merge-block/index.tsx
-import { asChoices, strings } from "@blockr/core/binding";
-import { Checkbox, reactModule, Select, Stack, useRequest, useValue } from "@blockr/core/react";
+import { strings } from "@blockr/core/binding";
+import { Checkbox, ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 function MergeBlock({ host }) {
   const shared = useRequest(host, "shared");
   return /* @__PURE__ */ jsxs(Stack, { children: [
     /* @__PURE__ */ jsx(
-      Select,
+      ComboBox,
       {
         bound: useValue(host, "by"),
-        multiple: true,
+        selectionMode: "multiple",
         label: "By columns",
-        choices: shared.answer === void 0 ? void 0 : asChoices(strings(shared.answer)),
-        empty: "The inputs share no column.",
-        outdated: shared.loading || shared.error !== null
+        defaultItems: strings(shared.answer).map((id) => ({ id })),
+        renderEmptyState: () => "The inputs share no column.",
+        outdated: shared.loading || shared.error !== null,
+        children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.id })
       }
     ),
     /* @__PURE__ */ jsx(Checkbox, { bound: useValue(host, "all_x"), label: "Keep the rows of x that y does not match" }),

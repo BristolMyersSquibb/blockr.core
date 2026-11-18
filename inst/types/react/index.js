@@ -518,81 +518,53 @@ function useTyped(bound) {
   return [text, setText];
 }
 
-// srcts/inputs/select.tsx
-import { useId, useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState3 } from "react";
+// srcts/inputs/combobox.tsx
+import { useContext, useRef as useRef2, useState as useState3 } from "react";
 
-// srcts/inputs/place.ts
-var MIN_WIDTH = 190;
-var GAP = 4;
-var EDGE = 8;
-function listWidth(field) {
-  return Math.max(field.width, MIN_WIDTH);
-}
-function listSpot(field, list, view) {
-  const below = field.bottom + GAP;
-  const above = field.top - GAP - list.height;
-  const top = below + list.height > view.height - EDGE && above >= EDGE ? above : below;
-  return {
-    left: clamp(field.left, EDGE, view.width - EDGE - list.width),
-    top: clamp(top, EDGE, view.height - EDGE - list.height)
-  };
-}
-function clamp(value, low, high) {
-  return Math.max(low, Math.min(value, high));
-}
+// srcts/aria/index.ts
+import {
+  Button,
+  Collection,
+  ComboBox,
+  ComboBoxStateContext,
+  composeRenderProps,
+  FieldError,
+  Group,
+  Header,
+  Input,
+  Label,
+  ListBox,
+  ListBoxItem,
+  ListBoxSection,
+  Popover,
+  Tag,
+  TagGroup,
+  TagList,
+  Text,
+  useFilter
+} from "react-aria-components";
+import { UNSAFE_PortalProvider } from "react-aria";
 
-// srcts/inputs/select.tsx
+// srcts/inputs/combobox.tsx
 import { Fragment as Fragment2, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
-var MAX_ROWS = 200;
-function Select(props) {
-  if (props.bound !== void 0) {
-    return props.multiple === true ? /* @__PURE__ */ jsx3(BoundSeveral, { ...props }) : /* @__PURE__ */ jsx3(BoundOne, { ...props });
-  }
-  if (props.multiple === true) {
-    const { onChange: onChange2, ...rest2 } = props;
-    return /* @__PURE__ */ jsx3(
-      Picker,
-      {
-        ...rest2,
-        report: (picks) => {
-          onChange2(picks);
-        }
-      }
-    );
-  }
-  const { value, onChange, ...rest } = props;
-  return /* @__PURE__ */ jsx3(
-    Picker,
-    {
-      ...rest,
-      multiple: false,
-      value: value === void 0 ? [] : [value],
-      report: ([pick]) => {
-        if (pick !== void 0) onChange(pick);
-      }
-    }
-  );
+function ComboBox2(props) {
+  const { bound, ordered = false, ...rest } = props;
+  if (bound === void 0) return /* @__PURE__ */ jsx3(Drawn, { ...rest });
+  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx3(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx3(BoundOne, { ...rest, bound });
 }
-function BoundOne({ bound, choices, outdated = false, placeholder, label, empty, disabled }) {
-  const current = typeof bound.value === "string" ? bound.value : void 0;
-  const known = choices ?? [];
-  const lacked = current !== void 0 && !known.some((choice) => choice.value === current);
-  const invalid = lacked && choices !== void 0 && !outdated;
-  const shown = choices === void 0 || current === void 0 || !lacked ? choices : [...known, { value: current, label: invalid ? missing(current) : current }];
+function BoundOne({ bound, outdated = false, ...props }) {
+  const current = typeof bound.value === "string" ? bound.value : null;
   return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     /* @__PURE__ */ jsx3(
-      Picker,
+      Drawn,
       {
-        label,
-        choices: shown,
-        multiple: false,
-        value: current === void 0 ? [] : [current],
-        placeholder,
-        empty,
-        disabled,
-        invalid,
-        report: ([next]) => {
-          if (next !== void 0) void bound.commit(next);
+        ...props,
+        selectionMode: "single",
+        outdated,
+        marking: !outdated && known(props),
+        value: current,
+        onChange: (key) => {
+          if (key !== null && !Array.isArray(key)) void bound.commit(String(key));
         }
       }
     ),
@@ -601,355 +573,204 @@ function BoundOne({ bound, choices, outdated = false, placeholder, label, empty,
 }
 function BoundSeveral({
   bound,
-  choices,
   outdated = false,
-  ordered = false,
-  placeholder,
-  label,
-  empty,
-  disabled,
-  min
+  ordered,
+  onOpenChange,
+  ...props
 }) {
+  const items = props.items ?? props.defaultItems;
   const held2 = strings(bound.value);
-  const known = choices ?? [];
-  const marking = choices !== void 0 && !outdated;
-  const lacked = held2.filter((value) => !known.some((choice) => choice.value === value));
-  const shown = choices === void 0 ? void 0 : [...known, ...lacked.map((value) => ({ value, label: marking ? missing(value) : value }))];
-  const report = (picks, opened) => {
-    const added = picks.filter((value) => !opened.includes(value));
-    const removed = opened.filter((value) => !picks.includes(value));
+  const [picks, setPicks] = useState3(null);
+  const pending = useRef2(null);
+  const submit = (next, opened) => {
+    const added = next.filter((value2) => !opened.includes(value2));
+    const removed = opened.filter((value2) => !next.includes(value2));
+    if (added.length === 0 && removed.length === 0) return;
     const now = strings(bound.get());
-    const next = [...now.filter((value) => !removed.includes(value)), ...added.filter((value) => !now.includes(value))];
-    void bound.commit(ordered ? inOrder(next, known) : next);
+    const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
+    void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
   };
   return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     /* @__PURE__ */ jsx3(
-      Picker,
+      Drawn,
       {
-        label,
-        choices: shown,
-        multiple: true,
-        value: held2,
-        placeholder,
-        empty,
-        disabled,
-        min,
-        invalid: marking && lacked.length > 0,
-        report
+        ...props,
+        selectionMode: "multiple",
+        outdated,
+        marking: !outdated && known(props),
+        value: picks ?? held2,
+        onOpenChange: (isOpen, trigger) => {
+          if (isOpen) {
+            pending.current ??= { picks: held2, opened: held2 };
+            setPicks(pending.current.picks);
+          } else {
+            const left = pending.current;
+            pending.current = null;
+            setPicks(null);
+            if (left !== null) submit(left.picks, left.opened);
+          }
+          onOpenChange?.(isOpen, trigger);
+        },
+        onChange: (keys) => {
+          if (!Array.isArray(keys)) return;
+          const next = keys.map(String);
+          if (pending.current === null) {
+            submit(next, held2);
+            return;
+          }
+          pending.current = { ...pending.current, picks: next };
+          setPicks(next);
+        }
       }
     ),
     /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
   ] });
 }
-function inOrder(values, choices) {
-  const order = choices.map((choice) => choice.value);
-  return [...order.filter((value) => values.includes(value)), ...values.filter((value) => !order.includes(value))];
+function known(props) {
+  return (props.items ?? props.defaultItems) !== void 0 || typeof props.children !== "function";
 }
-function Picker({
+function ids(items) {
+  return [...items].flatMap((item) => {
+    const id = item.id;
+    return typeof id === "string" || typeof id === "number" ? [String(id)] : [];
+  });
+}
+function inOrder(values, order) {
+  return [...order.filter((id) => values.includes(id)), ...values.filter((value) => !order.includes(value))];
+}
+function Drawn({
   label,
-  choices,
-  multiple,
-  value,
-  report,
-  placeholder = multiple ? "None" : "",
-  hint,
-  error,
-  empty = "No options",
-  disabled = false,
-  autofocus = false,
-  min = 0,
-  invalid = false
+  description,
+  errorMessage: errorMessage2,
+  placeholder,
+  children,
+  renderEmptyState,
+  outdated = false,
+  marking = false,
+  className,
+  allowsEmptyCollection = true,
+  ...props
 }) {
-  const id = useId();
-  const listId = `${id}-list`;
-  const noteId = `${id}-note`;
-  const anchor = anchorName(id);
-  const box = useRef2(null);
-  const input = useRef2(null);
-  const list = useRef2(null);
-  const [open, setOpen] = useState3(false);
-  const [query, setQuery] = useState3("");
-  const [keyboard, setKeyboard] = useState3(false);
-  const [active, setActive] = useState3(void 0);
-  const [picks, setPicks] = useState3([]);
-  const pending = useRef2(null);
-  const now = open && multiple ? picks : value;
-  const known = choices ?? [];
-  const byValue = new Map(known.map((choice) => [choice.value, choice]));
-  const listed = multiple ? [...known, ...value.filter((picked) => !byValue.has(picked)).map((picked) => ({ value: picked, label: picked }))] : known;
-  const found = matching(listed, query);
-  const rows = found.slice(0, MAX_ROWS);
-  const pickable = rows.filter((choice) => choice.disabled !== true);
-  const marked = !keyboard ? void 0 : pickable.some((choice) => choice.value === active) ? active : pickable[0]?.value;
-  const locked = multiple && min > 0 && now.length <= min;
-  const names = now.map((picked) => byValue.get(picked)?.label ?? picked);
-  const shown = multiple ? summary(names, choices === void 0 ? void 0 : listed.length) : names[0];
-  const shownRow = open ? marked ?? active : void 0;
-  useLayoutEffect2(() => {
-    if (shownRow !== void 0) list.current?.ownerDocument.getElementById(optionId(listId, shownRow))?.scrollIntoView({ block: "nearest" });
-  }, [shownRow, listId]);
-  function show(byKeyboard, typed = "") {
-    if (open || disabled) return;
-    if (multiple) {
-      pending.current = { picks: value, opened: value };
-      setPicks(value);
-    }
-    setOpen(true);
-    setQuery(typed);
-    setKeyboard(byKeyboard);
-    setActive(multiple || typed !== "" ? void 0 : value[0]);
-  }
-  function close() {
-    setOpen(false);
-    setQuery("");
-    setKeyboard(false);
-    setActive(void 0);
-    const left = pending.current;
-    pending.current = null;
-    if (left !== null && !sameList(left.picks, left.opened)) report(left.picks, left.opened);
-  }
-  function pick(choice) {
-    if (choice.disabled === true) return;
-    if (!multiple) {
-      close();
-      if (choice.value !== value[0]) report([choice.value], value);
-      return;
-    }
-    const left = pending.current;
-    if (left === null) return;
-    const ticked = left.picks.includes(choice.value);
-    if (ticked && min > 0 && left.picks.length <= min) return;
-    const next = ticked ? left.picks.filter((picked) => picked !== choice.value) : [...left.picks, choice.value];
-    pending.current = { picks: next, opened: left.opened };
-    setPicks(next);
-    setActive(choice.value);
-  }
-  function move(by) {
-    if (!keyboard) {
-      setKeyboard(true);
-      return;
-    }
-    if (pickable.length === 0) return;
-    const at = pickable.findIndex((choice) => choice.value === marked);
-    setActive(pickable[(at + by + pickable.length) % pickable.length]?.value);
-  }
-  function onKeyDown(event) {
-    if (event.nativeEvent.isComposing) return;
-    const row = rows.find((choice) => choice.value === marked);
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      if (open) move(event.key === "ArrowDown" ? 1 : -1);
-      else show(true);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (!open) show(true);
-      else if (!keyboard) setKeyboard(true);
-      else if (row !== void 0) pick(row);
-    } else if (event.key === " " && (!open || multiple && keyboard && query === "" && row !== void 0)) {
-      event.preventDefault();
-      if (!open) show(true);
-      else if (row !== void 0) pick(row);
-    } else if (event.key === "Escape" && open) {
-      event.preventDefault();
-      close();
-    } else if (!open && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      event.preventDefault();
-      show(true, event.key);
-    }
-  }
-  const note = error ?? hint;
-  return /* @__PURE__ */ jsxs2("div", { className: styles.field, children: [
-    /* @__PURE__ */ jsx3("label", { htmlFor: id, className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs2("div", { ref: box, className: "bc:relative bc:grid", style: { anchorName: anchor }, children: [
-      /* @__PURE__ */ jsx3(
-        "input",
-        {
-          ref: input,
-          id,
-          type: "text",
-          role: "combobox",
-          autoComplete: "off",
-          spellCheck: false,
-          "aria-autocomplete": "list",
-          "aria-expanded": open,
-          "aria-controls": listId,
-          "aria-activedescendant": open && marked !== void 0 ? optionId(listId, marked) : void 0,
-          "aria-invalid": invalid || error !== void 0 ? true : void 0,
-          "aria-describedby": note === void 0 ? void 0 : noteId,
-          "data-autofocus": autofocus || void 0,
-          disabled,
-          className: `${styles.box} ${FIELD} bc:pr-8 bc:text-ellipsis`,
-          value: open ? query : shown ?? "",
-          placeholder: open ? shown ?? placeholder : placeholder,
-          onChange: (event) => {
-            if (!open) {
-              show(true, event.target.value);
-              return;
-            }
-            setQuery(event.target.value);
-            setActive(void 0);
-            setKeyboard(true);
-          },
-          onClick: () => {
-            show(false);
-          },
-          onKeyDown,
-          onBlur: close
-        }
-      ),
-      /* @__PURE__ */ jsx3(
-        "button",
-        {
-          type: "button",
-          tabIndex: -1,
-          disabled,
-          "aria-label": open ? `Close the choices of ${label}` : `Show the choices of ${label}`,
-          className: "bc:absolute bc:inset-y-0 bc:right-0 bc:flex bc:w-8 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:disabled:cursor-default",
-          onMouseDown: (event) => {
-            event.preventDefault();
-          },
-          onClick: () => {
-            if (open) close();
-            else {
-              show(false);
-              input.current?.focus();
-            }
-          },
-          children: /* @__PURE__ */ jsx3(Chevron, { open })
-        }
-      )
-    ] }),
-    open ? /* @__PURE__ */ jsxs2(List, { ref: list, anchor: box, name: anchor, children: [
-      /* @__PURE__ */ jsx3("ul", { id: listId, role: "listbox", "aria-label": label, "aria-multiselectable": multiple || void 0, className: LISTBOX, children: byGroup(rows).map(([group, members]) => /* @__PURE__ */ jsx3(Group, { id: group === void 0 ? void 0 : groupId(listId, group), title: group, children: members.map((choice) => {
-        const picked = now.includes(choice.value);
-        return /* @__PURE__ */ jsx3(
-          Row,
-          {
-            choice,
-            id: optionId(listId, choice.value),
-            marked: choice.value === marked,
-            picked,
-            ticks: multiple,
-            locked: picked && locked,
-            onPick: pick
-          },
-          choice.value
-        );
-      }) }, group ?? "")) }),
-      /* @__PURE__ */ jsx3(Note, { choices, empty, found: found.length, rows: rows.length })
-    ] }) : null,
-    note === void 0 ? null : /* @__PURE__ */ jsx3("p", { id: noteId, className: error === void 0 ? styles.hint : styles.alert, children: note })
-  ] });
-}
-function List({
-  ref,
-  anchor,
-  name,
-  children
-}) {
-  useTopLayer(ref, anchor);
-  return /* @__PURE__ */ jsx3(
-    "div",
-    {
-      ref,
-      popover: "manual",
-      className: LIST,
-      style: { positionAnchor: name },
-      onMouseDown: (event) => {
-        event.preventDefault();
-      },
-      children
-    }
-  );
-}
-function useTopLayer(list, anchor) {
-  useLayoutEffect2(() => {
-    const el = list.current;
-    const field = anchor.current;
-    if (el === null || field === null) return;
-    el.showPopover?.();
-    const stop = anchored(el) ? void 0 : follow2(el, field);
-    return () => {
-      stop?.();
-      try {
-        el.hidePopover?.();
-      } catch {
-      }
-    };
-  }, [list, anchor]);
-}
-function anchored(el) {
-  return el.ownerDocument.defaultView?.CSS.supports("position-area", "block-end") === true;
-}
-function follow2(el, field) {
-  const doc = el.ownerDocument;
-  const win = doc.defaultView ?? window;
-  const place = () => {
-    const box = field.getBoundingClientRect();
-    el.style.minWidth = `${String(listWidth(box))}px`;
-    const spot = listSpot(box, el.getBoundingClientRect(), { width: win.innerWidth, height: win.innerHeight });
-    el.style.left = `${String(Math.round(spot.left))}px`;
-    el.style.top = `${String(Math.round(spot.top))}px`;
-  };
-  place();
-  const resizes = new win.ResizeObserver(place);
-  resizes.observe(el);
-  win.addEventListener("resize", place);
-  doc.addEventListener("scroll", place, true);
-  return () => {
-    resizes.disconnect();
-    win.removeEventListener("resize", place);
-    doc.removeEventListener("scroll", place, true);
-  };
-}
-function Group({ id, title, children }) {
-  if (id === void 0 || title === void 0) return /* @__PURE__ */ jsx3(Fragment2, { children });
-  return /* @__PURE__ */ jsxs2("li", { role: "presentation", children: [
-    /* @__PURE__ */ jsx3("div", { id, className: HEADING, children: title }),
-    /* @__PURE__ */ jsx3("ul", { role: "group", "aria-labelledby": id, className: "bc:m-0 bc:list-none bc:p-0", children })
-  ] });
-}
-function Row({
-  choice,
-  id,
-  marked,
-  picked,
-  ticks = false,
-  locked = false,
-  onPick
-}) {
-  const off = choice.disabled === true || locked;
+  const multiple = props.selectionMode === "multiple";
+  const given = props.items ?? props.defaultItems;
+  const unknown = given === void 0 && typeof children === "function";
+  const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
+  const empty = none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
+  const field = useRef2(null);
+  const value = useSameValue(props.value);
   return /* @__PURE__ */ jsxs2(
-    "li",
+    ComboBox,
     {
-      id,
-      role: "option",
-      "data-value": choice.value,
-      "aria-selected": picked,
-      "aria-disabled": off || void 0,
-      className: `${ROW} ${marked ? "bc:bg-bg-subtle bc:outline bc:outline-1 bc:outline-border-accent" : ""} ${choice.disabled === true ? "bc:cursor-default bc:opacity-50" : locked ? "bc:cursor-default" : "bc:cursor-pointer bc:hover:bg-bg-subtle"}`,
-      onClick: () => {
-        onPick(choice);
-      },
+      ...props,
+      value,
+      defaultItems: unknown ? [] : props.defaultItems,
+      allowsEmptyCollection,
+      className: composeRenderProps(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
       children: [
-        ticks ? /* @__PURE__ */ jsx3("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: picked ? /* @__PURE__ */ jsx3(Tick, {}) : null }) : null,
-        /* @__PURE__ */ jsx3("span", { "data-label": "", className: `bc:min-w-0 bc:max-w-full bc:shrink-0 bc:truncate ${!ticks && picked ? "bc:font-semibold" : ""}`, children: choice.label }),
-        choice.detail === void 0 || choice.detail === "" ? null : /* @__PURE__ */ jsx3("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate bc:text-[13px] bc:text-text-muted", children: choice.detail }),
-        choice.badge === void 0 ? null : /* @__PURE__ */ jsx3("span", { className: "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted", children: choice.badge })
+        label === void 0 ? null : /* @__PURE__ */ jsx3(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsx3(
+          Field2,
+          {
+            ref: field,
+            placeholder,
+            multiple,
+            marking,
+            label,
+            autoFocus: props.autoFocus
+          }
+        ),
+        /* @__PURE__ */ jsx3(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+        /* @__PURE__ */ jsx3(FieldError, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx3(UNSAFE_PortalProvider, { getContainer: () => container(field.current), children: /* @__PURE__ */ jsx3(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx3(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx3("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
       ]
     }
   );
 }
-function Note({
-  choices,
-  empty,
-  found,
-  rows
-}) {
-  const text = choices === void 0 ? "Loading\u2026" : choices.length === 0 && found === 0 ? empty : found === 0 ? "No matches" : found > rows ? `${count(found - rows)} more. Type to narrow the list.` : void 0;
-  return text === void 0 ? null : /* @__PURE__ */ jsx3("p", { className: NOTE, children: text });
+function useSameValue(value) {
+  const [drawn, setDrawn] = useState3(value);
+  const same = drawn === value || Array.isArray(drawn) && Array.isArray(value) && sameKeys(drawn, value);
+  if (!same) setDrawn(value);
+  return same ? drawn : value;
 }
-function Chevron({ open }) {
+function sameKeys(a, b) {
+  return a.length === b.length && a.every((key, i) => key === b[i]);
+}
+function container(field) {
+  return field?.closest("dialog, [popover]") ?? field?.ownerDocument.body ?? null;
+}
+function hasChildren(children) {
+  return Array.isArray(children) ? children.some((child) => hasChildren(child)) : children !== null && children !== void 0 && children !== false;
+}
+function Field2({
+  ref,
+  placeholder,
+  multiple,
+  marking,
+  label,
+  autoFocus
+}) {
+  const state = useContext(ComboBoxStateContext);
+  const value = state?.value ?? null;
+  const keys = multiple && Array.isArray(value) ? value : [];
+  const one = !multiple && value !== null && !Array.isArray(value) ? value : null;
+  const item = state?.selectedItems[0] ?? null;
+  const lackedOne = one !== null && item === null;
+  const known2 = new Map((state?.selectedItems ?? []).map((item2) => [item2.key, item2.textValue]));
+  const lacked = keys.some((key) => !known2.has(key));
+  const invalid = marking && (lackedOne || lacked);
+  const remove = (gone) => {
+    state?.setValue(keys.filter((key) => !gone.has(key)));
+  };
+  return /* @__PURE__ */ jsxs2(Group, { ref, className: `${FIELD} ${invalid ? "bc:border-border-danger" : ""}`, children: [
+    keys.length === 0 ? null : /* @__PURE__ */ jsx3(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx3(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key) => {
+      const text = known2.get(key) ?? String(key);
+      const gone = marking && !known2.has(key);
+      return /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, className: `${CHIP} ${gone ? "bc:border-border-danger bc:text-text-danger" : ""}`, children: [
+        /* @__PURE__ */ jsx3("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+        /* @__PURE__ */ jsx3(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx3(Cross, {}) })
+      ] }, key);
+    }) }) }),
+    /* @__PURE__ */ jsx3(
+      Input,
+      {
+        value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item?.textValue ?? "",
+        placeholder: lackedOne ? marking ? missing(String(one)) : String(one) : keys.length > 0 ? void 0 : placeholder,
+        "aria-invalid": invalid || void 0,
+        "data-autofocus": autoFocus === true || void 0,
+        className: INPUT,
+        onClick: () => {
+          if (state !== null && !state.isOpen) state.open(null, "manual");
+        },
+        onKeyDown: (event) => {
+          if (event.key === "Escape" && state?.isOpen === true) event.preventDefault();
+          if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
+          state?.setValue(keys.slice(0, -1));
+        }
+      }
+    ),
+    /* @__PURE__ */ jsx3(Button, { className: OPENER, children: /* @__PURE__ */ jsx3(Chevron, {}) })
+  ] });
+}
+function ComboBoxItem(props) {
+  const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
+  return /* @__PURE__ */ jsx3(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs2(Fragment2, { children: [
+    selectionMode === "multiple" ? /* @__PURE__ */ jsx3("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx3(Tick, {}) : null }) : null,
+    /* @__PURE__ */ jsx3(
+      "span",
+      {
+        className: `bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2 bc:truncate ${selectionMode === "single" && isSelected ? "bc:font-semibold" : ""}`,
+        children
+      }
+    )
+  ] })) });
+}
+function ComboBoxSection({ title, items, children, ...props }) {
+  return /* @__PURE__ */ jsxs2(ListBoxSection, { ...props, children: [
+    /* @__PURE__ */ jsx3(Header, { className: HEADING, children: title }),
+    /* @__PURE__ */ jsx3(Collection, { items, children })
+  ] });
+}
+function Chevron() {
   return /* @__PURE__ */ jsx3(
     "svg",
     {
@@ -962,7 +783,7 @@ function Chevron({ open }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      className: `bc:shrink-0 bc:text-text-muted bc:transition-transform ${open ? "bc:rotate-180" : ""}`,
+      className: "bc:shrink-0 bc:text-text-muted bc:transition-transform bc:group-data-open:rotate-180",
       children: /* @__PURE__ */ jsx3("polyline", { points: "3 4.5 6 7.5 9 4.5" })
     }
   );
@@ -984,57 +805,41 @@ function Tick() {
     }
   );
 }
-function matching(choices, query) {
-  const needle = query.trim().toLowerCase();
-  if (needle === "") return [...choices];
-  return choices.filter(
-    (choice) => [choice.label, choice.detail ?? "", choice.value, choice.group ?? "", choice.badge ?? "", ...choice.keywords ?? []].some(
-      (text) => text.toLowerCase().includes(needle)
-    )
+function Cross() {
+  return /* @__PURE__ */ jsx3(
+    "svg",
+    {
+      width: "10",
+      height: "10",
+      viewBox: "0 0 10 10",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.4",
+      strokeLinecap: "round",
+      "aria-hidden": "true",
+      children: /* @__PURE__ */ jsx3("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" })
+    }
   );
 }
-function byGroup(choices) {
-  const groups = /* @__PURE__ */ new Map();
-  for (const choice of choices) groups.set(choice.group, [...groups.get(choice.group) ?? [], choice]);
-  const loose = groups.get(void 0);
-  groups.delete(void 0);
-  return [...loose === void 0 ? [] : [[void 0, loose]], ...groups];
-}
-function summary(names, total) {
-  if (names.length === 0) return void 0;
-  if (names.length <= 2 || total === void 0) return names.join(", ");
-  return `${count(names.length)} of ${count(total)}: ${names.join(", ")}`;
-}
-function count(n) {
-  return n.toLocaleString("en-US");
-}
-function sameList(a, b) {
-  return a.length === b.length && a.every((value, i) => value === b[i]);
-}
-function anchorName(id) {
-  return `--bc-select-${safe(id)}`;
-}
-function optionId(list, value) {
-  return `${list}-option-${safe(value)}`;
-}
-function groupId(list, key) {
-  return `${list}-group-${safe(key)}`;
-}
-function safe(text) {
-  return text.replace(/[^A-Za-z0-9_-]/g, (c) => `_${c.charCodeAt(0).toString(16)}`);
-}
-var FIELD = "bc:disabled:cursor-default bc:disabled:opacity-50";
-var LIST = "bc:select-list bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:p-1 bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:dark:text-gray-100";
-var LISTBOX = "bc:m-0 bc:min-h-0 bc:list-none bc:overflow-y-auto bc:p-0";
-var HEADING = "bc:sticky bc:top-0 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
-var ROW = "bc:flex bc:min-h-8 bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm";
+var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
+var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
+var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
+var LIST = "bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
+var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:p-1 bc:outline-none";
+var HEADING = "bc:sticky bc:-top-1 bc:z-10 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
+var ROW = "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 export {
   Checkbox,
+  ComboBox2 as ComboBox,
+  ComboBoxItem,
+  ComboBoxSection,
   Field,
   NumberInput,
-  Select,
   Stack,
+  Text,
   TextInput,
   outputRenderer,
   reactModule,

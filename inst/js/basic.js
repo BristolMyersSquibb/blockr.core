@@ -3,7 +3,7 @@ import { flushSync as flushSync2 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback6, useEffect as useEffect3, useMemo as useMemo2, useState as useState9 } from "react";
+import { useCallback as useCallback6, useEffect as useEffect3, useMemo as useMemo2, useState as useState10 } from "react";
 import { createPortal } from "react-dom";
 
 // srcts/card/footer.tsx
@@ -293,10 +293,9 @@ function defaultBlockName(registryId2) {
 }
 
 // srcts/picker/picker.tsx
-import { useMemo, useState as useState5 } from "react";
+import { useMemo, useState as useState6 } from "react";
 import { flushSync } from "react-dom";
-import { asChoices } from "@blockr/core/binding";
-import { Select, useBoard } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Text, useBoard } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -377,11 +376,27 @@ function useHistory(core) {
   return { canUndo, canRedo };
 }
 
+// srcts/ui/search.ts
+import { useState as useState3 } from "react";
+import { useFilter } from "./vendor-0cfb4d33.js";
+function useSearch(all, texts, none = "No options") {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [query, setQuery] = useState3("");
+  return {
+    items: query === "" ? all : all.filter((item) => texts(item).some((text) => contains(text, query))),
+    onInputChange: setQuery,
+    onOpenChange: (isOpen, trigger) => {
+      if (isOpen && trigger === "manual") setQuery("");
+    },
+    renderEmptyState: () => all.length === 0 ? none : "No matches"
+  };
+}
+
 // srcts/ui/table.tsx
-import { useState as useState4 } from "react";
+import { useState as useState5 } from "react";
 
 // srcts/ui/ui.tsx
-import { useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState3 } from "react";
+import { useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState4 } from "react";
 import { jsx as jsx4 } from "react/jsx-runtime";
 var classes = {
   button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
@@ -403,7 +418,7 @@ function NameField({
   onSubmit,
   onDone
 }) {
-  const [text, setText] = useState3(name2);
+  const [text, setText] = useState4(name2);
   const ref = useRef2(null);
   const done = useRef2(false);
   useLayoutEffect2(() => {
@@ -448,18 +463,23 @@ import { jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
 function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
   const board = useBoard(core);
   const registry = core.blockRegistry();
-  const [picked, setPicked] = useState5(void 0);
-  const [input2, setInput] = useState5(void 0);
-  const [inputName, setInputName] = useState5("");
-  const [id2, setId] = useState5("");
-  const [name2, setName] = useState5("");
-  const [errors, setErrors] = useState5({});
-  const [busy, setBusy] = useState5(false);
+  const [picked, setPicked] = useState6(void 0);
+  const [input2, setInput] = useState6(void 0);
+  const [inputName, setInputName] = useState6("");
+  const [id2, setId] = useState6("");
+  const [name2, setName] = useState6("");
+  const [errors, setErrors] = useState6({});
+  const [busy, setBusy] = useState6(false);
   const entries = useMemo(
     () => Object.values(registry).filter((entry2) => mode.kind !== "after" || entry2.inputs.length > 0),
     [registry, mode.kind]
   );
-  const options = useMemo(() => entries.map(classOption).sort(byGroupAndLabel), [entries]);
+  const options = useMemo(() => entries.map(classItem).sort(byGroupAndName), [entries]);
+  const search = useSearch(
+    options,
+    (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
+    "No block class to pick."
+  );
   const entry = picked === void 0 ? void 0 : own(registry, picked);
   const link = linkChoice(mode, board, registry, entry);
   const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
@@ -511,24 +531,41 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
       },
       children: [
         /* @__PURE__ */ jsx6(
-          Select,
+          ComboBox,
           {
             label: "Block class",
-            autofocus,
-            choices: options,
-            value: picked,
+            autoFocus: autofocus,
+            ...search,
+            items: byCategory(search.items),
+            value: picked ?? null,
             placeholder: options.length === 0 ? "No block class to pick" : "Search by name, description or keyword",
-            empty: "No block class to pick.",
-            error: errors.registry,
-            hint: entry?.description === "" ? void 0 : entry?.description,
-            onChange: (value2) => {
-              setPicked(value2);
+            isInvalid: errors.registry !== void 0,
+            errorMessage: errors.registry,
+            description: entry?.description === "" ? void 0 : entry?.description,
+            onChange: (key) => {
+              setPicked(key === null ? void 0 : String(key));
               if (mode.kind === "after") setInput(void 0);
               setErrors((now) => without2(now, "registry"));
-            }
+            },
+            children: (category) => /* @__PURE__ */ jsx6(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item) => /* @__PURE__ */ jsxs4(ComboBoxItem, { id: item.id, textValue: item.name, children: [
+              /* @__PURE__ */ jsx6(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item.name }),
+              item.description === "" ? null : /* @__PURE__ */ jsx6(Text, { slot: "description", children: item.description }),
+              item.pkg === null ? null : /* @__PURE__ */ jsx6("span", { className: BADGE, children: item.pkg })
+            ] }) })
           }
         ),
-        link.kind === "pick" ? /* @__PURE__ */ jsx6(Select, { label: link.label, choices: asChoices(link.inputs), value: chosen, onChange: setInput }) : null,
+        link.kind === "pick" ? /* @__PURE__ */ jsx6(
+          ComboBox,
+          {
+            label: link.label,
+            defaultItems: link.inputs.map((input3) => ({ id: input3 })),
+            value: chosen ?? null,
+            onChange: (key) => {
+              if (key !== null) setInput(String(key));
+            },
+            children: (item) => /* @__PURE__ */ jsx6(ComboBoxItem, { id: item.id, children: item.id })
+          }
+        ) : null,
         link.kind === "name" ? /* @__PURE__ */ jsx6(
           TextField,
           {
@@ -607,22 +644,31 @@ function inputNameError(value2, taken) {
 function isVariadic(free) {
   return free.length === 1 && free[0] === "";
 }
-function classOption(entry) {
-  const pkg = packageFromId(entry.id);
+function classItem(entry) {
   return {
-    value: entry.id,
-    label: entry.name,
-    detail: entry.description,
-    ...pkg === null ? {} : { badge: pkg },
-    group: entry.category === "" ? UNCATEGORIZED : entry.category,
-    keywords: [...entry.keywords, entry.id]
+    id: entry.id,
+    name: entry.name,
+    description: entry.description,
+    pkg: packageFromId(entry.id),
+    category: entry.category === "" ? UNCATEGORIZED : entry.category,
+    keywords: entry.keywords
   };
 }
 var UNCATEGORIZED = "uncategorized";
-function byGroupAndLabel(a, b) {
-  const last = (option) => option.group?.toLowerCase() === UNCATEGORIZED ? 1 : 0;
-  return last(a) - last(b) || (a.group ?? "").localeCompare(b.group ?? "") || a.label.localeCompare(b.label);
+function byGroupAndName(a, b) {
+  const last = (item) => item.category.toLowerCase() === UNCATEGORIZED ? 1 : 0;
+  return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
 }
+function byCategory(items) {
+  const categories = /* @__PURE__ */ new Map();
+  for (const item of items) {
+    const members = categories.get(item.category) ?? [];
+    members.push(item);
+    categories.set(item.category, members);
+  }
+  return [...categories].map(([name2, members]) => ({ id: `category:${name2}`, name: name2, items: members }));
+}
+var BADGE = "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted";
 function filled(arg, value2) {
   const trimmed = value2.trim();
   return trimmed === "" ? {} : { [arg]: trimmed };
@@ -651,7 +697,7 @@ function without2(errors, key) {
 import { useBoard as useBoard3 } from "@blockr/core/react";
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect4, useRef as useRef4, useState as useState7 } from "react";
+import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect4, useRef as useRef4, useState as useState8 } from "react";
 import { useNotified, useStatus } from "@blockr/core/react";
 
 // srcts/modules/basic/context.ts
@@ -664,7 +710,7 @@ function useFrontEnd() {
 }
 
 // srcts/modules/basic/ui.tsx
-import { useEffect, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState6 } from "react";
+import { useEffect, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState7 } from "react";
 import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 function Dialog({
   title,
@@ -729,7 +775,7 @@ function useDismiss(ref, open, setOpen) {
   }, [ref, open, setOpen]);
 }
 function Menu({ label, items }) {
-  const [open, setOpen] = useState6(false);
+  const [open, setOpen] = useState7(false);
   const ref = useRef3(null);
   useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs5("div", { ref, className: "bc:relative", children: [
@@ -779,7 +825,7 @@ var BlockCard = memo(function BlockCard2({
   const notified = useNotified(core, id2);
   const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
-  const [renaming, setRenaming] = useState7(false);
+  const [renaming, setRenaming] = useState8(false);
   const ref = useRef4(null);
   useLayoutEffect4(() => {
     const el = ref.current;
@@ -1152,7 +1198,7 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState8 } from "react";
+import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState9 } from "react";
 
 // srcts/modules/basic/storage.ts
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -1273,7 +1319,7 @@ import { Fragment as Fragment2, jsx as jsx11, jsxs as jsxs9 } from "react/jsx-ru
 function Toolbar({ board, showOptions }) {
   const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
-  const [renaming, setRenaming] = useState8(false);
+  const [renaming, setRenaming] = useState9(false);
   const locked2 = core.lock.board;
   function step(back) {
     try {
@@ -1409,7 +1455,7 @@ function StorageButton({
   );
 }
 function StorageMenu({ label, items }) {
-  const [open, setOpen] = useState8(false);
+  const [open, setOpen] = useState9(false);
   const ref = useRef6(null);
   useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs9("div", { ref, className: "bc:relative", children: [
@@ -1467,7 +1513,7 @@ function Page() {
   const items = useMemo2(() => layoutItems(board), [board]);
   const shown = board.options.show_conditions;
   const severities = useMemo2(() => asSeverities(shown), [shown]);
-  const [dialog, setDialog] = useState9(null);
+  const [dialog, setDialog] = useState10(null);
   const add = useCallback6((mode) => {
     setDialog({ kind: "add", mode });
   }, []);

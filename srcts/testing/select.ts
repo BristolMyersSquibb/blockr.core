@@ -1,7 +1,9 @@
-// What a user does to the select of core's React SDK in a test
-// (../inputs/select.tsx): finds its field by its label, opens its list, types
-// a filter into its field and picks a choice of the list, by what the user
-// reads.
+// What a user does to the select of core's React SDK in a test, React Aria's
+// ComboBox (../inputs/combobox.tsx): finds its field by its label, opens its
+// list, picks an item of the list and removes a chip of its field, by what
+// the user reads.
+// React Aria draws the list in a portal at the end of the page's body, which
+// the field names in aria-controls while the list is open.
 
 import { press } from "./inputs.ts";
 
@@ -23,7 +25,7 @@ export async function listed(field: HTMLElement, act: Act): Promise<string[]> {
 }
 
 // Opens the select's list and clicks the rows of the labels given, as a user
-// picks them, and closes the list of several again, as it reports its picks.
+// picks them, and closes the list of several again, as it submits its picks.
 export async function picked(field: HTMLElement, act: Act, ...labels: string[]): Promise<void> {
   await act(() => {
     field.click();
@@ -55,14 +57,15 @@ export function listFromField(field: HTMLElement): HTMLElement | null {
   return id === null ? null : byId(field, id);
 }
 
-// The labels of the rows that the open list shows, by group where it groups
-// them, as "group: label".
+// The labels of the rows that the open list shows, by section where it has
+// sections, as "section: label".
 export function optionLabels(field: HTMLElement): string[] {
   const list = listFromField(field);
-  if (list === null) return [];
+  // React Aria holds what an empty list says in a row of its own.
+  if (list === null || list.hasAttribute("data-empty")) return [];
   return [...list.querySelectorAll('[role="option"]')].map((option) => {
-    const group = option.closest('[role="group"]');
-    const heading = group === null ? null : byId(field, group.getAttribute("aria-labelledby") ?? "");
+    const section = option.closest('[role="group"]');
+    const heading = section === null ? null : byId(field, section.getAttribute("aria-labelledby") ?? "");
     const label = optionLabel(option);
     return heading === null ? label : `${heading.textContent}: ${label}`;
   });
@@ -80,9 +83,10 @@ export function pickedLabels(field: HTMLElement): string[] {
   return [...(listFromField(field)?.querySelectorAll('[role="option"][aria-selected="true"]') ?? [])].map(optionLabel);
 }
 
-// What the open list says below its rows, such as that no choice matches.
+// What the open list says where it shows no row, such as that no item
+// matches.
 export function listNote(field: HTMLElement): string | null {
-  return listFromField(field)?.parentElement?.querySelector(":scope > p")?.textContent ?? null;
+  return listFromField(field)?.querySelector("p")?.textContent ?? null;
 }
 
 // The label of the row that the keyboard marks, as the field names it in
@@ -93,16 +97,40 @@ export function markedLabel(field: HTMLElement): string | null {
   return option === null ? null : optionLabel(option);
 }
 
+// The labels of the chips in the field of a select of several.
+export function chipLabels(field: HTMLElement): string[] {
+  return chips(field).map((chip) => chip.textContent.trim());
+}
+
+// Clicks the button that removes the chip of the label given.
+export async function removeChip(field: HTMLElement, act: Act, label: string): Promise<void> {
+  const chip = chips(field).find((found) => found.textContent.trim() === label);
+  const button = chip?.querySelector("button");
+  if (!(button instanceof HTMLElement)) throw new Error(`Found no chip ${label} of ${field.id}.`);
+  await act(() => {
+    button.click();
+  });
+}
+
+function chips(field: HTMLElement): Element[] {
+  return [...(field.closest('[role="group"]')?.querySelectorAll('[role="row"]') ?? [])];
+}
+
 // The element of the id given in the tree that holds `node`, whether on the
-// page or not, as the element of controls() before a module puts it there.
+// page or not, as the element of controls() before a module puts it there, or
+// on the page, where React Aria draws the list.
 function byId(node: Node, id: string): HTMLElement | null {
   if (id === "") return null;
   const root = node.getRootNode() as Partial<Pick<Document, "getElementById">> & Partial<Pick<Element, "querySelector">>;
-  const found = root.getElementById?.(id) ?? root.querySelector?.(`[id="${CSS.escape(id)}"]`) ?? null;
+  const found =
+    root.getElementById?.(id) ?? root.querySelector?.(`[id="${CSS.escape(id)}"]`) ?? node.ownerDocument?.getElementById(id) ?? null;
   return found instanceof HTMLElement ? found : null;
 }
 
-// What a row shows as its label.
+// What a row shows as its label: what its label slot holds, where it has one,
+// as React Aria names the row by it, and otherwise its text.
 function optionLabel(option: Element): string {
-  return option.querySelector("[data-label]")?.textContent ?? "";
+  const id = option.getAttribute("aria-labelledby");
+  const label = id === null ? null : byId(option, id.split(" ")[0] ?? "");
+  return (label ?? option).textContent.trim();
 }

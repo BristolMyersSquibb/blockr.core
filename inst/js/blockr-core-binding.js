@@ -160,15 +160,11 @@ function createSource(host) {
     request: (name, args, opts) => host.request(name, args, opts)
   };
 }
-function asChoices(values) {
-  return values.map((value) => ({ value, label: value }));
-}
 function strings(value) {
   return Array.isArray(value) ? value.filter((x) => typeof x === "string") : [];
 }
 export {
   PAUSE,
-  asChoices,
   bind,
   follow,
   strings

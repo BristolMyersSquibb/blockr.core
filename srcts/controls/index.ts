@@ -3,7 +3,7 @@
 // option, which controls() draws with core's copy of React.
 
 export { controls } from "./controls.tsx";
-export type { Controls, NumberInput, Select, SelectOptions } from "./controls.tsx";
-export { asChoices, PAUSE, strings } from "../binding/index.ts";
-export type { Binding, Choice, Followed, FollowOptions } from "../binding/index.ts";
+export type { ComboBox, ComboBoxOptions, Controls, Item, NumberInput } from "./controls.tsx";
+export { PAUSE, strings } from "../binding/index.ts";
+export type { Binding, Followed, FollowOptions } from "../binding/index.ts";
 export { styles } from "../styles/index.ts";

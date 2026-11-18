@@ -17,7 +17,7 @@ import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { bind as bindValue, follow as followRequest } from "../binding/index.ts";
-import type { Binding, Choice, Followed, FollowOptions } from "../binding/index.ts";
+import type { Binding, Followed, FollowOptions } from "../binding/index.ts";
 import * as inputs from "../inputs/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
@@ -34,30 +34,38 @@ export interface NumberInput {
   setOutdated(outdated: boolean): void;
 }
 
-export interface Select {
-  setChoices(choices: readonly Choice[]): void;
-  // Says whether the choices may be for older data,
+export interface ComboBox {
+  setItems(items: readonly Item[]): void;
+  // Says whether the items may be for older data,
   // as from the option `loading` of follow() until the request answers.
   // Meanwhile the select keeps them, and shows a value that they lack as it
   // is.
   setOutdated(outdated: boolean): void;
 }
 
-// What a select of the controls takes besides its key.
-export interface SelectOptions {
+// An item of a select of the controls: the value it sets by its id, and how
+// it reads by its name, the id where it has none, as React Aria's docs write
+// items.
+export interface Item {
+  readonly id: string;
+  readonly name?: string;
+}
+
+// What a select of the controls takes besides its key, by the names of the
+// props of the SDK's ComboBox (../inputs/combobox.tsx).
+export interface ComboBoxOptions {
   readonly label: string;
-  // What the field shows while nothing is picked, "None" by default for
-  // several choices.
+  // What the field shows while nothing is picked.
   readonly placeholder?: string;
-  readonly choices?: readonly Choice[];
-  // Whether it picks an array of strings, rather than one string.
-  readonly multiple?: boolean;
+  // The items, which the select filters by what the user types.
+  readonly items?: readonly Item[];
+  // Whether it picks one string, or an array of strings.
+  readonly selectionMode?: "single" | "multiple";
   // Where it picks several, whether it submits them in the order of the
-  // choices, as for severities, rather than in the order the user picked
-  // them.
+  // items, as for severities, rather than in the order the user picked them.
   readonly ordered?: boolean;
-  // What its list says once its choices are known and there are none.
-  readonly empty?: string;
+  // What its list says once its items are known and there are none.
+  readonly renderEmptyState?: () => string;
 }
 
 // The controls of a module, by the keys of the values they bind:
@@ -83,18 +91,19 @@ export interface Controls<K extends string = string> {
   // and no larger than the number that setMax() gives,
   // but while setOutdated() says that it may be for older data.
   number(key: K, options: { label: string; min?: number }): NumberInput;
-  // A select of one string, or of an array of strings where `multiple`,
-  // which shows `placeholder` while nothing is picked.
-  // It takes no choices until they are given, here or through setChoices(),
+  // A select, the SDK's ComboBox, of one string, or of an array of strings
+  // where its selectionMode is "multiple", which shows `placeholder` while
+  // nothing is picked.
+  // It takes no items until they are given, here or through setItems(),
   // and shows a value meanwhile as it is.
   // Once they are, it shows a value that they lack as missing,
   // and marks itself invalid,
   // but not while setOutdated() says that they may be for older data.
-  // So its choices must list every value it takes, not a part of them.
+  // So its items must hold every value it takes, not a part of them.
   // It submits one string as the user picks it, and several once, as its list
   // closes, after those the value holds, or where `ordered`, in the order of
-  // the choices.
-  select(key: K, options: SelectOptions): Select;
+  // the items.
+  comboBox(key: K, options: ComboBoxOptions): ComboBox;
   checkbox(key: K, options: { label: string }): void;
   // A request of the block's class or of the board option,
   // asked as the module mounts and again whenever what it reads changes.
@@ -111,7 +120,7 @@ export interface Controls<K extends string = string> {
 
 // What a control draws, in the order the controls were made,
 // by an id that keeps its place as React draws them again.
-interface Item {
+interface Entry {
   readonly id: number;
   readonly draw: () => ReactElement;
 }
@@ -130,7 +139,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   el.className = styles.stack;
   const root = createRoot(el);
 
-  const items: Item[] = [];
+  const entries: Entry[] = [];
   const bindings: Binding[] = [];
   const followed: Followed[] = [];
   let error: string | null = null;
@@ -139,7 +148,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   // Draws the controls as they are now, before it returns.
   const redraw = (): void => {
     if (ended) return;
-    const drawn = items.map((item) => <Fragment key={item.id}>{item.draw()}</Fragment>);
+    const drawn = entries.map((entry) => <Fragment key={entry.id}>{entry.draw()}</Fragment>);
     flushSync(() => {
       root.render(
         <>
@@ -155,7 +164,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   };
 
   function put(draw: () => ReactElement): void {
-    items.push({ id: items.length, draw });
+    entries.push({ id: entries.length, draw });
     redraw();
   }
 
@@ -253,24 +262,26 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     };
   }
 
-  function select(key: string, options: SelectOptions): Select {
-    let choices = options.choices;
+  function comboBox(key: string, options: ComboBoxOptions): ComboBox {
+    let items = options.items;
     let outdated = false;
     input(key, (bound) => (
-      <inputs.Select
+      <inputs.ComboBox
         bound={bound}
         label={options.label}
         placeholder={options.placeholder}
-        choices={choices}
-        multiple={options.multiple}
+        defaultItems={items}
+        selectionMode={options.selectionMode ?? "single"}
         ordered={options.ordered}
-        empty={options.empty}
+        renderEmptyState={options.renderEmptyState}
         outdated={outdated}
-      />
+      >
+        {(item) => <inputs.ComboBoxItem id={item.id}>{item.name ?? item.id}</inputs.ComboBoxItem>}
+      </inputs.ComboBox>
     ));
     return {
-      setChoices(next) {
-        choices = next;
+      setItems(next) {
+        items = next;
         redraw();
       },
       setOutdated(next) {
@@ -294,7 +305,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
 
   signal.addEventListener("abort", cleanup, { once: true });
 
-  return { el, add, get, bind, text, number, select, checkbox, follow, alert, cleanup };
+  return { el, add, get, bind, text, number, comboBox, checkbox, follow, alert, cleanup };
 }
 
 // An element that the module draws itself, which React puts in a wrapper that

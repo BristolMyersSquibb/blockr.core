@@ -7,8 +7,8 @@
 // so the select marks no column.
 
 import type { ReactElement } from "react";
-import { asChoices, strings } from "../../binding/index.ts";
-import { Checkbox, reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
+import { strings } from "../../binding/index.ts";
+import { Checkbox, ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
@@ -19,14 +19,16 @@ function MergeBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useRequest(host, "shared");
   return (
     <Stack>
-      <Select
+      <ComboBox
         bound={useValue(host, "by")}
-        multiple
+        selectionMode="multiple"
         label="By columns"
-        choices={shared.answer === undefined ? undefined : asChoices(strings(shared.answer))}
-        empty="The inputs share no column."
+        defaultItems={strings(shared.answer).map((id) => ({ id }))}
+        renderEmptyState={() => "The inputs share no column."}
         outdated={shared.loading || shared.error !== null}
-      />
+      >
+        {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+      </ComboBox>
       <Checkbox bound={useValue(host, "all_x")} label="Keep the rows of x that y does not match" />
       <Checkbox bound={useValue(host, "all_y")} label="Keep the rows of y that x does not match" />
     </Stack>

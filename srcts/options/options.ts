@@ -86,8 +86,8 @@ export const darkMode: Omit<Option, "id"> = {
     return checked("dark_mode", takesTheme, value);
   },
   ui: selectUi("Light/dark mode", "Choose a mode", [
-    { value: "light", label: "Light" },
-    { value: "dark", label: "Dark" },
+    { id: "light", name: "Light" },
+    { id: "dark", name: "Dark" },
   ]),
   onChange(value) {
     setTheme(value);

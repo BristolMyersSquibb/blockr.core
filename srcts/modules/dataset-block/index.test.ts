@@ -34,7 +34,8 @@ async function mounted(state: State, requests = fixture.requests) {
 // What the select shows: its field's text, the rows of its list and whether
 // it marks itself invalid.
 async function shown(select: HTMLInputElement): Promise<[string, string[], string | null]> {
-  return [select.value, await listed(select, step), select.getAttribute("aria-invalid")];
+  // The field shows a pick that the items lack in place of its placeholder.
+  return [select.value || select.placeholder, await listed(select, step), select.getAttribute("aria-invalid")];
 }
 
 test("shows the state, with a choice of each data frame the package ships", async () => {
@@ -53,7 +54,7 @@ test("shows a dataset that the choices lack as it is until they arrive, then as 
 
   const { host, select } = await mounted({ dataset: "Nile", package: "datasets" });
   await settle();
-  expect(await shown(select)).toEqual(["Nile (not available)", ["BOD", "iris", "mtcars", "Nile (not available)"], "true"]);
+  expect(await shown(select)).toEqual(["Nile (not available)", ["BOD", "iris", "mtcars"], "true"]);
   expect(host.submitted).toEqual([]);
 });
 
@@ -62,7 +63,7 @@ test("never picks a dataset once the choices arrive", async () => {
   await settle();
 
   expect([select.value, select.placeholder]).toEqual(["", "Choose a dataset"]);
-  expect(await shown(select)).toEqual(["", ["BOD", "iris", "mtcars"], null]);
+  expect(await shown(select)).toEqual(["Choose a dataset", ["BOD", "iris", "mtcars"], null]);
   expect(host.submitted).toEqual([]);
 });
 
@@ -104,11 +105,11 @@ test("marks no dataset while it asks for the datasets of another package, nor on
   await step(() => {
     host.setState({ dataset: "Boston", package: "MASS" });
   });
-  expect(await shown(select)).toEqual(["Boston", ["BOD", "iris", "mtcars", "Boston"], null]);
+  expect(await shown(select)).toEqual(["Boston", ["BOD", "iris", "mtcars"], null]);
 
   // The fixture records no datasets of MASS.
   release();
   await settle();
-  expect(await shown(select)).toEqual(["Boston", ["BOD", "iris", "mtcars", "Boston"], null]);
+  expect(await shown(select)).toEqual(["Boston", ["BOD", "iris", "mtcars"], null]);
   expect(host.submitted).toEqual([]);
 });

@@ -1,3 +1,4 @@
 export { Checkbox, Field, NumberInput, Stack, TextInput } from "./inputs.tsx";
-export { Select } from "./select.tsx";
-export type { SelectBoundProps, SelectOneProps, SelectProps, SelectSeveralProps } from "./select.tsx";
+export { ComboBox, ComboBoxItem, ComboBoxSection } from "./combobox.tsx";
+export type { ComboBoxProps, ComboBoxSectionProps } from "./combobox.tsx";
+export { Text } from "../aria/index.ts";

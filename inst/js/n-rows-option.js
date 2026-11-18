@@ -32,8 +32,7 @@ var optionSchemas = {
 };
 
 // srcts/options/ui.tsx
-import { asChoices } from "@blockr/core/binding";
-import { NumberInput, Select } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, NumberInput } from "@blockr/core/react";
 import { reactModule, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 function numberUi(label, min) {
@@ -42,15 +41,16 @@ function numberUi(label, min) {
   }
   return reactModule(NumberUi);
 }
-function multiSelectUi(label, choices) {
+function multiSelectUi(label, values) {
+  const items = values.map((id) => ({ id }));
   function MultiSelectUi({ host }) {
-    return /* @__PURE__ */ jsx(Select, { bound: useValue(host), multiple: true, label, choices: asChoices(choices), ordered: true });
+    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), selectionMode: "multiple", label, defaultItems: items, ordered: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.id }) });
   }
   return reactModule(MultiSelectUi);
 }
-function selectUi(label, placeholder, choices) {
+function selectUi(label, placeholder, items) {
   function SelectUi({ host }) {
-    return /* @__PURE__ */ jsx(Select, { bound: useValue(host), label, placeholder, choices });
+    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), label, placeholder, defaultItems: items, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.name }) });
   }
   return reactModule(SelectUi);
 }
@@ -94,8 +94,8 @@ var darkMode = {
     return checked("dark_mode", takesTheme, value);
   },
   ui: selectUi("Light/dark mode", "Choose a mode", [
-    { value: "light", label: "Light" },
-    { value: "dark", label: "Dark" }
+    { id: "light", name: "Light" },
+    { id: "dark", name: "Dark" }
   ]),
   onChange(value) {
     setTheme(value);

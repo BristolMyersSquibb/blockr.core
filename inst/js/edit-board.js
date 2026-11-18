@@ -3,14 +3,14 @@ import { flushSync as flushSync3 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState7 } from "react";
+import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState8 } from "react";
 import { useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/modules/edit-board/blocks.tsx
-import { useCallback as useCallback2, useState as useState4 } from "react";
+import { useCallback as useCallback2, useState as useState5 } from "react";
 
 // srcts/picker/picker.tsx
-import { useMemo, useState as useState3 } from "react";
+import { useMemo, useState as useState4 } from "react";
 import { flushSync } from "react-dom";
 
 // srcts/util/util.ts
@@ -206,8 +206,7 @@ function defaultBlockName(registryId2) {
 }
 
 // srcts/picker/picker.tsx
-import { asChoices } from "@blockr/core/binding";
-import { Select, useBoard } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Text, useBoard } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -277,11 +276,27 @@ function TextField({
 // srcts/ui/hooks.ts
 import { useCallback, useSyncExternalStore } from "react";
 
+// srcts/ui/search.ts
+import { useState } from "react";
+import { useFilter } from "./vendor-0cfb4d33.js";
+function useSearch(all, texts, none = "No options") {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [query, setQuery] = useState("");
+  return {
+    items: query === "" ? all : all.filter((item) => texts(item).some((text) => contains(text, query))),
+    onInputChange: setQuery,
+    onOpenChange: (isOpen, trigger) => {
+      if (isOpen && trigger === "manual") setQuery("");
+    },
+    renderEmptyState: () => all.length === 0 ? none : "No matches"
+  };
+}
+
 // srcts/ui/table.tsx
-import { useState as useState2 } from "react";
+import { useState as useState3 } from "react";
 
 // srcts/ui/ui.tsx
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState as useState2 } from "react";
 import { jsx as jsx2 } from "react/jsx-runtime";
 var classes = {
   button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
@@ -303,7 +318,7 @@ function NameField({
   onSubmit,
   onDone
 }) {
-  const [text, setText] = useState(name2);
+  const [text, setText] = useState2(name2);
   const ref = useRef(null);
   const done = useRef(false);
   useLayoutEffect(() => {
@@ -344,8 +359,8 @@ function NameField({
 import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var PAGE_SIZE = 10;
 function useTableView(rows, text, size = PAGE_SIZE) {
-  const [query, setQueryState] = useState2("");
-  const [page, setPage] = useState2(0);
+  const [query, setQueryState] = useState3("");
+  const [page, setPage] = useState3(0);
   const needle = query.trim().toLowerCase();
   const matching = needle === "" ? rows : rows.filter((row) => text(row).toLowerCase().includes(needle));
   const pages = Math.max(1, Math.ceil(matching.length / size));
@@ -429,18 +444,23 @@ import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
   const board = useBoard(core);
   const registry = core.blockRegistry();
-  const [picked, setPicked] = useState3(void 0);
-  const [input2, setInput] = useState3(void 0);
-  const [inputName, setInputName] = useState3("");
-  const [id2, setId] = useState3("");
-  const [name2, setName] = useState3("");
-  const [errors, setErrors] = useState3({});
-  const [busy, setBusy] = useState3(false);
+  const [picked, setPicked] = useState4(void 0);
+  const [input2, setInput] = useState4(void 0);
+  const [inputName, setInputName] = useState4("");
+  const [id2, setId] = useState4("");
+  const [name2, setName] = useState4("");
+  const [errors, setErrors] = useState4({});
+  const [busy, setBusy] = useState4(false);
   const entries = useMemo(
     () => Object.values(registry).filter((entry2) => mode.kind !== "after" || entry2.inputs.length > 0),
     [registry, mode.kind]
   );
-  const options = useMemo(() => entries.map(classOption).sort(byGroupAndLabel), [entries]);
+  const options = useMemo(() => entries.map(classItem).sort(byGroupAndName), [entries]);
+  const search = useSearch(
+    options,
+    (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
+    "No block class to pick."
+  );
   const entry = picked === void 0 ? void 0 : own(registry, picked);
   const link = linkChoice(mode, board, registry, entry);
   const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
@@ -492,24 +512,41 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
       },
       children: [
         /* @__PURE__ */ jsx4(
-          Select,
+          ComboBox,
           {
             label: "Block class",
-            autofocus,
-            choices: options,
-            value: picked,
+            autoFocus: autofocus,
+            ...search,
+            items: byCategory(search.items),
+            value: picked ?? null,
             placeholder: options.length === 0 ? "No block class to pick" : "Search by name, description or keyword",
-            empty: "No block class to pick.",
-            error: errors.registry,
-            hint: entry?.description === "" ? void 0 : entry?.description,
-            onChange: (value2) => {
-              setPicked(value2);
+            isInvalid: errors.registry !== void 0,
+            errorMessage: errors.registry,
+            description: entry?.description === "" ? void 0 : entry?.description,
+            onChange: (key) => {
+              setPicked(key === null ? void 0 : String(key));
               if (mode.kind === "after") setInput(void 0);
               setErrors((now) => without2(now, "registry"));
-            }
+            },
+            children: (category) => /* @__PURE__ */ jsx4(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item) => /* @__PURE__ */ jsxs3(ComboBoxItem, { id: item.id, textValue: item.name, children: [
+              /* @__PURE__ */ jsx4(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item.name }),
+              item.description === "" ? null : /* @__PURE__ */ jsx4(Text, { slot: "description", children: item.description }),
+              item.pkg === null ? null : /* @__PURE__ */ jsx4("span", { className: BADGE, children: item.pkg })
+            ] }) })
           }
         ),
-        link.kind === "pick" ? /* @__PURE__ */ jsx4(Select, { label: link.label, choices: asChoices(link.inputs), value: chosen, onChange: setInput }) : null,
+        link.kind === "pick" ? /* @__PURE__ */ jsx4(
+          ComboBox,
+          {
+            label: link.label,
+            defaultItems: link.inputs.map((input3) => ({ id: input3 })),
+            value: chosen ?? null,
+            onChange: (key) => {
+              if (key !== null) setInput(String(key));
+            },
+            children: (item) => /* @__PURE__ */ jsx4(ComboBoxItem, { id: item.id, children: item.id })
+          }
+        ) : null,
         link.kind === "name" ? /* @__PURE__ */ jsx4(
           TextField,
           {
@@ -588,22 +625,31 @@ function inputNameError(value2, taken) {
 function isVariadic(free) {
   return free.length === 1 && free[0] === "";
 }
-function classOption(entry) {
-  const pkg = packageFromId(entry.id);
+function classItem(entry) {
   return {
-    value: entry.id,
-    label: entry.name,
-    detail: entry.description,
-    ...pkg === null ? {} : { badge: pkg },
-    group: entry.category === "" ? UNCATEGORIZED : entry.category,
-    keywords: [...entry.keywords, entry.id]
+    id: entry.id,
+    name: entry.name,
+    description: entry.description,
+    pkg: packageFromId(entry.id),
+    category: entry.category === "" ? UNCATEGORIZED : entry.category,
+    keywords: entry.keywords
   };
 }
 var UNCATEGORIZED = "uncategorized";
-function byGroupAndLabel(a, b) {
-  const last = (option) => option.group?.toLowerCase() === UNCATEGORIZED ? 1 : 0;
-  return last(a) - last(b) || (a.group ?? "").localeCompare(b.group ?? "") || a.label.localeCompare(b.label);
+function byGroupAndName(a, b) {
+  const last = (item) => item.category.toLowerCase() === UNCATEGORIZED ? 1 : 0;
+  return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
 }
+function byCategory(items) {
+  const categories = /* @__PURE__ */ new Map();
+  for (const item of items) {
+    const members = categories.get(item.category) ?? [];
+    members.push(item);
+    categories.set(item.category, members);
+  }
+  return [...categories].map(([name2, members]) => ({ id: `category:${name2}`, name: name2, items: members }));
+}
+var BADGE = "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted";
 function filled(arg, value2) {
   const trimmed = value2.trim();
   return trimmed === "" ? {} : { [arg]: trimmed };
@@ -656,7 +702,7 @@ function BlocksSection({ core, board }) {
   ] });
 }
 function BlockRow({ core, id: id2, block, className }) {
-  const [renaming, setRenaming] = useState4(false);
+  const [renaming, setRenaming] = useState5(false);
   return /* @__PURE__ */ jsxs4("tr", { "aria-label": block.name, className: table.row, children: [
     /* @__PURE__ */ jsx5("td", { className: table.cell, children: renaming ? /* @__PURE__ */ jsx5(
       NameField,
@@ -703,10 +749,9 @@ function BlockRow({ core, id: id2, block, className }) {
 }
 
 // srcts/modules/edit-board/links.tsx
-import { useState as useState5 } from "react";
+import { useState as useState6 } from "react";
 import { flushSync as flushSync2 } from "react-dom";
-import { asChoices as asChoices2 } from "@blockr/core/binding";
-import { Select as Select2 } from "@blockr/core/react";
+import { ComboBox as ComboBox2, ComboBoxItem as ComboBoxItem2, Text as Text2 } from "@blockr/core/react";
 import { Fragment as Fragment2, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function LinksSection({ core, board, locked: locked2 }) {
   const links = Object.entries(board.links);
@@ -811,13 +856,13 @@ function LinkForm({
 }) {
   const registry = core.blockRegistry();
   const except = editing?.id;
-  const [from, setFrom] = useState5(editing?.link.from);
-  const [to, setTo] = useState5(editing?.link.to);
-  const [input2, setInput] = useState5(editing?.link.input);
-  const [name2, setName] = useState5(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
-  const [place, setPlace] = useState5(void 0);
-  const [errors, setErrors] = useState5({});
-  const [busy, setBusy] = useState5(false);
+  const [from, setFrom] = useState6(editing?.link.from);
+  const [to, setTo] = useState6(editing?.link.to);
+  const [input2, setInput] = useState6(editing?.link.input);
+  const [name2, setName] = useState6(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  const [place, setPlace] = useState6(void 0);
+  const [errors, setErrors] = useState6({});
+  const [busy, setBusy] = useState6(false);
   const others = withoutLink(board, except);
   const graph = createGraph(others);
   const held = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
@@ -825,8 +870,10 @@ function LinkForm({
   const target2 = held(to) ? to : void 0;
   const upstream = source === void 0 ? /* @__PURE__ */ new Set() : graph.withUpstream([source]);
   const downstream = target2 === void 0 ? /* @__PURE__ */ new Set() : graph.withDownstream([target2]);
-  const fromOptions = Object.entries(board.blocks).filter(([id2]) => !downstream.has(id2)).map(([id2]) => blockOption(board, registry, id2));
-  const toOptions = Object.entries(board.blocks).filter(([id2]) => !upstream.has(id2) && takesLink(others, registry, id2)).map(([id2]) => blockOption(board, registry, id2));
+  const fromOptions = Object.entries(board.blocks).filter(([id2]) => !downstream.has(id2)).map(([id2]) => blockItem(board, registry, id2));
+  const toOptions = Object.entries(board.blocks).filter(([id2]) => !upstream.has(id2) && takesLink(others, registry, id2)).map(([id2]) => blockItem(board, registry, id2));
+  const fromSearch = useSearch(fromOptions, blockTexts);
+  const toSearch = useSearch(toOptions, blockTexts);
   const free = target2 === void 0 ? [] : freeInputs(others, registry, target2) ?? [];
   const variadic = isVariadic(free);
   const offered = !variadic && editing !== void 0 && target2 === editing.link.to ? classInputs(board, registry, target2) : free;
@@ -886,34 +933,38 @@ function LinkForm({
       children: [
         /* @__PURE__ */ jsxs5("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx6(
-            Select2,
+            ComboBox2,
             {
               label: "From",
-              choices: fromOptions,
-              value: source,
+              ...fromSearch,
+              value: source ?? null,
               placeholder: "Search blocks",
-              error: errors.from,
-              onChange: (value2) => {
-                setFrom(value2);
+              isInvalid: errors.from !== void 0,
+              errorMessage: errors.from,
+              onChange: (key) => {
+                setFrom(key === null ? void 0 : String(key));
                 setErrors((now) => without2(now, "from"));
-              }
+              },
+              children: blockRow
             }
           ),
           /* @__PURE__ */ jsx6(
-            Select2,
+            ComboBox2,
             {
               label: "To",
-              choices: toOptions,
-              value: target2,
+              ...toSearch,
+              value: target2 ?? null,
               placeholder: "Search blocks",
-              error: errors.to,
-              hint: toOptions.length === 0 ? "No block takes a link from this block." : void 0,
-              onChange: (value2) => {
-                setTo(value2);
+              isInvalid: errors.to !== void 0,
+              errorMessage: errors.to,
+              description: toOptions.length === 0 ? "No block takes a link from this block." : void 0,
+              onChange: (key) => {
+                setTo(key === null ? void 0 : String(key));
                 setInput(void 0);
                 setPlace(void 0);
                 setErrors((now) => without2(without2(now, "to"), "input"));
-              }
+              },
+              children: blockRow
             }
           )
         ] }),
@@ -936,18 +987,32 @@ function LinkForm({
             }
           ),
           among === void 0 ? null : /* @__PURE__ */ jsx6(
-            Select2,
+            ComboBox2,
             {
               label: "Position",
-              choices: asChoices2(Array.from({ length: among.others.length + 1 }, (_, i) => String(i + 1))),
-              value: position === void 0 ? void 0 : String(position),
-              disabled: among.others.length === 0,
-              onChange: (value2) => {
-                setPlace(Number(value2));
-              }
+              defaultItems: Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) })),
+              value: position === void 0 ? null : String(position),
+              isDisabled: among.others.length === 0,
+              onChange: (key) => {
+                if (key !== null) setPlace(Number(key));
+              },
+              children: (item) => /* @__PURE__ */ jsx6(ComboBoxItem2, { id: item.id, children: item.id })
             }
           )
-        ] }) : /* @__PURE__ */ jsx6(Select2, { label: "Input", choices: asChoices2(offered), value: chosen, disabled: offered.length < 2, hint, onChange: setInput }),
+        ] }) : /* @__PURE__ */ jsx6(
+          ComboBox2,
+          {
+            label: "Input",
+            defaultItems: offered.map((id2) => ({ id: id2 })),
+            value: chosen ?? null,
+            isDisabled: offered.length < 2,
+            description: hint,
+            onChange: (key) => {
+              if (key !== null) setInput(String(key));
+            },
+            children: (item) => /* @__PURE__ */ jsx6(ComboBoxItem2, { id: item.id, children: item.id })
+          }
+        ),
         editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx6("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
         /* @__PURE__ */ jsxs5("div", { className: "bc:flex bc:gap-2", children: [
           /* @__PURE__ */ jsx6("button", { type: "submit", className: classes.primary, disabled: busy, children: submitLabel }),
@@ -967,15 +1032,19 @@ function LinkForm({
     }
   );
 }
-function blockOption(board, registry, id2) {
+function blockItem(board, registry, id2) {
   const block = own(board.blocks, id2);
   const cls = block === void 0 ? void 0 : own(registry, block.registry_id)?.name ?? block.registry_id;
-  return {
-    value: id2,
-    label: block?.name ?? id2,
-    detail: cls === void 0 ? id2 : `${id2} \xB7 ${cls}`,
-    keywords: [id2]
-  };
+  return { id: id2, name: block?.name ?? id2, detail: cls === void 0 ? id2 : `${id2} \xB7 ${cls}` };
+}
+function blockTexts(item) {
+  return [item.name, item.detail, item.id];
+}
+function blockRow(item) {
+  return /* @__PURE__ */ jsxs5(ComboBoxItem2, { id: item.id, textValue: item.name, children: [
+    /* @__PURE__ */ jsx6(Text2, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item.name }),
+    /* @__PURE__ */ jsx6(Text2, { slot: "description", children: item.detail })
+  ] });
 }
 function takesLink(board, registry, id2) {
   return (freeInputs(board, registry, id2)?.length ?? 0) > 0;
@@ -1013,8 +1082,8 @@ function blockName(board, block) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { useId as useId2, useState as useState6 } from "react";
-import { Select as Select3 } from "@blockr/core/react";
+import { useId as useId2, useState as useState7 } from "react";
+import { ComboBox as ComboBox3, ComboBoxSection as ComboBoxSection2 } from "@blockr/core/react";
 import { Fragment as Fragment3, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
@@ -1136,10 +1205,10 @@ function StackForm({
 }) {
   const registry = core.blockRegistry();
   const stacks = Object.values(board.stacks);
-  const [name2, setName] = useState6(editing?.stack.name ?? "");
-  const [color2, setColor] = useState6(editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
-  const [blocks, setBlocks] = useState6(editing?.stack.blocks ?? []);
-  const [busy, setBusy] = useState6(false);
+  const [name2, setName] = useState7(editing?.stack.name ?? "");
+  const [color2, setColor] = useState7(editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
+  const [blocks, setBlocks] = useState7(editing?.stack.blocks ?? []);
+  const [busy, setBusy] = useState7(false);
   const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
   const holder = /* @__PURE__ */ new Map();
   for (const [id2, stack] of Object.entries(board.stacks)) {
@@ -1147,10 +1216,15 @@ function StackForm({
     for (const block of stack.blocks) holder.set(block, stack.name);
   }
   const options = Object.keys(board.blocks).map((id2) => {
-    const option = blockOption(board, registry, id2);
+    const item = blockItem(board, registry, id2);
     const other = holder.get(id2);
-    return other === void 0 ? { ...option, group: "In no stack" } : { ...option, group: "In another stack", detail: `${option.detail ?? id2} \xB7 leaves the stack ${other}` };
-  }).sort((a, b) => a.group === b.group ? 0 : a.group === "In no stack" ? -1 : 1);
+    return other === void 0 ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} \xB7 leaves the stack ${other}` };
+  });
+  const search = useSearch(options, blockTexts, "The board holds no block.");
+  const sections = [
+    { id: "free", title: "In no stack", items: search.items.filter((item) => item.free) },
+    { id: "held", title: "In another stack", items: search.items.filter((item) => !item.free) }
+  ].filter((section) => section.items.length > 0);
   const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
   async function submit(event) {
     event.preventDefault();
@@ -1207,16 +1281,19 @@ function StackForm({
           /* @__PURE__ */ jsx7(ColorField, { color: color2, onChange: setColor })
         ] }),
         /* @__PURE__ */ jsx7(
-          Select3,
+          ComboBox3,
           {
-            multiple: true,
+            selectionMode: "multiple",
             label: "Blocks",
-            choices: options,
+            ...search,
+            items: sections,
             value: kept,
             placeholder: "No blocks",
-            empty: "The board holds no block.",
-            hint: "A block sits in one stack at most.",
-            onChange: setBlocks
+            description: "A block sits in one stack at most.",
+            onChange: (keys) => {
+              setBlocks(keys.map(String));
+            },
+            children: (section) => /* @__PURE__ */ jsx7(ComboBoxSection2, { id: section.id, title: section.title, items: section.items, children: blockRow })
           }
         ),
         /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:gap-2", children: [
@@ -1239,7 +1316,7 @@ function StackForm({
 }
 function ColorField({ color: color2, onChange }) {
   const id2 = useId2();
-  const [last, setLast] = useState6(color2 ?? PALETTE[0]);
+  const [last, setLast] = useState7(color2 ?? PALETTE[0]);
   return /* @__PURE__ */ jsxs6("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx7("legend", { className: styles.legend, children: "Colour" }),
     /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
@@ -1312,7 +1389,7 @@ var table = {
   cell: "bc:px-1 bc:py-1.5"
 };
 function useRowEditing() {
-  const [editing, setEditing] = useState7(false);
+  const [editing, setEditing] = useState8(false);
   const closed = useRef2(false);
   const button = useRef2(null);
   useLayoutEffect2(() => {

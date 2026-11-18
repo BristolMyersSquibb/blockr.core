@@ -20,15 +20,15 @@
 
 import { useId, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
-import type { Choice } from "../../binding/index.ts";
-import { Select } from "../../react/index.ts";
+import { ComboBox, ComboBoxSection } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, Pager, runCommand, TableSearch, TextField, useTableView } from "../../ui/index.ts";
+import { classes, Pager, runCommand, TableSearch, TextField, useSearch, useTableView } from "../../ui/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
-import { blockName, blockOption } from "./links.tsx";
+import { blockItem, blockName, blockRow, blockTexts } from "./links.tsx";
+import type { BlockItem } from "./links.tsx";
 
 // The colours that a new stack starts from, ColorBrewer's Set2, of which a new
 // stack takes the first that no stack has.
@@ -227,15 +227,18 @@ function StackForm({
     if (id === editing?.id) continue;
     for (const block of stack.blocks) holder.set(block, stack.name);
   }
-  const options: Choice[] = Object.keys(board.blocks)
-    .map((id): Choice => {
-      const option = blockOption(board, registry, id);
-      const other = holder.get(id);
-      return other === undefined
-        ? { ...option, group: "In no stack" }
-        : { ...option, group: "In another stack", detail: `${option.detail ?? id} · leaves the stack ${other}` };
-    })
-    .sort((a, b) => (a.group === b.group ? 0 : a.group === "In no stack" ? -1 : 1));
+  // The blocks, those in no stack first, and those in another stack, which
+  // say that they leave it.
+  const options = Object.keys(board.blocks).map((id): BlockItem & { readonly free: boolean } => {
+    const item = blockItem(board, registry, id);
+    const other = holder.get(id);
+    return other === undefined ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} · leaves the stack ${other}` };
+  });
+  const search = useSearch(options, blockTexts, "The board holds no block.");
+  const sections = [
+    { id: "free", title: "In no stack", items: search.items.filter((item) => item.free) },
+    { id: "held", title: "In another stack", items: search.items.filter((item) => !item.free) },
+  ].filter((section) => section.items.length > 0);
   // The blocks that the board still holds, in the order that the user picked
   // them.
   const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
@@ -291,16 +294,24 @@ function StackForm({
         />
         <ColorField color={color} onChange={setColor} />
       </div>
-      <Select
-        multiple
+      <ComboBox
+        selectionMode="multiple"
         label="Blocks"
-        choices={options}
+        {...search}
+        items={sections}
         value={kept}
         placeholder="No blocks"
-        empty="The board holds no block."
-        hint="A block sits in one stack at most."
-        onChange={setBlocks}
-      />
+        description="A block sits in one stack at most."
+        onChange={(keys) => {
+          setBlocks(keys.map(String));
+        }}
+      >
+        {(section) => (
+          <ComboBoxSection id={section.id} title={section.title} items={section.items}>
+            {blockRow}
+          </ComboBoxSection>
+        )}
+      </ComboBox>
       <div className="bc:flex bc:gap-2">
         <button type="submit" className={classes.primary} disabled={busy}>
           {submitLabel}

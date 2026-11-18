@@ -13,8 +13,7 @@
 
 import { Fragment, useState } from "react";
 import type { ReactElement } from "react";
-import { asChoices } from "../../binding/index.ts";
-import { reactModule, Select, Stack, useRequest, useValue } from "../../react/index.ts";
+import { ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -80,14 +79,16 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
   return (
     <Stack>
       {names.length > 1 && (
-        <Select
+        <ComboBox
           label="Volume"
-          choices={asChoices(names)}
-          value={volume}
-          onChange={(name) => {
-            go({ volume: name, dirs: [] });
+          defaultItems={names.map((id) => ({ id }))}
+          value={volume ?? null}
+          onChange={(key) => {
+            if (key !== null) go({ volume: String(key), dirs: [] });
           }}
-        />
+        >
+          {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+        </ComboBox>
       )}
       <nav aria-label="Directory" className="bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm">
         {[volume ?? "", ...dirs].map((name, i) => (
