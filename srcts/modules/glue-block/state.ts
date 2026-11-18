@@ -3,5 +3,6 @@
 // as glue-block.schema.json.
 
 export type State = Readonly<{
+  /** Template string evaluated with glue::glue(). */
   text: string;
 }>;

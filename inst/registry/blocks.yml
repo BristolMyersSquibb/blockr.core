@@ -21,17 +21,6 @@ new_dataset_block:
   - import
   - package
   - source
-  arguments:
-    dataset:
-      description: Selects the dataset to use.
-      example: iris
-      type:
-        type: string
-    package:
-      description: R package to source the dataset from.
-      example: datasets
-      type:
-        type: string
 new_filebrowser_block:
   id: filebrowser_block
   name: file browser block
@@ -51,11 +40,6 @@ new_filebrowser_block:
   - path
   - filesystem
   - select
-  arguments:
-    file_path:
-      description: Path of the selected file.
-      type:
-        type: string
 new_upload_block:
   id: upload_block
   name: data upload block
@@ -95,16 +79,6 @@ new_csv_block:
   - read
   - delimited
   - import
-  arguments:
-    sep:
-      description: Field separator character.
-      example: ','
-      type:
-        type: string
-    quote:
-      description: Quoting character.
-      type:
-        type: string
 new_scatter_block:
   id: scatter_block
   name: scatter plot block
@@ -125,17 +99,6 @@ new_scatter_block:
   - chart
   - visualization
   - points
-  arguments:
-    x:
-      description: Column for the horizontal axis.
-      example: Sepal.Length
-      type:
-        type: string
-    'y':
-      description: Column for the vertical axis.
-      example: Sepal.Width
-      type:
-        type: string
 new_glue_block:
   id: glue_block
   name: glue string block
@@ -157,12 +120,6 @@ new_glue_block:
   - string
   - interpolate
   - markdown
-  arguments:
-    text:
-      description: Template string evaluated with glue::glue().
-      example: '{nrow(data)} rows'
-      type:
-        type: string
 new_head_block:
   id: head_block
   name: head/tail block
@@ -184,20 +141,6 @@ new_head_block:
   - last
   - rows
   - limit
-  arguments:
-    'n':
-      description: Number of rows to keep.
-      example: 10
-      type:
-        type: integer
-    direction:
-      description: Row end to keep, either head (first) or tail (last).
-      example: tail
-      type:
-        type: string
-        enum:
-        - head
-        - tail
 new_merge_block:
   id: merge_block
   name: merge block
@@ -222,28 +165,6 @@ new_merge_block:
   - outer join
   - left join
   - right join
-  arguments:
-    by:
-      description: Shared key column(s) to join on.
-      type:
-        type: array
-        items:
-          type: string
-    all_x:
-      description: Keep unmatched rows from the first input.
-      type:
-        type: boolean
-    all_y:
-      description: Keep unmatched rows from the second input.
-      type:
-        type: boolean
-  examples:
-  - by: Time
-    all_x: yes
-    all_y: no
-  - by: Time
-    all_x: yes
-    all_y: yes
 new_rbind_block:
   id: rbind_block
   name: rbind block
@@ -285,15 +206,4 @@ new_subset_block:
   - rows
   - columns
   - where
-  arguments:
-    subset:
-      description: Logical row-filter expression, as a string.
-      example: Sepal.Width > 3
-      type:
-        type: string
-    select:
-      description: Column-selection expression, as a string.
-      example: Species
-      type:
-        type: string
 

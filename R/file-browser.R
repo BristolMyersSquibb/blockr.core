@@ -92,8 +92,6 @@ filebrowser_block <- new_block_class(
 #'   parser such as a CSV block. `file_path` is the chosen path; `volumes`
 #'   bounds the root directories the browser may reach.
 #' @blockKeywords file, browser, path, filesystem, select
-#' @blockArg file_path Path of the selected file.
-#'   [type] arg_string()
 #'
 #' @examples
 #' vols <- c(pkg = system.file(package = "blockr.core"))

@@ -81,21 +81,21 @@ block_registry <- new.env()
 #' where it ships one, a description of each request, with the inputs and
 #' state args it names, the ids of the board options it reads, named by the
 #' arguments that take their values, and whether it is volatile or an action,
-#' and the state a new block starts with, from `expr` called without args. The
-#' arg specs default to every state arg, and their examples are checked by
-#' calling `expr` with them.
+#' and the state a new block starts with, from `expr` called without args.
+#' The schema is what describes the block's state, to the client and to
+#' models alike.
+#' Each of its properties gives a state arg's type, and may give the arg's
+#' description (see `vignette("create-block")`).
 #'
 #' R sends the client what it needs of each entry, in its reply to `hello`,
 #' without building a block: the metadata, with `link` as `url`, the data
 #' inputs, where R serves the UI module, the schema, the state a new block
-#' starts with, the arg specs and the requests. R serves the
+#' starts with and the requests. R serves the
 #' module, and the stylesheet beside it, at a URL that holds a hash of the
 #' file's content, so that no browser runs a changed file from its cache. It
-#' writes the starting state by the schema of the block's state, and the
-#' example of each arg spec by the type it gives. So registration refuses a
-#' class whose starting state is not a plain value, as a block's state has to
-#' be (see [blockr_ser()]), and refuses an arg spec whose example is not one
-#' either.
+#' writes the starting state by the schema of the block's state.
+#' So registration refuses a class whose starting state is not a plain value,
+#' as a block's state has to be (see [blockr_ser()]).
 #'
 #' Blocks can be registered (i.e. added to the registry) via `register_block()`
 #' with scalar-valued arguments and `register_blocks()`, where arguments may be
@@ -111,17 +111,11 @@ block_registry <- new.env()
 #' @param category Useful to sort blocks by topics. If not specified,
 #'   blocks are uncategorized.
 #' @param icon Icon
-#' @param arguments Block argument specification, either a [new_arg_specs()]
-#'   object or a (possibly empty) named character vector of argument
-#'   descriptions
 #' @param details Optional longer human-facing description (e.g. for a help
 #'   popover), complementing the short `description`
 #' @param link Optional URL to a block's help or documentation page
 #' @param guidance Optional model-facing construction guidance (do/don't rules,
 #'   enums, pitfalls), distinct from the human-facing `details`
-#' @param examples Optional list of complete worked configurations (each a
-#'   named list keyed by argument name); supersedes the per-argument example
-#'   assembly
 #' @param keywords Optional character vector of free-text search terms for block
 #'   discovery
 #' @param overwrite Overwrite existing entry
@@ -155,27 +149,26 @@ block_registry <- new.env()
 #' class. Block
 #' construction via `create_block()` returns a newly instantiated `block`
 #' object, and the lookup `registry_id_from_block()` returns the registry id
-#' that a block's class gives, a string. A block's argument specification is
-#' built and read with [new_arg_spec()] and friends.
+#' that a block's class gives, a string.
 #'
 #' @export
 register_block <- function(ctor, name, description, category = NULL,
-                           icon = NULL, arguments = NULL, details = NULL,
-                           link = NULL, guidance = NULL, examples = list(),
-                           keywords = NULL, overwrite = FALSE) {
+                           icon = NULL, details = NULL, link = NULL,
+                           guidance = NULL, keywords = NULL,
+                           overwrite = FALSE) {
 
   add_block_entry(
-    block_registry, ctor, name, description, category, icon, arguments,
-    details, link, guidance, examples, keywords, overwrite
+    block_registry, ctor, name, description, category, icon, details, link,
+    guidance, keywords, overwrite
   )
 }
 
 # Registers a block class in `registry`, as `register_block()` does in the
 # block registry of the process, and `serve()` in an app's.
 add_block_entry <- function(registry, ctor, name, description, category = NULL,
-                            icon = NULL, arguments = NULL, details = NULL,
-                            link = NULL, guidance = NULL, examples = list(),
-                            keywords = NULL, overwrite = FALSE) {
+                            icon = NULL, details = NULL, link = NULL,
+                            guidance = NULL, keywords = NULL,
+                            overwrite = FALSE) {
 
   if (is.null(category)) {
     category <- default_category()
@@ -231,20 +224,6 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
   cls <- constructor_class(ctor)
   id <- class_registry_id(cls)
 
-  if (is.null(arguments)) {
-    arguments <- default_arg_specs(class_state_args(cls))
-  }
-
-  user_spec <- is_arg_specs(arguments)
-
-  norm <- normalize_arguments(arguments, guidance)
-  arguments <- norm[["arguments"]]
-  guidance <- norm[["guidance"]]
-
-  if (user_spec || length(examples) > 0L) {
-    validate_block_spec(arguments, examples, cls, check_names = user_spec)
-  }
-
   if (exists(id, envir = registry, inherits = FALSE) && !isTRUE(overwrite)) {
     blockr_abort(
       "Block {id} already exists. Set `overwrite = TRUE` to replace it, ",
@@ -255,7 +234,12 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
 
   state <- expr_state(cls, list())
 
-  check_sent_values(cls, state, arguments)
+  # R sends the client the state a new block of the class starts with, so it
+  # has to be a plain value, as the JSON of a board holds it.
+  plain_value(
+    state,
+    paste("The state a new block of class", cls[["id"]], "starts with")
+  )
 
   entry <- new_registry_entry(
     id = id,
@@ -267,8 +251,6 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
     keywords = keywords,
     category = category,
     icon = icon,
-    arguments = arguments,
-    examples = examples,
     package = cls[["package"]],
     constructor = ctor,
     block_class = cls,
@@ -282,28 +264,6 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
   assign(id, entry, envir = registry)
 
   invisible(entry)
-}
-
-# R sends the client the state a new block of a class starts with and the
-# example of each of its arg specs, which a block's state may hold, so each has
-# to be a plain value, as the JSON of a board holds it.
-check_sent_values <- function(cls, state, arguments) {
-
-  id <- cls[["id"]]
-
-  plain_value(
-    state,
-    paste("The state a new block of class", id, "starts with")
-  )
-
-  for (arg in names(arguments)) {
-    plain_value(
-      arg_spec_example(arguments[[arg]]),
-      paste("The example of arg", arg, "of block class", id)
-    )
-  }
-
-  invisible()
 }
 
 # A block class's registry id, `{pkg}-{id}`, from the package that the class
@@ -478,8 +438,7 @@ unregister_blocks <- function(uid = list_blocks()) {
 }
 
 #' @param ... For `register_blocks()`, arguments forwarded to
-#'   `register_block()`; for `new_arg_specs()`, named `new_arg_spec()` objects
-#'   (or strings), one per constructor formal
+#'   `register_block()`
 #' @rdname register_block
 #' @export
 register_blocks <- function(...) {
@@ -869,8 +828,6 @@ register_listed_blocks <- function(package, registry, ids = NULL) {
       icon = lapply(entries, `[[`, "icon"),
       guidance = lapply(entries, `[[`, "guidance"),
       keywords = lapply(entries, `[[`, "keywords"),
-      arguments = lapply(entries, listed_block_arguments),
-      examples = lapply(entries, listed_block_examples),
       MoreArgs = list(registry = registry, overwrite = TRUE)
     )
   )
@@ -893,55 +850,4 @@ check_package_registry_ids <- function(ctors, package) {
   }
 
   invisible()
-}
-
-listed_block_examples <- function(entry) {
-
-  types <- lapply(entry[["arguments"]], `[[`, "type")
-
-  lapply(
-    coal(entry[["examples"]], list(), fail_all = FALSE),
-    function(example) {
-      set_names(
-        map(listed_arg_example, example, types[names(example)]),
-        names(example)
-      )
-    }
-  )
-}
-
-listed_block_arguments <- function(entry) {
-
-  args <- entry[["arguments"]]
-
-  if (!length(args)) {
-    return(NULL)
-  }
-
-  do.call(
-    new_arg_specs,
-    lapply(
-      args,
-      function(a) {
-        new_arg_spec(
-          a[["description"]],
-          listed_arg_example(a[["example"]], a[["type"]]),
-          a[["type"]]
-        )
-      }
-    )
-  )
-}
-
-# YAML reads an array of single values back as an atomic vector, where the R
-# value of an arg spec's array type is a list, and so may a package that
-# writes its listing in R.
-listed_arg_example <- function(example, type) {
-
-  if (identical(type[["type"]], "array") && is.atomic(example) &&
-        !is.null(example)) {
-    return(as.list(example))
-  }
-
-  example
 }

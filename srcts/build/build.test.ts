@@ -543,7 +543,10 @@ test("writes the schema of a block's state beside its module, allowing no other 
     "srcts/modules/head-block/index.ts": "export const api = 1;\n",
     "srcts/modules/head-block/state.ts": [
       "export type State = Readonly<{",
-      "  /** @asType integer */",
+      "  /**",
+      "   * Number of rows to keep.",
+      "   * @asType integer",
+      "   */",
       "  n: number;",
       '  direction?: "head" | "tail";',
       "}>;",
@@ -558,9 +561,14 @@ test("writes the schema of a block's state beside its module, allowing no other 
   const read = async (file: string): Promise<unknown> =>
     JSON.parse(await readFile(join(root, "inst", "js", file), "utf8")) as unknown;
 
+  // A state arg's JSDoc comment is its description, which forms and models
+  // read off the schema.
   expect(await read("head-block.schema.json")).toMatchObject({
     type: "object",
-    properties: { n: { type: "integer" }, direction: { type: "string", enum: ["head", "tail"] } },
+    properties: {
+      n: { type: "integer", description: "Number of rows to keep." },
+      direction: { type: "string", enum: ["head", "tail"] },
+    },
     required: ["n"],
     additionalProperties: false,
   });

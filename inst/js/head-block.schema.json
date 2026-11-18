@@ -4,6 +4,7 @@
   "properties": {
     "n": {
       "type": "integer",
+      "description": "Number of rows to keep.",
       "minimum": 0
     },
     "direction": {
@@ -11,7 +12,8 @@
       "enum": [
         "head",
         "tail"
-      ]
+      ],
+      "description": "Row end to keep, either head (first) or tail (last)."
     }
   },
   "required": [

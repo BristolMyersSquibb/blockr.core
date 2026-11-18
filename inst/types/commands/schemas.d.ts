@@ -1,5 +1,4 @@
 import type { JsonSchema } from "../types/json.ts";
-import type { RegistryEntry } from "../types/registry.ts";
 export declare const blockId: JsonSchema;
 export declare const linkId: JsonSchema;
 export declare const stackId: JsonSchema;
@@ -15,4 +14,3 @@ export declare const optionId: JsonSchema;
 export declare const value: JsonSchema;
 export declare const pluginClassId: JsonSchema;
 export declare const statePatches: JsonSchema;
-export declare function stateSchema(entry: RegistryEntry): JsonSchema;

@@ -3,10 +3,12 @@
   "type": "object",
   "properties": {
     "sep": {
-      "type": "string"
+      "type": "string",
+      "description": "Field separator character."
     },
     "quote": {
-      "type": "string"
+      "type": "string",
+      "description": "Quoting character."
     }
   },
   "required": [

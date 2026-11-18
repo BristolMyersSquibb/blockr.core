@@ -676,8 +676,8 @@ proto_icon <- function(name) {
   )
 }
 
-proto_string <- function() {
-  obj(type = "string")
+proto_string <- function(...) {
+  obj(type = "string", ...)
 }
 
 proto_request <- function(inputs = character(), state_args = character(),
@@ -707,23 +707,16 @@ proto_registry <- function(...) {
       version = 1L,
       schema = obj(
         type = "object",
-        properties = obj(dataset = proto_string(), package = proto_string()),
+        properties = obj(
+          dataset = proto_string(description = "Selects the dataset to use."),
+          package = proto_string(
+            description = "R package to source the dataset from."
+          )
+        ),
         required = I("package"),
         additionalProperties = FALSE
       ),
       state = obj(package = "datasets"),
-      arguments = obj(
-        dataset = obj(
-          description = "Selects the dataset to use.",
-          example = "iris",
-          type = proto_string()
-        ),
-        package = obj(
-          description = "R package to source the dataset from.",
-          example = "datasets",
-          type = proto_string()
-        )
-      ),
       requests = obj(
         datasets = proto_request(state_args = "package")
       ),
@@ -757,25 +750,20 @@ proto_registry <- function(...) {
       schema = obj(
         type = "object",
         properties = obj(
-          n = obj(type = "integer", minimum = 0L),
-          direction = obj(enum = I(c("head", "tail")))
+          n = obj(
+            type = "integer",
+            minimum = 0L,
+            description = "Number of rows to keep."
+          ),
+          direction = obj(
+            enum = I(c("head", "tail")),
+            description = "Row end to keep, either head (first) or tail (last)."
+          )
         ),
         required = I(c("n", "direction")),
         additionalProperties = FALSE
       ),
       state = obj(n = 6L, direction = "head"),
-      arguments = obj(
-        n = obj(
-          description = "Number of rows to keep.",
-          example = 10L,
-          type = obj(type = "integer")
-        ),
-        direction = obj(
-          description = "Row end to keep, either head (first) or tail (last).",
-          example = "tail",
-          type = obj(type = "string", enum = I(c("head", "tail")))
-        )
-      ),
       requests = obj(n_max = proto_request("data")),
       renderer = proto_renderer("table")
     ),
@@ -795,28 +783,24 @@ proto_registry <- function(...) {
       schema = obj(
         type = "object",
         properties = obj(
-          by = obj(type = "array", items = proto_string()),
-          all_x = obj(type = "boolean"),
-          all_y = obj(type = "boolean")
+          by = obj(
+            type = "array",
+            items = proto_string(),
+            description = "Shared key column(s) to join on."
+          ),
+          all_x = obj(
+            type = "boolean",
+            description = "Keep unmatched rows from the first input."
+          ),
+          all_y = obj(
+            type = "boolean",
+            description = "Keep unmatched rows from the second input."
+          )
         ),
         required = I(c("all_x", "all_y")),
         additionalProperties = FALSE
       ),
       state = obj(all_x = FALSE, all_y = FALSE),
-      arguments = obj(
-        by = obj(
-          description = "Shared key column(s) to join on.",
-          type = obj(type = "array", items = proto_string())
-        ),
-        all_x = obj(
-          description = "Keep unmatched rows from the first input.",
-          type = obj(type = "boolean")
-        ),
-        all_y = obj(
-          description = "Keep unmatched rows from the second input.",
-          type = obj(type = "boolean")
-        )
-      ),
       requests = obj(shared = proto_request(c("x", "y"))),
       renderer = proto_renderer("table")
     ),
@@ -834,23 +818,18 @@ proto_registry <- function(...) {
       version = 1L,
       schema = obj(
         type = "object",
-        properties = obj(subset = proto_string(), select = proto_string()),
+        properties = obj(
+          subset = proto_string(
+            description = "Logical row-filter expression, as a string."
+          ),
+          select = proto_string(
+            description = "Column-selection expression, as a string."
+          )
+        ),
         required = I(c("subset", "select")),
         additionalProperties = FALSE
       ),
       state = obj(subset = "", select = ""),
-      arguments = obj(
-        subset = obj(
-          description = "Logical row-filter expression, as a string.",
-          example = "Sepal.Width > 3",
-          type = proto_string()
-        ),
-        select = obj(
-          description = "Column-selection expression, as a string.",
-          example = "Species",
-          type = proto_string()
-        )
-      ),
       requests = obj(),
       renderer = proto_renderer("table")
     ),
@@ -872,7 +851,6 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(),
-      arguments = obj(),
       requests = obj(),
       renderer = proto_renderer("table")
     ),
@@ -890,22 +868,13 @@ proto_registry <- function(...) {
       version = 1L,
       schema = obj(
         type = "object",
-        properties = obj(x = proto_string(), y = proto_string()),
+        properties = obj(
+          x = proto_string(description = "Column for the horizontal axis."),
+          y = proto_string(description = "Column for the vertical axis.")
+        ),
         additionalProperties = FALSE
       ),
       state = obj(),
-      arguments = obj(
-        x = obj(
-          description = "Column for the horizontal axis.",
-          example = "Sepal.Length",
-          type = proto_string()
-        ),
-        y = obj(
-          description = "Column for the vertical axis.",
-          example = "Sepal.Width",
-          type = proto_string()
-        )
-      ),
       requests = obj(columns = proto_request("data")),
       renderer = proto_renderer("plot")
     ),
@@ -925,7 +894,6 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(),
-      arguments = obj(),
       requests = obj(upload = proto_request(action = TRUE)),
       renderer = proto_renderer("text")
     )
@@ -1210,8 +1178,9 @@ declared_files <- function() {
     `app/letters-block.css` = ".letters { color: teal; }\n",
     `app/letters-block.schema.json` = paste0(
       "{\"type\": \"object\", \"properties\": {",
-      "\"columns\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, ",
-      "\"sep\": {\"type\": \"string\"}}}\n"
+      "\"columns\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, ",
+      "\"description\": \"Columns to keep.\"}, ",
+      "\"sep\": {\"type\": \"string\", \"description\": \"Separator.\"}}}\n"
     ),
     `app/count-block.js` = "export const api = 1; // count\n",
     `app/secrets.R` = "Sys.setenv(API_KEY = \"not served\")\n"
@@ -1423,14 +1392,6 @@ register_script_blocks <- function(dir) {
     "Pick columns",
     category = "transform",
     icon = "eye",
-    arguments = new_arg_specs(
-      columns = new_arg_spec(
-        "Columns to keep.",
-        example = list("x"),
-        type = arg_array(arg_string())
-      ),
-      sep = new_arg_spec("Separator.", type = arg_string())
-    ),
     details = "Keeps the columns it is given.",
     link = "https://example.com/letters",
     guidance = "Set `columns` to the names of columns to keep.",

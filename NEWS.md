@@ -113,7 +113,7 @@
   reply to `hello`, without building a block. That is
   each block class's entry in the block registry, with the metadata that
   registration gives, `link` as `url`, its inputs, the schema of its state,
-  the state a new block starts with, its arg specs and its requests.
+  the state a new block starts with and its requests.
   Beside the entries come the versions of the packages, the modules that the
   loaded packages offer each other, the app's plugins, each with its class's
   name and version and where R serves its class's module, the board options
@@ -128,8 +128,8 @@
   beside it.
   It serves the module of a block class from outside a package at a URL of its
   own, read from the path given, and nothing beside it.
-  Registration refuses a class whose starting state is not a plain value, and
-  an arg spec whose example is not one either (#426, #465, #504, #558, #634).
+  Registration refuses a class whose starting state is not a plain value
+  (#426, #465, #504, #558, #634).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
   A JSON board holds the board, with its ID and name, its blocks, links and
@@ -517,6 +517,11 @@
   Before it writes a board, `serve()` registers the class of each block that the app's block registry lacks, under the id that the class gives.
   So core's static and fixed blocks have the ids `blockr.core-static_block` and `blockr.core-fixed_block`, where they had `static_block` and `fixed_block`.
   A class from outside a package replaces another class that the script registered under its id, so that a script that redefines a class after it registered it runs the new definition, and a board with blocks of two such classes of one id fails (#559).
+* The schema of a block's state, which the class's UI module ships, is what describes the state, to the client and to models alike.
+  Each of its properties gives a state arg's type, and the arg's description where a JSDoc comment on the module's state type gives one, as core's block classes now do.
+  The arg specs are gone, with `new_arg_spec()`, `new_arg_specs()`, `is_arg_specs()` and `as_arg_specs()`, the getters `arg_spec_description()`, `arg_spec_example()` and `arg_spec_type()`, the type constructors `arg_string()`, `arg_number()`, `arg_integer()`, `arg_boolean()`, `arg_enum()`, `arg_array()` and `arg_object()`, and the deprecated `new_block_arg()`, `new_block_args()`, `block_arg_description()`, `block_arg_example()` and `block_arg_type()`.
+  So are a class's worked examples: `register_block()` and `register_blocks()` take neither `arguments` nor `examples`, the block registration roclet reads neither `@blockArg` nor `@blockExamples`, and `blocks.yml` holds neither.
+  The block registry's entries and R's reply to `hello` carry no `arguments`, the client's `RegistryEntry` has none, and `stateSchema()` and the type `ArgSpec` are gone (#660).
 * Which block classes an app offers is the app's choice.
   The methods of `serve()` for a board and for a path take them in `blocks`, which defaults to `available_blocks()`, every block class of every available package: one that is installed, or that `pkgload::load_all()` loaded, and that lists block classes in the `._BLOCKR_MODULES_` that it exports.
   A block that `serve()` serves alone offers none, and its app's block registry holds the block's class alone.

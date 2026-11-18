@@ -4,6 +4,8 @@
 // as scatter-block.schema.json.
 
 export type State = Readonly<{
+  /** Column for the horizontal axis. */
   x?: string;
+  /** Column for the vertical axis. */
   y?: string;
 }>;

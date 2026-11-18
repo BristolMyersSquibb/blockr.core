@@ -190,17 +190,6 @@ test_that("a package's constructors give one registry id each", {
   )
 })
 
-test_that("the arg specs default to every state arg", {
-
-  withr::defer(unregister_blocks("merge_block"))
-
-  entry <- register_block(new_class_merge_block, "Merge", "Merge")
-
-  expect_s3_class(entry$arguments, "arg_specs")
-  expect_named(entry$arguments, c("by", "all_x", "all_y"))
-  expect_null(arg_spec_description(entry$arguments[["by"]]))
-})
-
 test_that("registration reads the schema the module ships", {
 
   dir <- withr::local_tempdir()
@@ -345,11 +334,13 @@ test_that("an app offers the block classes that `blocks` gives", {
   expect_identical(head[["constructor"]], new_head_block)
   expect_identical(head[["state"]], list(n = 6L, direction = "head"))
 
+  # The schema that the module ships describes each state arg, as the JSDoc
+  # comments of the module's state type give them
   expect_identical(
-    entries[["blockr.core-merge_block"]][["examples"]],
+    lst_xtr(head[["schema"]][["properties"]], "description"),
     list(
-      list(by = list("Time"), all_x = TRUE, all_y = FALSE),
-      list(by = list("Time"), all_x = TRUE, all_y = TRUE)
+      n = "Number of rows to keep.",
+      direction = "Row end to keep, either head (first) or tail (last)."
     )
   )
 
@@ -656,18 +647,6 @@ test_that("a package's blocks.yml that holds no YAML stops its load", {
 
   # A package that ships no such file lists no block classes
   expect_identical(read_blocks_yml("utils"), list())
-})
-
-test_that("listed examples of an array type are lists", {
-
-  arr <- list(type = "array", items = list(type = "string"))
-
-  expect_identical(listed_arg_example("a", arr), list("a"))
-  expect_identical(listed_arg_example(c("a", "b"), arr), list("a", "b"))
-  expect_identical(listed_arg_example(list("a"), arr), list("a"))
-  expect_null(listed_arg_example(NULL, arr))
-  expect_identical(listed_arg_example("a", list(type = "string")), "a")
-  expect_identical(listed_arg_example("a", NULL), "a")
 })
 
 test_that("core's theme holds a color for each suggested category", {

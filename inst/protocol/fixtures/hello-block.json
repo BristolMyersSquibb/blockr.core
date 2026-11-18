@@ -34,25 +34,20 @@
             "schema": {
               "type": "object",
               "properties": {
-                "n": { "type": "integer", "minimum": 0 },
-                "direction": { "enum": ["head", "tail"] }
+                "n": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Number of rows to keep."
+                },
+                "direction": {
+                  "enum": ["head", "tail"],
+                  "description": "Row end to keep, either head (first) or tail (last)."
+                }
               },
               "required": ["n", "direction"],
               "additionalProperties": false
             },
             "state": { "n": 6, "direction": "head" },
-            "arguments": {
-              "n": {
-                "description": "Number of rows to keep.",
-                "example": 10,
-                "type": { "type": "integer" }
-              },
-              "direction": {
-                "description": "Row end to keep, either head (first) or tail (last).",
-                "example": "tail",
-                "type": { "type": "string", "enum": ["head", "tail"] }
-              }
-            },
             "requests": {
               "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
             },

@@ -29,12 +29,12 @@ export interface RegistryEntry {
   // The version of the shape of the block's state, which a package raises as
   // it changes that shape, and which a JSON board records with each block.
   readonly version: number;
-  // The schema of the block's state, as its module ships it.
+  // The schema of the block's state, as its module ships it, which gives each
+  // state arg's type, and may give its description, for forms and models
+  // alike.
   readonly schema: JsonSchema;
   // What a new block starts with, from `expr` called without args.
   readonly state: Readonly<Record<string, Json>>;
-  // The arg specs, which describe each state arg for models and tools.
-  readonly arguments: Readonly<Record<string, ArgSpec>>;
   readonly requests: Readonly<
     Record<
       string,
@@ -58,12 +58,4 @@ export interface RegistryEntry {
   // block's first output, so that the request carries the board options that
   // the coercion reads. An output still names the renderer that draws it.
   readonly renderer?: OutputRenderer;
-}
-
-// An arg spec, as `new_arg_spec()` makes it, without the properties it
-// leaves unset.
-export interface ArgSpec {
-  readonly description?: string;
-  readonly example?: Json;
-  readonly type?: JsonSchema;
 }

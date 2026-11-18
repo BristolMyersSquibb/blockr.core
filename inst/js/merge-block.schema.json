@@ -6,13 +6,16 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "description": "Shared key column(s) to join on."
     },
     "all_x": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Keep unmatched rows from the first input."
     },
     "all_y": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Keep unmatched rows from the second input."
     }
   },
   "required": [
