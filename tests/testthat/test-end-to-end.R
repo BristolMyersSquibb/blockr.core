@@ -335,6 +335,64 @@ test_that("a click into a card gives its block focus", {
   }
 })
 
+test_that("a select's list fits its frame, so opening it scrolls nothing", {
+
+  app <- local_app(
+    quote(
+      serve(
+        new_board(c(a = new_dataset_block("mtcars"))),
+        plugins = subset(available_plugins(), package == "blockr.core")
+      )
+    )
+  )
+
+  wait_for_statuses(app, ready("a"))
+
+  # The user clicks into the field of the select with the mouse.
+  box <- app$get_js(
+    paste0(
+      "(() => {\n",
+      "  const field = e2e.labelled(document, 'Dataset');\n",
+      "  const box = field.getBoundingClientRect();\n",
+      "  return [box.x + box.width / 2, box.y + box.height / 2];\n",
+      "})()"
+    )
+  )
+  click_at(app, c(x = box[[1L]], y = box[[2L]]))
+
+  open <- paste0(
+    "e2e.labelled(document, 'Dataset')",
+    ".getAttribute('aria-expanded') === 'true'"
+  )
+  wait_until(
+    function() isTRUE(app$get_js(open)),
+    function() "the list of datasets"
+  )
+
+  # The box of the rows fits the list to the pixel. Where it stood out of the
+  # list, React Aria's scroll to the pick, mtcars, as the list opened moved
+  # the list, and then scrolled the page, which closed the list, or moved a
+  # row under a pointer still pressed, which picked it.
+  overflow <- app$get_js(
+    paste0(
+      "(() => {\n",
+      "  const field = e2e.labelled(document, 'Dataset');\n",
+      "  const rows = document.getElementById(\n",
+      "    field.getAttribute('aria-controls')\n",
+      "  );\n",
+      "  const list = rows.closest('[data-trigger]');\n",
+      "  return list.scrollHeight - list.clientHeight;\n",
+      "})()"
+    )
+  )
+  expect_equal(overflow, 0)
+
+  Sys.sleep(1)
+  expect_true(app$get_js(open))
+  expect_equal(app$get_js("window.scrollY"), 0)
+  expect_identical(app_board(app)$blocks$a$state$dataset, "mtcars")
+})
+
 test_that("the basic frontend shows a block, and so puts it on screen", {
 
   skip_if_not(

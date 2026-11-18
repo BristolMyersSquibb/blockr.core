@@ -217,6 +217,10 @@
   position: sticky;
 }
 
+.bc\:inset-0 {
+  inset: 0;
+}
+
 .bc\:-top-1 {
   top: calc(var(--bc-spacing) * -1);
 }
@@ -243,6 +247,10 @@
 
 .bc\:z-50 {
   z-index: 50;
+}
+
+.bc\:z-\[100000\] {
+  z-index: 100000;
 }
 
 .bc\:spinner {

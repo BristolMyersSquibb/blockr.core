@@ -20,10 +20,11 @@
 // A press in the field opens the list, as typing into it does.
 // The list hangs below the field, or above it where the window has no room
 // below, as wide as the field.
-// React Aria draws it in a portal at the end of the page's body, or in the
-// dialog or the popover that holds the select, as these sit in the browser's
-// top layer, above the body, and a modal dialog leaves the rest of the page
-// inert.
+// React Aria draws it in a portal at the end of the page's body.
+// In a dialog or a popover, which sit in the browser's top layer, above the
+// body, and of which a modal dialog leaves the rest of the page inert, it
+// draws it inside the select instead, in a layer fixed to the window, which
+// the dialog's own scroll does not clip.
 // The list says "Loading…" while it has no items yet, or while its items are
 // `outdated` and there are none, "No matches" where React Aria's filter keeps none of `defaultItems`,
 // and otherwise what `renderEmptyState` says, "No options" by default, as
@@ -241,6 +242,7 @@ function Drawn({
   const none = given === undefined ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
   const empty = none && (outdated || unknown) ? "Loading…" : none ? (renderEmptyState?.() ?? "No options") : "No matches";
   const field = useRef<HTMLDivElement>(null);
+  const layer = useRef<HTMLDivElement>(null);
   const value = useSameValue(props.value);
   return (
     <AriaComboBox
@@ -265,7 +267,8 @@ function Drawn({
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
-      <UNSAFE_PortalProvider getContainer={() => container(field.current)}>
+      <div ref={layer} className={LAYER} />
+      <UNSAFE_PortalProvider getContainer={() => container(field.current, layer.current)}>
         <Popover offset={4} className={LIST}>
           <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
             {children}
@@ -293,9 +296,10 @@ function sameKeys(a: readonly unknown[], b: readonly unknown[]): boolean {
 }
 
 // Where React Aria draws the list of the select whose field is given: in the
-// dialog or the popover that holds the field, else at the end of the body.
-function container(field: HTMLElement | null): HTMLElement | null {
-  return field?.closest<HTMLElement>("dialog, [popover]") ?? field?.ownerDocument.body ?? null;
+// select's layer where a dialog or a popover holds the field, else at the end
+// of the body.
+function container(field: HTMLElement | null, layer: HTMLElement | null): HTMLElement | null {
+  return field?.closest("dialog, [popover]") ? layer : (field?.ownerDocument.body ?? null);
 }
 
 function hasChildren(children: ReactNode): boolean {
@@ -497,10 +501,20 @@ const CHIP =
 const CHIP_REMOVE =
   "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
 // The list takes the field's width, and the box of the rows scrolls within
-// the height that React Aria leaves the list in the window.
+// the height that React Aria leaves the list in the window, its border
+// included.
+// The box fits the list to the pixel: where it stood out of the list by its
+// border, React Aria's scroll to the pick on opening moved the list by the
+// border, took that for a list out of view and scrolled the page, which
+// closes the list, or moves a row under a pointer still pressed, which picks
+// it as the pointer goes up.
+// The layer that holds the list in a dialog or a popover covers the window,
+// above the dialog's content, and takes no clicks but on the list.
+const LAYER = "bc:pointer-events-none bc:fixed bc:inset-0 bc:z-[100000]";
 const LIST =
-  "bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
-const LISTBOX = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:p-1 bc:outline-none";
+  "bc:pointer-events-auto bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
+const LISTBOX =
+  "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none";
 const HEADING =
   "bc:sticky bc:-top-1 bc:z-10 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
 const ROW =
