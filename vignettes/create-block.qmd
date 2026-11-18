@@ -304,6 +304,7 @@ The module then submits that path into the block's state, as `file_path`.
 
 A request reads a __board option__, an option that a user changes while the app runs, only where `new_block_request()` names it by its constructor, in `options`.
 The client then sends the board option's value with each request, and keeps the answers by it.
+A class names the board options that its UI module reads itself in the `options` of `new_block_class()`, by their constructors as well.
 
 ## Outputs
 
@@ -364,7 +365,7 @@ table_output <- new_output_family(
 ```
 
 1. R names the board options that the block class's output family reads, and the renderer of its outputs, in the class's entry of the block registry.
-2. The client puts those board options on the board, and loads the renderer, which names the board options that it reads itself.
+2. The client puts those board options on the board, with those that the renderer reads itself, which `new_renderer()` names in `options`, and loads the renderer.
 3. The client asks R for the block's first output, with the values of those board options.
 
 A family that hands its results to other families names them in `families`, and then reads their board options too, and each of its outputs is drawn by the renderer of the family whose class the output has.
@@ -508,7 +509,7 @@ The host gives the module everything it may use:
 |---|---|
 | `block`, `class` | the block's ID and its class's registry ID |
 | `state()` | the block's state |
-| `context()` | the block's name, status, linked inputs and the values of the board options that the module names |
+| `context()` | the block's name, status, linked inputs and `option(id)`, which gives the value of a board option that the class reads |
 | `on("state", fn)`, `on("context", fn)` | a subscription to changes of either, which returns the function that ends it |
 | `submit(change)` | one edit of the state, which leaves unset a state arg that `change` gives as `undefined`, and rejects with what refused it |
 | `request(name, args, opts)` | a request of the class, with state args and parameters in `args` |
@@ -524,9 +525,9 @@ A module meets the contract of a block's UI by these rules:
 5. A module draws only inside its element and keeps nothing on the page, such as an element ID, since core can mount one block's UI in several places at once.
 
 Core's React SDK and its controls keep these rules for every input that they bind.
-A module may also name the board options it shows in `options`, an array of their IDs beside `render()`, and its context then holds their values.
-The array has to hold every board option that a request of the class reads as well.
-Core refuses a module that leaves one out, and shows an error in the block's element in place of the module's UI.
+A module reads the value of a board option through `host.context().option(id)`, as `option("n_rows")`.
+It reads only those that its class names in `options` and those that its requests read, since core puts only those on the board before it calls `render()`.
+For any other ID, `option()` throws an error that names the class and the ID, a misspelled one included.
 
 ### Written in React
 

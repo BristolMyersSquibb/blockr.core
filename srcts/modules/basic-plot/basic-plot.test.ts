@@ -48,7 +48,6 @@ test("shows the PNG of the body at the size the plot was drawn at", async () => 
   expect([img?.width, img?.height]).toEqual([320, 200]);
   expect(img?.alt).toBe("Plot");
   expect(basicPlot.api).toBe(1);
-  expect(basicPlot.default.options).toBeUndefined();
 });
 
 test("shows the body of each output that core hands it, and lets the URL of the one before go", async () => {

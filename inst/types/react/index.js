@@ -195,7 +195,6 @@ function outputSnapshot(host) {
     output: host.output(),
     body: host.body(),
     params: host.params(),
-    options: host.options(),
     loading: host.loading(),
     error: host.error()
   };
@@ -304,9 +303,8 @@ import { Component } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { jsx } from "react/jsx-runtime";
-function reactModule(Draw, options = {}) {
+function reactModule(Draw) {
   return {
-    ...options.options === void 0 ? {} : { options: options.options },
     render({ el, host, signal }) {
       const root = createRoot(el);
       flushSync(() => {
@@ -318,7 +316,7 @@ function reactModule(Draw, options = {}) {
     }
   };
 }
-function outputRenderer(Draw, options = {}) {
+function outputRenderer(Draw) {
   function Renderer({ host }) {
     const now = useOutput(host);
     return /* @__PURE__ */ jsx("div", { className: "bc:flex bc:max-h-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default", "aria-busy": now.loading, children: /* @__PURE__ */ jsx(Boundary, { host, output: now.output, children: /* @__PURE__ */ jsx("div", { className: `bc:flex bc:min-h-0 bc:flex-col ${now.loading ? "bc:opacity-60" : ""}`, children: /* @__PURE__ */ jsx(
@@ -327,14 +325,13 @@ function outputRenderer(Draw, options = {}) {
         output: now.output,
         body: now.body,
         params: now.params,
-        options: now.options,
         loading: now.loading,
         error: now.error,
         host
       }
     ) }) }) });
   }
-  return reactModule(Renderer, options);
+  return reactModule(Renderer);
 }
 var Boundary = class extends Component {
   state = { failed: false };

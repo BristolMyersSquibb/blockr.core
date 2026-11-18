@@ -6,14 +6,14 @@
 //    registry names in `output_options` to the board, those that the coercion
 //    of the class's outputs reads, each with its definition's default where
 //    the board lacks it. It loads the renderer that the entry names, and adds
-//    the board options that the renderer names too. So the board holds what
-//    the output's coercion and its renderer read before core asks for an
-//    output. While the mount lasts, core adds again each of them that a delta
-//    removes. Where one does not go onto the board, as where its default
-//    fails, core reports it and asks R for nothing. For one that the renderer
-//    names, it raises as well that the renderer cannot draw without it, until
-//    an output comes, as it raises the failure of a renderer that cannot draw.
-//    The host's `error()` gives why meanwhile.
+//    the board options that R names for the renderer in its `options` too. So
+//    the board holds what the output's coercion and its renderer read before
+//    core asks for an output. While the mount lasts, core adds again each of
+//    them that a delta removes. Where one does not go onto the board, as where
+//    its default fails, core reports it and asks R for nothing. For one that
+//    the renderer names, it raises as well that the renderer cannot draw
+//    without it, until an output comes, as it raises the failure of a renderer
+//    that cannot draw. The host's `error()` gives why meanwhile.
 // 2. Once the block reads ready and the element measures more than 0 by 0, core
 //    asks R for the output, through the scheduler, with the block's revision,
 //    the values of those board options, the info it measured and the block's
@@ -82,7 +82,7 @@ import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
 import { RequestError } from "./requests.ts";
-import { announceTo, attempt, mountableModule, onAbort, REPLACED, withoutOptions } from "./shared.ts";
+import { announceTo, attempt, mountableModule, onAbort, optionReader, REPLACED, withoutOptions } from "./shared.ts";
 import type { Mountable } from "./shared.ts";
 
 // How long core waits for an element's size to settle before it asks R for an
@@ -310,7 +310,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   const rendererModule = (renderer: OutputRenderer): SourceModule =>
     sourceModule({ block }, packageFromId(renderer.id), renderer.id);
 
-  // Loads a renderer and adds the board options that it names to the board.
+  // Loads a renderer and adds the board options that R names for it to the
+  // board.
   function prepare(given: OutputRenderer): Promise<Prepared> {
     let loading = preparing.get(given.id);
     if (loading === undefined) {
@@ -318,7 +319,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         const pkg = packageFromId(given.id);
         const source = given.css === undefined ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule<OutputArgs>(await loader.load(source, pkg), given.module, pkg);
-        const named = mod.options ?? [];
+        const named = given.options ?? [];
         // Core has reported why one did not go onto the board.
         const failures = await deps.addOptions(named, `the renderer "${given.id}"`);
         if (failures.length > 0) throw missingOptions(given, named);
@@ -787,7 +788,9 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
   function outputHost(prepared: Prepared): Announcing {
     const listeners = new Set<() => void>();
-    let named: { for: Made | undefined; values: Readonly<Record<OptionId, Json>> } | undefined;
+    // What gives the values of the board options that R names for the
+    // renderer, for the output that the host held as it made it.
+    let named: { for: Made | undefined; read: (id: OptionId) => Json } | undefined;
     let following = true;
     // What withdraws each notification that the renderer raised and that
     // holds.
@@ -798,13 +801,19 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       output: () => held?.output ?? null,
       body: () => held?.body ?? null,
       params: () => held?.asked.params ?? EMPTY,
-      options() {
+      option(id) {
         let memo = named;
         if (memo === undefined || memo.for !== held) {
-          memo = { for: held, values: optionsFor(prepared, held?.asked) };
+          const read = optionReader(
+            optionsFor(prepared, held?.asked),
+            prepared.named,
+            (unnamed) =>
+              `The renderer "${prepared.renderer.id}" names no board option "${unnamed}" in R, so it cannot read it.`,
+          );
+          memo = { for: held, read };
           named = memo;
         }
-        return memo.values;
+        return memo.read(id);
       },
       loading: () => asking !== undefined,
       error: () => error,

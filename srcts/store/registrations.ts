@@ -37,13 +37,12 @@ import type { Delta, Patch } from "./delta.ts";
 // of its class.
 // What sits inside a plugin's state is the class's own design, and the store
 // applies patches to it without knowing that design.
+// A class names no board options: the class's method of R's
+// `plugin_options()` names those that its plugin reads, which R's reply to
+// `hello` carries in the plugin's entry (../protocol/messages.ts).
 export interface PluginClass {
   // As "blockr.dag-dag_plugin".
   readonly id: PluginClassId;
-  // The board options its plugin requires, which core adds to the board, each
-  // with its default where the board lacks it, as a board opens in an app that
-  // runs the plugin, before it starts the plugin or mounts its UI.
-  readonly options?: readonly OptionId[];
   // What its plugin keeps in the board: the schema of the state, with
   // descriptions and examples for a model, against which the store checks the
   // state after every change, and the state that the plugin starts with on a
@@ -298,13 +297,6 @@ export function createRegistrations(
     if (given.commands !== undefined && !Array.isArray(given.commands)) {
       throw new Error(`The plugin class "${id}" gives commands that are no array.`);
     }
-    if (
-      given.options !== undefined &&
-      (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))
-    ) {
-      throw new Error(`The plugin class "${id}" requires board options that are no array of their ids.`);
-    }
-
     const what = `the state of the plugin class "${id}"`;
     let validate: Validate = () => [];
     const state = given.state;

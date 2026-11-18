@@ -38,20 +38,50 @@ const INFO: OutputInfo = {
   font: "Inter",
 };
 
+// A renderer as R names it with the board options given, those that
+// `new_renderer()` takes in `options`.
+function reads(drawn: OutputRenderer, options: readonly string[]): OutputRenderer {
+  return { ...drawn, options: [...options] };
+}
+
+// The reply given, whose registry entries name each renderer given, by its id,
+// with the board options given for it.
+function rendererReads(named: Readonly<Record<string, readonly string[]>>, reply: HelloReply): HelloReply {
+  return {
+    ...reply,
+    block_registry: Object.fromEntries(
+      Object.entries(reply.block_registry).map(([id, entry]) => [
+        id,
+        {
+          ...entry,
+          renderers: (entry.renderers ?? []).map((drawn) => {
+            const options = named[drawn.id];
+            return options === undefined ? drawn : reads(drawn, options);
+          }),
+        },
+      ]),
+    ),
+  };
+}
+
 // The reply to hello, with a board that holds no board option, so that the
-// renderers bring theirs.
-const bare: HelloReply = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } };
+// renderers bring theirs, and the table renderer of the tests naming n_rows,
+// or else the board options given.
+function boardless(table: readonly string[] = ["n_rows"]): HelloReply {
+  const empty: HelloReply = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } };
+  return rendererReads({ [TABLE.id]: table }, empty);
+}
+const bare = boardless();
 
 // A board option that a renderer of table outputs may name besides n_rows.
 const zoom: Option = { id: "zoom", label: "Zoom", category: "View options", schema: { type: "number" }, default: 1, ui: noUi };
 
 // A renderer that keeps each host it is mounted with, and each output that
 // its host held as it announced one.
-function renderer(named: readonly string[] = ["n_rows"]) {
+function renderer() {
   const mounts: { host: OutputHost; el: HTMLElement; signal: AbortSignal; seen: Json[] }[] = [];
   let cleanups = 0;
   const mod: OutputModule = {
-    options: named,
     render({ el, host, signal }) {
       const mount = { host, el, signal, seen: [host.output()] };
       mounts.push(mount);
@@ -264,8 +294,8 @@ afterEach(() => {
 
 describe("asking", () => {
   test("loads the renderer that the entry names and adds its board options before it asks R", async () => {
-    const table = renderer(["n_rows", "zoom"]);
-    const s = await setup({ [TABLE.module]: table.exports });
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports }, { reply: boardless(["n_rows", "zoom"]) });
     const el = await ready(s);
 
     expect(s.imported).toEqual([TABLE.module]);
@@ -288,7 +318,7 @@ describe("asking", () => {
 
     expect(table.mounts).toHaveLength(1);
     expect(table.host().output()).toMatchObject({ renderer: TABLE, total: 150 });
-    expect(table.host().options()).toEqual({ n_rows: 50, zoom: 1 });
+    expect([table.host().option("n_rows"), table.host().option("zoom")]).toEqual([50, 1]);
     expect(table.host().params()).toEqual({});
     expect(table.host().loading()).toBe(false);
     expect(el.textContent).toContain('"total":150');
@@ -573,9 +603,9 @@ describe("asking", () => {
 
   test("raises that the renderer cannot draw where a board option that it names does not go onto the board, beside the board option's own notification, which says why", async () => {
     const reported = logged();
-    const table = renderer(["n_rows", "broken"]);
+    const table = renderer();
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
-    const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
+    const s = await setup({ [TABLE.module]: table.exports }, { reply: boardless(["n_rows", "broken"]), options: [broken] });
     await ready(s);
     reported.restore();
     const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
@@ -658,7 +688,7 @@ describe("what core keeps", () => {
 
 describe("board options", () => {
   test("that the class's outputs read go onto the board and with every output request, beside the renderer's", async () => {
-    const text = renderer([]);
+    const text = renderer();
     const themed: HelloReply = {
       ...bare,
       block_registry: Object.fromEntries(
@@ -683,7 +713,7 @@ describe("board options", () => {
 
   test("that the class's outputs read and that do not go onto the board leave the output unasked, with why", async () => {
     const reported = logged();
-    const text = renderer([]);
+    const text = renderer();
     const lacking: HelloReply = {
       ...bare,
       block_registry: Object.fromEntries(
@@ -708,9 +738,9 @@ describe("board options", () => {
 
   test("whose default fails leave the element empty, and core asks R for no output", async () => {
     const reported = logged();
-    const table = renderer(["n_rows", "broken"]);
+    const table = renderer();
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
-    const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
+    const s = await setup({ [TABLE.module]: table.exports }, { reply: boardless(["n_rows", "broken"]), options: [broken] });
     const el = await ready(s);
     reported.restore();
 
@@ -723,14 +753,14 @@ describe("board options", () => {
 
   test("that the renderer names and that do not go onto the board again reach it through error(), and raise that it cannot draw, until the board holds a value", async () => {
     const reported = logged();
-    const table = renderer(["n_rows", "once"]);
+    const table = renderer();
     let calls = 0;
     const once: Option = {
       ...zoom,
       id: "once",
       default: () => (++calls === 1 ? Promise.resolve(1) : Promise.reject(new Error("No value any more."))),
     };
-    const s = await setup({ [TABLE.module]: table.exports }, { options: [once] });
+    const s = await setup({ [TABLE.module]: table.exports }, { reply: boardless(["n_rows", "once"]), options: [once] });
     await ready(s);
     expect(lastOutput(s.r).options).toEqual({ n_rows: 50, once: 1 });
     replyTable(s.r, lastOutput(s.r));
@@ -769,6 +799,18 @@ describe("board options", () => {
     expect(s.raised.map((n) => n.about)).toEqual([{ option: "once" }]);
   });
 
+  test("that the renderer does not name, a misspelled one among them, it cannot read, which throws naming the renderer and the board option", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+
+    expect(table.host().option("n_rows")).toBe(50);
+    expect(() => table.host().option("zoom")).toThrow(`The renderer "${TABLE.id}" names no board option "zoom" in R, so it cannot read it.`);
+    expect(() => table.host().option("n_row")).toThrow(`The renderer "${TABLE.id}" names no board option "n_row" in R, so it cannot read it.`);
+  });
+
   test("that the renderer names come onto the board again once a delta removes them, while it draws", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });
@@ -788,10 +830,10 @@ describe("board options", () => {
 describe("the renderer", () => {
   test("that an output names in place of the entry's draws it, with the board options it names", async () => {
     const table = renderer();
-    const preview = renderer(["zoom"]);
+    const preview = renderer();
     const s = await setup({ [TABLE.module]: table.exports, [PREVIEW.module]: preview.exports });
     await ready(s);
-    replyTable(s.r, lastOutput(s.r), 150, PREVIEW);
+    replyTable(s.r, lastOutput(s.r), 150, reads(PREVIEW, ["zoom"]));
     await tick();
 
     expect(table.mounts).toHaveLength(0);
@@ -803,12 +845,15 @@ describe("the renderer", () => {
   });
 
   test("that the entry names, one for each family, all load before the first output, which goes with all their board options", async () => {
-    const table = renderer(["n_rows"]);
-    const preview = renderer(["zoom"]);
+    const table = renderer();
+    const preview = renderer();
     const both: HelloReply = {
       ...bare,
       block_registry: Object.fromEntries(
-        Object.entries(bare.block_registry).map(([id, entry]) => [id, { ...entry, renderers: [TABLE, PREVIEW] }]),
+        Object.entries(bare.block_registry).map(([id, entry]) => [
+          id,
+          { ...entry, renderers: [reads(TABLE, ["n_rows"]), reads(PREVIEW, ["zoom"])] },
+        ]),
       ),
     };
     const s = await setup({ [TABLE.module]: table.exports, [PREVIEW.module]: preview.exports }, { reply: both });
@@ -825,7 +870,7 @@ describe("the renderer", () => {
   });
 
   test("is learned from the first output where the entry names none, which goes with the board options of the class's outputs", async () => {
-    const text = renderer([]);
+    const text = renderer();
     const plain: HelloReply = {
       ...bare,
       board: { ...bare.board, board: { ...bare.board.board, options: { show_conditions: { value: ["error"], version: 1 } } } },

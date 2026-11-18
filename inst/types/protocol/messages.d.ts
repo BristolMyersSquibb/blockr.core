@@ -48,6 +48,7 @@ export interface HelloReply {
 export interface PluginEntry {
     name: string;
     version: number;
+    options?: OptionId[];
     module: string;
     css?: string;
 }

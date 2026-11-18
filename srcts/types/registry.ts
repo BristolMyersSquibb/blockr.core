@@ -34,6 +34,12 @@ export interface RegistryEntry {
   readonly schema: JsonSchema;
   // What a new block starts with, from `expr` called without args.
   readonly state: Readonly<Record<string, Json>>;
+  // The board options that the class's UI module reads itself, by id, whose
+  // constructors the class names in `options`, which R names in every entry.
+  // Core puts them on the board, with those that the class's requests read,
+  // before it calls the module's render(), and the module reads all of them
+  // through its host's context.
+  readonly options?: readonly OptionId[];
   readonly requests: Readonly<
     Record<
       string,
@@ -63,8 +69,8 @@ export interface RegistryEntry {
   // class names, and of each family that it hands its results to, each the
   // one that the deployment names for the family in the blockr option
   // `renderers`, or else the family's own. Core loads them all, and adds the
-  // board options that they name to the board, before it asks for a block's
-  // first output, so that the request carries those too. Each output names
-  // the one that draws it.
+  // board options that each names in `options` to the board, before it asks
+  // for a block's first output, so that the request carries those too. Each
+  // output names the one that draws it.
   readonly renderers?: readonly OutputRenderer[];
 }

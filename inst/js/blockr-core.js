@@ -2384,11 +2384,13 @@ function mountableModule(exports, module, pkg) {
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new ModuleError(module, pkg, "has no default export with a render() function.");
   }
-  const named3 = mod.options;
-  if (named3 !== void 0 && !(Array.isArray(named3) && named3.every((id2) => typeof id2 === "string"))) {
-    throw new ModuleError(module, pkg, "names its board options in something other than an array of their ids.");
-  }
   return mod;
+}
+function optionReader(values2, named3, unnamed) {
+  return (id2) => {
+    if (!named3.includes(id2)) throw new Error(unnamed(id2));
+    return own(values2, id2);
+  };
 }
 function withoutOptions(module, ids2) {
   return `Without the board option${ids2.length === 1 ? "" : "s"} ${quoted(ids2)}, ${module} cannot draw.`;
@@ -2654,7 +2656,7 @@ function mountOutput(deps, el, block) {
         const pkg = packageFromId(given.id);
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
-        const named4 = mod.options ?? [];
+        const named4 = given.options ?? [];
         const failures = await deps.addOptions(named4, `the renderer "${given.id}"`);
         if (failures.length > 0) throw missingOptions(given, named4);
         return { renderer: given, mod, named: named4 };
@@ -3037,13 +3039,18 @@ function mountOutput(deps, el, block) {
       output: () => held2?.output ?? null,
       body: () => held2?.body ?? null,
       params: () => held2?.asked.params ?? EMPTY,
-      options() {
+      option(id2) {
         let memo = named4;
         if (memo === void 0 || memo.for !== held2) {
-          memo = { for: held2, values: optionsFor(prepared, held2?.asked) };
+          const read = optionReader(
+            optionsFor(prepared, held2?.asked),
+            prepared.named,
+            (unnamed) => `The renderer "${prepared.renderer.id}" names no board option "${unnamed}" in R, so it cannot read it.`
+          );
+          memo = { for: held2, read };
           named4 = memo;
         }
-        return memo.values;
+        return memo.read(id2);
       },
       loading: () => asking !== void 0,
       error: () => error,
@@ -3315,12 +3322,11 @@ function createMounts(options) {
       let mod;
       try {
         mod = mountableModule(exports, entry.module, pkg);
-        checkOptions(mod, entry, pkg);
       } catch (error) {
         fail(error);
         return;
       }
-      const named3 = mod.options ?? [];
+      const named3 = classOptions(entry);
       const kept = keepOptions(named3, by, () => {
         if (ended()) return;
         end();
@@ -3367,17 +3373,11 @@ function createMounts(options) {
     keepOptions
   };
 }
-function checkOptions(mod, entry, pkg) {
-  const named3 = new Set(mod.options ?? []);
-  const gaps = Object.entries(entry.requests).flatMap(([name3, request]) => {
-    const left2 = [...new Set(request.options)].filter((id2) => !named3.has(id2));
-    if (left2.length === 0) return [];
-    return [`- The request "${name3}" reads the board option${left2.length === 1 ? "" : "s"} ${quoted(left2)}.`];
-  });
-  if (gaps.length === 0) return;
-  const what = `leaves out of its \`options\` board options that requests of block class "${entry.id}" read:`;
-  throw new ModuleError(entry.module, pkg, [what, ...gaps].join("\n"));
+function classOptions(entry) {
+  const read = Object.values(entry.requests).flatMap((request) => request.options);
+  return [.../* @__PURE__ */ new Set([...entry.options ?? [], ...read])];
 }
+var contextValues = /* @__PURE__ */ new WeakMap();
 function blockHost(deps) {
   const { store, commands, scheduler, block, entry } = deps;
   let seen = store.board();
@@ -3393,7 +3393,15 @@ function blockHost(deps) {
   }
   function blockContext(now) {
     const recipe = scheduler.inputs(block)?.recipe ?? [];
-    return Object.freeze({
+    const values2 = Object.freeze(
+      Object.fromEntries(
+        named3.flatMap((id2) => {
+          const value2 = own(seen.options, id2);
+          return value2 === void 0 ? [] : [[id2, value2]];
+        })
+      )
+    );
+    const context5 = Object.freeze({
       name: now?.name ?? "",
       status: scheduler.status(block) ?? NO_STATUS,
       inputs: Object.freeze(
@@ -3401,15 +3409,14 @@ function blockHost(deps) {
           (input2) => input2.block === void 0 ? [] : [Object.freeze({ input: input2.input, revision: scheduler.status(input2.block)?.revision ?? 0 })]
         )
       ),
-      options: Object.freeze(
-        Object.fromEntries(
-          named3.flatMap((id2) => {
-            const value2 = own(seen.options, id2);
-            return value2 === void 0 ? [] : [[id2, value2]];
-          })
-        )
+      option: optionReader(
+        values2,
+        named3,
+        (id2) => `The block class "${entry.id}" names no board option "${id2}" in R, so its UI module cannot read it.`
       )
     });
+    contextValues.set(context5, values2);
+    return context5;
   }
   function bound() {
     return !gone && !deps.replaced.aborted && Object.hasOwn(store.board().blocks, block);
@@ -3525,7 +3532,7 @@ function blockHost(deps) {
   };
 }
 function sameContext(a, b) {
-  return a.name === b.name && a.status === b.status && a.inputs.length === b.inputs.length && a.inputs.every((input2, i) => input2.input === b.inputs[i]?.input && input2.revision === b.inputs[i].revision) && jsonEqual(a.options, b.options);
+  return a.name === b.name && a.status === b.status && a.inputs.length === b.inputs.length && a.inputs.every((input2, i) => input2.input === b.inputs[i]?.input && input2.revision === b.inputs[i].revision) && jsonEqual(contextValues.get(a) ?? {}, contextValues.get(b) ?? {});
 }
 
 // srcts/transport/shiny.ts
@@ -5911,9 +5918,6 @@ function createRegistrations(migration = () => void 0) {
     if (given.commands !== void 0 && !Array.isArray(given.commands)) {
       throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
     }
-    if (given.options !== void 0 && (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))) {
-      throw new Error(`The plugin class "${id2}" requires board options that are no array of their ids.`);
-    }
     const what = `the state of the plugin class "${id2}"`;
     let validate = () => [];
     const state2 = given.state;
@@ -7212,10 +7216,10 @@ function runPlugins(deps) {
     stops.push(kept.stop);
     return kept.added;
   }
+  const optionsOf = (id2) => own(deps.plugins, id2)?.options ?? [];
   function opened() {
     for (const id2 of Object.keys(appPlugins())) {
-      const def = registeredClass(id2);
-      if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${id2}"`));
+      added.set(id2, keep(optionsOf(id2), `the plugin class "${id2}"`));
     }
   }
   const offStore = store.subscribe((change) => {
@@ -7326,7 +7330,7 @@ function runPlugins(deps) {
       cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
     }
     void (async () => {
-      const named3 = def.options ?? [];
+      const named3 = optionsOf(plugin);
       const kept = keepOptions(named3, `the plugin class "${plugin}"`, () => {
         if (ended()) return;
         end();

@@ -43,6 +43,7 @@
               "additionalProperties": false
             },
             "state": { "package": "datasets" },
+            "options": [],
             "requests": {
               "datasets": {
                 "inputs": [],
@@ -54,7 +55,8 @@
             "renderers": [
               {
                 "id": "blockr.core-table_output",
-                "module": "blockr.core/basic-table.js?v=b7e2a915"
+                "module": "blockr.core/basic-table.js?v=b7e2a915",
+                "options": []
               }
             ]
           },
@@ -88,6 +90,7 @@
               "additionalProperties": false
             },
             "state": { "n": 6, "direction": "head" },
+            "options": [],
             "requests": {
               "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
             },
@@ -95,7 +98,8 @@
             "renderers": [
               {
                 "id": "blockr.core-table_output",
-                "module": "blockr.core/basic-table.js?v=b7e2a915"
+                "module": "blockr.core/basic-table.js?v=b7e2a915",
+                "options": []
               }
             ]
           }
@@ -109,17 +113,20 @@
           "blockr.core-basic_frontend_plugin": {
             "name": "Basic frontend",
             "version": 1,
+            "options": ["show_conditions", "dark_mode"],
             "module": "blockr.core/basic.js?v=0f3d8e21",
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           },
           "blockr.core-file_storage_plugin": {
             "name": "File storage",
             "version": 1,
+            "options": [],
             "module": "blockr.core/file-storage.js?v=8e1f0b2d"
           },
           "blockr.core-edit_board_plugin": {
             "name": "Edit board",
             "version": 1,
+            "options": [],
             "module": "blockr.core/edit-board.js?v=5c1e7a39"
           }
         },

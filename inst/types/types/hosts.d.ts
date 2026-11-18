@@ -6,7 +6,6 @@ import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
 export type State = Readonly<Record<string, Json>>;
 export interface BlockModule<S extends State = State> {
-    readonly options?: readonly OptionId[];
     render(args: {
         el: HTMLElement;
         host: BlockHost<S>;
@@ -21,7 +20,6 @@ export interface OptionModule<V extends Json = Json> {
     }): Rendered;
 }
 export interface OutputModule {
-    readonly options?: readonly OptionId[];
     render(args: {
         el: HTMLElement;
         host: OutputHost;
@@ -49,7 +47,7 @@ export interface BlockContext {
         readonly input: string;
         readonly revision: number;
     }[];
-    readonly options: Readonly<Record<OptionId, Json>>;
+    option(id: OptionId): Json;
 }
 export type HostRequestOpts = Omit<RequestOpts, "reads" | "conditions">;
 export interface OutputRequestOpts extends HostRequestOpts {
@@ -69,7 +67,7 @@ export interface OutputHost {
     output(): Json;
     body(): Blob | null;
     params(): Json;
-    options(): Readonly<Record<OptionId, Json>>;
+    option(id: OptionId): Json;
     loading(): boolean;
     error(): Condition | CoreFailure | null;
     on(event: "output", fn: () => void): () => void;

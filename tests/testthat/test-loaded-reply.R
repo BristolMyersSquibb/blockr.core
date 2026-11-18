@@ -48,8 +48,8 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
   expect_named(
     entry,
     c("id", "name", "description", "keywords", "category", "icon", "inputs",
-      "module", "version", "schema", "state", "requests", "output_options",
-      "renderers")
+      "module", "version", "schema", "state", "options", "requests",
+      "output_options", "renderers")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -142,7 +142,7 @@ test_that("R says where it serves what packages list", {
   # beside it
   grid <- reply$plugins[["blockr.test-grid_plugin"]]
 
-  expect_named(grid, c("name", "version", "module", "css"))
+  expect_named(grid, c("name", "version", "options", "module", "css"))
   expect_match(grid$module, url("grid.js"))
   expect_match(grid$css, url("grid.css"))
 
@@ -160,7 +160,7 @@ test_that("R gives the app's plugins with their classes' names and versions", {
     json(declared_fields()$plugins),
     paste0(
       "^\\{\"blockr.test-grid_plugin\":",
-      "\\{\"name\":\"Grid\",\"version\":2,\"module\":"
+      "\\{\"name\":\"Grid\",\"version\":2,\"options\":\\[\\],\"module\":"
     )
   )
   expect_identical(json(loaded_reply()$plugins), "{}")
@@ -178,6 +178,7 @@ test_that("R gives the app's plugins with their classes' names and versions", {
       `blockr.one-dag_plugin` = list(
         name = "DAG",
         version = 3L,
+        options = character(),
         module = js_module("js/dag.js", package = "blockr.one")
       )
     )
@@ -236,8 +237,21 @@ test_that("an entry names the renderers of its class's outputs", {
     json(registry_entry_reply(head)$renderers),
     paste0(
       "[{\"id\":\"blockr.core-table_output\",",
-      "\"module\":\"blockr.core/basic-table.js?v=b7e2a915\"}]"
+      "\"module\":\"blockr.core/basic-table.js?v=b7e2a915\",",
+      "\"options\":[]}]"
     )
+  )
+
+  # Each with the IDs of the board options that it reads itself
+  themed <- new_renderer(
+    "themed",
+    js_module("js/basic-table.js", package = "blockr.core"),
+    options = list(new_dark_mode_option, new_n_rows_option)
+  )
+
+  expect_identical(
+    json(output_renderer_reply(themed)$options),
+    "[\"dark_mode\",\"n_rows\"]"
   )
 
   # A class that names no output family shows its results as text
@@ -280,6 +294,23 @@ test_that("an entry names the renderers of its class's outputs", {
   expect_identical(
     chr_xtr(entry_renderers(entry(head_output)), "id"),
     "blockr.core-table_output"
+  )
+})
+
+test_that("an entry names the board options that its class's UI module reads", {
+
+  head <- get_registry_entry("blockr.core-head_block")
+
+  expect_identical(json(registry_entry_reply(head)$options), "[]")
+
+  # By ID, each once, as the class holds their constructors
+  head$block_class$options <- list(
+    new_dark_mode_option, new_show_conditions_option, new_dark_mode_option
+  )
+
+  expect_identical(
+    json(registry_entry_reply(head)$options),
+    "[\"dark_mode\",\"show_conditions\"]"
   )
 })
 

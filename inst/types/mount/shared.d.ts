@@ -1,11 +1,12 @@
 import type { OptionId } from "../types/board.ts";
 import type { Rendered } from "../types/hosts.ts";
+import type { Json } from "../types/json.ts";
 export interface Mountable<A> {
-    readonly options?: readonly string[];
     render(args: A): Rendered;
 }
 export declare function moduleExports(exports: unknown, module: string, pkg: string | null): Readonly<Record<string, unknown>>;
 export declare function mountableModule<A>(exports: unknown, module: string, pkg: string | null): Mountable<A>;
+export declare function optionReader(values: Readonly<Record<OptionId, Json>>, named: readonly OptionId[], unnamed: (id: string) => string): (id: OptionId) => Json;
 export declare function withoutOptions(module: string, ids: readonly OptionId[]): string;
 export declare function showError(el: HTMLElement, message: string): void;
 export declare function attempt(fn: () => void): void;

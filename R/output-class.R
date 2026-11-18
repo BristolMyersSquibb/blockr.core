@@ -316,18 +316,15 @@ new_output_family <- function(fun, class, options = NULL, renderer = NULL,
     )
   }
 
-  if (is.function(options)) {
-    options <- list(options)
-  }
-
-  if (!is.null(options) && !is_family_option_ctors(options)) {
-    blockr_abort(
+  options <- as_option_ctors(
+    options,
+    paste0(
       "The board options that an output family reads are expected to be ",
       "given by their constructors, a function such as `new_n_rows_option` ",
-      "or a list of them.",
-      class = "output_family_invalid"
-    )
-  }
+      "or a list of them."
+    ),
+    "output_family_invalid"
+  )
 
   if (!is.null(renderer) &&
         !(is_renderer(renderer) && is.null(renderer[["option"]]))) {
@@ -361,7 +358,7 @@ new_output_family <- function(fun, class, options = NULL, renderer = NULL,
 
   structure(
     fun,
-    options = if (length(options)) unname(options),
+    options = options,
     renderer = renderer,
     families = if (length(families)) unname(families),
     class = c(class, "output_family", "function")
@@ -391,17 +388,6 @@ is_taken_family_class <- function(class, env) {
 
   taken(get0(class, envir = env, mode = "function")) ||
     taken(get0(class, envir = core, mode = "function", inherits = FALSE))
-}
-
-# Whether `x` is a list of board option constructors, each a function that
-# makes a board option of its ID, called without a value.
-is_family_option_ctors <- function(x) {
-  is.list(x) && all(
-    lgl_ply(x, function(new) {
-      is.function(new) &&
-        tryCatch(is_board_option(new()), error = function(e) FALSE)
-    })
-  )
 }
 
 # The family as its package defines it now: the one bound under the name of
@@ -457,7 +443,7 @@ family_option_ids <- function(x) {
     use.names = FALSE
   )
 
-  unique(chr_ply(call_option_ctors(ctors), board_option_id))
+  option_ctor_ids(ctors)
 }
 
 #' Output classes in R

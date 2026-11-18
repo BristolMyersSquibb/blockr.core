@@ -13,7 +13,7 @@ import type { LogLine } from "../types/log.ts";
 import { asError, jsonEqual } from "../util/index.ts";
 import { answer } from "./option.ts";
 import type { Answered } from "./option.ts";
-import { announcer, lineHolder, notifier } from "./util.ts";
+import { announcer, lineHolder, notifier, optionValue } from "./util.ts";
 
 export interface StubOutputHostOptions {
   // The output it holds, with its body and the parameters it was asked with,
@@ -24,9 +24,9 @@ export interface StubOutputHostOptions {
   // The block's id, "block" unless given.
   readonly block?: BlockId;
   // The output class's fixtures, from which setParams() takes the output asked
-  // with those parameters and the board option values, which options() gives.
-  // They are those given, or else those of the first of the fixtures where the
-  // host holds it.
+  // with those parameters and the board option values, which option() gives,
+  // throwing for any other id. They are those given, or else those of the
+  // first of the fixtures where the host holds it.
   readonly fixtures?: OutputFixtures;
   readonly options?: Readonly<Record<OptionId, Json>>;
   // What the output class's requests answer, and with the scope "renderer"
@@ -80,7 +80,7 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
     output: () => output,
     body: () => body,
     params: () => params,
-    options: () => values,
+    option: (id) => optionValue(values, id, "output host"),
     loading: () => loading,
     error: () => error,
     on: on.listen,

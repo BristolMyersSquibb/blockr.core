@@ -486,7 +486,7 @@ test_that("str_value() is extensible via NextMethod()", {
   expect_identical(capture.output(str(blk)), " <test_subblock> n [extra]")
 })
 
-test_that("a block's board options are those its requests read", {
+test_that("a block's board options are those its UI module and requests read", {
 
   with_opts <- block_constructor(
     new_block_class(
@@ -494,6 +494,7 @@ test_that("a block's board options are those its requests read", {
       inputs = "data",
       expr = function() bbquote(.(data)),
       ui = js_module("opts.js"),
+      options = list(new_show_conditions_option, new_n_rows_option),
       requests = list(
         page = new_block_request(
           function(data, options) utils::head(data, options),
@@ -507,8 +508,42 @@ test_that("a block's board options are those its requests read", {
     )
   )
 
-  expect_setequal(names(board_options(with_opts())), c("n_rows", "dark_mode"))
+  expect_setequal(
+    names(board_options(with_opts())),
+    c("show_conditions", "n_rows", "dark_mode")
+  )
   expect_length(board_options(new_class_head_block()), 0L)
+})
+
+test_that("a block class holds the board options its UI module reads", {
+
+  ui <- js_module("opts.js")
+  expr <- function() bbquote(.(data))
+
+  one <- new_block_class("opts_block", "data", expr, ui,
+                         options = new_n_rows_option)
+
+  expect_identical(one$options, list(new_n_rows_option))
+
+  two <- new_block_class(
+    "opts_block", "data", expr, ui,
+    options = list(new_n_rows_option, new_dark_mode_option)
+  )
+
+  expect_identical(option_ctor_ids(two$options), c("n_rows", "dark_mode"))
+  expect_null(new_block_class("opts_block", "data", expr, ui)$options)
+  expect_null(new_block_class("opts_block", "data", expr, ui,
+                              options = list())$options)
+
+  # A class gives the constructors of board options, not the board options or
+  # their IDs
+  for (bad in list("n_rows", new_n_rows_option(), list(function() 1))) {
+    expect_error(
+      new_block_class("opts_block", "data", expr, ui, options = bad),
+      "UI module of block class opts_block",
+      class = "block_class_options_invalid"
+    )
+  }
 })
 
 test_that("a block class records the package whose code defines it", {

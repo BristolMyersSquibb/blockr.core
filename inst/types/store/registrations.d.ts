@@ -7,7 +7,6 @@ import type { Validate } from "../util/index.ts";
 import type { Delta, Patch } from "./delta.ts";
 export interface PluginClass {
     readonly id: PluginClassId;
-    readonly options?: readonly OptionId[];
     readonly state?: {
         readonly schema: JsonSchema;
         readonly default: Json;

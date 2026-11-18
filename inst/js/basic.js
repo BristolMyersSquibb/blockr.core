@@ -1739,7 +1739,6 @@ function inView(el, view) {
 import { jsx as jsx13 } from "react/jsx-runtime";
 var api = 1;
 var basic_default = {
-  options: ["show_conditions", "dark_mode"],
   frontend: { render, show }
 };
 var drawn = /* @__PURE__ */ new WeakMap();

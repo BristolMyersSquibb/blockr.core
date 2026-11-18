@@ -336,12 +336,14 @@ describe("mounting a plugin's UI", () => {
         return undefined;
       },
     };
-    const zoomed: PluginClass = { id: "blockr.test-notes_plugin", ui, options: ["zoom"] };
-    const needy: PluginClass = { id: "blockr.test-needy_plugin", ui, options: ["nowhere"] };
+    const zoomed: PluginClass = { id: "blockr.test-notes_plugin", ui };
+    const needy: PluginClass = { id: "blockr.test-needy_plugin", ui };
     const reported = logged();
-    const s = await stubbed([zoomed, needy], { [zoomed.id]: { name: "Notes" }, [needy.id]: { name: "Needy" } }, {
-      options: [zoom],
-    });
+    const s = await stubbed(
+      [zoomed, needy],
+      { [zoomed.id]: { name: "Notes", options: ["zoom"] }, [needy.id]: { name: "Needy", options: ["nowhere"] } },
+      { options: [zoom] },
+    );
     const fine = document.createElement("div");
     const failing = document.createElement("div");
     s.core.mountPlugin(fine, zoomed.id);
@@ -582,7 +584,6 @@ describe("what a frontend offers other plugins", () => {
       el,
       modules: {
         [BASIC]: classModule({
-          options: ["show_conditions", "dark_mode"],
           frontend: {
             render: () => undefined,
             show({ object, el: at, core: given }: { object: unknown; el: HTMLElement; core: CoreApi }) {
@@ -649,7 +650,6 @@ describe("what a frontend offers other plugins", () => {
       el,
       modules: {
         [BASIC]: classModule({
-          options: ["show_conditions", "dark_mode"],
           frontend: {
             render: () => undefined,
             show({ object }: { object: unknown }) {

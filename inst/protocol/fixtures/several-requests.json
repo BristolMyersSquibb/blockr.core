@@ -77,7 +77,8 @@
         "output": {
           "renderer": {
             "id": "blockr.core-table_output",
-            "module": "blockr.core/basic-table.js?v=b7e2a915"
+            "module": "blockr.core/basic-table.js?v=b7e2a915",
+            "options": []
           },
           "columns": [
             { "name": "Sepal.Length", "class": "numeric" },

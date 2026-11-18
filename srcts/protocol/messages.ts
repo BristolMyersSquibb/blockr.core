@@ -120,11 +120,14 @@ export interface HelloReply {
 // One of the app's plugins, under the id of its class in the reply to `hello`:
 // the name of its class, which titles its panel, as "Document", the version
 // of its class's state, which the class's method of R's `plugin_version()`
-// gives, 1 for a class without one, and where R serves the module of its
-// class, whose default export is the class's PluginClass without its id.
+// gives, 1 for a class without one, the ids of the board options that its
+// plugin reads, which the class's method of R's `plugin_options()` names, and
+// where R serves the module of its class, whose default export is the class's
+// PluginClass without its id.
 export interface PluginEntry {
   name: string;
   version: number;
+  options?: OptionId[];
   module: string;
   css?: string;
 }
