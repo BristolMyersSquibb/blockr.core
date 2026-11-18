@@ -39,9 +39,6 @@ category icon (see \code{\link[=default_icon]{default_icon()}}).}
 don't rules, enumerations, pitfalls. Optional.}
 \item{\verb{@blockKeywords <terms>}}{Comma-separated search terms for block
 discovery; a term may contain spaces. Optional.}
-\item{\verb{@blockDetails <text>}}{Longer human-facing description (e.g. for a
-help popover). Optional; when omitted it falls back to the constructor's
-\verb{@details} or, failing that, its \verb{@section} prose.}
 \item{\verb{@blockLink <url>}}{URL of the block's help or documentation page.
 Optional; when omitted it is derived from the package's pkgdown \code{url}
 (\verb{_pkgdown.yml} or \code{DESCRIPTION}) and the documented topic, as
@@ -60,8 +57,8 @@ each state arg's type and description (see \code{vignette("create-block")}).
 The roclet writes \code{inst/registry/blocks.yml} as a mapping of each block
 constructor, by name, to the registry metadata of the class that it makes:
 the class's \code{id}, \code{name}, \code{description} and \code{category}, each a string, and,
-where the tags give them, its \code{icon}, \code{details}, \code{link} and \code{guidance}, each
-a string, and its \code{keywords}, a list of strings.
+where the tags give them, its \code{icon}, \code{link} and \code{guidance}, each a string,
+and its \code{keywords}, a list of strings.
 A package that writes the file by hand, or lists its block classes in its
 \code{._BLOCKR_MODULES_} without one, gives the same fields.
 R reads the listing as \code{\link[=available_blocks]{available_blocks()}} lists the package's classes and

@@ -27,13 +27,11 @@ test_that("an entry has the metadata registration gives, with link as url", {
   entry <- declared_fields()$block_registry$letters_block
 
   expect_identical(
-    entry[c("id", "name", "description", "details", "url", "guidance",
-            "category")],
+    entry[c("id", "name", "description", "url", "guidance", "category")],
     list(
       id = "letters_block",
       name = "letters block",
       description = "Pick columns",
-      details = "Keeps the columns it is given.",
       url = "https://example.com/letters",
       guidance = "Set `columns` to the names of columns to keep.",
       category = "transform"

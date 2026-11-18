@@ -334,7 +334,8 @@ The class's registry id is the id that `new_block_class()` takes, alone, since a
 That id holds no `-`, since a registry id splits at its first `-`.
 The function `register_block()` takes the constructor that `block_constructor()` makes, and no longer the name of a constructor.
 It takes neither `uid` nor `package` nor `classes`.
-It takes neither `arguments` nor `examples` either, so a script drops its calls of `new_arg_spec()`, `new_arg_specs()` and the type constructors such as `arg_string()`.
+It takes no `details` either, since nothing shows them.
+Nor does it take `arguments` or `examples`, so a script drops its calls of `new_arg_spec()`, `new_arg_specs()` and the type constructors such as `arg_string()`.
 The schema of the block's state, which the class's module ships, gives each state arg's type and description instead:
 
 ```{r, eval = FALSE}

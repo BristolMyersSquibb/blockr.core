@@ -31,7 +31,8 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
   sources <- c(
     unlst(
       lapply(
-        list(entries, modules, options, renderers, drawn),
+        list(lst_xtr(entries, "block_class"), modules, options, renderers,
+             drawn),
         lst_xtr,
         "package"
       ),
@@ -84,7 +85,6 @@ registry_entry_reply <- function(x, renderer = NULL) {
     Filter(
       not_null,
       list(
-        details = x[["details"]],
         url = x[["link"]],
         guidance = x[["guidance"]]
       )
@@ -95,7 +95,7 @@ registry_entry_reply <- function(x, renderer = NULL) {
       icon = x[["icon"]],
       inputs = I(x[["inputs"]])
     ),
-    served_module(x[["ui"]]),
+    served_module(x[["block_class"]][["ui"]]),
     list(
       version = x[["block_class"]][["version"]],
       schema = coal(x[["schema"]], as_json_object(list()), fail_all = FALSE),

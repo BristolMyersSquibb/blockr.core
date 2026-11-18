@@ -27,9 +27,6 @@
 #'     don't rules, enumerations, pitfalls. Optional.}
 #'   \item{`@blockKeywords <terms>`}{Comma-separated search terms for block
 #'     discovery; a term may contain spaces. Optional.}
-#'   \item{`@blockDetails <text>`}{Longer human-facing description (e.g. for a
-#'     help popover). Optional; when omitted it falls back to the constructor's
-#'     `@details` or, failing that, its `@section` prose.}
 #'   \item{`@blockLink <url>`}{URL of the block's help or documentation page.
 #'     Optional; when omitted it is derived from the package's pkgdown `url`
 #'     (`_pkgdown.yml` or `DESCRIPTION`) and the documented topic, as
@@ -46,8 +43,8 @@
 #' The roclet writes `inst/registry/blocks.yml` as a mapping of each block
 #' constructor, by name, to the registry metadata of the class that it makes:
 #' the class's `id`, `name`, `description` and `category`, each a string, and,
-#' where the tags give them, its `icon`, `details`, `link` and `guidance`, each
-#' a string, and its `keywords`, a list of strings.
+#' where the tags give them, its `icon`, `link` and `guidance`, each a string,
+#' and its `keywords`, a list of strings.
 #' A package that writes the file by hand, or lists its block classes in its
 #' `._BLOCKR_MODULES_` without one, gives the same fields.
 #' R reads the listing as [available_blocks()] lists the package's classes and
@@ -91,11 +88,6 @@ roxy_tag_parse.roxy_tag_blockGuidance <- function(x) {
 #' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_blockKeywords <- function(x) {
   roxygen2::tag_value(x)
-}
-
-#' @exportS3Method roxygen2::roxy_tag_parse
-roxy_tag_parse.roxy_tag_blockDetails <- function(x) {
-  roxygen2::tag_value(x, multiline = TRUE)
 }
 
 #' @exportS3Method roxygen2::roxy_tag_parse
@@ -223,12 +215,6 @@ block_roclet_entry <- function(block, base_url) {
     category = block_tag_value(block, "blockCategory")
   )
 
-  details <- block_details(block)
-
-  if (not_null(details)) {
-    entry[["details"]] <- details
-  }
-
   link <- block_link(block, base_url)
 
   if (not_null(link)) {
@@ -275,13 +261,6 @@ block_tag_value <- function(block, tag) {
   if (is.null(hit)) NULL else hit$val
 }
 
-block_tag_raw <- function(block, tag) {
-
-  hit <- roxygen2::block_get_tag(block, tag)
-
-  if (is.null(hit)) NULL else trimws(hit[["raw"]])
-}
-
 block_keywords <- function(block) {
 
   value <- block_tag_value(block, "blockKeywords")
@@ -297,27 +276,6 @@ block_keywords <- function(block) {
 
 block_guidance <- function(block) {
   reflow_text(block_tag_value(block, "blockGuidance"))
-}
-
-block_details <- function(block) {
-
-  explicit <- coal(
-    block_tag_value(block, "blockDetails"),
-    block_tag_raw(block, "details"),
-    fail_all = FALSE
-  )
-
-  if (not_null(explicit)) {
-    return(reflow_text(explicit))
-  }
-
-  section <- block_tag_raw(block, "section")
-
-  if (is.null(section)) {
-    return(NULL)
-  }
-
-  reflow_text(sub("^[^:]+:[[:space:]]*", "", section))
 }
 
 block_link <- function(block, base_url) {

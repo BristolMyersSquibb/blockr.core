@@ -524,7 +524,9 @@
   Each of its properties gives a state arg's type, and the arg's description where a JSDoc comment on the module's state type gives one, as core's block classes now do.
   The arg specs are gone, with `new_arg_spec()`, `new_arg_specs()`, `is_arg_specs()` and `as_arg_specs()`, the getters `arg_spec_description()`, `arg_spec_example()` and `arg_spec_type()`, the type constructors `arg_string()`, `arg_number()`, `arg_integer()`, `arg_boolean()`, `arg_enum()`, `arg_array()` and `arg_object()`, and the deprecated `new_block_arg()`, `new_block_args()`, `block_arg_description()`, `block_arg_example()` and `block_arg_type()`.
   So are a class's worked examples: `register_block()` and `register_blocks()` take neither `arguments` nor `examples`, the block registration roclet reads neither `@blockArg` nor `@blockExamples`, and `blocks.yml` holds neither.
-  The block registry's entries and R's reply to `hello` carry no `arguments`, the client's `RegistryEntry` has none, and `stateSchema()` and the type `ArgSpec` are gone (#660).
+  The block registry's entries and R's reply to `hello` carry no `arguments`, the client's `RegistryEntry` has none, and `stateSchema()` and the type `ArgSpec` are gone.
+  A class's `details` go too, since nothing shows them: `register_block()` takes none, the roclet reads no `@blockDetails` and no longer takes them from the constructor's `@details` or `@section`, and no entry carries them.
+  The function `suggested_categories()` returns the names of the categories alone, without a description of each (#660).
 * Which block classes an app offers is the app's choice.
   The methods of `serve()` for a board and for a path take them in `blocks`, which defaults to `available_blocks()`, every block class of every available package: one that is installed, or that `pkgload::load_all()` loaded, and that lists block classes in the `._BLOCKR_MODULES_` that it exports.
   A block that `serve()` serves alone offers none, and its app's block registry holds the block's class alone.

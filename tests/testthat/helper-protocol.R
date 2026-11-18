@@ -715,11 +715,6 @@ proto_registry <- function(...) {
       id = "blockr.core-head_block",
       name = "head/tail block",
       description = "Data head/tail",
-      details = paste(
-        "Row-subsetting the first or last `n` rows of a `data.frame` (as",
-        "provided by [utils::head()] and [utils::tail()]) is implemented as",
-        "`head_block`."
-      ),
       url = paste0(
         "https://bristolmyerssquibb.github.io/blockr.core/reference/",
         "new_head_block.html"
@@ -1382,7 +1377,6 @@ register_script_blocks <- function(dir) {
     "Pick columns",
     category = "transform",
     icon = "eye",
-    details = "Keeps the columns it is given.",
     link = "https://example.com/letters",
     guidance = "Set `columns` to the names of columns to keep.",
     keywords = c("letters", "columns")

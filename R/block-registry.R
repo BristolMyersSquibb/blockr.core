@@ -73,9 +73,9 @@ block_registry <- new.env()
 #' So a later `serve()` or `register_block()` changes no app that `serve()`
 #' built before.
 #'
-#' An entry holds, beside the metadata, the block class, its constructor, its
-#' data inputs, its UI module and the JSON Schema of the block's state that the
-#' module ships beside it, as `<name>.schema.json` for a module `<name>.js`,
+#' An entry holds, beside the metadata, the block class, its data inputs and
+#' the JSON Schema of the block's state that the class's UI module ships beside
+#' it, as `<name>.schema.json` for a module `<name>.js`,
 #' decoded with an array of length one marked with [I()], so that R writes it
 #' back as the module ships it, and whose properties must be the state args
 #' where it ships one, a description of each request, with the inputs and
@@ -112,11 +112,9 @@ block_registry <- new.env()
 #' @param category Useful to sort blocks by topics. If not specified,
 #'   blocks are uncategorized.
 #' @param icon Icon
-#' @param details Optional longer human-facing description (e.g. for a help
-#'   popover), complementing the short `description`
 #' @param link Optional URL to a block's help or documentation page
 #' @param guidance Optional model-facing construction guidance (do/don't rules,
-#'   enums, pitfalls), distinct from the human-facing `details`
+#'   enums, pitfalls)
 #' @param keywords Optional character vector of free-text search terms for block
 #'   discovery
 #' @param overwrite Overwrite existing entry
@@ -151,25 +149,25 @@ block_registry <- new.env()
 #' construction via `create_block()` returns a newly instantiated `block`
 #' object, and the lookup `registry_id_from_block()` returns the registry id
 #' that a block's class gives, a string.
+#' The categories that registration expects a class to name come from
+#' `suggested_categories()`, as a character vector.
 #'
 #' @export
 register_block <- function(ctor, name, description, category = NULL,
-                           icon = NULL, details = NULL, link = NULL,
-                           guidance = NULL, keywords = NULL,
-                           overwrite = FALSE) {
+                           icon = NULL, link = NULL, guidance = NULL,
+                           keywords = NULL, overwrite = FALSE) {
 
   add_block_entry(
-    block_registry, ctor, name, description, category, icon, details, link,
-    guidance, keywords, overwrite
+    block_registry, ctor, name, description, category, icon, link, guidance,
+    keywords, overwrite
   )
 }
 
 # Registers a block class in `registry`, as `register_block()` does in the
 # block registry of the process, and `serve()` in an app's.
 add_block_entry <- function(registry, ctor, name, description, category = NULL,
-                            icon = NULL, details = NULL, link = NULL,
-                            guidance = NULL, keywords = NULL,
-                            overwrite = FALSE) {
+                            icon = NULL, link = NULL, guidance = NULL,
+                            keywords = NULL, overwrite = FALSE) {
 
   if (is.null(category)) {
     category <- default_category()
@@ -182,10 +180,10 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
     )
   }
 
-  if (!category %in% names(suggested_categories())) {
+  if (!category %in% suggested_categories()) {
     blockr_warn(
       "Block category {category} is not among suggested categories ",
-      "{names(suggested_categories())}. Consider choosing a different one.",
+      "{suggested_categories()}. Consider choosing a different one.",
       class = "block_category_discouraged",
       frequency = "once",
       frequency_id = paste0("block_category_", category, "_discouraged")
@@ -246,17 +244,13 @@ add_block_entry <- function(registry, ctor, name, description, category = NULL,
     id = id,
     name = name,
     description = description,
-    details = details,
     link = link,
     guidance = guidance,
     keywords = keywords,
     category = category,
     icon = icon,
-    package = cls[["package"]],
-    constructor = ctor,
     block_class = cls,
     inputs = class_inputs(cls),
-    ui = cls[["ui"]],
     schema = class_schema(cls),
     requests = lapply(cls[["requests"]], request_entry, cls),
     state = state
@@ -343,39 +337,8 @@ bsicon_icons <- function() {
 #' @export
 suggested_categories <- function() {
   c(
-    input = paste(
-      "Data loading and import blocks, e.g. dataset selection, file uploads,",
-      "API connections, database queries."
-    ),
-    transform = paste(
-      "Data manipulation and transformation (incl. joins, binds), e.g. filter,",
-      "select, mutate, arrange, summarize, join, bind_rows."
-    ),
-    structured = paste(
-      "Processing of specialized structured data formats such as time series",
-      "or spatial data, hierarchical structures and graph/network data"
-    ),
-    plot = paste(
-      "Visualization and plotting blocks, e.g. ggplotz visualizations, scatter",
-      "plots, bar charts, histograms."
-    ),
-    table = paste(
-      "Tabular output and display blocks, e.g. data tables, formatted tables,",
-      "interactive tables, table viewers."
-    ),
-    model = paste(
-      "Statistical modeling and Al/ML blocks, e.g. linear models, GLMs,",
-      "neural networks, LLMs, predictions, classifiers."
-    ),
-    output = paste(
-      "Data export and output blocks, e.g. save to file, export tables,",
-      "generate reports."
-    ),
-    utility = paste(
-      "Utility and tool blocks, e.g. parse, format, text manipulation,",
-      "helpers."
-    ),
-    uncategorized = "Blocks without assigned category."
+    "input", "transform", "structured", "plot", "table", "model", "output",
+    "utility", "uncategorized"
   )
 }
 
@@ -492,11 +455,14 @@ available_blocks <- function() {
 # as rows of `available_blocks()`.
 registered_block_rows <- function() {
 
-  entries <- Filter(function(x) not_null(x[["package"]]), registry_entries())
+  classes <- Filter(
+    function(x) not_null(x[["package"]]),
+    lst_xtr(registry_entries(), "block_class")
+  )
 
   block_rows(
-    package = chr_xtr(entries, "package"),
-    id = chr_ply(entries, function(x) x[["block_class"]][["id"]])
+    package = chr_xtr(classes, "package"),
+    id = chr_xtr(classes, "id")
   )
 }
 
@@ -504,7 +470,10 @@ registered_block_rows <- function() {
 # classes record `package`, or for `NULL`, those of the classes that an app
 # script defined itself, which record none.
 process_entries <- function(package = NULL) {
-  Filter(function(x) identical(x[["package"]], package), registry_entries())
+  Filter(
+    function(x) identical(x[["block_class"]][["package"]], package),
+    registry_entries()
+  )
 }
 
 # Block classes as `available_blocks()` gives them, one row each, with the
@@ -517,7 +486,7 @@ block_rows <- function(package = character(), id = character()) {
 #' @rdname register_block
 #' @export
 create_block <- function(id, ...) {
-  get_registry_entry(id)[["constructor"]](...)
+  block_constructor(get_registry_entry(id)[["block_class"]])(...)
 }
 
 # The entries of a block registry by registry id, the process's by default.
@@ -823,7 +792,6 @@ register_listed_blocks <- function(package, registry, ids = NULL) {
       ctor = ctors,
       name = chr_xtr(entries, "name"),
       description = chr_xtr(entries, "description"),
-      details = lapply(entries, `[[`, "details"),
       link = lapply(entries, `[[`, "link"),
       category = chr_xtr(entries, "category"),
       icon = lapply(entries, `[[`, "icon"),

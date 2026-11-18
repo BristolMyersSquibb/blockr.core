@@ -42,7 +42,7 @@ test_that("the roclet reads block metadata off constructor tags", {
   expect_identical(res[["keywords"]], c("head", "tail", "multi word"))
 })
 
-test_that("details falls back to @section and @blockLink is captured", {
+test_that("@blockLink is captured", {
 
   skip_if_not_installed("roxygen2")
 
@@ -58,27 +58,10 @@ test_that("details falls back to @section and @blockLink is captured", {
 
   res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
 
-  expect_identical(res[["details"]], "Prose about the block.")
   expect_identical(res[["link"]], "https://example.com/demo")
-})
 
-test_that("@blockDetails overrides the @section fallback", {
-
-  skip_if_not_installed("roxygen2")
-
-  txt <- paste0("
-#' Title
-#' @block demo block
-#' @blockDescr A demo
-#' @blockCategory transform
-#' @blockDetails An explicit detail.
-#' @section Demo block: Ignored prose.
-#' @export
-", block_ctor_src())
-
-  res <- roxygen2::roc_proc_text(block_registration_roclet(), txt)[[1L]]
-
-  expect_identical(res[["details"]], "An explicit detail.")
+  # The help page's prose stays there, rather than in the class's entry
+  expect_null(res[["details"]])
 })
 
 test_that("block_link derives a pkgdown URL, gated on the URL existing", {
@@ -243,7 +226,6 @@ test_that("the shipped core registry is complete", {
   expect_true(is_string(head[["guidance"]]))
   expect_gt(length(head[["keywords"]]), 0L)
 
-  expect_true(is_string(reg[["new_dataset_block"]][["details"]]))
   expect_match(
     reg[["new_dataset_block"]][["link"]],
     "/reference/new_dataset_block\\.html$"

@@ -11,7 +11,6 @@ test_that("block metadata spelling", {
     c(
       entry[["name"]],
       entry[["description"]],
-      entry[["details"]],
       entry[["guidance"]]
     )
   }

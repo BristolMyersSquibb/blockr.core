@@ -5,7 +5,6 @@ export interface RegistryEntry {
     readonly id: RegistryId;
     readonly name: string;
     readonly description: string;
-    readonly details?: string;
     readonly url?: string;
     readonly guidance?: string;
     readonly keywords: readonly string[];

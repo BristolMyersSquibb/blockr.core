@@ -12,11 +12,9 @@ test_that("registry", {
   expect_identical(get_registry_entry("head_block"), entry)
 
   expect_identical(entry$block_class, head_class)
-  expect_identical(entry$constructor, new_class_head_block)
   expect_identical(entry$inputs, "data")
   expect_identical(entry$state, list(n = 6L, direction = "head"))
   expect_null(entry$schema)
-  expect_null(entry$package)
   expect_identical(
     entry$requests,
     list(
@@ -141,7 +139,6 @@ test_that("a block class's registry id comes from the class alone", {
   entry <- register_block(block_constructor(pkg), "Count", "Counts up")
 
   expect_identical(entry$id, "blockr.pkg-count_block")
-  expect_identical(entry$package, "blockr.pkg")
 
   # Another constructor of the class takes the same id, whatever its name
   new_counter_block <- block_constructor(pkg)
@@ -155,8 +152,6 @@ test_that("a block class's registry id comes from the class alone", {
     register_block(block_constructor(script), "Count", "Counts up")$id,
     "count_block"
   )
-
-  expect_null(get_registry_entry("count_block")$package)
 })
 
 test_that("a package's constructors give one registry id each", {
@@ -327,12 +322,14 @@ test_that("an app offers the block classes that `blocks` gives", {
 
   entries <- registry_entries(registry)[ids]
 
-  expect_identical(unique(chr_xtr(entries, "package")), "blockr.core")
+  expect_identical(
+    unique(chr_xtr(lst_xtr(entries, "block_class"), "package")),
+    "blockr.core"
+  )
 
   head <- entries[["blockr.core-head_block"]]
 
   expect_identical(head[["block_class"]], head_block)
-  expect_identical(head[["constructor"]], new_head_block)
   expect_identical(head[["state"]], list(n = 6L, direction = "head"))
 
   # The schema that the module ships describes each state arg, as the JSDoc
@@ -663,5 +660,5 @@ test_that("core's theme holds a color for each suggested category", {
     regexpr("(?<=--bc-color-category-)[a-z]+(?=:)", css, perl = TRUE)
   )
 
-  expect_setequal(cats, names(suggested_categories()))
+  expect_setequal(cats, suggested_categories())
 })

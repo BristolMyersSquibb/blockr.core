@@ -9,12 +9,11 @@ import type { OutputRenderer } from "./outputs.ts";
 
 export interface RegistryEntry {
   readonly id: RegistryId;
-  // The metadata that registration gives, as today: name, description,
-  // details, url (the link that `register_block()` takes), guidance, keywords,
-  // category and icon, the icon as SVG markup.
+  // The metadata that registration gives: name, description, url (the link
+  // that `register_block()` takes), guidance, keywords, category and icon, the
+  // icon as SVG markup.
   readonly name: string;
   readonly description: string;
-  readonly details?: string;
   readonly url?: string;
   readonly guidance?: string;
   readonly keywords: readonly string[];

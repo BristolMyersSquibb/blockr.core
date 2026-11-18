@@ -39,7 +39,6 @@
             "id": "letters_block",
             "name": "letters block",
             "description": "Pick columns",
-            "details": "Keeps the columns it is given.",
             "url": "https://example.com/letters",
             "guidance": "Set `columns` to the names of columns to keep.",
             "keywords": ["letters", "columns"],

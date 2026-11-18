@@ -434,7 +434,7 @@ page_modules <- function(board, registry, plugins = list()) {
   modules <- c(
     lst_xtr(plugins, "module"),
     lst_xtr(loaded_options(), "module"),
-    lst_xtr(entries, "ui"),
+    lst_xtr(entries, "block_class", "ui"),
     lst_xtr(renderers, "module")
   )
 

@@ -19,7 +19,6 @@ register_block(
   description,
   category = NULL,
   icon = NULL,
-  details = NULL,
   link = NULL,
   guidance = NULL,
   keywords = NULL,
@@ -54,13 +53,10 @@ blocks are uncategorized.}
 
 \item{icon}{Icon}
 
-\item{details}{Optional longer human-facing description (e.g. for a help
-popover), complementing the short \code{description}}
-
 \item{link}{Optional URL to a block's help or documentation page}
 
 \item{guidance}{Optional model-facing construction guidance (do/don't rules,
-enums, pitfalls), distinct from the human-facing \code{details}}
+enums, pitfalls)}
 
 \item{keywords}{Optional character vector of free-text search terms for block
 discovery}
@@ -86,6 +82,8 @@ class. Block
 construction via \code{create_block()} returns a newly instantiated \code{block}
 object, and the lookup \code{registry_id_from_block()} returns the registry id
 that a block's class gives, a string.
+The categories that registration expects a class to name come from
+\code{suggested_categories()}, as a character vector.
 }
 \description{
 Listing of blocks is available via a block registry, which holds each block
@@ -159,9 +157,9 @@ registering it holds it.
 So a later \code{serve()} or \code{register_block()} changes no app that \code{serve()}
 built before.
 
-An entry holds, beside the metadata, the block class, its constructor, its
-data inputs, its UI module and the JSON Schema of the block's state that the
-module ships beside it, as \verb{<name>.schema.json} for a module \verb{<name>.js},
+An entry holds, beside the metadata, the block class, its data inputs and
+the JSON Schema of the block's state that the class's UI module ships beside
+it, as \verb{<name>.schema.json} for a module \verb{<name>.js},
 decoded with an array of length one marked with \code{\link[=I]{I()}}, so that R writes it
 back as the module ships it, and whose properties must be the state args
 where it ships one, a description of each request, with the inputs and
