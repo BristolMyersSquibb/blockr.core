@@ -2010,6 +2010,8 @@ describe("the locks", () => {
     ["changing a stack", { stacks: { mod: { s1: { color: "#66c2a5" } } } }, 'The board lock refuses to change stack "s1".'],
     ["removing a stack", { stacks: { rm: ["s1"] } }, 'The board lock refuses to remove stack "s1".'],
     ["renaming the board", { name: "Sepals" }, "The board lock refuses to rename the board."],
+    // The store keeps no inverse of such a delta, but the lock reads it.
+    ["renaming the board in a delta with undo: false", { name: "Sepals", undo: false }, "The board lock refuses to rename the board."],
   ])("under the board lock, refuses %s, naming the lock, and changes nothing", async (_, delta, message) => {
     const store = await opened(undefined, locking({ board: true, load: false }));
     const board = store.board();
@@ -2222,7 +2224,7 @@ describe("undo", () => {
     expect(store.board().options).toEqual({ n_rows: 20 });
   });
 
-  test("a step applied with undo: false is no undo step: it is applied, announced and numbered as any other, and leaves the undo and redo lists as they are, whoever takes it", async () => {
+  test("a step applied with undo: false is no undo step: it is applied, announced and numbered as any other, with undo: false on each delta, and leaves the undo and redo lists as they are, whoever takes it", async () => {
     const store = await opened();
     store.apply({ name: "Renamed" });
     store.apply({ name: "Again" });
@@ -2232,7 +2234,7 @@ describe("undo", () => {
 
     const delta: Delta = { blocks: { mod: { b: { state: { n: 7 } } } } };
     store.apply(delta, "assistant", { undo: false });
-    expect(seen).toEqual([{ delta, origin: "assistant" }]);
+    expect(seen).toEqual([{ delta: { ...delta, undo: false }, origin: "assistant" }]);
     expect(store.editId({ block: "b" })).toBeGreaterThan(edit ?? Infinity);
     expect([store.canUndo(), store.canRedo(), store.canUndo("assistant")]).toEqual([true, true, false]);
 
@@ -2242,6 +2244,41 @@ describe("undo", () => {
     store.undo();
     expect(store.board().name).toBe("Iris review");
     expect(store.canUndo()).toBe(false);
+    expect(store.board().blocks.b?.state.n).toBe(7);
+  });
+
+  test("keeps no inverse of a delta with undo: false, so that neither undo nor redo takes back its change, but keeps those of the other deltas of its step", async () => {
+    const store = await opened();
+    const seen = changes(store);
+
+    const looked: Delta = { blocks: { mod: { b: { state: { n: 7 } } } }, undo: false };
+    store.apply([{ name: "Renamed" }, looked]);
+    expect(seen).toEqual([
+      { delta: { name: "Renamed" }, origin: "user" },
+      { delta: looked, origin: "user" },
+    ]);
+    expect(store.canUndo()).toBe(true);
+
+    store.undo();
+    expect(store.board().name).toBe("Iris review");
+    expect(store.board().blocks.b?.state.n).toBe(7);
+    store.redo();
+    expect(store.board().name).toBe("Renamed");
+    expect(store.board().blocks.b?.state.n).toBe(7);
+  });
+
+  test("a step whose deltas change only board option values, beside deltas with undo: false, is no undo step, and leaves the undo and redo lists as they are", async () => {
+    const store = await opened();
+    store.apply({ name: "Renamed" });
+    store.undo();
+
+    store.apply([{ options: { set: { n_rows: 20 } } }, { blocks: { mod: { b: { state: { n: 7 } } } }, undo: false }]);
+    expect(store.board().options.n_rows).toBe(20);
+    expect(store.board().blocks.b?.state.n).toBe(7);
+    expect([store.canUndo(), store.canRedo()]).toEqual([false, true]);
+
+    store.redo();
+    expect(store.board().name).toBe("Renamed");
     expect(store.board().blocks.b?.state.n).toBe(7);
   });
 

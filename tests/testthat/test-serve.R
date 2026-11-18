@@ -152,7 +152,7 @@ test_that("an app's sessions read the block registry that serve() built", {
       list(
         id = "3", kind = "request", type = "block_class",
         registry_id = "blockr.core-head_block", block = "b", name = "n_max",
-        args = obj(), reads = list(read_of("a", 1L, "data"))
+        args = obj(), reads = list(recipe_input("a", 1L, "data"))
       ),
       output_request("4", "a", 1L, params = list(page_size = 5L))
     )
@@ -1145,7 +1145,7 @@ test_that("the app exports the latest result of each block for e2e tests", {
         "4",
         "b",
         1L,
-        sample_recipe("b", list(read_of("a", 2L, "data")))
+        sample_recipe("b", list(recipe_input("a", 2L, "data")))
       )
     )
   )

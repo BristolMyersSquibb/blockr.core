@@ -666,7 +666,7 @@ describe("running a list", () => {
     await done;
   });
 
-  test("takes no undo step where every command of the list has undo: false, and one where any lacks it", async () => {
+  test("takes no undo step for a list of commands with undo: false, and leaves their deltas out of the undo step of a list that takes one", async () => {
     const { store, commands } = await setup();
     commands.register(renameB({ undo: false }));
 
@@ -684,7 +684,28 @@ describe("running a list", () => {
     expect(store.canUndo()).toBe(true);
     store.undo();
     expect(store.board().name).toBe("Iris review");
-    expect(store.board().blocks.b?.name).toBe("Two");
+    expect(store.board().blocks.b?.name).toBe("Three");
+    store.redo();
+    expect(store.board().name).toBe("Sepals");
+    expect(store.board().blocks.b?.name).toBe("Three");
+  });
+
+  test("takes no undo step for a list that sets only board options beside commands with undo: false, and leaves the undo and redo lists as they are", async () => {
+    const { store, commands } = await setup();
+    commands.register(renameB({ undo: false }));
+    store.apply({ name: "Sepals" });
+    store.undo();
+
+    await commands.run([
+      { id: "blockr.core-set_option", args: { id: "n_rows", value: 30 } },
+      { id: "test.pkg-rename_b", args: { name: "Viewed" } },
+    ]);
+    expect([store.canUndo(), store.canRedo()]).toEqual([false, true]);
+
+    store.redo();
+    expect(store.board().name).toBe("Sepals");
+    expect(store.board().blocks.b?.name).toBe("Viewed");
+    expect(store.board().options.n_rows).toBe(30);
   });
 
   test("applies nothing for no commands", async () => {
@@ -922,6 +943,25 @@ describe("planning a list", () => {
     store.apply(planned, "assistant");
     expect(store.board().blocks.b).toMatchObject({ state: { n: 7 }, name: "Top" });
     expect(store.board().blocks.g?.state).toMatchObject({ n: 3 });
+  });
+
+  test("gives the deltas of a command with undo: false undo: false, so that a plan applied later keeps them out of its undo step", async () => {
+    const { store, commands } = await setup();
+    commands.register(renameB({ undo: false }));
+
+    const planned = await commands.plan([
+      { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+      { id: "test.pkg-rename_b", args: { name: "Planned" } },
+    ]);
+    expect(planned).toEqual([
+      { name: "Sepals" },
+      { blocks: { mod: { b: { edit: store.editId({ block: "b" }), name: "Planned" } } }, undo: false },
+    ]);
+
+    store.apply(planned, "assistant");
+    store.undo();
+    expect(store.board().name).toBe("Iris review");
+    expect(store.board().blocks.b?.name).toBe("Planned");
   });
 
   test("leaves the store to refuse a planned list once another edit came first", async () => {

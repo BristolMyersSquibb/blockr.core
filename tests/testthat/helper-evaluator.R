@@ -177,12 +177,10 @@ sample_recipe <- function(block, inputs = list()) {
   )
 }
 
-# An upstream result that a recipe's input or a request's read names.
-read_of <- function(block, revision, input = NULL) {
-  c(
-    if (not_null(input)) list(input = input),
-    list(block = block, revision = revision)
-  )
+# A recipe's input, by the input it feeds, with the upstream result it binds.
+# A block class's request names each result that it reads the same way.
+recipe_input <- function(block, revision, input) {
+  list(input = input, block = block, revision = revision)
 }
 
 # An evaluation, which carries the block's lock where `locked` is `TRUE` or
@@ -589,7 +587,8 @@ locked_recipe_a <- function(dataset = "iris") {
 
 # The recipe of the head block b of that board, which the board lock leaves
 # open, with the rows given and the inputs given.
-locked_recipe_b <- function(n = 6L, inputs = list(read_of("a", 1L, "data"))) {
+locked_recipe_b <- function(n = 6L,
+                            inputs = list(recipe_input("a", 1L, "data"))) {
   list(
     registry_id = "blockr.core-head_block",
     state = list(n = n, direction = "head"),

@@ -56,11 +56,13 @@ export interface Store {
   // they change.
   // The step goes onto the end of the undo list with its origin, and empties
   // the redo list, whoever took the steps there.
-  // A step that sets or removes only board option values is no undo step:
-  // it leaves the undo and redo lists as they are.
-  // Nor is a step applied with `{ undo: false }`, as the command registry
-  // applies the deltas of a command with `undo: false`. The store applies and
-  // announces such a step as any other, but keeps no inverse of it.
+  // The store keeps no inverse of board option values, nor of a delta with
+  // `undo: false`, which the command registry sets on each delta of a command
+  // with `undo: false`. It applies and announces such a delta as any other.
+  // A step of which it keeps no inverse is no undo step: it leaves the undo
+  // and redo lists as they are.
+  // Given `{ undo: false }`, the store sets `undo: false` on every delta of
+  // the step, and announces each delta with it.
   // Under the board lock, it refuses every delta but one that changes the
   // state of a block that the board lock leaves open, a board option's value
   // or what sits inside a plugin's state, which the plugin locks itself
@@ -182,7 +184,8 @@ const ENDED = "Another board opened in a new store, so this store changes its bo
 // list: the origin that took the step, and the deltas to apply, each with
 // where what it adds back goes, taken from the board the step replaced, so
 // that applying them sets back what the step changed.
-// The deltas hold no board option values (./commit.ts).
+// The deltas hold no board option values (./commit.ts), and none is the
+// inverse of a delta with `undo: false`.
 interface Step {
   readonly origin: Origin;
   readonly inverses: readonly Inverse[];
@@ -274,6 +277,8 @@ export function createStore(options: StoreOptions = {}): Store {
   // A delta that sets or removes only board option values is applied and
   // announced, but leaves no inverse, since an inverse holds no board option
   // values.
+  // A delta with `undo: false` leaves none either. The board lock reads its
+  // inverse all the same.
   function run(
     start: Board,
     deltas: readonly Delta[],
@@ -301,8 +306,8 @@ export function createStore(options: StoreOptions = {}): Store {
         const locked = lockFailures(current, committed.inverse.delta);
         if (locked.length > 0) throw fail(locked);
       }
-      const undoable = !isEmpty(committed.inverse.delta);
-      if (!undoable && committed.changed.options.size === 0) continue;
+      const inverse = isEmpty(committed.inverse.delta) ? undefined : committed.inverse;
+      if (inverse === undefined && committed.changed.options.size === 0) continue;
 
       const failures = check(
         committed.board,
@@ -313,7 +318,7 @@ export function createStore(options: StoreOptions = {}): Store {
       if (failures.length > 0) throw fail(failures);
 
       applied.push({ delta: expanded, board: committed.board, changed: committed.changed });
-      if (undoable) inverses.unshift(committed.inverse);
+      if (inverse !== undefined && given.undo !== false) inverses.unshift(inverse);
       current = committed.board;
     }
 
@@ -385,15 +390,16 @@ export function createStore(options: StoreOptions = {}): Store {
     opts: { readonly undo?: false } = {},
   ): void {
     guard();
-    const deltas: readonly Delta[] = isDeltas(delta) ? delta : [delta];
-    if (deltas.length === 0) return;
+    const given: readonly Delta[] = isDeltas(delta) ? delta : [delta];
+    if (given.length === 0) return;
+    const deltas = opts.undo === false ? given.map((each): Delta => ({ ...each, undo: false })) : given;
 
     busy = true;
     try {
       const { start, applied, inverses } = runOnBoard(deltas);
       if (applied.length === 0) return;
       number(applied, applied.at(-1)?.board ?? start);
-      if (inverses.length > 0 && opts.undo !== false) {
+      if (inverses.length > 0) {
         history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
       }
 
