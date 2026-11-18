@@ -81,6 +81,7 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
       {names.length > 1 && (
         <ComboBox
           label="Volume"
+          isRequired
           defaultItems={names.map((id) => ({ id }))}
           value={volume ?? null}
           onChange={(key) => {

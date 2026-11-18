@@ -539,6 +539,7 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
           ComboBox,
           {
             label: link.label,
+            isRequired: true,
             defaultItems: link.inputs.map((input3) => ({ id: input3 })),
             value: chosen ?? null,
             onChange: (key) => {
@@ -990,6 +991,7 @@ function LinkForm({
             ComboBox2,
             {
               label: "Position",
+              isRequired: true,
               defaultItems: Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) })),
               value: position === void 0 ? null : String(position),
               isDisabled: among.others.length === 0,
@@ -1003,6 +1005,7 @@ function LinkForm({
           ComboBox2,
           {
             label: "Input",
+            isRequired: true,
             defaultItems: offered.map((id2) => ({ id: id2 })),
             value: chosen ?? null,
             isDisabled: offered.length < 2,

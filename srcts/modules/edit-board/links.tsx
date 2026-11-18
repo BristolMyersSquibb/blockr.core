@@ -366,6 +366,7 @@ function LinkForm({
           {among === undefined ? null : (
             <ComboBox
               label="Position"
+              isRequired
               defaultItems={Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) }))}
               value={position === undefined ? null : String(position)}
               isDisabled={among.others.length === 0}
@@ -380,6 +381,7 @@ function LinkForm({
       ) : (
         <ComboBox
           label="Input"
+          isRequired
           defaultItems={offered.map((id) => ({ id }))}
           value={chosen ?? null}
           isDisabled={offered.length < 2}

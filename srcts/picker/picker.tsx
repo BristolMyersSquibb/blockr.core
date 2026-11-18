@@ -178,6 +178,7 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
       {link.kind === "pick" ? (
         <ComboBox
           label={link.label}
+          isRequired
           defaultItems={link.inputs.map((input) => ({ id: input }))}
           value={chosen ?? null}
           onChange={(key) => {

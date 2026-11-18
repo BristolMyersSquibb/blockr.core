@@ -400,6 +400,11 @@
   height: calc(var(--bc-spacing) * 4);
 }
 
+.bc\:size-5 {
+  width: calc(var(--bc-spacing) * 5);
+  height: calc(var(--bc-spacing) * 5);
+}
+
 .bc\:size-6 {
   width: calc(var(--bc-spacing) * 6);
   height: calc(var(--bc-spacing) * 6);
@@ -1125,6 +1130,10 @@
 @media (hover: hover) {
   .bc\:hover\:bg-bg-subtle:hover {
     background-color: var(--bc-color-bg-subtle);
+  }
+
+  .bc\:hover\:text-text-default:hover {
+    color: var(--bc-color-text-default);
   }
 
   .bc\:hover\:underline:hover {

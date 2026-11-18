@@ -9403,6 +9403,7 @@ function BoundOne({ bound, outdated = false, ...props }) {
         selectionMode: "single",
         outdated,
         marking: !outdated && known(props),
+        clears: false,
         value: current2,
         onChange: (key2) => {
           if (key2 !== null && !Array.isArray(key2)) void bound.commit(String(key2));
@@ -9488,6 +9489,7 @@ function Drawn({
   renderEmptyState,
   outdated = false,
   marking = false,
+  clears = true,
   className,
   allowsEmptyCollection = true,
   ...props
@@ -9517,6 +9519,7 @@ function Drawn({
             placeholder,
             multiple,
             marking,
+            clearable: clears && props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
             label,
             autoFocus: props.autoFocus
           }
@@ -9549,6 +9552,7 @@ function Field2({
   placeholder,
   multiple,
   marking,
+  clearable,
   label,
   autoFocus
 }) {
@@ -9565,6 +9569,28 @@ function Field2({
     state2?.setValue(keys.filter((key2) => !gone.has(key2)));
   };
   return /* @__PURE__ */ jsxs3(Group, { ref, className: `${FIELD} ${invalid ? "bc:border-border-danger" : ""}`, children: [
+    clearable && (keys.length > 0 || one2 !== null) ? (
+      // A button of the field's own, not React Aria's, which the select
+      // would take for its own and open the list with. It keeps the focus
+      // in the text field, as a press in the list does.
+      /* @__PURE__ */ jsx5(
+        "button",
+        {
+          type: "button",
+          tabIndex: -1,
+          "aria-label": label === void 0 ? "Clear" : `Clear ${label}`,
+          title: multiple ? "Clear every pick" : "Clear the pick",
+          className: CLEAR,
+          onMouseDown: (event) => {
+            event.preventDefault();
+          },
+          onClick: () => {
+            state2?.setValue(multiple ? [] : null);
+          },
+          children: /* @__PURE__ */ jsx5(Cross, {})
+        }
+      )
+    ) : null,
     keys.length === 0 ? null : /* @__PURE__ */ jsx5(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove2, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx5(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key2) => {
       const text = known2.get(key2) ?? String(key2);
       const gone = marking && !known2.has(key2);
@@ -9666,6 +9692,7 @@ function Cross() {
 }
 var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
+var CLEAR = "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
 var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
@@ -10002,6 +10029,7 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
           ComboBox2,
           {
             label: link.label,
+            isRequired: true,
             defaultItems: link.inputs.map((input3) => ({ id: input3 })),
             value: chosen ?? null,
             onChange: (key2) => {
@@ -11533,6 +11561,7 @@ function LinkForm({
             ComboBox2,
             {
               label: "Position",
+              isRequired: true,
               defaultItems: Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) })),
               value: position === void 0 ? null : String(position),
               isDisabled: among.others.length === 0,
@@ -11546,6 +11575,7 @@ function LinkForm({
           ComboBox2,
           {
             label: "Input",
+            isRequired: true,
             defaultItems: offered.map((id2) => ({ id: id2 })),
             value: chosen ?? null,
             isDisabled: offered.length < 2,

@@ -15,6 +15,8 @@ import { press, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import {
   chipLabels,
+  cleared,
+  clearButton,
   labelled,
   listFromField,
   listNote,
@@ -207,9 +209,35 @@ describe("a select of one item", () => {
 
     expect([listFromField(field), heard]).toEqual([null, [true, false]]);
   });
+  test("clears its pick by the button at the far left of its field, but where it isRequired", async () => {
+    const seen: unknown[] = [];
+    const { el } = await draw(
+      <>
+        <Held label="Fruit" defaultItems={fruits} start="apple" seen={seen} />
+        <Held label="Kept" defaultItems={fruits} start="apple" seen={[]} isRequired />
+        <Held label="None" defaultItems={fruits} start={null} seen={[]} />
+      </>,
+    );
+    const field = labelled(el, "Fruit");
+
+    await cleared(field, step);
+
+    expect([seen, field.value, clearButton(field)]).toEqual([[null], "", null]);
+    expect([clearButton(labelled(el, "Kept")), clearButton(labelled(el, "None"))]).toEqual([null, null]);
+  });
 });
 
 describe("a select of several items", () => {
+  test("clears every pick by the button at the far left of its field", async () => {
+    const seen: unknown[] = [];
+    const { el } = await draw(<Held label="Fruits" selectionMode="multiple" defaultItems={fruits} start={["apple", "cherry"]} seen={seen} />);
+    const field = labelled(el, "Fruits");
+
+    await cleared(field, step);
+
+    expect([seen, chipLabels(field), clearButton(field)]).toEqual([[[]], [], null]);
+  });
+
   test("shows each pick as a chip in its field, and ticks the picks in its list, which stays open as the user picks", async () => {
     const seen: unknown[] = [];
     const { el } = await draw(<Held label="Fruits" selectionMode="multiple" defaultItems={fruits} start={["apple"]} seen={seen} />);
@@ -372,6 +400,16 @@ describe("a bound select", () => {
     });
     await unmount();
     expect(host.submitted).toEqual([basket({ fruits: [] })]);
+  });
+
+  test("submits no pick as the user clears the picks of several, and offers no clearing of one, as a binding takes no state arg away", async () => {
+    const host = stubBlockHost<Basket>(fixture, { state: basket({ fruits: ["apple", "cherry"] }) });
+    const { el } = await draw(<Bound host={host} />);
+
+    await cleared(labelled(el, "Fruits"), step);
+
+    expect(host.submitted).toEqual([basket({ fruits: [] })]);
+    expect(clearButton(labelled(el, "Fruit"))).toBeNull();
   });
 
   test("submits the picks in the order of its items where ordered", async () => {

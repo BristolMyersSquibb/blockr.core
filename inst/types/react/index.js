@@ -562,6 +562,7 @@ function BoundOne({ bound, outdated = false, ...props }) {
         selectionMode: "single",
         outdated,
         marking: !outdated && known(props),
+        clears: false,
         value: current,
         onChange: (key) => {
           if (key !== null && !Array.isArray(key)) void bound.commit(String(key));
@@ -647,6 +648,7 @@ function Drawn({
   renderEmptyState,
   outdated = false,
   marking = false,
+  clears = true,
   className,
   allowsEmptyCollection = true,
   ...props
@@ -676,6 +678,7 @@ function Drawn({
             placeholder,
             multiple,
             marking,
+            clearable: clears && props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
             label,
             autoFocus: props.autoFocus
           }
@@ -708,6 +711,7 @@ function Field2({
   placeholder,
   multiple,
   marking,
+  clearable,
   label,
   autoFocus
 }) {
@@ -724,6 +728,28 @@ function Field2({
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
   return /* @__PURE__ */ jsxs2(Group, { ref, className: `${FIELD} ${invalid ? "bc:border-border-danger" : ""}`, children: [
+    clearable && (keys.length > 0 || one !== null) ? (
+      // A button of the field's own, not React Aria's, which the select
+      // would take for its own and open the list with. It keeps the focus
+      // in the text field, as a press in the list does.
+      /* @__PURE__ */ jsx3(
+        "button",
+        {
+          type: "button",
+          tabIndex: -1,
+          "aria-label": label === void 0 ? "Clear" : `Clear ${label}`,
+          title: multiple ? "Clear every pick" : "Clear the pick",
+          className: CLEAR,
+          onMouseDown: (event) => {
+            event.preventDefault();
+          },
+          onClick: () => {
+            state?.setValue(multiple ? [] : null);
+          },
+          children: /* @__PURE__ */ jsx3(Cross, {})
+        }
+      )
+    ) : null,
     keys.length === 0 ? null : /* @__PURE__ */ jsx3(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx3(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key) => {
       const text = known2.get(key) ?? String(key);
       const gone = marking && !known2.has(key);
@@ -825,6 +851,7 @@ function Cross() {
 }
 var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
+var CLEAR = "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
 var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";

@@ -67,6 +67,7 @@ function FileBrowserBlock({ host }) {
       ComboBox,
       {
         label: "Volume",
+        isRequired: true,
         defaultItems: names.map((id) => ({ id })),
         value: volume ?? null,
         onChange: (key) => {

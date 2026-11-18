@@ -112,6 +112,22 @@ export async function removeChip(field: HTMLElement, act: Act, label: string): P
   });
 }
 
+// The button at the field's far left that clears the pick, or every pick,
+// where the field offers it.
+export function clearButton(field: HTMLElement): HTMLButtonElement | null {
+  const first = field.closest('[role="group"]')?.firstElementChild;
+  return first instanceof HTMLButtonElement && first.getAttribute("aria-label")?.startsWith("Clear") === true ? first : null;
+}
+
+// Clicks the button that clears the pick, or every pick.
+export async function cleared(field: HTMLElement, act: Act): Promise<void> {
+  const button = clearButton(field);
+  if (button === null) throw new Error(`Found no button that clears ${field.id}.`);
+  await act(() => {
+    button.click();
+  });
+}
+
 function chips(field: HTMLElement): Element[] {
   return [...(field.closest('[role="group"]')?.querySelectorAll('[role="row"]') ?? [])];
 }

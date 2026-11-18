@@ -558,6 +558,7 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
           ComboBox,
           {
             label: link.label,
+            isRequired: true,
             defaultItems: link.inputs.map((input3) => ({ id: input3 })),
             value: chosen ?? null,
             onChange: (key) => {
