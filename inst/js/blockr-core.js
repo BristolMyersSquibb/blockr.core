@@ -2626,12 +2626,11 @@ function mountOutput(deps, el, block) {
   const shelf = deps.shelves.of(block);
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
-  let renderer = entry.renderer;
-  let ready;
-  let keeping;
+  const outputOptions = entry.output_options ?? [];
+  const expected = /* @__PURE__ */ new Map();
+  const ready = /* @__PURE__ */ new Map();
+  const keeping = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
-  let unwritten;
-  let fetching = false;
   let info = measure.info(el);
   let held2;
   let asking;
@@ -2647,7 +2646,7 @@ function mountOutput(deps, el, block) {
   const unboundError = () => new Error(
     deps.replaced.aborted ? `Another board opened, so the host of the output of block "${block}" no longer asks R.` : `Block "${block}" left the board, so the host of its output no longer asks R.`
   );
-  const rendererModule = (renderer2) => sourceModule({ block }, packageFromId(renderer2.id), renderer2.id);
+  const rendererModule = (renderer) => sourceModule({ block }, packageFromId(renderer.id), renderer.id);
   function prepare(given) {
     let loading = preparing.get(given.id);
     if (loading === void 0) {
@@ -2665,17 +2664,18 @@ function mountOutput(deps, el, block) {
     return loading;
   }
   function expect(given) {
-    renderer = given;
-    unwritten = void 0;
-    if (ready?.renderer.id === given.id) return;
+    if (expected.has(given.id)) return;
+    expected.set(given.id, given);
     prepare(given).then(
       (prepared) => {
-        if (ended() || renderer?.id !== prepared.renderer.id) return;
-        ready = prepared;
-        keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, () => {
-          fail(missingOptions(prepared.renderer, prepared.named), prepared.renderer);
-        });
+        if (ended()) return;
+        ready.set(given.id, prepared);
+        keeping.set(
+          given.id,
+          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
+            fail(missingOptions(given, prepared.named), given);
+          })
+        );
         sync();
       },
       (failure) => {
@@ -2688,12 +2688,12 @@ function mountOutput(deps, el, block) {
     return new Error(withoutOptions(`the renderer "${given.id}"`, missing));
   }
   function named3() {
-    if (renderer === void 0) return null;
-    return ready?.renderer.id === renderer.id ? ready.named : void 0;
+    const loaded = [...expected.keys()].map((id2) => ready.get(id2));
+    if (loaded.some((prepared) => prepared === void 0)) return void 0;
+    return [.../* @__PURE__ */ new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
   }
   function values2(ids2) {
     const options2 = store.board().options;
-    if (ids2 === null) return { ...unwritten, ...options2 };
     return Object.fromEntries(
       ids2.flatMap((id2) => {
         const value2 = own(options2, id2);
@@ -2705,30 +2705,14 @@ function mountOutput(deps, el, block) {
     if (info === null) return void 0;
     const ids2 = named3();
     if (ids2 === void 0) return void 0;
-    if (ids2?.some((id2) => !Object.hasOwn(store.board().options, id2)) === true) return void 0;
+    if (ids2.some((id2) => !Object.hasOwn(store.board().options, id2))) return void 0;
     const status = scheduler.status(block);
     if (status?.status !== "ready") return void 0;
-    if (ids2 === null && unwritten === void 0) {
-      fetchDefaults();
-      return void 0;
-    }
     return { asked: { revision: status.revision, options: values2(ids2), info, params: shelf.params }, ids: ids2 };
-  }
-  function fetchDefaults() {
-    if (fetching) return;
-    fetching = true;
-    const lacking = Object.keys(store.options.registered()).filter((id2) => !Object.hasOwn(store.board().options, id2));
-    void deps.resolveDefaults(lacking, `the first output of block "${block}"`).then((found2) => {
-      fetching = false;
-      if (ended() || renderer !== void 0) return;
-      unwritten = found2;
-      sync();
-    });
   }
   function fits2(asked, want, ids2) {
     if (asked.revision !== want.revision || !jsonEqual(asked.info, want.info)) return false;
     if (!jsonEqual(asked.params, want.params)) return false;
-    if (ids2 === null) return jsonEqual(asked.options, want.options);
     return ids2.every((id2) => jsonEqual(own(asked.options, id2), own(want.options, id2)));
   }
   function sync() {
@@ -2854,9 +2838,9 @@ function mountOutput(deps, el, block) {
     error = why;
     announce2();
   }
-  function fail(failure, by) {
+  function fail(failure, by2) {
     if (ended()) return;
-    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by) });
+    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) });
     if (failure instanceof ModuleError) {
       if (!broken.has(failure)) {
         log.error(failure);
@@ -2880,7 +2864,7 @@ function mountOutput(deps, el, block) {
     error = null;
     fit2();
     const named4 = next.output.renderer;
-    if (renderer?.id !== named4.id) expect(named4);
+    expect(named4);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
     if (drawing === void 0) {
       prepare(named4).then(
@@ -3139,13 +3123,24 @@ function mountOutput(deps, el, block) {
     );
   });
   const offEnd = onAbort(deps.replaced, end);
+  const by = `the outputs of block class "${entry.id}"`;
+  const keepingOutputOptions = deps.keepOptions(outputOptions, by, lackOutputOptions);
+  void keepingOutputOptions.added.then((failures) => {
+    if (failures.length > 0) lackOutputOptions();
+  });
+  function lackOutputOptions() {
+    if (ended()) return;
+    const missing = outputOptions.filter((id2) => !Object.hasOwn(store.board().options, id2));
+    failed2(coreFailure("board_option_failed", withoutOptions(by, missing)));
+  }
   function end() {
     if (ended()) return;
     controller.abort();
     offEnd();
     offStore();
     offScheduler();
-    keeping?.stop();
+    keepingOutputOptions.stop();
+    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
@@ -3156,7 +3151,7 @@ function mountOutput(deps, el, block) {
     el.replaceChildren();
     wake();
   }
-  if (renderer !== void 0) expect(renderer);
+  for (const given of entry.renderers ?? []) expect(given);
   if (shelf.last !== void 0) take(shelf.last);
   sync();
   return end;
@@ -3266,28 +3261,6 @@ function createMounts(options) {
       }
     };
   }
-  async function resolveDefaults(ids2, by) {
-    const found = await Promise.all(
-      ids2.map(async (id2) => {
-        const def = own(store.options.registered(), id2);
-        if (def === void 0 || Object.hasOwn(store.board().options, id2)) return [];
-        let value2;
-        try {
-          value2 = await resolveDefault(id2, def);
-        } catch (error) {
-          failure(id2, `The default of the board option "${id2}", which ${by} requires, failed: ${errorMessage(error)}`);
-          return [];
-        }
-        const unfit = compile(`the board option "${id2}"`, def.schema)(value2);
-        if (unfit.length > 0) {
-          failure(id2, `The default of the board option "${id2}", which ${by} requires, ${unfit.join(" ")}`);
-          return [];
-        }
-        return [[id2, value2]];
-      })
-    );
-    return Object.fromEntries(found.flat());
-  }
   function mountBlock(el, block) {
     if (replaced2.aborted) throw new Error(REPLACED);
     const found = own(store.board().blocks, block);
@@ -3385,7 +3358,7 @@ function createMounts(options) {
   return {
     mountBlock,
     mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, resolveDefaults, emit, raise, replied: replied2, notify },
+      { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, emit, raise, replied: replied2, notify },
       el,
       block
     ),

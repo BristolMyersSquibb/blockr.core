@@ -52,7 +52,7 @@ new block leaves it unset and is \code{invalid} until something sets it, while
 \code{package} defaults to datasets. The block expression names the dataset in its
 package, such as \code{datasets::iris}. The block's UI asks R for the data frames
 a package exports through the request \code{datasets}, which reads the state arg
-\code{package}, and its results show as a table, through \code{\link[=as_table_output]{as_table_output()}}.
+\code{package}, and its results show as a table, through \code{\link[=table_output]{table_output()}}.
 }
 
 \examples{

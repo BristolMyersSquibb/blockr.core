@@ -42,7 +42,7 @@ The block has no data inputs. Its state arg \code{expression} holds the
 expression as a string, which \code{expr} parses with \code{\link[base:str2lang]{base::str2lang()}}. So the
 constructor fails on a string that does not parse, and on anything but a
 string, such as a data frame. The block's module draws nothing, and its
-results show as a table, through \code{\link[=as_table_output]{as_table_output()}}.
+results show as a table, through \code{\link[=table_output]{table_output()}}.
 }
 
 \examples{

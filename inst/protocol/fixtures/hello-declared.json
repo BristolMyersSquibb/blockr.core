@@ -30,10 +30,13 @@
             "schema": {},
             "state": { "n": 3 },
             "requests": {},
-            "renderer": {
-              "id": "blockr.core-text_output",
-              "module": "blockr.core/basic-text.js?v=3c8f61d0"
-            }
+            "output_options": [],
+            "renderers": [
+              {
+                "id": "blockr.core-text_output",
+                "module": "blockr.core/basic-text.js?v=3c8f61d0"
+              }
+            ]
           },
           "letters_block": {
             "id": "letters_block",
@@ -85,10 +88,13 @@
                 "file": true
               }
             },
-            "renderer": {
-              "id": "blockr.core-text_output",
-              "module": "blockr.core/basic-text.js?v=3c8f61d0"
-            }
+            "output_options": [],
+            "renderers": [
+              {
+                "id": "blockr.core-text_output",
+                "module": "blockr.core/basic-text.js?v=3c8f61d0"
+              }
+            ]
           }
         },
         "modules": {

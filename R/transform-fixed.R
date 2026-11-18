@@ -7,7 +7,7 @@ fixed_block <- new_block_class(
   inputs = "data",
   expr = function(expr) str2lang(expr),
   ui = js_module("js/fixed-block.js"),
-  output = as_table_output
+  output = table_output
 )
 
 #' Fixed block
@@ -30,7 +30,7 @@ fixed_block <- new_block_class(
 #' upstream block's ID, as
 #' `(function(data) utils::head(data, 3))(data = a)` (see [interpolate()]).
 #' Its module draws nothing, and its results show as a table, through
-#' [as_table_output()].
+#' [table_output()].
 #'
 #' @param expr R code as a string
 #' @inheritParams new_head_block

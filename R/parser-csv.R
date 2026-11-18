@@ -19,7 +19,7 @@ csv_block <- new_block_class(
     )
   },
   ui = js_module("js/csv-block.js"),
-  output = as_table_output
+  output = table_output
 )
 
 #' CSV block
@@ -36,7 +36,7 @@ csv_block <- new_block_class(
 #' @section Block class:
 #' The block's data input `file` is checked to be the path of a file that
 #' exists, as the file browser and the upload block give it. Its results show
-#' as a table, through [as_table_output()].
+#' as a table, through [table_output()].
 #'
 #' @param sep,quote Forwarded to [utils::read.table()]
 #' @inheritParams new_head_block

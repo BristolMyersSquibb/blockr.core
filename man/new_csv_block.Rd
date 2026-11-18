@@ -38,7 +38,7 @@ block may be parsed into \code{data.frame} by CSV blocks.
 
 The block's data input \code{file} is checked to be the path of a file that
 exists, as the file browser and the upload block give it. Its results show
-as a table, through \code{\link[=as_table_output]{as_table_output()}}.
+as a table, through \code{\link[=table_output]{table_output()}}.
 }
 
 \examples{

@@ -55,7 +55,7 @@ head_block <- new_block_class(
   },
   ui = js_module("js/head-block.js"),
   requests = list(n_max = function(data) nrow(data)),
-  output = as_table_output
+  output = table_output
 )
 ```
 
@@ -66,7 +66,7 @@ Each argument of `new_block_class()` has one job:
 - The argument `expr` builds the block's R code. Its formals are the __state args__, whose values a user sets through the block's UI, and its body checks them. It returns what interpolation makes the __block expression__ from, the code that R evaluates for the block.
 - The argument `ui` names the module that draws the block's UI in the browser, by its path in the package's `inst/`.
 - The argument `requests` holds the functions that the UI calls for what it needs from R. The head block's UI asks for the number of rows of its input through `n_max`, which caps its number input.
-- The argument `output` names the coercion through which the block's results show, here as a table.
+- The argument `output` names the __output family__ of the block's outputs, through which its results show, here as a table.
 - The argument `version`, which the head block leaves at 1, gives the version of the shape of the class's state.
 
 A class keeps these as its properties, such as `head_block$expr`.
@@ -107,7 +107,7 @@ head_text_block <- new_block_class(
   inputs = head_block$inputs,
   expr = head_block$expr,
   ui = head_block$ui,
-  output = as_text_output
+  output = text_output
 )
 ```
 
@@ -262,7 +262,7 @@ filter_block <- new_block_class(
       utils::head(vals[startsWith(vals, query)], limit)
     }
   ),
-  output = as_table_output
+  output = table_output
 )
 
 run_block_request(filter_block, "values", list(data = datasets::iris),
@@ -309,31 +309,34 @@ The client then sends the board option's value with each request, and keeps the 
 
 A block's result can be any R object.
 An __output__ is what the client shows of it.
-The coercion that a class names in `output` makes the output from the result.
-Core has three such coercions:
+The __output family__ that a class names in `output` makes the output from the result, whatever its data model.
+Core has three output families:
 
-- The function `as_table_output()` shows a table one page at a time, with as many rows to a page as the board option `n_rows` gives.
-- The function `as_plot_output()` shows a plot as an image, drawn at the size of the element that shows it.
-- The function `as_text_output()` shows any result as `print()` shows it. R shows the results of a class that leaves `output` out through this coercion.
+- The family `table_output()` shows a table one page at a time, with as many rows to a page as the board option `n_rows` gives.
+- The family `plot_output()` shows a plot as an image, drawn at the size of the element that shows it.
+- The family `text_output()` shows any result as `print()` shows it. R shows the results of a class that leaves `output` out through this family.
 
-A coercion is a generic that dispatches on the class of the result.
-So a package that knows another class of table adds an `as_table_output()` method that returns a table output, rather than a block class.
-Every block whose class names `as_table_output` then shows such a result as a table.
+A family is a generic that dispatches on the class of the result.
+So a package that knows another class of table adds a `table_output()` method that returns a table output, rather than a block class.
+Every block whose class names `table_output` then shows such a result as a table.
 A method for lazy tables, which pages them in their database, has this shape, with illustrative helpers:
 
 ```{r, eval = FALSE}
-as_table_output.tbl_lazy <- function(result, options = list(), info = list(),
-                                     params = list(), ...) {
-  page <- fetch_page(result, params, options)
+table_output.tbl_lazy <- function(result, options = list(), info = list(),
+                                  params = list(), ...) {
+  number <- if (is.null(params$page)) 1L else params$page
+  page <- fetch_page(result, number, options$n_rows)
   new_table_output(
     columns = data.frame(name = colnames(page), class = column_classes(page)),
     rows = page,
-    total = NA
+    total = NA,
+    page = number,
+    page_size = options$n_rows
   )
 }
 ```
 
-The plot coercion draws a ggplot by printing it.
+The plot family draws a ggplot by printing it.
 A base plot is different: it is drawn while the block expression runs, which returns nothing to print.
 So a class whose block expression draws a base plot captures the plot with a `block_eval()` method, as core's scatter block does (see "Evaluation" below):
 
@@ -344,20 +347,40 @@ block_eval.scatter_block <- function(x, expr, env, ...) {
 ```
 
 A __renderer__ is the module that draws an output in the browser.
-The package that defines an output class gives its renderer, and an app picks another, such as a richer table, through the blockr option `renderers`.
+The package that defines an output family gives its renderer, and a deployment picks another, such as a richer table, through the blockr option `renderers`, which R reads before the family's own.
 So a block class never names how its output looks.
-A package that needs an output class of its own makes one with `new_block_output()`.
-It gives the class's JSON Schema, requests, renderer and coercion through its methods of `output_schema()`, `output_requests()`, `output_renderer()` and `output_coercion()`.
-The method of `output_coercion()` returns the coercion that makes the class's outputs, as core's method for table outputs returns `as_table_output`.
-With it, the client knows a block's renderer before the block's first output:
+A package that needs an output class of its own makes one with `new_block_output()`, gives its JSON Schema and requests through its methods of `output_schema()` and `output_requests()`, and makes its family with `new_output_family()`.
+The family holds the constructors of the board options that it reads, as a request holds those that it reads, and the renderer of its outputs:
 
-1. R finds the output class whose method of `output_coercion()` returns the coercion that the block class names in `output`.
-2. R names that output class's renderer in the block class's entry of the block registry.
-3. The client loads the renderer, which names the board options that the coercion reads, such as `n_rows`.
-4. The client asks R for the block's first output, with the values of those board options.
+```{r, eval = FALSE}
+table_output <- new_output_family(
+  function(result, options = list(), info = list(), params = list(), ...) {
+    UseMethod("table_output")
+  },
+  "table_output",
+  options = new_n_rows_option,
+  renderer = new_renderer("table_output", js_module("js/basic-table.js"))
+)
+```
 
-Without the method, R names no renderer in the entry.
-The client then learns the renderer, and the board options that it names, only from the block's first output.
+1. R names the board options that the block class's output family reads, and the renderer of its outputs, in the class's entry of the block registry.
+2. The client puts those board options on the board, and loads the renderer, which names the board options that it reads itself.
+3. The client asks R for the block's first output, with the values of those board options.
+
+A family that hands its results to other families names them in `families`, and then reads their board options too, and each of its outputs is drawn by the renderer of the family whose class the output has.
+A family that shows a model as a table of its coefficients hands its table to `table_output`:
+
+```{r, eval = FALSE}
+coef_output <- new_output_family(
+  function(result, ...) {
+    table_output(as.data.frame(stats::coef(summary(result))), ...)
+  },
+  "coef_output",
+  families = table_output
+)
+```
+
+R reads what a family holds from the family as its package defines it now, the one bound under the name of its class, so a block class built against an older version of the family's package draws with the family's current renderer and board options.
 
 ## Evaluation
 
@@ -441,7 +464,7 @@ sample_block <- new_block_class(
     })
   },
   ui = js_module("js/sample-block.js"),
-  output = as_table_output
+  output = table_output
 )
 
 res <- evaluate_block(sample_block, list(n = 3L, seed = 42L), list(data = "a"),
@@ -971,8 +994,8 @@ Each part of it has a new home:
 | `allow_empty_state` | a state arg without a default |
 | `expr_type` | the class of what `expr` returns |
 | `external_ctrl` | nothing, since every state arg can be set from outside |
-| the specializations, such as `new_transform_block()` | the coercion named in `output` |
-| methods of `block_output()` and `block_ui()` | the coercion and the renderer of an output class |
+| the specializations, such as `new_transform_block()` | the output family named in `output` |
+| methods of `block_output()` and `block_ui()` | the output family of an output class, which holds its renderer |
 | `block_summary()` | `result_summary()`, which dispatches on the result |
 | `testServer()` | `evaluate_block()`, `run_block_request()`, `expect_block_fixture()` and the stub hosts |
 
@@ -982,7 +1005,7 @@ A port takes these steps:
 2. The author writes the block expression that the server built in the body of `expr`, from the state args where the server read reactives.
 3. The author turns each value that the server computed from the data for the UI into a request, and each check in `dat_valid` into a function given as `inputs`.
 4. The author writes the UI as a module, which ships the schema of the state, and names it in `ui`.
-5. The author names the coercion of the block's output in `output`, in place of the specialization that the block was built with.
+5. The author names the output family of the block's outputs in `output`, in place of the specialization that the block was built with.
 6. The author makes the constructor with `block_constructor()` and keeps the roxygen tags that register it.
 7. The author replaces the block's `testServer()` tests with tests of `expr` and the requests, and with the fixture file and the module tests.
 

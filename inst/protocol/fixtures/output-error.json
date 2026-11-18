@@ -1,5 +1,5 @@
 {
-  "description": "An output that fails, as when the coercion a block class names has no method for its result, on another board. The reply's status is that of the request alone, so the block still reads ready, while the renderer keeps the last output it holds.",
+  "description": "An output that fails, as when the output family a block class names has no method for its result, on another board. The reply's status is that of the request alone, so the block still reads ready, while the renderer keeps the last output it holds.",
   "client": [
     {
       "id": "33",
@@ -29,7 +29,7 @@
             "severity": "error",
             "class": ["simpleError", "error", "condition"],
             "phase": "output",
-            "message": "no applicable method for 'as_table_output' applied to an object of class \"list\""
+            "message": "no applicable method for 'table_output' applied to an object of class \"list\""
           }
         ]
       }

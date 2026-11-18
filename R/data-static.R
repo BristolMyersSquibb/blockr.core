@@ -17,7 +17,7 @@ static_block <- new_block_class(
     str2lang(expression)
   },
   ui = js_module("js/static-block.js"),
-  output = as_table_output
+  output = table_output
 )
 
 #' Static block
@@ -38,7 +38,7 @@ static_block <- new_block_class(
 #' expression as a string, which `expr` parses with [base::str2lang()]. So the
 #' constructor fails on a string that does not parse, and on anything but a
 #' string, such as a data frame. The block's module draws nothing, and its
-#' results show as a table, through [as_table_output()].
+#' results show as a table, through [table_output()].
 #'
 #' @param expression An R expression as a string
 #' @inheritParams new_head_block

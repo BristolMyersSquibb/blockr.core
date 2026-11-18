@@ -20,9 +20,10 @@ export interface BlockOutput {
 // The renderer of an output, as R sends it in the output.
 export type OutputRenderer = BlockOutput["renderer"];
 
-// A table output: a table's columns, the rows of one page and the total row
-// count. Its board option is n_rows, the rows of a page, which every renderer
-// of table outputs brings.
+// A table output: a table's columns, the rows of one page, the total row
+// count, and which page it shows of how many rows. Its family reads the board
+// option n_rows, the rows of a page, by which R pages the table, so that no
+// renderer of table outputs reads it.
 export interface TableOutput extends BlockOutput {
   // In R's order, so that names such as "2019" and duplicates keep their
   // places.
@@ -36,6 +37,10 @@ export interface TableOutput extends BlockOutput {
   // whose count would run its whole query. The renderer then shows no page
   // count, and a page with fewer rows than a page holds is the last.
   total: number | null;
+  // The page that rows holds, from 1, and how many rows a page holds, by
+  // which a renderer draws its pager.
+  page: number;
+  page_size: number;
 }
 
 export interface TableColumn {

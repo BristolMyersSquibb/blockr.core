@@ -24,15 +24,19 @@ test_that("every copy of a block class's functions is bound", {
 
   bind_class_funs(env)
 
+  # A class's output family is one of its functions, the text family where the
+  # class names none
   expect_setequal(
     grep("^\\.__covr\\.", ls(env, all.names = TRUE), value = TRUE),
     paste0(
       ".__covr.",
       c("head_class.inputs", "head_class.expr", "head_class.requests.n_max",
-        "new_head_block.attr.inputs", "new_head_block.attr.expr",
-        "new_head_block.attr.requests.n_max", "new_head_block.env.inputs",
+        "head_class.output", "new_head_block.attr.inputs",
+        "new_head_block.attr.expr", "new_head_block.attr.requests.n_max",
+        "new_head_block.attr.output", "new_head_block.env.inputs",
         "new_head_block.env.expr", "new_head_block.env.requests.n_max",
-        "merge_class.expr", "merge_class.requests.shared")
+        "new_head_block.env.output", "merge_class.expr",
+        "merge_class.requests.shared", "merge_class.output")
     )
   )
 
@@ -51,7 +55,7 @@ test_that("every copy of a block class's functions is bound", {
 
   bind_class_funs(env)
 
-  expect_length(grep("^\\.__covr\\.", ls(env, all.names = TRUE)), 11L)
+  expect_length(grep("^\\.__covr\\.", ls(env, all.names = TRUE)), 15L)
 })
 
 test_that("a namespace without block classes gets no bindings", {

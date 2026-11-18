@@ -142,11 +142,12 @@ answer_evaluate <- function(ev, job) {
 }
 
 # Makes a block's output from its result at a revision.
-# R calls the coercion that the block's class names,
-# or `as_text_output()` where it names none, with the board option values,
-# the `info` and the parameters that the request carries.
-# The output carries the renderer that draws it, with where R serves the
-# renderer's module.
+# R calls the output family that the block's class names, as its package
+# defines it now, with the board option values, the `info` and the parameters
+# that the request carries.
+# The output carries the renderer that draws it, that of the family whose
+# class the output has, with where R serves the renderer's module, and R keeps
+# that renderer with the result, for the renderer's own requests.
 # Its reply carries every message and warning raised while R made it,
 # as an evaluation's reply does.
 # R logs each of them (see `log_reply()`).
@@ -161,21 +162,23 @@ answer_output <- function(ev, job) {
   }
 
   cls <- get_registry_entry(held[["registry_id"]], ev$registry)[["block_class"]]
-  coercion <- coal(cls[["output"]], as_text_output, fail_all = FALSE)
+  family <- current_family(cls[["output"]])
 
   made <- run_phase(
     "output",
     {
-      res <- coercion(
+      res <- family(
         held[["result"]],
         options = req[["options"]],
         info = req[["info"]],
         params = req[["params"]]
       )
+      drawn <- drawing_renderer(family, res)
       list(
         class = class(res),
         parts = shape_output(res),
-        renderer = output_renderer_reply(renderer_of(res))
+        drawn = drawn,
+        renderer = output_renderer_reply(drawn)
       )
     }
   )
@@ -185,6 +188,7 @@ answer_output <- function(ev, job) {
   }
 
   held[["output"]] <- made[["value"]][["class"]]
+  held[["renderer"]] <- made[["value"]][["drawn"]]
   assign(out[["block"]], held, envir = ev$results)
 
   parts <- made[["value"]][["parts"]]
@@ -312,7 +316,8 @@ held_reads <- function(ev, reads) {
         list(
           result = held[["result"]],
           expr = held[["expr"]],
-          output = held[["output"]]
+          output = held[["output"]],
+          renderer = held[["renderer"]]
         )
       )
       next

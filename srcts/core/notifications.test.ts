@@ -30,7 +30,7 @@ const FILE = "blockr.core-file_storage_plugin";
 // The URL of the UI module of the class of block b, the head block, and of
 // the renderer of its output.
 const HEAD = HELLO.block_registry["blockr.core-head_block"]?.module ?? "";
-const TABLE = HELLO.block_registry["blockr.core-head_block"]?.renderer?.module ?? "";
+const TABLE = HELLO.block_registry["blockr.core-head_block"]?.renderers?.[0]?.module ?? "";
 
 const fromModules = (notification: Notification): boolean => notification.source.kind === "module";
 

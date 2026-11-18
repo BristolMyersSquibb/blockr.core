@@ -50,10 +50,13 @@
             "requests": {
               "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
             },
-            "renderer": {
-              "id": "blockr.core-table_output",
-              "module": "blockr.core/basic-table.js?v=b7e2a915"
-            }
+            "output_options": ["n_rows"],
+            "renderers": [
+              {
+                "id": "blockr.core-table_output",
+                "module": "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
           }
         },
         "modules": {

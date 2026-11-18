@@ -32,7 +32,7 @@ scatter_block <- new_block_class(
   },
   ui = js_module("js/scatter-block.js"),
   requests = list(columns = function(data) colnames(data)),
-  output = as_plot_output
+  output = plot_output
 )
 
 #' Scatter block
@@ -56,7 +56,7 @@ scatter_block <- new_block_class(
 #' unset and is `invalid` until something sets both. Its UI asks R for the
 #' input's columns through the request `columns`. The block's [block_eval()]
 #' method runs the block expression with [capture_plot()], so that its result
-#' is the plot it draws, which shows through [as_plot_output()].
+#' is the plot it draws, which shows through [plot_output()].
 #'
 #' @param x,y Columns to place on respective axes
 #' @inheritParams new_head_block
@@ -77,7 +77,7 @@ scatter_block <- new_block_class(
 #'                       list(data = "a"), list(a = datasets::BOD))
 #' res
 #'
-#' as_plot_output(res$result, info = list(width = 320, height = 240))
+#' plot_output(res$result, info = list(width = 320, height = 240))
 #'
 #' @return The block class `scatter_block` is an object of class
 #' `block_class`, and its constructor `new_scatter_block()` returns a block of

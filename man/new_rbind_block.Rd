@@ -38,7 +38,7 @@ an example for a variadic block, which takes its data inputs as \code{...}.
 The block is variadic, so it runs once it has one link, and its block
 expression binds the upstream blocks in link order, each named by its link's
 input, such as \code{rbind(a, b2 = b)}. It has no state, and its results show as
-a table, through \code{\link[=as_table_output]{as_table_output()}}.
+a table, through \code{\link[=table_output]{table_output()}}.
 }
 
 \examples{

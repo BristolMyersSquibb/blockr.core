@@ -468,7 +468,7 @@ test_that("R logs every condition that it sends, naming what it concerns", {
     "list_block",
     expr = function() quote(list(1, 2)),
     ui = js_module("list-block.js", package = NULL),
-    output = as_table_output
+    output = table_output
   )
 
   local_block_class(cls)
@@ -533,7 +533,7 @@ test_that("R logs every condition that it sends, naming what it concerns", {
     )
   )
 
-  expect_match(messages[[6L]], "^Block k at revision 14: .*as_table_output")
+  expect_match(messages[[6L]], "^Block k at revision 14: .*table_output")
 
   expect_identical(
     lst_xtr(logged, "attributes"),
@@ -573,7 +573,7 @@ test_that("an output that fails replies error with the phase output", {
     "list_block",
     expr = function() quote(list(1, 2)),
     ui = js_module("list-block.js", package = NULL),
-    output = as_table_output
+    output = table_output
   )
 
   local_block_class(cls)
@@ -590,14 +590,19 @@ test_that("an output that fails replies error with the phase output", {
 
 test_that("an output that warns replies ok with the warning, which R logs", {
 
+  # A coercion that wraps the table family's joins that family
   cls <- test_block_class(
     "count_block",
     expr = function() quote(data.frame(n = c("3", "n/a"))),
     ui = js_module("count-block.js", package = NULL),
-    output = function(result, ...) {
-      result$n <- as.integer(result$n)
-      as_table_output(result, ...)
-    }
+    output = new_output_family(
+      function(result, ...) {
+        result$n <- as.integer(result$n)
+        table_output(result, ...)
+      },
+      "count_output",
+      families = table_output
+    )
   )
 
   local_block_class(cls)

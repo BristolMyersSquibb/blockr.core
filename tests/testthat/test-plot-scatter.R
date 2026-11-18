@@ -28,7 +28,7 @@ test_that("a scatter block captures the plot it draws", {
   )
   expect_s3_class(res[["result"]], "captured_plot")
 
-  out <- as_plot_output(res[["result"]], info = list(width = 320, height = 240))
+  out <- plot_output(res[["result"]], info = list(width = 320, height = 240))
 
   expect_s3_class(out, "plot_output")
   expect_identical(out[["width"]], 320)

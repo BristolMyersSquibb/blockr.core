@@ -5,47 +5,43 @@ import { describe, expect, test } from "vitest";
 import type { TableOutput } from "../../types/outputs.ts";
 import { cellText, nextSort, pageText, paramsFor, retry, rowsText, sortedColumn, tablePage } from "./table.ts";
 
-// A table of `total` rows, holding a page of `rows` rows.
-function table(rows: number, total: number | null): TableOutput {
+// A table of `total` rows, holding page `page` of `rows` rows, where a page
+// holds `size` rows, by default one page of every row.
+function table(rows: number, total: number | null, page = 1, size = Math.max(rows, 1)): TableOutput {
   return {
     renderer: { id: "blockr.core-table_output", module: "blockr.core/js/basic-table.js" },
     columns: [{ name: "x", class: "integer" }],
     rows: Array.from({ length: rows }, (_, i) => [i]),
     total,
+    page,
+    page_size: size,
   };
 }
 
 describe("where a page sits", () => {
-  test("takes the rows of a page from the parameters, or else from n_rows", () => {
-    expect(tablePage(table(3, 7), { page: 2 }, 3)).toEqual({ page: 2, first: 4, rows: 3, last: 3, more: true });
-    expect(tablePage(table(2, 7), { page: 2, page_size: 2 }, 3)).toEqual({ page: 2, first: 3, rows: 2, last: 4, more: true });
-    expect(tablePage(table(1, 7), { page: 3 }, 3)).toEqual({ page: 3, first: 7, rows: 1, last: 3, more: false });
-  });
-
-  test("holds every row where nothing gives n_rows, and fails on an n_rows that is no count", () => {
-    expect(tablePage(table(7, 7), {}, undefined)).toMatchObject({ rows: 7, last: 1, more: false });
-    for (const nRows of [0, 2.5, "3", null, [3]]) {
-      expect(() => tablePage(table(3, 7), {}, nRows)).toThrow(
-        `The board option n_rows is ${JSON.stringify(nRows)}, where a table pages by a whole number of at least 1.`,
-      );
-    }
+  test("takes the page and the rows of a page from the output", () => {
+    expect(tablePage(table(3, 7, 2, 3))).toEqual({ page: 2, first: 4, rows: 3, last: 3, more: true });
+    expect(tablePage(table(2, 7, 2, 2))).toEqual({ page: 2, first: 3, rows: 2, last: 4, more: true });
+    expect(tablePage(table(1, 7, 3, 3))).toEqual({ page: 3, first: 7, rows: 1, last: 3, more: false });
+    expect(tablePage(table(7, 7))).toMatchObject({ rows: 7, last: 1, more: false });
   });
 
   test("takes a page with fewer rows than a page holds for the last where the total is unknown", () => {
-    expect(tablePage(table(3, null), {}, 3)).toMatchObject({ last: null, more: true });
-    expect(tablePage(table(2, null), { page: 2 }, 3)).toMatchObject({ first: 4, last: null, more: false });
-    expect(tablePage(table(0, null), { page: 2 }, 3)).toMatchObject({ rows: 0, more: false });
+    expect(tablePage(table(3, null, 1, 3))).toMatchObject({ last: null, more: true });
+    expect(tablePage(table(2, null, 2, 3))).toMatchObject({ first: 4, last: null, more: false });
+    expect(tablePage(table(0, null, 2, 3))).toMatchObject({ rows: 0, more: false });
   });
 
   test("says how many rows the page holds and which page it is", () => {
-    expect(rowsText(table(3, 7), tablePage(table(3, 7), { page: 2 }, 3))).toBe("Rows 4–6 of 7");
-    expect(rowsText(table(5, 5), tablePage(table(5, 5), {}, 50))).toBe("5 rows");
-    expect(rowsText(table(1, 1), tablePage(table(1, 1), {}, 50))).toBe("1 row");
-    expect(rowsText(table(0, 0), tablePage(table(0, 0), {}, 50))).toBe("No rows");
-    expect(rowsText(table(3, null), tablePage(table(3, null), {}, 3))).toBe("Rows 1–3");
-    expect(rowsText(table(50, 1532000), tablePage(table(50, 1532000), { page: 3 }, 50))).toBe("Rows 101–150 of 1,532,000");
-    expect(pageText(tablePage(table(3, 7), { page: 2 }, 3))).toBe("Page 2 of 3");
-    expect(pageText(tablePage(table(3, null), { page: 2 }, 3))).toBe("Page 2");
+    const of = (t: TableOutput): string => rowsText(t, tablePage(t));
+    expect(of(table(3, 7, 2, 3))).toBe("Rows 4–6 of 7");
+    expect(of(table(5, 5, 1, 50))).toBe("5 rows");
+    expect(of(table(1, 1, 1, 50))).toBe("1 row");
+    expect(of(table(0, 0, 1, 50))).toBe("No rows");
+    expect(of(table(3, null, 1, 3))).toBe("Rows 1–3");
+    expect(of(table(50, 1532000, 3, 50))).toBe("Rows 101–150 of 1,532,000");
+    expect(pageText(tablePage(table(3, 7, 2, 3)))).toBe("Page 2 of 3");
+    expect(pageText(tablePage(table(3, null, 2, 3)))).toBe("Page 2");
   });
 });
 

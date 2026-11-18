@@ -54,11 +54,17 @@ export interface RegistryEntry {
       }
     >
   >;
-  // The renderer of the class's outputs: that of the output class whose
-  // coercion the class names, which R knows where the output class gives its
-  // coercion through its method of `output_coercion()`. Core loads it, and
-  // adds the board options that it names to the board, before it asks for a
-  // block's first output, so that the request carries the board options that
-  // the coercion reads. An output still names the renderer that draws it.
-  readonly renderer?: OutputRenderer;
+  // The board options that the coercion of the class's outputs reads, by id,
+  // whose constructors the output family that the class names holds, which R
+  // names in every entry. Core puts them on the board before it asks for a
+  // block's first output, and sends their values with every output request.
+  readonly output_options?: readonly OptionId[];
+  // The renderers of the class's outputs: that of the output family that the
+  // class names, and of each family that it hands its results to, each the
+  // one that the deployment names for the family in the blockr option
+  // `renderers`, or else the family's own. Core loads them all, and adds the
+  // board options that they name to the board, before it asks for a block's
+  // first output, so that the request carries those too. Each output names
+  // the one that draws it.
+  readonly renderers?: readonly OutputRenderer[];
 }

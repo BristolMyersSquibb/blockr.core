@@ -63,7 +63,7 @@ character vector, which the client sends back as a named list. Its UI lists
 a directory through the volatile request \code{list_dir}, which reads \code{volumes}
 and takes as parameters the name of a volume and a path within it, and
 answers with the names of the directories and files there. Its results show
-as text, through \code{\link[=as_text_output]{as_text_output()}}.
+as text, through \code{\link[=text_output]{text_output()}}.
 }
 
 \examples{

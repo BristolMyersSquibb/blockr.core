@@ -2,15 +2,23 @@
 % Please edit documentation in R/output-table.R
 \name{new_table_output}
 \alias{new_table_output}
-\alias{as_table_output}
-\alias{as_table_output.data.frame}
+\alias{table_output}
+\alias{table_output.data.frame}
 \title{Table outputs}
 \usage{
-new_table_output(columns, rows, total, ..., class = character())
+new_table_output(
+  columns,
+  rows,
+  total,
+  page = 1L,
+  page_size = max(nrow(rows), 1L),
+  ...,
+  class = character()
+)
 
-as_table_output(result, options = list(), info = list(), params = list(), ...)
+table_output(result, options = list(), info = list(), params = list(), ...)
 
-\method{as_table_output}{data.frame}(result, options = list(), info = list(), params = list(), ...)
+\method{table_output}{data.frame}(result, options = list(), info = list(), params = list(), ...)
 }
 \arguments{
 \item{columns}{The table's columns: a data frame with the character columns
@@ -20,6 +28,11 @@ as_table_output(result, options = list(), info = list(), params = list(), ...)
 each of \code{columns}}
 
 \item{total}{The table's total row count, or \code{NA} where it is unknown}
+
+\item{page}{The page that \code{rows} holds, the first by default}
+
+\item{page_size}{How many rows a page holds, by default as many as \code{rows}
+holds, so that the table has one page}
 
 \item{...}{For \code{new_table_output()}, further properties, which a subclass
 adds, and otherwise passed on to methods}
@@ -35,27 +48,32 @@ adds, and otherwise passed on to methods}
 \item{params}{The output's parameters}
 }
 \value{
-Both \code{new_table_output()} and \code{as_table_output()} return an object
+Both \code{new_table_output()} and \code{table_output()} return an object
 of class \code{table_output}.
 }
 \description{
-A table output shows a table: its columns, the rows of one page and the
-total row count. The constructor \code{new_table_output()} makes one, and the
-coercion \code{as_table_output()} makes one from a result, by the result's class.
+A table output shows a table: its columns, the rows of one page, the total
+row count, which page it shows and how many rows a page holds.
+The constructor \code{new_table_output()} makes one, and the output family
+\code{table_output()} makes one from a result, by the result's class, which a
+block class names in its \code{output} property (see \code{\link[=new_output_family]{new_output_family()}}).
 Its method for data frames pages and sorts the result. A package that knows
 another kind of table, such as a lazy table that it pages in a database,
 adds a method that returns a table output. Every renderer of table outputs
 then draws it.
 }
 \details{
-A coercion takes the result and what the renderer asks with: the board
+The family takes the result and what the renderer asks with: the board
 option values in \code{options}, what the client measured for the output's
 element in \code{info}, and the output's parameters in \code{params}. The method for
 data frames reads three parameters. It shows page \code{params$page}, the first
 by default. A page holds \code{params$page_size} rows, or else as many as the
-board option \code{n_rows} gives. Every renderer of table outputs names \code{n_rows},
-so that the client adds it to the board before it asks for the first table
-output of a block, and sends its value with every output request. The rows
+board option \code{n_rows} gives.
+The family holds the constructor of \code{n_rows} (see \code{\link[=new_output_family]{new_output_family()}}), so
+that the client puts it on the board before it asks for the first table
+output of a block, and sends its value with every output request.
+The output holds the page and the page size, by which a renderer draws its
+pager, so that no renderer reads \code{n_rows} itself. The rows
 are sorted by the column that \code{params$sort$column} names, from the largest
 value where \code{params$sort$desc} is \code{TRUE}. Asking for a page past the last
 one, or for a sort by a column that the table lacks, is an error, so that
@@ -68,7 +86,7 @@ hold. A cell that is not a single value shows its summary instead, as
 \code{\link[=result_summary]{result_summary()}} gives it, such as \verb{<lm>} or \verb{<data.frame> [3 × 2]}. So
 the table stays flat, whatever a list-column or a matrix or data frame
 column holds.
-A \code{result_summary()} method that returns no string makes the coercion fail.
+A \code{result_summary()} method that returns no string makes the family fail.
 Values of other classes go to the writer as they are, which
 writes a time in UTC and fails on a complex number. Each column keeps its
 name and its first class. Row names are dropped, as tibble drops them. A
@@ -85,7 +103,7 @@ new_table_output(
   total = 10L
 )
 
-out <- as_table_output(
+out <- table_output(
   datasets::iris,
   options = list(n_rows = 5L),
   params = list(page = 2L, sort = list(column = "Sepal.Length"))

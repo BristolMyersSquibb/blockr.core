@@ -20,7 +20,7 @@ head_block <- new_block_class(
   },
   ui = js_module("js/head-block.js"),
   requests = list(n_max = function(data) nrow(data)),
-  output = as_table_output
+  output = table_output
 )
 
 #' Head block
@@ -40,7 +40,7 @@ head_block <- new_block_class(
 #' The block's data input `data` is checked to be a data frame. Its UI asks R
 #' for the number of rows of that input through the request `n_max`, which is
 #' the maximum of its numeric input, and its results show as a table, through
-#' [as_table_output()].
+#' [table_output()].
 #'
 #' @param n Number of rows
 #' @param direction Either "head" or "tail"

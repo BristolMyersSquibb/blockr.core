@@ -55,7 +55,6 @@ import type { RegistryEntry } from "../types/registry.ts";
 import { createLog, log } from "../log/index.ts";
 import {
   asError,
-  compile,
   coreNotification,
   errorMessage,
   isObject,
@@ -276,33 +275,6 @@ export function createMounts(options: MountsOptions): Mounts {
     };
   }
 
-  // The defaults of the board options given that the board lacks, by id, which
-  // core sends with a request without adding them to the board. It leaves out
-  // each whose default fails or does not fit its schema, which it logs,
-  // naming `by`, what requires the board option.
-  async function resolveDefaults(ids: readonly OptionId[], by: string): Promise<Readonly<Record<OptionId, Json>>> {
-    const found = await Promise.all(
-      ids.map(async (id): Promise<[OptionId, Json][]> => {
-        const def = own(store.options.registered(), id);
-        if (def === undefined || Object.hasOwn(store.board().options, id)) return [];
-        let value: Json;
-        try {
-          value = await resolveDefault(id, def);
-        } catch (error) {
-          failure(id, `The default of the board option "${id}", which ${by} requires, failed: ${errorMessage(error)}`);
-          return [];
-        }
-        const unfit = compile(`the board option "${id}"`, def.schema)(value);
-        if (unfit.length > 0) {
-          failure(id, `The default of the board option "${id}", which ${by} requires, ${unfit.join(" ")}`);
-          return [];
-        }
-        return [[id, value]];
-      }),
-    );
-    return Object.fromEntries(found.flat());
-  }
-
   function mountBlock(el: HTMLElement, block: BlockId): () => void {
     if (replaced.aborted) throw new Error(REPLACED);
     const found = own(store.board().blocks, block);
@@ -426,7 +398,7 @@ export function createMounts(options: MountsOptions): Mounts {
     mountBlock,
     mountOutput: (el, block) =>
       mountOutput(
-        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, resolveDefaults, emit, raise, replied, notify },
+        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, emit, raise, replied, notify },
         el,
         block,
       ),

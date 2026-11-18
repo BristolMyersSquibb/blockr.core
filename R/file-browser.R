@@ -1,4 +1,4 @@
-#' @include block-class.R
+#' @include block-class.R output-text.R
 NULL
 
 list_volume_dir <- function(volumes, volume = NULL, path = "") {
@@ -77,7 +77,7 @@ filebrowser_block <- new_block_class(
 #' a directory through the volatile request `list_dir`, which reads `volumes`
 #' and takes as parameters the name of a volume and a path within it, and
 #' answers with the names of the directories and files there. Its results show
-#' as text, through [as_text_output()].
+#' as text, through [text_output()].
 #'
 #' @param file_path File path
 #' @param volumes Named character vector of the directories the browser starts

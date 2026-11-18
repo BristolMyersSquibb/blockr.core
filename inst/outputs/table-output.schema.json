@@ -40,10 +40,18 @@
         "number",
         "null"
       ]
+    },
+    "page": {
+      "type": "number"
+    },
+    "page_size": {
+      "type": "number"
     }
   },
   "required": [
     "columns",
+    "page",
+    "page_size",
     "renderer",
     "rows",
     "total"

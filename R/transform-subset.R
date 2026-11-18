@@ -22,7 +22,7 @@ subset_block <- new_block_class(
     bbquote(subset(.(data), ..(args)), splice = TRUE)
   },
   ui = js_module("js/subset-block.js"),
-  output = as_table_output
+  output = table_output
 )
 
 #' Subset block
@@ -44,7 +44,7 @@ subset_block <- new_block_class(
 #' with [base::str2lang()] and puts in its block expression as code, or an
 #' empty string, which leaves that argument of [base::subset()] out. A string
 #' that does not parse makes the block fail.
-#' Its results show as a table, through [as_table_output()].
+#' Its results show as a table, through [table_output()].
 #'
 #' @param subset,select Expressions (passed as strings)
 #' @inheritParams new_head_block

@@ -94,7 +94,9 @@
             [5.0, 3.6, 1.4, 0.2, "setosa"],
             [5.4, 3.9, 1.7, 0.4, "setosa"]
           ],
-          "total": 6
+          "total": 6,
+          "page": 1,
+          "page_size": 50
         },
         "conditions": []
       }

@@ -24,5 +24,6 @@ export interface RegistryEntry {
         readonly action?: true;
         readonly file?: true;
     }>>;
-    readonly renderer?: OutputRenderer;
+    readonly output_options?: readonly OptionId[];
+    readonly renderers?: readonly OutputRenderer[];
 }

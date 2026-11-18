@@ -350,32 +350,48 @@ local_write_block <- function(frame = parent.frame()) {
   local_block_class(write_block_class, frame)
 }
 
-# A block class whose outputs are charts,
-# of the output class that `local_chart_output()` registers.
+# The output family of charts, whose renderer comes from blockr.viz, and a
+# block class whose outputs are charts.
+chart_output <- new_output_family(
+  function(result, options, info, params) {
+    new_block_output(list(title = "Sepals"), "chart_output")
+  },
+  "chart_output",
+  renderer = new_renderer(
+    "chart_output",
+    js_module("js/chart.js", package = "blockr.viz")
+  )
+)
+
 chart_block_class <- test_block_class(
   "chart_block",
   inputs = "data",
   expr = function() bbquote(.(data)),
   ui = js_module("chart-block.js", package = NULL),
-  output = function(result, options, info, params) {
-    new_block_output(list(title = "Sepals"), "chart_output")
-  }
+  output = chart_output
 )
 
 # An output class of blockr.viz for charts,
 # with a download of the chart, and a block class whose outputs are charts,
 # for the duration of `frame`.
+# R's reply to a hello names the version of each package that a renderer of a
+# block class's outputs comes from, as the chart renderer comes from
+# blockr.viz.
+# So blockr.viz is at the version 0.1.0, which no library holds.
+# Linting skips the call of local_versions(), a helper of another file, which
+# lintr does not see.
 local_chart_output <- function(frame = parent.frame()) {
+
+  local_versions( # nolint: object_usage_linter.
+    blockr.viz = "0.1.0",
+    frame = frame
+  )
 
   local_output_class(
     "chart_output",
     schema = list(
       type = "object",
       properties = list(title = list(type = "string"))
-    ),
-    renderer = new_renderer(
-      "chart_output",
-      js_module("js/chart.js", package = "blockr.viz")
     ),
     requests = list(
       download = function(result, format, file) {
@@ -409,7 +425,7 @@ adsl_block_class <- test_block_class(
     )
   },
   ui = js_module("adsl-block.js", package = NULL),
-  output = as_table_output
+  output = table_output
 )
 
 # Registers the block class of labelled tables for the duration of `frame`.
@@ -447,13 +463,11 @@ local_table_preview <- function(frame = parent.frame()) {
   )
 }
 
-# An output class, with the methods that give its schema, its requests, its
-# renderer and its coercion, where they are given, for the duration of `frame`.
-# A function given for the first three is the method itself, as one that calls
-# `NextMethod()`, and anything else is what the method returns, while the
-# method of `output_coercion()` returns the coercion given.
+# An output class, with the methods that give its schema and its requests,
+# where they are given, for the duration of `frame`.
+# A function given is the method itself, as one that calls `NextMethod()`, and
+# anything else is what the method returns.
 local_output_class <- function(class, schema = NULL, requests = NULL,
-                               renderer = NULL, coercion = NULL,
                                frame = parent.frame()) {
 
   method <- function(value) {
@@ -463,18 +477,10 @@ local_output_class <- function(class, schema = NULL, requests = NULL,
   methods <- lapply(
     Filter(
       not_null,
-      list(
-        output_schema = schema,
-        output_requests = requests,
-        output_renderer = renderer
-      )
+      list(output_schema = schema, output_requests = requests)
     ),
     method
   )
-
-  if (not_null(coercion)) {
-    methods$output_coercion <- function(x, ...) coercion
-  }
 
   table <- get(".__S3MethodsTable__.", envir = asNamespace("blockr.core"))
 

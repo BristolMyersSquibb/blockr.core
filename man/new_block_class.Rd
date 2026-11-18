@@ -19,7 +19,7 @@ new_block_class(
   expr,
   ui,
   requests = NULL,
-  output = NULL,
+  output = text_output,
   version = 1L
 )
 
@@ -56,9 +56,8 @@ makes the block expression from}
 \item{requests}{Named list of requests, each a function or made by
 \code{\link[=new_block_request]{new_block_request()}}}
 
-\item{output}{Coercion that makes an output from a result, such as
-\code{\link[=as_table_output]{as_table_output()}}, or \code{NULL}, for which R shows results through
-\code{\link[=as_text_output]{as_text_output()}}}
+\item{output}{Output family of the class's outputs, such as
+\code{\link[=table_output]{table_output()}}, which makes an output from a result}
 
 \item{version}{Version of the shape of the class's state, a whole number
 from 1, which a package raises as it changes that shape, so that the
@@ -142,8 +141,11 @@ package at a URL of its own, read from the path given, each at a URL that
 holds a hash of the file's content. A class further takes a
 named list of \code{requests}, for what its UI asks of R, each a function or made
 by \code{\link[=new_block_request]{new_block_request()}}, which names the board options it reads, and the
-coercion that makes an output from a result, as \code{output}. A property that
-a class leaves out is \code{NULL}.
+output family of its outputs, as \code{output}, such as \code{table_output}, or else
+\code{text_output}.
+The family makes an output from a result, and holds the board options that
+it reads and the renderer of its outputs (see \code{\link[=new_output_family]{new_output_family()}}).
+Any other property that a class leaves out is \code{NULL}.
 
 A UI module is an ES module that exports the major of core's JS API
 that it was built against, as \verb{export const api = 1},

@@ -6,7 +6,7 @@ table_json <- function(x) {
   as.character(encode_message(shape_output(x)$output))
 }
 
-test_that("a table output holds columns, a page of rows and a total", {
+test_that("a table output holds columns, rows, a total and which page it is", {
 
   out <- new_table_output(
     columns = data.frame(name = c("x", "y"), class = c("integer", "factor")),
@@ -22,9 +22,21 @@ test_that("a table output holds columns, a page of rows and a total", {
     paste0(
       "{\"columns\":[{\"name\":\"x\",\"class\":\"integer\"},",
       "{\"name\":\"y\",\"class\":\"factor\"}],",
-      "\"rows\":[[1,\"a\"],[2,\"b\"]],\"total\":5}"
+      "\"rows\":[[1,\"a\"],[2,\"b\"]],\"total\":5,",
+      "\"page\":1,\"page_size\":2}"
     )
   )
+
+  out <- new_table_output(
+    columns = data.frame(name = "x", class = "integer"),
+    rows = data.frame(x = 1:2),
+    total = 5L,
+    page = 3,
+    page_size = 2
+  )
+
+  expect_identical(out$page, 3L)
+  expect_identical(out$page_size, 2L)
 
   sub <- new_table_output(
     columns = data.frame(name = "x", class = "integer"),
@@ -76,6 +88,12 @@ test_that("a table output checks its properties", {
                      2L),
     class = "table_output_invalid"
   )
+  expect_error(new_table_output(cols, rows, 2L, page = 0L),
+               class = "table_output_invalid")
+  expect_error(new_table_output(cols, rows, 2L, page_size = 1L),
+               class = "table_output_invalid")
+  expect_error(new_table_output(cols, rows, 2L, page_size = 2.5),
+               class = "table_output_invalid")
 })
 
 test_that("a table output's total row count may be unknown", {
@@ -94,52 +112,55 @@ test_that("a data frame's table output pages by n_rows and its parameters", {
 
   iris <- datasets::iris
 
-  out <- as_table_output(utils::head(iris, 7L), options = list(n_rows = 3L),
-                         params = list(page = 2L))
+  out <- table_output(utils::head(iris, 7L), options = list(n_rows = 3L),
+                      params = list(page = 2L))
 
   expect_identical(out$total, 7L)
+  expect_identical(out$page, 2L)
+  expect_identical(out$page_size, 3L)
   expect_identical(out$rows$Sepal.Length, iris$Sepal.Length[4:6])
   expect_identical(out$columns$name, names(iris))
   expect_identical(out$columns$class, c(rep("numeric", 4L), "factor"))
 
-  out <- as_table_output(utils::head(iris, 7L), options = list(n_rows = 3L),
-                         params = list(page = 3L))
+  out <- table_output(utils::head(iris, 7L), options = list(n_rows = 3L),
+                      params = list(page = 3L))
 
   expect_identical(out$rows$Sepal.Length, iris$Sepal.Length[7L])
 
-  out <- as_table_output(iris, options = list(n_rows = 3L),
-                         params = list(page = 2L, page_size = 10L))
+  out <- table_output(iris, options = list(n_rows = 3L),
+                      params = list(page = 2L, page_size = 10L))
 
   expect_identical(out$rows$Sepal.Length, iris$Sepal.Length[11:20])
+  expect_identical(out$page_size, 10L)
 
   # The client sends n_rows with every output request, so R reads no blockr
   # option for it
   withr::local_options(blockr.n_rows = 4L)
 
   expect_error(
-    as_table_output(iris),
+    table_output(iris),
     "neither is given",
     class = "table_output_params_invalid"
   )
 
-  expect_error(as_table_output(iris, params = list(page = 0L, page_size = 5L)),
+  expect_error(table_output(iris, params = list(page = 0L, page_size = 5L)),
                class = "table_output_params_invalid")
-  expect_error(as_table_output(iris, params = list(page_size = 1.5)),
+  expect_error(table_output(iris, params = list(page_size = 1.5)),
                class = "table_output_params_invalid")
   expect_error(
-    as_table_output(iris, options = n_rows, params = list(page = "2")),
+    table_output(iris, options = n_rows, params = list(page = "2")),
     class = "table_output_params_invalid"
   )
   expect_error(
-    as_table_output(utils::head(iris, 7L), options = list(n_rows = 3L),
-                    params = list(page = 4L)),
+    table_output(utils::head(iris, 7L), options = list(n_rows = 3L),
+                 params = list(page = 4L)),
     class = "table_output_params_invalid"
   )
 })
 
 test_that("an empty table has one page, which holds no rows", {
 
-  out <- as_table_output(datasets::iris[0L, ], options = n_rows)
+  out <- table_output(datasets::iris[0L, ], options = n_rows)
 
   expect_identical(out$total, 0L)
   expect_identical(nrow(out$rows), 0L)
@@ -148,8 +169,8 @@ test_that("an empty table has one page, which holds no rows", {
   expect_match(table_json(out), "\"rows\":[]", fixed = TRUE)
 
   expect_error(
-    as_table_output(datasets::iris[0L, ], options = n_rows,
-                    params = list(page = 2L)),
+    table_output(datasets::iris[0L, ], options = n_rows,
+                 params = list(page = 2L)),
     class = "table_output_params_invalid"
   )
 })
@@ -158,21 +179,21 @@ test_that("a data frame's table output sorts by its parameters", {
 
   df <- data.frame(x = c(2, NA, 3, 1), y = c("b", "D", "a", "C"))
 
-  asc <- as_table_output(df, options = n_rows,
-                         params = list(sort = list(column = "x")))
+  asc <- table_output(df, options = n_rows,
+                      params = list(sort = list(column = "x")))
   expect_identical(asc$rows$x, c(1, 2, 3, NA))
 
-  desc <- as_table_output(df, options = n_rows,
-                          params = list(sort = list(column = "x", desc = TRUE)))
+  desc <- table_output(df, options = n_rows,
+                       params = list(sort = list(column = "x", desc = TRUE)))
   expect_identical(desc$rows$x, c(3, 2, 1, NA))
 
   # Strings sort by their bytes, whatever the locale, so that "D" comes before
   # "a".
-  chr <- as_table_output(df, options = n_rows,
-                         params = list(sort = list(column = "y")))
+  chr <- table_output(df, options = n_rows,
+                      params = list(sort = list(column = "y")))
   expect_identical(chr$rows$y, c("C", "D", "a", "b"))
 
-  paged <- as_table_output(
+  paged <- table_output(
     df,
     options = list(n_rows = 2L),
     params = list(page = 2L, sort = list(column = "x", desc = TRUE))
@@ -184,13 +205,13 @@ test_that("a data frame's table output sorts by its parameters", {
   # error.
   df$l <- list(1, 2, 3, 4)
 
-  expect_error(as_table_output(df, options = n_rows,
-                               params = list(sort = list(column = "l"))))
+  expect_error(table_output(df, options = n_rows,
+                            params = list(sort = list(column = "l"))))
 
   # A column that the table lacks fails as a page past the last one does.
   expect_error(
-    as_table_output(df, options = n_rows,
-                    params = list(sort = list(column = "z"))),
+    table_output(df, options = n_rows,
+                 params = list(sort = list(column = "z"))),
     "no column z to sort by",
     class = "table_output_params_invalid"
   )
@@ -215,7 +236,7 @@ test_that("a table output's cells hold values that JSON can carry", {
   attr(df$num, "label") <- "A number"
   df$date[2L] <- NA
 
-  out <- as_table_output(df, options = n_rows)
+  out <- table_output(df, options = n_rows)
 
   expect_identical(
     out$columns$class,
@@ -269,7 +290,7 @@ test_that("a cell whose summary is no string fails the coercion", {
 
   for (df in list(lst, mat)) {
     expect_error(
-      as_table_output(df, options = n_rows),
+      table_output(df, options = n_rows),
       class = "result_summary_invalid"
     )
   }
@@ -282,7 +303,7 @@ test_that("a table's cells are turned into JSON values only once", {
   )
   df$l <- list(1:2, "a")
 
-  out <- as_table_output(df, options = n_rows)
+  out <- table_output(df, options = n_rows)
   again <- new_table_output(out$columns, out$rows, out$total)
 
   expect_identical(again$rows, out$rows)
@@ -292,7 +313,7 @@ test_that("a table output keeps names that R would change", {
 
   df <- data.frame(`2019` = 1L, a = 2L, a = 3L, check.names = FALSE)
 
-  out <- as_table_output(df, options = n_rows)
+  out <- table_output(df, options = n_rows)
 
   expect_identical(out$columns$name, c("2019", "a", "a"))
   expect_match(table_json(out), "\"rows\":[[1,2,3]]", fixed = TRUE)
@@ -303,8 +324,8 @@ test_that("tables of other data frame classes page as data frames do", {
   skip_if_not_installed("tibble")
 
   tbl <- tibble::as_tibble(datasets::mtcars)
-  out <- as_table_output(tbl, options = list(n_rows = 2L),
-                         params = list(sort = list(column = "mpg")))
+  out <- table_output(tbl, options = list(n_rows = 2L),
+                      params = list(sort = list(column = "mpg")))
 
   expect_identical(out$rows$mpg, sort(datasets::mtcars$mpg)[1:2])
   expect_identical(out$total, 32L)
@@ -313,7 +334,7 @@ test_that("tables of other data frame classes page as data frames do", {
 test_that("a result without a method has no table output", {
 
   expect_error(
-    as_table_output(list(1)),
-    "no applicable method for 'as_table_output' applied to an object of class"
+    table_output(list(1)),
+    "no applicable method for 'table_output' applied to an object of class"
   )
 })

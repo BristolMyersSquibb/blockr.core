@@ -20,7 +20,7 @@ merge_block <- new_block_class(
   },
   ui = js_module("js/merge-block.js"),
   requests = list(shared = function(x, y) intersect(names(x), names(y))),
-  output = as_table_output
+  output = table_output
 )
 
 #' Merge block
@@ -43,7 +43,7 @@ merge_block <- new_block_class(
 #' arg `by` has no default, so a new block leaves it unset and is `invalid`
 #' until something sets it, as it is when `by` names no column. Its UI asks R
 #' for the columns its inputs share through the request `shared`, and its
-#' results show as a table, through [as_table_output()].
+#' results show as a table, through [table_output()].
 #'
 #' @param by Column(s) to join on
 #' @param all_x,all_y Join type, see [base::merge()]

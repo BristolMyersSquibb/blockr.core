@@ -2,18 +2,9 @@
 % Please edit documentation in R/output-renderer.R
 \name{new_renderer}
 \alias{new_renderer}
-\alias{output_renderer}
-\alias{output_renderer.block_output}
-\alias{chosen_renderer}
 \title{Renderers}
 \usage{
 new_renderer(name, module, requests = list(), option = NULL)
-
-output_renderer(x, ...)
-
-\method{output_renderer}{block_output}(x, ...)
-
-chosen_renderer(target, default = NULL)
 }
 \arguments{
 \item{name}{The name part of the renderer's ID}
@@ -21,29 +12,18 @@ chosen_renderer(target, default = NULL)
 \item{module}{The renderer's module, made by \code{\link[=js_module]{js_module()}}}
 
 \item{requests}{A named list of the renderer's own requests, each a
-function, which only a renderer of an output class has}
+function, which only a renderer of outputs has}
 
 \item{option}{The ID of the board option that the renderer draws, or \code{NULL}
-for a renderer of an output class}
-
-\item{x}{An output}
-
-\item{...}{Generic consistency}
-
-\item{target}{The output class or the board option that an app may name a
-renderer for}
-
-\item{default}{The renderer to give where the app names none}
+for a renderer of outputs}
 }
 \value{
 The constructor \code{new_renderer()} returns an object of class
-\code{renderer}, the generic \code{output_renderer()} the renderer that draws an
-output, and \code{chosen_renderer()} the renderer that the app names for
-\code{target}, or \code{default}.
+\code{renderer}.
 }
 \description{
-A renderer is a module that draws the outputs of an output class (see
-\code{\link[=output_schema]{output_schema()}}) or the value of a board option.
+A renderer is a module that draws the outputs of an output family (see
+\code{\link[=new_output_family]{new_output_family()}}) or the value of a board option.
 A renderer object, which \code{new_renderer()} makes, holds the renderer's
 module, made by \code{\link[=js_module]{js_module()}}, its ID and the renderer's own requests.
 Its ID is \code{{pkg}-{name}}, as a registry ID is, where \code{pkg} is the package
@@ -51,39 +31,40 @@ of its module, and its name alone for a module from no package, such as one
 beside an app script.
 }
 \details{
-The package that defines an output class gives the renderer that draws its
-outputs through its method of \code{output_renderer()}, as core's method for
-table outputs gives \code{blockr.core-table_output}.
-S3 dispatch gives a subclass the renderer of its class, unless the subclass
-has a method of its own, so that the outputs of a lazy table are drawn as
-tables until a package or an app script gives the subclass a renderer.
-R names the renderer in each output that it sends, with where it serves the
-renderer's module, so that the client loads a renderer the first time that
-an output names it, however late R learns of the output's class.
+The package that defines an output family gives the renderer that draws its
+outputs as the family's \code{renderer}, as core's \code{table_output} holds
+\code{blockr.core-table_output}.
+R names it in the entry of each block class that names the family, in the
+block registry, so that the client loads it before it asks for a block's
+first output, and in each output that it sends.
+A renderer names only the board options that it reads itself, since the
+family names those that it reads.
+It draws its family's outputs by their output class, whatever data model a
+method of the family made them from, so a new renderer needs no change to
+any of the family's methods.
 
 Any package can offer another renderer, such as a richer table, through a
 function that makes it.
-An app draws with it by naming it in the blockr option \code{renderers}, under
-the output class that it is to draw, as
+A deployment draws with it by naming it in the blockr option \code{renderers},
+under the family whose outputs it is to draw, as
 \code{options(blockr.renderers = list(table_output = blockr.ui::table_preview()))}
 does (see \code{\link[=blockr_option]{blockr_option()}}).
-A method of \code{output_renderer()} takes the app's choice for its class with
-\code{chosen_renderer()}, which gives the renderer that the app names for the
-class, or else the default it is given.
-So loading a package that offers a renderer changes nothing.
+R reads that choice before the family's own renderer, so loading a package
+that offers a renderer changes nothing, and no package takes the choice
+away.
 A renderer that draws a board option names it in \code{option} and replaces the
 board option's UI where the app names it in \code{renderers} under the board
 option's ID, and R sends every such renderer in its reply to \code{hello}.
 
-A renderer of an output class may bring requests of its own, for what the
-output does not hold, such as the labels of a table's columns, which core's
-table output does not carry.
+A renderer of outputs may bring requests of its own, for what the output
+does not hold, such as the labels of a table's columns, which core's table
+output does not carry.
 R runs a renderer's request as it runs a request of the output class (see
 \code{\link[=run_output_class_request]{run_output_class_request()}}), with the result that the output was made
 from and the board option values and parameters that the output was asked
 with.
 A request that names a renderer is one of the requests of the renderer that
-draws the output, which has to be the one named, and a request that names
+drew the output, which has to be the one named, and a request that names
 none is one of the output class's.
 So a renderer's request and a request of the output class may share a name,
 and neither hides the other.
@@ -100,14 +81,10 @@ table_preview <- function() {
   )
 }
 
-tbl <- as_table_output(datasets::BOD, options = list(n_rows = 6L))
+table_preview()
 
-output_renderer(tbl)
-
-# In an app script
+# In an app script, which draws every table output with it
 options(blockr.renderers = list(table_output = table_preview()))
-
-output_renderer(tbl)
 
 options(blockr.renderers = NULL)
 

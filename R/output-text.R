@@ -2,11 +2,12 @@
 #'
 #' A text output shows a result as [print()] shows it, at R's own width, in
 #' lines that its renderer scrolls. The constructor `new_text_output()` makes
-#' one. The coercion `as_text_output()` makes one from a result, by the
-#' result's class. Its default method prints any result. R shows the results of
-#' a block class through `as_text_output()` where the class names no coercion
-#' in its `output` property (see [new_block_class()]).
+#' one. The output family `text_output()` makes one from a result, by the
+#' result's class, and its default method prints any result.
+#' A block class that names no other family in its `output` property shows its
+#' results through it (see [new_block_class()]).
 #'
+#' @include output-class.R output-renderer.R block-class.R
 #' @param text The text to show, as a string
 #' @param ... For `new_text_output()`, further properties, which a subclass
 #'   adds, and otherwise passed on to methods
@@ -16,10 +17,10 @@
 #' @examples
 #' new_text_output("Hello")
 #'
-#' out <- as_text_output(summary(datasets::iris$Sepal.Length))
+#' out <- text_output(summary(datasets::iris$Sepal.Length))
 #' cat(out$text)
 #'
-#' @return Both `new_text_output()` and `as_text_output()` return an object of
+#' @return Both `new_text_output()` and `text_output()` return an object of
 #' class `text_output`.
 #'
 #' @export
@@ -37,32 +38,22 @@ new_text_output <- function(text, ..., class = character()) {
 
 #' @rdname new_text_output
 #' @export
-as_text_output <- function(result, options = list(), info = list(),
-                           params = list(), ...) {
-  UseMethod("as_text_output")
-}
+text_output <- new_output_family(
+  function(result, options = list(), info = list(), params = list(), ...) {
+    UseMethod("text_output")
+  },
+  "text_output",
+  renderer = new_renderer("text_output", js_module("js/basic-text.js"))
+)
 
 #' @rdname new_text_output
 #' @export
-as_text_output.default <- function(result, options = list(), info = list(),
-                                   params = list(), ...) {
+text_output.default <- function(result, options = list(), info = list(),
+                                params = list(), ...) {
   new_text_output(paste(utils::capture.output(print(result)), collapse = "\n"))
 }
 
 #' @export
 output_schema.text_output <- function(x, ...) {
   read_json_schema("outputs/text-output.schema.json")
-}
-
-#' @export
-output_coercion.text_output <- function(x, ...) {
-  as_text_output
-}
-
-#' @export
-output_renderer.text_output <- function(x, ...) {
-  chosen_renderer(
-    "text_output",
-    new_renderer("text_output", js_module("js/basic-text.js"))
-  )
 }

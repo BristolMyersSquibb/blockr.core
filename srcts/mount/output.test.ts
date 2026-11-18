@@ -657,6 +657,55 @@ describe("what core keeps", () => {
 });
 
 describe("board options", () => {
+  test("that the class's outputs read go onto the board and with every output request, beside the renderer's", async () => {
+    const text = renderer([]);
+    const themed: HelloReply = {
+      ...bare,
+      block_registry: Object.fromEntries(
+        Object.entries(bare.block_registry).map(([id, entry]) => [
+          id,
+          { ...entry, output_options: ["zoom"], renderers: [TEXT] },
+        ]),
+      ),
+    };
+    const s = await setup({ [TEXT.module]: text.exports }, { reply: themed });
+    await ready(s);
+    expect(s.store.board().options).toEqual({ zoom: 1 });
+    expect(lastOutput(s.r).options).toEqual({ zoom: 1 });
+
+    s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" }, conditions: [] });
+    await tick();
+    s.store.apply({ options: { set: { zoom: 2 } } });
+    await tick();
+    expect(outputs(s.r)).toHaveLength(2);
+    expect(lastOutput(s.r).options).toEqual({ zoom: 2 });
+  });
+
+  test("that the class's outputs read and that do not go onto the board leave the output unasked, with why", async () => {
+    const reported = logged();
+    const text = renderer([]);
+    const lacking: HelloReply = {
+      ...bare,
+      block_registry: Object.fromEntries(
+        Object.entries(bare.block_registry).map(([id, entry]) => [
+          id,
+          { ...entry, output_options: ["nowhere"], renderers: [TEXT] },
+        ]),
+      ),
+    };
+    const s = await setup({ [TEXT.module]: text.exports }, { reply: lacking });
+    await ready(s);
+    reported.restore();
+
+    const cls = String(s.store.board().blocks.b?.registry_id);
+    const why = `The board option "nowhere", which the outputs of block class "${cls}" requires, is defined by no package loaded.`;
+    expect(reported.errors().map((line) => line.message)).toEqual([why]);
+    expect(outputs(s.r)).toHaveLength(0);
+    expect(s.raised.map((n) => [n.source, n.about, n.message])).toEqual([
+      [{ kind: "core", code: "board_option_failed" }, { option: "nowhere" }, why],
+    ]);
+  });
+
   test("whose default fails leave the element empty, and core asks R for no output", async () => {
     const reported = logged();
     const table = renderer(["n_rows", "broken"]);
@@ -748,11 +797,34 @@ describe("the renderer", () => {
     expect(table.mounts).toHaveLength(0);
     expect(preview.mounts).toHaveLength(1);
     expect(s.store.board().options).toMatchObject({ zoom: 1 });
-    // The output was asked without zoom, so core asks again with it.
-    expect(lastOutput(s.r).options).toEqual({ zoom: 1 });
+    // The output was asked without zoom, so core asks again with it, beside
+    // the board options of the class's outputs.
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, zoom: 1 });
   });
 
-  test("is learned from the first output where the entry names none, which goes with every board option that a loaded package defines", async () => {
+  test("that the entry names, one for each family, all load before the first output, which goes with all their board options", async () => {
+    const table = renderer(["n_rows"]);
+    const preview = renderer(["zoom"]);
+    const both: HelloReply = {
+      ...bare,
+      block_registry: Object.fromEntries(
+        Object.entries(bare.block_registry).map(([id, entry]) => [id, { ...entry, renderers: [TABLE, PREVIEW] }]),
+      ),
+    };
+    const s = await setup({ [TABLE.module]: table.exports, [PREVIEW.module]: preview.exports }, { reply: both });
+    await ready(s);
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, zoom: 1 });
+
+    replyTable(s.r, lastOutput(s.r), 150, PREVIEW);
+    await tick();
+    expect(preview.mounts).toHaveLength(1);
+    expect(table.mounts).toHaveLength(0);
+    // The output was asked with what the renderer that draws it reads, so
+    // nothing more is asked.
+    expect(outputs(s.r)).toHaveLength(1);
+  });
+
+  test("is learned from the first output where the entry names none, which goes with the board options of the class's outputs", async () => {
     const text = renderer([]);
     const plain: HelloReply = {
       ...bare,
@@ -760,17 +832,16 @@ describe("the renderer", () => {
       block_registry: Object.fromEntries(
         Object.entries(bare.block_registry).map(([id, entry]) => [
           id,
-          Object.fromEntries(Object.entries(entry).filter(([key]) => key !== "renderer")) as unknown as RegistryEntry,
+          Object.fromEntries(Object.entries(entry).filter(([key]) => key !== "renderers")) as unknown as RegistryEntry,
         ]),
       ),
     };
     const s = await setup({ [TEXT.module]: text.exports }, { reply: plain });
     await ready(s);
-    // The board's values, and the defaults of those that it lacks, which the
-    // board does not take, so that a coercion that wraps as_table_output() gets
-    // n_rows.
-    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, show_conditions: ["error"], dark_mode: "light", zoom: 1 });
-    expect(s.store.board().options).toEqual({ show_conditions: ["error"] });
+    // The board options that the class's output family reads, which core put
+    // on the board, and no other.
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50 });
+    expect(s.store.board().options).toEqual({ show_conditions: ["error"], n_rows: 50 });
 
     s.r.reply({ id: lastOutput(s.r).id, status: "ok", output: { renderer: TEXT, text: "a" }, conditions: [] });
     await tick();

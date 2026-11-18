@@ -85,7 +85,7 @@ test_that("a block_eval() method makes a captured plot the block's result", {
       bbquote(plot(.(data)[[.(x)]], .(data)[[.(y)]]))
     },
     ui = js_module("scatter.js"),
-    output = as_plot_output
+    output = plot_output
   )
 
   registerS3method(
@@ -130,7 +130,7 @@ test_that("a captured plot is drawn again only for new colors", {
 
   expect_identical(runs, 1L)
 
-  out <- as_plot_output(plt, info = dark)
+  out <- plot_output(plt, info = dark)
 
   expect_s3_class(out, "plot_output")
   expect_identical(out$width, 320)
@@ -140,10 +140,10 @@ test_that("a captured plot is drawn again only for new colors", {
   expect_identical(runs, 2L)
   expect_identical(plt$cache$theme$bg, "#212529")
 
-  as_plot_output(plt, info = utils::modifyList(dark, list(width = 640)))
+  plot_output(plt, info = utils::modifyList(dark, list(width = 640)))
   expect_identical(runs, 2L)
 
-  as_plot_output(plt, info = utils::modifyList(dark, list(bg = "#ffffff")))
+  plot_output(plt, info = utils::modifyList(dark, list(bg = "#ffffff")))
   expect_identical(runs, 3L)
 })
 
@@ -159,7 +159,7 @@ test_that("without thematic, a captured plot is replayed at any size", {
     plot(1:3)
   }), env)
 
-  out <- as_plot_output(plt, info = dark)
+  out <- plot_output(plt, info = dark)
 
   expect_true(is_png(out$body))
   expect_identical(runs, 1L)
@@ -175,13 +175,13 @@ test_that("a captured plot without a recording is drawn again", {
     plot(1:3)
   })
 
-  out <- as_plot_output(plt, info = list(width = 200, height = 200))
+  out <- plot_output(plt, info = list(width = 200, height = 200))
 
   expect_true(is_png(out$body))
   expect_identical(runs, 1L)
   expect_s3_class(plt$cache$recording, "recordedplot")
 
-  as_plot_output(plt, info = list(width = 300, height = 200))
+  plot_output(plt, info = list(width = 300, height = 200))
   expect_identical(runs, 1L)
 })
 
@@ -200,7 +200,7 @@ test_that("a replay that fails gives way to drawing the plot again", {
   # Too small for the plot's margins, which a replay reports as an invalid
   # graphics state, while drawing the plot names the margins.
   expect_error(
-    as_plot_output(plt, info = list(width = 200, height = 100)),
+    plot_output(plt, info = list(width = 200, height = 100)),
     "figure margins too large"
   )
   expect_identical(runs, 2L)
@@ -213,7 +213,7 @@ test_that("a ggplot is printed into a plot output", {
   plt <- ggplot2::ggplot(datasets::mtcars, ggplot2::aes(mpg, wt)) +
     ggplot2::geom_point()
 
-  out <- as_plot_output(plt, info = dark)
+  out <- plot_output(plt, info = dark)
 
   expect_s3_class(out, "plot_output")
   expect_true(is_png(out$body))
@@ -224,12 +224,12 @@ test_that("a plot is drawn at the size that info gives", {
 
   plt <- capture_plot(quote(plot(1:3)), new.env())
 
-  expect_error(as_plot_output(plt), class = "plot_output_info_invalid")
-  expect_error(as_plot_output(plt, info = list(width = 100)),
+  expect_error(plot_output(plt), class = "plot_output_info_invalid")
+  expect_error(plot_output(plt, info = list(width = 100)),
                class = "plot_output_info_invalid")
   expect_error(
-    as_plot_output(plt, info = list(width = 100, height = 100,
-                                    pixel_ratio = 0)),
+    plot_output(plt, info = list(width = 100, height = 100,
+                                 pixel_ratio = 0)),
     class = "plot_output_info_invalid"
   )
 

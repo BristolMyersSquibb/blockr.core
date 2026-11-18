@@ -2,8 +2,10 @@
 #'
 #' A plot output shows a plot as a PNG image. The image travels as the
 #' output's binary body, and the output gives the size the plot was drawn at,
-#' in CSS pixels. The constructor `new_plot_output()` makes one. The coercion
-#' `as_plot_output()` makes one from a result, by the result's class. It draws
+#' in CSS pixels. The constructor `new_plot_output()` makes one. The output
+#' family `plot_output()` makes one from a result, by the result's class, which
+#' a block class names in its `output` property (see [new_output_family()]).
+#' It draws
 #' the plot at the size that `info` gives, at its pixel ratio. Where the
 #' thematic package is installed, it draws with the colors and the font that
 #' `info` gives, so that the plot follows the page's theme. A change of theme
@@ -26,7 +28,7 @@
 #' block's result. The object holds a recording of the plot and a function that
 #' runs the expression again. The block expression itself stays a plain call,
 #' such as `plot(a$x, a$y)`, so that an exported script draws the plot. When a
-#' plot is drawn with the colors of its recording, the coercion replays the
+#' plot is drawn with the colors of its recording, the family replays the
 #' recording at the new size. When the colors change, it runs the expression
 #' again, since a recording keeps the colors it was drawn with. It then keeps
 #' the new recording for the next size. It also runs the expression again where
@@ -37,6 +39,7 @@
 #' @param width,height The size the plot was drawn at, in CSS pixels
 #' @param ... For `new_plot_output()`, further properties, which a subclass
 #'   adds, and otherwise passed on to methods
+#' @include output-class.R output-renderer.R block-class.R
 #' @param class The classes of a subclass, which come before `plot_output`
 #' @param info What the client measured for the output's element: its `width`
 #'   and `height` in CSS pixels, its `pixel_ratio`, its colors `bg`, `fg` and
@@ -58,10 +61,10 @@
 #'                     list2env(list(a = data.frame(x = 1:3, y = 3:1))))
 #' plt
 #'
-#' out <- as_plot_output(plt, info = list(width = 320, height = 240))
+#' out <- plot_output(plt, info = list(width = 320, height = 240))
 #' out
 #'
-#' @return Both `new_plot_output()` and `as_plot_output()` return an object of
+#' @return Both `new_plot_output()` and `plot_output()` return an object of
 #' class `plot_output`, while `capture_plot()` returns one of class
 #' `captured_plot`.
 #'
@@ -96,15 +99,18 @@ is_size <- function(x) {
 
 #' @rdname new_plot_output
 #' @export
-as_plot_output <- function(result, options = list(), info = list(),
-                           params = list(), ...) {
-  UseMethod("as_plot_output")
-}
+plot_output <- new_output_family(
+  function(result, options = list(), info = list(), params = list(), ...) {
+    UseMethod("plot_output")
+  },
+  "plot_output",
+  renderer = new_renderer("plot_output", js_module("js/basic-plot.js"))
+)
 
 #' @rdname new_plot_output
 #' @export
-as_plot_output.ggplot <- function(result, options = list(), info = list(),
-                                  params = list(), ...) {
+plot_output.ggplot <- function(result, options = list(), info = list(),
+                               params = list(), ...) {
 
   size <- plot_size(info)
   png <- draw_png(function() print(result), size, plot_theme(info))
@@ -115,9 +121,9 @@ as_plot_output.ggplot <- function(result, options = list(), info = list(),
 
 #' @rdname new_plot_output
 #' @export
-as_plot_output.captured_plot <- function(result, options = list(),
-                                         info = list(), params = list(),
-                                         ...) {
+plot_output.captured_plot <- function(result, options = list(),
+                                      info = list(), params = list(),
+                                      ...) {
 
   size <- plot_size(info)
   theme <- plot_theme(info)
@@ -351,17 +357,4 @@ with_device <- function(open, code) {
 #' @export
 output_schema.plot_output <- function(x, ...) {
   read_json_schema("outputs/plot-output.schema.json")
-}
-
-#' @export
-output_coercion.plot_output <- function(x, ...) {
-  as_plot_output
-}
-
-#' @export
-output_renderer.plot_output <- function(x, ...) {
-  chosen_renderer(
-    "plot_output",
-    new_renderer("plot_output", js_module("js/basic-plot.js"))
-  )
 }

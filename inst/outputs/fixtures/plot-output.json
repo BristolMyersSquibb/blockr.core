@@ -1,5 +1,5 @@
 {
-  "description": "Sample plot outputs, as as_plot_output() draws a captured base plot, with the renderer that core gives plot outputs. The PNG of each is the file its body_file names, beside this one.",
+  "description": "Sample plot outputs, as plot_output() draws a captured base plot, with the renderer that core gives plot outputs. The PNG of each is the file its body_file names, beside this one.",
   "outputs": [
     {
       "description": "A scatter plot of iris, drawn at 320 by 200 CSS pixels and a pixel ratio of 2, so that its PNG has 640 by 400 pixels.",

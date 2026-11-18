@@ -1,5 +1,5 @@
 {
-  "description": "Sample text outputs, as as_text_output() prints a result, at R's width of 80, with the renderer that core gives text outputs.",
+  "description": "Sample text outputs, as text_output() prints a result, at R's width of 80, with the renderer that core gives text outputs.",
   "outputs": [
     {
       "description": "Thirty integers, as print() wraps them at a width of 80.",
