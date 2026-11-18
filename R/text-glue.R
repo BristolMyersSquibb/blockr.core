@@ -45,9 +45,6 @@ glue_block <- new_block_class(
 #'   by the name of its link's input, e.g. "{nrow(data)} rows". Every link into
 #'   the block needs a name.
 #' @blockKeywords glue, template, text, string, interpolate, markdown
-#' @blockArg text Template string evaluated with glue::glue().
-#'   [example] "{nrow(data)} rows"
-#'   [type] arg_string()
 #'
 #' @examples
 #' new_glue_block("{nrow(data)} rows")

@@ -123,8 +123,16 @@ Its module ships the shape as a JSON Schema in a file beside it, such as `head-b
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "n": { "type": "integer", "minimum": 0 },
-    "direction": { "type": "string", "enum": ["head", "tail"] }
+    "n": {
+      "type": "integer",
+      "description": "Number of rows to keep.",
+      "minimum": 0
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["head", "tail"],
+      "description": "Row end to keep, either head (first) or tail (last)."
+    }
   },
   "required": ["n", "direction"],
   "additionalProperties": false
@@ -170,8 +178,8 @@ evaluate_block(merge_block, list(), list(x = "a", y = "b"),
                list(a = datasets::BOD, b = datasets::BOD))
 ```
 
-The __arg specs__ describe each state arg for models and tools, such as an assistant that builds blocks, while the schema gives its shape.
-A package writes them in the tags it registers the class with (see "Registration" below).
+The schema also describes each state arg to models and tools, such as an assistant that builds blocks, in the `description` of the arg's property.
+A package writes that description as a comment on the type of the state, from which its build writes the schema (see "The UI module" below).
 
 A class gives the version of its state's shape in `version`, a whole number from 1.
 A package raises it whenever it changes that shape, such as by renaming a state arg.
@@ -552,13 +560,19 @@ The state's type sits in `state.ts`, from which the package's build writes the J
 ```ts
 export type State = Readonly<{
   /**
+   * Number of rows to keep.
    * @asType integer
    * @minimum 0
    */
   n: number;
+  /** Row end to keep, either head (first) or tail (last). */
   direction: "head" | "tail";
 }>;
 ```
+
+The schema is what describes the state, to the client and to models alike, such as the assistant's.
+So a state arg's description goes into its JSDoc comment, which the build writes as the `description` of the arg's property, beside its type.
+A tag of the comment, such as `@minimum`, becomes the keyword of its name.
 
 An arg without a default is optional in the type, as the merge block's `by?: readonly string[]` is, since a new block leaves it unset.
 
@@ -690,7 +704,7 @@ The option `loading` of `follow()` runs each time the request is asked, and the 
 In `loading`, a module calls `setOutdated(true)` on each input whose choices or `max` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
 
 A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React.
-A package that builds nothing writes the schema of the state by hand.
+A package that builds nothing writes the schema of the state by hand, with the description of each state arg in its property's `description`.
 
 ### Where the files go
 
@@ -714,7 +728,7 @@ The class gives its registry ID: `{pkg}` is the package whose code calls `new_bl
 So renaming a constructor leaves the registry ID as it is, while changing a class's id changes it, and boards saved before then no longer find the class.
 A class's id holds no `-`, since a registry ID splits at its first `-`.
 The registry holds each class with its metadata, so that R evaluates a block, and resolves a request, without building a block.
-R sends the client each class's entry, with its data inputs, its module, the schema of its state, the state a new block starts with, its arg specs and its requests.
+R sends the client each class's entry, with its data inputs, its module, the schema of its state, the state a new block starts with and its requests.
 
 A package declares the metadata in roxygen tags on the constructor.
 These are the head block's:
@@ -724,15 +738,11 @@ These are the head block's:
 #' @blockDescr Data head/tail
 #' @blockCategory transform
 #' @blockIcon eye
-#' @blockArg n Number of rows to keep.
-#'   [example] 10L
-#'   [type] arg_integer()
-#' @blockArg direction Row end to keep, either head (first) or tail (last).
-#'   [example] "tail"
-#'   [type] arg_enum(c("head", "tail"))
 #' @export
 new_head_block <- block_constructor(head_block)
 ```
+
+No tag describes a state arg, since the schema of the state does.
 
 With `blockr.core::block_registration_roclet` in the `Roxygen` field of its `DESCRIPTION`, `devtools::document()` writes the tags into `inst/registry/blocks.yml`, with the id of each class, which it reads off the constructor.
 The package lists its classes for core in the object that it exports, `._BLOCKR_MODULES_`, an environment that its `.onLoad()` fills from that file with `read_blocks_yml()`.

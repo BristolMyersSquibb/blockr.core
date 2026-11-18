@@ -29,7 +29,6 @@
             "version": 1,
             "schema": {},
             "state": { "n": 3 },
-            "arguments": { "n": {} },
             "requests": {},
             "renderer": {
               "id": "blockr.core-text_output",
@@ -40,7 +39,6 @@
             "id": "letters_block",
             "name": "letters block",
             "description": "Pick columns",
-            "details": "Keeps the columns it is given.",
             "url": "https://example.com/letters",
             "guidance": "Set `columns` to the names of columns to keep.",
             "keywords": ["letters", "columns"],
@@ -53,22 +51,15 @@
             "schema": {
               "type": "object",
               "properties": {
-                "columns": { "type": "array", "items": { "type": "string" } },
-                "sep": { "type": "string" }
+                "columns": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Columns to keep."
+                },
+                "sep": { "type": "string", "description": "Separator." }
               }
             },
             "state": { "columns": ["x"], "sep": "," },
-            "arguments": {
-              "columns": {
-                "description": "Columns to keep.",
-                "example": ["x"],
-                "type": { "type": "array", "items": { "type": "string" } }
-              },
-              "sep": {
-                "description": "Separator.",
-                "type": { "type": "string" }
-              }
-            },
             "requests": {
               "columns": {
                 "inputs": ["data"],

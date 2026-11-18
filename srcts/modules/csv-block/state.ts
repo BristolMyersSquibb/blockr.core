@@ -4,6 +4,8 @@
 // The build writes its JSON Schema beside the module, as csv-block.schema.json.
 
 export type State = Readonly<{
+  /** Field separator character. */
   sep: string;
+  /** Quoting character. */
   quote: string;
 }>;

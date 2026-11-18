@@ -3,10 +3,12 @@
   "type": "object",
   "properties": {
     "dataset": {
-      "type": "string"
+      "type": "string",
+      "description": "Selects the dataset to use."
     },
     "package": {
-      "type": "string"
+      "type": "string",
+      "description": "R package to source the dataset from."
     }
   },
   "required": [

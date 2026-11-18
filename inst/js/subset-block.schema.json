@@ -3,10 +3,12 @@
   "type": "object",
   "properties": {
     "subset": {
-      "type": "string"
+      "type": "string",
+      "description": "Logical row-filter expression, as a string."
     },
     "select": {
-      "type": "string"
+      "type": "string",
+      "description": "Column-selection expression, as a string."
     }
   },
   "required": [

@@ -30,25 +30,19 @@
             "schema": {
               "type": "object",
               "properties": {
-                "dataset": { "type": "string" },
-                "package": { "type": "string" }
+                "dataset": {
+                  "type": "string",
+                  "description": "Selects the dataset to use."
+                },
+                "package": {
+                  "type": "string",
+                  "description": "R package to source the dataset from."
+                }
               },
               "required": ["package"],
               "additionalProperties": false
             },
             "state": { "package": "datasets" },
-            "arguments": {
-              "dataset": {
-                "description": "Selects the dataset to use.",
-                "example": "iris",
-                "type": { "type": "string" }
-              },
-              "package": {
-                "description": "R package to source the dataset from.",
-                "example": "datasets",
-                "type": { "type": "string" }
-              }
-            },
             "requests": {
               "datasets": {
                 "inputs": [],
@@ -81,25 +75,19 @@
             "schema": {
               "type": "object",
               "properties": {
-                "subset": { "type": "string" },
-                "select": { "type": "string" }
+                "subset": {
+                  "type": "string",
+                  "description": "Logical row-filter expression, as a string."
+                },
+                "select": {
+                  "type": "string",
+                  "description": "Column-selection expression, as a string."
+                }
               },
               "required": ["subset", "select"],
               "additionalProperties": false
             },
             "state": { "subset": "", "select": "" },
-            "arguments": {
-              "subset": {
-                "description": "Logical row-filter expression, as a string.",
-                "example": "Sepal.Width > 3",
-                "type": { "type": "string" }
-              },
-              "select": {
-                "description": "Column-selection expression, as a string.",
-                "example": "Species",
-                "type": { "type": "string" }
-              }
-            },
             "requests": {},
             "renderer": {
               "id": "blockr.core-table_output",

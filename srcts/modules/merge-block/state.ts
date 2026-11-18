@@ -4,7 +4,10 @@
 // as merge-block.schema.json.
 
 export type State = Readonly<{
+  /** Shared key column(s) to join on. */
   by?: readonly string[];
+  /** Keep unmatched rows from the first input. */
   all_x: boolean;
+  /** Keep unmatched rows from the second input. */
   all_y: boolean;
 }>;

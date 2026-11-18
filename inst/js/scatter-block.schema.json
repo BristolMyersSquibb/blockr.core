@@ -3,10 +3,12 @@
   "type": "object",
   "properties": {
     "x": {
-      "type": "string"
+      "type": "string",
+      "description": "Column for the horizontal axis."
     },
     "y": {
-      "type": "string"
+      "type": "string",
+      "description": "Column for the vertical axis."
     }
   },
   "additionalProperties": false

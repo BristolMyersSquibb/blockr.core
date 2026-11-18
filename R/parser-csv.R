@@ -49,11 +49,6 @@ csv_block <- new_block_class(
 #'   block) into a data.frame with `utils::read.table()`. `sep` is the field
 #'   separator and `quote` the quoting character.
 #' @blockKeywords csv, parse, read, delimited, import
-#' @blockArg sep Field separator character.
-#'   [example] ","
-#'   [type] arg_string()
-#' @blockArg quote Quoting character.
-#'   [type] arg_string()
 #'
 #' @examples
 #' new_csv_block(sep = ";")

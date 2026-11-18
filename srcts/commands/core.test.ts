@@ -9,12 +9,11 @@ import { describe, expect, test } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
 import { isId, StoreError } from "../store/index.ts";
 import type { PluginClass, Store } from "../store/index.ts";
-import { hello, openedStore, withPlugins } from "../testing/store.ts";
+import { openedStore, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { Json } from "../types/json.ts";
-import type { RegistryEntry } from "../types/registry.ts";
-import { CommandError, createCommands, defaultBlockName, freeInputs, linkFeeding, schemas, stateSchema } from "./index.ts";
+import { CommandError, createCommands, defaultBlockName, freeInputs, linkFeeding, schemas } from "./index.ts";
 import type { CommandContext, Commands } from "./index.ts";
 
 async function setup(
@@ -37,12 +36,6 @@ function added<T>(before: Readonly<Record<string, T>>, after: Readonly<Record<st
 }
 
 const head = "blockr.core-head_block";
-
-function headClass(): RegistryEntry {
-  const entry = hello.block_registry[head];
-  if (entry === undefined) throw new Error(`The fixture's block registry has no "${head}".`);
-  return entry;
-}
 
 describe("blocks", () => {
   test("add_block adds a block with the state its class starts one with, its name and a minted id", async () => {
@@ -745,32 +738,6 @@ describe("the schemas", () => {
       "The args fail their schema at /id:",
     );
     expect(schemas.blockId.pattern).toBe("\\D");
-  });
-
-  test("stateSchema() describes each state arg by its arg spec, once per class", () => {
-    const entry = headClass();
-
-    const schema = stateSchema(entry);
-    expect(schema.properties).toEqual({
-      n: { description: "Number of rows to keep.", examples: [10], type: "integer", minimum: 0 },
-      direction: {
-        description: "Row end to keep, either head (first) or tail (last).",
-        examples: ["tail"],
-        enum: ["head", "tail"],
-      },
-    });
-    expect(schema.required).toEqual(["n", "direction"]);
-    expect(stateSchema(entry)).toBe(schema);
-  });
-
-  test("stateSchema() keeps what the schema says itself", () => {
-    const entry: RegistryEntry = {
-      ...headClass(),
-      schema: { type: "object", properties: { n: { type: "integer", description: "Rows." } } },
-    };
-    expect(stateSchema(entry).properties).toEqual({
-      n: { type: "integer", description: "Rows.", examples: [10] },
-    });
   });
 
   test("defaultBlockName() names a block as R names it by its class", () => {

@@ -94,7 +94,6 @@ function entry(id: string, inputs: readonly string[]): RegistryEntry {
     version: 1,
     schema: {},
     state: {},
-    arguments: {},
     requests: {},
   };
 }
