@@ -133,109 +133,171 @@ test_that("core gives each of its output classes its schema", {
   }
 })
 
-test_that("an output family is a coercion with a class of its own", {
+test_that("an output family is a generic with a class of its own", {
 
   families <- list(
-    table_output = as_table_output,
-    text_output = as_text_output,
-    plot_output = as_plot_output
+    table_output = table_output,
+    text_output = text_output,
+    plot_output = plot_output
   )
 
   for (cls in names(families)) {
     expect_true(is_output_family(families[[cls]]))
     expect_s3_class(
       families[[cls]],
-      c(paste0(cls, "_family"), "output_family", "function"),
+      c(cls, "output_family", "function"),
       exact = TRUE
     )
   }
 
   # A family that is a generic dispatches on the result, as S3 registers the
   # methods of any generic
-  tbl <- as_table_output(datasets::BOD, options = list(n_rows = 2L))
+  tbl <- table_output(datasets::BOD, options = list(n_rows = 2L))
 
   expect_s3_class(tbl, "table_output")
-  expect_s3_class(as_text_output(1:3), "text_output")
+  expect_s3_class(text_output(1:3), "text_output")
 
-  as_words_output <- new_output_family(
+  words <- new_renderer("words_output", test_module("words.js"))
+
+  words_output <- new_output_family(
     function(result, ...) {
       new_block_output(list(words = result), "words_output")
     },
-    class = "words_output_family"
+    "words_output",
+    renderer = words
   )
 
-  expect_true(is_output_family(as_words_output))
-  expect_s3_class(as_words_output("hi"), "words_output")
+  expect_true(is_output_family(words_output))
+  expect_s3_class(words_output("hi"), "words_output")
+  expect_identical(attr(words_output, "renderer"), words)
 
   expect_false(is_output_family(function(result, ...) result))
   expect_false(is_output_family(structure(list(), class = "output_family")))
 
-  expect_error(new_output_family("as_words_output", "words_output_family"),
-               class = "output_family_invalid")
-  expect_error(new_output_family(identity, character()),
-               class = "output_family_invalid")
-  expect_error(new_output_family(identity, NA_character_),
-               class = "output_family_invalid")
-  expect_error(new_output_family(identity, "output_family"),
-               class = "output_family_invalid")
+  check <- function(...) {
+    expect_error(new_output_family(...), class = "output_family_invalid")
+  }
+
+  check("words_output", "words_output", renderer = words)
+  check(identity, character(), renderer = words)
+  check(identity, NA_character_, renderer = words)
+  check(identity, "output_family", renderer = words)
+  check(identity, "words_output")
+  check(identity, "words_output", renderer = "words.js")
+  check(identity, "words_output",
+        renderer = new_renderer("rows", test_module("rows.js"),
+                                option = "n_rows"))
+  check(identity, "words_output", families = identity)
 })
 
-test_that("an output family holds the board options its coercion reads", {
+test_that("an output family holds the board options it reads", {
 
-  expect_identical(family_option_ids(as_table_output), "n_rows")
-  expect_identical(family_option_ids(as_plot_output), character())
+  expect_identical(family_option_ids(table_output), "n_rows")
+  expect_identical(family_option_ids(plot_output), character())
 
-  as_themed_output <- new_output_family(
+  themed_output <- new_output_family(
     function(result, ...) new_text_output(format(result)),
-    class = "themed_output_family",
-    options = new_dark_mode_option
+    "themed_output",
+    options = new_dark_mode_option,
+    renderer = attr(text_output, "renderer")
   )
 
-  expect_identical(family_option_ids(as_themed_output), "dark_mode")
+  expect_identical(family_option_ids(themed_output), "dark_mode")
 
   expect_error(
-    new_output_family(identity, "themed_output_family", options = "dark_mode"),
+    new_output_family(identity, "themed_output", options = "dark_mode",
+                      renderer = attr(text_output, "renderer")),
     class = "output_family_invalid"
   )
   expect_error(
-    new_output_family(identity, "themed_output_family", options = identity),
+    new_output_family(identity, "themed_output", options = identity,
+                      renderer = attr(text_output, "renderer")),
     class = "output_family_invalid"
   )
 })
 
-test_that("an output family joins another by taking it", {
+test_that("an output family hands its results to the families it names", {
 
-  as_head_output <- new_output_family(
-    function(result, ...) as_table_output(utils::head(result), ...),
-    family = as_table_output
+  coef_output <- new_output_family(
+    function(result, ...) {
+      table_output(as.data.frame(stats::coef(summary(result))), ...)
+    },
+    "coef_output",
+    options = new_dark_mode_option,
+    families = table_output
   )
 
-  # It has the family's class, reads its board options and holds it, so that
-  # the family's package loads wherever the coercion does
-  expect_identical(class(as_head_output), class(as_table_output))
-  expect_identical(family_option_ids(as_head_output), "n_rows")
-  expect_identical(attr(as_head_output, "family"), as_table_output)
+  # It reads their board options beside its own, and holds them, so that
+  # their packages load wherever it does
+  expect_identical(family_option_ids(coef_output), c("dark_mode", "n_rows"))
+  expect_identical(attr(coef_output, "families"), list(table_output))
 
-  out <- as_head_output(datasets::iris, options = list(n_rows = 4L))
+  fit <- stats::lm(Sepal.Length ~ Sepal.Width, datasets::iris)
+  out <- coef_output(fit, options = list(n_rows = 4L))
 
-  expect_identical(out$total, 6L)
-  expect_identical(out$page_size, 4L)
+  expect_s3_class(out, "table_output")
+  expect_identical(out$total, 2L)
 
-  expect_error(new_output_family(identity, family = identity),
-               class = "output_family_invalid")
+  # A family that names another family twice, or one that names it too,
+  # reads its board options once
+  both_output <- new_output_family(
+    identity,
+    "both_output",
+    families = list(coef_output, table_output, coef_output)
+  )
 
-  # A coercion that took the class of a family whose package gives its
-  # renderer would draw as the family's outputs, but read none of the
-  # family's board options
+  expect_identical(family_option_ids(both_output), c("dark_mode", "n_rows"))
+  expect_named(reached_families(both_output),
+               c("both_output", "coef_output", "table_output"))
+})
+
+test_that("an output family takes no other family's class", {
+
+  # A family that took the class of another would draw its outputs, but read
+  # none of the other's board options
   expect_error(
-    new_output_family(identity, "table_output_family"),
-    "as `family`",
+    new_output_family(identity, "table_output", families = text_output),
+    "names in `families`",
     class = "output_family_invalid"
   )
-  expect_error(
-    new_output_family(identity, "head_output_family", family = as_table_output),
-    class = "output_family_invalid"
+
+  # A script that runs again defines its families anew
+  words <- new_renderer("words_output", test_module("words.js"))
+
+  words_output <- new_output_family(function(result, ...) result,
+                                    "words_output", renderer = words)
+  words_output <- new_output_family(function(result, ...) result,
+                                    "words_output", renderer = words)
+
+  expect_true(is_output_family(words_output))
+})
+
+test_that("R reads a family as its package defines it now", {
+
+  # A block class of another package holds a copy of core's family, made when
+  # that package was built, which may be older than core's
+  stale <- structure(
+    table_output,
+    options = NULL,
+    renderer = new_renderer("old", test_module("old.js"))
   )
+
+  expect_identical(current_family(stale), table_output)
+  expect_identical(family_option_ids(stale), "n_rows")
+  expect_identical(
+    family_renderers(stale)$table_output$id,
+    "blockr.core-table_output"
+  )
+
+  # A family that its package no longer binds under its class reads what the
+  # copy holds
+  gone <- new_output_family(
+    function(result, ...) result,
+    "gone_output",
+    renderer = new_renderer("gone", test_module("g.js"))
+  )
+
+  expect_identical(current_family(gone), gone)
 })
 
 test_that("an output is written by the schema of its most specific class", {

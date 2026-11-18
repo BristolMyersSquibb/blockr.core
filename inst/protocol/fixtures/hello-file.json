@@ -57,10 +57,12 @@
               }
             },
             "output_options": ["n_rows"],
-            "renderer": {
-              "id": "blockr.core-table_output",
-              "module": "blockr.core/basic-table.js?v=b7e2a915"
-            }
+            "renderers": [
+              {
+                "id": "blockr.core-table_output",
+                "module": "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
           },
           "blockr.core-subset_block": {
             "id": "blockr.core-subset_block",
@@ -103,10 +105,12 @@
             },
             "requests": {},
             "output_options": ["n_rows"],
-            "renderer": {
-              "id": "blockr.core-table_output",
-              "module": "blockr.core/basic-table.js?v=b7e2a915"
-            }
+            "renderers": [
+              {
+                "id": "blockr.core-table_output",
+                "module": "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
           }
         },
         "modules": {

@@ -45,7 +45,7 @@ const entries = Object.values(HELLO.block_registry);
 const MODULES: Readonly<Record<string, unknown>> = {
   "blockr.core-edit_board_plugin": classModule({ ui: pluginUi().ui }),
   ...Object.fromEntries(entries.map((entry) => [entry.module, stub("UI")])),
-  ...Object.fromEntries(entries.flatMap((entry) => (entry.renderer === undefined ? [] : [[entry.renderer.module, stub("Output")]]))),
+  ...Object.fromEntries(entries.flatMap((entry) => (entry.renderers ?? []).map((renderer) => [renderer.module, stub("Output")]))),
 };
 
 interface Drawn {

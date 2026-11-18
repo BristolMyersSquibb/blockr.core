@@ -7,7 +7,7 @@ rbind_block <- new_block_class(
   inputs = "...",
   expr = function() bbquote(rbind(...)),
   ui = js_module("js/rbind-block.js"),
-  output = as_table_output
+  output = table_output
 )
 
 #' Row-bind block
@@ -26,7 +26,7 @@ rbind_block <- new_block_class(
 #' The block is variadic, so it runs once it has one link, and its block
 #' expression binds the upstream blocks in link order, each named by its link's
 #' input, such as `rbind(a, b2 = b)`. It has no state, and its results show as
-#' a table, through [as_table_output()].
+#' a table, through [table_output()].
 #'
 #' @inheritParams new_head_block
 #'

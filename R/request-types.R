@@ -242,8 +242,9 @@ plugin_requests.plugin <- function(x, ...) {
 }
 
 # The call of a request of an output, of its output class or of the renderer
-# given, resolved against the class vector of the latest output that R made
-# from the result that the request names, and run with that result.
+# that `renderer` names, resolved against the latest output that R made from
+# the result that the request names, its class vector or the renderer that
+# drew it, and run with that result.
 output_read_call <- function(x, reads, renderer) {
 
   out <- x[["output"]]
@@ -257,6 +258,21 @@ output_read_call <- function(x, reads, renderer) {
     )
   }
 
+  drawn <- NULL
+
+  if (not_null(renderer)) {
+
+    drawn <- held[["renderer"]]
+
+    if (!identical(drawn[["id"]], renderer)) {
+      blockr_abort(
+        "Renderer {renderer} drew no output of block {out$block}, which ",
+        "renderer {drawn$id} drew.",
+        class = "renderer_class_mismatch"
+      )
+    }
+  }
+
   output_request_call(
     held[["output"]],
     x[["name"]],
@@ -265,6 +281,6 @@ output_read_call <- function(x, reads, renderer) {
     x[["options"]],
     x[["params"]],
     x[["body"]],
-    renderer
+    drawn
   )
 }

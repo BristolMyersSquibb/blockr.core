@@ -22,7 +22,7 @@ test_that("any result prints into a text output, at R's width", {
 
   withr::local_options(width = 40L)
 
-  out <- as_text_output(1:20)
+  out <- text_output(1:20)
 
   expect_identical(
     out$text,
@@ -30,12 +30,12 @@ test_that("any result prints into a text output, at R's width", {
   )
   expect_length(strsplit(out$text, "\n")[[1L]], 2L)
 
-  expect_identical(as_text_output(NULL)$text, "NULL")
+  expect_identical(text_output(NULL)$text, "NULL")
 
   fit <- stats::lm(dist ~ speed, datasets::cars)
 
   expect_identical(
-    as_text_output(fit, list(n_rows = 5L), list(width = 640), list())$text,
+    text_output(fit, list(n_rows = 5L), list(width = 640), list())$text,
     paste(utils::capture.output(print(fit)), collapse = "\n")
   )
 })

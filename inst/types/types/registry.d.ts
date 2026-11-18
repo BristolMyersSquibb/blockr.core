@@ -27,7 +27,7 @@ export interface RegistryEntry {
         readonly file?: true;
     }>>;
     readonly output_options?: readonly OptionId[];
-    readonly renderer?: OutputRenderer;
+    readonly renderers?: readonly OutputRenderer[];
 }
 export interface ArgSpec {
     readonly description?: string;

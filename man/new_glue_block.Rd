@@ -42,7 +42,7 @@ The block is variadic, so it waits for one link before it runs. Its block
 expression evaluates the text in an environment that binds every input by
 the name of its link's input. A text cannot refer to an input whose link
 has no name, so such an input makes the block fail. Its results show as
-text, through \code{\link[=as_text_output]{as_text_output()}}.
+text, through \code{\link[=text_output]{text_output()}}.
 }
 
 \examples{

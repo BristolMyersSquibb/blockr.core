@@ -25,7 +25,7 @@ output_fixture_values <- function() {
   list(
     `table-output` = list(
       description = paste(
-        "Sample table outputs, as the method of as_table_output() for data",
+        "Sample table outputs, as the method of table_output() for data",
         "frames makes them, with the renderer that core gives table outputs."
       ),
       outputs = list(
@@ -34,7 +34,7 @@ output_fixture_values <- function() {
             "The second page of the first seven rows of iris, at three rows",
             "to a page, as the board option n_rows gives."
           ),
-          as_table_output,
+          table_output,
           utils::head(datasets::iris, 7L),
           options = list(n_rows = 3L),
           params = list(page = 2L)
@@ -45,7 +45,7 @@ output_fixture_values <- function() {
             "at fifty rows to a page, where the rows without Ozone come last",
             "and a missing value is null."
           ),
-          as_table_output,
+          table_output,
           datasets::airquality,
           options = list(n_rows = 50L),
           params = list(page = 4L, sort = list(column = "Ozone", desc = TRUE))
@@ -58,13 +58,13 @@ output_fixture_values <- function() {
             "a single value, and names that R would change, such as 2019 and",
             "a name that repeats."
           ),
-          as_table_output,
+          table_output,
           output_fixture_cells(),
           options = list(n_rows = 50L)
         ),
         output_sample(
           "A table without rows, which has one page, holding no rows.",
-          as_table_output,
+          table_output,
           datasets::iris[0L, ],
           options = list(n_rows = 50L)
         ),
@@ -82,25 +82,25 @@ output_fixture_values <- function() {
     ),
     `text-output` = list(
       description = paste(
-        "Sample text outputs, as as_text_output() prints a result, at R's",
+        "Sample text outputs, as text_output() prints a result, at R's",
         "width of 80, with the renderer that core gives text outputs."
       ),
       outputs = list(
         output_sample(
           "Thirty integers, as print() wraps them at a width of 80.",
-          as_text_output,
+          text_output,
           1:30
         ),
         output_sample(
           "A named character vector, as print() quotes and aligns it.",
-          as_text_output,
+          text_output,
           c(first = "a", second = "bb")
         )
       )
     ),
     `plot-output` = list(
       description = paste(
-        "Sample plot outputs, as as_plot_output() draws a captured base",
+        "Sample plot outputs, as plot_output() draws a captured base",
         "plot, with the renderer that core gives plot outputs. The",
         "PNG of each is the file its body_file names, beside this one."
       ),
@@ -110,7 +110,7 @@ output_fixture_values <- function() {
             "A scatter plot of iris, drawn at 320 by 200 CSS pixels and a",
             "pixel ratio of 2, so that its PNG has 640 by 400 pixels."
           ),
-          as_plot_output,
+          plot_output,
           capture_plot(
             quote(
               plot(a$Sepal.Length, a$Sepal.Width, xlab = "Sepal.Length",
@@ -164,6 +164,12 @@ unknown_total_output <- function(result, options, info, params) {
   )
 }
 
+# The renderer that draws `out`, an output of one of core's classes: that of
+# core's family of the output's class.
+core_renderer <- function(out) {
+  drawing_renderer(get(class(out)[1L], envir = asNamespace("blockr.core")), out)
+}
+
 # A sample output: its description, what it was asked with, and the output as R
 # sends it, after the renderer that draws its class, core's own, at the URL that
 # the protocol's fixtures give the renderer's module, which stands in for one
@@ -174,7 +180,7 @@ output_sample <- function(description, coercion, result, options = list(),
 
   out <- coercion(result, options = options, info = info, params = params)
   parts <- shape_output(out)
-  drawn <- validate_renderer(as_renderer(out), out)
+  drawn <- core_renderer(out)
   urls <- list(
     `js/basic-table.js` = "blockr.core/basic-table.js?v=b7e2a915",
     `js/basic-text.js` = "blockr.core/basic-text.js?v=3c8f61d0",

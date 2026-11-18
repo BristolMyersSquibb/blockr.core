@@ -2,19 +2,19 @@
 % Please edit documentation in R/output-plot.R
 \name{new_plot_output}
 \alias{new_plot_output}
-\alias{as_plot_output}
-\alias{as_plot_output.ggplot}
-\alias{as_plot_output.captured_plot}
+\alias{plot_output}
+\alias{plot_output.ggplot}
+\alias{plot_output.captured_plot}
 \alias{capture_plot}
 \title{Plot outputs}
 \usage{
 new_plot_output(body, width, height, ..., class = character())
 
-as_plot_output(result, options = list(), info = list(), params = list(), ...)
+plot_output(result, options = list(), info = list(), params = list(), ...)
 
-\method{as_plot_output}{ggplot}(result, options = list(), info = list(), params = list(), ...)
+\method{plot_output}{ggplot}(result, options = list(), info = list(), params = list(), ...)
 
-\method{as_plot_output}{captured_plot}(result, options = list(), info = list(), params = list(), ...)
+\method{plot_output}{captured_plot}(result, options = list(), info = list(), params = list(), ...)
 
 capture_plot(expr, env)
 }
@@ -44,17 +44,17 @@ and \code{height} in CSS pixels, its \code{pixel_ratio}, its colors \code{bg}, \
 upstream block's result is bound to its id}
 }
 \value{
-Both \code{new_plot_output()} and \code{as_plot_output()} return an object of
+Both \code{new_plot_output()} and \code{plot_output()} return an object of
 class \code{plot_output}, while \code{capture_plot()} returns one of class
 \code{captured_plot}.
 }
 \description{
 A plot output shows a plot as a PNG image. The image travels as the
 output's binary body, and the output gives the size the plot was drawn at,
-in CSS pixels. The constructor \code{new_plot_output()} makes one. The coercion
-\code{as_plot_output()} makes one from a result, by the result's class.
-It is the output family of plot outputs, which a block class names in its
-\code{output} property (see \code{\link[=new_output_family]{new_output_family()}}). It draws
+in CSS pixels. The constructor \code{new_plot_output()} makes one. The output
+family \code{plot_output()} makes one from a result, by the result's class, which
+a block class names in its \code{output} property (see \code{\link[=new_output_family]{new_output_family()}}).
+It draws
 the plot at the size that \code{info} gives, at its pixel ratio. Where the
 thematic package is installed, it draws with the colors and the font that
 \code{info} gives, so that the plot follows the page's theme. A change of theme
@@ -77,7 +77,7 @@ device. It returns a plot object of class \code{captured_plot}, which becomes th
 block's result. The object holds a recording of the plot and a function that
 runs the expression again. The block expression itself stays a plain call,
 such as \code{plot(a$x, a$y)}, so that an exported script draws the plot. When a
-plot is drawn with the colors of its recording, the coercion replays the
+plot is drawn with the colors of its recording, the family replays the
 recording at the new size. When the colors change, it runs the expression
 again, since a recording keeps the colors it was drawn with. It then keeps
 the new recording for the next size. It also runs the expression again where
@@ -96,7 +96,7 @@ plt <- capture_plot(quote(plot(a$x, a$y)),
                     list2env(list(a = data.frame(x = 1:3, y = 3:1))))
 plt
 
-out <- as_plot_output(plt, info = list(width = 320, height = 240))
+out <- plot_output(plt, info = list(width = 320, height = 240))
 out
 
 }

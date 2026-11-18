@@ -48,7 +48,7 @@ produces a single \code{data.frame} as output.
 The block's data input \code{data} is checked to be a data frame. Its UI asks R
 for the number of rows of that input through the request \code{n_max}, which is
 the maximum of its numeric input, and its results show as a table, through
-\code{\link[=as_table_output]{as_table_output()}}.
+\code{\link[=table_output]{table_output()}}.
 }
 
 \examples{

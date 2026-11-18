@@ -350,13 +350,17 @@ local_write_block <- function(frame = parent.frame()) {
   local_block_class(write_block_class, frame)
 }
 
-# The output family of charts, whose renderer `local_chart_output()` registers,
-# and a block class whose outputs are charts.
-as_chart_output <- new_output_family(
+# The output family of charts, whose renderer comes from blockr.viz, and a
+# block class whose outputs are charts.
+chart_output <- new_output_family(
   function(result, options, info, params) {
     new_block_output(list(title = "Sepals"), "chart_output")
   },
-  class = "chart_output_family"
+  "chart_output",
+  renderer = new_renderer(
+    "chart_output",
+    js_module("js/chart.js", package = "blockr.viz")
+  )
 )
 
 chart_block_class <- test_block_class(
@@ -364,7 +368,7 @@ chart_block_class <- test_block_class(
   inputs = "data",
   expr = function() bbquote(.(data)),
   ui = js_module("chart-block.js", package = NULL),
-  output = as_chart_output
+  output = chart_output
 )
 
 # An output class of blockr.viz for charts,
@@ -383,20 +387,12 @@ local_chart_output <- function(frame = parent.frame()) {
     frame = frame
   )
 
-  chart <- new_renderer(
-    "chart_output",
-    js_module("js/chart.js", package = "blockr.viz")
-  )
-
-  local_output_class("chart_output_family", renderer = chart, frame = frame)
-
   local_output_class(
     "chart_output",
     schema = list(
       type = "object",
       properties = list(title = list(type = "string"))
     ),
-    renderer = chart,
     requests = list(
       download = function(result, format, file) {
         stopifnot(identical(file[["type"]], "image/png"))
@@ -429,7 +425,7 @@ adsl_block_class <- test_block_class(
     )
   },
   ui = js_module("adsl-block.js", package = NULL),
-  output = as_table_output
+  output = table_output
 )
 
 # Registers the block class of labelled tables for the duration of `frame`.
@@ -467,13 +463,12 @@ local_table_preview <- function(frame = parent.frame()) {
   )
 }
 
-# An output class, with the methods that give its schema, its requests and its
-# renderer, where they are given, for the duration of `frame`.
+# An output class, with the methods that give its schema and its requests,
+# where they are given, for the duration of `frame`.
 # A function given is the method itself, as one that calls `NextMethod()`, and
 # anything else is what the method returns.
-# The class of an output family takes a renderer alone.
 local_output_class <- function(class, schema = NULL, requests = NULL,
-                               renderer = NULL, frame = parent.frame()) {
+                               frame = parent.frame()) {
 
   method <- function(value) {
     if (is.function(value)) value else function(x, ...) value
@@ -482,11 +477,7 @@ local_output_class <- function(class, schema = NULL, requests = NULL,
   methods <- lapply(
     Filter(
       not_null,
-      list(
-        output_schema = schema,
-        output_requests = requests,
-        as_renderer = renderer
-      )
+      list(output_schema = schema, output_requests = requests)
     ),
     method
   )

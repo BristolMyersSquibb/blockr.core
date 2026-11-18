@@ -266,15 +266,17 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   // the mount keeps on the board while it lasts and asks with, the first time
   // included.
   const outputOptions = entry.output_options ?? [];
-  // The renderer that draws the block's output: the one that the block
-  // class's entry names until an output names one, and the one that the last
-  // output named after. The mount asks with the board options that it names
-  // as well, once it is loaded, and keeps them on the board meanwhile. Where
-  // neither names one, the mount asks with the board options of the class's
-  // outputs alone, and learns the renderer from the first output.
-  let renderer: OutputRenderer | undefined = entry.renderer;
-  let ready: Prepared | undefined;
-  let keeping: { readonly stop: () => void } | undefined;
+  // The renderers that may draw the block's output, by id: those that the
+  // block class's entry names, one for each family whose outputs the class's
+  // family makes, and any other that an output names. The mount loads each,
+  // keeps the board options that it names on the board, and asks with those
+  // of every one once all are loaded, so that an output was asked with what
+  // the renderer that draws it reads. Where none is named, the mount asks with
+  // the board options of the class's outputs alone, and learns the renderer
+  // from the first output.
+  const expected = new Map<string, OutputRenderer>();
+  const ready = new Map<string, Prepared>();
+  const keeping = new Map<string, { readonly stop: () => void }>();
   const preparing = new Map<string, Promise<Prepared>>();
 
   let info = measure.info(el);
@@ -327,18 +329,20 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     return loading;
   }
 
-  // Loads the renderer that the mount asks for, then asks.
+  // Loads a renderer that may draw the block's output, then asks.
   function expect(given: OutputRenderer): void {
-    renderer = given;
-    if (ready?.renderer.id === given.id) return;
+    if (expected.has(given.id)) return;
+    expected.set(given.id, given);
     prepare(given).then(
       (prepared) => {
-        if (ended() || renderer?.id !== prepared.renderer.id) return;
-        ready = prepared;
-        keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, () => {
-          fail(missingOptions(prepared.renderer, prepared.named), prepared.renderer);
-        });
+        if (ended()) return;
+        ready.set(given.id, prepared);
+        keeping.set(
+          given.id,
+          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
+            fail(missingOptions(given, prepared.named), given);
+          }),
+        );
         sync();
       },
       (failure: unknown) => {
@@ -355,12 +359,12 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   }
 
   // The board options that the mount asks with: those of the class's outputs,
-  // with those that the renderer names, or undefined while the renderer that
-  // the mount expects loads.
+  // with those that every renderer that may draw the output names, or
+  // undefined while one of those renderers loads.
   function named(): readonly OptionId[] | undefined {
-    if (renderer === undefined) return outputOptions;
-    if (ready?.renderer.id !== renderer.id) return undefined;
-    return [...new Set([...outputOptions, ...ready.named])];
+    const loaded = [...expected.keys()].map((id) => ready.get(id));
+    if (loaded.some((prepared) => prepared === undefined)) return undefined;
+    return [...new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
   }
 
   // The values that the board holds now of the board options named. Within a
@@ -589,7 +593,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     error = null;
     fit();
     const named = next.output.renderer;
-    if (renderer?.id !== named.id) expect(named);
+    expect(named);
     if (drawing !== undefined && drawing.prepared.renderer.id !== named.id) unmountRenderer();
     if (drawing === undefined) {
       prepare(named).then(
@@ -913,7 +917,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
-    keeping?.stop();
+    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== undefined) clearTimeout(settling);
@@ -925,7 +929,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     wake();
   }
 
-  if (renderer !== undefined) expect(renderer);
+  for (const given of entry.renderers ?? []) expect(given);
   if (shelf.last !== undefined) take(shelf.last);
   sync();
 

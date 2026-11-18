@@ -58,7 +58,7 @@ R replies `ok` with:
 | `protocol` | the version R speaks |
 | `capabilities` | the capabilities R speaks |
 | `packages` | the version of every package that the reply's block classes, the renderers of their outputs, modules, plugin classes, board options and board options' renderers come from, by package |
-| `block_registry` | the entries of the app's block registry, by registry id, each as `RegistryEntry` in [`srcts/types/registry.ts`](../../srcts/types/registry.ts) gives it ([Registration](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#registration)), with the board options that the class's outputs read in `output_options` and the renderer of the class's outputs in `renderer` where R knows it ([Outputs](#outputs)): the block classes that the app offers in `serve()`'s `blocks`, which R registers as `serve()` builds the registry, and those of the app script and of its board, or for a block that `serve()` serves alone, the block's class alone |
+| `block_registry` | the entries of the app's block registry, by registry id, each as `RegistryEntry` in [`srcts/types/registry.ts`](../../srcts/types/registry.ts) gives it ([Registration](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#registration)), with the board options that the class's outputs read in `output_options` and the renderers that draw them in `renderers` ([Outputs](#outputs)): the block classes that the app offers in `serve()`'s `blocks`, which R registers as `serve()` builds the registry, and those of the app script and of its board, or for a block that `serve()` serves alone, the block's class alone |
 | `modules` | where each module that the available packages offer each other's UIs, as R read them as `serve()` built the app, is served, by the module's id, `{pkg}-{name}`, as `{ "blockr.core-controls": { "module": "...", "css": "..." } }`, which a module loads through `host.module()` ([What a package declares in R](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#what-a-package-declares-in-r)) |
 | `plugins` | the app's plugins, which run on every board that the client opens, each under the id of its class, with the class's name, which titles its panel, the version of the class's state, which the class's method of `plugin_version()` gives, 1 for a class without one, and where R serves the module of the class, whose default export is the class's `PluginClass` without its id, as `{ "blockr.core-basic_frontend_plugin": { "name": "Basic frontend", "version": 1, "module": "...", "css": "..." } }`, in the order of the rows that `serve()` takes, and none for a block that `serve()` serves alone ([Which plugins a board has](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#which-plugins-a-board-has)) |
 | `frontend` | what the app's frontend reads of the arguments that `serve()` hands it, as the method of `frontend_args()` for the frontend's class returns it, by name, as `{ "title": "Trials" }`, which the client passes to the `render()` of the frontend's module in `args`, with `{}` for core's basic frontend, which takes none, and for a block that `serve()` serves alone ([The frontend](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#the-frontend)) |
@@ -196,7 +196,7 @@ The reply's `conditions` hold only what R raised, each with the severity of its 
 | `expr` | the class's `expr`, which builds the block expression, and interpolation |
 | `block_eval` | `block_eval()`, which runs the block expression |
 | `result_summary` | `result_summary()`, which describes the result |
-| `output` | the coercion that makes an output, in the reply to an `output` |
+| `output` | the output family that makes an output, in the reply to an `output` |
 | `request` | the request's function, in the reply to a `request` |
 
 A reply carries every condition raised, and no tracebacks, which R writes to its log only with debug logging on. The conditions of an evaluation's reply replace those of the block's earlier reply, as the Language Server Protocol replaces diagnostics ([LSP](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics)).
@@ -258,7 +258,7 @@ What R runs for the client comes in these flavors, which differ in who defines a
 |---|---|---|---|---|
 | Evaluation | The block's class, through its `expr` and `block_eval()` | The scheduler, for demand and one-time evaluations | Its reply sets the block's status, and R keeps the result | No |
 | Evaluation with parameters | A `block_eval()` method of the block's class, such as the write block's | A one-time evaluation with parameters, such as a save button's | No, it runs once per call | Yes |
-| Output | The coercion of the output class that the block's class names | Core, for whatever draws the output | The last output, by revision, board options, `info` and parameters | No |
+| Output | The output family that the block's class names | Core, for whatever draws the output | The last output, by revision, board options, `info` and parameters | No |
 | Output class's request | The output class, through the method of `output_requests()` that the package that defines it gives | A renderer of the class, through its output host | Its answer, by block, revision, name, args, board options and parameters | No |
 | Renderer's request | A renderer of the output class, as the package that offers it makes it | That renderer, through its output host | Its answer, by renderer, block, revision, name, args, board options and parameters | No |
 | Block class's request | The class's `requests` | The block's UI, through its host | Its answer, by registry id, name, args, board options and the revisions read | No |
@@ -274,7 +274,7 @@ No request times out, since no reply is lost on a live connection and giving up 
 
 ## Outputs
 
-An `output` asks for the output that the output family its block's class names in `output`, a coercion, makes from the block's result at a revision, which R knows by the registry id it keeps with the result ([Outputs](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#outputs)):
+An `output` asks for the output that the output family its block's class names in `output` makes from the block's result at a revision, which R knows by the registry id it keeps with the result ([Outputs](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.5#outputs)):
 
 | Property | Holds |
 |---|---|
@@ -283,15 +283,14 @@ An `output` asks for the output that the output family its block's class names i
 | `info` | what the client measured for the output's element: `width` and `height` in CSS pixels, `pixel_ratio`, the colours `bg`, `fg` and `accent`, and `font` |
 | `params` | the output's parameters, which its renderer keeps, such as a table's `{ "page": 2, "sort": { "column": "x" } }`, in the shape that the output class's contract gives |
 
-R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, as the method of `as_renderer()` for the most specific class in the output's class vector that has one gives it, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client loads the first time an output names it and mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other properties its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. A coercion that fails makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
-An `ok` reply carries `conditions` as well: every message and warning that the coercion raised, with the phase `output`.
+R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, that of the family whose class the output has, among the block class's output family and the families that it hands its results to, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other properties its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. An output family that fails, or that makes an output of a class that none of those families draws, makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
+An `ok` reply carries `conditions` as well: every message and warning that the output family raised, with the phase `output`.
 
-A block class's entry in the block registry names, in `output_options`, the board options that the output family the class names reads, by ID, as the family holds their constructors.
-The client puts them on the board before it asks for a block's first output, and every output request carries their values, so that the family's coercion gets the board options it reads, such as the `n_rows` by which a table output pages, on a fresh board too.
-R also names a renderer before any output exists: in the `renderer` of the entry, the renderer that the output family gives, through the method of `as_renderer()` for the family's class, so that the page loads it early.
-The client loads that renderer, and adds the board options it names to the board, before it asks for a block's first output, so that the request carries those too.
-Where the output that comes back names another renderer, as an output of a subclass with a renderer of its own does, the client draws the output with that one, and asks again where it names board options that the request did not carry.
-An entry has no `renderer` where R knows no renderer for the class's output family, and the client then asks with the board options in `output_options` alone and learns the renderer from the block's first output.
+A block class's entry in the block registry names, in `output_options`, the board options that the output family the class names reads, by ID, with those of each family that it hands its results to, as the families hold their constructors.
+The client puts them on the board before it asks for a block's first output, and every output request carries their values, so that the family gets the board options it reads, such as the `n_rows` by which a table output pages, on a fresh board too.
+The entry names, in `renderers`, the renderer of each of those families that makes outputs of its own class: the one that the deployment names for the family in the blockr option `renderers`, or else the family's own.
+The client loads them all, and adds the board options they name to the board, before it asks for a block's first output, so that the request carries those too, and the page loads those of the opening board's blocks as it starts.
+Each output names the one that draws it, and where it names another, as an older R may, the client loads that one too and asks again where it names board options that the request did not carry.
 
 The contracts of core's output classes, for tables, text and plots, are their TypeScript types in [`srcts/types/outputs.ts`](../../srcts/types/outputs.ts). The build generates the JSON Schema of each class's outputs from its type, into [`inst/outputs`](../outputs/), and R writes the outputs by it. Sample outputs of each class, which every renderer of the class is tested on, are in [`inst/outputs/fixtures`](../outputs/fixtures/).
 
@@ -438,7 +437,7 @@ Each file in [`fixtures/`](fixtures/) holds a message that the client sends, in 
 | [`request-renderer`](fixtures/request-renderer.json) | a renderer's own request |
 | [`output`](fixtures/output.json) | a table output |
 | [`output-plot`](fixtures/output-plot.json) | a plot output with its PNG |
-| [`output-warning`](fixtures/output-warning.json) | an output whose coercion warns |
+| [`output-warning`](fixtures/output-warning.json) | an output whose output family warns |
 | [`output-error`](fixtures/output-error.json) | an output that fails |
 | [`cancel`](fixtures/cancel.json) | cancelling a request |
 | [`forget`](fixtures/forget.json) | forgetting blocks |

@@ -34,7 +34,7 @@ test_that("a glue block refers to its inputs by their links' names", {
     )
   )
   expect_identical(as.character(res[["result"]]), "6 and 150 rows")
-  expect_identical(as_text_output(res[["result"]])[["text"]], "6 and 150 rows")
+  expect_identical(text_output(res[["result"]])[["text"]], "6 and 150 rows")
 
   res <- evaluate_block(glue_block, list(text = "{nrow(data)} rows"),
                         list(... = list("a", data = "b")),

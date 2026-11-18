@@ -12,7 +12,7 @@ test_that("a block class holds its properties", {
   expect_identical(class_inputs(merge_class), c("x", "y"))
   expect_identical(class_inputs(rbind_class), "...")
 
-  expect_identical(head_class$output, as_text_output)
+  expect_identical(head_class$output, text_output)
   expect_identical(head_class$version, 1L)
 
   lst <- new_block_class("lst_block", inputs = alist(x = , y = ),

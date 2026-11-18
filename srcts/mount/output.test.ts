@@ -664,7 +664,7 @@ describe("board options", () => {
       block_registry: Object.fromEntries(
         Object.entries(bare.block_registry).map(([id, entry]) => [
           id,
-          { ...entry, output_options: ["zoom"], renderer: TEXT },
+          { ...entry, output_options: ["zoom"], renderers: [TEXT] },
         ]),
       ),
     };
@@ -689,7 +689,7 @@ describe("board options", () => {
       block_registry: Object.fromEntries(
         Object.entries(bare.block_registry).map(([id, entry]) => [
           id,
-          { ...entry, output_options: ["nowhere"], renderer: TEXT },
+          { ...entry, output_options: ["nowhere"], renderers: [TEXT] },
         ]),
       ),
     };
@@ -802,6 +802,28 @@ describe("the renderer", () => {
     expect(lastOutput(s.r).options).toEqual({ n_rows: 50, zoom: 1 });
   });
 
+  test("that the entry names, one for each family, all load before the first output, which goes with all their board options", async () => {
+    const table = renderer(["n_rows"]);
+    const preview = renderer(["zoom"]);
+    const both: HelloReply = {
+      ...bare,
+      block_registry: Object.fromEntries(
+        Object.entries(bare.block_registry).map(([id, entry]) => [id, { ...entry, renderers: [TABLE, PREVIEW] }]),
+      ),
+    };
+    const s = await setup({ [TABLE.module]: table.exports, [PREVIEW.module]: preview.exports }, { reply: both });
+    await ready(s);
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, zoom: 1 });
+
+    replyTable(s.r, lastOutput(s.r), 150, PREVIEW);
+    await tick();
+    expect(preview.mounts).toHaveLength(1);
+    expect(table.mounts).toHaveLength(0);
+    // The output was asked with what the renderer that draws it reads, so
+    // nothing more is asked.
+    expect(outputs(s.r)).toHaveLength(1);
+  });
+
   test("is learned from the first output where the entry names none, which goes with the board options of the class's outputs", async () => {
     const text = renderer([]);
     const plain: HelloReply = {
@@ -810,7 +832,7 @@ describe("the renderer", () => {
       block_registry: Object.fromEntries(
         Object.entries(bare.block_registry).map(([id, entry]) => [
           id,
-          Object.fromEntries(Object.entries(entry).filter(([key]) => key !== "renderer")) as unknown as RegistryEntry,
+          Object.fromEntries(Object.entries(entry).filter(([key]) => key !== "renderers")) as unknown as RegistryEntry,
         ]),
       ),
     };

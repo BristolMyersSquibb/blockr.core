@@ -1,6 +1,6 @@
 # What R tells the client about the app's packages, in its reply to `hello`,
 # for neither side to edit: the entries of the app's block registry,
-# `registry`, each with the renderer of its class's outputs, where R serves the
+# `registry`, each with the renderers of its class's outputs, where R serves the
 # modules that the available packages offer each other, `modules`, as
 # `offered_modules()` gives them, the app's plugins, `plugins`, each under the
 # ID of its class with the class's name and version, and where R serves the
@@ -25,13 +25,14 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
   entries <- registry_entries(registry)
   renderers <- option_renderers()
 
-  drawn <- lapply(entries, entry_renderer)
+  drawn <- lapply(entries, entry_renderers)
 
   # The packages that the reply's parts come from, whose versions it names
   sources <- c(
     unlst(
       lapply(
-        list(entries, modules, options, renderers, drawn),
+        list(entries, modules, options, renderers,
+             unlist(drawn, recursive = FALSE, use.names = FALSE)),
         lst_xtr,
         "package"
       ),
@@ -70,12 +71,12 @@ package_versions <- function(packages) {
 # read off a class that stays in R. Those are its data inputs, where R serves
 # its UI module, the schema of its state that the module ships, the state a
 # new block starts with, its arg specs, its requests, the board options that
-# its output family reads and the renderer of its outputs, `renderer` from
-# `entry_renderer()`, where R knows one. A class whose
+# its output family reads and the renderers of its outputs, `renderers` from
+# `entry_renderers()`. A class whose
 # module ships no schema has the empty schema, which allows any state, and its
 # state is written bare, so that its module takes a value of length one in
 # either form.
-registry_entry_reply <- function(x, renderer = NULL) {
+registry_entry_reply <- function(x, renderers = entry_renderers(x)) {
 
   what <- paste("Block class", x[["block_class"]][["id"]])
 
@@ -108,27 +109,19 @@ registry_entry_reply <- function(x, renderer = NULL) {
         lapply(x[["arguments"]], arg_spec_reply, what)
       ),
       requests = as_json_object(lapply(x[["requests"]], request_entry_reply)),
-      output_options = I(family_option_ids(x[["block_class"]][["output"]]))
-    ),
-    if (not_null(renderer)) list(renderer = output_renderer_reply(renderer))
+      output_options = I(family_option_ids(x[["block_class"]][["output"]])),
+      renderers = I(lapply(unname(renderers), output_renderer_reply))
+    )
   )
 }
 
-# The renderer of a block class's outputs, which R names in the class's entry
-# of the block registry, so that the page loads it early, and the client adds
-# the board options that it names to the board before it asks for a block's
-# first output: the renderer that the output family that the block class names
-# gives through its method of `as_renderer()`.
-# It is `NULL` where R knows no renderer for that family, so that the client
-# learns the renderer from the first output, and R reports its error there.
-entry_renderer <- function(x) {
-
-  family <- x[["block_class"]][["output"]]
-
-  tryCatch(
-    validate_renderer(as_renderer(family), family),
-    output_renderer_missing = function(e) NULL
-  )
+# The renderers that draw a block class's outputs, which R names in the
+# class's entry of the block registry, so that the client loads them, and adds
+# the board options that they name to the board, before it asks for a block's
+# first output: those of the output family that the class names, and of the
+# families that it hands its results to.
+entry_renderers <- function(x) {
+  unname(family_renderers(x[["block_class"]][["output"]]))
 }
 
 # The state a new block of a class starts with, as R writes a block's state, by

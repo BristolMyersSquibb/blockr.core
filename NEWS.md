@@ -63,29 +63,28 @@
   controlled args, while `export_code()` assigns each block expression to its
   block id in the order it is given, needing no board (#421).
 * Outputs show a block's result in the client. The output family that a
-  block class names in `output`, a coercion that `new_output_family()` gives
-  a class of its own, makes an output from a result, and R sends the
+  block class names in `output`, a generic that `new_output_family()` gives
+  a class of its own, makes an output from a result, of whatever data model, and R sends the
   output as JSON, so nothing assumes a table.
-  The family holds the constructors of the board options that its coercion reads, as `as_table_output` holds `new_n_rows_option`, and R names their IDs in the entry of each block class that names the family, so that the client sends their values with every output request.
-  A coercion that wraps another family's joins that family by taking it in `family`, and so reads its board options and draws with its renderer, and `new_output_family()` refuses the class of such a family in `class`.
+  A family holds the constructors of the board options that it reads, as `table_output` holds `new_n_rows_option`, and the renderer that draws its outputs, and R reads both from the family as its package defines it now, so that a block class built against an older version of that package reads the current ones.
+  A family that hands its results to other families, as a wrapper does, names them in `families`, reads their board options too, and has each of its outputs drawn by the renderer of the family whose class the output has, and `new_output_family()` refuses a class that another family has.
   The class vector of an output
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a
   file. The package that defines an output class gives what R needs of it
-  through its methods of three generics, so that a subclass has what its class
+  through its methods of two generics, so that a subclass has what its class
   has unless it gives its own: `output_schema()` gives the JSON Schema that R
   writes the outputs by, which `read_json_schema()` reads from a file that the
-  package ships, `output_requests()` the requests that the class's renderers
-  call, and `as_renderer()` the renderer that draws the outputs, which a
-  method for the output family gives before any output exists. The function
+  package ships, and `output_requests()` the requests that the class's renderers
+  call. The function
   `run_output_class_request()`
   runs such a request as R does (#422, #440, #465, #685).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table, with the page it shows and how many rows a page holds, by which a renderer draws its pager. Its
-  coercion `as_table_output()` pages a data frame by the board option
+  family `table_output()` pages a data frame by the board option
   `n_rows` and sorts it by the renderer's parameters. A text output holds what
-  `print()` shows, and `as_text_output()` shows the results of a block class
-  without an `output`. A plot output holds a PNG, which `as_plot_output()`
+  `print()` shows, and `text_output()` shows the results of a block class
+  without an `output`. A plot output holds a PNG, which `plot_output()`
   draws at the size and in the colors that the client gives. A block class
   that draws a base plot captures it with `capture_plot()` in its
   `block_eval()` method, so that a change of theme draws the plot again
@@ -98,22 +97,18 @@
   Core lists its basic frontend, its storage plugin and its Edit board plugin, its board options `n_rows`, `show_conditions` and `dark_mode`, and its inputs for modules written without React, which it offers as `blockr.core-controls`.
   The startup modules go, with `register_startup_module()`, `register_module()` and the order of packages by their NAMESPACE (#424, #504, #560).
 * A renderer, which `new_renderer()` makes, is a module that draws the
-  outputs of an output class or the value of a board option, under the ID
-  `{pkg}-{name}`. The method of `as_renderer()` for an output class gives
-  the renderer that draws its outputs, as core's give
-  `blockr.core-table_output`, `blockr.core-text_output` and
+  outputs of an output family or the value of a board option, under the ID
+  `{pkg}-{name}`. An output family holds the renderer that draws its outputs, as core's
+  hold `blockr.core-table_output`, `blockr.core-text_output` and
   `blockr.core-plot_output`, and R sends it in each output, with where it
   serves the renderer's module.
-  R also names it in the entry of each block class that names the class's
-  output family, as the family's method of `as_renderer()` gives it, so that
-  the page loads the renderer early, and the client adds the board
-  options that it names to the board before it asks for a block's first
+  R also names the renderers of a block class's outputs in its entry, so that the client loads them,
+  and adds the board options that they name to the board, before it asks for a block's first
   output.
-  A renderer names only the board options that it reads itself, since the output family names those that its coercion reads.
+  A renderer names only the board options that it reads itself, since the output family names those that it reads.
   Another package offers a renderer through a
   function that makes it, and an app draws with it by naming it in the blockr
-  option `renderers`, for an output class or a board option, which a method
-  takes with `chosen_renderer()`, so loading a package changes nothing. Such a
+  option `renderers`, for an output family or a board option, which R reads before the family's own renderer, so loading a package changes nothing and no package takes the app's choice away. Such a
   renderer may bring requests of its own, which `run_output_class_request()`
   runs when given the renderer (#425, #440, #465).
 * R builds what it tells the client about the packages it has loaded, in its
@@ -176,7 +171,7 @@
   `board_option_category()`, `board_option_label()`,
   `board_option_transform()`, `board_option_ctor()`, `validate_board_option()`,
   `default_board_options()` and `blockr_app_options()` go, `new_board()` takes
-  no board options by default, and `as_table_output()` pages a data frame by
+  no board options by default, and `table_output()` pages a data frame by
   the `n_rows` that the client sends. Nothing in R reads a board back, since
   the client opens every board itself, so `blockr_deser()` goes, and a file
   of today's stack is converted by a script of its own (#428, #429, #465,
@@ -240,7 +235,7 @@
   Its reply to an output carries those that the option `output` gives beside the output (#654).
 * R answers the client through an evaluator, one per session, which takes the messages of the wire protocol that the Shiny transport carries.
   It keeps the latest result of each block by block id and revision, with the block expression and the registry id, and drops it when the client forgets the block.
-  It evaluates a block from its recipe, makes the block's output with the coercion that its class names, answers requests and reads blockr options.
+  It evaluates a block from its recipe, makes the block's output with the output family that its class names, answers requests and reads blockr options.
   It runs one request at a time, in the order they arrive, and handles a `cancel` or a `forget` between two requests (#430).
 * Every request names its type, one of core's: the requests of block classes, output classes, renderers, board options and plugins.
   No package adds a type of its own, and R replies `error` to a request of any other type.

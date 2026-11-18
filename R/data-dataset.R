@@ -34,7 +34,7 @@ dataset_block <- new_block_class(
   },
   ui = js_module("js/dataset-block.js"),
   requests = list(datasets = list_datasets),
-  output = as_table_output
+  output = table_output
 )
 
 #' Dataset block
@@ -58,7 +58,7 @@ dataset_block <- new_block_class(
 #' `package` defaults to datasets. The block expression names the dataset in its
 #' package, such as `datasets::iris`. The block's UI asks R for the data frames
 #' a package exports through the request `datasets`, which reads the state arg
-#' `package`, and its results show as a table, through [as_table_output()].
+#' `package`, and its results show as a table, through [table_output()].
 #'
 #' @param dataset Selected dataset
 #' @param package Name of an R package containing datasets

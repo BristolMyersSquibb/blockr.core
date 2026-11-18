@@ -505,7 +505,7 @@ protocol_r_values <- function() {
             "error",
             c("simpleError", "error", "condition"),
             paste(
-              "no applicable method for 'as_table_output' applied to an",
+              "no applicable method for 'table_output' applied to an",
               "object of class \"list\""
             ),
             phase = "output"
@@ -717,7 +717,7 @@ proto_registry <- function(...) {
         datasets = proto_request(state_args = "package")
       ),
       output_options = I("n_rows"),
-      renderer = proto_renderer("table")
+      renderers = I(list(proto_renderer("table")))
     ),
     head_block = obj(
       id = "blockr.core-head_block",
@@ -768,7 +768,7 @@ proto_registry <- function(...) {
       ),
       requests = obj(n_max = proto_request("data")),
       output_options = I("n_rows"),
-      renderer = proto_renderer("table")
+      renderers = I(list(proto_renderer("table")))
     ),
     merge_block = obj(
       id = "blockr.core-merge_block",
@@ -810,7 +810,7 @@ proto_registry <- function(...) {
       ),
       requests = obj(shared = proto_request(c("x", "y"))),
       output_options = I("n_rows"),
-      renderer = proto_renderer("table")
+      renderers = I(list(proto_renderer("table")))
     ),
     subset_block = obj(
       id = "blockr.core-subset_block",
@@ -845,7 +845,7 @@ proto_registry <- function(...) {
       ),
       requests = obj(),
       output_options = I("n_rows"),
-      renderer = proto_renderer("table")
+      renderers = I(list(proto_renderer("table")))
     ),
     rbind_block = obj(
       id = "blockr.core-rbind_block",
@@ -868,7 +868,7 @@ proto_registry <- function(...) {
       arguments = obj(),
       requests = obj(),
       output_options = I("n_rows"),
-      renderer = proto_renderer("table")
+      renderers = I(list(proto_renderer("table")))
     ),
     scatter_block = obj(
       id = "blockr.core-scatter_block",
@@ -902,7 +902,7 @@ proto_registry <- function(...) {
       ),
       requests = obj(columns = proto_request("data")),
       output_options = I(character()),
-      renderer = proto_renderer("plot")
+      renderers = I(list(proto_renderer("plot")))
     ),
     upload_block = obj(
       id = "blockr.core-upload_block",
@@ -923,7 +923,7 @@ proto_registry <- function(...) {
       arguments = obj(),
       requests = obj(upload = proto_request(action = TRUE, file = TRUE)),
       output_options = I(character()),
-      renderer = proto_renderer("text")
+      renderers = I(list(proto_renderer("text")))
     )
   )
 
@@ -1148,22 +1148,24 @@ proto_condition <- function(severity, class, message, phase = NULL) {
   res
 }
 
-# The table output of a data frame, as `as_table_output()` makes it with the
+# The table output of a data frame, as `table_output()` makes it with the
 # board option values of the sample board and the parameters given, with the
 # renderer that R picks for table outputs.
 proto_table_output <- function(data, ...) {
   proto_output(
-    as_table_output(data, options = list(n_rows = 50L), params = list(...))
+    table_output(data, options = list(n_rows = 50L), params = list(...))
   )[["output"]]
 }
 
 # An output as R sends it in a reply: its properties, written by the schema of
 # its class, after the renderer that draws it, at the URL that the fixtures
 # give its module, and the body beside it announced.
+# Linting skips the call of core_renderer(), a helper of another file, which
+# lintr does not see.
 proto_output <- function(x) {
 
   parts <- shape_output(x)
-  drawn <- validate_renderer(as_renderer(x), x)
+  drawn <- core_renderer(x) # nolint: object_usage_linter.
   renderer <- obj(
     id = drawn$id,
     module = proto_renderer_urls()[[drawn$module$path]]

@@ -2910,9 +2910,9 @@ function mountOutput(deps, el, block) {
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const outputOptions = entry.output_options ?? [];
-  let renderer = entry.renderer;
-  let ready;
-  let keeping;
+  const expected = /* @__PURE__ */ new Map();
+  const ready = /* @__PURE__ */ new Map();
+  const keeping = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
   let held3;
@@ -2929,7 +2929,7 @@ function mountOutput(deps, el, block) {
   const unboundError = () => new Error(
     deps.replaced.aborted ? `Another board opened, so the host of the output of block "${block}" no longer asks R.` : `Block "${block}" left the board, so the host of its output no longer asks R.`
   );
-  const rendererModule = (renderer2) => sourceModule({ block }, packageFromId(renderer2.id), renderer2.id);
+  const rendererModule = (renderer) => sourceModule({ block }, packageFromId(renderer.id), renderer.id);
   function prepare(given) {
     let loading = preparing.get(given.id);
     if (loading === void 0) {
@@ -2947,16 +2947,18 @@ function mountOutput(deps, el, block) {
     return loading;
   }
   function expect(given) {
-    renderer = given;
-    if (ready?.renderer.id === given.id) return;
+    if (expected.has(given.id)) return;
+    expected.set(given.id, given);
     prepare(given).then(
       (prepared) => {
-        if (ended() || renderer?.id !== prepared.renderer.id) return;
-        ready = prepared;
-        keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, () => {
-          fail(missingOptions(prepared.renderer, prepared.named), prepared.renderer);
-        });
+        if (ended()) return;
+        ready.set(given.id, prepared);
+        keeping.set(
+          given.id,
+          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
+            fail(missingOptions(given, prepared.named), given);
+          })
+        );
         sync();
       },
       (failure) => {
@@ -2969,9 +2971,9 @@ function mountOutput(deps, el, block) {
     return new Error(withoutOptions(`the renderer "${given.id}"`, missing2));
   }
   function named3() {
-    if (renderer === void 0) return outputOptions;
-    if (ready?.renderer.id !== renderer.id) return void 0;
-    return [.../* @__PURE__ */ new Set([...outputOptions, ...ready.named])];
+    const loaded = [...expected.keys()].map((id2) => ready.get(id2));
+    if (loaded.some((prepared) => prepared === void 0)) return void 0;
+    return [.../* @__PURE__ */ new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
   }
   function values2(ids2) {
     const options2 = store.board().options;
@@ -3145,7 +3147,7 @@ function mountOutput(deps, el, block) {
     error = null;
     fit2();
     const named4 = next.output.renderer;
-    if (renderer?.id !== named4.id) expect(named4);
+    expect(named4);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
     if (drawing === void 0) {
       prepare(named4).then(
@@ -3421,7 +3423,7 @@ function mountOutput(deps, el, block) {
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
-    keeping?.stop();
+    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
@@ -3432,7 +3434,7 @@ function mountOutput(deps, el, block) {
     el.replaceChildren();
     wake();
   }
-  if (renderer !== void 0) expect(renderer);
+  for (const given of entry.renderers ?? []) expect(given);
   if (shelf.last !== void 0) take(shelf.last);
   sync();
   return end;
@@ -12142,7 +12144,7 @@ function takesTheme(value2) {
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderer of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -12200,10 +12202,12 @@ var hello_default = {
               }
             },
             output_options: ["n_rows"],
-            renderer: {
-              id: "blockr.core-table_output",
-              module: "blockr.core/basic-table.js?v=b7e2a915"
-            }
+            renderers: [
+              {
+                id: "blockr.core-table_output",
+                module: "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
           },
           "blockr.core-head_block": {
             id: "blockr.core-head_block",
@@ -12245,10 +12249,12 @@ var hello_default = {
               n_max: { inputs: ["data"], state_args: [], options: [] }
             },
             output_options: ["n_rows"],
-            renderer: {
-              id: "blockr.core-table_output",
-              module: "blockr.core/basic-table.js?v=b7e2a915"
-            }
+            renderers: [
+              {
+                id: "blockr.core-table_output",
+                module: "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
           },
           "blockr.core-merge_block": {
             id: "blockr.core-merge_block",
@@ -12300,10 +12306,12 @@ var hello_default = {
               }
             },
             output_options: ["n_rows"],
-            renderer: {
-              id: "blockr.core-table_output",
-              module: "blockr.core/basic-table.js?v=b7e2a915"
-            }
+            renderers: [
+              {
+                id: "blockr.core-table_output",
+                module: "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
           },
           "blockr.core-subset_block": {
             id: "blockr.core-subset_block",
@@ -12346,10 +12354,12 @@ var hello_default = {
             },
             requests: {},
             output_options: ["n_rows"],
-            renderer: {
-              id: "blockr.core-table_output",
-              module: "blockr.core/basic-table.js?v=b7e2a915"
-            }
+            renderers: [
+              {
+                id: "blockr.core-table_output",
+                module: "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
           },
           "blockr.core-rbind_block": {
             id: "blockr.core-rbind_block",
@@ -12377,10 +12387,12 @@ var hello_default = {
             arguments: {},
             requests: {},
             output_options: ["n_rows"],
-            renderer: {
-              id: "blockr.core-table_output",
-              module: "blockr.core/basic-table.js?v=b7e2a915"
-            }
+            renderers: [
+              {
+                id: "blockr.core-table_output",
+                module: "blockr.core/basic-table.js?v=b7e2a915"
+              }
+            ]
           },
           "blockr.core-scatter_block": {
             id: "blockr.core-scatter_block",
@@ -12427,10 +12439,12 @@ var hello_default = {
               }
             },
             output_options: [],
-            renderer: {
-              id: "blockr.core-plot_output",
-              module: "blockr.core/basic-plot.js?v=f19d4a73"
-            }
+            renderers: [
+              {
+                id: "blockr.core-plot_output",
+                module: "blockr.core/basic-plot.js?v=f19d4a73"
+              }
+            ]
           },
           "blockr.core-upload_block": {
             id: "blockr.core-upload_block",
@@ -12459,10 +12473,12 @@ var hello_default = {
               }
             },
             output_options: [],
-            renderer: {
-              id: "blockr.core-text_output",
-              module: "blockr.core/basic-text.js?v=3c8f61d0"
-            }
+            renderers: [
+              {
+                id: "blockr.core-text_output",
+                module: "blockr.core/basic-text.js?v=3c8f61d0"
+              }
+            ]
           }
         },
         modules: {
@@ -12589,7 +12605,7 @@ var hello_default = {
 
 // inst/outputs/fixtures/table-output.json
 var table_output_default = {
-  description: "Sample table outputs, as the method of as_table_output() for data frames makes them, with the renderer that core gives table outputs.",
+  description: "Sample table outputs, as the method of table_output() for data frames makes them, with the renderer that core gives table outputs.",
   outputs: [
     {
       description: "The second page of the first seven rows of iris, at three rows to a page, as the board option n_rows gives.",
@@ -12953,7 +12969,7 @@ var table_output_default = {
 
 // inst/outputs/fixtures/text-output.json
 var text_output_default = {
-  description: "Sample text outputs, as as_text_output() prints a result, at R's width of 80, with the renderer that core gives text outputs.",
+  description: "Sample text outputs, as text_output() prints a result, at R's width of 80, with the renderer that core gives text outputs.",
   outputs: [
     {
       description: "Thirty integers, as print() wraps them at a width of 80.",
@@ -12984,7 +13000,7 @@ var text_output_default = {
 
 // inst/outputs/fixtures/plot-output.json
 var plot_output_default = {
-  description: "Sample plot outputs, as as_plot_output() draws a captured base plot, with the renderer that core gives plot outputs. The PNG of each is the file its body_file names, beside this one.",
+  description: "Sample plot outputs, as plot_output() draws a captured base plot, with the renderer that core gives plot outputs. The PNG of each is the file its body_file names, beside this one.",
   outputs: [
     {
       description: "A scatter plot of iris, drawn at 320 by 200 CSS pixels and a pixel ratio of 2, so that its PNG has 640 by 400 pixels.",
@@ -13195,7 +13211,7 @@ function fixtureR(hello, options) {
     }
   }
   function sample(registryId2) {
-    const renderer = own(hello.block_registry, registryId2)?.renderer;
+    const renderer = own(hello.block_registry, registryId2)?.renderers?.[0];
     const samples = renderer === void 0 ? void 0 : own(SAMPLES, renderer.id);
     const first = samples?.outputs[0];
     if (renderer === void 0 || first === void 0) return void 0;

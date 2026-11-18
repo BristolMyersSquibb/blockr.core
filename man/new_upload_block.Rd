@@ -49,7 +49,7 @@ its path, which the UI sets as the block's state arg \code{file_path}. That arg
 has no default, so a new block is \code{invalid} until a file is uploaded, and
 the block expression is the path, as
 \code{file.path("/tmp/Rtmp/uploads/3f9a2c/sales.csv")}. Its results show as
-text, through \code{\link[=as_text_output]{as_text_output()}}.
+text, through \code{\link[=text_output]{text_output()}}.
 }
 
 \section{Upload directory}{

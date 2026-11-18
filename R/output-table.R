@@ -2,16 +2,15 @@
 #'
 #' A table output shows a table: its columns, the rows of one page, the total
 #' row count, which page it shows and how many rows a page holds.
-#' The constructor `new_table_output()` makes one, and the
-#' coercion `as_table_output()` makes one from a result, by the result's class.
-#' It is the output family of table outputs, which a block class names in its
-#' `output` property (see [new_output_family()]).
+#' The constructor `new_table_output()` makes one, and the output family
+#' `table_output()` makes one from a result, by the result's class, which a
+#' block class names in its `output` property (see [new_output_family()]).
 #' Its method for data frames pages and sorts the result. A package that knows
 #' another kind of table, such as a lazy table that it pages in a database,
 #' adds a method that returns a table output. Every renderer of table outputs
 #' then draws it.
 #'
-#' A coercion takes the result and what the renderer asks with: the board
+#' The family takes the result and what the renderer asks with: the board
 #' option values in `options`, what the client measured for the output's
 #' element in `info`, and the output's parameters in `params`. The method for
 #' data frames reads three parameters. It shows page `params$page`, the first
@@ -34,7 +33,7 @@
 #' [result_summary()] gives it, such as `<lm>` or `<data.frame> [3 × 2]`. So
 #' the table stays flat, whatever a list-column or a matrix or data frame
 #' column holds.
-#' A `result_summary()` method that returns no string makes the coercion fail.
+#' A `result_summary()` method that returns no string makes the family fail.
 #' Values of other classes go to the writer as they are, which
 #' writes a time in UTC and fails on a complex number. Each column keeps its
 #' name and its first class. Row names are dropped, as tibble drops them. A
@@ -44,7 +43,7 @@
 #' run its whole query. A renderer then shows no page count, and a page with
 #' fewer rows than a page holds is the last.
 #'
-#' @include output-class.R board-option.R
+#' @include output-class.R output-renderer.R block-class.R board-option.R
 #' @param columns The table's columns: a data frame with the character columns
 #'   `name` and `class`
 #' @param rows One page of the table's rows, as a data frame with a column for
@@ -68,7 +67,7 @@
 #'   total = 10L
 #' )
 #'
-#' out <- as_table_output(
+#' out <- table_output(
 #'   datasets::iris,
 #'   options = list(n_rows = 5L),
 #'   params = list(page = 2L, sort = list(column = "Sepal.Length"))
@@ -77,7 +76,7 @@
 #' out$total
 #' out$rows
 #'
-#' @return Both `new_table_output()` and `as_table_output()` return an object
+#' @return Both `new_table_output()` and `table_output()` return an object
 #' of class `table_output`.
 #'
 #' @export
@@ -148,18 +147,19 @@ is_unknown <- function(x) {
 
 #' @rdname new_table_output
 #' @export
-as_table_output <- new_output_family(
+table_output <- new_output_family(
   function(result, options = list(), info = list(), params = list(), ...) {
-    UseMethod("as_table_output")
+    UseMethod("table_output")
   },
-  class = "table_output_family",
-  options = new_n_rows_option
+  "table_output",
+  options = new_n_rows_option,
+  renderer = new_renderer("table_output", js_module("js/basic-table.js"))
 )
 
 #' @rdname new_table_output
 #' @export
-as_table_output.data.frame <- function(result, options = list(),
-                                       info = list(), params = list(), ...) {
+table_output.data.frame <- function(result, options = list(),
+                                    info = list(), params = list(), ...) {
 
   size <- coal(params[["page_size"]], options[["n_rows"]], fail_all = FALSE)
 
@@ -276,17 +276,4 @@ table_cell <- function(x) {
 #' @export
 output_schema.table_output <- function(x, ...) {
   read_json_schema("outputs/table-output.schema.json")
-}
-
-#' @export
-as_renderer.table_output_family <- function(x, ...) {
-  chosen_renderer(
-    "table_output",
-    new_renderer("table_output", js_module("js/basic-table.js"))
-  )
-}
-
-#' @export
-as_renderer.table_output <- function(x, ...) {
-  as_renderer(as_table_output)
 }

@@ -4,77 +4,88 @@
 \alias{new_output_family}
 \title{Output families}
 \usage{
-new_output_family(fun, class = NULL, options = NULL, family = NULL)
+new_output_family(fun, class, options = NULL, renderer = NULL, families = NULL)
 }
 \arguments{
-\item{fun}{The coercion, a function that makes an output from the result,
-with the board option values, the \code{info} and the parameters that the
-output was asked with, as \code{options}, \code{info} and \code{params}}
+\item{fun}{The function that makes an output from the result, with the
+board option values, the \code{info} and the parameters that the output was
+asked with, as \code{options}, \code{info} and \code{params}}
 
-\item{class}{The class of a family of its own, such as
-\code{"table_output_family"}}
+\item{class}{The family's class, such as \code{"table_output"}, which no other
+family has}
 
-\item{options}{The constructors of the board options that \code{fun} reads, a
-function such as \code{new_n_rows_option} or a list of them}
+\item{options}{The constructors of the board options that \code{fun} itself
+reads, a function such as \code{new_n_rows_option} or a list of them}
 
-\item{family}{The output family whose coercion \code{fun} wraps, which \code{fun}
-joins, in place of \code{class}}
+\item{renderer}{The renderer of the outputs of class \code{class} that \code{fun}
+makes, made by \code{\link[=new_renderer]{new_renderer()}}}
+
+\item{families}{The families that \code{fun} hands its results to, a family or
+a list of them}
 }
 \value{
-The function \code{fun}, of class \code{class}, or of the class of \code{family},
-followed by \code{output_family} and \code{function}.
+The function \code{fun}, of class \code{class}, \code{output_family} and
+\code{function}.
 }
 \description{
-An output family is the coercion that makes the outputs of an output class
-from a block's result, such as \code{\link[=as_table_output]{as_table_output()}} for table outputs, as a
-function with a class of its own.
+An output family makes the outputs of a block class from its results, of
+whatever data model: a function with a class of its own, which gets a result
+into the shape of an output class, as \code{\link[=table_output]{table_output()}} makes table outputs
+from data frames and from any other table that a package gives it a method
+for.
 A block class names the family of its outputs in its \code{output} property (see
 \code{\link[=new_block_class]{new_block_class()}}), and R calls the family on a block's result to make an
 output.
 }
 \details{
-A family holds the constructors of the board options that its coercion
-reads, as a request that \code{\link[=new_block_request]{new_block_request()}} makes holds those that the
-request reads, so that the table family holds \code{\link[=new_n_rows_option]{new_n_rows_option()}}, by
-which it pages a data frame.
-R names their IDs in the entry of each block class that names the family,
-in the block registry, and the client puts them on the board and sends
-their values with every output request, the first one included.
-A renderer then names only the board options that it reads itself.
-The family's class lets R ask the family itself for the renderer of its
-outputs, through S3 dispatch of \code{\link[=as_renderer]{as_renderer()}}, before R has made any
-output, and R names that renderer in the entry as well, so that the page
-loads it early.
+A family holds what R needs of it before any output exists: the
+constructors of the board options that it reads, as a request that
+\code{\link[=new_block_request]{new_block_request()}} makes holds those that the request reads, and the
+renderer that draws its outputs (see \code{\link[=new_renderer]{new_renderer()}}).
+R names both in the entry of each block class that names the family, in the
+block registry, so that the client loads the renderer and puts the board
+options on the board before it asks for a block's first output, and sends
+their values with every output request.
+A deployment draws a family's outputs with another renderer by naming it in
+the blockr option \code{renderers} under the family's class, as
+\code{options(blockr.renderers = list(table_output = blockr.ui::table_preview()))}
+does (see \code{\link[=blockr_option]{blockr_option()}}).
+R reads what a family holds from the family as its package defines it now:
+the one bound under the name of its class where its function was defined.
+So a block class of a package that was built against an older version of
+the family's package reads the family's current board options and renderer.
 
 The function \code{new_output_family()} makes a family of a function, by giving
-it the class \code{class}, followed by \code{output_family} and \code{function}, and the
-board option constructors \code{options}.
-The package that defines an output class gives the family a class of its
-own, such as \code{table_output_family}, and a method of \code{as_renderer()} for it.
+it the class \code{class}, followed by \code{output_family} and \code{function}, and what
+it holds.
+A family that makes outputs of an output class of its own takes that class's
+name as its class, as \code{table_output} does, gives their renderer in
+\code{renderer}, and is bound under that name.
+A family that hands its results to other families, as one that shows a
+model as a table of its coefficients hands its table to \code{table_output},
+names them in \code{families}.
+It then reads their board options too, beside any that it names in
+\code{options}, and each of its outputs is drawn by the renderer of the family
+whose class the output has.
+A family may do both, and an output of a class that neither the family nor
+a family that it names draws is an error.
 A family that is a generic stays one, since S3 registers its methods and
 dispatches on the result as it does for any generic.
-A function that wraps the coercion of another family joins that family by
-taking it as \code{family}, in place of \code{class}.
-It then has the family's class, and so draws with its renderer, and reads
-the family's board options, beside any of its own in \code{options}.
-The class of a family whose package gives its renderer is refused as
-\code{class}, since a family that took it would read none of those board
-options.
-It also holds the family, so that the family's package loads wherever the
-function does, as where an app runs in a process of its own.
 }
 \examples{
-class(as_table_output)
-as_renderer(as_table_output)
+class(table_output)
 
-# A coercion that wraps the table family's joins the family
-as_head_output <- new_output_family(
-  function(result, ...) as_table_output(utils::head(result), ...),
-  family = as_table_output
+# A family that shows a linear model as a table of its coefficients, drawn
+# as table_output draws its tables
+coef_output <- new_output_family(
+  function(result, ...) {
+    table_output(as.data.frame(stats::coef(summary(result))), ...)
+  },
+  "coef_output",
+  families = table_output
 )
 
-identical(class(as_head_output), class(as_table_output))
-as_renderer(as_head_output)
-as_head_output(datasets::iris, options = list(n_rows = 3L))$total
+fit <- stats::lm(Sepal.Length ~ Sepal.Width, datasets::iris)
+coef_output(fit, options = list(n_rows = 5L))$total
 
 }

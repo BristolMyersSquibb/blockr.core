@@ -46,7 +46,7 @@ Its state args \code{x} and \code{y} have no defaults, so a new block leaves the
 unset and is \code{invalid} until something sets both. Its UI asks R for the
 input's columns through the request \code{columns}. The block's \code{\link[=block_eval]{block_eval()}}
 method runs the block expression with \code{\link[=capture_plot]{capture_plot()}}, so that its result
-is the plot it draws, which shows through \code{\link[=as_plot_output]{as_plot_output()}}.
+is the plot it draws, which shows through \code{\link[=plot_output]{plot_output()}}.
 }
 
 \examples{
@@ -56,6 +56,6 @@ res <- evaluate_block(scatter_block, list(x = "Time", y = "demand"),
                       list(data = "a"), list(a = datasets::BOD))
 res
 
-as_plot_output(res$result, info = list(width = 320, height = 240))
+plot_output(res$result, info = list(width = 320, height = 240))
 
 }

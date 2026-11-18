@@ -52,7 +52,7 @@ The block's data inputs \code{x} and \code{y} are checked to be data frames. Its
 arg \code{by} has no default, so a new block leaves it unset and is \code{invalid}
 until something sets it, as it is when \code{by} names no column. Its UI asks R
 for the columns its inputs share through the request \code{shared}, and its
-results show as a table, through \code{\link[=as_table_output]{as_table_output()}}.
+results show as a table, through \code{\link[=table_output]{table_output()}}.
 }
 
 \examples{

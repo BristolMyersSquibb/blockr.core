@@ -1,4 +1,4 @@
-#' @include block-class.R
+#' @include block-class.R output-text.R
 NULL
 
 # The directory where R keeps uploaded files. By default it is in the session's
@@ -88,7 +88,7 @@ upload_block <- new_block_class(
 #' has no default, so a new block is `invalid` until a file is uploaded, and
 #' the block expression is the path, as
 #' `file.path("/tmp/Rtmp/uploads/3f9a2c/sales.csv")`. Its results show as
-#' text, through [as_text_output()].
+#' text, through [text_output()].
 #'
 #' @section Upload directory:
 #' The folders go in the session's temporary directory, which R removes with

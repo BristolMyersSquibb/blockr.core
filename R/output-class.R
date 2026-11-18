@@ -11,9 +11,9 @@
 #' `block_output`. The package that defines an output class gives it two
 #' functions. A constructor makes an output of the class and checks its
 #' properties.
-#' A coercion is a generic that makes an output from a result, by the
-#' result's class.
-#' It is the output family of the class's outputs.
+#' An output family is a generic that makes an output from a result, by the
+#' result's class, under the name of the output class, as `table_output()`
+#' makes table outputs (see [new_output_family()]).
 #' Core defines three output classes, for tables, text and
 #' plots (see [new_table_output()], [new_text_output()] and
 #' [new_plot_output()]). Their constructors build on `new_block_output()`.
@@ -25,9 +25,9 @@
 #' from a raw vector or from a file's path. It takes the body's MIME type and,
 #' for a download, a file name.
 #'
-#' The package that defines an output class gives R what it needs of the
-#' class, its JSON Schema, its requests and its renderer, through its methods
-#' of three generics (see [output_schema()]).
+#' The package that defines an output class gives R its JSON Schema and its
+#' requests through its methods of two generics (see [output_schema()]), and
+#' the renderer of its outputs through the output family that makes them.
 #'
 #' @include utils-assertions.R utils-cnd.R utils-ply.R
 #' @param x For `new_block_output()`, the output's properties, as a named list,
@@ -213,78 +213,105 @@ print.reply_body <- function(x, ...) {
 
 #' Output families
 #'
-#' An output family is the coercion that makes the outputs of an output class
-#' from a block's result, such as [as_table_output()] for table outputs, as a
-#' function with a class of its own.
+#' An output family makes the outputs of a block class from its results, of
+#' whatever data model: a function with a class of its own, which gets a result
+#' into the shape of an output class, as [table_output()] makes table outputs
+#' from data frames and from any other table that a package gives it a method
+#' for.
 #' A block class names the family of its outputs in its `output` property (see
 #' [new_block_class()]), and R calls the family on a block's result to make an
 #' output.
 #'
-#' A family holds the constructors of the board options that its coercion
-#' reads, as a request that [new_block_request()] makes holds those that the
-#' request reads, so that the table family holds [new_n_rows_option()], by
-#' which it pages a data frame.
-#' R names their IDs in the entry of each block class that names the family,
-#' in the block registry, and the client puts them on the board and sends
-#' their values with every output request, the first one included.
-#' A renderer then names only the board options that it reads itself.
-#' The family's class lets R ask the family itself for the renderer of its
-#' outputs, through S3 dispatch of [as_renderer()], before R has made any
-#' output, and R names that renderer in the entry as well, so that the page
-#' loads it early.
+#' A family holds what R needs of it before any output exists: the
+#' constructors of the board options that it reads, as a request that
+#' [new_block_request()] makes holds those that the request reads, and the
+#' renderer that draws its outputs (see [new_renderer()]).
+#' R names both in the entry of each block class that names the family, in the
+#' block registry, so that the client loads the renderer and puts the board
+#' options on the board before it asks for a block's first output, and sends
+#' their values with every output request.
+#' A deployment draws a family's outputs with another renderer by naming it in
+#' the blockr option `renderers` under the family's class, as
+#' `options(blockr.renderers = list(table_output = blockr.ui::table_preview()))`
+#' does (see [blockr_option()]).
+#' R reads what a family holds from the family as its package defines it now:
+#' the one bound under the name of its class where its function was defined.
+#' So a block class of a package that was built against an older version of
+#' the family's package reads the family's current board options and renderer.
 #'
 #' The function `new_output_family()` makes a family of a function, by giving
-#' it the class `class`, followed by `output_family` and `function`, and the
-#' board option constructors `options`.
-#' The package that defines an output class gives the family a class of its
-#' own, such as `table_output_family`, and a method of `as_renderer()` for it.
+#' it the class `class`, followed by `output_family` and `function`, and what
+#' it holds.
+#' A family that makes outputs of an output class of its own takes that class's
+#' name as its class, as `table_output` does, gives their renderer in
+#' `renderer`, and is bound under that name.
+#' A family that hands its results to other families, as one that shows a
+#' model as a table of its coefficients hands its table to `table_output`,
+#' names them in `families`.
+#' It then reads their board options too, beside any that it names in
+#' `options`, and each of its outputs is drawn by the renderer of the family
+#' whose class the output has.
+#' A family may do both, and an output of a class that neither the family nor
+#' a family that it names draws is an error.
 #' A family that is a generic stays one, since S3 registers its methods and
 #' dispatches on the result as it does for any generic.
-#' A function that wraps the coercion of another family joins that family by
-#' taking it as `family`, in place of `class`.
-#' It then has the family's class, and so draws with its renderer, and reads
-#' the family's board options, beside any of its own in `options`.
-#' The class of a family whose package gives its renderer is refused as
-#' `class`, since a family that took it would read none of those board
-#' options.
-#' It also holds the family, so that the family's package loads wherever the
-#' function does, as where an app runs in a process of its own.
 #'
-#' @param fun The coercion, a function that makes an output from the result,
-#'   with the board option values, the `info` and the parameters that the
-#'   output was asked with, as `options`, `info` and `params`
-#' @param class The class of a family of its own, such as
-#'   `"table_output_family"`
-#' @param options The constructors of the board options that `fun` reads, a
-#'   function such as `new_n_rows_option` or a list of them
-#' @param family The output family whose coercion `fun` wraps, which `fun`
-#'   joins, in place of `class`
+#' @param fun The function that makes an output from the result, with the
+#'   board option values, the `info` and the parameters that the output was
+#'   asked with, as `options`, `info` and `params`
+#' @param class The family's class, such as `"table_output"`, which no other
+#'   family has
+#' @param options The constructors of the board options that `fun` itself
+#'   reads, a function such as `new_n_rows_option` or a list of them
+#' @param renderer The renderer of the outputs of class `class` that `fun`
+#'   makes, made by [new_renderer()]
+#' @param families The families that `fun` hands its results to, a family or
+#'   a list of them
 #'
 #' @examples
-#' class(as_table_output)
-#' as_renderer(as_table_output)
+#' class(table_output)
 #'
-#' # A coercion that wraps the table family's joins the family
-#' as_head_output <- new_output_family(
-#'   function(result, ...) as_table_output(utils::head(result), ...),
-#'   family = as_table_output
+#' # A family that shows a linear model as a table of its coefficients, drawn
+#' # as table_output draws its tables
+#' coef_output <- new_output_family(
+#'   function(result, ...) {
+#'     table_output(as.data.frame(stats::coef(summary(result))), ...)
+#'   },
+#'   "coef_output",
+#'   families = table_output
 #' )
 #'
-#' identical(class(as_head_output), class(as_table_output))
-#' as_renderer(as_head_output)
-#' as_head_output(datasets::iris, options = list(n_rows = 3L))$total
+#' fit <- stats::lm(Sepal.Length ~ Sepal.Width, datasets::iris)
+#' coef_output(fit, options = list(n_rows = 5L))$total
 #'
-#' @return The function `fun`, of class `class`, or of the class of `family`,
-#' followed by `output_family` and `function`.
+#' @return The function `fun`, of class `class`, `output_family` and
+#' `function`.
 #'
 #' @export
-new_output_family <- function(fun, class = NULL, options = NULL,
-                              family = NULL) {
+new_output_family <- function(fun, class, options = NULL, renderer = NULL,
+                              families = NULL) {
 
   if (!is.function(fun)) {
     blockr_abort(
-      "An output family is expected to be a function, the coercion that ",
-      "makes its outputs.",
+      "An output family is expected to be a function, which makes its ",
+      "outputs.",
+      class = "output_family_invalid"
+    )
+  }
+
+  if (!is_nonempty_string(class) ||
+        class %in% c("output_family", "function")) {
+    blockr_abort(
+      "The class of an output family is expected to be a string of its own, ",
+      "such as \"table_output\".",
+      class = "output_family_invalid"
+    )
+  }
+
+  if (is_taken_family_class(class, environment(fun))) {
+    blockr_abort(
+      "Class {class} is that of another output family, which a family that ",
+      "hands it its results names in `families`.",
       class = "output_family_invalid"
     )
   }
@@ -302,44 +329,41 @@ new_output_family <- function(fun, class = NULL, options = NULL,
     )
   }
 
-  if (is.null(family)) {
+  if (!is.null(renderer) &&
+        !(is_renderer(renderer) && is.null(renderer[["option"]]))) {
+    blockr_abort(
+      "The renderer of an output family is expected to be a renderer of ",
+      "outputs, made by `new_renderer()`.",
+      class = "output_family_invalid"
+    )
+  }
 
-    if (!is_nonempty_string(class) ||
-          class %in% c("output_family", "function")) {
-      blockr_abort(
-        "The class of an output family is expected to be a string of its ",
-        "own, such as \"table_output_family\", where it joins no family.",
-        class = "output_family_invalid"
-      )
-    }
+  if (is_output_family(families)) {
+    families <- list(families)
+  }
 
-    if (is_family_class(class)) {
-      blockr_abort(
-        "Class {class} is that of an output family whose package gives its ",
-        "renderer. A coercion joins that family by taking the family as ",
-        "`family`, so that it reads the family's board options too.",
-        class = "output_family_invalid"
-      )
-    }
+  if (!is.null(families) &&
+        !(is.list(families) && all(lgl_ply(families, is_output_family)))) {
+    blockr_abort(
+      "The families that an output family hands its results to are expected ",
+      "to be an output family or a list of them.",
+      class = "output_family_invalid"
+    )
+  }
 
-  } else {
-
-    if (!is_output_family(family) || !is.null(class)) {
-      blockr_abort(
-        "An output family joins another by taking it as `family`, an output ",
-        "family such as `as_table_output`, in place of a class of its own.",
-        class = "output_family_invalid"
-      )
-    }
-
-    class <- setdiff(class(family), c("output_family", "function"))
-    options <- c(attr(family, "options"), options)
+  if (is.null(renderer) && !length(families)) {
+    blockr_abort(
+      "An output family gives the renderer of its outputs, or names the ",
+      "families that it hands its results to, or both.",
+      class = "output_family_invalid"
+    )
   }
 
   structure(
     fun,
     options = if (length(options)) unname(options),
-    family = family,
+    renderer = renderer,
+    families = if (length(families)) unname(families),
     class = c(class, "output_family", "function")
   )
 }
@@ -348,18 +372,25 @@ is_output_family <- function(x) {
   is.function(x) && inherits(x, "output_family")
 }
 
-# Whether `class` is the class of an output family whose package has
-# registered a method of `as_renderer()` for it, as a package does once it
-# has defined its families, as it loads. The methods of core's generics are
-# registered in core's namespace, which is still being built where core
-# defines its own families.
-is_family_class <- function(class) {
+# Whether another output family has the class `class`: one bound under that
+# name where `env`, the environment of the new family's function, finds it, or
+# in core, other than one whose function was defined in `env` too, as a script
+# that runs again defines its families anew.
+is_taken_family_class <- function(class, env) {
 
-  ns <- topenv(environment(is_family_class))
-  table <- get0(".__S3MethodsTable__.", envir = ns, inherits = FALSE)
+  if (!is.environment(env)) {
+    env <- globalenv()
+  }
 
-  is.environment(table) &&
-    exists(paste0("as_renderer.", class), envir = table, inherits = FALSE)
+  taken <- function(found) {
+    is_output_family(found) && identical(class(found)[1L], class) &&
+      !identical(environment(found), env)
+  }
+
+  core <- topenv(environment(is_taken_family_class))
+
+  taken(get0(class, envir = env, mode = "function")) ||
+    taken(get0(class, envir = core, mode = "function", inherits = FALSE))
 }
 
 # Whether `x` is a list of board option constructors, each a function that
@@ -373,17 +404,66 @@ is_family_option_ctors <- function(x) {
   )
 }
 
-# The IDs of the board options that an output family reads, as their
-# constructors give them, which R names in the entry of each block class that
-# names the family, in the block registry.
+# The family as its package defines it now: the one bound under the name of
+# its class where its function was defined, or else `x` itself, as where that
+# binding has gone or holds something else.
+current_family <- function(x) {
+
+  env <- environment(x)
+
+  now <- if (is.environment(env)) {
+    get0(class(x)[1L], envir = env, inherits = FALSE)
+  }
+
+  if (is_output_family(now) && identical(class(now)[1L], class(x)[1L])) {
+    return(now)
+  }
+
+  x
+}
+
+# Every family whose outputs `x` makes, by class: `x` and the families that it
+# hands its results to, and theirs, each as its package defines it now and
+# each once.
+reached_families <- function(x) {
+
+  todo <- list(x)
+  found <- list()
+
+  while (length(todo)) {
+
+    family <- current_family(todo[[1L]])
+    todo <- todo[-1L]
+
+    if (class(family)[1L] %in% names(found)) {
+      next
+    }
+
+    found[[class(family)[1L]]] <- family
+    todo <- c(todo, attr(family, "families"))
+  }
+
+  found
+}
+
+# The IDs of the board options that the outputs of `x` read, those of every
+# family that it reaches, as their constructors give them, which R names in
+# the entry of each block class that names `x`, in the block registry.
 family_option_ids <- function(x) {
-  unique(chr_ply(call_option_ctors(attr(x, "options")), board_option_id))
+
+  ctors <- unlist(
+    lapply(reached_families(x), attr, "options"),
+    recursive = FALSE,
+    use.names = FALSE
+  )
+
+  unique(chr_ply(call_option_ctors(ctors), board_option_id))
 }
 
 #' Output classes in R
 #'
 #' The package that defines an output class gives R what it needs of the class
-#' through its methods of three generics, which it registers as it registers
+#' through its methods of two generics, which it registers as it registers
 #' any S3 method, so that S3 dispatch gives a subclass what its class gives,
 #' unless it gives its own.
 #' A method answers by the class alone, whatever the output holds, since R also
@@ -421,20 +501,8 @@ family_option_ids <- function(x) {
 #' The function `run_output_class_request()` runs a request as R does, to test
 #' an output class, or the requests of a renderer, without Shiny.
 #'
-#' The method of `as_renderer()` gives the renderer that draws the class's
-#' outputs (see [as_renderer()]).
-#' The output family of the class, the coercion that makes its outputs, gives
-#' R that renderer through a method of its own, before R has made any output
-#' (see [new_output_family()]).
-#' R names it in the entry of each block class that names the family, in the
-#' block registry.
-#' The client loads that renderer, and adds the board options that it names to
-#' the board, before it asks for a block's first output, so that the board
-#' holds every board option that the coercion reads, such as the `n_rows` of
-#' table outputs.
-#' A subclass that a method of the coercion makes, such as a lazy table's,
-#' gives no method of its own, since each output that R sends names the
-#' renderer that draws it, and the client draws it with that one.
+#' The renderer that draws the class's outputs comes from the output family
+#' that makes them, which a deployment may replace (see [new_output_family()]).
 #'
 #' @param x An output, and for `run_output_class_request()`, an output or its
 #'   class vector
@@ -449,15 +517,16 @@ family_option_ids <- function(x) {
 #'   board option id
 #' @param params The parameters that the output was asked with
 #' @param file A file that the renderer sends, or `NULL`
-#' @param renderer The ID of the renderer whose own request it is, or `NULL`
-#'   for a request of the output class
+#' @param renderer The renderer whose own request it is, made by
+#'   [new_renderer()], or `NULL` for a request of the output class
 #'
 #' @examples
-#' as_words_output <- new_output_family(
+#' words_output <- new_output_family(
 #'   function(result, ...) {
 #'     new_block_output(list(words = as.character(result)), "words_output")
 #'   },
-#'   class = "words_output_family"
+#'   "words_output",
+#'   renderer = new_renderer("words_output", js_module("words.js", NULL))
 #' )
 #'
 #' output_schema.words_output <- function(x, ...) {
@@ -468,7 +537,7 @@ family_option_ids <- function(x) {
 #'   list(count = function(result) length(result))
 #' }
 #'
-#' words <- as_words_output("hello")
+#' words <- words_output("hello")
 #'
 #' output_schema(words)
 #' run_output_class_request(words, "count", result = c("hello", "world"))
@@ -529,17 +598,16 @@ read_json_schema <- function(path, package = pkg_name(parent.frame())) {
   decode_schema(file)
 }
 
-# The function of a request of an output: where the request names a renderer,
-# one of the requests of the renderer that draws the output, which has to be
-# the one named, and otherwise one of the output class's, as its method of
-# `output_requests()` gives them, a subclass's before its class's.
+# The function of a request of an output: where a renderer is given, one of
+# that renderer's own requests, and otherwise one of the output class's, as its
+# method of `output_requests()` gives them, a subclass's before its class's.
 output_class_request <- function(class, name, renderer = NULL) {
 
-  out <- structure(list(), class = unique(c(class, "block_output")))
-
   if (not_null(renderer)) {
-    return(renderer_request(renderer, out, name))
+    return(renderer_request(renderer, name))
   }
+
+  out <- structure(list(), class = unique(c(class, "block_output")))
 
   reqs <- output_requests(out)
 
@@ -589,9 +657,10 @@ output_request_call <- function(x, name, result, args, options, params, file,
     )
   }
 
-  if (not_null(renderer) && !is_string(renderer)) {
+  if (not_null(renderer) && !is_renderer(renderer)) {
     blockr_abort(
-      "The renderer that asks is expected to be named by its ID, a string.",
+      "The renderer whose request it is is expected to be made by ",
+      "`new_renderer()`.",
       class = "output_class_request_unknown"
     )
   }

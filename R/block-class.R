@@ -51,10 +51,10 @@
 #' holds a hash of the file's content. A class further takes a
 #' named list of `requests`, for what its UI asks of R, each a function or made
 #' by [new_block_request()], which names the board options it reads, and the
-#' output family of its outputs, as `output`, such as `as_table_output`, or
-#' else `as_text_output`.
-#' The family is the coercion that makes an output from a result, and gives
-#' the renderer of its outputs (see [new_output_family()]).
+#' output family of its outputs, as `output`, such as `table_output`, or else
+#' `text_output`.
+#' The family makes an output from a result, and holds the board options that
+#' it reads and the renderer of its outputs (see [new_output_family()]).
 #' Any other property that a class leaves out is `NULL`.
 #'
 #' A UI module is an ES module that exports the major of core's JS API
@@ -110,7 +110,7 @@
 #' @param requests Named list of requests, each a function or made by
 #'   [new_block_request()]
 #' @param output Output family of the class's outputs, such as
-#'   [as_table_output()], the coercion that makes an output from a result
+#'   [table_output()], which makes an output from a result
 #' @param version Version of the shape of the class's state, a whole number
 #'   from 1, which a package raises as it changes that shape, so that the
 #'   client migrates the states that a JSON board holds of an older version
@@ -143,7 +143,7 @@
 #' names(blks)
 #'
 #' @include utils-assertions.R utils-cnd.R utils-misc.R utils-ply.R utils-pkg.R
-#' @include utils-expr.R block-expr.R block-request.R output-text.R
+#' @include utils-expr.R block-expr.R block-request.R
 #'
 #' @return The class constructor `new_block_class()` returns an object of class
 #' `block_class` and `block_constructor()` a function of class
@@ -156,7 +156,7 @@
 #'
 #' @export
 new_block_class <- function(id, inputs = NULL, expr, ui, requests = NULL,
-                            output = as_text_output, version = 1L) {
+                            output = text_output, version = 1L) {
 
   package <- pkg_name(parent.frame())
 
@@ -315,7 +315,7 @@ validate_block_class <- function(x) {
   if (!is_output_family(x[["output"]])) {
     blockr_abort(
       "A block class's `output` is expected to be an output family, as ",
-      "`new_output_family()` makes it, such as `as_table_output`.",
+      "`new_output_family()` makes it, such as `table_output`.",
       class = "block_class_output_invalid"
     )
   }

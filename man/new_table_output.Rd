@@ -2,8 +2,8 @@
 % Please edit documentation in R/output-table.R
 \name{new_table_output}
 \alias{new_table_output}
-\alias{as_table_output}
-\alias{as_table_output.data.frame}
+\alias{table_output}
+\alias{table_output.data.frame}
 \title{Table outputs}
 \usage{
 new_table_output(
@@ -16,9 +16,9 @@ new_table_output(
   class = character()
 )
 
-as_table_output(result, options = list(), info = list(), params = list(), ...)
+table_output(result, options = list(), info = list(), params = list(), ...)
 
-\method{as_table_output}{data.frame}(result, options = list(), info = list(), params = list(), ...)
+\method{table_output}{data.frame}(result, options = list(), info = list(), params = list(), ...)
 }
 \arguments{
 \item{columns}{The table's columns: a data frame with the character columns
@@ -48,23 +48,22 @@ adds, and otherwise passed on to methods}
 \item{params}{The output's parameters}
 }
 \value{
-Both \code{new_table_output()} and \code{as_table_output()} return an object
+Both \code{new_table_output()} and \code{table_output()} return an object
 of class \code{table_output}.
 }
 \description{
 A table output shows a table: its columns, the rows of one page, the total
 row count, which page it shows and how many rows a page holds.
-The constructor \code{new_table_output()} makes one, and the
-coercion \code{as_table_output()} makes one from a result, by the result's class.
-It is the output family of table outputs, which a block class names in its
-\code{output} property (see \code{\link[=new_output_family]{new_output_family()}}).
+The constructor \code{new_table_output()} makes one, and the output family
+\code{table_output()} makes one from a result, by the result's class, which a
+block class names in its \code{output} property (see \code{\link[=new_output_family]{new_output_family()}}).
 Its method for data frames pages and sorts the result. A package that knows
 another kind of table, such as a lazy table that it pages in a database,
 adds a method that returns a table output. Every renderer of table outputs
 then draws it.
 }
 \details{
-A coercion takes the result and what the renderer asks with: the board
+The family takes the result and what the renderer asks with: the board
 option values in \code{options}, what the client measured for the output's
 element in \code{info}, and the output's parameters in \code{params}. The method for
 data frames reads three parameters. It shows page \code{params$page}, the first
@@ -87,7 +86,7 @@ hold. A cell that is not a single value shows its summary instead, as
 \code{\link[=result_summary]{result_summary()}} gives it, such as \verb{<lm>} or \verb{<data.frame> [3 × 2]}. So
 the table stays flat, whatever a list-column or a matrix or data frame
 column holds.
-A \code{result_summary()} method that returns no string makes the coercion fail.
+A \code{result_summary()} method that returns no string makes the family fail.
 Values of other classes go to the writer as they are, which
 writes a time in UTC and fails on a complex number. Each column keeps its
 name and its first class. Row names are dropped, as tibble drops them. A
@@ -104,7 +103,7 @@ new_table_output(
   total = 10L
 )
 
-out <- as_table_output(
+out <- table_output(
   datasets::iris,
   options = list(n_rows = 5L),
   params = list(page = 2L, sort = list(column = "Sepal.Length"))

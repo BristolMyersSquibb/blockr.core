@@ -51,7 +51,7 @@ test_that("an entry leaves out the metadata that registration leaves unset", {
     entry,
     c("id", "name", "description", "keywords", "category", "icon", "inputs",
       "module", "version", "schema", "state", "arguments", "requests",
-      "output_options", "renderer")
+      "output_options", "renderers")
   )
   expect_identical(json(entry$keywords), "[]")
 })
@@ -272,58 +272,61 @@ test_that("R gives the version of each board option of the app's packages", {
   )
 })
 
-test_that("an entry names the renderer of its class's outputs", {
+test_that("an entry names the renderers of its class's outputs", {
 
   local_fixture_renderer_urls()
 
   head <- get_registry_entry("blockr.core-head_block")
 
   expect_identical(
-    json(registry_entry_reply(head, entry_renderer(head))$renderer),
+    json(registry_entry_reply(head)$renderers),
     paste0(
-      "{\"id\":\"blockr.core-table_output\",",
-      "\"module\":\"blockr.core/basic-table.js?v=b7e2a915\"}"
+      "[{\"id\":\"blockr.core-table_output\",",
+      "\"module\":\"blockr.core/basic-table.js?v=b7e2a915\"}]"
     )
   )
 
   # A class that names no output family shows its results as text
   upload <- get_registry_entry("blockr.core-upload_block")
 
-  expect_identical(entry_renderer(upload)$id, "blockr.core-text_output")
-
-  # R finds the renderer by dispatch on the output family that the block class
-  # names, and a coercion that wraps another family's joins that family
-  entry <- function(family) list(block_class = list(output = family))
-
-  as_words_output <- new_output_family(
-    function(result, ...) {
-      new_block_output(list(words = result), "words_output")
-    },
-    class = "words_output_family"
+  expect_identical(
+    chr_xtr(entry_renderers(upload), "id"),
+    "blockr.core-text_output"
   )
+
+  # The entry names the renderer of every family whose outputs the class's
+  # family makes
+  entry <- function(family) list(block_class = list(output = family))
 
   words <- new_renderer("words_output", js_module("words.js", package = NULL))
 
-  local_output_class("words_output_family", renderer = words)
-
-  expect_identical(entry_renderer(entry(as_words_output)), words)
-
-  as_head_output <- new_output_family(
-    function(result, ...) as_table_output(utils::head(result), ...),
-    family = as_table_output
+  words_output <- new_output_family(
+    function(result, ...) {
+      if (is.data.frame(result)) {
+        return(table_output(result, ...))
+      }
+      new_block_output(list(words = result), "words_output")
+    },
+    "words_output",
+    renderer = words,
+    families = table_output
   )
 
   expect_identical(
-    entry_renderer(entry(as_head_output))$id,
-    "blockr.core-table_output"
+    chr_xtr(entry_renderers(entry(words_output)), "id"),
+    c("words_output", "blockr.core-table_output")
   )
 
-  # A class whose family has no renderer has none up front, so that the client
-  # learns the renderer from the first output
-  as_pages_output <- new_output_family(identity, "pages_output_family")
+  head_output <- new_output_family(
+    function(result, ...) table_output(utils::head(result), ...),
+    "head_output",
+    families = table_output
+  )
 
-  expect_null(entry_renderer(entry(as_pages_output)))
-  expect_null(registry_entry_reply(head, NULL)$renderer)
+  expect_identical(
+    chr_xtr(entry_renderers(entry(head_output)), "id"),
+    "blockr.core-table_output"
+  )
 })
 
 test_that("an entry names the board options that its class's outputs read", {
@@ -337,28 +340,20 @@ test_that("an entry names the board options that its class's outputs read", {
   )
   expect_identical(json(registry_entry_reply(upload)$output_options), "[]")
 
-  # A family that joins another reads the other's board options, beside its
-  # own, each once
-  as_head_output <- new_output_family(
-    function(result, ...) as_table_output(utils::head(result), ...),
-    family = as_table_output
+  # A family that hands its results to another reads the other's board
+  # options, beside its own, each once
+  head_output <- new_output_family(
+    function(result, ...) table_output(utils::head(result), ...),
+    "head_output",
+    options = list(new_dark_mode_option, new_n_rows_option),
+    families = table_output
   )
 
-  as_themed_output <- new_output_family(
-    function(result, ...) as_head_output(result, ...),
-    family = as_head_output,
-    options = list(new_dark_mode_option, new_n_rows_option)
-  )
-
-  expect_identical(family_option_ids(as_head_output), "n_rows")
-  expect_identical(
-    family_option_ids(as_themed_output),
-    c("n_rows", "dark_mode")
-  )
-  expect_identical(family_option_ids(as_text_output), character())
+  expect_identical(family_option_ids(head_output), c("dark_mode", "n_rows"))
+  expect_identical(family_option_ids(text_output), character())
 })
 
-test_that("the renderer the app names for an output class is in the entry", {
+test_that("the renderer the deployment names for a family is in the entry", {
 
   local_mocked_bindings(
     pkg_version = function(pkg = parent.frame()) package_version("1.0.0")
@@ -375,13 +370,13 @@ test_that("the renderer the app names for an output class is in the entry", {
 
   head <- get_registry_entry("blockr.core-head_block")
 
-  expect_identical(entry_renderer(head), preview)
+  expect_identical(entry_renderers(head), list(preview))
 
   # The reply names the version of the package that the renderer comes from
   reply <- loaded_reply()
 
   expect_identical(
-    reply$block_registry[["blockr.core-head_block"]]$renderer$id,
+    reply$block_registry[["blockr.core-head_block"]]$renderers[[1L]]$id,
     "blockr.ui-preview"
   )
   expect_identical(

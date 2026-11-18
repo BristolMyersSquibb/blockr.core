@@ -2,15 +2,15 @@
 % Please edit documentation in R/output-text.R
 \name{new_text_output}
 \alias{new_text_output}
-\alias{as_text_output}
-\alias{as_text_output.default}
+\alias{text_output}
+\alias{text_output.default}
 \title{Text outputs}
 \usage{
 new_text_output(text, ..., class = character())
 
-as_text_output(result, options = list(), info = list(), params = list(), ...)
+text_output(result, options = list(), info = list(), params = list(), ...)
 
-\method{as_text_output}{default}(result, options = list(), info = list(), params = list(), ...)
+\method{text_output}{default}(result, options = list(), info = list(), params = list(), ...)
 }
 \arguments{
 \item{text}{The text to show, as a string}
@@ -29,21 +29,21 @@ adds, and otherwise passed on to methods}
 \item{params}{The output's parameters}
 }
 \value{
-Both \code{new_text_output()} and \code{as_text_output()} return an object of
+Both \code{new_text_output()} and \code{text_output()} return an object of
 class \code{text_output}.
 }
 \description{
 A text output shows a result as \code{\link[=print]{print()}} shows it, at R's own width, in
 lines that its renderer scrolls. The constructor \code{new_text_output()} makes
-one. The coercion \code{as_text_output()} makes one from a result, by the
-result's class. Its default method prints any result.
-It is the output family of text outputs, which a block class names in its
-\code{output} property unless it names another (see \code{\link[=new_block_class]{new_block_class()}}).
+one. The output family \code{text_output()} makes one from a result, by the
+result's class, and its default method prints any result.
+A block class that names no other family in its \code{output} property shows its
+results through it (see \code{\link[=new_block_class]{new_block_class()}}).
 }
 \examples{
 new_text_output("Hello")
 
-out <- as_text_output(summary(datasets::iris$Sepal.Length))
+out <- text_output(summary(datasets::iris$Sepal.Length))
 cat(out$text)
 
 }

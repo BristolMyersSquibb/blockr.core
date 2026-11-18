@@ -44,7 +44,7 @@ input bare, so the block expression calls a function of \code{data} with the
 upstream block's ID, as
 \code{(function(data) utils::head(data, 3))(data = a)} (see \code{\link[=interpolate]{interpolate()}}).
 Its module draws nothing, and its results show as a table, through
-\code{\link[=as_table_output]{as_table_output()}}.
+\code{\link[=table_output]{table_output()}}.
 }
 
 \examples{

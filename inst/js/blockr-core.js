@@ -2627,9 +2627,9 @@ function mountOutput(deps, el, block) {
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const outputOptions = entry.output_options ?? [];
-  let renderer = entry.renderer;
-  let ready;
-  let keeping;
+  const expected = /* @__PURE__ */ new Map();
+  const ready = /* @__PURE__ */ new Map();
+  const keeping = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
   let held2;
@@ -2646,7 +2646,7 @@ function mountOutput(deps, el, block) {
   const unboundError = () => new Error(
     deps.replaced.aborted ? `Another board opened, so the host of the output of block "${block}" no longer asks R.` : `Block "${block}" left the board, so the host of its output no longer asks R.`
   );
-  const rendererModule = (renderer2) => sourceModule({ block }, packageFromId(renderer2.id), renderer2.id);
+  const rendererModule = (renderer) => sourceModule({ block }, packageFromId(renderer.id), renderer.id);
   function prepare(given) {
     let loading = preparing.get(given.id);
     if (loading === void 0) {
@@ -2664,16 +2664,18 @@ function mountOutput(deps, el, block) {
     return loading;
   }
   function expect(given) {
-    renderer = given;
-    if (ready?.renderer.id === given.id) return;
+    if (expected.has(given.id)) return;
+    expected.set(given.id, given);
     prepare(given).then(
       (prepared) => {
-        if (ended() || renderer?.id !== prepared.renderer.id) return;
-        ready = prepared;
-        keeping?.stop();
-        keeping = deps.keepOptions(prepared.named, `the renderer "${prepared.renderer.id}"`, () => {
-          fail(missingOptions(prepared.renderer, prepared.named), prepared.renderer);
-        });
+        if (ended()) return;
+        ready.set(given.id, prepared);
+        keeping.set(
+          given.id,
+          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
+            fail(missingOptions(given, prepared.named), given);
+          })
+        );
         sync();
       },
       (failure) => {
@@ -2686,9 +2688,9 @@ function mountOutput(deps, el, block) {
     return new Error(withoutOptions(`the renderer "${given.id}"`, missing));
   }
   function named3() {
-    if (renderer === void 0) return outputOptions;
-    if (ready?.renderer.id !== renderer.id) return void 0;
-    return [.../* @__PURE__ */ new Set([...outputOptions, ...ready.named])];
+    const loaded = [...expected.keys()].map((id2) => ready.get(id2));
+    if (loaded.some((prepared) => prepared === void 0)) return void 0;
+    return [.../* @__PURE__ */ new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
   }
   function values2(ids2) {
     const options2 = store.board().options;
@@ -2862,7 +2864,7 @@ function mountOutput(deps, el, block) {
     error = null;
     fit2();
     const named4 = next.output.renderer;
-    if (renderer?.id !== named4.id) expect(named4);
+    expect(named4);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
     if (drawing === void 0) {
       prepare(named4).then(
@@ -3138,7 +3140,7 @@ function mountOutput(deps, el, block) {
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
-    keeping?.stop();
+    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
@@ -3149,7 +3151,7 @@ function mountOutput(deps, el, block) {
     el.replaceChildren();
     wake();
   }
-  if (renderer !== void 0) expect(renderer);
+  for (const given of entry.renderers ?? []) expect(given);
   if (shelf.last !== void 0) take(shelf.last);
   sync();
   return end;

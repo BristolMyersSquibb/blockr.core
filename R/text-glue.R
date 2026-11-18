@@ -1,4 +1,4 @@
-#' @include block-class.R
+#' @include block-class.R output-text.R
 #' @rdname new_glue_block
 #' @format NULL
 #' @export
@@ -31,7 +31,7 @@ glue_block <- new_block_class(
 #' expression evaluates the text in an environment that binds every input by
 #' the name of its link's input. A text cannot refer to an input whose link
 #' has no name, so such an input makes the block fail. Its results show as
-#' text, through [as_text_output()].
+#' text, through [text_output()].
 #'
 #' @param text String evaluated using [glue::glue()]
 #' @inheritParams new_head_block

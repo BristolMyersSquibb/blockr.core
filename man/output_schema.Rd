@@ -54,8 +54,8 @@ board option id}
 
 \item{file}{A file that the renderer sends, or \code{NULL}}
 
-\item{renderer}{The ID of the renderer whose own request it is, or \code{NULL}
-for a request of the output class}
+\item{renderer}{The renderer whose own request it is, made by
+\code{\link[=new_renderer]{new_renderer()}}, or \code{NULL} for a request of the output class}
 }
 \value{
 The generic \code{output_schema()} returns a JSON Schema, as a list,
@@ -65,7 +65,7 @@ The generic \code{output_schema()} returns a JSON Schema, as a list,
 }
 \description{
 The package that defines an output class gives R what it needs of the class
-through its methods of three generics, which it registers as it registers
+through its methods of two generics, which it registers as it registers
 any S3 method, so that S3 dispatch gives a subclass what its class gives,
 unless it gives its own.
 A method answers by the class alone, whatever the output holds, since R also
@@ -105,27 +105,16 @@ No request of an output class writes.
 The function \code{run_output_class_request()} runs a request as R does, to test
 an output class, or the requests of a renderer, without Shiny.
 
-The method of \code{as_renderer()} gives the renderer that draws the class's
-outputs (see \code{\link[=as_renderer]{as_renderer()}}).
-The output family of the class, the coercion that makes its outputs, gives
-R that renderer through a method of its own, before R has made any output
-(see \code{\link[=new_output_family]{new_output_family()}}).
-R names it in the entry of each block class that names the family, in the
-block registry.
-The client loads that renderer, and adds the board options that it names to
-the board, before it asks for a block's first output, so that the board
-holds every board option that the coercion reads, such as the \code{n_rows} of
-table outputs.
-A subclass that a method of the coercion makes, such as a lazy table's,
-gives no method of its own, since each output that R sends names the
-renderer that draws it, and the client draws it with that one.
+The renderer that draws the class's outputs comes from the output family
+that makes them, which a deployment may replace (see \code{\link[=new_output_family]{new_output_family()}}).
 }
 \examples{
-as_words_output <- new_output_family(
+words_output <- new_output_family(
   function(result, ...) {
     new_block_output(list(words = as.character(result)), "words_output")
   },
-  class = "words_output_family"
+  "words_output",
+  renderer = new_renderer("words_output", js_module("words.js", NULL))
 )
 
 output_schema.words_output <- function(x, ...) {
@@ -136,7 +125,7 @@ output_requests.words_output <- function(x, ...) {
   list(count = function(result) length(result))
 }
 
-words <- as_words_output("hello")
+words <- words_output("hello")
 
 output_schema(words)
 run_output_class_request(words, "count", result = c("hello", "world"))

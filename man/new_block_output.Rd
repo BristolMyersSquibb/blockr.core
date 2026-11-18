@@ -36,9 +36,9 @@ An output is an S3 object of an output class, whose class vector ends in
 \code{block_output}. The package that defines an output class gives it two
 functions. A constructor makes an output of the class and checks its
 properties.
-A coercion is a generic that makes an output from a result, by the
-result's class.
-It is the output family of the class's outputs.
+An output family is a generic that makes an output from a result, by the
+result's class, under the name of the output class, as \code{table_output()}
+makes table outputs (see \code{\link[=new_output_family]{new_output_family()}}).
 Core defines three output classes, for tables, text and
 plots (see \code{\link[=new_table_output]{new_table_output()}}, \code{\link[=new_text_output]{new_text_output()}} and
 \code{\link[=new_plot_output]{new_plot_output()}}). Their constructors build on \code{new_block_output()}.
@@ -50,9 +50,9 @@ beside the JSON, not in it. The function \code{new_reply_body()} makes a body
 from a raw vector or from a file's path. It takes the body's MIME type and,
 for a download, a file name.
 
-The package that defines an output class gives R what it needs of the
-class, its JSON Schema, its requests and its renderer, through its methods
-of three generics (see \code{\link[=output_schema]{output_schema()}}).
+The package that defines an output class gives R its JSON Schema and its
+requests through its methods of two generics (see \code{\link[=output_schema]{output_schema()}}), and
+the renderer of its outputs through the output family that makes them.
 }
 \examples{
 out <- new_block_output(list(text = "Hello"), "greeting_output")

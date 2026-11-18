@@ -358,10 +358,10 @@ function fixtureR(hello: HelloReply, options: StubCoreOptions) {
     }
   }
 
-  // The first sample output of the renderer that the block's class names,
-  // drawn by that renderer.
+  // The first sample output of the first renderer that the block's class
+  // names, drawn by that renderer.
   function sample(registryId: string): { output: BlockOutput & Record<string, Json>; body?: Blob } | undefined {
-    const renderer = own(hello.block_registry, registryId)?.renderer;
+    const renderer = own(hello.block_registry, registryId)?.renderers?.[0];
     const samples = renderer === undefined ? undefined : own(SAMPLES, renderer.id);
     const first = samples?.outputs[0];
     if (renderer === undefined || first === undefined) return undefined;
