@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
-import { find, press, texts, type } from "../testing/inputs.ts";
+import { press, texts, type } from "../testing/inputs.ts";
 import { holdRequests } from "../testing/requests.ts";
 import { chipLabels, labelled, listed, picked } from "../testing/select.ts";
 import { controls, PAUSE, strings } from "./index.ts";
@@ -216,9 +216,9 @@ describe("the controls of a board option's UI", () => {
   test("bind the board option's value under its id, and nothing else", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const ui = controls(host, abort.signal);
-    ui.number("n_rows", { label: "Preview rows", min: 1 });
+    ui.number("n_rows", { label: "Preview rows", minValue: 1, step: 1 });
     document.body.append(ui.el);
-    const input = find(ui.el, "input", HTMLInputElement);
+    const input = labelled(ui.el, "Preview rows");
 
     type(input, "0");
     await vi.advanceTimersByTimeAsync(PAUSE);
@@ -240,20 +240,20 @@ describe("the controls of a board option's UI", () => {
   test("submit a number above the most while setOutdated() says that it may be for older data, and mark none", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const ui = controls(host, abort.signal);
-    const rows = ui.number("n_rows", { label: "Preview rows", min: 1 });
-    rows.setMax(30);
+    const rows = ui.number("n_rows", { label: "Preview rows", minValue: 1, step: 1 });
+    rows.setMaxValue(30);
     rows.setOutdated(true);
     document.body.append(ui.el);
-    const input = find(ui.el, "input", HTMLInputElement);
-    const shown = () => [input.value, input.max, input.getAttribute("aria-invalid")];
+    const input = labelled(ui.el, "Preview rows");
+    const shown = () => [input.value, input.getAttribute("aria-invalid")];
 
     type(input, "50");
     await vi.advanceTimersByTimeAsync(PAUSE);
-    expect(shown()).toEqual(["50", "", "false"]);
+    expect(shown()).toEqual(["50", null]);
     expect(host.submitted).toEqual([50]);
 
     rows.setOutdated(false);
-    expect(shown()).toEqual(["50", "30", "true"]);
+    expect(shown()).toEqual(["50", "true"]);
   });
 
   test("submit the picks of several in the order of the items where ordered", async () => {

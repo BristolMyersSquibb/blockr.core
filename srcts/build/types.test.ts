@@ -163,7 +163,6 @@ test("what a package's tests load imports no package but those that `@blockr/cor
     "@preact/signals-core": await installedVersion("@preact/signals-core"),
     "@cfworker/json-schema": await installedVersion("@cfworker/json-schema"),
     "react-aria-components": await installedVersion("react-aria-components"),
-    "react-aria": await installedVersion("react-aria"),
   });
 
   // The stubs draw core's UIs, the board options' among them, with React.
@@ -432,14 +431,14 @@ export const api = 1;
 export default outputRenderer<TextOutput>(({ output }) => <pre>{output.text}</pre>);
 `,
   "src/head-block.tsx": `import type { BlockHost } from "@blockr/core";
-import { NumberInput, reactModule, useValue } from "@blockr/core/react";
+import { NumberField, reactModule, useValue } from "@blockr/core/react";
 import type { ModuleProps } from "@blockr/core/react";
 import type { ReactElement } from "react";
 
 type HeadState = { n: number; direction: "head" | "tail" };
 
 function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
-  return <NumberInput bound={useValue(host, "n")} label="Rows" min={1} />;
+  return <NumberField bound={useValue(host, "n")} label="Rows" minValue={1} step={1} />;
 }
 
 export const api = 1;

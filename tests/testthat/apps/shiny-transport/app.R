@@ -80,7 +80,7 @@ handler <- function(session) {
 
 page <- "
 import { createClient, shinyTransport } from './blockr-js/blockr-core.js';
-import { TextInput } from '@blockr/core/react';
+import { TextField } from '@blockr/core/react';
 import { createRoot } from 'react-dom/client';
 import { jsx } from 'react/jsx-runtime';
 
@@ -142,7 +142,7 @@ async function ask(name, args = {}, body = undefined) {
 window.app = {
   sessions,
   ask,
-  // Draws the SDK's TextInput with react-dom/client and gives the value it
+  // Draws the SDK's TextField with react-dom/client and gives the value it
   // shows, which its hook gives only where both read the same React.
   sdkInput: async () => {
     const el = document.createElement('div');
@@ -152,7 +152,7 @@ window.app = {
       commit: async () => true, type() {}, flush() {},
     };
     const root = createRoot(el);
-    root.render(jsx(TextInput, { bound, label: 'Name' }));
+    root.render(jsx(TextField, { bound, label: 'Name' }));
     await new Promise((done) => setTimeout(done, 100));
     const value = el.querySelector('input')?.value ?? null;
     root.unmount();

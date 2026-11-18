@@ -630,12 +630,29 @@
   A button at the field's right, before the one that opens the list, clears the pick, or every pick, but where the select `isRequired`.
   A bound select of one leaves its state arg unset so, through the new `unset()` of the binding of `bind()` and of `Bound` in the SDK, as a new block leaves an arg without a default.
   For that, a block host's `submit()` leaves a state arg that its change gives as `undefined` unset, through the `unset` of `set_block`.
-  React Aria draws the list as wide as the field, in a portal at the end of the page's body, or in the dialog or the popover that holds the select, as these sit in the browser's top layer.
+  React Aria draws the list as wide as the field, in a portal at the end of the page's body.
   Given `value` and `onChange`, it picks for its caller, so that a plugin's UI can run a command with the pick.
   Given `bound`, it binds a block's state arg or a board option's value, as before: one string, or an array of strings, which it submits once, as its list closes, in place of `Checklist`, which is gone.
   The page loads the parts of React Aria that core draws with in core's vendor file, and the types of `@blockr/core` name React Aria as a dependency.
   The `comboBox()` of `controls()` takes `items`, `selectionMode`, `ordered` and `renderEmptyState`, in place of `select()` and `checklist()`, which are gone, as are `Choice` and `asChoices()`.
   Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).
+* Core's React SDK offers a text field, `TextField`, and a number field, `NumberField`, which core's own UIs, frontends, the UIs of plugins and those of blocks all draw with: [React Aria's `TextField`](https://react-aria.adobe.com/TextField) and [`NumberField`](https://react-aria.adobe.com/NumberField), in core's theme, after those of React Aria's Tailwind starter kit, in place of `TextInput` and `NumberInput`, which are gone.
+  Each takes the props of its part of React Aria, and the `label`, `description`, `errorMessage` and `placeholder` that the starter kit adds.
+  The `TextField` holds a text area where its `lines` is above 1, since React Aria has no prop for text on several lines.
+  Given `bound`, each hands what the user types to the binding, which submits it once the user pauses, and at once on Enter or as the user leaves the field, as `TextInput` and `NumberInput` did.
+  A bound `NumberField` submits only a number in its range and on its step, which the head block and the board option `n_rows` set to 1, and it submits a step of its buttons or of the arrow keys at once.
+  It keeps a number outside them as the user typed it, through React Aria's `commitBehavior` `"validate"`, and marks the number with the message of the browser's own number input, in place of messages of core's own.
+  While it is `outdated`, it takes no `maxValue`, as `NumberInput` took no `max`.
+  The `text()` and `number()` of `controls()` take React Aria's names, such as `minValue` in place of `min`, and the handle that `number()` returns has `setMaxValue()` in place of `setMax()`.
+  Core's other text fields, in the forms of the Edit board plugin, in renaming a block or the board, and in the search of a table, draw with the `TextField` of the SDK too.
+  The SDK also offers React Aria's `Button`, with the starter kit's `variant`, its `Modal`, `Dialog`, `DialogTrigger` and `Heading`, its `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, and its `Popover`, in core's theme, after the starter kit.
+  React Aria draws every overlay of the SDK in a portal at the end of the page's body.
+  Core's basic frontend draws its dialogs and its menus with them, in place of native dialogs that `showModal()` opened and lists of its own.
+  A select in such a dialog opens its list above the dialog, so the select no longer draws its list in a layer of its own where a native dialog or popover holds it.
+  The select draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
+  Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
+  The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
+  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708).
 
 # blockr.core 0.1.4
 

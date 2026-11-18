@@ -217,16 +217,8 @@
   position: sticky;
 }
 
-.bc\:inset-0 {
-  inset: 0;
-}
-
-.bc\:-top-1 {
-  top: calc(var(--bc-spacing) * -1);
-}
-
-.bc\:right-0 {
-  right: 0;
+.bc\:top-0 {
+  top: 0;
 }
 
 .bc\:right-2 {
@@ -237,20 +229,16 @@
   bottom: calc(var(--bc-spacing) * 2);
 }
 
-.bc\:z-10 {
-  z-index: 10;
+.bc\:left-0 {
+  left: 0;
 }
 
-.bc\:z-20 {
-  z-index: 20;
+.bc\:isolate {
+  isolation: isolate;
 }
 
 .bc\:z-50 {
   z-index: 50;
-}
-
-.bc\:z-\[100000\] {
-  z-index: 100000;
 }
 
 .bc\:spinner {
@@ -336,10 +324,6 @@
   margin-top: calc(var(--bc-spacing) * .5);
 }
 
-.bc\:mt-1 {
-  margin-top: var(--bc-spacing);
-}
-
 .bc\:mt-3 {
   margin-top: calc(var(--bc-spacing) * 3);
 }
@@ -410,6 +394,14 @@
   height: calc(var(--bc-spacing) * 6);
 }
 
+.bc\:h-\(--page-height\) {
+  height: var(--page-height);
+}
+
+.bc\:h-\(--visual-viewport-height\) {
+  height: var(--visual-viewport-height);
+}
+
 .bc\:h-0 {
   height: 0;
 }
@@ -422,6 +414,14 @@
   height: calc(var(--bc-spacing) * 96);
 }
 
+.bc\:h-\[28px\] {
+  height: 28px;
+}
+
+.bc\:h-\[32px\] {
+  height: 32px;
+}
+
 .bc\:max-h-48 {
   max-height: calc(var(--bc-spacing) * 48);
 }
@@ -432,6 +432,10 @@
 
 .bc\:max-h-\[calc\(100dvh-1rem\)\] {
   max-height: calc(100dvh - 1rem);
+}
+
+.bc\:max-h-\[calc\(var\(--visual-viewport-height\)\*\.9\)\] {
+  max-height: calc(var(--visual-viewport-height) * .9);
 }
 
 .bc\:max-h-\[inherit\] {
@@ -448,10 +452,6 @@
 
 .bc\:min-h-4 {
   min-height: calc(var(--bc-spacing) * 4);
-}
-
-.bc\:min-h-8 {
-  min-height: calc(var(--bc-spacing) * 8);
 }
 
 .bc\:min-h-24 {
@@ -586,6 +586,10 @@
   align-items: flex-start;
 }
 
+.bc\:items-stretch {
+  align-items: stretch;
+}
+
 .bc\:justify-between {
   justify-content: space-between;
 }
@@ -689,6 +693,11 @@
   border-bottom-width: 1px;
 }
 
+.bc\:border-l {
+  border-left-style: var(--tw-border-style);
+  border-left-width: 1px;
+}
+
 .bc\:border-l-4 {
   border-left-style: var(--tw-border-style);
   border-left-width: 4px;
@@ -736,6 +745,16 @@
 
 .bc\:bg-bg-subtle {
   background-color: var(--bc-color-bg-subtle);
+}
+
+.bc\:bg-black\/40 {
+  background-color: var(--bc-color-black);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .bc\:bg-black\/40 {
+    background-color: color-mix(in oklab, var(--bc-color-black) 40%, transparent);
+  }
 }
 
 .bc\:bg-blue-500\/10 {
@@ -1105,22 +1124,16 @@
   font: inherit;
 }
 
+.bc\:group-data-invalid\:border-border-danger:is(:where(.bc\:group)[data-invalid] *) {
+  border-color: var(--bc-color-border-danger);
+}
+
 .bc\:group-data-open\:rotate-180:is(:where(.bc\:group)[data-open] *) {
   rotate: 180deg;
 }
 
 .bc\:placeholder\:text-text-muted::placeholder {
   color: var(--bc-color-text-muted);
-}
-
-.bc\:backdrop\:bg-black\/40::backdrop {
-  background-color: var(--bc-color-black);
-}
-
-@supports (color: color-mix(in lab, red, red)) {
-  .bc\:backdrop\:bg-black\/40::backdrop {
-    background-color: color-mix(in oklab, var(--bc-color-black) 40%, transparent);
-  }
 }
 
 .bc\:empty\:hidden:empty {
@@ -1237,6 +1250,10 @@
 
 .bc\:data-missing\:text-text-danger[data-missing] {
   color: var(--bc-color-text-danger);
+}
+
+.bc\:data-pressed\:bg-bg-subtle[data-pressed] {
+  background-color: var(--bc-color-bg-subtle);
 }
 
 @media (prefers-reduced-motion: reduce) {

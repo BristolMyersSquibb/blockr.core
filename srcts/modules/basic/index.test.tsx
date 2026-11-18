@@ -15,6 +15,7 @@ import { find, picking, press, texts, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
 import { logged } from "../../testing/logged.ts";
+import { inert, menuGroup, menuItem, menuItems, openDialog, openMenu } from "../../testing/overlays.ts";
 import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
@@ -146,12 +147,15 @@ async function click(el: HTMLElement): Promise<void> {
 // Picks an action from the menu of the card of the block of the name given.
 async function menu(el: HTMLElement, name: string, action: string): Promise<void> {
   await click(find(card(el, name), `button[aria-label="Actions of ${name}"]`));
-  await click(button(card(el, name), action));
+  await click(menuItem(openMenu(`Actions of ${name}`), action));
 }
 
-function dialog(el: HTMLElement): HTMLDialogElement {
-  return find(el, "dialog[open]", HTMLDialogElement);
-}
+// The dialog that is open, which React Aria draws at the end of the page's
+// body.
+const dialog = (): HTMLElement => openDialog();
+
+// The element that has the focus, where a key that the user presses lands.
+const focused = (): HTMLElement => (document.activeElement instanceof HTMLElement ? document.activeElement : document.body);
 
 function toolbar(el: HTMLElement): HTMLElement {
   return find(el, '[role="toolbar"]');
@@ -458,47 +462,51 @@ describe("a card", () => {
     const { el, board, settled } = await drawn();
 
     await menu(el, "Head", "Add block after");
-    expect(find(dialog(el), "h2").textContent).toBe('Add block after "Head"');
-    const classes = labelled(dialog(el), "Block class");
+    expect(find(dialog(), "h2").textContent).toBe('Add block after "Head"');
+    const classes = labelled(dialog(), "Block class");
     expect(document.activeElement).toBe(classes);
     // A block added after another needs an input.
     await step(() => {
       classes.click();
     });
-    // The dialog holds the select's list, as the rest of the page is inert
-    // while the dialog is open.
-    expect(listFromField(classes)?.closest("dialog")).toBe(dialog(el));
+    // The select draws its list in a portal of its own, outside the dialog,
+    // which React Aria leaves within reach while the rest of the page is
+    // inert.
+    const list = listFromField(classes);
+    expect(list?.closest('[role="dialog"]')).toBeNull();
+    expect(list === null ? true : inert(list)).toBe(false);
+    expect(inert(find(el, '[role="toolbar"]'))).toBe(true);
     expect(optionLabels(classes)).not.toContain("input: dataset block");
     await step(() => {
       optionFromLabel(classes, "subset block").click();
     });
     expect(added(board())).toEqual([]);
-    await click(button(dialog(el), "Add block"));
+    await click(button(dialog(), "Add block"));
     await settled();
 
     const [subset] = added(board());
     expect(subset?.[1].registry_id).toBe("blockr.core-subset_block");
     expect(Object.values(board().links)).toContainEqual({ from: "b", to: subset?.[0], input: "data" });
-    expect(el.querySelector("dialog[open]")).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
 
     await menu(el, "Iris", "Add block after");
-    await chosen(dialog(el), "Block class", "merge", "merge block");
-    await picked(labelled(dialog(el), "Input of the new merge block"), step, "y");
+    await chosen(dialog(), "Block class", "merge", "merge block");
+    await picked(labelled(dialog(), "Input of the new merge block"), step, "y");
     await step(() => {
-      type(labelled(dialog(el), "ID"), "joined");
+      type(labelled(dialog(), "ID"), "joined");
     });
-    await click(button(dialog(el), "Add block"));
+    await click(button(dialog(), "Add block"));
     expect(board().blocks.joined?.registry_id).toBe("blockr.core-merge_block");
     expect(Object.values(board().links)).toContainEqual({ from: "a", to: "joined", input: "y" });
 
     // A variadic block takes the link under the name that the user gives.
     await menu(el, "Iris", "Add block after");
-    await chosen(dialog(el), "Block class", "rbind", "rbind block");
+    await chosen(dialog(), "Block class", "rbind", "rbind block");
     await step(() => {
-      type(labelled(dialog(el), "Input name of the new rbind block"), "first");
-      type(labelled(dialog(el), "ID"), "bound");
+      type(labelled(dialog(), "Input name of the new rbind block"), "first");
+      type(labelled(dialog(), "ID"), "bound");
     });
-    await click(button(dialog(el), "Add block"));
+    await click(button(dialog(), "Add block"));
     expect(Object.values(board().links)).toContainEqual({ from: "a", to: "bound", input: "first" });
   });
 
@@ -507,27 +515,29 @@ describe("a card", () => {
 
     // Every input of the merge block takes a link already.
     await click(find(card(el, "Merge"), 'button[aria-label="Actions of Merge"]'));
-    expect(button(card(el, "Merge"), "Add block before").disabled).toBe(true);
+    expect(menuItem(openMenu("Actions of Merge"), "Add block before").getAttribute("aria-disabled")).toBe("true");
+    // React Aria hears the key where the focus is, in the menu.
     await step(() => {
-      press(document.body, "Escape");
+      press(focused(), "Escape");
     });
+    expect(document.querySelector('[role="menu"]')).toBeNull();
 
     // The bind block is variadic, so it takes another link, under a name that
     // the user may give, which none of its links may give already.
     await menu(el, "Bind", "Add block before");
-    await chosen(dialog(el), "Block class", "dataset", "dataset block");
-    await click(button(dialog(el), "Add block"));
+    await chosen(dialog(), "Block class", "dataset", "dataset block");
+    await click(button(dialog(), "Add block"));
     const [first] = added(board());
     expect(first?.[1].registry_id).toBe("blockr.core-dataset_block");
     expect(Object.values(board().links)).toContainEqual({ from: first?.[0], to: "e", input: "" });
 
     await menu(el, "Bind", "Add block before");
-    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    await chosen(dialog(), "Block class", "dataset", "dataset block");
     await step(() => {
-      type(labelled(dialog(el), 'Input name of "Bind"'), "extra");
-      type(labelled(dialog(el), "ID"), "more");
+      type(labelled(dialog(), 'Input name of "Bind"'), "extra");
+      type(labelled(dialog(), "ID"), "more");
     });
-    await click(button(dialog(el), "Add block"));
+    await click(button(dialog(), "Add block"));
     expect(Object.values(board().links)).toContainEqual({ from: "more", to: "e", input: "extra" });
   });
 });
@@ -539,11 +549,11 @@ describe("a card's block before", () => {
     await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
 
     await menu(el, "Merge", "Add block before");
-    const input = labelled(dialog(el), 'Input of "Merge"');
+    const input = labelled(dialog(), 'Input of "Merge"');
     expect(await listed(input, step)).toEqual(["x", "y"]);
     await picked(input, step, "y");
-    await chosen(dialog(el), "Block class", "dataset", "dataset block");
-    await click(button(dialog(el), "Add block"));
+    await chosen(dialog(), "Block class", "dataset", "dataset block");
+    await click(button(dialog(), "Add block"));
 
     const [first] = added(board());
     expect(Object.values(board().links)).toContainEqual({ from: first?.[0], to: "c", input: "y" });
@@ -557,25 +567,25 @@ describe("a card's block before", () => {
     // The head block has one input, which no link feeds now.
     await menu(el, "Head", "Add block before");
     // The block class is the one thing to pick.
-    expect(dialog(el).querySelectorAll('[role="combobox"]')).toHaveLength(1);
-    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    expect(dialog().querySelectorAll('[role="combobox"]')).toHaveLength(1);
+    await chosen(dialog(), "Block class", "dataset", "dataset block");
     await step(() => {
-      type(labelled(dialog(el), "ID"), "first");
+      type(labelled(dialog(), "ID"), "first");
     });
-    expect(button(dialog(el), "Add block").disabled).toBe(false);
-    await click(button(dialog(el), "Add block"));
+    expect(button(dialog(), "Add block").disabled).toBe(false);
+    await click(button(dialog(), "Add block"));
     expect(Object.values(board().links)).toContainEqual({ from: "first", to: "b", input: "data" });
 
     // A link feeds the merge block's x, so the new link goes into its y.
     await menu(el, "Merge", "Add block before");
     // The block class is the one thing to pick.
-    expect(dialog(el).querySelectorAll('[role="combobox"]')).toHaveLength(1);
-    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    expect(dialog().querySelectorAll('[role="combobox"]')).toHaveLength(1);
+    await chosen(dialog(), "Block class", "dataset", "dataset block");
     await step(() => {
-      type(labelled(dialog(el), "ID"), "second");
+      type(labelled(dialog(), "ID"), "second");
     });
-    expect(button(dialog(el), "Add block").disabled).toBe(false);
-    await click(button(dialog(el), "Add block"));
+    expect(button(dialog(), "Add block").disabled).toBe(false);
+    await click(button(dialog(), "Add block"));
     expect(Object.values(board().links)).toContainEqual({ from: "second", to: "c", input: "y" });
   });
 
@@ -584,11 +594,11 @@ describe("a card's block before", () => {
     await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
 
     await menu(el, "Merge", "Add block before");
-    await chosen(dialog(el), "Block class", "dataset", "dataset block");
+    await chosen(dialog(), "Block class", "dataset", "dataset block");
     await act(() => core.commands.run("blockr.core-add_link", { from: "b", to: "c", input: "y" }));
 
-    expect(dialog(el).textContent).toContain('Every input of "Merge" takes a link already.');
-    expect(button(dialog(el), "Add block").disabled).toBe(true);
+    expect(dialog().textContent).toContain('Every input of "Merge" takes a link already.');
+    expect(button(dialog(), "Add block").disabled).toBe(true);
     expect(added(board())).toEqual([]);
   });
 });
@@ -596,29 +606,31 @@ describe("a card's block before", () => {
 describe("what floats over the board", () => {
   // The backgrounds that an element draws in the page's theme and under the
   // dark theme, those of its hover and of a dialog's backdrop aside.
-  const backgrounds = (el: Element): string[] => el.className.split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
+  const backgrounds = (el: Element | null): string[] => (el?.className ?? "").split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
 
   test("is drawn on the background that core's theme gives it: a card's menu, the dialogs and the list of a select", async () => {
     const { el, settled } = await drawn();
 
+    // The menu draws on the background of the SDK's popover that holds it,
+    // and a dialog on that of the SDK's modal that holds it.
     await click(find(card(el, "Head"), 'button[aria-label="Actions of Head"]'));
-    expect(backgrounds(find(card(el, "Head"), '[role="menu"]'))).toEqual(["bc:bg-bg-raised"]);
+    expect(backgrounds(openMenu("Actions of Head").closest("[data-trigger]"))).toEqual(["bc:bg-bg-raised"]);
 
-    await click(button(card(el, "Head"), "Add block after"));
-    expect(backgrounds(dialog(el))).toEqual(["bc:bg-bg-raised"]);
-    const classes = labelled(dialog(el), "Block class");
+    await click(menuItem(openMenu("Actions of Head"), "Add block after"));
+    expect(backgrounds(dialog().parentElement)).toEqual(["bc:bg-bg-raised"]);
+    const classes = labelled(dialog(), "Block class");
     await step(() => {
       classes.click();
     });
     const list = listFromField(classes)?.parentElement ?? null;
     expect(list).not.toBeNull();
     expect(list === null ? [] : backgrounds(list)).toEqual(["bc:bg-bg-raised"]);
-    await click(button(dialog(el), "Close"));
+    await click(button(dialog(), "Close"));
 
     await click(button(el, "Options"));
     await settled();
-    expect(find(dialog(el), "h2").textContent).toBe("Board options");
-    expect(backgrounds(dialog(el))).toEqual(["bc:bg-bg-raised"]);
+    expect(find(dialog(), "h2").textContent).toBe("Board options");
+    expect(backgrounds(dialog().parentElement)).toEqual(["bc:bg-bg-raised"]);
   });
 });
 
@@ -639,11 +651,11 @@ describe("the toolbar", () => {
     // The board holds n_rows, which the table renderer names, and
     // show_conditions and dark_mode, which core's basic frontend requires.
     expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows", "show_conditions"]);
-    expect(texts(dialog(el), "h3")).toEqual(["Table options", "Board options", "Theme options"]);
-    expect(dialog(el).textContent).toContain("Preview rows");
-    expect(dialog(el).textContent).toContain("Message types to display");
+    expect(texts(dialog(), "h3")).toEqual(["Table options", "Board options", "Theme options"]);
+    expect(dialog().textContent).toContain("Preview rows");
+    expect(dialog().textContent).toContain("Message types to display");
 
-    await picked(labelled(find(dialog(el), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
+    await picked(labelled(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
     expect(board().options.dark_mode).toBe("dark");
     expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
   });
@@ -793,7 +805,7 @@ describe("the storage controls", () => {
     expect(save.getAttribute("aria-keyshortcuts")).toBe("Control+S Meta+S");
     expect(button(toolbar(el), "Share").disabled).toBe(true);
     // A menu is a button that opens it, and a status is text.
-    expect(find(toolbar(el), 'button[aria-haspopup="menu"]').getAttribute("aria-expanded")).toBe("false");
+    expect(find(toolbar(el), "button[aria-haspopup]").getAttribute("aria-expanded")).toBe("false");
     const statuses = [...toolbar(el).querySelectorAll('[role="status"]')];
     expect(statuses.map((status) => [status.tagName, status.textContent, status.getAttribute("title")])).toEqual([
       ["SPAN", "NS", "Signed in as Nina"],
@@ -821,27 +833,31 @@ describe("the storage controls", () => {
       },
     ]);
     const { el } = await drawn(storage.options);
-    const opener = find(toolbar(el), 'button[aria-haspopup="menu"]');
-    const list = () => el.querySelector<HTMLElement>('ul[role="menu"][aria-label="Versions"]');
+    const opener = find(toolbar(el), "button[aria-haspopup]");
+    const list = () => document.querySelector<HTMLElement>('[role="menu"][aria-label="Versions"]');
 
     await click(opener);
     expect(opener.getAttribute("aria-expanded")).toBe("true");
-    const shown = list();
-    if (shown === null) throw new Error("The menu did not open.");
-    expect(texts(shown, ":scope > li")).toEqual(["Restore", "Version 3", "OlderVersion 1"]);
-    expect(find(shown, ":scope > li:nth-child(2)").title).toBe("Saved at noon");
-    const older = find(shown, '[role="group"][aria-label="Older"]');
-    expect(texts(older, 'button[role="menuitem"]')).toEqual(["Version 1"]);
-    expect(button(older, "Version 1").title).toBe("Saved in May");
+    const shown = openMenu("Versions");
+    // A status is an item that the user cannot pick, and the tooltip of an
+    // item shows on its text.
+    expect(menuItems(shown)).toEqual(["Restore", "Version 3", "Version 1"]);
+    expect(menuItem(shown, "Version 3").getAttribute("aria-disabled")).toBe("true");
+    expect(find(menuItem(shown, "Version 3"), "[title]").title).toBe("Saved at noon");
+    const older = menuGroup(shown, "Older");
+    expect(menuItems(older)).toEqual(["Version 1"]);
+    expect(find(menuItem(older, "Version 1"), "[title]").title).toBe("Saved in May");
 
-    await click(button(older, "Version 1"));
+    await click(menuItem(older, "Version 1"));
     expect(runs).toEqual(["v1"]);
     expect(list()).toBeNull();
 
-    // It closes on Escape too.
+    // It closes on Escape too, which React Aria hears where the focus is, in
+    // the menu.
     await click(opener);
+    expect(list()?.contains(document.activeElement)).toBe(true);
     await step(() => {
-      press(document.body, "Escape");
+      press(focused(), "Escape");
     });
     expect(list()).toBeNull();
     expect(runs).toEqual(["v1"]);
@@ -973,8 +989,8 @@ describe("the storage controls", () => {
     try {
       const page = await drawn(storage.options);
       expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Save", "More▾"]);
-      await click(find(toolbar(page.el), 'button[aria-haspopup="menu"]'));
-      expect(texts(find(page.el, 'ul[role="menu"]'), ":scope > li")).toEqual(["A"]);
+      await click(find(toolbar(page.el), "button[aria-haspopup]"));
+      expect(menuItems(openMenu("More"))).toEqual(["A"]);
       await step(() => {
         press(document.body, "e", { ctrlKey: true });
       });
@@ -1242,7 +1258,7 @@ describe("what the user learns", () => {
     await step(() => {
       core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared." });
     });
-    expect(toastsIn(el).map((t) => t.closest("dialog"))).toEqual([null]);
+    expect(toastsIn(el).map((t) => t.closest('[role="dialog"]'))).toEqual([null]);
 
     await click(button(el, "Options"));
     await settled();
@@ -1250,14 +1266,14 @@ describe("what the user learns", () => {
       core.notifications.notify(FILE_STORAGE, { severity: "warning", code: "token_expiring", message: "The token expires soon." });
     });
     // The toasts come after what the dialog holds.
-    expect(toasts(dialog(el)).map(([, , message]) => message)).toEqual(["Not shared.", "The token expires soon."]);
-    expect(dialog(el).lastElementChild?.contains(toast(el, "Not shared."))).toBe(true);
-    await click(find(toast(dialog(el), "Not shared."), 'button[aria-label="Close"]'));
+    expect(toasts(dialog()).map(([, , message]) => message)).toEqual(["Not shared.", "The token expires soon."]);
+    expect(dialog().lastElementChild?.contains(toast(dialog(), "Not shared."))).toBe(true);
+    await click(find(toast(dialog(), "Not shared."), 'button[aria-label="Close"]'));
 
-    await click(button(dialog(el), "Close"));
-    expect(el.querySelector("dialog[open]")).toBeNull();
+    await click(button(dialog(), "Close"));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(toasts(el).map(([, , message]) => message)).toEqual(["The token expires soon."]);
-    expect(toastsIn(el).map((t) => t.closest("dialog"))).toEqual([null]);
+    expect(toastsIn(el).map((t) => t.closest('[role="dialog"]'))).toEqual([null]);
   });
 
   test("is why the store or the command registry refused an edit, an error of the code board_edit_failed that core raises about the board, whatever block the edit names, which shows again as the same refusal comes again", async () => {
@@ -1343,15 +1359,15 @@ describe("what the user learns", () => {
         core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved." });
       });
       await step(() => {
-        toast(dialog(el), "Saved.").dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+        toast(dialog(), "Saved.").dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
         vi.advanceTimersByTime(60_000);
       });
-      expect(toasts(dialog(el)).map(([, , message]) => message)).toEqual(["Saved."]);
+      expect(toasts(dialog()).map(([, , message]) => message)).toEqual(["Saved."]);
 
       await step(() => {
-        button(dialog(el), "Close").click();
+        button(dialog(), "Close").click();
       });
-      expect(el.querySelector("dialog[open]")).toBeNull();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
       expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved."]);
       await step(() => {
         vi.advanceTimersByTime(5300);
@@ -1492,7 +1508,7 @@ describe("a locked board", () => {
 
     await click(button(el, "Options"));
     await settled();
-    await picked(labelled(find(dialog(el), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
+    await picked(labelled(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
     expect(board().options.dark_mode).toBe("dark");
   });
 

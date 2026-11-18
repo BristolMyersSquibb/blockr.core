@@ -2,5 +2,7 @@ export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } fro
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
 export { outputRenderer, reactModule } from "./module.tsx";
 export type { ModuleOptions, ModuleProps, OutputProps } from "./module.tsx";
-export { Checkbox, ComboBox, ComboBoxItem, ComboBoxSection, Field, NumberInput, Stack, Text, TextInput } from "../inputs/index.ts";
-export type { ComboBoxProps, ComboBoxSectionProps } from "../inputs/index.ts";
+export { Button, Checkbox, ComboBox, ComboBoxItem, ComboBoxSection, Field, NumberField, Stack, Text, TextField, } from "../inputs/index.ts";
+export type { ButtonProps, ComboBoxProps, ComboBoxSectionProps, NumberFieldProps, TextFieldProps } from "../inputs/index.ts";
+export { Dialog, DialogTrigger, Heading, Menu, MenuItem, MenuSection, MenuTrigger, Modal, Popover } from "../overlays/index.ts";
+export type { MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
