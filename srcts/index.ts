@@ -20,6 +20,7 @@ export type {
   Board,
   JsonBlock,
   JsonOption,
+  JsonPlugin,
   JsonBoard,
   Link,
   LinkId,

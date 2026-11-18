@@ -167,9 +167,9 @@ test.each(names)("the store opens %s, saves it as R wrote it, and opens the text
     plugins: {
       ...hello.plugins,
       ...Object.fromEntries(
-        Object.keys(json.board.plugins).map((id) => [
+        Object.entries(json.board.plugins).map(([id, plugin]) => [
           id,
-          { name: classNames[id] ?? id, version: json.board.versions[id] ?? 1, module: `blockr.test/${id}.js` },
+          { name: classNames[id] ?? id, version: plugin.version, module: `blockr.test/${id}.js` },
         ]),
       ),
     },

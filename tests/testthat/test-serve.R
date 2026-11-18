@@ -575,7 +575,12 @@ test_that("serve() refuses a board with a plugin that the app does not run", {
   )
   expect_identical(
     reply$board$board$plugins,
-    list(`blockr.test-notes_plugin` = list(text = "To do"))
+    list(
+      `blockr.test-notes_plugin` = list(
+        state = list(text = "To do"),
+        version = 1L
+      )
+    )
   )
 
   expect_error(

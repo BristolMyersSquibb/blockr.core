@@ -599,8 +599,8 @@ describe("starting the page", () => {
         ...hello.board.board,
         name: "From the URL",
         plugins: {
-          "blockr.notes-todo_plugin": { text: "Call back" },
-          "blockr.notes-later_plugin": { text: "Soon" },
+          "blockr.notes-todo_plugin": { state: { text: "Call back" }, version: 1 },
+          "blockr.notes-later_plugin": { state: { text: "Soon" }, version: 1 },
         },
       },
     });
@@ -989,7 +989,7 @@ describe("a board opened later", () => {
     await expect(s.core.store.open("{")).rejects.toThrow("The store refused to open the board\n- The text holds no JSON");
     const strict = JSON.stringify({
       ...hello.board,
-      board: { ...hello.board.board, plugins: { "test.pkg-strict_plugin": {} } },
+      board: { ...hello.board.board, plugins: { "test.pkg-strict_plugin": { state: {}, version: 1 } } },
     });
     await expect(s.core.store.open(strict)).rejects.toThrow('The state of the plugin "test.pkg-strict_plugin"');
     await expect(s.core.store.open(JSON.stringify(unfit()))).rejects.toThrow(unfitness);
@@ -1210,7 +1210,7 @@ describe("a board opened later", () => {
     s.core.store.apply({ name: "Kept" });
     const board = JSON.stringify({
       ...hello.board,
-      board: { ...hello.board.board, plugins: { "blockr.strict-zoom_plugin": { zoom: "big" } } },
+      board: { ...hello.board.board, plugins: { "blockr.strict-zoom_plugin": { state: { zoom: "big" }, version: 1 } } },
     });
 
     const reported = logged();
@@ -1501,7 +1501,10 @@ describe("the frontend and the plugins", () => {
     // A board that opens later, whatever plugins' state it holds, is drawn
     // with the same frontend.
     const opening = s.core.store.open(
-      JSON.stringify({ ...hello.board, board: { ...hello.board.board, name: "Next", plugins: { [BASIC_FRONTEND]: {} } } }),
+      JSON.stringify({
+        ...hello.board,
+        board: { ...hello.board.board, name: "Next", plugins: { [BASIC_FRONTEND]: { state: {}, version: 1 } } },
+      }),
     );
     await tick();
     s.r.answer(reply);

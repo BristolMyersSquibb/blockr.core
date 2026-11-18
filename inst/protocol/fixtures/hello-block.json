@@ -87,7 +87,6 @@
           "packages": { "blockr.core": "0.2.0" },
           "board": {
             "id": "quick_wren",
-            "versions": {},
             "name": "Quick wren",
             "blocks": {
               "tidy_crab": {

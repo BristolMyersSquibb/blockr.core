@@ -124,14 +124,13 @@
           "packages": { "blockr.core": "0.2.0", "blockr.test": "0.1.0" },
           "board": {
             "id": "calm_heron",
-            "versions": { "blockr.test-grid_plugin": 2 },
             "name": "Calm heron",
             "blocks": {},
             "links": {},
             "stacks": {},
             "options": {},
             "plugins": {
-              "blockr.test-grid_plugin": { "columns": 2 }
+              "blockr.test-grid_plugin": { "state": { "columns": 2 }, "version": 2 }
             }
           }
         }

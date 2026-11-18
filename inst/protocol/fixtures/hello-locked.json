@@ -142,7 +142,6 @@
           "packages": { "blockr.core": "0.2.0" },
           "board": {
             "id": "steady_lynx",
-            "versions": {},
             "name": "Iris report",
             "blocks": {
               "a": {
