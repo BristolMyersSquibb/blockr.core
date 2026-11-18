@@ -112,11 +112,11 @@ export async function removeChip(field: HTMLElement, act: Act, label: string): P
   });
 }
 
-// The button at the field's far left that clears the pick, or every pick,
-// where the field offers it.
+// The button of the field that clears the pick, or every pick, where the
+// field offers it.
 export function clearButton(field: HTMLElement): HTMLButtonElement | null {
-  const first = field.closest('[role="group"]')?.firstElementChild;
-  return first instanceof HTMLButtonElement && first.getAttribute("aria-label")?.startsWith("Clear") === true ? first : null;
+  const found = field.closest('[role="group"]')?.querySelector(':scope > button[aria-label^="Clear"]');
+  return found instanceof HTMLButtonElement ? found : null;
 }
 
 // Clicks the button that clears the pick, or every pick.

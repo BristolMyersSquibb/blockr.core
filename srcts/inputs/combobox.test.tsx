@@ -209,7 +209,7 @@ describe("a select of one item", () => {
 
     expect([listFromField(field), heard]).toEqual([null, [true, false]]);
   });
-  test("clears its pick by the button at the far left of its field, but where it isRequired", async () => {
+  test("clears its pick by a button at the right of its field, before the one that opens the list, but where it isRequired", async () => {
     const seen: unknown[] = [];
     const { el } = await draw(
       <>
@@ -219,6 +219,8 @@ describe("a select of one item", () => {
       </>,
     );
     const field = labelled(el, "Fruit");
+    const group = field.closest('[role="group"]');
+    expect(clearButton(field)?.nextElementSibling).toBe(group?.lastElementChild);
 
     await cleared(field, step);
 
@@ -228,7 +230,7 @@ describe("a select of one item", () => {
 });
 
 describe("a select of several items", () => {
-  test("clears every pick by the button at the far left of its field", async () => {
+  test("clears every pick by a button at the right of its field", async () => {
     const seen: unknown[] = [];
     const { el } = await draw(<Held label="Fruits" selectionMode="multiple" defaultItems={fruits} start={["apple", "cherry"]} seen={seen} />);
     const field = labelled(el, "Fruits");
@@ -307,7 +309,7 @@ describe("a select of several items", () => {
   });
 });
 
-type Basket = Readonly<{ fruit: string; fruits: readonly string[] }>;
+type Basket = Readonly<{ fruit?: string; fruits: readonly string[] }>;
 
 const basket = (state: Partial<Basket>): Basket => ({ fruit: "apple", fruits: ["apple"], ...state });
 
@@ -319,6 +321,7 @@ const fixture: BlockFixture = {
     basket({ fruits: ["cherry", "apple", "banana"] }),
     basket({ fruits: ["apple", "cherry"] }),
     basket({ fruits: [] }),
+    { fruits: [] },
   ],
   requests: [],
 };
@@ -351,13 +354,25 @@ describe("a bound select", () => {
     const shown = async (outdated: boolean) => {
       const { el, unmount } = await draw(<Bound host={stubBlockHost<Basket>(fixture, { state })} outdated={outdated} />);
       const [one, several] = [labelled(el, "Fruit"), labelled(el, "Fruits")];
-      const seen = [one.value, one.placeholder, one.getAttribute("aria-invalid"), chipLabels(several), several.getAttribute("aria-invalid")];
+      // The field, and the chip of the pick that the items lack, show in the
+      // colour of danger by the attributes that mark them.
+      const marked = [one, several].map((field) => field.closest('[role="group"]')?.hasAttribute("data-invalid"));
+      const missing = [...(several.closest('[role="group"]')?.querySelectorAll("[data-missing]") ?? [])].map((chip) => chip.textContent.trim());
+      const seen = [one.value, one.placeholder, one.getAttribute("aria-invalid"), chipLabels(several), several.getAttribute("aria-invalid"), marked, missing];
       await unmount();
       return seen;
     };
 
-    expect(await shown(false)).toEqual(["", "durian (not available)", "true", ["Apple", "durian (not available)"], "true"]);
-    expect(await shown(true)).toEqual(["", "durian", null, ["Apple", "durian"], null]);
+    expect(await shown(false)).toEqual([
+      "",
+      "durian (not available)",
+      "true",
+      ["Apple", "durian (not available)"],
+      "true",
+      [true, true],
+      ["durian (not available)"],
+    ]);
+    expect(await shown(true)).toEqual(["", "durian", null, ["Apple", "durian"], null, [false, false], []]);
   });
 
   test("submits the picks of several once, as the list closes, after the strings that the state holds then", async () => {
@@ -402,14 +417,16 @@ describe("a bound select", () => {
     expect(host.submitted).toEqual([basket({ fruits: [] })]);
   });
 
-  test("submits no pick as the user clears the picks of several, and offers no clearing of one, as a binding takes no state arg away", async () => {
+  test("submits no pick as the user clears the picks of several, and unsets the state arg of one, as a new block leaves an arg without a default", async () => {
     const host = stubBlockHost<Basket>(fixture, { state: basket({ fruits: ["apple", "cherry"] }) });
     const { el } = await draw(<Bound host={host} />);
+    const one = labelled(el, "Fruit");
 
     await cleared(labelled(el, "Fruits"), step);
+    await cleared(one, step);
 
-    expect(host.submitted).toEqual([basket({ fruits: [] })]);
-    expect(clearButton(labelled(el, "Fruit"))).toBeNull();
+    expect(host.submitted).toEqual([basket({ fruits: [] }), { fruits: [] }]);
+    expect([Object.hasOwn(host.state(), "fruit"), one.value, one.placeholder, clearButton(one)]).toEqual([false, "", "Choose a fruit", null]);
   });
 
   test("submits the picks in the order of its items where ordered", async () => {

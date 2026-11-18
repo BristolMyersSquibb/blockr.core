@@ -84,6 +84,7 @@ function controls(host, signal) {
         error: refusal,
         get: () => binding.get(),
         commit: (next) => binding.commit(next),
+        unset: () => binding.unset(),
         type: (next) => {
           binding.type(next);
         },
@@ -144,6 +145,7 @@ function controls(host, signal) {
         defaultItems: items,
         selectionMode: options.selectionMode ?? "single",
         ordered: options.ordered,
+        isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,
         children: (item) => /* @__PURE__ */ jsx(inputs.ComboBoxItem, { id: item.id, children: item.name ?? item.id })

@@ -1231,8 +1231,12 @@
   color: var(--bc-color-text-default);
 }
 
-.bc\:data-invalid\:border-border-danger[data-invalid] {
+.bc\:data-invalid\:border-border-danger[data-invalid], .bc\:data-missing\:border-border-danger[data-missing] {
   border-color: var(--bc-color-border-danger);
+}
+
+.bc\:data-missing\:text-text-danger[data-missing] {
+  color: var(--bc-color-text-danger);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -33,7 +33,8 @@ export function multiSelectUi(label: string, values: readonly string[]): OptionM
 }
 
 // A select of one of the items, each a value by its id and how it reads by
-// its name, such as light or dark for dark_mode.
+// its name, such as light or dark for dark_mode, which a board option always
+// holds one of.
 export function selectUi<V extends Json = string>(
   label: string,
   placeholder: string,
@@ -41,7 +42,7 @@ export function selectUi<V extends Json = string>(
 ): OptionModule<V> {
   function SelectUi({ host }: ModuleProps<OptionHost<V>>): ReactElement {
     return (
-      <ComboBox bound={useValue(host)} label={label} placeholder={placeholder} defaultItems={items}>
+      <ComboBox bound={useValue(host)} label={label} placeholder={placeholder} defaultItems={items} isRequired>
         {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
       </ComboBox>
     );

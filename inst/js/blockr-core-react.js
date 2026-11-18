@@ -59,6 +59,7 @@ function useValue(host, key) {
       error,
       get: () => binding.current?.get() ?? held(host, name),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
+      unset: () => binding.current?.unset() ?? Promise.resolve(false),
       type: (next) => {
         binding.current?.type(next);
       },
@@ -398,7 +399,9 @@ function BoundOne({ bound, outdated = false, ...props }) {
         selectionMode: "single",
         outdated,
         marking: !outdated && known(props),
-        clears: false,
+        onClear: () => {
+          void bound.unset();
+        },
         value: current,
         onChange: (key) => {
           if (key !== null && !Array.isArray(key)) void bound.commit(String(key));
@@ -484,7 +487,7 @@ function Drawn({
   renderEmptyState,
   outdated = false,
   marking = false,
-  clears = true,
+  onClear,
   className,
   allowsEmptyCollection = true,
   ...props
@@ -514,7 +517,8 @@ function Drawn({
             placeholder,
             multiple,
             marking,
-            clearable: clears && props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
+            clearable: props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
+            onClear,
             label,
             autoFocus: props.autoFocus
           }
@@ -548,6 +552,7 @@ function Field2({
   multiple,
   marking,
   clearable,
+  onClear,
   label,
   autoFocus
 }) {
@@ -563,7 +568,35 @@ function Field2({
   const remove = (gone) => {
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
-  return /* @__PURE__ */ jsxs2(Group, { ref, className: `${FIELD} ${invalid ? "bc:border-border-danger" : ""}`, children: [
+  return /* @__PURE__ */ jsxs2(Group, { ref, isInvalid: invalid, className: FIELD, children: [
+    /* @__PURE__ */ jsxs2("div", { className: VALUES, children: [
+      keys.length === 0 ? null : /* @__PURE__ */ jsx3(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx3(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key) => {
+        const text = known2.get(key) ?? String(key);
+        const gone = marking && !known2.has(key);
+        return /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
+          /* @__PURE__ */ jsx3("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+          /* @__PURE__ */ jsx3(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx3(Cross, {}) })
+        ] }, key);
+      }) }) }),
+      /* @__PURE__ */ jsx3(
+        Input,
+        {
+          value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item?.textValue ?? "",
+          placeholder: lackedOne ? marking ? missing(String(one)) : String(one) : keys.length > 0 ? void 0 : placeholder,
+          "aria-invalid": invalid || void 0,
+          "data-autofocus": autoFocus === true || void 0,
+          className: INPUT,
+          onClick: () => {
+            if (state !== null && !state.isOpen) state.open(null, "manual");
+          },
+          onKeyDown: (event) => {
+            if (event.key === "Escape" && state?.isOpen === true) event.preventDefault();
+            if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
+            state?.setValue(keys.slice(0, -1));
+          }
+        }
+      )
+    ] }),
     clearable && (keys.length > 0 || one !== null) ? (
       // A button of the field's own, not React Aria's, which the select
       // would take for its own and open the list with. It keeps the focus
@@ -580,38 +613,13 @@ function Field2({
             event.preventDefault();
           },
           onClick: () => {
-            state?.setValue(multiple ? [] : null);
+            if (onClear !== void 0) onClear();
+            else state?.setValue(multiple ? [] : null);
           },
           children: /* @__PURE__ */ jsx3(Cross, {})
         }
       )
     ) : null,
-    keys.length === 0 ? null : /* @__PURE__ */ jsx3(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx3(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key) => {
-      const text = known2.get(key) ?? String(key);
-      const gone = marking && !known2.has(key);
-      return /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, className: `${CHIP} ${gone ? "bc:border-border-danger bc:text-text-danger" : ""}`, children: [
-        /* @__PURE__ */ jsx3("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
-        /* @__PURE__ */ jsx3(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx3(Cross, {}) })
-      ] }, key);
-    }) }) }),
-    /* @__PURE__ */ jsx3(
-      Input,
-      {
-        value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item?.textValue ?? "",
-        placeholder: lackedOne ? marking ? missing(String(one)) : String(one) : keys.length > 0 ? void 0 : placeholder,
-        "aria-invalid": invalid || void 0,
-        "data-autofocus": autoFocus === true || void 0,
-        className: INPUT,
-        onClick: () => {
-          if (state !== null && !state.isOpen) state.open(null, "manual");
-        },
-        onKeyDown: (event) => {
-          if (event.key === "Escape" && state?.isOpen === true) event.preventDefault();
-          if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
-          state?.setValue(keys.slice(0, -1));
-        }
-      }
-    ),
     /* @__PURE__ */ jsx3(Button, { className: OPENER, children: /* @__PURE__ */ jsx3(Chevron, {}) })
   ] });
 }
@@ -685,11 +693,12 @@ function Cross() {
     }
   );
 }
-var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
 var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
 var CLEAR = "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
-var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
 var LAYER = "bc:pointer-events-none bc:fixed bc:inset-0 bc:z-[100000]";
 var LIST = "bc:pointer-events-auto bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";

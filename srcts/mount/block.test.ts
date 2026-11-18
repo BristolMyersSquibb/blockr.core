@@ -710,6 +710,22 @@ describe("the host", () => {
     expect(store.board().blocks.b?.state).toEqual({ n: 6, direction: "head" });
   });
 
+  test("unsets a state arg that a submit gives as undefined, through core's command, as one step of the user", async () => {
+    const ui = recorder();
+    const { store, mounts } = await setup({ [HEAD]: recorder().exports, [MERGE]: ui.exports });
+    mounts.mountBlock(document.createElement("div"), "c");
+    await tick();
+    const host = ui.host();
+    await host.submit({ by: ["Time"] });
+    const set = store.board().blocks.c?.state;
+
+    await host.submit({ by: undefined });
+
+    expect(Object.hasOwn(store.board().blocks.c?.state ?? {}, "by")).toBe(false);
+    store.undo();
+    expect(store.board().blocks.c?.state).toEqual(set);
+  });
+
   test("rejects a submit with what refused it", async () => {
     const ui = recorder();
     const { mounts } = await setup({ [HEAD]: ui.exports });

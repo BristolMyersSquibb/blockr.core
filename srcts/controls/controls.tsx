@@ -64,6 +64,9 @@ export interface ComboBoxOptions {
   // Where it picks several, whether it submits them in the order of the
   // items, as for severities, rather than in the order the user picked them.
   readonly ordered?: boolean;
+  // Whether it always holds a pick, so that its field offers no button that
+  // clears it.
+  readonly isRequired?: boolean;
   // What its list says once its items are known and there are none.
   readonly renderEmptyState?: () => string;
 }
@@ -203,6 +206,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
         error: refusal,
         get: () => binding.get(),
         commit: (next) => binding.commit(next),
+        unset: () => binding.unset(),
         type: (next) => {
           binding.type(next);
         },
@@ -273,6 +277,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
         defaultItems={items}
         selectionMode={options.selectionMode ?? "single"}
         ordered={options.ordered}
+        isRequired={options.isRequired}
         renderEmptyState={options.renderEmptyState}
         outdated={outdated}
       >

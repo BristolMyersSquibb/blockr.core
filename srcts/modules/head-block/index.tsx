@@ -25,7 +25,7 @@ function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   return (
     <Stack>
       <NumberInput bound={useValue(host, "n")} label="Number of rows" min={0} max={max} outdated={outdated} />
-      <ComboBox bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" defaultItems={ends}>
+      <ComboBox bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" defaultItems={ends} isRequired>
         {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
       </ComboBox>
     </Stack>

@@ -63,6 +63,9 @@ export interface BlockHost<S extends State = State> {
   // block's state. It rejects with what refused it. Core raises no
   // notification of that, so the module shows the user why, as core's inputs
   // do below themselves.
+  // A state arg that the change gives as undefined, it unsets, as where the
+  // user clears an arg without a default, which then stays out of the block's
+  // state until something sets it.
   submit(change: Partial<S>): Promise<void>;
   // A request of the block class, with state args and parameters. It resolves
   // with the answer as R writes it, every vector as an array, or with a File

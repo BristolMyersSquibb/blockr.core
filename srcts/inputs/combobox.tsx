@@ -17,9 +17,11 @@
 //
 // The field of several shows each pick as a chip, whose button removes it,
 // as Backspace in the empty field removes the last one.
-// A button at the field's far left clears the pick, or every pick, where
-// there is one, but where the select `isRequired`, and on a bound select of
-// one, as a binding submits a value but takes no state arg away.
+// A button at the field's right, before the one that opens the list, clears
+// the pick, or every pick, where there is one, but where the select
+// `isRequired`.
+// Bound, a select of one unsets its state arg so, as a block's new select of
+// an arg without a default starts.
 // A press in the field opens the list, as typing into it does.
 // The list hangs below the field, or above it where the window has no room
 // below, as wide as the field.
@@ -125,7 +127,9 @@ export function ComboBox<T extends object, M extends Mode = "single">(props: Com
 // pick.
 type DrawnProps = Omit<ComboBoxProps<object, Mode>, "bound" | "ordered"> & {
   readonly marking?: boolean;
-  readonly clears?: boolean;
+  // What clears the pick in place of the select's own clearing, as where a
+  // binding unsets the state arg.
+  readonly onClear?: () => void;
 };
 
 function BoundOne({ bound, outdated = false, ...props }: DrawnProps & { readonly bound: Bound }): ReactElement {
@@ -137,7 +141,9 @@ function BoundOne({ bound, outdated = false, ...props }: DrawnProps & { readonly
         selectionMode="single"
         outdated={outdated}
         marking={!outdated && known(props)}
-        clears={false}
+        onClear={() => {
+          void bound.unset();
+        }}
         value={current}
         onChange={(key) => {
           if (key !== null && !Array.isArray(key)) void bound.commit(String(key));
@@ -239,7 +245,7 @@ function Drawn({
   renderEmptyState,
   outdated = false,
   marking = false,
-  clears = true,
+  onClear,
   className,
   allowsEmptyCollection = true,
   ...props
@@ -267,7 +273,8 @@ function Drawn({
         placeholder={placeholder}
         multiple={multiple}
         marking={marking}
-        clearable={clears && props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true}
+        clearable={props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true}
+        onClear={onClear}
         label={label}
         autoFocus={props.autoFocus}
       />
@@ -330,6 +337,7 @@ function Field({
   multiple,
   marking,
   clearable,
+  onClear,
   label,
   autoFocus,
 }: {
@@ -338,6 +346,7 @@ function Field({
   readonly multiple: boolean;
   readonly marking: boolean;
   readonly clearable: boolean;
+  readonly onClear: (() => void) | undefined;
   readonly label: string | undefined;
   readonly autoFocus: boolean | undefined;
 }): ReactElement {
@@ -355,7 +364,45 @@ function Field({
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
   return (
-    <Group ref={ref} className={`${FIELD} ${invalid ? "bc:border-border-danger" : ""}`}>
+    <Group ref={ref} isInvalid={invalid} className={FIELD}>
+      <div className={VALUES}>
+        {keys.length === 0 ? null : (
+          <TagGroup aria-label={label === undefined ? "Picks" : `Picks of ${label}`} onRemove={remove} className="bc:flex bc:min-w-0 bc:max-w-full">
+            <TagList className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1">
+              {keys.map((key) => {
+                const text = known.get(key) ?? String(key);
+                const gone = marking && !known.has(key);
+                return (
+                  <Tag key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
+                    <span className="bc:truncate">{gone ? missing(text) : text}</span>
+                    <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
+                      <Cross />
+                    </Button>
+                  </Tag>
+                );
+              })}
+            </TagList>
+          </TagGroup>
+        )}
+        <Input
+          value={multiple || state === null || state.isFocused || state.isOpen ? undefined : (item?.textValue ?? "")}
+          placeholder={lackedOne ? (marking ? missing(String(one)) : String(one)) : keys.length > 0 ? undefined : placeholder}
+          aria-invalid={invalid || undefined}
+          data-autofocus={autoFocus === true || undefined}
+          className={INPUT}
+          onClick={() => {
+            if (state !== null && !state.isOpen) state.open(null, "manual");
+          }}
+          onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+            // An Escape that closes the list closes nothing else, such as the
+            // dialog or the form that holds the select, which React Aria lets
+            // it reach.
+            if (event.key === "Escape" && state?.isOpen === true) event.preventDefault();
+            if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
+            state?.setValue(keys.slice(0, -1));
+          }}
+        />
+      </div>
       {clearable && (keys.length > 0 || one !== null) ? (
         // A button of the field's own, not React Aria's, which the select
         // would take for its own and open the list with. It keeps the focus
@@ -370,48 +417,13 @@ function Field({
             event.preventDefault();
           }}
           onClick={() => {
-            state?.setValue(multiple ? [] : null);
+            if (onClear !== undefined) onClear();
+            else state?.setValue(multiple ? [] : null);
           }}
         >
           <Cross />
         </button>
       ) : null}
-      {keys.length === 0 ? null : (
-        <TagGroup aria-label={label === undefined ? "Picks" : `Picks of ${label}`} onRemove={remove} className="bc:flex bc:min-w-0 bc:max-w-full">
-          <TagList className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1">
-            {keys.map((key) => {
-              const text = known.get(key) ?? String(key);
-              const gone = marking && !known.has(key);
-              return (
-                <Tag key={key} id={key} textValue={text} className={`${CHIP} ${gone ? "bc:border-border-danger bc:text-text-danger" : ""}`}>
-                  <span className="bc:truncate">{gone ? missing(text) : text}</span>
-                  <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
-                    <Cross />
-                  </Button>
-                </Tag>
-              );
-            })}
-          </TagList>
-        </TagGroup>
-      )}
-      <Input
-        value={multiple || state === null || state.isFocused || state.isOpen ? undefined : (item?.textValue ?? "")}
-        placeholder={lackedOne ? (marking ? missing(String(one)) : String(one)) : keys.length > 0 ? undefined : placeholder}
-        aria-invalid={invalid || undefined}
-        data-autofocus={autoFocus === true || undefined}
-        className={INPUT}
-        onClick={() => {
-          if (state !== null && !state.isOpen) state.open(null, "manual");
-        }}
-        onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
-          // An Escape that closes the list closes nothing else, such as the
-          // dialog or the form that holds the select, which React Aria lets
-          // it reach.
-          if (event.key === "Escape" && state?.isOpen === true) event.preventDefault();
-          if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
-          state?.setValue(keys.slice(0, -1));
-        }}
-      />
       <Button className={OPENER}>
         <Chevron />
       </Button>
@@ -523,15 +535,21 @@ function Cross(): ReactElement {
 // field and the button, and draws the outline of the focus while the focus is
 // in it.
 const FIELD =
-  "bc:flex bc:min-h-[30px] bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+  "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+// The box of the chips and the text field, which wraps the chips onto more
+// lines, while the buttons stay at the field's right.
+const VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
 const INPUT =
   "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
 const CLEAR =
   "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 const OPENER =
   "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
+// A chip of a pick that the items lack shows in the colour of danger, as the
+// field then does, through the attributes that mark them, whose classes win
+// over those of their default colours.
 const CHIP =
-  "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+  "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 const CHIP_REMOVE =
   "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
 // The list takes the field's width, and the box of the rows scrolls within

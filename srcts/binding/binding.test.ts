@@ -88,6 +88,22 @@ describe("a binding", () => {
     expect(shown).toEqual(["x"]);
   });
 
+  test("unsets the state arg at once, unless the host holds none, and refuses to unset a board option's value", async () => {
+    const host = stubBlockHost({ states: [{ columns: ["a"], label: "x" }, { label: "x" }], requests: [] }, { state: { columns: ["a"], label: "x" } });
+    const shown: (Json | undefined)[] = [];
+    const columns = bind(host, "columns", (value) => shown.push(value));
+
+    expect(await columns.unset()).toBe(true);
+    expect(await columns.unset()).toBe(true);
+    expect([host.submitted, shown]).toEqual([[{ label: "x" }], [["a"], undefined]]);
+
+    const option = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const refused: unknown[] = [];
+    const rows = bind(option, "n_rows", () => undefined, { settled: (error) => refused.push(error) });
+    expect(await rows.unset()).toBe(false);
+    expect(String(refused[0])).toContain('The board option "n_rows" always holds a value');
+  });
+
   test("binds a board option's value under its id, and nothing else", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const shown: (Json | undefined)[] = [];

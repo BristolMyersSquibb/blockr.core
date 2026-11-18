@@ -50,7 +50,7 @@ function multiSelectUi(label, values) {
 }
 function selectUi(label, placeholder, items) {
   function SelectUi({ host }) {
-    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), label, placeholder, defaultItems: items, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.name }) });
+    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), label, placeholder, defaultItems: items, isRequired: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.name }) });
   }
   return reactModule(SelectUi);
 }

@@ -443,7 +443,8 @@ function stubBlockHost(fixture, options = {}) {
       if (!isObject(change)) {
         return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
       }
-      const next = { ...state2, ...defined(change) };
+      const unset = Object.entries(change).flatMap(([arg, value2]) => value2 === void 0 ? [arg] : []);
+      const next = without({ ...state2, ...defined(change) }, unset);
       submitted.push(next);
       if (!fixture.states.some((listed) => jsonEqual(listed, next))) {
         return Promise.reject(
@@ -3792,7 +3793,8 @@ function blockHost(deps) {
         return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
       }
       const set = Object.fromEntries(Object.entries(change).filter(([, value2]) => value2 !== void 0));
-      return commands.run("blockr.core-set_block", { id: block, state: set });
+      const unset = Object.entries(change).flatMap(([arg, value2]) => value2 === void 0 ? [arg] : []);
+      return commands.run("blockr.core-set_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
     },
     request(name2, args = {}, opts = {}) {
       if (!bound()) return Promise.reject(unboundError());
@@ -9084,7 +9086,7 @@ function bind(host, key2, show2, options = {}) {
   const submit = async (value2) => {
     if (jsonEqual(source.get(key2), value2)) return true;
     try {
-      await source.submit(key2, value2);
+      await (value2 === void 0 ? source.unset(key2) : source.submit(key2, value2));
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -9111,6 +9113,11 @@ function bind(host, key2, show2, options = {}) {
     get: () => source.get(key2),
     async commit(value2) {
       const took = await submit(value2);
+      if (!took) display(true);
+      return took;
+    },
+    async unset() {
+      const took = await submit(void 0);
       if (!took) display(true);
       return took;
     },
@@ -9149,6 +9156,10 @@ function createSource(host) {
         check2(key2);
         return host.submit(value2);
       },
+      unset(key2) {
+        check2(key2);
+        return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+      },
       onValues: (fn) => host.on("value", fn),
       onContext: () => () => void 0,
       inputs: () => null,
@@ -9159,6 +9170,7 @@ function createSource(host) {
     check: () => void 0,
     get: (key2) => own(host.state(), key2),
     submit: (key2, value2) => host.submit({ [key2]: value2 }),
+    unset: (key2) => host.submit({ [key2]: void 0 }),
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input2) => ({ input: input2.input, revision: input2.revision })),
@@ -9193,6 +9205,7 @@ function useValue(host, key2) {
       error,
       get: () => binding.current?.get() ?? held2(host, name2),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
+      unset: () => binding.current?.unset() ?? Promise.resolve(false),
       type: (next) => {
         binding.current?.type(next);
       },
@@ -9403,7 +9416,9 @@ function BoundOne({ bound, outdated = false, ...props }) {
         selectionMode: "single",
         outdated,
         marking: !outdated && known(props),
-        clears: false,
+        onClear: () => {
+          void bound.unset();
+        },
         value: current2,
         onChange: (key2) => {
           if (key2 !== null && !Array.isArray(key2)) void bound.commit(String(key2));
@@ -9489,7 +9504,7 @@ function Drawn({
   renderEmptyState,
   outdated = false,
   marking = false,
-  clears = true,
+  onClear,
   className,
   allowsEmptyCollection = true,
   ...props
@@ -9519,7 +9534,8 @@ function Drawn({
             placeholder,
             multiple,
             marking,
-            clearable: clears && props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
+            clearable: props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
+            onClear,
             label,
             autoFocus: props.autoFocus
           }
@@ -9553,6 +9569,7 @@ function Field2({
   multiple,
   marking,
   clearable,
+  onClear,
   label,
   autoFocus
 }) {
@@ -9568,7 +9585,35 @@ function Field2({
   const remove2 = (gone) => {
     state2?.setValue(keys.filter((key2) => !gone.has(key2)));
   };
-  return /* @__PURE__ */ jsxs3(Group, { ref, className: `${FIELD} ${invalid ? "bc:border-border-danger" : ""}`, children: [
+  return /* @__PURE__ */ jsxs3(Group, { ref, isInvalid: invalid, className: FIELD, children: [
+    /* @__PURE__ */ jsxs3("div", { className: VALUES, children: [
+      keys.length === 0 ? null : /* @__PURE__ */ jsx5(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove2, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx5(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key2) => {
+        const text = known2.get(key2) ?? String(key2);
+        const gone = marking && !known2.has(key2);
+        return /* @__PURE__ */ jsxs3(Tag, { id: key2, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
+          /* @__PURE__ */ jsx5("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+          /* @__PURE__ */ jsx5(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx5(Cross, {}) })
+        ] }, key2);
+      }) }) }),
+      /* @__PURE__ */ jsx5(
+        Input,
+        {
+          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item?.textValue ?? "",
+          placeholder: lackedOne ? marking ? missing(String(one2)) : String(one2) : keys.length > 0 ? void 0 : placeholder,
+          "aria-invalid": invalid || void 0,
+          "data-autofocus": autoFocus === true || void 0,
+          className: INPUT,
+          onClick: () => {
+            if (state2 !== null && !state2.isOpen) state2.open(null, "manual");
+          },
+          onKeyDown: (event) => {
+            if (event.key === "Escape" && state2?.isOpen === true) event.preventDefault();
+            if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
+            state2?.setValue(keys.slice(0, -1));
+          }
+        }
+      )
+    ] }),
     clearable && (keys.length > 0 || one2 !== null) ? (
       // A button of the field's own, not React Aria's, which the select
       // would take for its own and open the list with. It keeps the focus
@@ -9585,38 +9630,13 @@ function Field2({
             event.preventDefault();
           },
           onClick: () => {
-            state2?.setValue(multiple ? [] : null);
+            if (onClear !== void 0) onClear();
+            else state2?.setValue(multiple ? [] : null);
           },
           children: /* @__PURE__ */ jsx5(Cross, {})
         }
       )
     ) : null,
-    keys.length === 0 ? null : /* @__PURE__ */ jsx5(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove2, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx5(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key2) => {
-      const text = known2.get(key2) ?? String(key2);
-      const gone = marking && !known2.has(key2);
-      return /* @__PURE__ */ jsxs3(Tag, { id: key2, textValue: text, className: `${CHIP} ${gone ? "bc:border-border-danger bc:text-text-danger" : ""}`, children: [
-        /* @__PURE__ */ jsx5("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
-        /* @__PURE__ */ jsx5(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx5(Cross, {}) })
-      ] }, key2);
-    }) }) }),
-    /* @__PURE__ */ jsx5(
-      Input,
-      {
-        value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item?.textValue ?? "",
-        placeholder: lackedOne ? marking ? missing(String(one2)) : String(one2) : keys.length > 0 ? void 0 : placeholder,
-        "aria-invalid": invalid || void 0,
-        "data-autofocus": autoFocus === true || void 0,
-        className: INPUT,
-        onClick: () => {
-          if (state2 !== null && !state2.isOpen) state2.open(null, "manual");
-        },
-        onKeyDown: (event) => {
-          if (event.key === "Escape" && state2?.isOpen === true) event.preventDefault();
-          if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
-          state2?.setValue(keys.slice(0, -1));
-        }
-      }
-    ),
     /* @__PURE__ */ jsx5(Button, { className: OPENER, children: /* @__PURE__ */ jsx5(Chevron, {}) })
   ] });
 }
@@ -9690,11 +9710,12 @@ function Cross() {
     }
   );
 }
-var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
 var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
 var CLEAR = "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
-var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
 var LAYER = "bc:pointer-events-none bc:fixed bc:inset-0 bc:z-[100000]";
 var LIST = "bc:pointer-events-auto bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
@@ -12124,7 +12145,7 @@ function multiSelectUi(label, values2) {
 }
 function selectUi(label, placeholder, items) {
   function SelectUi({ host }) {
-    return /* @__PURE__ */ jsx22(ComboBox2, { bound: useValue(host), label, placeholder, defaultItems: items, children: (item) => /* @__PURE__ */ jsx22(ComboBoxItem, { id: item.id, children: item.name }) });
+    return /* @__PURE__ */ jsx22(ComboBox2, { bound: useValue(host), label, placeholder, defaultItems: items, isRequired: true, children: (item) => /* @__PURE__ */ jsx22(ComboBoxItem, { id: item.id, children: item.name }) });
   }
   return reactModule(SelectUi);
 }

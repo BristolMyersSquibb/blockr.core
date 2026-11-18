@@ -12,7 +12,7 @@ function HeadBlock({ host }) {
   const outdated = rows.loading || rows.error !== null;
   return /* @__PURE__ */ jsxs(Stack, { children: [
     /* @__PURE__ */ jsx(NumberInput, { bound: useValue(host, "n"), label: "Number of rows", min: 0, max, outdated }),
-    /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host, "direction"), label: "Direction", placeholder: "Choose an end", defaultItems: ends, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.name }) })
+    /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host, "direction"), label: "Direction", placeholder: "Choose an end", defaultItems: ends, isRequired: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.name }) })
   ] });
 }
 var head_block_default = reactModule(HeadBlock);

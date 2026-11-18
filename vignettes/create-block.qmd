@@ -479,7 +479,7 @@ The host gives the module everything it may use:
 | `state()` | the block's state |
 | `context()` | the block's name, status, linked inputs and the values of the board options that the module names |
 | `on("state", fn)`, `on("context", fn)` | a subscription to changes of either, which returns the function that ends it |
-| `submit(change)` | one edit of the state, which rejects with what refused it |
+| `submit(change)` | one edit of the state, which leaves unset a state arg that `change` gives as `undefined`, and rejects with what refused it |
 | `request(name, args, opts)` | a request of the class, with state args and parameters in `args` |
 | `evaluate(params)` | a one-time evaluation of the block with parameters, which its `block_eval()` method reads |
 | `module(id)` | a module that another package offers, by its ID |
@@ -542,7 +542,8 @@ The SDK holds these:
 - The inputs `Checkbox`, `Field`, `NumberInput`, `Stack` and `TextInput`, each on one bound value.
 - The select `ComboBox`, which is [React Aria's `ComboBox`](https://react-aria.adobe.com/ComboBox) in core's theme, with the items `ComboBoxItem` and `ComboBoxSection`, and React Aria's `Text`, which holds an item's description.
   It takes the props of React Aria's `ComboBox`, and picks one string, or an array of strings where its `selectionMode` is `"multiple"`, by the ids of its items, out of a list that the user filters by typing.
-  The field of several shows each pick as a chip, which the user removes by its button, and a button at the field's far left clears every pick.
+  The field of several shows each pick as a chip, which the user removes by its button, and a button at the field's right clears the pick, or every pick, unless the select `isRequired`.
+  A bound select of one leaves its state arg unset so.
   Given `value` and `onChange` in place of `bound`, it picks for its caller instead, as in the UI of a plugin.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
 - For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a block through `CoreApi`.
@@ -697,7 +698,7 @@ Given the `selectionMode` `"multiple"`, it picks an array of strings, which it s
 The option `loading` of `follow()` runs each time the request is asked, and the option `answer` once it answers.
 In `loading`, a module calls `setOutdated(true)` on each input whose items or `max` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
 
-A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React.
+A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.
 A package that builds nothing writes the schema of the state by hand.
 
 ### Where the files go

@@ -19,6 +19,7 @@ export interface ComboBoxOptions {
     readonly items?: readonly Item[];
     readonly selectionMode?: "single" | "multiple";
     readonly ordered?: boolean;
+    readonly isRequired?: boolean;
     readonly renderEmptyState?: () => string;
 }
 export interface Controls<K extends string = string> {
