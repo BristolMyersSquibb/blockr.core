@@ -28,7 +28,6 @@ test_that("a board is written as a JSON board", {
     read_json_strictly(
       '{
         "id": "sales_review",
-        "versions": {},
         "name": "Q3 numbers",
         "blocks": {
           "a": {
@@ -111,7 +110,6 @@ test_that("a JSON board holds every ID, and an empty board empty objects", {
         "packages": {},
         "board": {
           "id": "empty",
-          "versions": {},
           "name": "Empty",
           "blocks": {},
           "links": {},
@@ -391,20 +389,16 @@ test_that("a plugin's state is written by the schema of its class", {
     id = "grid"
   )
 
-  # A plugin's state is written under its class's id, by the schema of the
-  # class's state, what the schema leaves out keeps the shape that R's writer
-  # gives it, and the state of a class that no package gives a schema is bare,
-  # while a board option's value is shaped by its schema before it is recorded
-  # with its version
+  # A plugin's state is written under its class's id, with the version of the
+  # class's state, by the schema of the class's state, what the schema leaves
+  # out keeps the shape that R's writer gives it, and the state of a class that
+  # no package gives a schema is bare, while a board option's value is shaped
+  # by its schema before it is recorded with its version
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board)))$board,
     read_json_strictly(
       '{
         "id": "grid",
-        "versions": {
-          "blockr.test-notes_plugin": 1,
-          "blockr.test-grid_plugin": 1
-        },
         "name": "Grid",
         "blocks": {},
         "links": {},
@@ -412,15 +406,18 @@ test_that("a plugin's state is written by the schema of its class", {
         "options": { "tags": { "value": ["draft"], "version": 2 } },
         "plugins": {
           "blockr.test-notes_plugin": {
-            "notes": {
-              "n1": { "text": "To check", "blocks": ["a"] },
-              "n2": {}
+            "state": {
+              "notes": {
+                "n1": { "text": "To check", "blocks": ["a"] },
+                "n2": {}
+              },
+              "flags": { "starred": ["a"], "note": "x" },
+              "pinned": "n1",
+              "counts": []
             },
-            "flags": { "starred": ["a"], "note": "x" },
-            "pinned": "n1",
-            "counts": []
+            "version": 1
           },
-          "blockr.test-grid_plugin": { "cols": "a" }
+          "blockr.test-grid_plugin": { "state": { "cols": "a" }, "version": 1 }
         }
       }'
     )
@@ -431,7 +428,7 @@ test_that("a plugin's state is written by the schema of its class", {
   res <- read_json_strictly(encode_message(res))
 
   expect_identical(
-    res$board$plugins[["blockr.test-notes_plugin"]],
+    res$board$plugins[["blockr.test-notes_plugin"]]$state,
     read_json_strictly(
       '{ "notes": {}, "flags": {}, "pinned": "", "counts": [] }'
     )
@@ -443,12 +440,10 @@ test_that("a plugin's state is written by the schema of its class", {
   res <- blockr_ser(new_board(plugins = list(empty(), grid())))
 
   expect_named(res$board$plugins, "blockr.test-grid_plugin")
-  expect_named(res$board$versions, "blockr.test-grid_plugin")
 
   res <- blockr_ser(new_board(plugins = empty()))
 
   expect_identical(res$board$plugins, set_names(list(), character()))
-  expect_identical(res$board$versions, set_names(list(), character()))
   expect_false("blockr.test" %in% names(res$packages))
 })
 
@@ -516,11 +511,11 @@ test_that("R finds a schema beside the module that a package lists", {
   res <- read_json_strictly(encode_message(blockr_ser(board)))$board
 
   expect_identical(
-    res$plugins[["blockr.one-views_plugin"]],
+    res$plugins[["blockr.one-views_plugin"]]$state,
     read_json_strictly('{ "views": ["main"] }')
   )
   expect_identical(
-    res$plugins[["blockr.three-views_plugin"]],
+    res$plugins[["blockr.three-views_plugin"]]$state,
     read_json_strictly('{ "views": "main" }')
   )
 
@@ -560,10 +555,10 @@ test_that("a JSON board records the package and version of each plugin class", {
     list(blockr.core = core, blockr.one = "1.2.0", blockr.two = "0.3.0")
   )
 
-  # The version of each plugin class, by the class's id, which is 1 for a
-  # class without a method of plugin_version()
+  # The version of each plugin class, beside the state of its plugin, which is
+  # 1 for a class without a method of plugin_version()
   expect_identical(
-    res$board$versions,
+    lst_xtr(res$board$plugins, "version"),
     list(`blockr.one-dag_plugin` = 3L, `blockr.two-md_plugin` = 1L)
   )
 
@@ -612,5 +607,8 @@ test_that("a board's parts are written by their methods", {
 
   notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")
 
-  expect_identical(blockr_ser(notes("To do")), list(text = "To do"))
+  expect_identical(
+    blockr_ser(notes("To do")),
+    list(state = list(text = "To do"), version = 1L)
+  )
 })

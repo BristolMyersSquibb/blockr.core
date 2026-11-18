@@ -1155,8 +1155,7 @@ function droppingHello(): HelloReply {
       board: {
         ...json.board,
         blocks: { ...json.board.blocks, x: filter },
-        versions: { ...json.board.versions, "blockr.gone-gone_plugin": 1 },
-        plugins: { ...json.board.plugins, "blockr.gone-gone_plugin": {} },
+        plugins: { ...json.board.plugins, "blockr.gone-gone_plugin": { state: {}, version: 1 } },
         options: { ...json.board.options, zoom: { value: 2, version: 1 } },
       },
     },

@@ -22,19 +22,18 @@
 #' The board holds its `id` and `name`, its blocks, links and stacks, each by
 #' ID, in their order, and the state of its plugins, by the IDs of their
 #' classes.
-#' In `versions`, it holds the version of each plugin class whose plugin's
-#' state it holds, by the class's ID (see [plugin_version()]), and each block
-#' holds the version of its class's state in `version` (see
-#' [new_block_class()]), so that the client migrates by the versions of the
+#' Each block holds the version of its class's state in `version` (see
+#' [new_block_class()]), and so does each plugin, beside its state (see
+#' [plugin_version()]), so that the client migrates by the versions of the
 #' shapes that a JSON board holds.
 #' It holds each board option that the script gives a value, by ID, as its
 #' `value` with the `version` of the value's shape (see
 #' [board_option_version()]), and no other.
 #'
-#' A plugin is written as its state alone, under the ID of its class (see
-#' [new_plugin()]), and a plugin whose constructor gives it no state is not
-#' written at all, so that no board names a plugin that keeps nothing, such as
-#' core's basic frontend.
+#' A plugin is written under the ID of its class as its `state`, with the
+#' `version` of its class's state (see [new_plugin()]).
+#' A plugin whose constructor gives it no state is not written at all, so that
+#' no board names a plugin that keeps nothing, such as core's basic frontend.
 #' R checks no plugin's state, since the plugin's class is defined in the
 #' client, which checks the state against the class's schema as it opens the
 #' board.
@@ -109,7 +108,6 @@ blockr_ser.board <- function(x, ...) {
 
   board <- list(
     id = board_id(x),
-    versions = plugin_versions_of(plugins),
     name = board_name(x),
     blocks = blockr_ser(blocks),
     links = blockr_ser(board_links(x)),
@@ -202,11 +200,14 @@ blockr_ser.board_option <- function(x, ...) {
 #' @rdname blockr_ser
 #' @export
 blockr_ser.plugin <- function(x, ...) {
-  as_json_object(
-    plain_value(
-      plugin_state(x),
-      paste0("The state of the plugin of class ", plugin_class_id(x))
-    )
+  list(
+    state = as_json_object(
+      plain_value(
+        plugin_state(x),
+        paste0("The state of the plugin of class ", plugin_class_id(x))
+      )
+    ),
+    version = checked_plugin_version(x)
   )
 }
 
@@ -235,13 +236,6 @@ board_packages <- function(board) {
   )
 
   package_versions(packages[!is.na(packages)])
-}
-
-# The version of the class of each plugin, by the class's ID, in the order of
-# the plugins, as a JSON board records them: what the class's method of
-# `plugin_version()` gives for the plugin.
-plugin_versions_of <- function(plugins) {
-  as_json_object(lapply(plugins, checked_plugin_version))
 }
 
 # A value as a board's JSON holds it: `NULL`, a vector of logicals, numbers or
@@ -391,8 +385,8 @@ shape_option_values <- function(x, options = available_options()) {
   x
 }
 
-# A plugin's state as a JSON board holds it, under the ID of the plugin's
-# class, `id`, shaped by the schema of the class's state, if any, among the
+# A plugin as a JSON board holds it, under the ID of the plugin's class, `id`,
+# with its state shaped by the schema of the class's state, if any, among the
 # plugin classes listed in `classes`.
 shape_plugin_state <- function(x, id, classes = available_plugin_classes()) {
 
@@ -402,5 +396,6 @@ shape_plugin_state <- function(x, id, classes = available_plugin_classes()) {
     return(x)
   }
 
-  shape_by_schema(x, schema)
+  x["state"] <- list(shape_by_schema(x[["state"]], schema))
+  x
 }

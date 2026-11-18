@@ -36,10 +36,10 @@ export interface Stack {
 export interface JsonBoard {
     readonly format: number;
     readonly packages: Readonly<Record<string, string>>;
-    readonly board: Omit<Board, "blocks" | "options"> & {
-        readonly versions: Readonly<Record<PluginClassId, number>>;
+    readonly board: Omit<Board, "blocks" | "options" | "plugins"> & {
         readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
         readonly options: Readonly<Record<OptionId, JsonOption>>;
+        readonly plugins: Readonly<Record<PluginClassId, JsonPlugin>>;
     };
 }
 export interface JsonBlock extends Block {
@@ -47,5 +47,9 @@ export interface JsonBlock extends Block {
 }
 export interface JsonOption {
     readonly value: Json;
+    readonly version: number;
+}
+export interface JsonPlugin {
+    readonly state: Json;
     readonly version: number;
 }

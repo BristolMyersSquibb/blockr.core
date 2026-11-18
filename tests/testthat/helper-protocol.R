@@ -955,10 +955,11 @@ proto_declared_board <- function() {
       links = obj(),
       stacks = obj(),
       options = obj(),
-      plugins = obj(`blockr.test-grid_plugin` = obj(columns = 2L))
+      plugins = obj(
+        `blockr.test-grid_plugin` = proto_plugin(obj(columns = 2L), 2L)
+      )
     ),
-    packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0"),
-    versions = obj(`blockr.test-grid_plugin` = 2L)
+    packages = obj(blockr.core = "0.2.0", blockr.test = "0.1.0")
   )
 }
 
@@ -966,6 +967,12 @@ proto_declared_board <- function() {
 # shape.
 proto_option <- function(value, version = 1L) {
   obj(value = value, version = version)
+}
+
+# A plugin's state as a JSON board holds it, with the version of its class's
+# state.
+proto_plugin <- function(state, version = 1L) {
+  obj(state = state, version = version)
 }
 
 proto_link <- function(from, to, input) {
@@ -978,15 +985,8 @@ proto_stack <- function(name, blocks, color = NA) {
 }
 
 # A board as a JSON board holds it, beside the format and the packages that
-# its content comes from, here core's alone, with the versions of its plugin
-# classes after its id.
-proto_json_board <- function(board, packages = obj(blockr.core = "0.2.0"),
-                             versions = obj()) {
-
-  at <- match("id", names(board))
-
-  board <- c(board[seq_len(at)], list(versions = versions), board[-seq_len(at)])
-
+# its content comes from, here core's alone.
+proto_json_board <- function(board, packages = obj(blockr.core = "0.2.0")) {
   obj(format = 1L, packages = packages, board = board)
 }
 

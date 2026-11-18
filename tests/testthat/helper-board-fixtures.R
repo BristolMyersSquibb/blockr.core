@@ -308,7 +308,8 @@ board_fixture_values <- function() {
       description = paste(
         "A board that holds the state of two plugins of the package",
         "blockr.test, which defines their classes in JavaScript, each under",
-        "the id of its class. The plugin of the class blockr.test-grid_plugin",
+        "the id of its class, with the version of its class's state. The",
+        "plugin of the class blockr.test-grid_plugin",
         "is a frontend, and the plugin of the class blockr.test-notes_plugin",
         "holds two notes. The package ships the schema of the state of its",
         "notes class beside the module that it lists for the class, here",

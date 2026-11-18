@@ -67,7 +67,7 @@ test_that("R evaluates a traced block as the fixture evaluate-traced has it", {
   spans <- recorded_spans({
     session <- local_evaluator()
     hold_result(session, "a", 2L)
-    hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+    hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
     expect_fixture_replies(session, "evaluate-traced")
   })
 
@@ -85,7 +85,7 @@ test_that("R evaluates a traced block as the fixture evaluate-traced has it", {
   # R replies the same where it records no spans.
   session <- local_evaluator()
   hold_result(session, "a", 2L)
-  hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+  hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
   expect_fixture_replies(session, "evaluate-traced")
 })
 
@@ -148,14 +148,14 @@ test_that("a phase that stops the block without failing it is not marked", {
   # The merge block's expr signals blockr_invalid() for an unset `by`.
   unset <- sample_recipe(
     "c",
-    list(read_of("a", 2L, "x"), read_of("b", 3L, "y"))
+    list(recipe_input("a", 2L, "x"), recipe_input("b", 3L, "y"))
   )
   unset$state$by <- NULL
 
   spans <- recorded_spans({
     session <- local_evaluator()
     hold_result(session, "a", 2L)
-    hold_result(session, "b", 3L, list(read_of("a", 2L, "data")))
+    hold_result(session, "b", 3L, list(recipe_input("a", 2L, "data")))
     session$receive(list(traced(evaluate_request("21", "c", 9L, unset))))
     session$run()
   })

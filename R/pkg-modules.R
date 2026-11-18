@@ -73,9 +73,10 @@
 #' what reads it, with a classed error that names the package and each fault.
 #'
 #' R tells the client, in its reply to `hello`, where it serves the module of
-#' the class of each plugin that the app runs, of each board option that a
-#' loaded package lists and of each module that a loaded package offers
-#' others, with the versions of the packages they come from.
+#' the class of each plugin that the app runs, of each board option that an
+#' available package lists and of each module that an available package offers
+#' others, as [serve()] read them as it built the app, with the versions of the
+#' packages they come from.
 #' It names where it serves a renderer's module in each output that the
 #' renderer draws (see [new_renderer()]).
 #' It serves a module, and the stylesheet beside it, under the package's name,
@@ -166,20 +167,14 @@ exports_listing <- function(pkg) {
   listing_name %in% getNamespaceExports(pkg)
 }
 
-# The loaded packages that export `._BLOCKR_MODULES_`, by name, in order.
-loaded_listing_packages <- function() {
-  sort(Filter(exports_listing, loadedNamespaces()))
-}
-
-# What package `pkg` lists in its `._BLOCKR_MODULES_`, which R reads once it
-# has loaded the package: the object's four parts by name, each a list, which
-# is empty where the object leaves it out. R ignores any other part, which a
-# later version of core may read.
+# What package `pkg` lists in its `._BLOCKR_MODULES_`, which R gets from the
+# package's namespace by the package's name, and so loads the package: the
+# object's four parts by name, each a list, which is empty where the object
+# leaves it out. R ignores any other part, which a later version of core may
+# read.
 # A package that exports no such object lists nothing, as one that registers
 # its block classes in the block registry of the process as it loads.
 package_listing <- function(pkg) {
-
-  loadNamespace(pkg)
 
   obj <- listing_object(pkg)
 
@@ -203,8 +198,8 @@ package_listing <- function(pkg) {
   )
 }
 
-# The `._BLOCKR_MODULES_` that the loaded package `pkg` exports, or `NULL`
-# where it exports none.
+# The `._BLOCKR_MODULES_` that package `pkg` exports, or `NULL` where it
+# exports none. Asking for the package's exports loads the package.
 listing_object <- function(pkg) {
   if (exports_listing(pkg)) getExportedValue(pkg, listing_name)
 }
@@ -248,9 +243,10 @@ listed_modules <- function(pkg, listing = package_listing(pkg)) {
   )
 }
 
-# The modules that the loaded packages offer other packages' UIs, by ID, as
-# R names them in its reply to `hello`.
-offered_modules <- function(pkgs = loaded_listing_packages()) {
+# The modules that the available packages offer other packages' UIs, by ID,
+# which an app holds as `serve()` reads them, and R names in its reply to
+# `hello`.
+offered_modules <- function(pkgs = available_packages()) {
   joined_by_id(lapply(pkgs, listed_modules))
 }
 
@@ -301,21 +297,27 @@ packages_options <- function(pkgs) {
   joined_by_id(listed)
 }
 
-# The board options that the loaded packages list, by ID, each with where R
-# serves its module and the version of its shape, as R names them in its reply
-# to `hello`. R reads them from every loaded package, as it does the modules
-# that packages offer each other, so that a reply names a board option that a
+# The board options of an app: those that the available packages list, by ID,
+# each with its package, where R serves its module, the version of its shape
+# and its requests, which the app holds as `serve()` reads them.
+# R names all but the requests in its reply to `hello`, and answers a request
+# of the option with the function that the app holds for it.
+# R reads them from every available package, as it does the modules that
+# packages offer each other, so that a reply names a board option that a
 # block's request reads, of a package whose block classes and plugins the app
-# offers none of, and the board options of a package that a block's code loads
-# while the app runs reach the replies that follow.
-# R asks each board option's package for its version through its method of
-# `board_option_version()`.
-loaded_options <- function(pkgs = loaded_listing_packages()) {
+# offers none of.
+# R asks each board option's package for its version and its requests through
+# its methods of `board_option_version()` and `board_option_requests()`, which
+# the package registered as R read its listing, and so loaded it.
+app_options <- function(pkgs = available_packages()) {
 
   options <- packages_options(pkgs)
 
   Map(
-    function(x, id) c(x, list(version = option_version(id))),
+    function(x, id) {
+      requests <- board_option_requests(new_board_option(id))
+      c(x, list(version = option_version(id), requests = requests))
+    },
     options,
     names(options)
   )

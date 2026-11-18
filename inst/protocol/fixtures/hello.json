@@ -363,7 +363,6 @@
           "packages": { "blockr.core": "0.2.0" },
           "board": {
             "id": "brisk_otter",
-            "versions": {},
             "name": "Iris review",
             "blocks": {
               "a": {
