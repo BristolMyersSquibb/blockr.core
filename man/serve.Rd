@@ -133,6 +133,13 @@ For a variadic block, an entry whose name is none of the block's inputs
 goes into the block's \code{...}, under that name.
 So each entry needs a name, as in
 \code{serve(new_rbind_block(), a = iris, b = mtcars)}.
+
+Like its block registry and its plugins, the app holds the board options
+that the available packages list, and the modules that they offer each
+other, as \code{serve()} read them (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}).
+So the replies to \code{hello} name the same ones wherever the app runs,
+including in another R process, as when a script hands the app to
+\code{callr::r_bg()}, or shinytest2 runs it.
 }
 \section{End-to-end tests}{
 

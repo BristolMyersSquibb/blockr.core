@@ -122,9 +122,9 @@
   registration gives, `link` as `url`, its inputs, the schema of its state,
   the state a new block starts with, its arg specs and its requests.
   Beside the entries come the versions of the packages, the modules that the
-  loaded packages offer each other, the app's plugins, each with its class's
+  available packages offer each other, the app's plugins, each with its class's
   name and version and where R serves its class's module, the board options
-  that the loaded packages list, each with its package, its module and the
+  that the available packages list, each with its package, its module and the
   version of its shape, and the renderers that the app names for board
   options (#560).
   R serves each module and stylesheet at a URL that
@@ -137,6 +137,10 @@
   own, read from the path given, and nothing beside it.
   Registration refuses a class whose starting state is not a plain value, and
   an arg spec whose example is not one either (#426, #465, #504, #558, #634).
+* Like its block registry and its plugins, an app holds the board options that the available packages list, and the modules that they offer each other, as `serve()` read them as it built the app.
+  So the replies to `hello` name the same ones wherever the app runs, in another R process too, as when a script hands the app to `callr::r_bg()`, or shinytest2 runs it, and a package that is installed or loaded after the app starts reaches none of them.
+  The app holds the requests of each board option and of each of its plugins as well, which `serve()` gets from the methods of `board_option_requests()` and `plugin_requests()`.
+  R answers such a request with the function that the app holds, so that it loads no package and reads no package's listing for it, and refuses a request of a plugin class that the app does not run (#671).
 * R writes the board that an app script builds with `blockr_ser()` as a JSON
   board, the format in which the client saves a board.
   A JSON board holds the board, with its ID and name, its blocks, links and
@@ -430,9 +434,11 @@
   So a plugin class's commands can refuse what its plugins lock, and mint IDs as core's commands do.
   A command throws what `refusal()` makes to refuse from its `preflight()`, `prepare()` or `run()`, and the command registry rejects with it as it is, as with its own refusals.
   Core's own commands read the board lock and mint IDs through the context too.
-  A command with `undo: false` takes no undo step.
+  Undo never takes back what a command with `undo: false` changes, whether the command runs alone or in a list.
   That suits a command that changes only what the user looks at, such as which of the dock's views shows.
-  The command registry passes `{ undo: false }` on to `store.apply()`, which applies and announces such a step as any other, but keeps no inverse of it and leaves the undo and redo steps as they are (#600, #627).
+  The command registry gives each delta of such a command `undo: false`, and the store applies and announces such a delta as any other, but keeps no inverse of it, as it keeps no board option values.
+  A step of which the store keeps no inverse leaves the undo and redo steps as they are.
+  The option `{ undo: false }` of `store.apply()` gives every delta of the step `undo: false` (#600, #627, #662).
 * The client's store keeps one undo history for the steps of every origin, in the order the board took them, so that a frontend's Undo takes back the assistant's edits as it takes back the user's own.
   Its `undo()` takes back the history's last step, whoever took it, or, given an origin, that origin's last step, past the steps of others after it.
   Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
@@ -442,10 +448,11 @@
   It plans each command on the board that the deltas of the commands before it leave, so that a list can add a block and then link it.
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
   Where the board changes while a command of the list waits in its `prepare()`, the registry plans the list again from its first command, on the board as it is then, and no command prepares twice.
-  The registry applies the deltas of every command as one step of the origin, which is an undo step unless every command of the list has `undo: false`, or applies none where one command refuses.
+  The registry applies the deltas of every command as one step of the origin, or applies none where one command refuses.
   It then rejects with a `CommandError` whose `index` gives the command's place in the list, counted from 0, and whose `preflight` is `false` where the command's `preflight()` answered `false`, as for a command that runs alone.
+  The step of a list is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
   Where the registry refuses a list of the origin `"user"` that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
-  The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619).
+  The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.

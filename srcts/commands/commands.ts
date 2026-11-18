@@ -3,14 +3,15 @@
 // own among them. A command reads the board and returns deltas, and the command
 // registry applies them through the store as one step of the origin it is
 // given, so that every edit, whoever makes it, passes the store's checks.
-// The step is one undo step, unless the command has `undo: false` or the step
-// sets or removes only board option values (../store/store.ts).
 // A list of commands runs as one step too, as the assistant's edit tool runs
 // one. The command registry plans each command on the board that the deltas
 // of the commands before it leave, which a dry run of the store gives. Then it
 // applies the deltas of every command, or none where one command refuses.
-// That step is one undo step unless every command of the list has
-// `undo: false`.
+// The command registry sets `undo: false` on each delta of a command that has
+// `undo: false`, whether the command runs alone or in a list. The store keeps
+// no inverse of such a delta, as it keeps no board option values. So a step
+// is one undo step only where the store keeps the inverse of at least one of
+// its deltas (../store/store.ts).
 // Beside the board and its args, the command registry hands every command its
 // context: what the app fixes for the page.
 // Core creates a command registry for each store and hands it to plugins,
@@ -101,9 +102,11 @@ export interface Command<A extends Json = Json, P = A> {
   // out. A pass promises nothing beyond itself, since run() and the store
   // can still refuse.
   preflight?(board: Board, args: A, context: CommandContext): boolean;
-  // False where its deltas take no undo step, as for a command that changes
-  // only what the user looks at, such as the dock's active view. The store
-  // still applies and announces them as any others.
+  // False where undo never takes back its deltas, as for a command that
+  // changes only what the user looks at, such as the dock's active view. The
+  // command registry sets `undo: false` on each of its deltas, whether it runs
+  // alone or in a list. The store keeps no inverse of them, but still applies
+  // and announces them as any others.
   readonly undo?: false;
   // What has to wait, such as a layout that elkjs returns as a promise.
   prepare?(board: Board, args: A, context: CommandContext): Promise<P>;
@@ -123,20 +126,23 @@ export interface Commands {
   preflight(id: string, args?: Json): boolean;
   // Runs the command and applies its deltas as one step of the origin, "user"
   // unless given, or rejects with what refused it, having changed nothing. The
-  // step is an undo step unless the command has `undo: false`. A command that
-  // does not prepare is applied before run() returns.
+  // step is an undo step unless the command has `undo: false` or sets only
+  // board options. A command that does not prepare is applied before run()
+  // returns.
   run(id: string, args?: Json, origin?: Origin): Promise<void>;
   // Runs the commands of the list in order, each planned on the board that the
   // deltas of the commands before it leave, and applies the deltas of every
   // command as one step of the origin, "user" unless given. Where a command
   // refuses, it applies none and rejects with a CommandError that gives the
-  // command's index. The step is an undo step unless every command of the
-  // list has `undo: false`. A list whose commands do not prepare is applied
-  // before run() returns.
+  // command's index. The step is an undo step where a command without
+  // `undo: false` changes something besides board options, and its undo
+  // takes back only what those commands changed. A list whose commands do
+  // not prepare is applied before run() returns.
   run(list: readonly { readonly id: string; readonly args?: Json }[], origin?: Origin): Promise<void>;
   // The deltas the command returns on the current board, not applied, with
   // the edit ids of the board they were built on, so that the store refuses
-  // them once another edit has come first.
+  // them once another edit has come first, and with `undo: false` where the
+  // command has it.
   plan(id: string, args?: Json): Promise<Delta[]>;
   // The deltas of the commands of the list in order, each built on the board
   // that the deltas of the commands before it leave, not applied. It rejects
@@ -305,11 +311,12 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   }
 
   // The deltas that the command returns on the board, with the edit ids the
-  // board gives what they change where the command left them out.
+  // board gives what they change where the command left them out, and with
+  // `undo: false` where the command has it.
   function build({ command, context }: Registered, board: Board, args: unknown): Delta[] {
     const returned = attempt(command, () => command.run(board, args, context));
     const deltas: readonly Delta[] = isDeltas(returned) ? returned : [returned];
-    return deltas.map(withEdits);
+    return deltas.map((delta) => withEdits(command.undo === false ? { ...delta, undo: false } : delta));
   }
 
   // The deltas of the command on the current board: at once where it does
@@ -342,9 +349,9 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     }
   }
 
-  // Plans the commands of a list in order, and hands their deltas to `then`,
-  // with the commands, as soon as the last command's deltas are built. So
-  // run() applies the deltas on the board that they were built on.
+  // Plans the commands of a list in order, and hands their deltas to `then` as
+  // soon as the last command's deltas are built. So run() applies the deltas
+  // on the board that they were built on.
   // The registry first checks every command's args against its schema. Then
   // it plans each command as it plans one alone: the first on the store's
   // board, and each later one on the board that a dry run of the deltas before
@@ -360,7 +367,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // rejects as a CommandError that gives the command's index.
   async function planned<T>(
     list: readonly { readonly id: string; readonly args?: Json }[],
-    then: (built: Delta[], listed: readonly Command<Json, unknown>[]) => T,
+    then: (built: Delta[]) => T,
   ): Promise<T> {
     // The span of run(), active as planned() is called, which a command's
     // prepare() and `then` run in after an await.
@@ -373,7 +380,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
       }
     });
     const [first] = checked;
-    if (first === undefined) return then([], []);
+    if (first === undefined) return then([]);
 
     // What each command that prepares got from its prepare(), by its index.
     const inputs = new Map<number, unknown>();
@@ -408,19 +415,17 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         }
       }
     }
-    return within(() => then(built, checked.map(({ item }) => item.command)));
+    return within(() => then(built));
   }
 
-  // Applies the deltas of the commands of a list as one step of the origin,
-  // which takes no undo step where every command of the list has
-  // `undo: false`. The list runs in one span, which names the ids of its
-  // commands in order, since the store applies their deltas at once.
+  // Applies the deltas of the commands of a list as one step of the origin.
+  // The list runs in one span, which names the ids of its commands in order,
+  // since the store applies their deltas at once.
   function runList(list: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<void> {
     const ids = list.map(({ id }) => id);
     return traced("command list", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
-      planned(list, (built, listed) => {
-        const undo = listed.every((command) => command.undo === false) ? false : undefined;
-        store.apply(built, origin, { undo });
+      planned(list, (built) => {
+        store.apply(built, origin);
       }),
     );
   }
@@ -506,7 +511,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         const step = deltas(item, args);
         const ready = Array.isArray(step) ? step : await step;
         within(() => {
-          store.apply(ready, origin, { undo: item.command.undo });
+          store.apply(ready, origin);
         });
       });
     },
