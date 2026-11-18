@@ -7,7 +7,7 @@ import type { HelloReply } from "../protocol/index.ts";
 import { logged } from "../testing/logged.ts";
 import { coreOptions, hello, noUi, pluginUrl, reply, withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
-import type { Block, Board } from "../types/board.ts";
+import type { Block, Board, JsonBoard } from "../types/board.ts";
 import type { PluginModule } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { ROUNDS } from "./expand.ts";
@@ -245,16 +245,23 @@ function head(n = 6, name = "Head"): Block {
   };
 }
 
+// The version that a JSON board records of each plugin's state, by the id of
+// the plugin's class.
+function recordedVersions(json: JsonBoard): Readonly<Record<string, number>> {
+  return Object.fromEntries(Object.entries(json.board.plugins).map(([cls, plugin]) => [cls, plugin.version]));
+}
+
 // The text of a JSON board of a core app, with what `board` gives in place of
-// its parts, its plugins among them.
+// its parts, its plugins among them, each by its state.
 // Each block records version 1 of its class's state unless it gives another,
-// the board the versions of plugin classes that `board` gives, none unless it
-// gives some, and each board option version 1 of its value unless
-// `optionVersions` gives another.
+// each board option version 1 of its value unless `optionVersions` gives
+// another, and each plugin version 1 of its class's state unless
+// `pluginVersions` gives another.
 function file(
   board: Partial<Board> & Readonly<Record<string, unknown>>,
   packages: Readonly<Record<string, string>> = { "blockr.core": "0.2.0" },
   optionVersions: Readonly<Record<string, number>> = {},
+  pluginVersions: Readonly<Record<string, number>> = {},
 ): string {
   const given = {
     id: "amber_tapir",
@@ -274,7 +281,6 @@ function file(
     plugins: {},
     ...board,
   };
-  const versions = (board.versions as Readonly<Record<string, number>> | undefined) ?? {};
   const entries: readonly [string, Block & { version?: number }][] = Object.entries(given.blocks);
   const blocks = Object.fromEntries(entries.map(([id, block]) => [id, { version: 1, ...block }]));
   const options = Object.fromEntries(
@@ -283,7 +289,10 @@ function file(
       { value, version: optionVersions[id] ?? 1 },
     ]),
   );
-  return JSON.stringify({ format: 1, packages, board: { ...given, versions, blocks, options } });
+  const plugins = Object.fromEntries(
+    Object.entries(given.plugins).map(([cls, state]) => [cls, { state, version: pluginVersions[cls] ?? 1 }]),
+  );
+  return JSON.stringify({ format: 1, packages, board: { ...given, blocks, options, plugins } });
 }
 
 describe("opening a board", () => {
@@ -471,9 +480,10 @@ describe("opening a board", () => {
             [dag.id]: { positions: {} },
             mine_plugin: {},
           },
-          versions: { "blockr.md-md_plugin": 9, "blockr.dag-dag_plugin": 9 },
         },
         { "blockr.core": "0.2.0", "blockr.md": "0.2.0" },
+        undefined,
+        { "blockr.md-md_plugin": 9, "blockr.dag-dag_plugin": 9 },
       ),
     );
 
@@ -689,11 +699,11 @@ describe("opening a board", () => {
         ...replied.board,
         board: {
           ...board,
-          versions: replied.board.board.versions,
           blocks: {},
           links: {},
           stacks: {},
           options: replied.board.board.options,
+          plugins: replied.board.board.plugins,
         },
       },
     });
@@ -942,28 +952,25 @@ describe("saving a board", () => {
   });
 
   test("records the package of the class of each plugin whose state it holds and of each block's class, and the version that the app's plugin of the class carries", async () => {
-    const replied = withPlugins(plugin(dock, "Dock"), docking, { "blockr.dock-dock_plugin": 3 });
-    const store = await opened(dockClasses, {
-      ...replied,
-      board: { ...replied.board, board: { ...replied.board.board, versions: { "blockr.dock-dock_plugin": 3 } } },
-    });
+    const replied = withPlugins(plugin(dock, "Dock", { views: {} }), docking, { "blockr.dock-dock_plugin": 3 });
+    const store = await opened(dockClasses, replied);
     const saved = store.jsonBoard();
 
     expect(saved.packages).toEqual({ "blockr.core": "0.2.0", "blockr.dag": "0.2.0", "blockr.dock": "0.2.1" });
-    // A plugin of the reply at version 1 records that version.
-    expect(saved.board.versions).toEqual({ "blockr.dock-dock_plugin": 3, "blockr.dag-dag_plugin": 1 });
-    expect(Object.keys(saved.board)).toEqual(["id", "versions", "name", "blocks", "links", "stacks", "options", "plugins"]);
+    // Each plugin's state is recorded with its version, and a plugin of the
+    // reply at version 1 records that version.
+    expect(recordedVersions(saved)).toEqual({ "blockr.dock-dock_plugin": 3, "blockr.dag-dag_plugin": 1 });
+    expect(saved.board.plugins[dock.id]).toEqual({ state: { views: {} }, version: 3 });
+    expect(Object.keys(saved.board)).toEqual(["id", "name", "blocks", "links", "stacks", "options", "plugins"]);
 
     // A package that R did not load is recorded with no version, and a plugin
-    // that keeps no state, as core's own, with neither its package nor the
-    // version of its class.
+    // that keeps no state, as core's own, is not recorded at all.
     const store2 = await opened(
       (store) => store.plugins.register(noted),
       withPlugins(plugin(noted, "Notes", { notes: {} })),
     );
     expect(store2.jsonBoard().packages).toEqual({ "blockr.core": "0.2.0" });
-    expect(store2.jsonBoard().board.versions).toEqual({ "blockr.notes-notes_plugin": 1 });
-    expect(Object.keys(store2.jsonBoard().board.plugins)).toEqual(["blockr.notes-notes_plugin"]);
+    expect(store2.jsonBoard().board.plugins).toEqual({ "blockr.notes-notes_plugin": { state: { notes: {} }, version: 1 } });
   });
 });
 
@@ -984,7 +991,12 @@ describe("migrations", () => {
       ...docking.board,
       board: {
         ...docking.board.board,
-        versions: { "blockr.dock-dock_plugin": 3, "blockr.dag-dag_plugin": 1 },
+        plugins: Object.fromEntries(
+          Object.entries(docking.board.board.plugins).map(([cls, plugin]) => [
+            cls,
+            cls === dock.id ? { ...plugin, version: 3 } : plugin,
+          ]),
+        ),
         blocks: Object.fromEntries(
           Object.entries(docking.board.board.blocks).map(([id, block]) => [
             id,
@@ -1012,19 +1024,23 @@ describe("migrations", () => {
 
   // A board of the dock app that the dock's version 2 and the head block's
   // version 1 saved, when the head block kept its n as a string.
-  const old = file({
-    versions: { "blockr.dock-dock_plugin": 2 },
-    plugins: { [dock.id]: { views: { main: { layout: ["a", "b"] } } } },
-    blocks: {
-      a: {
-        registry_id: "blockr.core-dataset_block",
-        state: { dataset: "mtcars", package: "datasets" },
-        name: "Cars",
-        locked: null,
+  const old = file(
+    {
+      plugins: { [dock.id]: { views: { main: { layout: ["a", "b"] } } } },
+      blocks: {
+        a: {
+          registry_id: "blockr.core-dataset_block",
+          state: { dataset: "mtcars", package: "datasets" },
+          name: "Cars",
+          locked: null,
+        },
+        b: { ...head(), state: { n: "6", direction: "head" } },
       },
-      b: { ...head(), state: { n: "6", direction: "head" } },
     },
-  });
+    undefined,
+    undefined,
+    { "blockr.dock-dock_plugin": 2 },
+  );
 
   function store(head?: Migration, def: PluginClass = migrating): Store {
     return unopened(
@@ -1054,12 +1070,12 @@ describe("migrations", () => {
 
     // The board saves at today's versions, with the DAG of the opening board.
     const saved = opening.jsonBoard();
-    expect(saved.board.versions).toEqual({ "blockr.dock-dock_plugin": 3, "blockr.dag-dag_plugin": 1 });
+    expect(recordedVersions(saved)).toEqual({ "blockr.dock-dock_plugin": 3, "blockr.dag-dag_plugin": 1 });
     expect(saved.board.blocks.b?.version).toBe(2);
     expect(saved.board.blocks.a?.version).toBe(1);
   });
 
-  test("migrates a plugin's state, given frozen, by the version that the app's plugin of its class carries, and leaves alone a class that the board records no version of", async () => {
+  test("migrates a plugin's state, given frozen, by the version that the app's plugin of its class carries, and keeps the state of a class without a migration", async () => {
     const migrate = vi.fn((state: Json, version: number): Json => {
       const { notes } = state as unknown as NotesState;
       if (version >= 2) return state;
@@ -1073,20 +1089,25 @@ describe("migrations", () => {
       withPlugins(plugin(noted, "Notes", { notes: {} }), replied, { "blockr.notes-notes_plugin": 2 }),
     );
     await opening.open(
-      file({
-        versions: { "blockr.notes-notes_plugin": 1 },
-        plugins: {
-          [noted.id]: { notes: { a: "check", b: "done" } },
-          [dock.id]: { views: { main: { panels: [] } } },
+      file(
+        {
+          plugins: {
+            [noted.id]: { notes: { a: "check", b: "done" } },
+            [dock.id]: { views: { main: { panels: [] } } },
+          },
         },
-      }),
+        undefined,
+        undefined,
+        { "blockr.notes-notes_plugin": 1, "blockr.dock-dock_plugin": 1 },
+      ),
     );
 
     expect(migrate).toHaveBeenCalledOnce();
     expect(migrate.mock.calls[0]?.[1]).toBe(1);
     expect(Object.isFrozen(migrate.mock.calls[0]?.[0])).toBe(true);
     expect(pluginNotes(opening.board())).toEqual({ a: "CHECK", b: "DONE" });
-    // The board records no version of the dock's class.
+    // The dock's class has no migration, so the dock keeps the state that the
+    // board records at version 1, below the version 3 that R gives.
     expect(dockViews(opening.board())).toEqual({ main: { panels: [] } });
   });
 
@@ -1116,10 +1137,12 @@ describe("migrations", () => {
       'The migration of the plugin class "blockr.dock-dock_plugin" failed: The layout is unreadable.',
     );
 
-    const newer = file({
-      versions: { "blockr.dock-dock_plugin": 4 },
-      plugins: { [dock.id]: { views: { main: { panels: ["a", "b"] } } } },
-    });
+    const newer = file(
+      { plugins: { [dock.id]: { views: { main: { panels: ["a", "b"] } } } } },
+      undefined,
+      undefined,
+      { "blockr.dock-dock_plugin": 4 },
+    );
     await expect(store().open(newer)).rejects.toThrow(
       'The board records version 4 of the plugin class "blockr.dock-dock_plugin", while R gives version 3.',
     );
@@ -1134,9 +1157,30 @@ describe("migrations", () => {
   test("refuses a JSON board without the versions it records", async () => {
     const opening = store();
     const json = JSON.parse(old) as { board: Record<string, unknown> };
+    // A plugin's state without its version, one at a version below 1, and one
+    // of a plugin that the app does not run, which the board refuses before
+    // the store drops it
     await expect(
-      opening.open(JSON.stringify({ ...json, board: { ...json.board, versions: { "blockr.dock-dock_plugin": 0 } } })),
-    ).rejects.toThrow("The board records the versions of its plugin classes as no whole numbers from 1 by class.");
+      opening.open(
+        JSON.stringify({
+          ...json,
+          board: {
+            ...json.board,
+            plugins: {
+              [dock.id]: { views: { main: { panels: ["a", "b"] } } },
+              [dag.id]: { state: { positions: {} }, version: 0 },
+              "blockr.md-md_plugin": { state: { content: "" } },
+            },
+          },
+        }),
+      ),
+    ).rejects.toThrow(
+      [
+        'The plugin "blockr.dock-dock_plugin" is recorded as no state with the version of its class\'s state.',
+        'The plugin "blockr.dag-dag_plugin" is recorded as no state with the version of its class\'s state.',
+        'The plugin "blockr.md-md_plugin" is recorded as no state with the version of its class\'s state.',
+      ].join("\n- "),
+    );
     await expect(
       opening.open(file({ blocks: { a: { ...head(), version: "1" } as unknown as Block } })),
     ).rejects.toThrow('The block "a" records no version of its class\'s state.');

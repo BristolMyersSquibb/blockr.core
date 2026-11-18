@@ -5731,8 +5731,10 @@ function isVersion(value2) {
 }
 function checkVersions(board) {
   const failures = [];
-  if (!isObject(board.versions) || !Object.values(board.versions).every(isVersion)) {
-    failures.push("The board records the versions of its plugin classes as no whole numbers from 1 by class.");
+  for (const [cls, plugin] of Object.entries(board.plugins)) {
+    if (!isObject(plugin) || !Object.hasOwn(plugin, "state") || !isVersion(plugin.version)) {
+      failures.push(`The plugin "${cls}" is recorded as no state with the version of its class's state.`);
+    }
   }
   for (const [id2, block] of Object.entries(board.blocks)) {
     if (isObject(block) && !isVersion(block.version)) {
@@ -5756,7 +5758,8 @@ function unversioned(board) {
         without(block, ["version"])
       ])
     ),
-    options: Object.fromEntries(Object.entries(board.options).map(([id2, option]) => [id2, option.value]))
+    options: Object.fromEntries(Object.entries(board.options).map(([id2, option]) => [id2, option.value])),
+    plugins: Object.fromEntries(Object.entries(board.plugins).map(([cls, plugin]) => [cls, plugin.state]))
   };
 }
 function migrate(board, json, reply, registrations) {
@@ -5766,7 +5769,7 @@ function migrate(board, json, reply, registrations) {
     Object.entries(board.plugins).map(([cls, state2]) => {
       const def = registrations.plugin(cls)?.def;
       if (def === void 0) return [cls, state2];
-      const from = own(json.versions, cls);
+      const from = own(json.plugins, cls)?.version;
       const to = own(reply.plugins, cls)?.version ?? 1;
       if (from === void 0 || from === to) return [cls, state2];
       if (from > to) {
@@ -6260,9 +6263,6 @@ function createStore(options = {}) {
         return version === void 0 ? [] : [[pkg, version]];
       })
     );
-    const versions = Object.fromEntries(
-      classes.map((cls) => [cls, own(hello?.plugins ?? {}, cls)?.version ?? 1])
-    );
     const blocks = Object.fromEntries(
       Object.entries(next.blocks).map(([id3, block]) => [
         id3,
@@ -6281,11 +6281,17 @@ function createStore(options = {}) {
         { value: value2, version: own(hello?.options ?? {}, id3)?.version ?? 1 }
       ])
     );
-    const { id: id2, name: name3, links, stacks, plugins } = next;
+    const plugins = Object.fromEntries(
+      Object.entries(next.plugins).map(([cls, state2]) => [
+        cls,
+        { state: state2, version: own(hello?.plugins ?? {}, cls)?.version ?? 1 }
+      ])
+    );
+    const { id: id2, name: name3, links, stacks } = next;
     return {
       format: FORMAT,
       packages: recorded,
-      board: { id: id2, versions, name: name3, blocks, links, stacks, options: options2, plugins }
+      board: { id: id2, name: name3, blocks, links, stacks, options: options2, plugins }
     };
   }
   function save() {

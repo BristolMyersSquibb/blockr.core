@@ -208,7 +208,7 @@ describe("the plugins that run", () => {
       ...replied,
       board: {
         ...replied.board,
-        board: { ...replied.board.board, versions: { [dag.id]: 1 }, plugins: { [dag.id]: { positions: { a: { x: 1 } } } } },
+        board: { ...replied.board.board, plugins: { [dag.id]: { state: { positions: { a: { x: 1 } } }, version: 1 } } },
       },
     };
     const s = await stubCore({ hello, modules: listedModules([dag, kept]) });

@@ -95,10 +95,11 @@ export interface Store {
   // from, as the reply to `hello` gives it: the package of the class of each
   // plugin whose state it holds, which the class's id names, and the package
   // of each block's class, which its registry id names.
-  // It records the versions of the shapes that the board holds as well: of
-  // each plugin class whose plugin's state it holds, as the app's plugin of
-  // the class carries it in the reply to `hello`, 1 where it gives none, and of
-  // each block's state, as the class's entry in the block registry gives it.
+  // It records the version of each shape beside what the board holds in that
+  // shape as well: of each plugin's state, as the app's plugin of the class
+  // carries it in the reply to `hello`, of each block's state, as the class's
+  // entry in the block registry gives it, and of each board option's value, as
+  // the reply gives it in `options`, each 1 where none is given.
   jsonBoard(): JsonBoard;
   // The text of the board's file: its JSON board, written with
   // JSON.stringify(), indented by two spaces and ending in a newline, as R
@@ -558,9 +559,6 @@ export function createStore(options: StoreOptions = {}): Store {
         return version === undefined ? [] : [[pkg, version]];
       }),
     );
-    const versions = Object.fromEntries(
-      classes.map((cls) => [cls, own(hello?.plugins ?? {}, cls)?.version ?? 1]),
-    );
     const blocks = Object.fromEntries(
       Object.entries(next.blocks).map(([id, block]) => [
         id,
@@ -579,11 +577,17 @@ export function createStore(options: StoreOptions = {}): Store {
         { value, version: own(hello?.options ?? {}, id)?.version ?? 1 },
       ]),
     );
-    const { id, name, links, stacks, plugins } = next;
+    const plugins = Object.fromEntries(
+      Object.entries(next.plugins).map(([cls, state]) => [
+        cls,
+        { state, version: own(hello?.plugins ?? {}, cls)?.version ?? 1 },
+      ]),
+    );
+    const { id, name, links, stacks } = next;
     return {
       format: FORMAT,
       packages: recorded,
-      board: { id, versions, name, blocks, links, stacks, options, plugins },
+      board: { id, name, blocks, links, stacks, options, plugins },
     };
   }
 

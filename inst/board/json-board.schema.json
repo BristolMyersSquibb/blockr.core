@@ -14,12 +14,6 @@
     "board": {
       "type": "object",
       "properties": {
-        "versions": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number"
-          }
-        },
         "blocks": {
           "type": "object",
           "additionalProperties": {
@@ -30,6 +24,12 @@
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/JsonOption"
+          }
+        },
+        "plugins": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/JsonPlugin"
           }
         },
         "id": {
@@ -49,12 +49,6 @@
           "additionalProperties": {
             "$ref": "#/definitions/Stack"
           }
-        },
-        "plugins": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Json"
-          }
         }
       },
       "required": [
@@ -64,8 +58,7 @@
         "name",
         "options",
         "plugins",
-        "stacks",
-        "versions"
+        "stacks"
       ]
     }
   },
@@ -151,6 +144,21 @@
       },
       "required": [
         "value",
+        "version"
+      ]
+    },
+    "JsonPlugin": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "$ref": "#/definitions/Json"
+        },
+        "version": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "state",
         "version"
       ]
     },

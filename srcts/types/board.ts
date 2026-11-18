@@ -80,16 +80,15 @@ export interface Stack {
 // The client saves a board as one, and R writes the opening board that an app
 // script built as one, with every id.
 // The board records the version of each shape that a definition outside core
-// gives it, which migrations key on, while the format versions core's own.
+// gives it, beside what it holds in that shape, and migrations key on those
+// versions, while the format versions core's own.
 export interface JsonBoard {
   readonly format: number;
   readonly packages: Readonly<Record<string, string>>;
-  readonly board: Omit<Board, "blocks" | "options"> & {
-    // The version of the state of each plugin class whose plugin's state the
-    // board holds, by the class's id, as R's `plugin_version()` gives it.
-    readonly versions: Readonly<Record<PluginClassId, number>>;
+  readonly board: Omit<Board, "blocks" | "options" | "plugins"> & {
     readonly blocks: Readonly<Record<BlockId, JsonBlock>>;
     readonly options: Readonly<Record<OptionId, JsonOption>>;
+    readonly plugins: Readonly<Record<PluginClassId, JsonPlugin>>;
   };
 }
 
@@ -103,5 +102,13 @@ export interface JsonBlock extends Block {
 // value's shape, which R's `board_option_version()` gives.
 export interface JsonOption {
   readonly value: Json;
+  readonly version: number;
+}
+
+// A plugin's state as a JSON board holds it, under the id of the plugin's
+// class, with the version of the state's shape, which R's `plugin_version()`
+// gives for the class.
+export interface JsonPlugin {
+  readonly state: Json;
   readonly version: number;
 }
