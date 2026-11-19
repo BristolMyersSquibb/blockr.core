@@ -4899,6 +4899,11 @@ var RAND_IDS = [
 function isRandId(value2) {
   return typeof value2 === "string" && RAND_IDS.includes(value2);
 }
+function asRandId(randId) {
+  if (randId === void 0) return "adjective_animal";
+  if (isRandId(randId)) return randId;
+  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
+}
 function isId(id2) {
   return typeof id2 === "string" && id2 !== "" && !/^\d+$/.test(id2);
 }
@@ -6625,15 +6630,22 @@ function coreCommands(store) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [
-      id2,
-      { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null },
-      entry
-    ];
+    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
-  function linkable(board2, to, given) {
-    if (!Object.hasOwn(board2.blocks, to)) return false;
-    return named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0;
+  function linkable(command2, board2, from, to, given) {
+    if (!Object.hasOwn(board2.blocks, from) || !Object.hasOwn(board2.blocks, to)) return false;
+    if (named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0) return true;
+    throw refusal(command2, [noFreeInput(board2, to)]);
+  }
+  function noFreeInput(board2, to) {
+    const block = own(board2.blocks, to);
+    if (block === void 0) return `The board holds no block "${to}".`;
+    const entry = own(store.blockRegistry(), block.registry_id);
+    if (entry === void 0) return `The block registry has no block class "${block.registry_id}".`;
+    if (entry.inputs.length === 0) {
+      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+    }
+    return `Every input of the block "${to}" takes a link already.`;
   }
   function linkInput(command2, board2, to, given, except) {
     if (named(given)) return given;
@@ -6641,25 +6653,15 @@ function coreCommands(store) {
     return one(
       command2,
       free,
-      `The block "${to}" has no input that no link feeds.`,
+      noFreeInput(board2, to),
       `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`
-    );
-  }
-  function newInput(command2, entry, given) {
-    if (named(given)) return given;
-    if (entry.inputs.includes("...")) return "";
-    return one(
-      command2,
-      entry.inputs,
-      `The block class "${entry.id}" has no input to take a link.`,
-      `The block class "${entry.id}" has the inputs ${quoted(entry.inputs)}, so the args have to name the one to use.`
     );
   }
   const blocks = [
     command({
       id: "blockr.core-add_block",
       label: "Add block",
-      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given.",
+      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
       args: object(newBlock, ["registry_id"]),
       run(board2, args, { mintId: mintId2 }) {
         const [id2, block] = added(this.id, board2, args, mintId2);
@@ -6719,94 +6721,6 @@ function coreCommands(store) {
           }
         };
       }
-    }),
-    command({
-      id: "blockr.core-append_block",
-      label: "Append block",
-      description: "Adds a block that takes the result of another, through a new link from that block into an input of the new block.",
-      args: object(
-        {
-          from: { ...blockId, description: "The block whose result the new block takes." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of the new block that takes the result, which may be left out where the new block has one input or is variadic."
-          }
-        },
-        ["from", "registry_id"]
-      ),
-      preflight: (board2, { from }) => Object.hasOwn(board2.blocks, from),
-      run(board2, args, { mintId: mintId2 }) {
-        const [id2, block, entry] = added(this.id, board2, args, mintId2);
-        const input2 = newInput(this.id, entry, args.input);
-        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        return {
-          blocks: { add: { [id2]: block } },
-          links: { add: { [link]: { from: args.from, to: id2, input: input2 } } }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-prepend_block",
-      label: "Prepend block",
-      description: "Adds a block whose result another takes, through a new link from the new block into an input of that block.",
-      args: object(
-        {
-          to: { ...blockId, description: "The block that takes the new block's result." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of that block that takes the result, which may be left out where only one of its inputs is free or it is variadic."
-          }
-        },
-        ["to", "registry_id"]
-      ),
-      preflight: (board2, { to, input: input2 }) => linkable(board2, to, input2),
-      run(board2, args, { mintId: mintId2 }) {
-        const input2 = linkInput(this.id, board2, args.to, args.input);
-        const [id2, block] = added(this.id, board2, args, mintId2);
-        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        return {
-          blocks: { add: { [id2]: block } },
-          links: { add: { [link]: { from: id2, to: args.to, input: input2 } } }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-insert_block",
-      label: "Insert block",
-      description: "Adds a block on a link, which it replaces with a link from the link's source into an input of the new block and one from the new block into the input that the link fed.",
-      args: object(
-        {
-          link: { ...linkId, description: "The link that the new block goes on." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of the new block that takes the result of the link's source, which may be left out where the new block has one input or is variadic."
-          }
-        },
-        ["link", "registry_id"]
-      ),
-      preflight: (board2, { link }) => Object.hasOwn(board2.links, link),
-      run(board2, args, { mintId: mintId2 }) {
-        const split = own(board2.links, args.link);
-        if (split === void 0) return [];
-        const [id2, block, entry] = added(this.id, board2, args, mintId2);
-        const input2 = newInput(this.id, entry, args.input);
-        const near = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        const far = mintId2((id3) => Object.hasOwn(board2.links, id3) || id3 === near);
-        return {
-          blocks: { add: { [id2]: block } },
-          links: {
-            rm: [args.link],
-            add: {
-              [near]: { from: split.from, to: id2, input: input2 },
-              [far]: { from: id2, to: split.to, input: split.input }
-            },
-            before: { [far]: args.link }
-          }
-        };
-      }
     })
   ];
   const links = [
@@ -6829,7 +6743,9 @@ function coreCommands(store) {
         },
         ["from", "to"]
       ),
-      preflight: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
+      preflight(board2, { from, to, input: input2 }) {
+        return linkable(this.id, board2, from, to, input2);
+      },
       run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
         const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
         const resolved = linkInput(this.id, board2, to, input2);
@@ -7115,7 +7031,7 @@ function createCommands(store, options = {}) {
     () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
   );
   const ended = () => options.signal?.aborted === true;
-  const randId = options.randId === void 0 ? "adjective_animal" : asRandId(options.randId);
+  const randId = asRandId(options.randId);
   const shared = {
     lock: options.lock ?? { board: false, load: false },
     mintId: (taken) => mintId(taken, randId),
@@ -7338,10 +7254,6 @@ function createCommands(store, options = {}) {
     registry.register(command2);
   }
   return registry;
-}
-function asRandId(randId) {
-  if (isRandId(randId)) return randId;
-  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 function isCommandId(id2) {
   const pkg = packageFromId(id2);
@@ -7621,6 +7533,7 @@ async function evaluateReads2(deps, what, blocks, signal5) {
 // srcts/core/core.ts
 function createCore(parts) {
   const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const randId = asRandId(parts.randId);
   const { raise } = notifications;
   notifications.follow(scheduler);
   const optionPackage = (id2) => own(parts.options, id2)?.package;
@@ -7733,6 +7646,7 @@ function createCore(parts) {
     request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name2, args, opts),
     module: (id2) => loader.module(id2),
     blockrOption: (name2) => blockrOptions.read(name2),
+    mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),
@@ -8615,6 +8529,7 @@ function start(options) {
       scheduler,
       loader,
       blockrOptions,
+      randId,
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
@@ -9766,8 +9681,9 @@ var ROW = "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:roun
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/ui/edits.ts
-function runCommand(core, id2, args) {
-  return core.commands.run(id2, args).then(
+function runCommand(core, target2, args) {
+  const running2 = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
+  return running2.then(
     () => true,
     () => false
   );
@@ -9993,7 +9909,7 @@ function Pager({ label, view }) {
 
 // srcts/picker/picker.tsx
 import { jsx as jsx9, jsxs as jsxs6 } from "react/jsx-runtime";
-function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
+function BlockPicker({ core, mode, onAdded, autofocus = false }) {
   const board = useBoard(core);
   const registry = core.blockRegistry();
   const [picked, setPicked] = useState9(void 0);
@@ -10037,12 +9953,14 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
     const args = {
       registry_id: entry.id,
       ...filled("id", id2),
-      ...filled("name", name2),
+      ...filled("name", name2)
+    };
+    const into = {
       ...chosen === void 0 ? {} : { input: chosen },
       ...link.kind === "name" ? filled("input", inputName) : {}
     };
     setBusy(true);
-    const ran = mode.kind === "after" ? await run("blockr.core-append_block", { ...args, from: mode.from }) : mode.kind === "before" ? await run("blockr.core-prepend_block", { ...args, to: mode.to }) : await run("blockr.core-add_block", args);
+    const ran = mode.kind === "add" ? await runCommand(core, "blockr.core-add_block", args) : await runCommand(core, addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(void 0);
@@ -10165,6 +10083,14 @@ function linkChoice(mode, board, registry, entry) {
     if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
   }
   return { kind: "none" };
+}
+function addAndLink(core, mode, args, into) {
+  const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
+  const ends = mode.kind === "after" ? { from: mode.from, to: block } : { from: block, to: mode.to };
+  return [
+    { id: "blockr.core-add_block", args: { ...args, id: block } },
+    { id: "blockr.core-add_link", args: { ...ends, ...into } }
+  ];
 }
 function namesInto(board, to, except) {
   return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
@@ -11096,8 +11022,7 @@ function AddBlockDialog({ mode, onClose }) {
   const board = useBoard(front.core);
   const target2 = mode.kind === "add" ? void 0 : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target2 === void 0 ? "Add block" : `Add block ${mode.kind} "${target2.name}"`;
-  const run = useCallback7((command2, args) => runCommand(front.core, command2, args), [front.core]);
-  return /* @__PURE__ */ jsx15(Dialog, { title, onClose, children: /* @__PURE__ */ jsx15(BlockPicker, { core: front.core, mode, run, onAdded: onClose, autofocus: true }) });
+  return /* @__PURE__ */ jsx15(Dialog, { title, onClose, children: /* @__PURE__ */ jsx15(BlockPicker, { core: front.core, mode, onAdded: onClose, autofocus: true }) });
 }
 function Toasts() {
   const { core, toasts } = useFrontEnd();
@@ -11305,20 +11230,19 @@ import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect7, useRef as useRef9, useState as useState17 } from "react";
+import { useCallback as useCallback8, useLayoutEffect as useLayoutEffect7, useRef as useRef9, useState as useState17 } from "react";
 
 // srcts/modules/edit-board/blocks.tsx
-import { useCallback as useCallback8, useState as useState14 } from "react";
+import { useState as useState14 } from "react";
 import { Fragment as Fragment5, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 var ADD = { kind: "add" };
 function BlocksSection({ core, board }) {
-  const run = useCallback8((command2, args) => runCommand(core, command2, args), [core]);
   const registry = core.blockRegistry();
   const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
   const count = Object.keys(board.blocks).length;
   return /* @__PURE__ */ jsxs13(Section, { title: "Blocks", count, children: [
-    /* @__PURE__ */ jsx17(Part, { title: "Add a block", children: /* @__PURE__ */ jsx17(BlockPicker, { core, mode: ADD, run }) }),
+    /* @__PURE__ */ jsx17(Part, { title: "Add a block", children: /* @__PURE__ */ jsx17(BlockPicker, { core, mode: ADD }) }),
     /* @__PURE__ */ jsx17(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs13(Fragment5, { children: [
       /* @__PURE__ */ jsx17(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsxs13("table", { className: table.table, children: [
@@ -12031,10 +11955,10 @@ function useRowEditing() {
     closed.current = false;
     button.current?.focus();
   }, [editing]);
-  const open = useCallback9(() => {
+  const open = useCallback8(() => {
     setEditing(true);
   }, []);
-  const close = useCallback9(() => {
+  const close = useCallback8(() => {
     closed.current = true;
     setEditing(false);
   }, []);

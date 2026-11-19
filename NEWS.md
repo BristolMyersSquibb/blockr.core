@@ -293,6 +293,8 @@
   Frontends and plugins work on the board through `CoreApi`.
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
   Its `request()` sends a request of one of the app's plugins, by the id of the plugin's class, once the blocks that the request reads are evaluated, and keeps none of its answers.
+  Its `mintId()` mints an ID in the shape that the blockr option `rand_id` names, as core's commands do.
+  A caller that adds a block and links it in one list of commands mints the block's ID first, since the list hands no value from one command to the next (#695).
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol, takes the modules of plugin classes and board options by their IDs and serves core's own, as the page imports them.
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505, #560).

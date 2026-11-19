@@ -20,7 +20,7 @@ import { useBoard } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, runCommand } from "../../ui/index.ts";
+import { classes } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { BlockCard, StackGroup } from "./card.tsx";
 import { FrontEndContext, useFrontEnd } from "./context.ts";
@@ -115,10 +115,9 @@ function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void 
   const board = useBoard(front.core);
   const target = mode.kind === "add" ? undefined : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target === undefined ? "Add block" : `Add block ${mode.kind} "${target.name}"`;
-  const run = useCallback((command: string, args: Json) => runCommand(front.core, command, args), [front.core]);
   return (
     <Dialog title={title} onClose={onClose}>
-      <BlockPicker core={front.core} mode={mode} run={run} onAdded={onClose} autofocus />
+      <BlockPicker core={front.core} mode={mode} onAdded={onClose} autofocus />
     </Dialog>
   );
 }

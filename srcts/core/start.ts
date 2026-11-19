@@ -454,6 +454,8 @@ export function start(options: StartOptions): Started {
     // and the commands run, and kept for the page.
     // Each goes as R sent it to the scheduler or the command registry, which
     // converts and checks it, and takes its fallback where nothing sets it.
+    // CoreApi gets rand_id too. It converts the value as the command registry
+    // does, so that its mintId() mints ids in the same shape.
     // As the first board opens, core sets the page's logger and its tracing up
     // with the other four (../log/settings.ts, ../trace/settings.ts), and the
     // logger writes the lines that core held.
@@ -512,6 +514,7 @@ export function start(options: StartOptions): Started {
       scheduler,
       loader,
       blockrOptions,
+      randId,
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
