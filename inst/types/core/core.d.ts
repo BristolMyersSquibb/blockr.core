@@ -5,6 +5,7 @@ import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { OptionId, PluginClassId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
 import type { Holder } from "./notifications.ts";
 import type { RunningPlugins } from "./plugins.ts";
@@ -14,6 +15,7 @@ export interface CoreParts {
     readonly scheduler: Scheduler;
     readonly loader: Loader;
     readonly blockrOptions: BlockrOptions;
+    readonly randId?: Json | undefined;
     readonly lock: Lock;
     readonly renderers: () => Readonly<Record<string, Renderer>>;
     readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;

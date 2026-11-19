@@ -2,8 +2,10 @@
 
 import { writingLog } from "../log/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
+import type { OptionId } from "../types/board.ts";
 import type { Raised } from "../types/core-api.ts";
 import type { BlockContext } from "../types/hosts.ts";
+import type { Json } from "../types/json.ts";
 import type { Log, LogLine } from "../types/log.ts";
 import { checkRaised } from "../util/index.ts";
 
@@ -22,15 +24,38 @@ export const READY: BlockStatus = Object.freeze({
   unsent: null,
 });
 
+// What a test gives a stub's block context: the block's name, status and
+// linked inputs, and in `options` the values of the board options that the
+// block's class reads, by id.
+export interface StubContext {
+  readonly name?: string;
+  readonly status?: BlockStatus;
+  readonly inputs?: BlockContext["inputs"];
+  readonly options?: Readonly<Record<OptionId, Json>>;
+}
+
 // A block's context, a ready block named "Block" with no linked inputs and no
 // board options, but for what is given.
-export function stubBlockContext(given: Partial<BlockContext> = {}): BlockContext {
+// Its option() gives the value of each board option that `options` holds, and
+// throws for any other id, as a block's host throws for a board option that
+// the block's class does not read.
+export function stubBlockContext(given: StubContext = {}): BlockContext {
+  const values = given.options ?? {};
   return Object.freeze({
     name: given.name ?? "Block",
     status: given.status ?? READY,
     inputs: given.inputs ?? [],
-    options: given.options ?? {},
+    option: (id: OptionId): Json => optionValue(values, id, "context"),
   });
+}
+
+// The value of a board option that a stub host holds among `values`. It throws
+// for any other id, naming `where` in the stub, where a test gives the values.
+export function optionValue(values: Readonly<Record<OptionId, Json>>, id: OptionId, where: string): Json {
+  if (!Object.hasOwn(values, id)) {
+    throw new Error(`The stub's ${where} holds no board option "${id}", whose value a test gives in its \`options\`.`);
+  }
+  return values[id] as Json;
 }
 
 // The listeners of a stub's events. A listener that throws throws from what

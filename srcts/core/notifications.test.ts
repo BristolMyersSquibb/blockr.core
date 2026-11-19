@@ -636,9 +636,9 @@ describe("core's notifications", () => {
       },
       ui: { render: () => undefined },
     };
-    const zoomed: PluginClass = { id: "blockr.test-zoomed_plugin", options: ["zoom"], ui: pluginUi().ui };
+    const zoomed: PluginClass = { id: "blockr.test-zoomed_plugin", ui: pluginUi().ui };
     const s = await stubCore({
-      hello: withOptions(["zoom"], withPlugins({ [zoomed.id]: { name: "Zoomed" } })),
+      hello: withOptions(["zoom"], withPlugins({ [zoomed.id]: { name: "Zoomed", options: ["zoom"] } })),
       modules: listedModules([zoomed], [zoom]),
     });
     s.core.mountPlugin(document.createElement("div"), zoomed.id);
@@ -658,8 +658,11 @@ describe("core's notifications", () => {
 
   test("of a board option that no loaded package defines concern the board option, are one for the board and name no module", async () => {
     const reported = logged();
-    const needy: PluginClass = { id: "blockr.test-needy_plugin", options: ["nowhere"], ui: pluginUi().ui };
-    const s = await stubCore({ hello: withPlugins({ [needy.id]: { name: "Needy" } }), modules: listedModules([needy]) });
+    const needy: PluginClass = { id: "blockr.test-needy_plugin", ui: pluginUi().ui };
+    const s = await stubCore({
+      hello: withPlugins({ [needy.id]: { name: "Needy", options: ["nowhere"] } }),
+      modules: listedModules([needy]),
+    });
     s.core.mountPlugin(document.createElement("div"), needy.id);
     s.core.mountPlugin(document.createElement("div"), needy.id);
     await s.settled();
@@ -807,9 +810,9 @@ describe("core's notifications", () => {
   test("of an edit of another origin are raised as for the user's, the assistant's among them, while core's own edit of a board option's default raises board_option_failed alone", async () => {
     const reported = logged();
     const unfit: Option = { id: "unfit", label: "Unfit", category: "View options", schema: { type: "number" }, default: "big", ui: { render: () => undefined } };
-    const needy: PluginClass = { id: "blockr.test-needy_plugin", options: ["unfit"], ui: pluginUi().ui };
+    const needy: PluginClass = { id: "blockr.test-needy_plugin", ui: pluginUi().ui };
     const s = await stubCore({
-      hello: withOptions(["unfit"], withPlugins({ [needy.id]: { name: "Needy" } })),
+      hello: withOptions(["unfit"], withPlugins({ [needy.id]: { name: "Needy", options: ["unfit"] } })),
       modules: listedModules([needy], [unfit]),
     });
     await s.settled();

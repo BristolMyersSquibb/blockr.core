@@ -86,6 +86,41 @@ has_board_option_value <- function(x) {
   "value" %in% names(x)
 }
 
+# The board option constructors that a component names, a function such as
+# `new_n_rows_option` or a list of them, as a list, or `NULL` for none.
+# Anything else stops with the error `msg` of class `class`, which `msg`
+# interpolates in the caller's frame.
+as_option_ctors <- function(x, msg, class, envir = parent.frame()) {
+
+  if (is.function(x)) {
+    x <- list(x)
+  }
+
+  if (!is.null(x) && !is_option_ctor_list(x)) {
+    blockr_abort(msg, class = class, envir = envir)
+  }
+
+  if (length(x)) unname(x)
+}
+
+# Whether `x` is a list of board option constructors, each a function that
+# makes a board option of its ID, called without a value. A board option, a
+# list of a class of its own, is none.
+is_option_ctor_list <- function(x) {
+  is.list(x) && !is.object(x) && all(
+    lgl_ply(x, function(new) {
+      is.function(new) &&
+        tryCatch(is_board_option(new()), error = function(e) FALSE)
+    })
+  )
+}
+
+# The IDs of the board options that the constructors `ctors` make, called
+# without a value, each once, which R names in its reply to `hello`.
+option_ctor_ids <- function(ctors) {
+  unique(chr_ply(call_option_ctors(ctors), board_option_id))
+}
+
 #' Board option versions
 #'
 #' The version of a board option is the version of the shape of its value, a

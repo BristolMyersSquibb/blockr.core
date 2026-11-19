@@ -107,7 +107,7 @@
   R also names the renderers of a block class's outputs in its entry, so that the client loads them,
   and adds the board options that they name to the board, before it asks for a block's first
   output.
-  A renderer names only the board options that it reads itself, since the output family names those that it reads.
+  A renderer names no board options of its own: the output family names those of its outputs, which every renderer of them reads.
   Another package offers a renderer through a
   function that makes it, and an app draws with it by naming it in the blockr
   option `renderers`, for an output family or a board option, which R reads before the family's own renderer, so loading a package changes nothing and no package takes the app's choice away. Such a
@@ -293,6 +293,8 @@
   Frontends and plugins work on the board through `CoreApi`.
   Its `mountBlock()`, `mountOutput()` and `mountOption()` mount a block's UI, a block's output and a board option's UI, and its `blockrOption()` reads a blockr option once per page.
   Its `request()` sends a request of one of the app's plugins, by the id of the plugin's class, once the blocks that the request reads are evaluated, and keeps none of its answers.
+  Its `mintId()` mints an ID in the shape that the blockr option `rand_id` names, as core's commands do.
+  A caller that adds a block and links it in one list of commands mints the block's ID first, since the list hands no value from one command to the next (#695).
   An output is measured, asked of R and drawn by the renderer that R names in it, and a renderer calls its output class's requests and its own through its host.
   Core ships a `CoreApi` for tests beside the stubs of its hosts, `stubCore()` in `@blockr/core/stubs`, which answers for R from the fixtures of the wire protocol, takes the modules of plugin classes and board options by their IDs and serves core's own, as the page imports them.
   The package `@blockr/core` names the React that core's runtime bundles, at that version, as its peer, so that npm installs that React with it and a package's tests run on it with no React of their own, while npm refuses a second copy at another version (#440, #504, #505, #560).
@@ -365,7 +367,7 @@
 * The frontend is a plugin: core draws every board with the app's frontend, the plugin whose class has `frontend`, such as core's basic frontend, whose class, `blockr.core-basic_frontend_plugin`, core registers as it starts, and the page shows why where the app runs none.
   Core calls a frontend's `render()` with the page's element, `CoreApi`, the ID of the frontend's class and a signal, as it calls the `render()` of a plugin's UI module, which a frontend places with the `mountPlugin()` of `CoreApi`.
   Once the frontend's `render()` has returned, core calls the `start` of each plugin's class, in the order of the app's plugins, and as the next board opens it aborts the plugin's signal and runs the cleanup that `start` returned.
-  As a board opens, core adds to it the board options that the classes of the app's plugins name in `options`, core's basic frontend's among them, each with its default where the board lacks it, so that the store no longer writes `show_conditions` and `dark_mode` into every board.
+  As a board opens, core adds to it the board options that the classes of the app's plugins name through their methods of `plugin_options()`, core's basic frontend's among them, each with its default where the board lacks it, so that the store no longer writes `show_conditions` and `dark_mode` into every board.
   Where such a board option does not go onto the board, nothing that requires it draws or runs: the element of the frontend or of the plugin's UI shows why, and core calls no `start` of the plugin and reports why.
   The `plugins` of `CoreApi` gain `appPlugins()`, the app's plugins whose classes are registered, by the IDs of their classes, each with its class's name, `pluginClass()`, the class of one of them, and `storage()`, the storage of the app's storage plugin, or `undefined` where the app runs none.
   Beside them, `CoreApi` gains `notifications`, which hold the notifications of the board, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
@@ -404,10 +406,13 @@
   Each edit is one of core's commands, so that undo takes back each one, and the plugin tells the user through a notification why the store or the command registry refused one.
   Under the board lock, it draws no control and lists the board's links and stacks alone.
   A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block (#565, #573, #584).
-* Core refuses a block class's UI module whose `options` leaves out a board option that a request of the class reads.
-  It shows an error in the block's element in place of the module's UI, as it does for a module that declares another major of core's JS API.
-  The error names the module and its package, each board option that the module leaves out, and the requests that read it.
-  The rest of the page, the block's evaluation included, carries on (#502).
+* Block classes and plugin classes name the board options that they read in R, by their constructors, as requests and output families do.
+  A block class names those that its UI module reads itself in the `options` of `new_block_class()`, and a plugin class through its method of the new generic `plugin_options()`.
+  A renderer names none, since the output family names the board options of its outputs, those that its renderers read included.
+  R names their IDs in its reply to `hello`, and core puts them on the board before the module draws, so that no module names a board option in JS.
+  A module reads their values through its host, with `host.context().option(id)` for a block's UI module and `host.option(id)` for a renderer.
+  For any other ID, a misspelled one included, `option()` throws an error that names the component and the ID.
+  So a block class's UI module no longer repeats the board options that its requests read, and core no longer checks that it does (#704).
 * The `bbquote()` function throws an error for a call to `.()` or `..()` that holds anything but a single name, such as `.(n + 1L)` or data.table's `.(total = sum(value))`, `.(n = .N)` or `.(x, y)`.
   Until now, base `bquote()` evaluated the first argument of such a call, so that `.(total = sum(value))` failed with `could not find function "sum"` and `.(n = .N)` silently became `.(.N)`.
   A class that builds data.table code returns a call or a string instead (#496).

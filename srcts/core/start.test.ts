@@ -53,9 +53,10 @@ const CORE: Readonly<Record<string, unknown>> = {
 };
 
 // The class of core's basic frontend with the frontend given, as its module
-// exports it, with the board options that the class requires.
+// exports it. The fixture's reply names the board options that the class
+// requires, as R names them.
 function basicModule(frontend: FrontendModule) {
-  return classModule({ options: ["show_conditions", "dark_mode"], frontend });
+  return classModule({ frontend });
 }
 
 // R, played over a transport: the test starts sessions and sends replies.
@@ -517,7 +518,7 @@ describe("starting the page", () => {
     ]);
   });
 
-  test("has core's commands mint ids in the shape that the blockr option rand_id names", async () => {
+  test("has core's commands and CoreApi's mintId() mint ids in the shape that the blockr option rand_id names", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
@@ -525,12 +526,14 @@ describe("starting the page", () => {
     s.r.options({ rand_id: "uuid" });
     const core = await s.started.ready;
     const before = Object.keys(core.store.board().blocks);
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
     await core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block" });
 
     const minted = Object.keys(core.store.board().blocks).filter((id) => !before.includes(id));
     expect(minted).toHaveLength(1);
-    expect(minted[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(minted[0]).toMatch(uuid);
+    expect(core.mintId((id) => Object.hasOwn(core.store.board().blocks, id))).toMatch(uuid);
   });
 
   test("imports the module of each of the app's plugin classes and board options before it opens the board, once for the page", async () => {
@@ -1511,7 +1514,11 @@ describe("the frontend and the plugins", () => {
   const GRID = "blockr.test-grid_plugin";
   // The app's plugin of blockr.test's class of the name given, as the reply
   // names it.
-  const plugin = (name: string): Readonly<Record<PluginClassId, GivenPlugin>> => ({ [`blockr.test-${name}_plugin`]: { name } });
+  // The reply names the board options given for it, as R names those that the
+  // class's method of `plugin_options()` gives.
+  const plugin = (name: string, options?: readonly string[]): Readonly<Record<PluginClassId, GivenPlugin>> => ({
+    [`blockr.test-${name}_plugin`]: options === undefined ? { name } : { name, options },
+  });
 
   async function started(modules: Readonly<Record<string, unknown>>, reply: HelloReply, given: Partial<StartOptions> = {}) {
     const s = setup(modules, given);
@@ -1526,9 +1533,9 @@ describe("the frontend and the plugins", () => {
   test("draws every board with the app's frontend, whose render() gets the id of its class once the board options of its class are on the board", async () => {
     const front = recording("zoom");
     const basic = frontEnd();
-    const frontend: PluginClass = { id: GRID, frontend: front.frontend, options: ["zoom"] };
+    const frontend: PluginClass = { id: GRID, frontend: front.frontend };
     // An app whose frontend takes the place of core's basic frontend.
-    const reply = replied({ [GRID]: { name: "Grid" } }, {}, [BASIC_FRONTEND]);
+    const reply = replied({ [GRID]: { name: "Grid", options: ["zoom"] } }, {}, [BASIC_FRONTEND]);
     const s = await started({ ...listed([frontend]), [BASIC]: basic.exports }, reply);
 
     expect(front.seen).toEqual([[GRID, 1]]);
@@ -1633,9 +1640,12 @@ describe("the frontend and the plugins", () => {
 
   test("shows why in the page's element in place of the frontend where a board option that it requires does not go onto the board", async () => {
     const front = frontEnd();
-    const frontend: PluginClass = { id: GRID, frontend: front.frontend, options: ["zoom", "nowhere"] };
+    const frontend: PluginClass = { id: GRID, frontend: front.frontend };
     const reported = logged();
-    const s = await started(listed([frontend]), replied({ [GRID]: { name: "Grid" } }, {}, [BASIC_FRONTEND]));
+    const s = await started(
+      listed([frontend]),
+      replied({ [GRID]: { name: "Grid", options: ["zoom", "nowhere"] } }, {}, [BASIC_FRONTEND]),
+    );
     reported.restore();
 
     const why = 'The board option "nowhere", which the plugin class "blockr.test-grid_plugin" requires, is defined by no package loaded.';
@@ -1721,7 +1731,6 @@ describe("the frontend and the plugins", () => {
     const classes: PluginClass[] = [
       {
         id: "blockr.test-needy_plugin",
-        options: ["zoom", "nowhere"],
         start: () => {
           events.push("needy starts");
         },
@@ -1734,7 +1743,6 @@ describe("the frontend and the plugins", () => {
       },
       {
         id: "blockr.test-fine_plugin",
-        options: ["zoom"],
         start: ({ core }) => {
           events.push(`fine starts with zoom at ${JSON.stringify(core.options.value("zoom"))}`);
         },
@@ -1743,7 +1751,7 @@ describe("the frontend and the plugins", () => {
     const reported = logged();
     const s = await started(
       { ...listed(classes), [BASIC]: frontEnd().exports },
-      replied({ ...plugin("needy"), ...plugin("broken"), ...plugin("fine") }),
+      replied({ ...plugin("needy", ["zoom", "nowhere"]), ...plugin("broken"), ...plugin("fine", ["zoom"]) }),
     );
     reported.restore();
 
@@ -1759,12 +1767,11 @@ describe("the frontend and the plugins", () => {
   test("keeps the board options of every plugin's class on the board while the board is open, those of a class without start or ui included", async () => {
     const storing: PluginClass = {
       id: "blockr.test-store_plugin",
-      options: ["zoom"],
       storage: { controls: () => [] },
     };
     const s = await started(
       { ...listed([storing]), [BASIC]: frontEnd().exports },
-      replied(plugin("store"), undefined, [FILE_STORAGE]),
+      replied(plugin("store", ["zoom"]), undefined, [FILE_STORAGE]),
     );
     expect(s.core.store.board().options.zoom).toBe(1);
 

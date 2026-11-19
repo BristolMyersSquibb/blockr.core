@@ -182,6 +182,13 @@ export interface CoreApi {
   // own where nothing sets it. It rejects where R cannot give the value, as for
   // a blockr option whose R option and environment variable disagree.
   blockrOption(name: string): Promise<Json | undefined>;
+  // A new id, such as "calm_heron", that `taken` does not hold, in the shape
+  // that the blockr option rand_id names, as core's commands mint ids. It
+  // serves a caller that names an object before a batch adds it. A batch hands
+  // no value from one command to the next, so a caller that adds a block and
+  // links it in one batch mints the block's id first, as the block picker
+  // does.
+  mintId(taken: (id: string) => boolean): string;
   // The block's UI module, its output, and a board option's UI or the
   // renderer R picked for it, each mounted in the element until the cleanup
   // that the call returns runs.
@@ -328,12 +335,11 @@ export type CoreCode =
 // the output host's error() gives it in place of R's condition. Its code is
 // that of the notification that core raises for the same failure:
 // output_unanswered for an ask that got no reply or an error reply that holds
-// no error, module_failed for a renderer that lacks the board options that it
-// names, and board_option_failed where a board option that the coercion of
-// the block's outputs reads does not go onto the board.
+// no error, and board_option_failed where a board option of the block's
+// outputs does not go onto the board.
 export interface CoreFailure {
   readonly kind: "core";
-  readonly code: Extract<CoreCode, "output_unanswered" | "module_failed" | "board_option_failed">;
+  readonly code: Extract<CoreCode, "output_unanswered" | "board_option_failed">;
   readonly message: string;
 }
 

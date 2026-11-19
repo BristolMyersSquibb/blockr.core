@@ -48,13 +48,13 @@ import type { Attributes } from "@opentelemetry/api";
 import { computed, signal } from "@preact/signals-core";
 import { log } from "../log/index.ts";
 import type { Lock } from "../protocol/index.ts";
-import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS, StoreError } from "../store/index.ts";
-import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
+import { asRandId, isDeltas, mintId, pluginClassFromPath, StoreError } from "../store/index.ts";
+import type { BlockMod, Delta, Origin, Patch, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
 import type { Notification } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { failSpan, keepContext, tracer } from "../trace/index.ts";
-import { compile, errorMessage, packageFromId, quoted } from "../util/index.ts";
+import { compile, errorMessage, packageFromId } from "../util/index.ts";
 import type { Validate } from "../util/index.ts";
 import { coreCommands } from "./core.ts";
 
@@ -240,7 +240,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
     Object.fromEntries([...commands.value].map(([id, { command }]) => [id, command])),
   );
   const ended = (): boolean => options.signal?.aborted === true;
-  const randId = options.randId === undefined ? "adjective_animal" : asRandId(options.randId);
+  const randId = asRandId(options.randId);
   // What the context of every command holds, all but its refusal().
   const shared: Omit<CommandContext, "refusal"> = {
     lock: options.lock ?? { board: false, load: false },
@@ -539,14 +539,6 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   }
 
   return registry;
-}
-
-// The blockr option rand_id as the shape of the ids that core's commands
-// mint. A value that names no shape fails, as it does in R's rand_names(), a
-// value that is no string among them.
-function asRandId(randId: Json): RandId {
-  if (isRandId(randId)) return randId;
-  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 
 // Whether an id is named as a registry id is: a package name, a dash, and a

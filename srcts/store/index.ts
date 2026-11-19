@@ -19,6 +19,6 @@ export type {
 export { HEX_COLOR, stateFailures } from "./check.ts";
 export { FORMAT } from "./open.ts";
 export type { Dropped } from "./open.ts";
-export { isId, isRandId, mintId, RAND_IDS, sentenceCase } from "./ids.ts";
+export { asRandId, isId, isRandId, mintId, RAND_IDS, sentenceCase } from "./ids.ts";
 export type { RandId } from "./ids.ts";
 export { StoreError } from "./error.ts";

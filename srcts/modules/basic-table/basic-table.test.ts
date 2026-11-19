@@ -93,9 +93,8 @@ function words(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-test("names no board option, since the output holds its page and the rows of a page", () => {
+test("declares the major of core's JS API that it was built against", () => {
   expect(basicTable.api).toBe(1);
-  expect(basicTable.default.options ?? []).toEqual([]);
 });
 
 describe("drawing a page", () => {

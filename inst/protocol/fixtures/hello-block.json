@@ -47,6 +47,7 @@
               "additionalProperties": false
             },
             "state": { "n": 6, "direction": "head" },
+            "options": [],
             "requests": {
               "n_max": { "inputs": ["data"], "state_args": [], "options": [] }
             },

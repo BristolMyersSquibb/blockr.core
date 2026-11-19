@@ -27,7 +27,6 @@ test("shows each sample as print() shows it, in a box that scrolls rather than w
     expect(pre?.tabIndex).toBe(0);
   }
   expect(basicText.api).toBe(1);
-  expect(basicText.default.options).toBeUndefined();
 });
 
 test("draws each output that core hands it, marks it busy while a newer one loads, and keeps it where an ask fails, drawing nothing of why, which core raises as a notification about the block", async () => {

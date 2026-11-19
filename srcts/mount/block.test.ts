@@ -68,13 +68,20 @@ const zoom: Option = {
   ui: noUi,
 };
 
+// The reply given, hello unless given, whose head block's class names the board
+// options given for its UI module, as R names those that `new_block_class()`
+// takes in `options`.
+function headReading(ids: readonly string[], reply: HelloReply = hello): HelloReply {
+  const entry = reply.block_registry[head.id] ?? head;
+  return { ...reply, block_registry: { ...reply.block_registry, [head.id]: { ...entry, options: ids } } };
+}
+
 // A UI module that keeps each host it is mounted with and its element and
 // signal, draws the block's n, and counts its cleanups.
-function recorder(named?: readonly string[]) {
+function recorder() {
   const mounts: { host: BlockHost; el: HTMLElement; signal: AbortSignal; context: BlockContext }[] = [];
   let cleanups = 0;
   const mod: BlockModule = {
-    ...(named === undefined ? {} : { options: named }),
     render({ el, host, signal }) {
       mounts.push({ host, el, signal, context: host.context() });
       el.textContent = `n = ${JSON.stringify(host.state().n)}`;
@@ -352,9 +359,9 @@ describe("loading", () => {
 });
 
 describe("board options", () => {
-  test("come onto the board as a module that names them loads, each with its default where the board lacks it", async () => {
-    const ui = recorder(["zoom", "n_rows"]);
-    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [zoom] });
+  test("come onto the board as the module of a class that names them loads, each with its default where the board lacks it", async () => {
+    const ui = recorder();
+    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["zoom", "n_rows"]), options: [zoom] });
     store.apply({ options: { set: { n_rows: 25 } } });
 
     mounts.mountBlock(document.createElement("div"), "b");
@@ -362,7 +369,8 @@ describe("board options", () => {
 
     expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 25 });
     // The module renders once the board holds them.
-    expect(ui.mounts[0]?.context.options).toEqual({ zoom: 1, n_rows: 25 });
+    const context = ui.mounts[0]?.context;
+    expect([context?.option("zoom"), context?.option("n_rows")]).toEqual([1, 25]);
     // Undo leaves them on the board, since a step that sets only board option
     // values is no undo step.
     store.undo();
@@ -372,7 +380,8 @@ describe("board options", () => {
   });
 
   test("take a default that is a function, which the mounts that add it at once call once", async () => {
-    const ui = recorder(["zoom"]);
+    const ui = recorder();
+    const reply = headReading(["zoom"]);
     let calls = 0;
     const lazy: Option = {
       ...zoom,
@@ -381,7 +390,7 @@ describe("board options", () => {
         return Promise.resolve(2);
       },
     };
-    const s = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
+    const s = await setup({ [HEAD]: ui.exports }, { reply, options: [lazy] });
 
     s.mounts.mountBlock(document.createElement("div"), "b");
     s.mounts.mountBlock(document.createElement("div"), "b");
@@ -392,7 +401,7 @@ describe("board options", () => {
 
     // A board that opens later lacks it, and gets it as a page that starts
     // with that board would.
-    const next = await s.next();
+    const next = await s.next(reply);
     next.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
     expect(next.store.board().options.zoom).toBe(2);
@@ -400,14 +409,15 @@ describe("board options", () => {
   });
 
   test("whose default resolves once another board opened land on neither board", async () => {
-    const ui = recorder(["zoom"]);
+    const ui = recorder();
+    const reply = headReading(["zoom"]);
     const pending: ((value: number) => void)[] = [];
     const lazy: Option = { ...zoom, default: () => new Promise((done) => pending.push(done)) };
-    const s = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
+    const s = await setup({ [HEAD]: ui.exports }, { reply, options: [lazy] });
 
     s.mounts.mountBlock(document.createElement("div"), "b");
     await tick();
-    const next = await s.next();
+    const next = await s.next(reply);
     pending[0]?.(2);
     await tick();
     expect(Object.hasOwn(s.store.board().options, "zoom")).toBe(false);
@@ -422,10 +432,10 @@ describe("board options", () => {
   });
 
   test("keep a value set while the default resolves", async () => {
-    const ui = recorder(["zoom"]);
+    const ui = recorder();
     let resolve: (value: number) => void = () => undefined;
     const lazy: Option = { ...zoom, default: () => new Promise((done) => (resolve = done)) };
-    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [lazy] });
+    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["zoom"]), options: [lazy] });
 
     mounts.mountBlock(document.createElement("div"), "b");
     await tick();
@@ -436,19 +446,19 @@ describe("board options", () => {
     expect(store.board().options.zoom).toBe(3);
   });
 
-  test("come onto the board again once a delta removes them, while a module that names them is mounted", async () => {
-    const ui = recorder(["zoom"]);
-    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { options: [zoom] });
+  test("come onto the board again once a delta removes them, while the module of a class that names them is mounted", async () => {
+    const ui = recorder();
+    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["zoom"]), options: [zoom] });
     store.apply({ options: { set: { zoom: 5 } } });
     const unmount = mounts.mountBlock(document.createElement("div"), "b");
     await tick();
     const host = ui.host();
-    expect(host.context().options).toEqual({ zoom: 5 });
+    expect(host.context().option("zoom")).toBe(5);
 
     store.apply({ options: { unset: ["zoom"] } });
     await tick();
     expect(store.board().options.zoom).toBe(1);
-    expect(host.context().options).toEqual({ zoom: 1 });
+    expect(host.context().option("zoom")).toBe(1);
 
     // Once the module is unmounted, nothing adds it again.
     unmount();
@@ -459,10 +469,13 @@ describe("board options", () => {
 
   test("whose default fails or does not go onto the board leave the block's element empty, in place of the module, and raise why about each board option, and that the module cannot draw about the block", async () => {
     const reported = logged();
-    const ui = recorder(["broken", "unfit", "zoom"]);
+    const ui = recorder();
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No zoom today.")) };
     const unfit: Option = { ...zoom, id: "unfit", default: () => Promise.resolve("big") };
-    const { store, mounts, scheduler, r, raised } = await setup({ [HEAD]: ui.exports }, { options: [zoom, broken, unfit] });
+    const { store, mounts, scheduler, r, raised } = await setup(
+      { [HEAD]: ui.exports },
+      { reply: headReading(["broken", "unfit", "zoom"]), options: [zoom, broken, unfit] },
+    );
     const els = [document.createElement("div"), document.createElement("div")];
     for (const el of els) mounts.mountBlock(el, "b");
     scheduler.demand("test", ["b"]);
@@ -492,8 +505,8 @@ describe("board options", () => {
 
   test("that no package defines leave the block's element empty, in place of the module, and raise why", async () => {
     const reported = logged();
-    const ui = recorder(["nowhere"]);
-    const { mounts, raised } = await setup({ [HEAD]: ui.exports });
+    const ui = recorder();
+    const { mounts, raised } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["nowhere"]) });
     const el = document.createElement("div");
     mounts.mountBlock(el, "b");
     await tick();
@@ -509,15 +522,15 @@ describe("board options", () => {
     expect(ui.mounts).toHaveLength(0);
   });
 
-  test("end a module that has drawn once one that it names does not go onto the board again", async () => {
+  test("end a module that has drawn once one that its class names does not go onto the board again", async () => {
     const reported = logged();
-    const ui = recorder(["zoom"]);
+    const ui = recorder();
     let calls = 0;
     const once: Option = {
       ...zoom,
       default: () => (++calls === 1 ? Promise.resolve(1) : Promise.reject(new Error("No zoom any more."))),
     };
-    const { store, mounts, raised } = await setup({ [HEAD]: ui.exports }, { options: [once] });
+    const { store, mounts, raised } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["zoom"]), options: [once] });
     const el = document.createElement("div");
     mounts.mountBlock(el, "b");
     await tick();
@@ -539,69 +552,34 @@ describe("board options", () => {
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
   });
 
-  test("that a request of the class reads refuse a module that leaves one out, which core raises, while the page carries on", async () => {
-    const reported = logged();
-    const ui = recorder(["zoom"]);
-    const { store, mounts, scheduler, r, raised } = await setup(
-      { [HEAD]: ui.exports, [MERGE]: recorder().exports },
-      { reply: withRequests, options: [zoom] },
-    );
-    const el = document.createElement("div");
-    const other = document.createElement("div");
-    mounts.mountBlock(el, "b");
-    mounts.mountBlock(other, "c");
-    scheduler.demand("test", ["b"]);
-    await evaluateAll(r);
-    reported.restore();
-
-    expect(el.textContent).toBe("");
-    expect(raised).toEqual([
-      cannotDraw(
-        'The module blockr.core/head-block.js of blockr.core leaves out of its `options` board options that requests of block class "blockr.core-head_block" read:\n' +
-          '- The request "columns" reads the board option "n_rows".',
-      ),
-    ]);
-    expect(reported.errors().filter((line) => line.error instanceof ModuleError)).toHaveLength(1);
-    // Core calls no render() and adds none of the module's board options,
-    // though the board holds a value for the one it leaves out.
-    expect(ui.mounts).toHaveLength(0);
-    expect(Object.hasOwn(store.board().options, "zoom")).toBe(false);
-    // The rest of the page, the block's evaluation included, carries on.
-    expect(other.textContent).toBe("n = undefined");
-    expect(scheduler.status("b")?.status).toBe("ready");
-  });
-
-  test("left out are named with each request that reads them", async () => {
-    const reported = logged();
-    const reply: HelloReply = {
-      ...hello,
-      block_registry: {
-        ...hello.block_registry,
-        [head.id]: {
-          ...head,
-          requests: {
-            ...head.requests,
-            columns: { inputs: ["data"], state_args: ["direction"], options: ["n_rows"] },
-            page: { inputs: ["data"], state_args: [], options: ["n_rows", "zoom"] },
-          },
-        },
-      },
-    };
-    const { mounts, raised } = await setup({ [HEAD]: recorder().exports }, { reply, options: [zoom] });
-    const el = document.createElement("div");
-    mounts.mountBlock(el, "b");
+  test("that a request of the class reads come onto the board too, though the class names none for its module, and the module reads them", async () => {
+    const ui = recorder();
+    const { store, mounts } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["zoom"], withRequests), options: [zoom] });
+    mounts.mountBlock(document.createElement("div"), "b");
     await tick();
-    reported.restore();
 
-    expect(raised.map((notification) => notification.message)).toEqual([
-      'The module blockr.core/head-block.js of blockr.core leaves out of its `options` board options that requests of block class "blockr.core-head_block" read:\n' +
-        '- The request "columns" reads the board option "n_rows".\n' +
-        '- The request "page" reads the board options "n_rows" and "zoom".',
-    ]);
+    // The request "columns" reads n_rows.
+    expect(store.board().options).toMatchObject({ zoom: 1, n_rows: 50 });
+    const context = ui.host().context();
+    expect([context.option("zoom"), context.option("n_rows")]).toEqual([1, 50]);
   });
 
-  test("that a request reads are checked against the class of each block that a module mounts for", async () => {
-    const reported = logged();
+  test("that the class does not read, a misspelled one among them, the module cannot read, which throws naming the class and the board option", async () => {
+    const ui = recorder();
+    const { mounts } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["zoom"]), options: [zoom] });
+    mounts.mountBlock(document.createElement("div"), "b");
+    await tick();
+    const context = ui.host().context();
+
+    expect(() => context.option("n_rows")).toThrow(
+      'The block class "blockr.core-head_block" names no board option "n_rows" in R, so its UI module cannot read it.',
+    );
+    expect(() => context.option("zom")).toThrow(
+      'The block class "blockr.core-head_block" names no board option "zom" in R, so its UI module cannot read it.',
+    );
+  });
+
+  test("that a module reads are those of the class of each block that it mounts for", async () => {
     const ui = recorder();
     // The merge block's class has the head block's module draw it too.
     const merge = registryEntry("blockr.core-merge_block");
@@ -609,24 +587,23 @@ describe("board options", () => {
       ...withRequests,
       block_registry: { ...withRequests.block_registry, [merge.id]: { ...merge, module: HEAD } },
     };
-    const { mounts, raised } = await setup({ [HEAD]: ui.exports }, { reply });
-    const [b, c] = [document.createElement("div"), document.createElement("div")];
-    mounts.mountBlock(b, "b");
-    mounts.mountBlock(c, "c");
+    const { mounts } = await setup({ [HEAD]: ui.exports }, { reply });
+    mounts.mountBlock(document.createElement("div"), "b");
+    mounts.mountBlock(document.createElement("div"), "c");
     await tick();
-    reported.restore();
 
-    expect(raised.map((notification) => [notification.about, notification.message])).toEqual([
-      [{ block: "b" }, expect.stringContaining('The request "columns" reads the board option "n_rows".')],
-    ]);
-    expect(ui.mounts.map(({ host }) => host.block)).toEqual(["c"]);
+    const hostOf = (block: string): BlockHost | undefined => ui.mounts.find(({ host }) => host.block === block)?.host;
+    expect(hostOf("b")?.context().option("n_rows")).toBe(50);
+    expect(() => hostOf("c")?.context().option("n_rows")).toThrow(
+      'The block class "blockr.core-merge_block" names no board option "n_rows" in R, so its UI module cannot read it.',
+    );
   });
 });
 
 describe("the host", () => {
   test("gives the block's state and context, the same objects until it announces a change", async () => {
-    const ui = recorder(["n_rows"]);
-    const { mounts, scheduler } = await setup({ [HEAD]: ui.exports });
+    const ui = recorder();
+    const { mounts, scheduler } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["n_rows"]) });
     mounts.mountBlock(document.createElement("div"), "b");
     await tick();
     const host = ui.host();
@@ -634,12 +611,13 @@ describe("the host", () => {
     expect(host.state()).toEqual({ n: 6, direction: "head" });
     expect(host.state()).toBe(host.state());
     expect(host.context()).toBe(host.context());
-    expect(host.context()).toEqual({
+    expect(host.context()).toMatchObject({
       name: "Head",
       status: scheduler.status("b"),
       inputs: [{ input: "data", revision: blockRevision(scheduler, "a") }],
-      options: { n_rows: 50 },
     });
+    expect(Object.keys(host.context())).toEqual(["name", "status", "inputs", "option"]);
+    expect(host.context().option("n_rows")).toBe(50);
   });
 
   test("announces a change it did not make, the state before the context", async () => {
@@ -662,9 +640,9 @@ describe("the host", () => {
     expect(host.context().status.revision).toBeGreaterThan(revision);
   });
 
-  test("announces a new status from R, a new revision of an input, a new name and a new value of a board option it names", async () => {
-    const ui = recorder(["n_rows"]);
-    const { r, store, scheduler, mounts } = await setup({ [HEAD]: ui.exports });
+  test("announces a new status from R, a new revision of an input, a new name and a new value of a board option that the class reads", async () => {
+    const ui = recorder();
+    const { r, store, scheduler, mounts } = await setup({ [HEAD]: ui.exports }, { reply: headReading(["n_rows"]) });
     mounts.mountBlock(document.createElement("div"), "b");
     await tick();
     const host = ui.host();
@@ -685,9 +663,9 @@ describe("the host", () => {
     expect(contexts.at(-1)?.name).toBe("First rows");
 
     store.apply({ options: { set: { n_rows: 10 } } });
-    expect(contexts.at(-1)?.options).toEqual({ n_rows: 10 });
+    expect(contexts.at(-1)?.option("n_rows")).toBe(10);
 
-    // A board option the module does not name is no news to it.
+    // A board option that the class does not read is no news to the module.
     const heard = contexts.length;
     store.apply({ options: { set: { show_conditions: ["error"] } } });
     expect(contexts).toHaveLength(heard);
@@ -949,7 +927,7 @@ describe("a mount", () => {
 
 describe("a request", () => {
   async function mounted(reply: HelloReply = withRequests) {
-    const ui = recorder(["n_rows"]);
+    const ui = recorder();
     const all = await setup({ [HEAD]: ui.exports, [UPLOAD]: ui.exports }, { reply });
     all.mounts.mountBlock(document.createElement("div"), "b");
     await tick();

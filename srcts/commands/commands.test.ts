@@ -136,9 +136,6 @@ describe("registering", () => {
       "blockr.core-rename_block",
       "blockr.core-set_block_lock",
       "blockr.core-set_block",
-      "blockr.core-append_block",
-      "blockr.core-prepend_block",
-      "blockr.core-insert_block",
       "blockr.core-add_link",
       "blockr.core-change_link",
       "blockr.core-move_link",
@@ -189,12 +186,10 @@ describe("running a command", () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await commands.run("blockr.core-insert_block", {
-      link: "ab",
-      registry_id: "blockr.core-head_block",
-    }, "assistant");
+    // Removing a block removes its links and its place in its stack as well.
+    await commands.run("blockr.core-remove_block", { id: "b" }, "assistant");
 
-    expect(Object.keys(store.board().blocks)).toHaveLength(7);
+    expect(Object.keys(store.board().blocks)).toHaveLength(5);
     expect(store.canUndo("user")).toBe(false);
     expect(store.canUndo("assistant")).toBe(true);
 

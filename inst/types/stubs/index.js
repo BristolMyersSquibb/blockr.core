@@ -368,12 +368,19 @@ var READY = Object.freeze({
   unsent: null
 });
 function stubBlockContext(given = {}) {
+  const values2 = given.options ?? {};
   return Object.freeze({
     name: given.name ?? "Block",
     status: given.status ?? READY,
     inputs: given.inputs ?? [],
-    options: given.options ?? {}
+    option: (id2) => optionValue(values2, id2, "context")
   });
+}
+function optionValue(values2, id2, where) {
+  if (!Object.hasOwn(values2, id2)) {
+    throw new Error(`The stub's ${where} holds no board option "${id2}", whose value a test gives in its \`options\`.`);
+  }
+  return values2[id2];
 }
 function announcer(events) {
   const listeners = new Map(events.map((event) => [event, /* @__PURE__ */ new Set()]));
@@ -425,7 +432,8 @@ function lineHolder(pkg = null) {
 // srcts/stubs/block.ts
 function stubBlockHost(fixture, options = {}) {
   let state2 = options.state ?? fixture.states[0] ?? {};
-  let context4 = stubBlockContext(options.context);
+  let contextGiven = options.context ?? {};
+  let context4 = stubBlockContext(contextGiven);
   const submitted = [];
   const requested2 = [];
   const evaluated = [];
@@ -470,12 +478,12 @@ function stubBlockHost(fixture, options = {}) {
         // where the module passes none.
         Object.entries(call.args).every(
           ([arg, value2]) => jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state2, arg), value2)
-        ) && (call.file === void 0 ? opts.file === void 0 : opts.file !== void 0 && sameFile(call.file, opts.file)) && Object.entries(call.options).every(([id2, value2]) => jsonEqual(own(context4.options, id2), value2))
+        ) && (call.file === void 0 ? opts.file === void 0 : opts.file !== void 0 && sameFile(call.file, opts.file)) && Object.entries(call.options).every(([id2, value2]) => jsonEqual(own(contextGiven.options ?? {}, id2), value2))
       );
       if (found === void 0) {
         return Promise.reject(
           new Error(
-            `The fixture records no answer of the request "${name2}" with the args ${JSON.stringify(given)}, on the state ${JSON.stringify(state2)} and the board options ${JSON.stringify(context4.options)}.`
+            `The fixture records no answer of the request "${name2}" with the args ${JSON.stringify(given)}, on the state ${JSON.stringify(state2)} and the board options ${JSON.stringify(contextGiven.options ?? {})}.`
           )
         );
       }
@@ -497,7 +505,8 @@ function stubBlockHost(fixture, options = {}) {
       on.announce("state");
     },
     setContext(changes2) {
-      context4 = stubBlockContext({ ...context4, ...changes2 });
+      contextGiven = { ...contextGiven, ...changes2 };
+      context4 = stubBlockContext(contextGiven);
       on.announce("context");
     }
   };
@@ -572,7 +581,7 @@ function stubOutputHost(options = {}) {
     output: () => output,
     body: () => body,
     params: () => params,
-    options: () => values2,
+    option: (id2) => optionValue(values2, id2, "output host"),
     loading: () => loading,
     error: () => error,
     on: on.listen,
@@ -2675,11 +2684,13 @@ function mountableModule(exports, module, pkg) {
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new ModuleError(module, pkg, "has no default export with a render() function.");
   }
-  const named3 = mod.options;
-  if (named3 !== void 0 && !(Array.isArray(named3) && named3.every((id2) => typeof id2 === "string"))) {
-    throw new ModuleError(module, pkg, "names its board options in something other than an array of their ids.");
-  }
   return mod;
+}
+function optionReader(values2, named3, unnamed) {
+  return (id2) => {
+    if (!named3.includes(id2)) throw new Error(unnamed(id2));
+    return own(values2, id2);
+  };
 }
 function withoutOptions(module, ids3) {
   return `Without the board option${ids3.length === 1 ? "" : "s"} ${quoted(ids3)}, ${module} cannot draw.`;
@@ -2925,15 +2936,14 @@ function mountOutput(deps, el, block) {
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const outputOptions = entry.output_options ?? [];
+  const registryId2 = entry.id;
   const expected = /* @__PURE__ */ new Map();
   const ready = /* @__PURE__ */ new Map();
-  const keeping = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
   let held3;
   let asking;
   let error = null;
-  let unfit;
   let drawing;
   let options = store.board().options;
   const waiting2 = /* @__PURE__ */ new Set();
@@ -2952,10 +2962,7 @@ function mountOutput(deps, el, block) {
         const pkg = packageFromId(given.id);
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
-        const named4 = mod.options ?? [];
-        const failures = await deps.addOptions(named4, `the renderer "${given.id}"`);
-        if (failures.length > 0) throw missingOptions(given, named4);
-        return { renderer: given, mod, named: named4 };
+        return { renderer: given, mod };
       })();
       preparing.set(given.id, loading);
     }
@@ -2968,12 +2975,6 @@ function mountOutput(deps, el, block) {
       (prepared) => {
         if (ended()) return;
         ready.set(given.id, prepared);
-        keeping.set(
-          given.id,
-          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
-            fail(missingOptions(given, prepared.named), given);
-          })
-        );
         sync();
       },
       (failure) => {
@@ -2981,14 +2982,9 @@ function mountOutput(deps, el, block) {
       }
     );
   }
-  function missingOptions(given, ids3) {
-    const missing2 = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
-    return new Error(withoutOptions(`the renderer "${given.id}"`, missing2));
-  }
   function named3() {
-    const loaded = [...expected.keys()].map((id2) => ready.get(id2));
-    if (loaded.some((prepared) => prepared === void 0)) return void 0;
-    return [.../* @__PURE__ */ new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
+    if ([...expected.keys()].some((id2) => !ready.has(id2))) return void 0;
+    return outputOptions;
   }
   function values2(ids3) {
     const options2 = store.board().options;
@@ -3137,30 +3133,14 @@ function mountOutput(deps, el, block) {
     announce2();
   }
   function fail(failure, by2) {
-    if (ended()) return;
-    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) });
-    if (failure instanceof ModuleError) {
-      if (!broken.has(failure)) {
-        log.error(failure);
-        deps.raise(notification);
-      }
-      broken.add(failure);
-      return;
-    }
-    const before = unfit;
-    unfit = deps.raise(notification);
-    before?.();
-    failed3(coreFailure("module_failed", errorMessage(failure)));
-  }
-  function fit2() {
-    const before = unfit;
-    unfit = void 0;
-    before?.();
+    if (ended() || broken.has(failure)) return;
+    broken.add(failure);
+    log.error(asError(failure));
+    deps.raise(coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) }));
   }
   function take(next) {
     held3 = next;
     error = null;
-    fit2();
     const named4 = next.output.renderer;
     expect(named4);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
@@ -3215,10 +3195,10 @@ function mountOutput(deps, el, block) {
   function wake() {
     announceTo(waiting2);
   }
-  function optionsFor(prepared, asked) {
+  function optionsFor(asked) {
     const now = store.board().options;
     return Object.fromEntries(
-      prepared.named.flatMap((id2) => {
+      outputOptions.flatMap((id2) => {
         const value2 = asked !== void 0 && Object.hasOwn(asked.options, id2) ? asked.options[id2] : own(now, id2);
         return value2 === void 0 ? [] : [[id2, value2]];
       })
@@ -3336,13 +3316,18 @@ function mountOutput(deps, el, block) {
       output: () => held3?.output ?? null,
       body: () => held3?.body ?? null,
       params: () => held3?.asked.params ?? EMPTY,
-      options() {
+      option(id2) {
         let memo2 = named4;
         if (memo2 === void 0 || memo2.for !== held3) {
-          memo2 = { for: held3, values: optionsFor(prepared, held3?.asked) };
+          const read = optionReader(
+            optionsFor(held3?.asked),
+            outputOptions,
+            (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
+          );
+          memo2 = { for: held3, read };
           named4 = memo2;
         }
-        return memo2.values;
+        return memo2.read(id2);
       },
       loading: () => asking !== void 0,
       error: () => error,
@@ -3439,13 +3424,11 @@ function mountOutput(deps, el, block) {
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
-    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
     asking?.leave();
     asking = void 0;
-    fit2();
     unmountRenderer();
     el.replaceChildren();
     wake();
@@ -3616,12 +3599,11 @@ function createMounts(options) {
       let mod;
       try {
         mod = mountableModule(exports, entry.module, pkg);
-        checkOptions(mod, entry, pkg);
       } catch (error) {
         fail(error);
         return;
       }
-      const named3 = mod.options ?? [];
+      const named3 = classOptions(entry);
       const kept = keepOptions(named3, by, () => {
         if (ended()) return;
         end();
@@ -3672,17 +3654,11 @@ function createMounts(options) {
     keepOptions
   };
 }
-function checkOptions(mod, entry, pkg) {
-  const named3 = new Set(mod.options ?? []);
-  const gaps = Object.entries(entry.requests).flatMap(([name2, request]) => {
-    const left2 = [...new Set(request.options)].filter((id2) => !named3.has(id2));
-    if (left2.length === 0) return [];
-    return [`- The request "${name2}" reads the board option${left2.length === 1 ? "" : "s"} ${quoted(left2)}.`];
-  });
-  if (gaps.length === 0) return;
-  const what = `leaves out of its \`options\` board options that requests of block class "${entry.id}" read:`;
-  throw new ModuleError(entry.module, pkg, [what, ...gaps].join("\n"));
+function classOptions(entry) {
+  const read = Object.values(entry.requests).flatMap((request) => request.options);
+  return [.../* @__PURE__ */ new Set([...entry.options ?? [], ...read])];
 }
+var contextValues = /* @__PURE__ */ new WeakMap();
 function blockHost(deps) {
   const { store, commands, scheduler, block, entry } = deps;
   let seen = store.board();
@@ -3698,7 +3674,15 @@ function blockHost(deps) {
   }
   function blockContext(now) {
     const recipe = scheduler.inputs(block)?.recipe ?? [];
-    return Object.freeze({
+    const values2 = Object.freeze(
+      Object.fromEntries(
+        named3.flatMap((id2) => {
+          const value2 = own(seen.options, id2);
+          return value2 === void 0 ? [] : [[id2, value2]];
+        })
+      )
+    );
+    const context5 = Object.freeze({
       name: now?.name ?? "",
       status: scheduler.status(block) ?? NO_STATUS,
       inputs: Object.freeze(
@@ -3706,15 +3690,14 @@ function blockHost(deps) {
           (input2) => input2.block === void 0 ? [] : [Object.freeze({ input: input2.input, revision: scheduler.status(input2.block)?.revision ?? 0 })]
         )
       ),
-      options: Object.freeze(
-        Object.fromEntries(
-          named3.flatMap((id2) => {
-            const value2 = own(seen.options, id2);
-            return value2 === void 0 ? [] : [[id2, value2]];
-          })
-        )
+      option: optionReader(
+        values2,
+        named3,
+        (id2) => `The block class "${entry.id}" names no board option "${id2}" in R, so its UI module cannot read it.`
       )
     });
+    contextValues.set(context5, values2);
+    return context5;
   }
   function bound() {
     return !gone && !deps.replaced.aborted && Object.hasOwn(store.board().blocks, block);
@@ -3836,7 +3819,7 @@ function blockHost(deps) {
   };
 }
 function sameContext(a, b) {
-  return a.name === b.name && a.status === b.status && a.inputs.length === b.inputs.length && a.inputs.every((input2, i) => input2.input === b.inputs[i]?.input && input2.revision === b.inputs[i].revision) && jsonEqual(a.options, b.options);
+  return a.name === b.name && a.status === b.status && a.inputs.length === b.inputs.length && a.inputs.every((input2, i) => input2.input === b.inputs[i]?.input && input2.revision === b.inputs[i].revision) && jsonEqual(contextValues.get(a) ?? {}, contextValues.get(b) ?? {});
 }
 
 // srcts/stubs/mount.ts
@@ -4898,6 +4881,11 @@ var RAND_IDS = [
 ];
 function isRandId(value2) {
   return typeof value2 === "string" && RAND_IDS.includes(value2);
+}
+function asRandId(randId) {
+  if (randId === void 0) return "adjective_animal";
+  if (isRandId(randId)) return randId;
+  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 function isId(id2) {
   return typeof id2 === "string" && id2 !== "" && !/^\d+$/.test(id2);
@@ -6089,9 +6077,6 @@ function createRegistrations(migration = () => void 0) {
     if (given.commands !== void 0 && !Array.isArray(given.commands)) {
       throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
     }
-    if (given.options !== void 0 && (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))) {
-      throw new Error(`The plugin class "${id2}" requires board options that are no array of their ids.`);
-    }
     const what = `the state of the plugin class "${id2}"`;
     let validate = () => [];
     const state2 = given.state;
@@ -6625,15 +6610,22 @@ function coreCommands(store) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [
-      id2,
-      { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null },
-      entry
-    ];
+    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
-  function linkable(board2, to, given) {
-    if (!Object.hasOwn(board2.blocks, to)) return false;
-    return named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0;
+  function linkable(command2, board2, from, to, given) {
+    if (!Object.hasOwn(board2.blocks, from) || !Object.hasOwn(board2.blocks, to)) return false;
+    if (named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0) return true;
+    throw refusal(command2, [noFreeInput(board2, to)]);
+  }
+  function noFreeInput(board2, to) {
+    const block = own(board2.blocks, to);
+    if (block === void 0) return `The board holds no block "${to}".`;
+    const entry = own(store.blockRegistry(), block.registry_id);
+    if (entry === void 0) return `The block registry has no block class "${block.registry_id}".`;
+    if (entry.inputs.length === 0) {
+      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+    }
+    return `Every input of the block "${to}" takes a link already.`;
   }
   function linkInput(command2, board2, to, given, except) {
     if (named(given)) return given;
@@ -6641,25 +6633,15 @@ function coreCommands(store) {
     return one(
       command2,
       free,
-      `The block "${to}" has no input that no link feeds.`,
+      noFreeInput(board2, to),
       `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`
-    );
-  }
-  function newInput(command2, entry, given) {
-    if (named(given)) return given;
-    if (entry.inputs.includes("...")) return "";
-    return one(
-      command2,
-      entry.inputs,
-      `The block class "${entry.id}" has no input to take a link.`,
-      `The block class "${entry.id}" has the inputs ${quoted(entry.inputs)}, so the args have to name the one to use.`
     );
   }
   const blocks = [
     command({
       id: "blockr.core-add_block",
       label: "Add block",
-      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given.",
+      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
       args: object(newBlock, ["registry_id"]),
       run(board2, args, { mintId: mintId2 }) {
         const [id2, block] = added(this.id, board2, args, mintId2);
@@ -6719,94 +6701,6 @@ function coreCommands(store) {
           }
         };
       }
-    }),
-    command({
-      id: "blockr.core-append_block",
-      label: "Append block",
-      description: "Adds a block that takes the result of another, through a new link from that block into an input of the new block.",
-      args: object(
-        {
-          from: { ...blockId, description: "The block whose result the new block takes." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of the new block that takes the result, which may be left out where the new block has one input or is variadic."
-          }
-        },
-        ["from", "registry_id"]
-      ),
-      preflight: (board2, { from }) => Object.hasOwn(board2.blocks, from),
-      run(board2, args, { mintId: mintId2 }) {
-        const [id2, block, entry] = added(this.id, board2, args, mintId2);
-        const input2 = newInput(this.id, entry, args.input);
-        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        return {
-          blocks: { add: { [id2]: block } },
-          links: { add: { [link]: { from: args.from, to: id2, input: input2 } } }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-prepend_block",
-      label: "Prepend block",
-      description: "Adds a block whose result another takes, through a new link from the new block into an input of that block.",
-      args: object(
-        {
-          to: { ...blockId, description: "The block that takes the new block's result." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of that block that takes the result, which may be left out where only one of its inputs is free or it is variadic."
-          }
-        },
-        ["to", "registry_id"]
-      ),
-      preflight: (board2, { to, input: input2 }) => linkable(board2, to, input2),
-      run(board2, args, { mintId: mintId2 }) {
-        const input2 = linkInput(this.id, board2, args.to, args.input);
-        const [id2, block] = added(this.id, board2, args, mintId2);
-        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        return {
-          blocks: { add: { [id2]: block } },
-          links: { add: { [link]: { from: id2, to: args.to, input: input2 } } }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-insert_block",
-      label: "Insert block",
-      description: "Adds a block on a link, which it replaces with a link from the link's source into an input of the new block and one from the new block into the input that the link fed.",
-      args: object(
-        {
-          link: { ...linkId, description: "The link that the new block goes on." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of the new block that takes the result of the link's source, which may be left out where the new block has one input or is variadic."
-          }
-        },
-        ["link", "registry_id"]
-      ),
-      preflight: (board2, { link }) => Object.hasOwn(board2.links, link),
-      run(board2, args, { mintId: mintId2 }) {
-        const split = own(board2.links, args.link);
-        if (split === void 0) return [];
-        const [id2, block, entry] = added(this.id, board2, args, mintId2);
-        const input2 = newInput(this.id, entry, args.input);
-        const near = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        const far = mintId2((id3) => Object.hasOwn(board2.links, id3) || id3 === near);
-        return {
-          blocks: { add: { [id2]: block } },
-          links: {
-            rm: [args.link],
-            add: {
-              [near]: { from: split.from, to: id2, input: input2 },
-              [far]: { from: id2, to: split.to, input: split.input }
-            },
-            before: { [far]: args.link }
-          }
-        };
-      }
     })
   ];
   const links = [
@@ -6829,7 +6723,9 @@ function coreCommands(store) {
         },
         ["from", "to"]
       ),
-      preflight: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
+      preflight(board2, { from, to, input: input2 }) {
+        return linkable(this.id, board2, from, to, input2);
+      },
       run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
         const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
         const resolved = linkInput(this.id, board2, to, input2);
@@ -7115,7 +7011,7 @@ function createCommands(store, options = {}) {
     () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
   );
   const ended = () => options.signal?.aborted === true;
-  const randId = options.randId === void 0 ? "adjective_animal" : asRandId(options.randId);
+  const randId = asRandId(options.randId);
   const shared = {
     lock: options.lock ?? { board: false, load: false },
     mintId: (taken) => mintId(taken, randId),
@@ -7339,10 +7235,6 @@ function createCommands(store, options = {}) {
   }
   return registry;
 }
-function asRandId(randId) {
-  if (isRandId(randId)) return randId;
-  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
-}
 function isCommandId(id2) {
   const pkg = packageFromId(id2);
   return pkg !== null && id2.length > pkg.length + 1;
@@ -7393,10 +7285,10 @@ function runPlugins(deps) {
     stops.push(kept.stop);
     return kept.added;
   }
+  const optionsOf = (id2) => own(deps.plugins, id2)?.options ?? [];
   function opened() {
     for (const id2 of Object.keys(appPlugins())) {
-      const def = registeredClass(id2);
-      if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${id2}"`));
+      added.set(id2, keep(optionsOf(id2), `the plugin class "${id2}"`));
     }
   }
   const offStore = store.subscribe((change) => {
@@ -7507,7 +7399,7 @@ function runPlugins(deps) {
       cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing2));
     }
     void (async () => {
-      const named3 = def.options ?? [];
+      const named3 = optionsOf(plugin);
       const kept = keepOptions(named3, `the plugin class "${plugin}"`, () => {
         if (ended()) return;
         end();
@@ -7621,6 +7513,7 @@ async function evaluateReads2(deps, what, blocks, signal5) {
 // srcts/core/core.ts
 function createCore(parts) {
   const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const randId = asRandId(parts.randId);
   const { raise } = notifications;
   notifications.follow(scheduler);
   const optionPackage = (id2) => own(parts.options, id2)?.package;
@@ -7735,6 +7628,7 @@ function createCore(parts) {
     request: (plugin, name2, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name2, args, opts),
     module: (id2) => loader.module(id2),
     blockrOption: (name2) => blockrOptions.read(name2),
+    mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),
@@ -8685,6 +8579,7 @@ function start(options) {
       scheduler,
       loader,
       blockrOptions,
+      randId,
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
@@ -9367,9 +9262,8 @@ import { Component } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { jsx as jsx3 } from "react/jsx-runtime";
-function reactModule(Draw, options = {}) {
+function reactModule(Draw) {
   return {
-    ...options.options === void 0 ? {} : { options: options.options },
     render({ el, host, signal: signal5 }) {
       const root = createRoot(el);
       flushSync(() => {
@@ -9836,8 +9730,9 @@ var ROW = "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:roun
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/ui/edits.ts
-function runCommand(core, id2, args) {
-  return core.commands.run(id2, args).then(
+function runCommand(core, target2, args) {
+  const running2 = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
+  return running2.then(
     () => true,
     () => false
   );
@@ -10063,7 +9958,7 @@ function Pager({ label, view }) {
 
 // srcts/picker/picker.tsx
 import { jsx as jsx9, jsxs as jsxs6 } from "react/jsx-runtime";
-function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
+function BlockPicker({ core, mode, onAdded, autofocus = false }) {
   const board = useBoard(core);
   const registry = core.blockRegistry();
   const [picked, setPicked] = useState9(void 0);
@@ -10107,12 +10002,14 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
     const args = {
       registry_id: entry.id,
       ...filled("id", id2),
-      ...filled("name", name2),
+      ...filled("name", name2)
+    };
+    const into = {
       ...chosen === void 0 ? {} : { input: chosen },
       ...link.kind === "name" ? filled("input", inputName) : {}
     };
     setBusy(true);
-    const ran = mode.kind === "after" ? await run("blockr.core-append_block", { ...args, from: mode.from }) : mode.kind === "before" ? await run("blockr.core-prepend_block", { ...args, to: mode.to }) : await run("blockr.core-add_block", args);
+    const ran = mode.kind === "add" ? await runCommand(core, "blockr.core-add_block", args) : await runCommand(core, addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(void 0);
@@ -10235,6 +10132,14 @@ function linkChoice(mode, board, registry, entry) {
     if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
   }
   return { kind: "none" };
+}
+function addAndLink(core, mode, args, into) {
+  const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
+  const ends = mode.kind === "after" ? { from: mode.from, to: block } : { from: block, to: mode.to };
+  return [
+    { id: "blockr.core-add_block", args: { ...args, id: block } },
+    { id: "blockr.core-add_link", args: { ...ends, ...into } }
+  ];
 }
 function namesInto(board, to, except) {
   return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
@@ -11166,8 +11071,7 @@ function AddBlockDialog({ mode, onClose }) {
   const board = useBoard(front.core);
   const target2 = mode.kind === "add" ? void 0 : own(board.blocks, mode.kind === "after" ? mode.from : mode.to);
   const title = target2 === void 0 ? "Add block" : `Add block ${mode.kind} "${target2.name}"`;
-  const run = useCallback7((command2, args) => runCommand(front.core, command2, args), [front.core]);
-  return /* @__PURE__ */ jsx15(Dialog, { title, onClose, children: /* @__PURE__ */ jsx15(BlockPicker, { core: front.core, mode, run, onAdded: onClose, autofocus: true }) });
+  return /* @__PURE__ */ jsx15(Dialog, { title, onClose, children: /* @__PURE__ */ jsx15(BlockPicker, { core: front.core, mode, onAdded: onClose, autofocus: true }) });
 }
 function Toasts() {
   const { core, toasts } = useFrontEnd();
@@ -11336,7 +11240,6 @@ function inView(el, view) {
 // srcts/modules/basic/index.tsx
 import { jsx as jsx16 } from "react/jsx-runtime";
 var basic_default = {
-  options: ["show_conditions", "dark_mode"],
   frontend: { render, show }
 };
 var drawn2 = /* @__PURE__ */ new WeakMap();
@@ -11375,20 +11278,19 @@ import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect7, useRef as useRef9, useState as useState17 } from "react";
+import { useCallback as useCallback8, useLayoutEffect as useLayoutEffect7, useRef as useRef9, useState as useState17 } from "react";
 
 // srcts/modules/edit-board/blocks.tsx
-import { useCallback as useCallback8, useState as useState14 } from "react";
+import { useState as useState14 } from "react";
 import { Fragment as Fragment5, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 var ADD = { kind: "add" };
 function BlocksSection({ core, board }) {
-  const run = useCallback8((command2, args) => runCommand(core, command2, args), [core]);
   const registry = core.blockRegistry();
   const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
   const count = Object.keys(board.blocks).length;
   return /* @__PURE__ */ jsxs13(Section, { title: "Blocks", count, children: [
-    /* @__PURE__ */ jsx17(Part, { title: "Add a block", children: /* @__PURE__ */ jsx17(BlockPicker, { core, mode: ADD, run }) }),
+    /* @__PURE__ */ jsx17(Part, { title: "Add a block", children: /* @__PURE__ */ jsx17(BlockPicker, { core, mode: ADD }) }),
     /* @__PURE__ */ jsx17(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs13(Fragment5, { children: [
       /* @__PURE__ */ jsx17(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsxs13("table", { className: table.table, children: [
@@ -12101,10 +12003,10 @@ function useRowEditing() {
     closed.current = false;
     button.current?.focus();
   }, [editing]);
-  const open = useCallback9(() => {
+  const open = useCallback8(() => {
     setEditing(true);
   }, []);
-  const close = useCallback9(() => {
+  const close = useCallback8(() => {
     closed.current = true;
     setEditing(false);
   }, []);
@@ -12338,7 +12240,7 @@ function takesTheme(value2) {
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, show_conditions and dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -12382,6 +12284,7 @@ var hello_default = {
               additionalProperties: false
             },
             state: { package: "datasets" },
+            options: [],
             requests: {
               datasets: {
                 inputs: [],
@@ -12427,6 +12330,7 @@ var hello_default = {
               additionalProperties: false
             },
             state: { n: 6, direction: "head" },
+            options: [],
             requests: {
               n_max: { inputs: ["data"], state_args: [], options: [] }
             },
@@ -12476,6 +12380,7 @@ var hello_default = {
               additionalProperties: false
             },
             state: { all_x: false, all_y: false },
+            options: [],
             requests: {
               shared: {
                 inputs: ["x", "y"],
@@ -12524,6 +12429,7 @@ var hello_default = {
               additionalProperties: false
             },
             state: { subset: "", select: "" },
+            options: [],
             requests: {},
             output_options: ["n_rows"],
             renderers: [
@@ -12556,6 +12462,7 @@ var hello_default = {
               additionalProperties: false
             },
             state: {},
+            options: [],
             requests: {},
             output_options: ["n_rows"],
             renderers: [
@@ -12596,6 +12503,7 @@ var hello_default = {
               additionalProperties: false
             },
             state: {},
+            options: [],
             requests: {
               columns: {
                 inputs: ["data"],
@@ -12627,6 +12535,7 @@ var hello_default = {
               additionalProperties: false
             },
             state: {},
+            options: [],
             requests: {
               upload: {
                 inputs: [],
@@ -12654,17 +12563,20 @@ var hello_default = {
           "blockr.core-basic_frontend_plugin": {
             name: "Basic frontend",
             version: 1,
+            options: ["show_conditions", "dark_mode"],
             module: "blockr.core/basic.js?v=0f3d8e21",
             css: "blockr.core/basic.css?v=6a9b2c4e"
           },
           "blockr.core-file_storage_plugin": {
             name: "File storage",
             version: 1,
+            options: [],
             module: "blockr.core/file-storage.js?v=8e1f0b2d"
           },
           "blockr.core-edit_board_plugin": {
             name: "Edit board",
             version: 1,
+            options: [],
             module: "blockr.core/edit-board.js?v=5c1e7a39"
           }
         },

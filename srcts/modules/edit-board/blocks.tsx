@@ -7,14 +7,13 @@
 //   each block renames it in place with rename_block, and a button removes it
 //   with remove_block, which removes its links and its place in its stack too.
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import type { ReactElement } from "react";
 import { BlockPicker } from "../../picker/index.ts";
 import type { AddMode } from "../../picker/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { Block, BlockId, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import type { Json } from "../../types/json.ts";
 import { classes, NameField, Pager, runCommand, TableSearch, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Part, Section, table } from "./board.tsx";
@@ -22,7 +21,6 @@ import { Part, Section, table } from "./board.tsx";
 const ADD: AddMode = { kind: "add" };
 
 export function BlocksSection({ core, board }: { core: CoreApi; board: Board }): ReactElement {
-  const run = useCallback((command: string, args: Json) => runCommand(core, command, args), [core]);
   const registry = core.blockRegistry();
   const className = (block: Block): string => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id, block]) => `${block.name} ${id} ${className(block)}`);
@@ -31,7 +29,7 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
   return (
     <Section title="Blocks" count={count}>
       <Part title="Add a block">
-        <BlockPicker core={core} mode={ADD} run={run} />
+        <BlockPicker core={core} mode={ADD} />
       </Part>
       <Part title="Blocks on the board">
         {count === 0 ? (

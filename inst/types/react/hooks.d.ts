@@ -1,6 +1,6 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
-import type { BlockId, Board, OptionId } from "../types/board.ts";
+import type { BlockId, Board } from "../types/board.ts";
 import type { CoreApi, CoreFailure, Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
@@ -8,7 +8,6 @@ export interface OutputSnapshot {
     readonly output: Json;
     readonly body: Blob | null;
     readonly params: Json;
-    readonly options: Readonly<Record<OptionId, Json>>;
     readonly loading: boolean;
     readonly error: Condition | CoreFailure | null;
 }

@@ -47,6 +47,7 @@ export interface CoreApi {
     request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
     module<T = unknown>(id: string): Promise<T>;
     blockrOption(name: string): Promise<Json | undefined>;
+    mintId(taken: (id: string) => boolean): string;
     mountBlock(el: HTMLElement, block: BlockId): () => void;
     mountOutput(el: HTMLElement, block: BlockId): () => void;
     mountOption(el: HTMLElement, option: OptionId): () => void;
@@ -110,7 +111,7 @@ export interface CoreSource {
 export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_edit_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered";
 export interface CoreFailure {
     readonly kind: "core";
-    readonly code: Extract<CoreCode, "output_unanswered" | "module_failed" | "board_option_failed">;
+    readonly code: Extract<CoreCode, "output_unanswered" | "board_option_failed">;
     readonly message: string;
 }
 export interface ModuleSource {

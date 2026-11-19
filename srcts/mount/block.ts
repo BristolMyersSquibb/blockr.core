@@ -2,28 +2,28 @@
 // contract has it (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // 1. Core loads the module of the block's class, with its stylesheet, once
 //    per page, and refuses one that declares another major of its JS API.
-// 2. It refuses a module whose `options` leaves out a board option that a
-//    request of the block's class reads, as the class's registry entry names
-//    them.
-// 3. It adds the board options that the module names to the board, each with
+// 2. It adds to the board the board options that the class reads, as the
+//    class's registry entry names them: those that the class names for its UI
+//    module in `options`, and those that its requests read. It adds each with
 //    its definition's default where the board lacks it, and adds again each
 //    that a delta removes while the module is mounted, so that the board holds
 //    the value of every board option that the module reads.
-// 4. It calls the module's render() with the element, a host of the block's
+// 3. It calls the module's render() with the element, a host of the block's
 //    own and a signal, which it aborts once the mount ends, and runs the
-//    cleanup that render() returns.
-// Where the module fails to load, declares another major, leaves out such a
-// board option or throws in render(), core leaves the element empty, so that
-// the frontend alone says where the failure shows, while the page and the
-// block's evaluation carry on. It raises a notification that names the module
-// and concerns the block, with the module's package, which holds until the
-// next board opens or the block leaves the board. So it raises one where a
-// board option that the module names does not go onto the board, as where its
-// default fails: the module goes without none of them, and core ends a module
-// that it has drawn once one does not go onto the board again. The
-// notification that concerns the board option says why it is not on the
-// board, once for the board, and names the board option's module where a
-// loaded package defines the board option.
+//    cleanup that render() returns. The host's context gives the module the
+//    value of each of those board options through option(), which throws for
+//    any other id.
+// Where the module fails to load, declares another major or throws in
+// render(), core leaves the element empty, so that the frontend alone says
+// where the failure shows, while the page and the block's evaluation carry on.
+// It raises a notification that names the module and concerns the block, with
+// the module's package, which holds until the next board opens or the block
+// leaves the board. So it raises one where a board option that the class
+// reads does not go onto the board, as where its default fails: the module
+// goes without none of them, and core ends a module that it has drawn once one
+// does not go onto the board again. The notification that concerns the board
+// option says why it is not on the board, once for the board, and names the
+// board option's module where a loaded package defines the board option.
 //
 // A host keeps nothing of its own: the state is the store's, the status the
 // scheduler's and the answers core's, so one block mounts in several places
@@ -68,7 +68,6 @@ import {
   givenNotifier,
   notifyNothing,
   packageFromId,
-  quoted,
   raiseNothing,
   refusedNothing,
   repliedNothing,
@@ -85,7 +84,7 @@ import { mountOption } from "./option.ts";
 import { createShelves, mountOutput } from "./output.ts";
 import type { OutputEvent } from "./output.ts";
 import { blockRequest } from "./requests.ts";
-import { attempt, mountableModule, onAbort, REPLACED, withoutOptions } from "./shared.ts";
+import { attempt, mountableModule, onAbort, optionReader, REPLACED, withoutOptions } from "./shared.ts";
 
 export interface Mounts {
   // Mounts the UI module of the block's class in the element until the
@@ -353,16 +352,15 @@ export function createMounts(options: MountsOptions): Mounts {
       let mod: BlockModule;
       try {
         mod = mountableModule(exports, entry.module, pkg);
-        checkOptions(mod, entry, pkg);
       } catch (error) {
         fail(error);
         return;
       }
 
-      // Where a board option that the module names does not go onto the
+      // Where a board option that the class reads does not go onto the
       // board, which core has reported, the module does not draw, and core
       // raises why. A module that has drawn ends then.
-      const named = mod.options ?? [];
+      const named = classOptions(entry);
       const kept = keepOptions(named, by, () => {
         if (ended()) return;
         end();
@@ -395,9 +393,9 @@ export function createMounts(options: MountsOptions): Mounts {
       raise(coreNotification("module_failed", "error", errorMessage(error), { module }));
     }
 
-    // Raises that the module cannot draw without the board options that it
-    // names and that the board lacks, which concerns the block, beside the
-    // notification about each board option.
+    // Raises that the module cannot draw without the board options that the
+    // class reads and that the board lacks, which concerns the block, beside
+    // the notification about each board option.
     function lacking(ids: readonly OptionId[]): void {
       const missing = ids.filter((id) => !Object.hasOwn(store.board().options, id));
       raise(coreNotification("module_failed", "error", withoutOptions(by, missing), { module }));
@@ -425,22 +423,12 @@ export function createMounts(options: MountsOptions): Mounts {
   };
 }
 
-// Refuses a module whose `options` leaves out a board option that a request
-// of the block's class reads, as the class's registry entry names them, so
-// that the gap shows on the first mount rather than as a request that reaches
-// R without the value
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#which-board-options-a-board-holds).
-// It throws a ModuleError that names each such request and board option.
-function checkOptions(mod: BlockModule, entry: RegistryEntry, pkg: string | null): void {
-  const named = new Set(mod.options ?? []);
-  const gaps = Object.entries(entry.requests).flatMap(([name, request]) => {
-    const left = [...new Set(request.options)].filter((id) => !named.has(id));
-    if (left.length === 0) return [];
-    return [`- The request "${name}" reads the board option${left.length === 1 ? "" : "s"} ${quoted(left)}.`];
-  });
-  if (gaps.length === 0) return;
-  const what = `leaves out of its \`options\` board options that requests of block class "${entry.id}" read:`;
-  throw new ModuleError(entry.module, pkg, [what, ...gaps].join("\n"));
+// The board options that a block class reads, by id, each once, as its
+// registry entry names them: those that the class names for its UI module,
+// and those that its requests read.
+function classOptions(entry: RegistryEntry): readonly OptionId[] {
+  const read = Object.values(entry.requests).flatMap((request) => request.options);
+  return [...new Set([...(entry.options ?? []), ...read])];
 }
 
 interface HostDeps {
@@ -465,12 +453,17 @@ interface HostDeps {
 }
 
 // A block's host, with what only its mount calls: name() takes the board
-// options that the module names, and drop() stops it following the board and
-// withdraws the notifications that the module raised.
+// options that the class reads, whose values the context gives, and drop()
+// stops it following the board and withdraws the notifications that the
+// module raised.
 interface MountedHost extends BlockHost {
   name(options: readonly OptionId[]): void;
   drop(): void;
 }
+
+// The values of the board options that the option() of each context gives, by
+// the context, which sameContext() compares.
+const contextValues = new WeakMap<BlockContext, Readonly<Record<OptionId, Json>>>();
 
 function blockHost(deps: HostDeps): MountedHost {
   const { store, commands, scheduler, block, entry } = deps;
@@ -494,7 +487,15 @@ function blockHost(deps: HostDeps): MountedHost {
 
   function blockContext(now: Block | undefined): BlockContext {
     const recipe = scheduler.inputs(block)?.recipe ?? [];
-    return Object.freeze({
+    const values = Object.freeze(
+      Object.fromEntries(
+        named.flatMap((id) => {
+          const value = own(seen.options, id);
+          return value === undefined ? [] : [[id, value]];
+        }),
+      ),
+    );
+    const context: BlockContext = Object.freeze({
       name: now?.name ?? "",
       status: scheduler.status(block) ?? NO_STATUS,
       inputs: Object.freeze(
@@ -504,15 +505,14 @@ function blockHost(deps: HostDeps): MountedHost {
             : [Object.freeze({ input: input.input, revision: scheduler.status(input.block)?.revision ?? 0 })],
         ),
       ),
-      options: Object.freeze(
-        Object.fromEntries(
-          named.flatMap((id) => {
-            const value = own(seen.options, id);
-            return value === undefined ? [] : [[id, value]];
-          }),
-        ),
+      option: optionReader(
+        values,
+        named,
+        (id) => `The block class "${entry.id}" names no board option "${id}" in R, so its UI module cannot read it.`,
       ),
     });
+    contextValues.set(context, values);
+    return context;
   }
 
   // Whether the host is still bound to the board it was made on and to its
@@ -665,6 +665,6 @@ function sameContext(a: BlockContext, b: BlockContext): boolean {
     a.status === b.status &&
     a.inputs.length === b.inputs.length &&
     a.inputs.every((input, i) => input.input === b.inputs[i]?.input && input.revision === b.inputs[i].revision) &&
-    jsonEqual(a.options, b.options)
+    jsonEqual(contextValues.get(a) ?? {}, contextValues.get(b) ?? {})
   );
 }
