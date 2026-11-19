@@ -11,6 +11,7 @@ var IMPORTS = [
 ];
 
 // srcts/build/preset.ts
+var REACT_ARIA = /^(react-aria-components|react-aria|react-stately|@react-(aria|stately)\/[^/]+)(\/.*)?$/;
 var imports = {
   name: "blockr.core-imports",
   setup(build) {
@@ -26,6 +27,13 @@ var imports = {
       }
       return { path: args.path, external: true, ...args.path === OTEL_API ? { sideEffects: false } : {} };
     });
+    build.onResolve({ filter: REACT_ARIA }, (args) => ({
+      errors: [
+        {
+          text: `A module imports ${args.path}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, so that the page runs one copy of React Aria.`
+        }
+      ]
+    }));
   }
 };
 var preset = {

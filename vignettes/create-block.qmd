@@ -614,6 +614,9 @@ It builds with esbuild and core's build preset, `@blockr/core/build`.
 The preset leaves the module's imports of React, and of core's React SDK, its binding and its controls, as imports.
 The page that R serves resolves them through an import map, to the one copy of each that blockr.core ships, so the module's bundle holds none of them.
 The module then runs the SDK of the blockr.core it runs on, and its inputs take the classes of that blockr.core's stylesheet.
+The preset fails a build that imports React Aria, such as `react-aria-components`.
+A module draws React Aria's components from the SDK instead.
+A second copy of React Aria in the module's bundle would hold React contexts of its own, which the components of the SDK do not read.
 A script `build.ts` builds the module, and Node runs it as it is from version 22.18:
 
 ```ts
