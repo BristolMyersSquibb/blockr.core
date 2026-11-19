@@ -68,6 +68,23 @@ async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () 
   };
 }
 
+// Makes every element measure the width and the height given, until the
+// function that it returns runs, through getters on the prototype of
+// HTMLElement, which React Aria's Virtualizer takes for those of a test that
+// sizes the page, where happy-dom measures nothing (../testing/dom.ts).
+function measured(width: number, height: number): () => void {
+  for (const [name, value] of [
+    ["clientWidth", width],
+    ["clientHeight", height],
+  ] as const) {
+    Object.defineProperty(HTMLElement.prototype, name, { configurable: true, get: () => value });
+  }
+  return () => {
+    Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
+    Reflect.deleteProperty(HTMLElement.prototype, "clientHeight");
+  };
+}
+
 // A select that holds its pick, or its picks, and records each change.
 function Held<M extends "single" | "multiple">({
   start,
@@ -144,6 +161,30 @@ describe("a select of one item", () => {
       "No fruit grows here.",
     );
     expect(await shown(<ComboBox label="Fruit" defaultItems={[]} outdated>{row}</ComboBox>)).toBe("Loading…");
+  });
+
+  test("draws only the rows in view, through React Aria's Virtualizer, however many items it holds", async () => {
+    const many = Array.from({ length: 500 }, (_, i) => ({ id: `fruit-${String(i)}`, name: `Fruit ${String(i)}` }));
+    const restore = measured(300, 200);
+    try {
+      const { el } = await draw(
+        <ComboBox label="Fruit" defaultItems={many}>
+          {row}
+        </ComboBox>,
+      );
+      const field = labelled(el, "Fruit");
+      await step(() => {
+        field.click();
+      });
+
+      const drawn = optionLabels(field);
+      expect(drawn[0]).toBe("Fruit 0");
+      // Rows of 32 pixels, with those that React Aria draws beyond the view.
+      expect(drawn.length).toBeGreaterThan(200 / 32);
+      expect(drawn.length).toBeLessThan(50);
+    } finally {
+      restore();
+    }
   });
 
   test("lists its items under the headings of their sections, each named by its label and described by its description", async () => {

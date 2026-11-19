@@ -10,12 +10,12 @@ import { PAUSE } from "../binding/index.ts";
 import { useRequest, useValue } from "../react/index.ts";
 import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture, StubBlockHost } from "../stubs/index.ts";
-import { find, press, texts, toggle, type } from "../testing/inputs.ts";
+import { fieldError, find, numberSaid, press, texts, toggle, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import { chipLabels, labelled, listed, optionFromLabel, optionLabels, removeChip } from "../testing/select.ts";
 import { holdRequests } from "../testing/requests.ts";
 import type { BlockHost, OptionHost } from "../types/hosts.ts";
-import { Checkbox, ComboBox, ComboBoxItem, NumberInput, Stack, TextInput } from "./index.ts";
+import { Checkbox, ComboBox, ComboBoxItem, NumberField, Stack, TextField } from "./index.ts";
 
 type Form = Readonly<{ n: number; direction: string; label: string; by?: readonly string[]; keep: boolean }>;
 
@@ -24,6 +24,7 @@ const form = (state: Partial<Form>): Form => ({ n: 6, direction: "head", label: 
 const fixture: BlockFixture = {
   states: [
     form({}),
+    form({ n: 7 }),
     form({ n: 10 }),
     form({ n: 20, direction: "tail" }),
     form({ direction: "tail" }),
@@ -76,11 +77,12 @@ function BlockForm({ host }: { host: BlockHost<Form> }): ReactElement {
   const max = useRequest(host, "n_max").answer;
   return (
     <Stack>
-      <NumberInput
+      <NumberField
         bound={useValue(host, "n")}
         label="Number of rows"
-        min={0}
-        max={Array.isArray(max) && typeof max[0] === "number" ? max[0] : undefined}
+        minValue={0}
+        maxValue={Array.isArray(max) && typeof max[0] === "number" ? max[0] : undefined}
+        step={1}
       />
       <ComboBox
         bound={useValue(host, "direction")}
@@ -93,7 +95,7 @@ function BlockForm({ host }: { host: BlockHost<Form> }): ReactElement {
       >
         {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
       </ComboBox>
-      <TextInput bound={useValue(host, "label")} label="Label" />
+      <TextField bound={useValue(host, "label")} label="Label" />
       <ComboBox bound={useValue(host, "by")} selectionMode="multiple" label="By columns" defaultItems={ids(["a", "b", "c"])}>
         {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
       </ComboBox>
@@ -109,7 +111,7 @@ function block(state: Form = form({})) {
   const host: StubBlockHost<Form> = stubBlockHost<Form>(fixture, { state });
   const drawn = draw(<BlockForm host={host} />);
   const inputs = {
-    n: find(drawn.el, 'input[type="number"]', HTMLInputElement),
+    n: labelled(drawn.el, "Number of rows"),
     direction: labelled(drawn.el, "Direction"),
     label: labelled(drawn.el, "Label"),
     by: labelled(drawn.el, "By columns"),
@@ -119,12 +121,11 @@ function block(state: Form = form({})) {
 }
 
 describe("the inputs of a block's UI", () => {
-  test("show the state, take the most the request gives, and submit nothing until the user acts", async () => {
+  test("show the state, and submit nothing until the user acts", async () => {
     const { host, inputs } = block();
     await wait(0);
 
     expect([inputs.n.value, inputs.direction.value, inputs.label.value]).toEqual(["6", "Head", "x"]);
-    expect(inputs.n.max).toBe("150");
     expect(host.submitted).toEqual([]);
   });
 
@@ -135,7 +136,7 @@ describe("the inputs of a block's UI", () => {
       host.setState(form({ n: 20, direction: "tail" }));
     });
 
-    expect(find(el, 'input[type="number"]')).toBe(inputs.n);
+    expect(labelled(el, "Number of rows")).toBe(inputs.n);
     expect([inputs.n.value, inputs.direction.value]).toEqual(["20", "Tail"]);
   });
 
@@ -157,7 +158,7 @@ describe("the inputs of a block's UI", () => {
     expect(inputs.n.value).toBe("20");
   });
 
-  test("submit typing at once on Enter and as the user leaves, and nothing that the input does not take", async () => {
+  test("submit typing at once on Enter and as the user leaves, and nothing above the most that the request gives", async () => {
     const { host, inputs } = block();
     await wait(0);
 
@@ -172,7 +173,7 @@ describe("the inputs of a block's UI", () => {
       type(inputs.n, "10");
       press(inputs.n, "Enter");
     });
-    expect(inputs.n.getAttribute("aria-invalid")).toBe("false");
+    expect(inputs.n.getAttribute("aria-invalid")).toBeNull();
     act(() => {
       type(inputs.label, "yz");
     });
@@ -252,17 +253,97 @@ describe("the inputs of a block's UI", () => {
 
     act(() => {
       type(inputs.label, "yz");
+      type(inputs.n, "10");
     });
     unmount();
 
-    expect(host.submitted).toEqual([form({ label: "yz" })]);
+    expect(host.submitted).toEqual([form({ label: "yz" }), form({ n: 10, label: "yz" })]);
+  });
+
+  test("submit a number at once as the user steps it, by a button or an arrow key, and show the state again where the host refused it", async () => {
+    const { host, el, inputs } = block();
+    const steps = [...el.querySelectorAll<HTMLButtonElement>('button[slot="increment"], button[slot="decrement"]')];
+    expect(steps.map((button) => button.getAttribute("aria-label"))).toEqual(["Increase", "Decrease"]);
+
+    await step(() => {
+      steps[0]?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, pointerType: "mouse", button: 0 }));
+      steps[0]?.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, pointerType: "mouse", button: 0 }));
+      steps[0]?.click();
+    });
+    expect(host.submitted).toEqual([form({ n: 7 })]);
+    expect(inputs.n.value).toBe("7");
+
+    await step(() => {
+      inputs.n.focus();
+      press(inputs.n, "ArrowDown");
+    });
+    expect(host.submitted).toEqual([form({ n: 7 }), form({})]);
+    expect(inputs.n.value).toBe("6");
+
+    // The fixture lists no state of 5 rows, so the host refuses it.
+    await step(() => {
+      press(inputs.n, "ArrowDown");
+    });
+    expect(host.submitted).toEqual([form({ n: 7 }), form({}), form({ n: 5 })]);
+    expect(inputs.n.value).toBe("6");
+    expect(texts(el, '[role="alert"]')[0]).toContain("which the fixture does not list");
+  });
+});
+
+describe("a number field's text as the user types", () => {
+  test("stays as the user typed it after the binding submits it on a pause, and takes the field's format once the user leaves", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el } = draw(<Rows host={host} />);
+    const input = labelled(el, "Preview rows");
+
+    act(() => {
+      input.focus();
+      type(input, "1000");
+    });
+    await wait(PAUSE);
+    expect(host.submitted).toEqual([1000]);
+    expect(input.value).toBe("1000");
+
+    act(() => {
+      input.blur();
+    });
+    expect(input.value).toBe("1,000");
+    expect(host.submitted).toEqual([1000]);
+  });
+
+  test("gives way to a number that the host announces as the user types, other than the one the user typed", async () => {
+    const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
+    const { el } = draw(<Rows host={host} />);
+    const input = labelled(el, "Preview rows");
+
+    act(() => {
+      input.focus();
+      type(input, "40");
+    });
+    await wait(PAUSE);
+    expect(host.submitted).toEqual([40]);
+    // The assistant sets another number while the user is still in the field.
+    act(() => {
+      host.setValue(30);
+    });
+    expect(input.value).toBe("30");
+
+    act(() => {
+      input.blur();
+    });
+    expect(host.submitted).toEqual([40]);
+    expect(input.value).toBe("30");
   });
 });
 
 // The UIs of core's board options, each bound to the board option's value.
 function Rows({ host, max, outdated }: { host: OptionHost<number>; max?: number; outdated?: boolean }): ReactElement {
-  return <NumberInput bound={useValue(host)} label="Preview rows" min={1} max={max} outdated={outdated} />;
+  return <NumberField bound={useValue(host)} label="Preview rows" minValue={1} maxValue={max} step={1} outdated={outdated} />;
 }
+
+// What the browser's own number input says of the number in the text, with
+// the range and the step of the board option's field, as the field says it.
+const said = (text: string, max?: number): string | null => numberSaid(text, { min: 1, max, step: 1 });
 
 function Conditions({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
   return (
@@ -302,7 +383,7 @@ describe("the inputs of a board option's UI", () => {
   test("bind the board option's value, a number of at least 1", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el } = draw(<Rows host={host} />);
-    const input = find(el, "input", HTMLInputElement);
+    const input = labelled(el, "Preview rows");
     expect(input.value).toBe("25");
 
     act(() => {
@@ -324,46 +405,46 @@ describe("the inputs of a board option's UI", () => {
   test("submit a number above an outdated most, and mark none until it is current, but hold to the least", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el, redraw } = draw(<Rows host={host} max={30} outdated />);
-    const input = find(el, "input", HTMLInputElement);
-    const shown = () => [input.value, input.max, input.getAttribute("aria-invalid")];
+    const input = labelled(el, "Preview rows");
+    const shown = () => [input.value, input.getAttribute("aria-invalid")];
 
     act(() => {
       type(input, "0");
     });
     await wait(PAUSE);
-    expect(shown()).toEqual(["0", "", "true"]);
+    expect(shown()).toEqual(["0", "true"]);
     act(() => {
       type(input, "50");
     });
     await wait(PAUSE);
-    expect(shown()).toEqual(["50", "", "false"]);
+    expect(shown()).toEqual(["50", null]);
     expect(host.submitted).toEqual([50]);
 
     redraw(<Rows host={host} max={30} />);
-    expect(shown()).toEqual(["50", "30", "true"]);
+    expect(shown()).toEqual(["50", "true"]);
     expect(host.submitted).toEqual([50]);
   });
 
-  test("say why a number does not fit while the user types it, and mark it", async () => {
+  test("say why a number does not fit while the user types it, in the words of the browser's own number input, and mark it", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el } = draw(<Rows host={host} max={30} />);
-    const input = find(el, "input", HTMLInputElement);
-    const said = () => [input.getAttribute("aria-invalid"), el.querySelector('[role="alert"]')?.textContent ?? null];
+    const input = labelled(el, "Preview rows");
 
     const shown: (string | null)[][] = [];
     for (const text of ["50", "0", "2.5", "", "20"]) {
       act(() => {
         type(input, text);
       });
-      shown.push(said());
+      shown.push([input.getAttribute("aria-invalid"), fieldError(el)]);
     }
     expect(shown).toEqual([
-      ["true", "50 is above the maximum of 30."],
-      ["true", "0 is below the minimum of 1."],
-      ["true", "2.5 is not a whole number."],
-      ["true", null],
-      ["false", null],
+      ["true", said("50", 30)],
+      ["true", said("0", 30)],
+      ["true", said("2.5", 30)],
+      [null, null],
+      [null, null],
     ]);
+    expect(said("50", 30)).not.toBeNull();
     await wait(PAUSE);
     expect(host.submitted).toEqual([20]);
   });
@@ -371,24 +452,24 @@ describe("the inputs of a board option's UI", () => {
   test("say why the state does not fit, as once the most shrank", () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el, redraw } = draw(<Rows host={host} max={30} />);
-    const said = () => el.querySelector('[role="alert"]')?.textContent ?? null;
-    expect(said()).toBeNull();
+    expect(fieldError(el)).toBeNull();
 
     redraw(<Rows host={host} max={20} />);
-    expect(said()).toBe("25 is above the maximum of 20.");
+    expect(fieldError(el)).toBe(said("25", 20));
+    expect(labelled(el, "Preview rows").value).toBe("25");
     expect(host.submitted).toEqual([]);
   });
 
   test("go back to the state in place of a number outside the range on Enter and as the user leaves, which clears what it said", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el } = draw(<Rows host={host} max={30} />);
-    const input = find(el, "input", HTMLInputElement);
-    const shown = () => [input.value, el.querySelector('[role="alert"]')?.textContent ?? null];
+    const input = labelled(el, "Preview rows");
+    const shown = () => [input.value, fieldError(el)];
 
     act(() => {
       type(input, "50");
     });
-    expect(shown()).toEqual(["50", "50 is above the maximum of 30."]);
+    expect(shown()).toEqual(["50", said("50", 30)]);
     act(() => {
       press(input, "Enter");
     });
@@ -408,7 +489,7 @@ describe("the inputs of a board option's UI", () => {
   test("submit a number that fits once the most grows, as the user presses Enter or leaves", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
     const { el, redraw } = draw(<Rows host={host} max={30} />);
-    const input = find(el, "input", HTMLInputElement);
+    const input = labelled(el, "Preview rows");
 
     act(() => {
       type(input, "50");

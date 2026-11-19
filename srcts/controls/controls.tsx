@@ -25,12 +25,12 @@ import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { errorMessage, own } from "../util/index.ts";
 
-export interface NumberInput {
-  // Sets the largest number the input takes, or none.
-  setMax(max: number | undefined): void;
+export interface NumberField {
+  // Sets the largest number the field takes, or none.
+  setMaxValue(maxValue: number | undefined): void;
   // Says whether the largest number may be for older data,
   // as from the option `loading` of follow() until the request answers.
-  // Meanwhile the input submits a number above it, and marks none.
+  // Meanwhile the field submits a number above it, and marks none.
   setOutdated(outdated: boolean): void;
 }
 
@@ -54,6 +54,34 @@ export interface ComboBox {
 export interface Item {
   readonly id: string;
   readonly name?: string;
+}
+
+// What a text field of the controls takes besides its key, by the names of the
+// props of the SDK's TextField (../inputs/textfield.tsx).
+export interface TextFieldOptions {
+  readonly label: string;
+  // What the field shows while it is empty.
+  readonly placeholder?: string;
+  // What the field says below itself about what it takes.
+  readonly description?: string;
+  // The rows of a text area, for text of several lines, where above 1.
+  readonly lines?: number;
+}
+
+// What a number field of the controls takes besides its key, by the names of
+// the props of the SDK's NumberField (../inputs/numberfield.tsx).
+export interface NumberFieldOptions {
+  readonly label: string;
+  // What the field says below itself about what it takes.
+  readonly description?: string;
+  // The smallest and the largest number that the field takes, the largest
+  // until setMaxValue() gives another.
+  readonly minValue?: number;
+  readonly maxValue?: number;
+  // The step of the number, which the field's buttons and arrow keys move it
+  // by, and which the number must be on, counting from minValue: 1 for a
+  // whole number.
+  readonly step?: number;
 }
 
 // What a select of the controls takes besides its key, by the names of the
@@ -100,12 +128,14 @@ export interface Controls<K extends string = string> {
   // Why the host refused what it submitted shows in the line below the
   // controls.
   bind(key: K, show: (value: Json | undefined) => void): Binding;
-  // A text input for a string, a text area where it spans lines.
-  text(key: K, options: { label: string; placeholder?: string; lines?: number }): void;
-  // A number input for an integer, no smaller than `min`,
-  // and no larger than the number that setMax() gives,
-  // but while setOutdated() says that it may be for older data.
-  number(key: K, options: { label: string; min?: number }): NumberInput;
+  // A text field for a string, the SDK's TextField, a text area where it
+  // spans lines, whose spelling the browser does not check, as of code.
+  text(key: K, options: TextFieldOptions): void;
+  // A number field for a number, the SDK's NumberField, no smaller than
+  // `minValue`, and no larger than `maxValue` or the number that
+  // setMaxValue() gives, but while setOutdated() says that it may be for
+  // older data.
+  number(key: K, options: NumberFieldOptions): NumberField;
   // A select, the SDK's ComboBox, of one string, or of an array of strings
   // where its selectionMode is "multiple", which shows `placeholder` while
   // nothing is picked.
@@ -263,19 +293,17 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     return request;
   }
 
-  function text(key: string, options: { label: string; placeholder?: string; lines?: number }): void {
-    input(key, (bound) => <inputs.TextInput bound={bound} {...options} />);
+  function text(key: string, options: TextFieldOptions): void {
+    input(key, (bound) => <inputs.TextField bound={bound} spellCheck="false" {...options} />);
   }
 
-  function number(key: string, options: { label: string; min?: number }): NumberInput {
-    let max: number | undefined;
+  function number(key: string, options: NumberFieldOptions): NumberField {
+    let maxValue = options.maxValue;
     let outdated = false;
-    input(key, (bound) => (
-      <inputs.NumberInput bound={bound} label={options.label} min={options.min} max={max} outdated={outdated} />
-    ));
+    input(key, (bound) => <inputs.NumberField bound={bound} {...options} maxValue={maxValue} outdated={outdated} />);
     return {
-      setMax(next) {
-        max = next;
+      setMaxValue(next) {
+        maxValue = next;
         redraw();
       },
       setOutdated(next) {

@@ -348,11 +348,18 @@ test_that("a select's list fits its frame, so opening it scrolls nothing", {
 
   wait_for_statuses(app, ready("a"))
 
-  # The user clicks into the field of the select with the mouse.
+  # The user clicks into the field of the select with the mouse, once it shows
+  # the dataset.
+  # The block's status says nothing of its UI, which core loads as a module
+  # of its own, and which shows the dataset once R has answered for the
+  # datasets.
   box <- app$get_js(
     paste0(
-      "(() => {\n",
-      "  const field = e2e.labelled(document, 'Dataset');\n",
+      "(async () => {\n",
+      "  const field = await e2e.until(() => {\n",
+      "    const found = e2e.labelled(document, 'Dataset');\n",
+      "    return found?.value === 'mtcars' && found;\n",
+      "  }, 'field Dataset that shows mtcars');\n",
       "  const box = field.getBoundingClientRect();\n",
       "  return [box.x + box.width / 2, box.y + box.height / 2];\n",
       "})()"

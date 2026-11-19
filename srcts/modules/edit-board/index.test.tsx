@@ -90,7 +90,8 @@ function rows(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): string[] {
   return [...section(el, title).querySelectorAll("tbody tr")].map((tr) => tr.getAttribute("aria-label") ?? "");
 }
 
-// The line below a field, its hint or its error.
+// The lines below a field, its description and its error, which React Aria
+// names in the field's aria-describedby, in that order.
 function note(field: HTMLElement): string | undefined {
   const ids = (field.getAttribute("aria-describedby") ?? "").split(" ");
   const texts = ids.flatMap((id) => {
@@ -211,7 +212,7 @@ describe("the blocks", () => {
       type(id, "12");
       id.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     });
-    expect(note(labelled(add(), "ID"))).toBe('An ID needs a character other than a digit, such as "block_12".');
+    expect(note(labelled(add(), "ID"))).toBe('Optional. Made up where left empty. An ID needs a character other than a digit, such as "block_12".');
     // Typing takes the error away until the user leaves the field again.
     await step(() => {
       type(labelled(add(), "ID"), "a");
@@ -219,7 +220,7 @@ describe("the blocks", () => {
     expect(labelled(add(), "ID").getAttribute("aria-invalid")).toBeNull();
 
     await click(button(add(), "Add block"));
-    expect(note(labelled(add(), "ID"))).toBe('The board holds a block "a" already.');
+    expect(note(labelled(add(), "ID"))).toBe('Optional. Made up where left empty. The board holds a block "a" already.');
     expect(document.activeElement).toBe(labelled(add(), "ID"));
     expect(added(board())).toEqual([]);
     expect(notes).toEqual([]);
@@ -342,7 +343,9 @@ describe("the links", () => {
       type(name, "plotted");
       name.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     });
-    expect(note(labelled(add(), "Input name"))).toBe('Another link gives the input the name "plotted" already.');
+    expect(note(labelled(add(), "Input name"))).toBe(
+      'Optional. The block "Bind" takes any number of links, each by its name or, where it has none, by its position. Another link gives the input the name "plotted" already.',
+    );
     await click(button(add(), "Add link"));
     expect(Object.values(board().links).filter((l) => l.to === "e")).toHaveLength(3);
 

@@ -1,8 +1,8 @@
 import type { Binding, Followed, FollowOptions } from "../binding/index.ts";
 import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-export interface NumberInput {
-    setMax(max: number | undefined): void;
+export interface NumberField {
+    setMaxValue(maxValue: number | undefined): void;
     setOutdated(outdated: boolean): void;
 }
 export interface ComboBox {
@@ -13,6 +13,19 @@ export interface ComboBox {
 export interface Item {
     readonly id: string;
     readonly name?: string;
+}
+export interface TextFieldOptions {
+    readonly label: string;
+    readonly placeholder?: string;
+    readonly description?: string;
+    readonly lines?: number;
+}
+export interface NumberFieldOptions {
+    readonly label: string;
+    readonly description?: string;
+    readonly minValue?: number;
+    readonly maxValue?: number;
+    readonly step?: number;
 }
 export interface ComboBoxOptions {
     readonly label: string;
@@ -29,15 +42,8 @@ export interface Controls<K extends string = string> {
     add(node: Node): void;
     get(key: K): Json | undefined;
     bind(key: K, show: (value: Json | undefined) => void): Binding;
-    text(key: K, options: {
-        label: string;
-        placeholder?: string;
-        lines?: number;
-    }): void;
-    number(key: K, options: {
-        label: string;
-        min?: number;
-    }): NumberInput;
+    text(key: K, options: TextFieldOptions): void;
+    number(key: K, options: NumberFieldOptions): NumberField;
     comboBox(key: K, options: ComboBoxOptions): ComboBox;
     checkbox(key: K, options: {
         label: string;

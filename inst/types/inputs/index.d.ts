@@ -1,4 +1,10 @@
-export { Checkbox, Field, NumberInput, Stack, TextInput } from "./inputs.tsx";
+export { Button } from "./button.tsx";
+export type { ButtonProps } from "./button.tsx";
+export { Checkbox, Field, Stack } from "./inputs.tsx";
 export { ComboBox, ComboBoxItem, ComboBoxSection } from "./combobox.tsx";
 export type { ComboBoxProps, ComboBoxSectionProps } from "./combobox.tsx";
+export { NumberField } from "./numberfield.tsx";
+export type { NumberFieldProps } from "./numberfield.tsx";
+export { TextField } from "./textfield.tsx";
+export type { TextFieldProps } from "./textfield.tsx";
 export { Text } from "../aria/index.ts";

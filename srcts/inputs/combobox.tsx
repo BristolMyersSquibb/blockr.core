@@ -25,11 +25,11 @@
 // A press in the field opens the list, as typing into it does.
 // The list hangs below the field, or above it where the window has no room
 // below, as wide as the field.
-// React Aria draws it in a portal at the end of the page's body.
-// In a dialog or a popover, which sit in the browser's top layer, above the
-// body, and of which a modal dialog leaves the rest of the page inert, it
-// draws it inside the select instead, in a layer fixed to the window, which
-// the dialog's own scroll does not clip.
+// React Aria draws it in a portal at the end of the page's body, above a modal
+// of the SDK that holds the select, as every overlay of the SDK sits in such a
+// portal (../overlays/index.ts).
+// The list draws its rows through React Aria's Virtualizer, which puts on the
+// page only the rows in view, however many items the select holds.
 // The list says "Loading…" while it has no items yet, or while its items are
 // `outdated` and there are none, "No matches" where React Aria's filter keeps none of `defaultItems`,
 // and otherwise what `renderEmptyState` says, "No options" by default, as
@@ -75,7 +75,7 @@
 // It says below itself why the host refused what it submitted.
 
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent, ReactElement, ReactNode, RefObject } from "react";
+import type { ChangeEvent, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { SEARCH_PAUSE, strings } from "../binding/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
@@ -93,12 +93,13 @@ import {
   ListBox,
   ListBoxItem,
   ListBoxSection,
+  ListLayout,
   Popover,
   Tag,
   TagGroup,
   TagList,
   Text,
-  UNSAFE_PortalProvider,
+  Virtualizer,
 } from "../aria/index.ts";
 import type {
   ComboBoxProps as AriaComboBoxProps,
@@ -295,8 +296,6 @@ function Drawn({
         : none
           ? (renderEmptyState?.() ?? "No options")
           : "No matches";
-  const field = useRef<HTMLDivElement>(null);
-  const layer = useRef<HTMLDivElement>(null);
   const value = useSameValue(props.value);
   return (
     <AriaComboBox
@@ -312,7 +311,6 @@ function Drawn({
     >
       {label === undefined ? null : <Label className={styles.label}>{label}</Label>}
       <Field
-        ref={field}
         placeholder={placeholder}
         multiple={multiple}
         marking={marking && !part}
@@ -321,7 +319,6 @@ function Drawn({
         onClear={onClear}
         onType={typed.type}
         label={label}
-        autoFocus={props.autoFocus}
       />
       {/* React Aria names the description of the field only where the
           element is there from the start, so it is there while empty too. */}
@@ -329,15 +326,14 @@ function Drawn({
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
-      <div ref={layer} className={LAYER} />
-      <UNSAFE_PortalProvider getContainer={() => container(field.current, layer.current)}>
-        <Popover offset={4} className={LIST}>
+      <Popover offset={4} className={LIST}>
+        <Virtualizer layout={ListLayout} layoutOptions={LAYOUT}>
           <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
             {children}
           </ListBox>
-          {total !== undefined && total > count ? <Total total={total} /> : null}
-        </Popover>
-      </UNSAFE_PortalProvider>
+        </Virtualizer>
+        {total !== undefined && total > count ? <Total total={total} /> : null}
+      </Popover>
     </AriaComboBox>
   );
 }
@@ -422,13 +418,6 @@ function sameKeys(a: readonly unknown[], b: readonly unknown[]): boolean {
   return a.length === b.length && a.every((key, i) => key === b[i]);
 }
 
-// Where React Aria draws the list of the select whose field is given: in the
-// select's layer where a dialog or a popover holds the field, else at the end
-// of the body.
-function container(field: HTMLElement | null, layer: HTMLElement | null): HTMLElement | null {
-  return field?.closest("dialog, [popover]") ? layer : (field?.ownerDocument.body ?? null);
-}
-
 function hasChildren(children: ReactNode): boolean {
   return Array.isArray(children) ? children.some((child) => hasChildren(child as ReactNode)) : children !== null && children !== undefined && children !== false;
 }
@@ -447,7 +436,6 @@ function hasChildren(children: ReactNode): boolean {
 // React Aria's onInputChange would not do, since it hands on the text that
 // React Aria puts there itself as well, such as the pick's.
 function Field({
-  ref,
   placeholder,
   multiple,
   marking,
@@ -456,9 +444,7 @@ function Field({
   onClear,
   onType,
   label,
-  autoFocus,
 }: {
-  readonly ref: RefObject<HTMLDivElement | null>;
   readonly placeholder: string | undefined;
   readonly multiple: boolean;
   readonly marking: boolean;
@@ -467,7 +453,6 @@ function Field({
   readonly onClear: (() => void) | undefined;
   readonly onType: (text: string) => void;
   readonly label: string | undefined;
-  readonly autoFocus: boolean | undefined;
 }): ReactElement {
   const state = useContext(ComboBoxStateContext);
   const value = state?.value ?? null;
@@ -483,7 +468,7 @@ function Field({
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
   return (
-    <Group ref={ref} isInvalid={invalid} className={FIELD}>
+    <Group isInvalid={invalid} className={FIELD}>
       <div className={VALUES}>
         {keys.length === 0 ? null : (
           <TagGroup aria-label={label === undefined ? "Picks" : `Picks of ${label}`} onRemove={remove} className="bc:flex bc:min-w-0 bc:max-w-full">
@@ -511,7 +496,6 @@ function Field({
           }
           placeholder={lackedOne ? (marking ? missing(String(one)) : String(one)) : keys.length > 0 ? undefined : placeholder}
           aria-invalid={invalid || undefined}
-          data-autofocus={autoFocus === true || undefined}
           className={INPUT}
           onChange={(event: ChangeEvent<HTMLInputElement>) => {
             onType(event.currentTarget.value);
@@ -588,7 +572,9 @@ export interface ComboBoxSectionProps<T> extends ListBoxSectionProps<T> {
   readonly items?: Iterable<T>;
 }
 
-// A group of rows under a heading, which stays in view as the list scrolls.
+// A group of rows under a heading.
+// The Virtualizer lays the heading out as it lays out a row, so the heading
+// scrolls away with the rows of its group.
 export function ComboBoxSection<T extends object>({ title, items, children, ...props }: ComboBoxSectionProps<T>): ReactElement {
   return (
     <ListBoxSection {...props}>
@@ -689,16 +675,19 @@ const CHIP_REMOVE =
 // border, took that for a list out of view and scrolled the page, which
 // closes the list, or moves a row under a pointer still pressed, which picks
 // it as the pointer goes up.
-// The layer that holds the list in a dialog or a popover covers the window,
-// above the dialog's content, and takes no clicks but on the list.
-const LAYER = "bc:pointer-events-none bc:fixed bc:inset-0 bc:z-[100000]";
+// The Virtualizer lays the rows out one below the other, inside a padding of
+// 4 pixels, which the box of the rows thus holds none of in its CSS.
+// A row is one line, as ROW truncates what it holds, so the Virtualizer takes
+// each row to be 32 pixels high and each heading 28, the heights that ROW and
+// HEADING give them, rather than measure each as it draws it.
+const LAYOUT = { rowHeight: 32, headingHeight: 28, padding: 4 } as const;
 const LIST =
-  "bc:pointer-events-auto bc:box-border bc:flex bc:w-(--trigger-width) bc:flex-col bc:overflow-hidden bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
-const LISTBOX = "bc:box-border bc:max-h-[inherit] bc:min-h-0 bc:overflow-y-auto bc:p-1 bc:outline-none";
+  "bc:box-border bc:flex bc:w-(--trigger-width) bc:flex-col bc:overflow-hidden bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
+const LISTBOX = "bc:box-border bc:max-h-[inherit] bc:min-h-0 bc:overflow-y-auto bc:outline-none";
 const HEADING =
-  "bc:sticky bc:-top-1 bc:z-10 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
+  "bc:box-border bc:h-[28px] bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
 const ROW =
-  "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
+  "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 const NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 // The line below the rows looks like what the list says where it shows no
 // row, with a rule above it that sets it apart from the rows.
