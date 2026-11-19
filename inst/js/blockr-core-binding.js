@@ -46,8 +46,9 @@ function bind(host, key, show, options = {}) {
     return true;
   };
   const send = () => {
-    const value = typed;
+    const given = typed;
     typed = void 0;
+    const value = typeof given === "function" ? given(source.get(key)) : given;
     if (value !== void 0) void submit(value);
   };
   const flush = () => {

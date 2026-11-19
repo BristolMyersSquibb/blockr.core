@@ -7,7 +7,7 @@ import { READY, stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { holdRequests } from "../testing/requests.ts";
 import type { Json } from "../types/json.ts";
-import { bind, follow, PAUSE } from "./index.ts";
+import { bind, follow, PAUSE, strings } from "./index.ts";
 
 // A block whose fixture lists four states, of two `columns` and two labels.
 const fixture: BlockFixture = {
@@ -109,6 +109,25 @@ describe("a binding", () => {
 
     host.setState({ columns: ["a"], label: "x" });
     expect(shown).toEqual(["x"]);
+  });
+
+  test("calls a function that the user typed with the value that the host holds as it submits, and submits what the function gives", async () => {
+    const host = stubBlockHost(
+      { states: [{ columns: ["a"] }, { columns: ["a", "c"] }, { columns: ["a", "c", "b"] }], requests: [] },
+      { state: { columns: ["a"] } },
+    );
+    const columns = bind(host, "columns", () => undefined);
+
+    // The user adds the column b, as a list adds a pick.
+    columns.type((held) => [...strings(held), "b"]);
+    // The assistant adds the column c meanwhile.
+    host.setState({ columns: ["a", "c"] });
+    await vi.advanceTimersByTimeAsync(PAUSE);
+    expect(host.submitted).toEqual([{ columns: ["a", "c", "b"] }]);
+
+    columns.type(() => undefined);
+    await vi.advanceTimersByTimeAsync(PAUSE);
+    expect(host.submitted).toEqual([{ columns: ["a", "c", "b"] }]);
   });
 
   test("unsets the state arg at once, unless the host holds none, and refuses to unset a board option's value", async () => {

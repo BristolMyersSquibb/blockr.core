@@ -34,9 +34,10 @@
 // field hands it what the user types.
 // So the binding submits them once the user pauses, as one edit and one undo
 // step, and at once where the list goes first, as where its module unmounts.
-// The list builds each value from the value that the host holds as the user
-// picks, as the select does as its list closes.
-// So it keeps a string that the assistant added before the last pick.
+// The list hands them as a function of the value that the host holds, which
+// the binding calls as it submits, as the select builds its value as its list
+// closes.
+// So the list keeps a string that the assistant added meanwhile.
 // It submits the picks in the order the user picked them, after those the
 // value holds, or where `ordered`, in the order of its items.
 // It shows the picks of the user until the binding shows the value again.
@@ -148,12 +149,12 @@ function BoundSeveral({
           const next = keys === "all" ? [...picks, ...(rows ?? []).filter((id) => !picks.includes(id))] : [...keys].map(String);
           const began = burst?.began ?? held;
           setBurst({ picks: next, began });
-          // Where the user unpicked what they picked, the host's value takes
-          // the place of the picks still pending, so that the binding submits
-          // nothing.
-          const now = strings(bound.get());
-          const value = edited(now, began, next);
-          bound.type(value === null ? now : ordered && rows !== undefined ? inOrder(value, rows) : value);
+          // Where the user unpicked what they picked, the function gives
+          // undefined, so that the binding submits nothing.
+          bound.type((now) => {
+            const value = edited(strings(now), began, next);
+            return value === null ? undefined : ordered && rows !== undefined ? inOrder(value, rows) : value;
+          });
           onSelectionChange?.(keys);
         }}
       />

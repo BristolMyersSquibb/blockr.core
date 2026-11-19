@@ -693,6 +693,8 @@
   Given `bound`, the list binds a block's state arg or a board option's value, as the select does.
   A bound list of one submits the pick as the user picks it, and leaves the state arg unset as the user unpicks it.
   A bound list of several hands each pick to the binding's `type()`, which submits the picks once the user pauses, as it submits typing, so that a burst of picks is one edit and one undo step.
+  The `type()` of a binding, from `bind()` or `useValue()`, also takes a function of the value that the host holds, which it calls as it submits.
+  The list hands it its picks as such a function, so that it keeps a string that the assistant added meanwhile.
   It shows a value that its items lack as a row of its own, picked, which the user unpicks to drop the value, and it takes `outdated` and `ordered` as the select does (#689).
 
 # blockr.core 0.1.4

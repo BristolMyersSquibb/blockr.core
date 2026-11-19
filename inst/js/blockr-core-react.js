@@ -685,9 +685,10 @@ function BoundSeveral2({
           const next = keys === "all" ? [...picks, ...(rows ?? []).filter((id) => !picks.includes(id))] : [...keys].map(String);
           const began = burst?.began ?? held2;
           setBurst({ picks: next, began });
-          const now = strings2(bound.get());
-          const value = edited(now, began, next);
-          bound.type(value === null ? now : ordered && rows !== void 0 ? inOrder(value, rows) : value);
+          bound.type((now) => {
+            const value = edited(strings2(now), began, next);
+            return value === null ? void 0 : ordered && rows !== void 0 ? inOrder(value, rows) : value;
+          });
           onSelectionChange?.(keys);
         }
       }

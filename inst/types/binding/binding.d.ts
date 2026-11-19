@@ -7,7 +7,7 @@ export interface Binding {
     get(): Json | undefined;
     commit(value: Json): Promise<boolean>;
     unset(): Promise<boolean>;
-    type(value: Json | undefined): void;
+    type(value: Json | undefined | ((held: Json | undefined) => Json | undefined)): void;
     flush(): void;
     release(): void;
 }

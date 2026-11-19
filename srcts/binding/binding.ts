@@ -60,7 +60,11 @@ export interface Binding {
   // unless the user types on.
   // Until then, the control is shown nothing the host announces.
   // Given undefined, as for a number out of range, it submits nothing.
-  type(value: Json | undefined): void;
+  // Given a function, it calls the function with the value that the host
+  // holds as it submits, and submits what the function gives.
+  // So a control that changes part of the value, such as a list that adds a
+  // pick, keeps an edit made meanwhile, such as a string the assistant added.
+  type(value: Json | undefined | ((held: Json | undefined) => Json | undefined)): void;
   // Submits what the user typed at once,
   // as on Enter or as the user leaves the control.
   flush(): void;
@@ -132,7 +136,7 @@ export function bind(
   // The value the control last showed, what the user typed while the
   // binding waits for the pause, and whether the binding has ended.
   let shown: { readonly value: Json | undefined } | undefined;
-  let typed: Json | undefined;
+  let typed: Json | undefined | ((held: Json | undefined) => Json | undefined);
   let timer: ReturnType<typeof setTimeout> | undefined;
   let released = false;
 
@@ -159,8 +163,9 @@ export function bind(
   };
 
   const send = (): void => {
-    const value = typed;
+    const given = typed;
     typed = undefined;
+    const value = typeof given === "function" ? given(source.get(key)) : given;
     if (value !== undefined) void submit(value);
   };
 

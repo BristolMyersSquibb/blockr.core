@@ -9156,8 +9156,9 @@ function bind(host, key2, show2, options = {}) {
     return true;
   };
   const send = () => {
-    const value2 = typed;
+    const given = typed;
     typed = void 0;
+    const value2 = typeof given === "function" ? given(source.get(key2)) : given;
     if (value2 !== void 0) void submit(value2);
   };
   const flush = () => {

@@ -208,7 +208,7 @@ const fixture: BlockFixture = {
     { fruits: ["apple"] },
     basket({ fruits: ["apple", "cherry"] }),
     basket({ fruits: ["apple", "cherry", "banana"] }),
-    basket({ fruits: ["banana", "cherry"] }),
+    basket({ fruits: ["apple", "banana", "cherry"] }),
   ],
   requests: [],
 };
@@ -256,7 +256,7 @@ describe("a bound list", () => {
     expect(pickedLabels(fruitList)).toEqual(["Apple", "Banana", "Cherry"]);
   });
 
-  test("builds the value from the one that the host holds as the user picks, so that it keeps a string that the assistant added before the last pick", async () => {
+  test("builds the value from the one that the host holds as the binding submits, so that it keeps a string that the assistant added after the last pick", async () => {
     const host = stubBlockHost<Basket>(fixture, { state: basket({}) });
     const { el } = await draw(<Bound host={host} />);
     const fruitList = list(el, "Fruits");
@@ -266,11 +266,10 @@ describe("a bound list", () => {
     await step(() => {
       host.setState(basket({ fruits: ["apple", "banana"] }));
     });
-    await clicked(fruitList, "Apple");
     await wait(PAUSE);
 
-    expect(host.submitted).toEqual([basket({ fruits: ["banana", "cherry"] })]);
-    expect(pickedLabels(fruitList)).toEqual(["Banana", "Cherry"]);
+    expect(host.submitted).toEqual([basket({ fruits: ["apple", "banana", "cherry"] })]);
+    expect(pickedLabels(fruitList)).toEqual(["Apple", "Banana", "Cherry"]);
   });
 
   test("submits the picks still pending as the list goes, as its module unmounts, and nothing where the user unpicked what they picked", async () => {
