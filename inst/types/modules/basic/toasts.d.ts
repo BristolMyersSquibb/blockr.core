@@ -1,4 +1,4 @@
-import type { Board } from "../../types/board.ts";
+import type { Board, PluginClassId } from "../../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../../types/core-api.ts";
 export declare const SHOWN_FOR = 5000;
 export declare const FADES_FOR = 300;
@@ -16,7 +16,7 @@ export interface Toasts {
     readonly release: (id: string, by: "pointer" | "focus") => void;
     readonly stop: () => void;
 }
-export declare function createToasts(notifications: Pick<CoreApi["notifications"], "get" | "subscribe">): Toasts;
+export declare function createToasts(notifications: Pick<CoreApi["notifications"], "get" | "subscribe">, sectioned: (plugin: PluginClassId) => boolean): Toasts;
 export declare function useToasts(toasts: Toasts): readonly Toast[];
 export declare function useShownIn(toasts: Toasts): HTMLElement | null;
 export declare function concerned(about: BoardObject | undefined, core: {
