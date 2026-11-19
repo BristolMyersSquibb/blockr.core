@@ -7,5 +7,6 @@ export interface Graph {
     withUpstream(ids: Iterable<BlockId>): ReadonlySet<BlockId>;
     withDownstream(ids: Iterable<BlockId>): ReadonlySet<BlockId>;
     cycle(): readonly BlockId[] | undefined;
+    path(from: BlockId, to: BlockId): readonly BlockId[] | undefined;
 }
 export declare function createGraph(board: Pick<Board, "blocks" | "links">): Graph;

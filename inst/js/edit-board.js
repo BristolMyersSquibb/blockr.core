@@ -61,7 +61,8 @@ function createGraph(board) {
     cycle() {
       cycle ??= { found: findCycle(board, targets) };
       return cycle.found;
-    }
+    },
+    path: (from, to) => findPath(from, to, downstream)
   };
 }
 function once(ends) {
@@ -116,6 +117,24 @@ function findCycle(board, targets) {
     if (!targets.has(block)) continue;
     const cycle = visit(block);
     if (cycle !== void 0) return cycle;
+  }
+  return void 0;
+}
+function findPath(from, to, downstream) {
+  if (!downstream.has(from)) return void 0;
+  const before = /* @__PURE__ */ new Map([[from, void 0]]);
+  const todo = [from];
+  for (const block of todo) {
+    if (block === to) {
+      const path = [block];
+      for (let at = before.get(block); at !== void 0; at = before.get(at)) path.unshift(at);
+      return path;
+    }
+    for (const next of downstream.get(block) ?? []) {
+      if (before.has(next)) continue;
+      before.set(next, block);
+      todo.push(next);
+    }
   }
   return void 0;
 }
