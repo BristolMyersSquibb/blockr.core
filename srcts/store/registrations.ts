@@ -9,6 +9,7 @@
 // which core imports as a board that needs them opens (../core/migrations.ts).
 
 import { computed, signal } from "@preact/signals-core";
+import type { BoardAction } from "../actions/index.ts";
 import type { Command } from "../commands/index.ts";
 import type {
   Block,
@@ -81,6 +82,11 @@ export interface PluginClass {
   // The commands that change the state of the class's plugin, which core
   // registers as it registers the class.
   readonly commands?: readonly Command<Json, unknown>[];
+  // What users trigger from menus, buttons and gestures, which core registers
+  // as it registers the class, and which menus offer after core's own, in the
+  // order given (../actions/actions.ts). Core refuses the whole class where
+  // one of them breaks a rule of board actions.
+  readonly boardActions?: readonly BoardAction[];
   // What runs while the plugin runs on the open board, until the signal
   // aborts, which it does as the next board opens. Core calls it once the
   // frontend has drawn the board, with the id of the class, which names the
