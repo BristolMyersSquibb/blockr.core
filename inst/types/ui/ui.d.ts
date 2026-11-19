@@ -15,3 +15,8 @@ export declare function NameField({ label, name, onSubmit, onDone, }: {
     onSubmit: (name: string) => void;
     onDone: () => void;
 }): ReactElement;
+export declare const identifier: {
+    readonly spellCheck: "false";
+    readonly autoCapitalize: "none";
+    readonly autoCorrect: "off";
+};

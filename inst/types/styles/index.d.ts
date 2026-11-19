@@ -1,1 +1,1 @@
-export { styles } from "./styles.ts";
+export { buttons, styles } from "./styles.ts";

@@ -6,10 +6,6 @@
 // So the page runs one copy of React Aria, which holds the parts named here
 // alone, since the whole of React Aria is several times the size of React.
 // A part that core starts to draw with goes here.
-//
-// The portal provider comes from react-aria, the package of hooks under React
-// Aria's components, whose copy must be the one that the components use, for
-// them to read the container that it gives (./aria.test.ts).
 
 export {
   Button,
@@ -17,27 +13,52 @@ export {
   ComboBox,
   ComboBoxStateContext,
   composeRenderProps,
+  Dialog,
+  DialogTrigger,
   DropIndicator,
   FieldError,
   GridList,
   GridListItem,
   Group,
   Header,
+  Heading,
   Input,
+  Keyboard,
   Label,
   ListBox,
   ListBoxItem,
   ListBoxSection,
+  ListLayout,
+  Menu,
+  MenuItem,
+  MenuSection,
+  MenuTrigger,
+  Modal,
+  ModalOverlay,
+  NumberField,
+  NumberFieldStateContext,
   Popover,
   Text,
+  TextArea,
+  TextField,
   useDragAndDrop,
   useFilter,
+  Virtualizer,
 } from "react-aria-components";
 export type {
+  ButtonProps,
   ComboBoxProps,
+  DialogProps,
   Key,
   ListBoxItemProps,
   ListBoxSectionProps,
+  MenuItemProps,
+  MenuProps,
+  MenuSectionProps,
+  MenuTriggerProps,
+  ModalOverlayProps,
+  NumberFieldProps,
+  PopoverProps,
+  TextFieldProps,
   ValidationResult,
 } from "react-aria-components";
-export { UNSAFE_PortalProvider } from "react-aria";

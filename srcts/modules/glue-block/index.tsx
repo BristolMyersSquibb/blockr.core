@@ -2,7 +2,7 @@
 // in, which refers to each input by the name of its link.
 
 import type { ReactElement } from "react";
-import { reactModule, Stack, TextInput, useValue } from "../../react/index.ts";
+import { reactModule, Stack, TextField, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
@@ -12,7 +12,7 @@ export const api = 1;
 function GlueBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   return (
     <Stack>
-      <TextInput bound={useValue(host, "text")} label="Text" placeholder="{nrow(data)} rows" lines={4} />
+      <TextField bound={useValue(host, "text")} label="Text" placeholder="{nrow(data)} rows" lines={4} spellCheck="false" />
     </Stack>
   );
 }

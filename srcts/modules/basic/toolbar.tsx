@@ -13,25 +13,33 @@
 // (./storage.ts), and none where the app runs no storage plugin, each kind in
 // its own look:
 // - A button is one of the toolbar's buttons, greyed out while it is disabled.
-// - A menu is a button that opens a list of what the menu holds. A menu in
-//   that list shows as a group of its items under its label.
-// - A status is text in the muted colour.
-// A control's tooltip shows as the browser's tooltip.
+// - A menu is a button that opens a list of what the menu holds, the SDK's
+//   menu. A menu in that list shows as a group of its items under its label,
+//   and a menu inside that group as a group of its own after it, since React
+//   Aria's menus hold no group inside a group.
+// - A status is text in the muted colour, and in a menu an item that the user
+//   cannot pick.
+// A control's tooltip shows as the browser's tooltip in the toolbar, and in a
+// menu as the item's description, a muted line below it, since React Aria's
+// menu items take no title.
+// A button's shortcut is named to assistive technology in the toolbar, and in
+// a menu shows at the item's right, which React Aria names as well.
 // The toolbar draws the controls again whenever the storage's subscribe()
 // calls back, and as the board changes. Where a button's run() rejects, the
 // frontend logs it, since the storage plugin or core tells the user why.
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import type { ReactElement } from "react";
+import { Button as SdkButton, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Text } from "../../react/index.ts";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
+import type { CoreApi } from "../../types/core-api.ts";
 import { classes, NameField, runCommand, useHistory } from "../../ui/index.ts";
 import { asError } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
-import { ariaShortcuts } from "./shortcuts.ts";
+import { ariaShortcuts, onMac, shortcutLabel } from "./shortcuts.ts";
 import { drawnControls, runButton } from "./storage.ts";
 import type { Button } from "./storage.ts";
-import { menuClasses, useDismiss } from "./ui.tsx";
 
 export interface ToolbarProps {
   readonly board: Board;
@@ -176,30 +184,17 @@ function Control({ control }: { control: StorageControl }): ReactElement {
   }
 }
 
-// A button, which runs as the user clicks it, after `before`, as a menu closes
-// as one of its buttons runs.
-function StorageButton({
-  button,
-  className,
-  role,
-  before,
-}: {
-  button: Button;
-  className: string;
-  role?: "menuitem";
-  before?: () => void;
-}): ReactElement {
+// A button, which runs as the user clicks it.
+function StorageButton({ button, className }: { button: Button; className: string }): ReactElement {
   const { core } = useFrontEnd();
   return (
     <button
       type="button"
-      role={role}
       className={className}
       disabled={button.disabled}
       title={button.tooltip}
       aria-keyshortcuts={ariaShortcuts(button.shortcut)}
       onClick={() => {
-        before?.();
         void runButton(core, button);
       }}
     >
@@ -209,72 +204,74 @@ function StorageButton({
 }
 
 // A menu, a button that opens a list of what it holds, which closes as one of
-// its buttons runs, on Escape and on a click elsewhere.
+// its buttons runs, on Escape and on a press elsewhere.
 function StorageMenu({ label, items }: { label: string; items: readonly StorageControl[] }): ReactElement {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useDismiss(ref, open, setOpen);
+  const { core } = useFrontEnd();
+  const mac = onMac(window);
   return (
-    <div ref={ref} className="bc:relative">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className={classes.button}
-        onClick={() => {
-          setOpen(!open);
-        }}
-      >
+    <MenuTrigger placement="bottom end">
+      <SdkButton variant="secondary">
         {label}
         <span aria-hidden="true">▾</span>
-      </button>
-      {open ? (
-        <ul role="menu" aria-label={label} className={menuClasses.list}>
-          <MenuItems
-            items={items}
-            close={() => {
-              setOpen(false);
-            }}
-          />
-        </ul>
-      ) : null}
-    </div>
+      </SdkButton>
+      <Menu aria-label={label}>
+        {groups(label, items).flatMap((group) =>
+          group.title === undefined
+            ? entries(group.items, core, mac)
+            : [
+                <MenuSection key={group.id} id={group.id} title={group.title}>
+                  {entries(group.items, core, mac)}
+                </MenuSection>,
+              ],
+        )}
+      </Menu>
+    </MenuTrigger>
   );
 }
 
-// What a menu holds, a menu among it as a group of its items under its label.
-function MenuItems({ items, close }: { items: readonly StorageControl[]; close: () => void }): ReactElement {
-  return (
-    <>
-      {items.map((item) => {
-        switch (item.kind) {
-          case "button":
-            return (
-              <li key={item.id} role="none">
-                <StorageButton button={item} className={menuClasses.item} role="menuitem" before={close} />
-              </li>
-            );
-          case "menu":
-            return (
-              <li key={item.id} role="none">
-                <div role="group" aria-label={item.label}>
-                  <span aria-hidden="true" className="bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted">
-                    {item.label}
-                  </span>
-                  <ul role="none" className="bc:m-0 bc:grid bc:list-none bc:gap-0.5 bc:p-0 bc:pl-2">
-                    <MenuItems items={item.items} close={close} />
-                  </ul>
-                </div>
-              </li>
-            );
-          case "status":
-            return (
-              <li key={item.id} role="none" title={item.tooltip} className="bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-muted">
-                {item.text}
-              </li>
-            );
+// The buttons and statuses of a menu, or of one of its groups, as the items of
+// the SDK's menu, each with its tooltip as its description and a button with
+// its shortcut. A status is an item that the user cannot pick.
+function entries(items: readonly Entry[], core: CoreApi, mac: boolean): ReactElement[] {
+  return items.map((item) => {
+    const label = item.kind === "button" ? item.label : item.text;
+    const shortcut = item.kind === "button" ? shortcutLabel(item.shortcut, mac) : undefined;
+    return (
+      <MenuItem
+        key={item.id}
+        id={item.id}
+        textValue={label}
+        isDisabled={item.kind === "status" || item.disabled}
+        onAction={
+          item.kind === "button"
+            ? () => {
+                void runButton(core, item);
+              }
+            : undefined
         }
-      })}
-    </>
-  );
+      >
+        <Text slot="label">{label}</Text>
+        {item.tooltip === undefined ? null : <Text slot="description">{item.tooltip}</Text>}
+        {shortcut === undefined ? null : <Keyboard>{shortcut}</Keyboard>}
+      </MenuItem>
+    );
+  });
+}
+
+// What a menu holds, as groups of buttons and statuses in the order in which
+// the menu holds them: first the menu's own, which the list shows without a
+// title, then each menu inside it, under its label, and each menu inside that
+// one after it.
+type Entry = Exclude<StorageControl, { kind: "menu" }>;
+
+interface Group {
+  readonly id: string;
+  readonly title?: string;
+  readonly items: readonly Entry[];
+}
+
+function groups(id: string, items: readonly StorageControl[], title?: string): Group[] {
+  const own = items.filter((item): item is Entry => item.kind !== "menu");
+  const inner = items.flatMap((item) => (item.kind === "menu" ? groups(`${id}/${item.id}`, item.items, item.label) : []));
+  return [...(own.length === 0 && title === undefined ? [] : [{ id, title, items: own }]), ...inner];
 }
