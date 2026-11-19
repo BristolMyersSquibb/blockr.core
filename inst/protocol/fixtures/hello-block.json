@@ -55,8 +55,7 @@
             "renderers": [
               {
                 "id": "blockr.core-table_output",
-                "module": "blockr.core/basic-table.js?v=b7e2a915",
-                "options": []
+                "module": "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           }

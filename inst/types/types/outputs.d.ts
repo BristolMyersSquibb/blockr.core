@@ -4,7 +4,6 @@ export interface BlockOutput {
         id: string;
         module: string;
         css?: string;
-        options?: string[];
     };
 }
 export type OutputRenderer = BlockOutput["renderer"];

@@ -182,13 +182,8 @@ option_renderer_reply <- function(x) {
   c(served_module(x[["module"]]), list(option = x[["option"]]))
 }
 
-# The renderer of an output as R sends it in the output and in the entry of a
-# block class: its ID, which a request of its own names, where R serves its
-# module, and the IDs of the board options that it reads.
+# The renderer of an output as R sends it in the output: its ID, which a
+# request of its own names, and where R serves its module.
 output_renderer_reply <- function(x) {
-  c(
-    list(id = x[["id"]]),
-    served_module(x[["module"]]),
-    list(options = I(option_ctor_ids(x[["options"]])))
-  )
+  c(list(id = x[["id"]]), served_module(x[["module"]]))
 }

@@ -649,12 +649,11 @@ local_fixture_renderer_urls <- function(frame = parent.frame()) {
 
 # The renderer of core's outputs of a kind, "table", "text" or "plot", as R
 # names it in a block class's entry of the block registry and in each output,
-# at the URL that the fixtures give its module, reading no board option.
+# at the URL that the fixtures give its module.
 proto_renderer <- function(kind) {
   obj(
     id = paste0("blockr.core-", kind, "_output"),
-    module = proto_renderer_urls()[[paste0("js/basic-", kind, ".js")]],
-    options = I(character())
+    module = proto_renderer_urls()[[paste0("js/basic-", kind, ".js")]]
   )
 }
 
@@ -1134,8 +1133,7 @@ proto_table_output <- function(data, ...) {
 
 # An output as R sends it in a reply: its properties, written by the schema of
 # its class, after the renderer that draws it, at the URL that the fixtures
-# give its module, with the board options that it reads, and the body beside
-# it announced.
+# give its module, and the body beside it announced.
 # Linting skips the call of core_renderer(), a helper of another file, which
 # lintr does not see.
 proto_output <- function(x) {
@@ -1144,8 +1142,7 @@ proto_output <- function(x) {
   drawn <- core_renderer(x) # nolint: object_usage_linter.
   renderer <- obj(
     id = drawn$id,
-    module = proto_renderer_urls()[[drawn$module$path]],
-    options = I(option_ctor_ids(drawn$options))
+    module = proto_renderer_urls()[[drawn$module$path]]
   )
 
   c(

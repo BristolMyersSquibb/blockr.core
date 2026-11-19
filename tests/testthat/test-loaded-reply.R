@@ -237,21 +237,8 @@ test_that("an entry names the renderers of its class's outputs", {
     json(registry_entry_reply(head)$renderers),
     paste0(
       "[{\"id\":\"blockr.core-table_output\",",
-      "\"module\":\"blockr.core/basic-table.js?v=b7e2a915\",",
-      "\"options\":[]}]"
+      "\"module\":\"blockr.core/basic-table.js?v=b7e2a915\"}]"
     )
-  )
-
-  # Each with the IDs of the board options that it reads itself
-  themed <- new_renderer(
-    "themed",
-    js_module("js/basic-table.js", package = "blockr.core"),
-    options = list(new_dark_mode_option, new_n_rows_option)
-  )
-
-  expect_identical(
-    json(output_renderer_reply(themed)$options),
-    "[\"dark_mode\",\"n_rows\"]"
   )
 
   # A class that names no output family shows its results as text

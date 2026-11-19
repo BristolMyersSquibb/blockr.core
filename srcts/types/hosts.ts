@@ -26,11 +26,12 @@ export type State = Readonly<Record<string, Json>>;
 // host, and a signal that it aborts when it unmounts the module. The render()
 // function may be async and may return its cleanup, which core runs when it
 // aborts the signal. No module names the board options that it reads: R names
-// them, as a block class names those of its UI module and its requests, and a
-// renderer its own, in R's reply to `hello`. Core adds each to the board, with
-// its definition's default where the board lacks it, before it calls
-// render(), and the host gives the module their values through option(),
-// which throws for any other id.
+// them in its reply to `hello`, as a block class names those of its UI module
+// and its requests, and an output family those of its outputs, which every
+// renderer of them reads. Core adds each to the board, with its definition's
+// default where the board lacks it, before it calls render(), and the host
+// gives the module their values through option(), which throws for any other
+// id.
 export interface BlockModule<S extends State = State> {
   render(args: { el: HTMLElement; host: BlockHost<S>; signal: AbortSignal }): Rendered;
 }
@@ -155,9 +156,10 @@ export interface OutputHost {
   // The parameters that the output it holds was made with, such as a table's
   // page and sort.
   params(): Json;
-  // The value of a board option that the renderer names in `options` in R, as
-  // the output it holds was asked with. It throws for any other id, a
-  // misspelled one included, naming the renderer and the id.
+  // The value of a board option that the output family of its block's class
+  // names for its outputs, as the output it holds was asked with. It throws
+  // for any other id, a misspelled one included, naming the block's class, the
+  // renderer and the id.
   option(id: OptionId): Json;
   // Whether core is asking R for a newer output.
   loading(): boolean;

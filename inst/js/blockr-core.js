@@ -2629,15 +2629,14 @@ function mountOutput(deps, el, block) {
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const outputOptions = entry.output_options ?? [];
+  const registryId2 = entry.id;
   const expected = /* @__PURE__ */ new Map();
   const ready = /* @__PURE__ */ new Map();
-  const keeping = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
   let held2;
   let asking;
   let error = null;
-  let unfit;
   let drawing;
   let options = store.board().options;
   const waiting2 = /* @__PURE__ */ new Set();
@@ -2656,10 +2655,7 @@ function mountOutput(deps, el, block) {
         const pkg = packageFromId(given.id);
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
-        const named4 = given.options ?? [];
-        const failures = await deps.addOptions(named4, `the renderer "${given.id}"`);
-        if (failures.length > 0) throw missingOptions(given, named4);
-        return { renderer: given, mod, named: named4 };
+        return { renderer: given, mod };
       })();
       preparing.set(given.id, loading);
     }
@@ -2672,12 +2668,6 @@ function mountOutput(deps, el, block) {
       (prepared) => {
         if (ended()) return;
         ready.set(given.id, prepared);
-        keeping.set(
-          given.id,
-          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
-            fail(missingOptions(given, prepared.named), given);
-          })
-        );
         sync();
       },
       (failure) => {
@@ -2685,14 +2675,9 @@ function mountOutput(deps, el, block) {
       }
     );
   }
-  function missingOptions(given, ids2) {
-    const missing = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
-    return new Error(withoutOptions(`the renderer "${given.id}"`, missing));
-  }
   function named3() {
-    const loaded = [...expected.keys()].map((id2) => ready.get(id2));
-    if (loaded.some((prepared) => prepared === void 0)) return void 0;
-    return [.../* @__PURE__ */ new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
+    if ([...expected.keys()].some((id2) => !ready.has(id2))) return void 0;
+    return outputOptions;
   }
   function values2(ids2) {
     const options2 = store.board().options;
@@ -2841,30 +2826,14 @@ function mountOutput(deps, el, block) {
     announce2();
   }
   function fail(failure, by2) {
-    if (ended()) return;
-    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) });
-    if (failure instanceof ModuleError) {
-      if (!broken.has(failure)) {
-        log.error(failure);
-        deps.raise(notification);
-      }
-      broken.add(failure);
-      return;
-    }
-    const before = unfit;
-    unfit = deps.raise(notification);
-    before?.();
-    failed2(coreFailure("module_failed", errorMessage(failure)));
-  }
-  function fit2() {
-    const before = unfit;
-    unfit = void 0;
-    before?.();
+    if (ended() || broken.has(failure)) return;
+    broken.add(failure);
+    log.error(asError(failure));
+    deps.raise(coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) }));
   }
   function take(next) {
     held2 = next;
     error = null;
-    fit2();
     const named4 = next.output.renderer;
     expect(named4);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
@@ -2919,10 +2888,10 @@ function mountOutput(deps, el, block) {
   function wake() {
     announceTo(waiting2);
   }
-  function optionsFor(prepared, asked) {
+  function optionsFor(asked) {
     const now = store.board().options;
     return Object.fromEntries(
-      prepared.named.flatMap((id2) => {
+      outputOptions.flatMap((id2) => {
         const value2 = asked !== void 0 && Object.hasOwn(asked.options, id2) ? asked.options[id2] : own(now, id2);
         return value2 === void 0 ? [] : [[id2, value2]];
       })
@@ -3043,9 +3012,9 @@ function mountOutput(deps, el, block) {
         let memo = named4;
         if (memo === void 0 || memo.for !== held2) {
           const read = optionReader(
-            optionsFor(prepared, held2?.asked),
-            prepared.named,
-            (unnamed) => `The renderer "${prepared.renderer.id}" names no board option "${unnamed}" in R, so it cannot read it.`
+            optionsFor(held2?.asked),
+            outputOptions,
+            (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
           );
           memo = { for: held2, read };
           named4 = memo;
@@ -3147,13 +3116,11 @@ function mountOutput(deps, el, block) {
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
-    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
     asking?.leave();
     asking = void 0;
-    fit2();
     unmountRenderer();
     el.replaceChildren();
     wake();

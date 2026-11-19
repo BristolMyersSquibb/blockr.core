@@ -11,11 +11,10 @@ import type { Json } from "./json.ts";
 export interface BlockOutput {
   // The renderer that draws the output, which R adds to every output it sends,
   // as the method of the output's class gives it in R: its id, which a request
-  // of its own names, where R serves its module and the stylesheet beside it,
-  // so that the client loads the renderer the first time that an output names
-  // it, and the ids of the board options that the renderer reads itself,
-  // which `new_renderer()` names in `options`.
-  renderer: { id: string; module: string; css?: string; options?: string[] };
+  // of its own names, and where R serves its module and the stylesheet beside
+  // it, so that the client loads the renderer the first time that an output
+  // names it.
+  renderer: { id: string; module: string; css?: string };
 }
 
 // The renderer of an output, as R sends it in the output.

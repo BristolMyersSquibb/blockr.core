@@ -20,7 +20,7 @@ import type { Json } from "../types/json.ts";
 import { errorMessage, own } from "../util/index.ts";
 
 // What an output host holds at one moment. A renderer reads the board options
-// that it names in R through the host's option(), whose values change only
+// of its output family through the host's option(), whose values change only
 // with the output.
 export interface OutputSnapshot {
   readonly output: Json;

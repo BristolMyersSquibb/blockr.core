@@ -46,16 +46,6 @@ test_that("a renderer holds its ID, its module and its own requests", {
   rows <- new_renderer("rows", test_module("rows.js"), option = "n_rows")
 
   expect_identical(rows$option, "n_rows")
-  expect_null(drawn$options)
-
-  # A renderer of outputs names the board options that it reads itself
-  themed <- new_renderer(
-    "themed",
-    test_module("themed.js", "blockr.ui"),
-    options = new_dark_mode_option
-  )
-
-  expect_identical(themed$options, list(new_dark_mode_option))
 
   expect_snapshot({
     drawn
@@ -259,15 +249,5 @@ test_that("a renderer's construction is checked", {
                  option = "n_rows"),
     class = "renderer_requests_invalid",
     regexp = "board option"
-  )
-  expect_error(new_renderer("test", mod, options = "n_rows"),
-               class = "renderer_invalid", regexp = "constructors")
-  expect_error(new_renderer("test", mod, options = new_n_rows_option()),
-               class = "renderer_invalid", regexp = "constructors")
-  # A renderer that draws a board option reads that one alone
-  expect_error(
-    new_renderer("test", mod, option = "n_rows", options = new_n_rows_option),
-    class = "renderer_invalid",
-    regexp = "reads that one alone"
   )
 })

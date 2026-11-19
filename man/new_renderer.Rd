@@ -4,7 +4,7 @@
 \alias{new_renderer}
 \title{Renderers}
 \usage{
-new_renderer(name, module, requests = list(), option = NULL, options = NULL)
+new_renderer(name, module, requests = list(), option = NULL)
 }
 \arguments{
 \item{name}{The name part of the renderer's ID}
@@ -16,10 +16,6 @@ function, which only a renderer of outputs has}
 
 \item{option}{The ID of the board option that the renderer draws, or \code{NULL}
 for a renderer of outputs}
-
-\item{options}{The constructors of the board options that a renderer of
-outputs reads itself, a function such as \code{new_n_rows_option} or a list of
-them}
 }
 \value{
 The constructor \code{new_renderer()} returns an object of class
@@ -41,14 +37,13 @@ outputs as the family's \code{renderer}, as core's \code{table_output} holds
 R names it in the entry of each block class that names the family, in the
 block registry, so that the client loads it before it asks for a block's
 first output, and in each output that it sends.
-A renderer names only the board options that it reads itself, in
-\code{options}, by their constructors, since the family names those that it
-reads.
-R names their IDs with the renderer, so that the client puts them on the
-board before it asks for an output that the renderer draws.
-The renderer reads their values through its host, as
-\code{host.option("n_rows")}, which throws for any other ID, naming the renderer
-and the ID.
+A renderer names no board options of its own.
+It reads those that its family names for its outputs (see
+\code{\link[=new_output_family]{new_output_family()}}), through its host, as \code{host.option("n_rows")},
+which throws for any other ID, naming the block class, the renderer and the
+ID.
+So the board options of a family's outputs are the same, whichever renderer
+a deployment draws them with.
 It draws its family's outputs by their output class, whatever data model a
 method of the family made them from, so a new renderer needs no change to
 any of the family's methods.

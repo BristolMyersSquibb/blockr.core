@@ -3,17 +3,15 @@
 // for the mount, as the contract has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // 1. Core adds the board options that the block class's entry in the block
-//    registry names in `output_options` to the board, those that the coercion
-//    of the class's outputs reads, each with its definition's default where
-//    the board lacks it. It loads the renderer that the entry names, and adds
-//    the board options that R names for the renderer in its `options` too. So
-//    the board holds what the output's coercion and its renderer read before
-//    core asks for an output. While the mount lasts, core adds again each of
-//    them that a delta removes. Where one does not go onto the board, as where
-//    its default fails, core reports it and asks R for nothing. For one that
-//    the renderer names, it raises as well that the renderer cannot draw
-//    without it, until an output comes, as it raises the failure of a renderer
-//    that cannot draw. The host's `error()` gives why meanwhile.
+//    registry names in `output_options` to the board, those that the output
+//    family of the class names for its outputs, each with its definition's
+//    default where the board lacks it, and loads the renderers that the entry
+//    names. So the board holds every board option that the output's family
+//    and its renderer read before core asks for an output, since no renderer
+//    names any of its own. While the mount lasts, core adds again each of them
+//    that a delta removes. Where one does not go onto the board, as where its
+//    default fails, core reports it and asks R for nothing, and the host's
+//    `error()` gives why meanwhile.
 // 2. Once the block reads ready and the element measures more than 0 by 0, core
 //    asks R for the output, through the scheduler, with the block's revision,
 //    the values of those board options, the info it measured and the block's
@@ -23,7 +21,8 @@
 // 3. It mounts the renderer that the output names once it has the output, and
 //    hands it each output that comes after. An output that names another
 //    renderer than the one drawing, as one of a subclass may, is drawn by that
-//    one, with what it names added to the board.
+//    one. The renderer reads the values of those board options through its
+//    host's option(), as the output was asked with them.
 // 4. It asks again when the revision, one of those board options, the info or
 //    the parameters change, while the block reads ready. Meanwhile it keeps
 //    drawing the last output, whatever the block's status, with `loading()`
@@ -204,12 +203,10 @@ interface OutputArgs {
   signal: AbortSignal;
 }
 
-// A renderer loaded and checked, with the board options it names, which are
-// on the board by then.
+// A renderer loaded and checked.
 interface Prepared {
   readonly renderer: OutputRenderer;
   readonly mod: Mountable<OutputArgs>;
-  readonly named: readonly OptionId[];
 }
 
 // A renderer that core mounted, with the host it was mounted with.
@@ -262,30 +259,28 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   const controller = new AbortController();
   const ended = (): boolean => controller.signal.aborted;
 
-  // The board options that the coercion of the class's outputs reads, which
-  // the mount keeps on the board while it lasts and asks with, the first time
+  // The board options of the class's outputs, which the output family of the
+  // class names for its outputs and every renderer of them reads, which the
+  // mount keeps on the board while it lasts and asks with, the first time
   // included.
   const outputOptions = entry.output_options ?? [];
+  // The registry id of the block's class, which names it in what the mount
+  // says.
+  const registryId = entry.id;
   // The renderers that may draw the block's output, by id: those that the
   // block class's entry names, one for each family whose outputs the class's
   // family makes, and any other that an output names. The mount loads each,
-  // keeps the board options that it names on the board, and asks with those
-  // of every one once all are loaded, so that an output was asked with what
-  // the renderer that draws it reads. Where none is named, the mount asks with
-  // the board options of the class's outputs alone, and learns the renderer
-  // from the first output.
+  // and asks once all are loaded, so that it asks for no output that no
+  // renderer can draw. Where none is named, the mount learns the renderer from
+  // the first output.
   const expected = new Map<string, OutputRenderer>();
   const ready = new Map<string, Prepared>();
-  const keeping = new Map<string, { readonly stop: () => void }>();
   const preparing = new Map<string, Promise<Prepared>>();
 
   let info = measure.info(el);
   let held: Made | undefined;
   let asking: { readonly key: string; leave(): void } | undefined;
   let error: Condition | CoreFailure | null = null;
-  // What withdraws the notification that the renderer cannot draw without the
-  // board options that it names, while it holds.
-  let unfit: (() => void) | undefined;
   let drawing: Drawing | undefined;
   let options = store.board().options;
 
@@ -310,8 +305,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
   const rendererModule = (renderer: OutputRenderer): SourceModule =>
     sourceModule({ block }, packageFromId(renderer.id), renderer.id);
 
-  // Loads a renderer and adds the board options that R names for it to the
-  // board.
+  // Loads a renderer.
   function prepare(given: OutputRenderer): Promise<Prepared> {
     let loading = preparing.get(given.id);
     if (loading === undefined) {
@@ -319,11 +313,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         const pkg = packageFromId(given.id);
         const source = given.css === undefined ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule<OutputArgs>(await loader.load(source, pkg), given.module, pkg);
-        const named = given.options ?? [];
-        // Core has reported why one did not go onto the board.
-        const failures = await deps.addOptions(named, `the renderer "${given.id}"`);
-        if (failures.length > 0) throw missingOptions(given, named);
-        return { renderer: given, mod, named };
+        return { renderer: given, mod };
       })();
       preparing.set(given.id, loading);
     }
@@ -338,12 +328,6 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       (prepared) => {
         if (ended()) return;
         ready.set(given.id, prepared);
-        keeping.set(
-          given.id,
-          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
-            fail(missingOptions(given, prepared.named), given);
-          }),
-        );
         sync();
       },
       (failure: unknown) => {
@@ -352,20 +336,11 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     );
   }
 
-  // Why the renderer cannot draw without the board options that it names and
-  // that the board lacks.
-  function missingOptions(given: OutputRenderer, ids: readonly OptionId[]): Error {
-    const missing = ids.filter((id) => !Object.hasOwn(store.board().options, id));
-    return new Error(withoutOptions(`the renderer "${given.id}"`, missing));
-  }
-
-  // The board options that the mount asks with: those of the class's outputs,
-  // with those that every renderer that may draw the output names, or
-  // undefined while one of those renderers loads.
+  // The board options that the mount asks with, those of the class's outputs,
+  // or undefined while a renderer that may draw the output loads.
   function named(): readonly OptionId[] | undefined {
-    const loaded = [...expected.keys()].map((id) => ready.get(id));
-    if (loaded.some((prepared) => prepared === undefined)) return undefined;
-    return [...new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
+    if ([...expected.keys()].some((id) => !ready.has(id))) return undefined;
+    return outputOptions;
   }
 
   // The values that the board holds now of the board options named. Within a
@@ -559,40 +534,21 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     announce();
   }
 
-  // A renderer that cannot draw, which nothing else can: one that fails to
-  // load, which holds until the next board opens or the block leaves the
-  // board, or one without the board options that it names, which holds until
-  // an output comes and the host's error() gives meanwhile.
+  // A renderer that cannot draw, which nothing else can, as one that fails to
+  // load or throws in render(), which holds until the next board opens or the
+  // block leaves the board. Core reports each failure once, however many
+  // outputs name the renderer.
   function fail(failure: unknown, by: OutputRenderer): void {
-    if (ended()) return;
-    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by) });
-    if (failure instanceof ModuleError) {
-      if (!broken.has(failure)) {
-        log.error(failure);
-        deps.raise(notification);
-      }
-      broken.add(failure);
-      return;
-    }
-    const before = unfit;
-    unfit = deps.raise(notification);
-    before?.();
-    failed(coreFailure("module_failed", errorMessage(failure)));
-  }
-
-  // Withdraws that the renderer cannot draw without the board options that it
-  // names, as an output comes or the mount ends.
-  function fit(): void {
-    const before = unfit;
-    unfit = undefined;
-    before?.();
+    if (ended() || broken.has(failure as object)) return;
+    broken.add(failure as object);
+    log.error(asError(failure));
+    deps.raise(coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by) }));
   }
 
   // Holds an output, and draws it with the renderer that it names.
   function take(next: Made): void {
     held = next;
     error = null;
-    fit();
     const named = next.output.renderer;
     expect(named);
     if (drawing !== undefined && drawing.prepared.renderer.id !== named.id) unmountRenderer();
@@ -652,12 +608,12 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     announceTo(waiting);
   }
 
-  // The values of the board options that a renderer names, which an output
+  // The values of the board options of the class's outputs, which an output
   // was asked with, and for those that it was not asked with, the board's.
-  function optionsFor(prepared: Prepared, asked: Asked | undefined): Readonly<Record<OptionId, Json>> {
+  function optionsFor(asked: Asked | undefined): Readonly<Record<OptionId, Json>> {
     const now = store.board().options;
     return Object.fromEntries(
-      prepared.named.flatMap((id) => {
+      outputOptions.flatMap((id) => {
         const value = asked !== undefined && Object.hasOwn(asked.options, id) ? asked.options[id] : own(now, id);
         return value === undefined ? [] : [[id, value]];
       }),
@@ -788,8 +744,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
   function outputHost(prepared: Prepared): Announcing {
     const listeners = new Set<() => void>();
-    // What gives the values of the board options that R names for the
-    // renderer, for the output that the host held as it made it.
+    // What gives the values of the board options of the class's outputs, for
+    // the output that the host held as it made it.
     let named: { for: Made | undefined; read: (id: OptionId) => Json } | undefined;
     let following = true;
     // What withdraws each notification that the renderer raised and that
@@ -805,10 +761,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         let memo = named;
         if (memo === undefined || memo.for !== held) {
           const read = optionReader(
-            optionsFor(prepared, held?.asked),
-            prepared.named,
+            optionsFor(held?.asked),
+            outputOptions,
             (unnamed) =>
-              `The renderer "${prepared.renderer.id}" names no board option "${unnamed}" in R, so it cannot read it.`,
+              `The output family of block class "${registryId}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`,
           );
           memo = { for: held, read };
           named = memo;
@@ -926,13 +882,11 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
-    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== undefined) clearTimeout(settling);
     asking?.leave();
     asking = undefined;
-    fit();
     unmountRenderer();
     el.replaceChildren();
     wake();

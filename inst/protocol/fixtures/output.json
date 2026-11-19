@@ -1,5 +1,5 @@
 {
-  "description": "The output of the merge block c, which the output family its class names makes from its result with the board option values, the info the client measured and the output's parameters, which its renderer keeps, here the second page of two rows, sorted by Sepal.Length.x from the largest. It carries the renderer that draws it, the one that core's table_output family holds, with where R serves the renderer's module, which the client has loaded from the block's entry of the block registry, and the board options that the renderer reads itself, none.",
+  "description": "The output of the merge block c, which the output family its class names makes from its result with the board option values, the info the client measured and the output's parameters, which its renderer keeps, here the second page of two rows, sorted by Sepal.Length.x from the largest. It carries the renderer that draws it, the one that core's table_output family holds, with where R serves the renderer's module, which the client has loaded from the block's entry of the block registry.",
   "client": [
     {
       "id": "31",
@@ -31,8 +31,7 @@
         "output": {
           "renderer": {
             "id": "blockr.core-table_output",
-            "module": "blockr.core/basic-table.js?v=b7e2a915",
-            "options": []
+            "module": "blockr.core/basic-table.js?v=b7e2a915"
           },
           "columns": [
             { "name": "Species", "class": "factor" },

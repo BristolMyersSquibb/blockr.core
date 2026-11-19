@@ -105,7 +105,7 @@
   R also names the renderers of a block class's outputs in its entry, so that the client loads them,
   and adds the board options that they name to the board, before it asks for a block's first
   output.
-  A renderer names only the board options that it reads itself, in the `options` of `new_renderer()`, since the output family names those that it reads.
+  A renderer names no board options of its own: the output family names those of its outputs, which every renderer of them reads.
   Another package offers a renderer through a
   function that makes it, and an app draws with it by naming it in the blockr
   option `renderers`, for an output family or a board option, which R reads before the family's own renderer, so loading a package changes nothing and no package takes the app's choice away. Such a
@@ -402,8 +402,9 @@
   Each edit is one of core's commands, so that undo takes back each one, and the plugin tells the user through a notification why the store or the command registry refused one.
   Under the board lock, it draws no control and lists the board's links and stacks alone.
   A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block (#565, #573, #584).
-* Block classes, plugin classes and renderers name the board options that they read in R, by their constructors, as requests and output families do.
-  A block class names those that its UI module reads itself in the `options` of `new_block_class()`, a plugin class through its method of the new generic `plugin_options()`, and a renderer in the `options` of `new_renderer()`.
+* Block classes and plugin classes name the board options that they read in R, by their constructors, as requests and output families do.
+  A block class names those that its UI module reads itself in the `options` of `new_block_class()`, and a plugin class through its method of the new generic `plugin_options()`.
+  A renderer names none, since the output family names the board options of its outputs, those that its renderers read included.
   R names their IDs in its reply to `hello`, and core puts them on the board before the module draws, so that no module names a board option in JS.
   A module reads their values through its host, with `host.context().option(id)` for a block's UI module and `host.option(id)` for a renderer.
   For any other ID, a misspelled one included, `option()` throws an error that names the component and the ID.

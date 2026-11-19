@@ -46,7 +46,7 @@ export function reactModule<H>(
 // What outputRenderer() hands a renderer's component: what its output host
 // holds, with the output and its parameters typed by the output class's
 // contract, and the host itself, through which the renderer reads the board
-// options that it names in R, asks for other parameters, calls requests and
+// options of its output family, asks for other parameters, calls requests and
 // reports what the user did.
 export interface OutputProps<O extends BlockOutput = BlockOutput, P = Json> {
   readonly output: O;

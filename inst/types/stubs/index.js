@@ -2922,15 +2922,14 @@ function mountOutput(deps, el, block) {
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const outputOptions = entry.output_options ?? [];
+  const registryId2 = entry.id;
   const expected = /* @__PURE__ */ new Map();
   const ready = /* @__PURE__ */ new Map();
-  const keeping = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
   let held3;
   let asking;
   let error = null;
-  let unfit;
   let drawing;
   let options = store.board().options;
   const waiting2 = /* @__PURE__ */ new Set();
@@ -2949,10 +2948,7 @@ function mountOutput(deps, el, block) {
         const pkg = packageFromId(given.id);
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
-        const named4 = given.options ?? [];
-        const failures = await deps.addOptions(named4, `the renderer "${given.id}"`);
-        if (failures.length > 0) throw missingOptions(given, named4);
-        return { renderer: given, mod, named: named4 };
+        return { renderer: given, mod };
       })();
       preparing.set(given.id, loading);
     }
@@ -2965,12 +2961,6 @@ function mountOutput(deps, el, block) {
       (prepared) => {
         if (ended()) return;
         ready.set(given.id, prepared);
-        keeping.set(
-          given.id,
-          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
-            fail(missingOptions(given, prepared.named), given);
-          })
-        );
         sync();
       },
       (failure) => {
@@ -2978,14 +2968,9 @@ function mountOutput(deps, el, block) {
       }
     );
   }
-  function missingOptions(given, ids3) {
-    const missing2 = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
-    return new Error(withoutOptions(`the renderer "${given.id}"`, missing2));
-  }
   function named3() {
-    const loaded = [...expected.keys()].map((id2) => ready.get(id2));
-    if (loaded.some((prepared) => prepared === void 0)) return void 0;
-    return [.../* @__PURE__ */ new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
+    if ([...expected.keys()].some((id2) => !ready.has(id2))) return void 0;
+    return outputOptions;
   }
   function values2(ids3) {
     const options2 = store.board().options;
@@ -3134,30 +3119,14 @@ function mountOutput(deps, el, block) {
     announce2();
   }
   function fail(failure, by2) {
-    if (ended()) return;
-    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) });
-    if (failure instanceof ModuleError) {
-      if (!broken.has(failure)) {
-        log.error(failure);
-        deps.raise(notification);
-      }
-      broken.add(failure);
-      return;
-    }
-    const before = unfit;
-    unfit = deps.raise(notification);
-    before?.();
-    failed3(coreFailure("module_failed", errorMessage(failure)));
-  }
-  function fit2() {
-    const before = unfit;
-    unfit = void 0;
-    before?.();
+    if (ended() || broken.has(failure)) return;
+    broken.add(failure);
+    log.error(asError(failure));
+    deps.raise(coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) }));
   }
   function take(next) {
     held3 = next;
     error = null;
-    fit2();
     const named4 = next.output.renderer;
     expect(named4);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
@@ -3212,10 +3181,10 @@ function mountOutput(deps, el, block) {
   function wake() {
     announceTo(waiting2);
   }
-  function optionsFor(prepared, asked) {
+  function optionsFor(asked) {
     const now = store.board().options;
     return Object.fromEntries(
-      prepared.named.flatMap((id2) => {
+      outputOptions.flatMap((id2) => {
         const value2 = asked !== void 0 && Object.hasOwn(asked.options, id2) ? asked.options[id2] : own(now, id2);
         return value2 === void 0 ? [] : [[id2, value2]];
       })
@@ -3336,9 +3305,9 @@ function mountOutput(deps, el, block) {
         let memo2 = named4;
         if (memo2 === void 0 || memo2.for !== held3) {
           const read = optionReader(
-            optionsFor(prepared, held3?.asked),
-            prepared.named,
-            (unnamed) => `The renderer "${prepared.renderer.id}" names no board option "${unnamed}" in R, so it cannot read it.`
+            optionsFor(held3?.asked),
+            outputOptions,
+            (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
           );
           memo2 = { for: held3, read };
           named4 = memo2;
@@ -3440,13 +3409,11 @@ function mountOutput(deps, el, block) {
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
-    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
     asking?.leave();
     asking = void 0;
-    fit2();
     unmountRenderer();
     el.replaceChildren();
     wake();
@@ -12217,7 +12184,7 @@ function takesTheme(value2) {
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, each with the board options that it reads, none for core's renderers, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, show_conditions and dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, show_conditions and dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -12273,8 +12240,7 @@ var hello_default = {
             renderers: [
               {
                 id: "blockr.core-table_output",
-                module: "blockr.core/basic-table.js?v=b7e2a915",
-                options: []
+                module: "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
@@ -12316,8 +12282,7 @@ var hello_default = {
             renderers: [
               {
                 id: "blockr.core-table_output",
-                module: "blockr.core/basic-table.js?v=b7e2a915",
-                options: []
+                module: "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
@@ -12371,8 +12336,7 @@ var hello_default = {
             renderers: [
               {
                 id: "blockr.core-table_output",
-                module: "blockr.core/basic-table.js?v=b7e2a915",
-                options: []
+                module: "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
@@ -12415,8 +12379,7 @@ var hello_default = {
             renderers: [
               {
                 id: "blockr.core-table_output",
-                module: "blockr.core/basic-table.js?v=b7e2a915",
-                options: []
+                module: "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
@@ -12449,8 +12412,7 @@ var hello_default = {
             renderers: [
               {
                 id: "blockr.core-table_output",
-                module: "blockr.core/basic-table.js?v=b7e2a915",
-                options: []
+                module: "blockr.core/basic-table.js?v=b7e2a915"
               }
             ]
           },
@@ -12497,8 +12459,7 @@ var hello_default = {
             renderers: [
               {
                 id: "blockr.core-plot_output",
-                module: "blockr.core/basic-plot.js?v=f19d4a73",
-                options: []
+                module: "blockr.core/basic-plot.js?v=f19d4a73"
               }
             ]
           },
@@ -12532,8 +12493,7 @@ var hello_default = {
             renderers: [
               {
                 id: "blockr.core-text_output",
-                module: "blockr.core/basic-text.js?v=3c8f61d0",
-                options: []
+                module: "blockr.core/basic-text.js?v=3c8f61d0"
               }
             ]
           }

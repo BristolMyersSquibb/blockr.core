@@ -223,13 +223,17 @@ print.reply_body <- function(x, ...) {
 #' output.
 #'
 #' A family holds what R needs of it before any output exists: the
-#' constructors of the board options that it reads, as a request that
+#' constructors of the board options of its outputs, as a request that
 #' [new_block_request()] makes holds those that the request reads, and the
 #' renderer that draws its outputs (see [new_renderer()]).
+#' Those board options are the ones that the family reads and the ones that
+#' the renderers of its outputs read, since no renderer names any of its own.
 #' R names both in the entry of each block class that names the family, in the
 #' block registry, so that the client loads the renderer and puts the board
 #' options on the board before it asks for a block's first output, and sends
 #' their values with every output request.
+#' Every renderer of the family's outputs reads their values through its host,
+#' whichever renderer a deployment draws them with.
 #' A deployment draws a family's outputs with another renderer by naming it in
 #' the blockr option `renderers` under the family's class, as
 #' `options(blockr.renderers = list(table_output = blockr.ui::table_preview()))`
@@ -262,7 +266,8 @@ print.reply_body <- function(x, ...) {
 #' @param class The family's class, such as `"table_output"`, which no other
 #'   family has
 #' @param options The constructors of the board options that `fun` itself
-#'   reads, a function such as `new_n_rows_option` or a list of them
+#'   reads, or that the renderers of its outputs read, a function such as
+#'   `new_n_rows_option` or a list of them
 #' @param renderer The renderer of the outputs of class `class` that `fun`
 #'   makes, made by [new_renderer()]
 #' @param families The families that `fun` hands its results to, a family or

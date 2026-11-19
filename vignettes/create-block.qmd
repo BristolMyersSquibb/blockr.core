@@ -351,7 +351,8 @@ A __renderer__ is the module that draws an output in the browser.
 The package that defines an output family gives its renderer, and a deployment picks another, such as a richer table, through the blockr option `renderers`, which R reads before the family's own.
 So a block class never names how its output looks.
 A package that needs an output class of its own makes one with `new_block_output()`, gives its JSON Schema and requests through its methods of `output_schema()` and `output_requests()`, and makes its family with `new_output_family()`.
-The family holds the constructors of the board options that it reads, as a request holds those that it reads, and the renderer of its outputs:
+The family holds the constructors of the board options of its outputs, as a request holds those that it reads, and the renderer of its outputs.
+Those board options are the ones that the family reads and the ones that its renderers read, since a renderer names none of its own:
 
 ```{r, eval = FALSE}
 table_output <- new_output_family(
@@ -364,9 +365,10 @@ table_output <- new_output_family(
 )
 ```
 
-1. R names the board options that the block class's output family reads, and the renderer of its outputs, in the class's entry of the block registry.
-2. The client puts those board options on the board, with those that the renderer reads itself, which `new_renderer()` names in `options`, and loads the renderer.
+1. R names the board options of the block class's output family, and the renderer of its outputs, in the class's entry of the block registry.
+2. The client puts those board options on the board, and loads the renderer.
 3. The client asks R for the block's first output, with the values of those board options.
+4. The renderer reads the values that the output was asked with through its host, as `host.option("n_rows")`, which throws for any other ID.
 
 A family that hands its results to other families names them in `families`, and then reads their board options too, and each of its outputs is drawn by the renderer of the family whose class the output has.
 A family that shows a model as a table of its coefficients hands its table to `table_output`:

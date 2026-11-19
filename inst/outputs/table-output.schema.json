@@ -13,12 +13,6 @@
         },
         "css": {
           "type": "string"
-        },
-        "options": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "required": [
