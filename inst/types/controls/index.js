@@ -344,7 +344,10 @@ import {
   ComboBox,
   ComboBoxStateContext,
   composeRenderProps,
+  DropIndicator,
   FieldError,
+  GridList,
+  GridListItem,
   Group,
   Header,
   Input,
@@ -353,10 +356,8 @@ import {
   ListBoxItem,
   ListBoxSection,
   Popover,
-  Tag,
-  TagGroup,
-  TagList,
   Text,
+  useDragAndDrop,
   useFilter
 } from "react-aria-components";
 import { UNSAFE_PortalProvider } from "react-aria";
@@ -364,9 +365,10 @@ import { UNSAFE_PortalProvider } from "react-aria";
 // srcts/inputs/combobox.tsx
 import { Fragment as Fragment2, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 function ComboBox2(props) {
-  const { bound, ordered = false, ...rest } = props;
-  if (bound === void 0) return /* @__PURE__ */ jsx2(Drawn, { ...rest });
-  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx2(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx2(BoundOne, { ...rest, bound });
+  const { bound, ordered = false, reorderable = true, ...rest } = props;
+  const drawn = { ...rest, reorderable: reorderable && !ordered };
+  if (bound === void 0) return /* @__PURE__ */ jsx2(Drawn, { ...drawn });
+  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx2(BoundSeveral, { ...drawn, bound, ordered }) : /* @__PURE__ */ jsx2(BoundOne, { ...drawn, bound });
 }
 function BoundOne({ bound, outdated = false, ...props }) {
   const current = typeof bound.value === "string" ? bound.value : null;
@@ -402,12 +404,15 @@ function BoundSeveral({
   const [picks, setPicks] = useState2(null);
   const pending = useRef(null);
   const submit = (next, opened) => {
-    const added = next.filter((value2) => !opened.includes(value2));
-    const removed = opened.filter((value2) => !next.includes(value2));
-    if (added.length === 0 && removed.length === 0) return;
+    if (sameKeys(next, opened)) return;
     const now = strings(bound.get());
-    const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
-    void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
+    const removed = opened.filter((value2) => !next.includes(value2));
+    const added = next.filter((value2) => !opened.includes(value2) && !now.includes(value2));
+    const kept = next.filter((value2) => opened.includes(value2) && now.includes(value2));
+    const order = [...kept];
+    const held2 = now.filter((value2) => !removed.includes(value2)).map((value2) => kept.includes(value2) ? order.shift() ?? value2 : value2);
+    const value = ordered && items !== void 0 ? inOrder([...held2, ...added], ids(items)) : [...held2, ...added];
+    if (!sameKeys(value, now)) void bound.commit(value);
   };
   return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     /* @__PURE__ */ jsx2(
@@ -467,11 +472,13 @@ function Drawn({
   outdated = false,
   marking = false,
   onClear,
+  reorderable = true,
   className,
   allowsEmptyCollection = true,
   ...props
 }) {
   const multiple = props.selectionMode === "multiple";
+  const editable = props.isDisabled !== true && props.isReadOnly !== true;
   const given = props.items ?? props.defaultItems;
   const unknown = given === void 0 && typeof children === "function";
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
@@ -496,7 +503,9 @@ function Drawn({
             placeholder,
             multiple,
             marking,
-            clearable: props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
+            clearable: props.isRequired !== true && editable,
+            reorderable: multiple && reorderable,
+            isDisabled: !editable,
             onClear,
             label,
             autoFocus: props.autoFocus
@@ -531,6 +540,8 @@ function Field2({
   multiple,
   marking,
   clearable,
+  reorderable,
+  isDisabled,
   onClear,
   label,
   autoFocus
@@ -544,19 +555,22 @@ function Field2({
   const known2 = new Map((state?.selectedItems ?? []).map((item2) => [item2.key, item2.textValue]));
   const lacked = keys.some((key) => !known2.has(key));
   const invalid = marking && (lackedOne || lacked);
-  const remove = (gone) => {
-    state?.setValue(keys.filter((key) => !gone.has(key)));
-  };
   return /* @__PURE__ */ jsxs2(Group, { ref, isInvalid: invalid, className: FIELD, children: [
     /* @__PURE__ */ jsxs2("div", { className: VALUES, children: [
-      keys.length === 0 ? null : /* @__PURE__ */ jsx2(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx2(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key) => {
-        const text = known2.get(key) ?? String(key);
-        const gone = marking && !known2.has(key);
-        return /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-          /* @__PURE__ */ jsx2("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
-          /* @__PURE__ */ jsx2(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx2(Cross, {}) })
-        ] }, key);
-      }) }) }),
+      keys.length === 0 ? null : /* @__PURE__ */ jsx2(
+        Chips,
+        {
+          keys,
+          known: known2,
+          marking,
+          reorderable,
+          isDisabled,
+          label,
+          onChange: (next) => {
+            state?.setValue(next);
+          }
+        }
+      ),
       /* @__PURE__ */ jsx2(
         Input,
         {
@@ -601,6 +615,78 @@ function Field2({
     ) : null,
     /* @__PURE__ */ jsx2(Button, { className: OPENER, children: /* @__PURE__ */ jsx2(Chevron, {}) })
   ] });
+}
+function Chips({
+  keys,
+  known: known2,
+  marking,
+  reorderable,
+  isDisabled,
+  label,
+  onChange
+}) {
+  const { dragAndDropHooks } = useDragAndDrop({
+    isDisabled,
+    getItems: (dragged) => [...dragged].map((key) => ({ [PICK]: String(key) })),
+    onReorder: (event) => {
+      const next = moved(keys, event.keys, event.target);
+      if (!sameKeys(next, keys)) onChange(next);
+    },
+    renderDropIndicator: (target) => /* @__PURE__ */ jsx2(DropIndicator, { target, className: DROP })
+  });
+  const remove = (gone) => {
+    onChange(keys.filter((key) => key !== gone));
+  };
+  return /* @__PURE__ */ jsx2(
+    "div",
+    {
+      className: "bc:flex bc:min-w-0 bc:max-w-full",
+      onKeyDown: (event) => {
+        if (event.key !== "Delete" && event.key !== "Backspace") return;
+        const chip = event.target instanceof HTMLElement && event.target.getAttribute("role") === "row" ? event.target.dataset.key : void 0;
+        const gone = keys.find((key) => String(key) === chip);
+        if (gone === void 0) return;
+        event.preventDefault();
+        remove(gone);
+      },
+      children: /* @__PURE__ */ jsx2(
+        GridList,
+        {
+          "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`,
+          layout: "grid",
+          dragAndDropHooks: reorderable ? dragAndDropHooks : void 0,
+          className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1",
+          children: keys.map((key) => {
+            const text = known2.get(key) ?? String(key);
+            const gone = marking && !known2.has(key);
+            return /* @__PURE__ */ jsxs2(GridListItem, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
+              reorderable ? /* @__PURE__ */ jsx2(Button, { slot: "drag", className: GRIP, children: /* @__PURE__ */ jsx2(Grip, {}) }) : null,
+              /* @__PURE__ */ jsx2("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+              /* @__PURE__ */ jsx2(
+                Button,
+                {
+                  "aria-label": `Remove ${text}`,
+                  className: CHIP_REMOVE,
+                  onPress: () => {
+                    remove(key);
+                  },
+                  children: /* @__PURE__ */ jsx2(Cross, {})
+                }
+              )
+            ] }, key);
+          })
+        }
+      )
+    }
+  );
+}
+var PICK = "application/x-blockr-pick";
+function moved(keys, dragged, target) {
+  const rest = keys.filter((key) => !dragged.has(key));
+  const at = rest.indexOf(target.key);
+  if (at < 0) return [...keys];
+  const place = target.dropPosition === "after" ? at + 1 : at;
+  return [...rest.slice(0, place), ...keys.filter((key) => dragged.has(key)), ...rest.slice(place)];
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
@@ -666,13 +752,25 @@ function Cross() {
     }
   );
 }
+function Grip() {
+  return /* @__PURE__ */ jsxs2("svg", { width: "8", height: "12", viewBox: "0 0 8 12", fill: "currentColor", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx2("circle", { cx: "2", cy: "2", r: "1" }),
+    /* @__PURE__ */ jsx2("circle", { cx: "6", cy: "2", r: "1" }),
+    /* @__PURE__ */ jsx2("circle", { cx: "2", cy: "6", r: "1" }),
+    /* @__PURE__ */ jsx2("circle", { cx: "6", cy: "6", r: "1" }),
+    /* @__PURE__ */ jsx2("circle", { cx: "2", cy: "10", r: "1" }),
+    /* @__PURE__ */ jsx2("circle", { cx: "6", cy: "10", r: "1" })
+  ] });
+}
 var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
 var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
 var CLEAR = "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
-var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
+var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-allows-dragging:cursor-grab bc:data-allows-dragging:pl-0.5 bc:data-dragging:opacity-50 bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
+var GRIP = "bc:flex bc:h-4 bc:w-3 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var DROP = "bc:-mx-[3px] bc:w-0.5 bc:shrink-0 bc:rounded-full bc:data-drop-target:bg-border-accent";
 var LAYER = "bc:pointer-events-none bc:fixed bc:inset-0 bc:z-[100000]";
 var LIST = "bc:pointer-events-auto bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
 var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none";
@@ -799,6 +897,7 @@ function controls(host, signal) {
         defaultItems: items,
         selectionMode: options.selectionMode ?? "single",
         ordered: options.ordered,
+        reorderable: options.reorderable,
         isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,

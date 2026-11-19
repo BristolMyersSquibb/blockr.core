@@ -577,6 +577,7 @@ The SDK holds these:
 - The select `ComboBox`, which is [React Aria's `ComboBox`](https://react-aria.adobe.com/ComboBox) in core's theme, with the items `ComboBoxItem` and `ComboBoxSection`, and React Aria's `Text`, which holds an item's description.
   It takes the props of React Aria's `ComboBox`, and picks one string, or an array of strings where its `selectionMode` is `"multiple"`, by the ids of its items, out of a list that the user filters by typing.
   The field of several shows each pick as a chip, which the user removes by its button, and a button at the field's right clears the pick, or every pick, unless the select `isRequired`.
+  The user drags the chips into order, by pointer or by keyboard, unless the select is `ordered`, which keeps the order of its items, or `reorderable` is `false`.
   A bound select of one leaves its state arg unset so.
   Given `value` and `onChange` in place of `bound`, it picks for its caller instead, as in the UI of a plugin.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.

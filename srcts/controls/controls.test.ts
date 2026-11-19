@@ -205,6 +205,16 @@ describe("the controls of a block's UI", () => {
     expect(host.submitted).toEqual([form({ by: ["b", "a"] })]);
   });
 
+  test("give the chips of several the grips that drag them into order, but where not reorderable", () => {
+    const { by } = drawn(form({ by: ["a", "b"] }));
+    const fixed = controls(stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "message"] }), abort.signal);
+    fixed.comboBox("show_conditions", { label: "Message types", selectionMode: "multiple", items: ids(["message", "error"]), reorderable: false });
+    document.body.append(fixed.el);
+    const grips = (field: HTMLElement): number => field.closest('[role="group"]')?.querySelectorAll('button[aria-label^="Drag"]').length ?? 0;
+
+    expect([grips(by), grips(labelled(fixed.el, "Message types"))]).toEqual([2, 0]);
+  });
+
   test("submit typing still pending as the module unmounts, and empty their element", () => {
     const { host, ui, label } = drawn();
 

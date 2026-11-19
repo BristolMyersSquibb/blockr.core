@@ -148,6 +148,7 @@ function controls(host, signal) {
         defaultItems: items,
         selectionMode: options.selectionMode ?? "single",
         ordered: options.ordered,
+        reorderable: options.reorderable,
         isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,

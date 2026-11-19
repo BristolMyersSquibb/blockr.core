@@ -1,12 +1,14 @@
 // Core's select, React Aria's ComboBox in core's theme: what core adds to it,
-// the chips of the field of several, what the list says where it shows no
-// item, the opening by a press in the field, and the binding of a block's
-// state arg, on the stub of a block's host.
-// The rest, such as the keys and the filter, is React Aria's.
+// the chips of the field of several and their order, what the list says where
+// it shows no item, the opening by a press in the field, and the binding of a
+// block's state arg, on the stub of a block's host.
+// The rest, such as the keys, the filter and the drag of a chip by a pointer,
+// is React Aria's.
 
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
+import type { Root } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
 import { useValue } from "../react/index.ts";
 import { stubBlockHost } from "../stubs/index.ts";
@@ -20,6 +22,7 @@ import {
   labelled,
   listFromField,
   listNote,
+  moveChip,
   optionFromLabel,
   optionLabels,
   picked,
@@ -43,7 +46,18 @@ const fruits: readonly Fruit[] = [
 
 const row = (fruit: Fruit): ReactElement => <ComboBoxItem id={fruit.id}>{fruit.name}</ComboBoxItem>;
 
-afterEach(() => {
+// The roots that a test drew and has not unmounted, which it unmounts after
+// it, so that React Aria forgets their chips, which a later drag would take
+// for places to drop on.
+const roots = new Set<Root>();
+
+afterEach(async () => {
+  for (const root of roots) {
+    await step(() => {
+      root.unmount();
+    });
+  }
+  roots.clear();
   document.body.replaceChildren();
 });
 
@@ -52,15 +66,18 @@ async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () 
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
+  roots.add(root);
   await step(() => {
     root.render(node);
   });
   return {
     el,
-    unmount: () =>
-      step(() => {
+    unmount: () => {
+      roots.delete(root);
+      return step(() => {
         root.unmount();
-      }),
+      });
+    },
   };
 }
 
@@ -307,6 +324,58 @@ describe("a select of several items", () => {
     expect(seen).toEqual([["apple", "cherry"], ["apple"]]);
     expect(chipLabels(field)).toEqual(["Apple"]);
   });
+
+  test("drops the chip that has the focus on Delete or Backspace", async () => {
+    const seen: unknown[] = [];
+    const { el } = await draw(
+      <Held label="Fruits" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana", "cherry"]} seen={seen} />,
+    );
+    const field = labelled(el, "Fruits");
+    const chip = (label: string): HTMLElement => {
+      const found = [...el.querySelectorAll<HTMLElement>('[role="row"]')].find((row) => row.textContent.trim() === label);
+      if (found === undefined) throw new Error(`Found no chip ${label}.`);
+      return found;
+    };
+
+    await step(() => {
+      chip("Apple").focus();
+      press(chip("Apple"), "Delete");
+    });
+    await step(() => {
+      chip("Cherry").focus();
+      press(chip("Cherry"), "Backspace");
+    });
+
+    expect(seen).toEqual([["banana", "cherry"], ["banana"]]);
+    expect(chipLabels(field)).toEqual(["Banana"]);
+  });
+
+  test("moves a chip by keyboard, by its grip, the arrow keys and Enter, and calls onChange with the picks in their new order", async () => {
+    const seen: unknown[] = [];
+    const { el } = await draw(
+      <Held label="Fruits" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana", "cherry"]} seen={seen} />,
+    );
+    const field = labelled(el, "Fruits");
+
+    await moveChip(field, step, "Apple", "ArrowRight", "ArrowRight");
+
+    expect(seen).toEqual([["banana", "cherry", "apple"]]);
+    expect(chipLabels(field)).toEqual(["Banana", "Cherry", "Apple"]);
+  });
+
+  test("gives no chip a grip, so that none drags, where it is ordered or not reorderable", async () => {
+    const { el } = await draw(
+      <>
+        <Held label="Fixed" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana"]} seen={[]} reorderable={false} />
+        <Held label="Ordered" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana"]} seen={[]} ordered />
+        <Held label="Free" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana"]} seen={[]} />
+      </>,
+    );
+    const grips = (label: string): number =>
+      labelled(el, label).closest('[role="group"]')?.querySelectorAll('[data-allows-dragging] button[aria-label^="Drag"]').length ?? 0;
+
+    expect([grips("Fixed"), grips("Ordered"), grips("Free")]).toEqual([0, 0, 2]);
+  });
 });
 
 type Basket = Readonly<{ fruit?: string; fruits: readonly string[] }>;
@@ -320,6 +389,8 @@ const fixture: BlockFixture = {
     basket({ fruit: "banana" }),
     basket({ fruits: ["cherry", "apple", "banana"] }),
     basket({ fruits: ["apple", "cherry"] }),
+    basket({ fruits: ["cherry", "apple"] }),
+    basket({ fruits: ["cherry", "banana", "apple"] }),
     basket({ fruits: [] }),
     { fruits: [] },
   ],
@@ -427,6 +498,41 @@ describe("a bound select", () => {
 
     expect(host.submitted).toEqual([basket({ fruits: [] }), { fruits: [] }]);
     expect([Object.hasOwn(host.state(), "fruit"), one.value, one.placeholder, clearButton(one)]).toEqual([false, "", "Choose a fruit", null]);
+  });
+
+  test("submits the picks at once in the order that the user moves their chips into", async () => {
+    const host = stubBlockHost<Basket>(fixture, { state: basket({ fruits: ["apple", "cherry"] }) });
+    const { el } = await draw(<Bound host={host} />);
+    const field = labelled(el, "Fruits");
+
+    await moveChip(field, step, "Apple", "ArrowRight");
+
+    expect(host.submitted).toEqual([basket({ fruits: ["cherry", "apple"] })]);
+    expect(chipLabels(field)).toEqual(["Cherry", "Apple"]);
+  });
+
+  test("submits the order of the chips as the list closes, where the user unticked a pick and ticked it again, and keeps the place of a string that the assistant added in the meantime", async () => {
+    const host = stubBlockHost<Basket>(fixture, { state: basket({ fruits: ["apple", "banana"] }) });
+    const { el } = await draw(<Bound host={host} />);
+    const field = labelled(el, "Fruits");
+
+    await step(() => {
+      field.click();
+    });
+    await step(() => {
+      host.setState(basket({ fruits: ["cherry", "apple", "banana"] }));
+    });
+    for (const label of ["Apple", "Apple"]) {
+      await step(() => {
+        optionFromLabel(field, label).click();
+      });
+    }
+    expect(chipLabels(field)).toEqual(["Banana", "Apple"]);
+    await step(() => {
+      press(field, "Escape");
+    });
+
+    expect(host.submitted).toEqual([basket({ fruits: ["cherry", "banana", "apple"] })]);
   });
 
   test("submits the picks in the order of its items where ordered", async () => {

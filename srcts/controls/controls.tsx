@@ -64,6 +64,9 @@ export interface ComboBoxOptions {
   // Where it picks several, whether it submits them in the order of the
   // items, as for severities, rather than in the order the user picked them.
   readonly ordered?: boolean;
+  // Where it picks several, whether the user drags the chips into order, as
+  // by default, but where it is `ordered`.
+  readonly reorderable?: boolean;
   // Whether it always holds a pick, so that its field offers no button that
   // clears it.
   readonly isRequired?: boolean;
@@ -106,6 +109,8 @@ export interface Controls<K extends string = string> {
   // It submits one string as the user picks it, and several once, as its list
   // closes, after those the value holds, or where `ordered`, in the order of
   // the items.
+  // The user drags the chips of several into order, but where it is `ordered`
+  // or not `reorderable`, and it submits the order at once.
   comboBox(key: K, options: ComboBoxOptions): ComboBox;
   checkbox(key: K, options: { label: string }): void;
   // A request of the block's class or of the board option,
@@ -282,6 +287,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
         defaultItems={items}
         selectionMode={options.selectionMode ?? "single"}
         ordered={options.ordered}
+        reorderable={options.reorderable}
         isRequired={options.isRequired}
         renderEmptyState={options.renderEmptyState}
         outdated={outdated}

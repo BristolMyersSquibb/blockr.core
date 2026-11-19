@@ -17,7 +17,10 @@ export {
   ComboBox,
   ComboBoxStateContext,
   composeRenderProps,
+  DropIndicator,
   FieldError,
+  GridList,
+  GridListItem,
   Group,
   Header,
   Input,
@@ -26,10 +29,8 @@ export {
   ListBoxItem,
   ListBoxSection,
   Popover,
-  Tag,
-  TagGroup,
-  TagList,
   Text,
+  useDragAndDrop,
   useFilter,
 } from "react-aria-components";
 export type {

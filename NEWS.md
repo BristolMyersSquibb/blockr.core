@@ -667,6 +667,11 @@
   Core holds the selection outside the board, as it holds focus, so that nothing saves or undoes it, and nothing is selected as a board opens.
   The call `set()` refuses a block, a link or a stack that the board does not hold, a board option whose value the board does not hold, and a plugin that the app does not run.
   A board object given twice is selected once, and one that leaves the board leaves the selection (#740).
+* The chips of a select of several drag into order, as the items of [React Aria's `GridList`](https://react-aria.adobe.com/GridList) do, by pointer, by touch or by keyboard.
+  A keyboard user presses Enter on the grip at a chip's start, moves the chip with the arrow keys, and drops it with Enter.
+  The select calls `onChange` with the picks in their new order, and a bound select submits them at once, as it submits a chip that the user removes.
+  As its list closes, a bound select submits the strings that the user kept in the order of their chips, while a string that the assistant added in the meantime keeps its place.
+  The chips of a select that is `ordered` keep the order of its items, and those of a select whose `reorderable` is `false` do not drag either, which the `comboBox()` of `controls()` takes too (#688).
 
 # blockr.core 0.1.4
 

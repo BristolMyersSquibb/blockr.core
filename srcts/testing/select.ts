@@ -1,7 +1,7 @@
 // What a user does to the select of core's React SDK in a test, React Aria's
 // ComboBox (../inputs/combobox.tsx): finds its field by its label, opens its
-// list, picks an item of the list and removes a chip of its field, by what
-// the user reads.
+// list, picks an item of the list, and removes or moves a chip of its field,
+// by what the user reads.
 // React Aria draws the list in a portal at the end of the page's body, which
 // the field names in aria-controls while the list is open.
 
@@ -105,11 +105,36 @@ export function chipLabels(field: HTMLElement): string[] {
 // Clicks the button that removes the chip of the label given.
 export async function removeChip(field: HTMLElement, act: Act, label: string): Promise<void> {
   const chip = chips(field).find((found) => found.textContent.trim() === label);
-  const button = chip?.querySelector("button");
+  const button = chip?.querySelector('button[aria-label^="Remove"]');
   if (!(button instanceof HTMLElement)) throw new Error(`Found no chip ${label} of ${field.id}.`);
   await act(() => {
     button.click();
   });
+}
+
+// Moves the chip of the label given by keyboard, as a user does:
+// 1. The user tabs into the chips, which React Aria takes to the first chip,
+//    and moves on to the grip of the chip given.
+// 2. Enter starts the drag.
+// 3. Each key given, such as an arrow key, moves the point where the chip
+//    would go.
+// 4. Enter puts the chip there.
+export async function moveChip(field: HTMLElement, act: Act, label: string, ...keys: string[]): Promise<void> {
+  const chip = chips(field).find((found) => found.textContent.trim() === label);
+  const grip = chip?.querySelector('button[aria-label^="Drag"]');
+  const grid = chip?.closest('[role="grid"]');
+  if (!(grip instanceof HTMLElement) || !(grid instanceof HTMLElement)) throw new Error(`Found no grip of the chip ${label} of ${field.id}.`);
+  await act(() => {
+    grid.focus();
+  });
+  await act(() => {
+    grip.focus();
+  });
+  for (const key of ["Enter", ...keys, "Enter"]) {
+    await act(() => {
+      keystroke(document.activeElement instanceof HTMLElement ? document.activeElement : grip, key);
+    });
+  }
 }
 
 // The button of the field that clears the pick, or every pick, where the
@@ -130,6 +155,13 @@ export async function cleared(field: HTMLElement, act: Act): Promise<void> {
 
 function chips(field: HTMLElement): Element[] {
   return [...(field.closest('[role="group"]')?.querySelectorAll('[role="row"]') ?? [])];
+}
+
+// Presses the key given and lets it go, as React Aria starts a drag, and
+// drops what drags, as the key goes up.
+function keystroke(element: HTMLElement, key: string): void {
+  press(element, key);
+  element.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }));
 }
 
 // The element of the id given in the tree that holds `node`, whether on the

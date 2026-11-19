@@ -16,7 +16,19 @@
 // Its items are ComboBoxItem and ComboBoxSection below, as in the starter kit.
 //
 // The field of several shows each pick as a chip, whose button removes it,
-// as Backspace in the empty field removes the last one.
+// as Delete or Backspace on the chip does, and Backspace in the empty field
+// removes the last one.
+// The chips drag into order, as the items of React Aria's GridList do
+// (https://react-aria.adobe.com/GridList#drag-and-drop), but where the select
+// is `ordered`, or not `reorderable`.
+// A pointer drags a chip by its grip or its text.
+// A keyboard user moves a chip in four steps:
+// 1. The user tabs into the chips, and moves to the chip with the arrow keys.
+// 2. Tab takes the focus to the grip at the chip's start, where Enter starts
+//    the drag.
+// 3. The arrow keys move the point where the chip would go.
+// 4. Enter puts the chip there, and Escape leaves it where it was.
+// The select then calls onChange with the picks in their new order.
 // A button at the field's right, before the one that opens the list, clears
 // the pick, or every pick, where there is one, but where the select
 // `isRequired`.
@@ -53,9 +65,14 @@
 // meantime.
 // It submits them in the order the user picked them, after those the value
 // holds, or where `ordered`, in the order of its items, as for severities.
+// The strings of the value that the user kept take the order that the user
+// gave their chips.
 // Where the select goes while its list is open, as where its module
 // unmounts, the picks go with it, as though the user never made them.
-// A chip that the user removes while the list is closed it submits at once.
+// A chip that the user removes or drags while the list is closed it submits
+// at once.
+// A press on a chip takes the focus from the text field, which closes the
+// list, so a chip only ever moves while the list is closed.
 // It says below itself why the host refused what it submitted.
 
 import { useContext, useRef, useState } from "react";
@@ -69,7 +86,10 @@ import {
   ComboBox as AriaComboBox,
   ComboBoxStateContext,
   composeRenderProps,
+  DropIndicator,
   FieldError,
+  GridList,
+  GridListItem,
   Group,
   Header,
   Input,
@@ -78,11 +98,9 @@ import {
   ListBoxItem,
   ListBoxSection,
   Popover,
-  Tag,
-  TagGroup,
-  TagList,
   Text,
   UNSAFE_PortalProvider,
+  useDragAndDrop,
 } from "../aria/index.ts";
 import type {
   ComboBoxProps as AriaComboBoxProps,
@@ -110,15 +128,20 @@ export interface ComboBoxProps<T extends object, M extends Mode = "single">
   readonly bound?: Bound;
   readonly outdated?: boolean;
   readonly ordered?: boolean;
+  // Where it picks several, whether the user drags the chips into order, as
+  // by default.
+  // A select that is `ordered` keeps the order of its items instead.
+  readonly reorderable?: boolean;
 }
 
 export function ComboBox<T extends object, M extends Mode = "single">(props: ComboBoxProps<T, M>): ReactElement {
-  const { bound, ordered = false, ...rest } = props;
-  if (bound === undefined) return <Drawn {...(rest as DrawnProps)} />;
+  const { bound, ordered = false, reorderable = true, ...rest } = props;
+  const drawn = { ...(rest as DrawnProps), reorderable: reorderable && !ordered };
+  if (bound === undefined) return <Drawn {...drawn} />;
   return props.selectionMode === "multiple" ? (
-    <BoundSeveral {...(rest as DrawnProps)} bound={bound} ordered={ordered} />
+    <BoundSeveral {...drawn} bound={bound} ordered={ordered} />
   ) : (
-    <BoundOne {...(rest as DrawnProps)} bound={bound} />
+    <BoundOne {...drawn} bound={bound} />
   );
 }
 
@@ -171,13 +194,19 @@ function BoundSeveral({
   // Builds the submit from the value that the host holds now: the strings the
   // user picked since the list opened, after those the value holds, without
   // those the user removed.
+  // The strings that the user kept take the places that they hold in the
+  // value now, in the order that the user gave them, while a string that the
+  // assistant added in the meantime keeps its place.
   const submit = (next: readonly string[], opened: readonly string[]): void => {
-    const added = next.filter((value) => !opened.includes(value));
-    const removed = opened.filter((value) => !next.includes(value));
-    if (added.length === 0 && removed.length === 0) return;
+    if (sameKeys(next, opened)) return;
     const now = strings(bound.get());
-    const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
-    void bound.commit(ordered && items !== undefined ? inOrder(value, ids(items)) : value);
+    const removed = opened.filter((value) => !next.includes(value));
+    const added = next.filter((value) => !opened.includes(value) && !now.includes(value));
+    const kept = next.filter((value) => opened.includes(value) && now.includes(value));
+    const order = [...kept];
+    const held = now.filter((value) => !removed.includes(value)).map((value) => (kept.includes(value) ? (order.shift() ?? value) : value));
+    const value = ordered && items !== undefined ? inOrder([...held, ...added], ids(items)) : [...held, ...added];
+    if (!sameKeys(value, now)) void bound.commit(value);
   };
 
   return (
@@ -246,11 +275,13 @@ function Drawn({
   outdated = false,
   marking = false,
   onClear,
+  reorderable = true,
   className,
   allowsEmptyCollection = true,
   ...props
 }: DrawnProps): ReactElement {
   const multiple = props.selectionMode === "multiple";
+  const editable = props.isDisabled !== true && props.isReadOnly !== true;
   const given = props.items ?? props.defaultItems;
   // Whether it has no items yet, as its children draw an item with none given.
   const unknown = given === undefined && typeof children === "function";
@@ -273,7 +304,9 @@ function Drawn({
         placeholder={placeholder}
         multiple={multiple}
         marking={marking}
-        clearable={props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true}
+        clearable={props.isRequired !== true && editable}
+        reorderable={multiple && reorderable}
+        isDisabled={!editable}
         onClear={onClear}
         label={label}
         autoFocus={props.autoFocus}
@@ -337,6 +370,8 @@ function Field({
   multiple,
   marking,
   clearable,
+  reorderable,
+  isDisabled,
   onClear,
   label,
   autoFocus,
@@ -346,6 +381,10 @@ function Field({
   readonly multiple: boolean;
   readonly marking: boolean;
   readonly clearable: boolean;
+  // Whether the chips drag into order, and whether no chip drags for now, as
+  // while the select is disabled or read-only.
+  readonly reorderable: boolean;
+  readonly isDisabled: boolean;
   readonly onClear: (() => void) | undefined;
   readonly label: string | undefined;
   readonly autoFocus: boolean | undefined;
@@ -360,29 +399,21 @@ function Field({
   const known = new Map((state?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
   const lacked = keys.some((key) => !known.has(key));
   const invalid = marking && (lackedOne || lacked);
-  const remove = (gone: ReadonlySet<Key>): void => {
-    state?.setValue(keys.filter((key) => !gone.has(key)));
-  };
   return (
     <Group ref={ref} isInvalid={invalid} className={FIELD}>
       <div className={VALUES}>
         {keys.length === 0 ? null : (
-          <TagGroup aria-label={label === undefined ? "Picks" : `Picks of ${label}`} onRemove={remove} className="bc:flex bc:min-w-0 bc:max-w-full">
-            <TagList className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1">
-              {keys.map((key) => {
-                const text = known.get(key) ?? String(key);
-                const gone = marking && !known.has(key);
-                return (
-                  <Tag key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
-                    <span className="bc:truncate">{gone ? missing(text) : text}</span>
-                    <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
-                      <Cross />
-                    </Button>
-                  </Tag>
-                );
-              })}
-            </TagList>
-          </TagGroup>
+          <Chips
+            keys={keys}
+            known={known}
+            marking={marking}
+            reorderable={reorderable}
+            isDisabled={isDisabled}
+            label={label}
+            onChange={(next) => {
+              state?.setValue(next);
+            }}
+          />
         )}
         <Input
           value={multiple || state === null || state.isFocused || state.isOpen ? undefined : (item?.textValue ?? "")}
@@ -429,6 +460,108 @@ function Field({
       </Button>
     </Group>
   );
+}
+
+// The chips of the picks of several, the items of React Aria's GridList,
+// which lays them out as a grid, so that the arrow keys move between them
+// along each line of chips and from line to line.
+// Each chip shows the text of its pick, as missing where `marking` and the
+// items lack it, and a button that removes it, after a grip where the chips
+// drag, which React Aria's GridList needs so that a keyboard user drags a
+// chip.
+// A chip carries its key under a type of core's own rather than as text, so
+// that a chip dropped on a text field, such as the select's own, types
+// nothing into it.
+// React Aria's GridList, unlike its TagGroup, removes no item on a key, so
+// the chips remove the one that has the focus on Delete or Backspace, as a
+// TagGroup does.
+function Chips({
+  keys,
+  known,
+  marking,
+  reorderable,
+  isDisabled,
+  label,
+  onChange,
+}: {
+  readonly keys: readonly Key[];
+  // The text of each pick that the items hold, by its key.
+  readonly known: ReadonlyMap<Key, string>;
+  readonly marking: boolean;
+  readonly reorderable: boolean;
+  readonly isDisabled: boolean;
+  readonly label: string | undefined;
+  readonly onChange: (keys: Key[]) => void;
+}): ReactElement {
+  const { dragAndDropHooks } = useDragAndDrop({
+    isDisabled,
+    getItems: (dragged) => [...dragged].map((key) => ({ [PICK]: String(key) })),
+    onReorder: (event) => {
+      const next = moved(keys, event.keys, event.target);
+      if (!sameKeys(next, keys)) onChange(next);
+    },
+    renderDropIndicator: (target) => <DropIndicator target={target} className={DROP} />,
+  });
+  const remove = (gone: Key): void => {
+    onChange(keys.filter((key) => key !== gone));
+  };
+  return (
+    <div
+      className="bc:flex bc:min-w-0 bc:max-w-full"
+      onKeyDown={(event) => {
+        if (event.key !== "Delete" && event.key !== "Backspace") return;
+        const chip = event.target instanceof HTMLElement && event.target.getAttribute("role") === "row" ? event.target.dataset.key : undefined;
+        const gone = keys.find((key) => String(key) === chip);
+        if (gone === undefined) return;
+        event.preventDefault();
+        remove(gone);
+      }}
+    >
+      <GridList
+        aria-label={label === undefined ? "Picks" : `Picks of ${label}`}
+        layout="grid"
+        dragAndDropHooks={reorderable ? dragAndDropHooks : undefined}
+        className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1"
+      >
+        {keys.map((key) => {
+          const text = known.get(key) ?? String(key);
+          const gone = marking && !known.has(key);
+          return (
+            <GridListItem key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
+              {reorderable ? (
+                <Button slot="drag" className={GRIP}>
+                  <Grip />
+                </Button>
+              ) : null}
+              <span className="bc:truncate">{gone ? missing(text) : text}</span>
+              <Button
+                aria-label={`Remove ${text}`}
+                className={CHIP_REMOVE}
+                onPress={() => {
+                  remove(key);
+                }}
+              >
+                <Cross />
+              </Button>
+            </GridListItem>
+          );
+        })}
+      </GridList>
+    </div>
+  );
+}
+
+// The type under which a chip carries the key of its pick as it drags.
+const PICK = "application/x-blockr-pick";
+
+// The keys, with those dragged moved before or after the key of the target,
+// where the target is not one of them.
+function moved(keys: readonly Key[], dragged: ReadonlySet<Key>, target: { readonly key: Key; readonly dropPosition: string }): Key[] {
+  const rest = keys.filter((key) => !dragged.has(key));
+  const at = rest.indexOf(target.key);
+  if (at < 0) return [...keys];
+  const place = target.dropPosition === "after" ? at + 1 : at;
+  return [...rest.slice(0, place), ...keys.filter((key) => dragged.has(key)), ...rest.slice(place)];
 }
 
 // A row of the list: the item, after a tick where the select picks several,
@@ -530,6 +663,20 @@ function Cross(): ReactElement {
   );
 }
 
+// The design system's grip of a chip that drags: six small dots.
+function Grip(): ReactElement {
+  return (
+    <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor" aria-hidden="true">
+      <circle cx="2" cy="2" r="1" />
+      <circle cx="6" cy="2" r="1" />
+      <circle cx="2" cy="6" r="1" />
+      <circle cx="6" cy="6" r="1" />
+      <circle cx="2" cy="10" r="1" />
+      <circle cx="6" cy="10" r="1" />
+    </svg>
+  );
+}
+
 // The classes of the field and its parts, of the list and of its parts.
 // The field is a box like core's other inputs, which holds the chips, the text
 // field and the button, and draws the outline of the focus while the focus is
@@ -548,10 +695,19 @@ const OPENER =
 // A chip of a pick that the items lack shows in the colour of danger, as the
 // field then does, through the attributes that mark them, whose classes win
 // over those of their default colours.
+// A chip that drags shows the cursor of a grab, its grip at its start, and
+// fades while it drags.
 const CHIP =
-  "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
+  "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-allows-dragging:cursor-grab bc:data-allows-dragging:pl-0.5 bc:data-dragging:opacity-50 bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 const CHIP_REMOVE =
   "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
+// React Aria lets a pointer press through the grip to the chip, which drags.
+const GRIP =
+  "bc:flex bc:h-4 bc:w-3 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+// The point where a dragged chip would go: a bar in the gap between two
+// chips, which moves no chip, since its margins take back the gap that it
+// adds.
+const DROP = "bc:-mx-[3px] bc:w-0.5 bc:shrink-0 bc:rounded-full bc:data-drop-target:bg-border-accent";
 // The list takes the field's width, and the box of the rows scrolls within
 // the height that React Aria leaves the list in the window, its border
 // included.
