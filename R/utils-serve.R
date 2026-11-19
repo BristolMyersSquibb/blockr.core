@@ -101,6 +101,12 @@
 #' So the replies to `hello` name the same ones wherever the app runs,
 #' including in another R process, as when a script hands the app to
 #' `callr::r_bg()`, or shinytest2 runs it.
+#' The app stops where one of its components reads a board option that no
+#' available package lists, and the error names the component and the board
+#' option.
+#' Those components are the UI module of each block class in the app's block
+#' registry, the class's requests and the output families that make its
+#' outputs, and each plugin that the app runs.
 #'
 #' @section End-to-end tests:
 #' In Shiny's test mode, as the package shinytest2 starts an app, the app gives
@@ -365,6 +371,8 @@ check_outside_classes <- function(classes) {
 # So do the board options, the modules and the output families that the
 # available packages list, which R reads here, so that the replies name the
 # same ones in whatever process runs the app.
+# A component of the app that reads a board option that no available package
+# lists stops the app here (see `check_component_options()`).
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -395,6 +403,8 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
   offered <- offered_modules()
   families <- app_families()
 
+  check_component_options(registry, plugins, options, families)
+
   modules <- page_modules(board, registry, plugins, options, families)
   dark_mode <- board_dark_mode(board)
 
@@ -423,6 +433,97 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
         session
       )
     }
+  )
+}
+
+# Stops the app where one of its components reads a board option that no
+# available package lists, since the client then draws or runs nothing that
+# requires it.
+# The error names each such component, with each board option that it reads
+# and that no available package lists.
+# The board options that the available packages list are `options`, by ID.
+# The components come from the app's block registry, `registry`, its plugins,
+# `plugins`, and the output families that the available packages list,
+# `families` (see `component_options()`).
+check_component_options <- function(registry, plugins, options, families) {
+
+  read <- component_options(registry, plugins, families)
+
+  faults <- unlst(
+    Map(
+      function(ids, what) {
+        unknown <- setdiff(ids, names(options))
+        if (length(unknown)) {
+          glue_plur(
+            "{what} reads {qty(unknown)}the board option{?s} {unknown}, ",
+            "which no available package lists."
+          )
+        }
+      },
+      read,
+      names(read)
+    )
+  )
+
+  if (length(faults)) {
+    faults <- paste(faults, collapse = " ")
+    blockr_abort("{faults}", class = "board_options_unknown")
+  }
+
+  invisible()
+}
+
+# The IDs of the board options that each component of the app reads, by the
+# component, as an error names it.
+# The components are the UI module of each block class of the app's block
+# registry, `registry`, each request of such a class, each output family that
+# such a class reaches and the plugin of each class that the app runs,
+# `plugins`, as `app_plugins()` gives them.
+# An open family reaches the families that the available packages list,
+# `families`, as it does for the entry of its block class (see
+# `family_option_ids()`).
+component_options <- function(registry, plugins, families) {
+
+  entries <- registry_entries(registry)
+
+  classes <- Map(
+    function(x, id) {
+      reqs <- x[["requests"]]
+      c(
+        set_names(
+          list(option_ctor_ids(x[["block_class"]][["options"]])),
+          paste("The UI module of block class", id)
+        ),
+        set_names(
+          lapply(unname(reqs), function(req) unname(req[["options"]])),
+          sprintf("The request %s of block class %s", names(reqs), id)
+        )
+      )
+    },
+    entries,
+    names(entries)
+  )
+
+  reached <- unlst(
+    lapply(
+      unname(entries),
+      function(x) reached_families(x[["block_class"]][["output"]], families)
+    ),
+    use_names = TRUE
+  )
+
+  reached <- reached[!duplicated(names(reached))]
+
+  c(
+    unlst(unname(classes), use_names = TRUE),
+    set_names(
+      lapply(unname(reached), function(x) option_ctor_ids(attr(x, "options"))),
+      sprintf("Output family %s", names(reached))
+    ),
+    set_names(
+      lst_xtr(unname(plugins), "options"),
+      sprintf("The plugin of class %s", names(plugins))
+    )
   )
 }
 
