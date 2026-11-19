@@ -12,11 +12,12 @@
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "../types/board.ts";
 import type { Raised } from "../types/core-api.ts";
-import type { BlockContext, BlockHost, HostRequestOpts, State } from "../types/hosts.ts";
+import type { BlockHost, HostRequestOpts, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import { asError, isObject, jsonEqual, own, packageFromId, without } from "../util/index.ts";
 import { announcer, lineHolder, raisedHolder, stubBlockContext } from "./util.ts";
+import type { StubContext } from "./util.ts";
 
 // A block class's fixture file: the states that a block of the class may
 // hold, each as the block holds it, and what the class's requests answered in
@@ -41,8 +42,9 @@ export interface StubBlockHostOptions<S extends State = State> {
   // The block's id and its class, "block" and "stub" unless given.
   readonly block?: BlockId;
   readonly class?: RegistryId;
-  // What the context holds, a ready block with no linked inputs unless given.
-  readonly context?: Partial<BlockContext>;
+  // What the context holds, a ready block with no linked inputs and no board
+  // options unless given.
+  readonly context?: StubContext;
   // What evaluate() resolves with, the status that the context holds unless
   // given.
   readonly evaluate?: (params: Record<string, Json>) => BlockStatus | Promise<BlockStatus>;
@@ -73,7 +75,7 @@ export interface StubBlockHost<S extends State = State> extends BlockHost<S> {
   setState(state: S): void;
   // Changes what the context holds, as a new status or a new revision of an
   // input does, and announces it.
-  setContext(context: Partial<BlockContext>): void;
+  setContext(context: StubContext): void;
 }
 
 export function stubBlockHost<S extends State = State>(
@@ -81,7 +83,10 @@ export function stubBlockHost<S extends State = State>(
   options: StubBlockHostOptions<S> = {},
 ): StubBlockHost<S> {
   let state = (options.state ?? fixture.states[0] ?? {}) as S;
-  let context = stubBlockContext(options.context);
+  // What the test gave of the context, the values of the board options among
+  // it.
+  let contextGiven: StubContext = options.context ?? {};
+  let context = stubBlockContext(contextGiven);
   const submitted: S[] = [];
   const requested: { name: string; args: Readonly<Record<string, Json>>; file?: File }[] = [];
   const evaluated: Record<string, Json>[] = [];
@@ -137,12 +142,12 @@ export function stubBlockHost<S extends State = State>(
             jsonEqual(Object.hasOwn(given, arg) ? given[arg] : own(state, arg), value),
           ) &&
           (call.file === undefined ? opts.file === undefined : opts.file !== undefined && sameFile(call.file, opts.file)) &&
-          Object.entries(call.options).every(([id, value]) => jsonEqual(own(context.options, id), value)),
+          Object.entries(call.options).every(([id, value]) => jsonEqual(own(contextGiven.options ?? {}, id), value)),
       );
       if (found === undefined) {
         return Promise.reject(
           new Error(
-            `The fixture records no answer of the request "${name}" with the args ${JSON.stringify(given)}, on the state ${JSON.stringify(state)} and the board options ${JSON.stringify(context.options)}.`,
+            `The fixture records no answer of the request "${name}" with the args ${JSON.stringify(given)}, on the state ${JSON.stringify(state)} and the board options ${JSON.stringify(contextGiven.options ?? {})}.`,
           ),
         );
       }
@@ -166,7 +171,8 @@ export function stubBlockHost<S extends State = State>(
       on.announce("state");
     },
     setContext(changes) {
-      context = stubBlockContext({ ...context, ...changes });
+      contextGiven = { ...contextGiven, ...changes };
+      context = stubBlockContext(contextGiven);
       on.announce("context");
     },
   };

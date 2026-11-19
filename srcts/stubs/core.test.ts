@@ -281,7 +281,6 @@ describe("the CoreApi for tests", () => {
       modules: {
         [TABLE]: table.exports,
         "blockr.core-basic_frontend_plugin": classModule({
-          options: ["show_conditions", "dark_mode"],
           frontend: {
             render({ el: at, core: given }: { el: HTMLElement; core: CoreApi }) {
               at.textContent = given.store.board().name;

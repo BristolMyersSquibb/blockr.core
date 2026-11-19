@@ -14,8 +14,13 @@
 #' R names it in the entry of each block class that names the family, in the
 #' block registry, so that the client loads it before it asks for a block's
 #' first output, and in each output that it sends.
-#' A renderer names only the board options that it reads itself, since the
-#' family names those that it reads.
+#' A renderer names no board options of its own.
+#' It reads those that its family names for its outputs (see
+#' [new_output_family()]), through its host, as `host.option("n_rows")`,
+#' which throws for any other ID, naming the block class, the renderer and the
+#' ID.
+#' So the board options of a family's outputs are the same, whichever renderer
+#' a deployment draws them with.
 #' It draws its family's outputs by their output class, whatever data model a
 #' method of the family made them from, so a new renderer needs no change to
 #' any of the family's methods.

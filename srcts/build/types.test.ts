@@ -208,10 +208,10 @@ type HeadState = { n: number; direction: "head" | "tail" };
 export const api = 1;
 
 const head: BlockModule<HeadState> = {
-  options: ["n_rows"],
   render({ el, host, signal }) {
     const draw = (): void => {
       el.textContent = String(host.state().n);
+      el.dataset.rows = JSON.stringify(host.context().option("n_rows"));
     };
     draw();
     signal.addEventListener("abort", () => {
@@ -344,7 +344,9 @@ import type { BlockFixture, StubBlockHost } from "@blockr/core/stubs";
 import * as head from "./head-block.ts";
 
 declare const fixture: BlockFixture;
-const host: StubBlockHost<{ n: number; direction: "head" | "tail" }> = stubBlockHost(fixture);
+const host: StubBlockHost<{ n: number; direction: "head" | "tail" }> = stubBlockHost(fixture, {
+  context: { options: { n_rows: 10 } },
+});
 const mounted = await mount(head, host);
 await host.submit({ n: 2 });
 mounted.unmount();
