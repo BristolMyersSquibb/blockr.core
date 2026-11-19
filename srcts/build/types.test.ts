@@ -433,14 +433,24 @@ export const api = 1;
 export default outputRenderer<TextOutput>(({ output }) => <pre>{output.text}</pre>);
 `,
   "src/head-block.tsx": `import type { BlockHost } from "@blockr/core";
-import { NumberField, reactModule, useValue } from "@blockr/core/react";
+import { Checkbox, NumberField, reactModule, Stack, useValue } from "@blockr/core/react";
 import type { ModuleProps } from "@blockr/core/react";
 import type { ReactElement } from "react";
 
 type HeadState = { n: number; direction: "head" | "tail" };
 
 function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
-  return <NumberField bound={useValue(host, "n")} label="Rows" minValue={1} step={1} />;
+  const tail = useValue(
+    host,
+    (state) => state.direction === "tail",
+    (value) => ({ direction: value === true ? "tail" : "head" }),
+  );
+  return (
+    <Stack>
+      <NumberField bound={useValue(host, "n")} label="Rows" minValue={1} step={1} />
+      <Checkbox bound={tail} label="From the end" />
+    </Stack>
+  );
 }
 
 export const api = 1;
@@ -478,9 +488,23 @@ const head: BlockModule<HeadState> = {
     input.addEventListener("input", () => {
       n.type(Number(input.value));
     });
-    el.replaceChildren(input);
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    const tail = bind(
+      host,
+      (state) => state.direction === "tail",
+      (value) => ({ direction: value === true ? "tail" : "head" }),
+      (value) => {
+        box.checked = value === true;
+      },
+    );
+    box.addEventListener("change", () => {
+      void tail.commit(box.checked);
+    });
+    el.replaceChildren(input, box);
     return () => {
       n.release();
+      tail.release();
     };
   },
 };

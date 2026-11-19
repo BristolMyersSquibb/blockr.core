@@ -252,6 +252,10 @@
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
+  Given two functions in place of a state arg's name, `useValue()` and `bind()` bind the value that the first reads from the block's state, such as the join that two state args make, or one condition of a list.
+  As the binding submits, after the pause for typing too, the second builds the change of the state from the value and from the state as the host holds it then.
+  So an input sets several state args in one submit, or edits part of a state arg and keeps an edit made in the meantime, such as a condition that the assistant added.
+  Such an input says below itself why the host refused a submit, and submits nothing that the state holds already (#772).
   Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a board object through `CoreApi`, as core's own frontend and cards do.
   The hook `useNotified()` takes the board object as `{ block: id }` or `{ plugin: id }`, or null for every notification (#673, #710).
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.

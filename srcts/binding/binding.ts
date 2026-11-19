@@ -1,7 +1,9 @@
-// The binding of a control to one value,
-// a state arg of a block or the value of a board option,
-// by its key, where the board holds it:
-// a state arg's name, or the board option's id.
+// The binding of a control to one value that the host holds:
+// a state arg of a block, by its name,
+// the value of a board option, by the board option's id,
+// or a value that a function reads from a block's state,
+// for a control that sets several state args or edits part of one,
+// such as the join that two state args make, or one condition of a list.
 // It needs neither the DOM nor React,
 // so that any widget meets the contract of a block's UI once it is bound
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract),
@@ -18,9 +20,12 @@
 //   it submits once the user pauses, presses Enter or leaves the control,
 //   so that a burst of typing is one edit and one undo step,
 //   and typing still pending as the binding ends it submits then.
-// - A binding reads the value from the host when it submits,
-//   so that a control that changes part of it, such as one column of a list,
-//   keeps an edit made in the meantime, such as a column the assistant added.
+// - A binding builds each change that it submits from the state as the host
+//   holds it then, after the pause for typing too,
+//   so that a control that edits part of a state arg, such as one condition
+//   of a list, keeps an edit made in the meantime, such as a condition that
+//   the assistant added.
+//   It submits nothing that the host holds already.
 // - Where the host refuses a submit, core tells the user why through a
 //   notification about the block or the board option, unless the binding
 //   passes the host a notifier, as one does for a control that shows why
@@ -54,6 +59,8 @@ export interface Binding {
   // Unsets the state arg, as the user clears an arg without a default, at
   // once, unless the host holds no value under it already, and resolves with
   // whether the host took it, as commit() does.
+  // A binding made with two functions submits the change that the second
+  // builds from undefined.
   // A board option always holds a value, so that of a board option refuses.
   unset(): Promise<boolean>;
   // Takes what the user typed, which it submits once the user pauses,
@@ -112,6 +119,20 @@ export function bind<S extends State>(
   show: (value: Json | undefined) => void,
   options?: BindOptions,
 ): Binding;
+// Binds a control to the value that `read` reads from the block's state,
+// such as the join that two state args make, or one condition of a list.
+// The binding calls `change` only as it submits a value,
+// with the state as the host holds it then,
+// for the change of the state that it submits,
+// such as both state args of the join, or the list with that condition
+// replaced.
+export function bind<S extends State>(
+  host: BlockHost<S>,
+  read: (state: S) => Json | undefined,
+  change: (value: Json | undefined, state: S) => Partial<S>,
+  show: (value: Json | undefined) => void,
+  options?: BindOptions,
+): Binding;
 // A board option's host holds one value, under the board option's id.
 export function bind<V extends Json>(
   host: OptionHost<V>,
@@ -121,12 +142,19 @@ export function bind<V extends Json>(
 ): Binding;
 export function bind(
   host: BlockHost | OptionHost,
-  key: string,
-  show: (value: Json | undefined) => void,
-  options: BindOptions = {},
+  key: string | Read,
+  next: Change | Show,
+  last?: Show | BindOptions,
+  given?: BindOptions,
 ): Binding {
+  // A binding made with two functions takes `show` and the options after
+  // them.
+  const [change, show, options] =
+    typeof key === "function"
+      ? [next as Change, last as Show, given ?? {}]
+      : [undefined, next as Show, (last as BindOptions | undefined) ?? {}];
   const source = createSource(host);
-  source.check(key);
+  const held = source.value(key, change);
   const submitting = options.notifier === undefined ? {} : { notifier: options.notifier };
 
   // The value the control last showed, what the user typed while the
@@ -138,18 +166,21 @@ export function bind(
 
   const display = (again = false): void => {
     if (released || timer !== undefined) return;
-    const value = source.get(key);
+    const value = held.get();
     if (!again && shown !== undefined && jsonEqual(shown.value, value)) return;
     shown = { value };
     show(value);
   };
 
-  // Submits the value, unless the host holds it already, or unsets the state
-  // arg given undefined, and resolves with whether the host took it.
+  // Submits the value, or unsets the state arg given undefined, unless the
+  // host holds it already, and resolves with whether the host took it.
+  // Where `change` throws, the submit fails as one that the host refused
+  // does.
   const submit = async (value: Json | undefined): Promise<boolean> => {
-    if (jsonEqual(source.get(key), value)) return true;
     try {
-      await (value === undefined ? source.unset(key, submitting) : source.submit(key, value, submitting));
+      const submitted = held.submit(value, submitting);
+      if (submitted === null) return true;
+      await submitted;
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -177,7 +208,7 @@ export function bind(
   display(true);
 
   return {
-    get: () => source.get(key),
+    get: () => held.get(),
     async commit(value) {
       const took = await submit(value);
       if (!took) display(true);
@@ -263,14 +294,29 @@ export function follow(host: BlockHost | OptionHost, name: string, options: Foll
 // The options that a binding passes to its host's submit().
 type SubmitOpts = Parameters<OptionHost["submit"]>[1];
 
+// The functions of a binding made with two, and what shows its value.
+type Read = (state: State) => Json | undefined;
+type Change = (value: Json | undefined, state: State) => Partial<State>;
+type Show = (value: Json | undefined) => void;
+
+// What a binding shows and submits.
+interface Value {
+  // The value as the host holds it now.
+  get(): Json | undefined;
+  // Submits the value, or unsets it given undefined, or returns null where
+  // the host holds it already.
+  submit(value: Json | undefined, opts: SubmitOpts): Promise<void> | null;
+}
+
 // What a binding and a followed request read, follow and submit,
 // from either host.
 interface Source {
+  // The value under the key: a state arg's name, or the board option's id.
+  // A state arg's name reads the arg, and sets it alone.
+  // Given a function in place of the key, the value is what that function
+  // reads from a block's state, and `change` builds the change that sets it.
   // Throws where the host holds no value under the key.
-  check(key: string): void;
-  get(key: string): Json | undefined;
-  submit(key: string, value: Json, opts: SubmitOpts): Promise<void>;
-  unset(key: string, opts: SubmitOpts): Promise<void>;
+  value(key: string | Read, change: Change | undefined): Value;
   // Follows the values, and what a request reads besides them.
   onValues(fn: () => void): () => void;
   onContext(fn: () => void): () => void;
@@ -281,24 +327,21 @@ interface Source {
 
 function createSource(host: BlockHost | OptionHost): Source {
   if ("option" in host) {
-    const check = (key: string): void => {
-      if (key !== host.option) {
-        throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
-      }
-    };
     return {
-      check,
-      get(key) {
-        check(key);
-        return host.value();
-      },
-      submit(key, value, opts) {
-        check(key);
-        return host.submit(value, opts);
-      },
-      unset(key) {
-        check(key);
-        return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+      value(key) {
+        if (key !== host.option) {
+          throw new Error(`The host of the board option "${host.option}" holds no value "${String(key)}".`);
+        }
+        return {
+          get: () => host.value(),
+          submit(value, opts) {
+            if (jsonEqual(host.value(), value)) return null;
+            if (value === undefined) {
+              return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+            }
+            return host.submit(value, opts);
+          },
+        };
       },
       onValues: (fn) => host.on("value", fn),
       onContext: () => () => undefined,
@@ -307,15 +350,34 @@ function createSource(host: BlockHost | OptionHost): Source {
     };
   }
   return {
-    check: () => undefined,
-    get: (key) => own(host.state(), key),
-    submit: (key, value, opts) => host.submit({ [key]: value }, opts),
-    unset: (key, opts) => host.submit({ [key]: undefined }, opts),
+    value(key, change) {
+      const read: Read = typeof key === "function" ? key : (state) => own(state, key);
+      const build: Change | undefined = typeof key === "function" ? change : (value) => ({ [key]: value });
+      if (build === undefined) {
+        throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
+      }
+      return {
+        get: () => read(host.state()),
+        submit(value, opts) {
+          const state = host.state();
+          const next = build(value, state);
+          return holds(state, next) ? null : host.submit(next, opts);
+        },
+      };
+    },
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input) => ({ input: input.input, revision: input.revision })),
     request: (name, args, opts) => host.request(name, args, opts),
   };
+}
+
+// Whether the state holds each state arg of the change as the change gives
+// it, so that a submit of the change would change nothing.
+// The state holds an arg that the change gives as undefined where it holds
+// no value under it.
+function holds(state: State, change: Partial<State>): boolean {
+  return Object.entries(change).every(([arg, value]) => jsonEqual(own(state, arg), value));
 }
 
 // The strings in an array, such as the answer of a request that R writes from
