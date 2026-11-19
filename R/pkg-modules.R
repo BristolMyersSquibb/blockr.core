@@ -2,7 +2,8 @@
 #'
 #' A package lists what it offers core in one object that it exports,
 #' `._BLOCKR_MODULES_`: its block classes, its plugin classes, its board
-#' options and the modules that it offers other packages' UIs.
+#' options, the modules that it offers other packages' UIs and its output
+#' families.
 #' R finds the packages that export it, the available packages, without
 #' loading any: the installed packages whose `Meta/nsInfo.rds` lists the object
 #' among their exports, and the loaded packages that export it, among them
@@ -14,7 +15,8 @@
 #' [available_plugins()] do as an app starts.
 #'
 #' The object is a list, or an environment that the package's `.onLoad()`
-#' fills, of up to four parts, each a list:
+#' fills, of up to five parts, each a list or, for the output families, a
+#' character vector:
 #'
 #' * Its block classes, in `blocks`: each block constructor by name, with the
 #'   registry metadata of the class that it makes, as the block registration
@@ -29,6 +31,11 @@
 #' * The modules that it offers other packages' UIs, in `modules`: each by a
 #'   name that gives it the ID `{pkg}-{name}`, as a registry id is, by which
 #'   `host.module()` and `CoreApi.module()` reach it in the client.
+#' * Its output families, in `families`: the name of each output family that
+#'   it offers, which is the family's class, and under which its namespace
+#'   binds the family (see [new_output_family()]).
+#'   An open family hands its results to every family that the available
+#'   packages list there.
 #'
 #' A module is given by its path in the package's `inst/`, as [js_module()]
 #' takes it, so that `"js/dag.js"` is the file that the package installs as
@@ -89,6 +96,15 @@
 #' `vendor-<hash>.js`.
 #' It serves nothing else of the package.
 #'
+#' R reads the output families that the available packages list as [serve()]
+#' builds the app, as it reads their board options.
+#' It gets each family from the namespace of the package that lists it, by
+#' the name that the package lists.
+#' It names their board options and renderers in the entry of each block class
+#' whose family is open, in the block registry (see [new_output_family()]).
+#' Two packages that list a family of one class stop the app, naming both,
+#' since R tells families apart by their class.
+#'
 #' @param pkg The name of the package
 #'
 #' @examples
@@ -133,7 +149,7 @@ read_blocks_yml <- function(pkg) {
 
 listing_name <- "._BLOCKR_MODULES_"
 
-listing_parts <- c("blocks", "plugins", "options", "modules")
+listing_parts <- c("blocks", "plugins", "options", "modules", "families")
 
 # The available packages, by name, in order: the installed packages whose
 # `Meta/nsInfo.rds` lists `._BLOCKR_MODULES_` among their exports, which R
@@ -169,9 +185,8 @@ exports_listing <- function(pkg) {
 
 # What package `pkg` lists in its `._BLOCKR_MODULES_`, which R gets from the
 # package's namespace by the package's name, and so loads the package: the
-# object's four parts by name, each a list, which is empty where the object
-# leaves it out. R ignores any other part, which a later version of core may
-# read.
+# object's five parts by name, each an empty list where the object leaves it
+# out. R ignores any other part, which a later version of core may read.
 # A package that exports no such object lists nothing, as one that registers
 # its block classes in the block registry of the process as it loads.
 package_listing <- function(pkg) {
@@ -277,24 +292,17 @@ listed_options <- function(pkg, listing = package_listing(pkg)) {
 # option for each ID.
 packages_options <- function(pkgs) {
 
-  listed <- lapply(set_names(nm = pkgs), listed_options)
-
-  ids <- unlst(lapply(listed, names))
-  twice <- unique(ids[duplicated(ids)])
-
-  if (length(twice)) {
-
-    owners <- pkgs[lgl_ply(listed, function(x) twice[1L] %in% names(x))]
-
-    blockr_abort(
-      "{qty(twice)}The board option{?s} {twice} {?is/are} listed by more than ",
-      "one package, {twice[1L]} by ", paste_enum(owners, quotes = ""),
-      ", where the client defines one board option for each ID.",
-      class = "package_options_conflict"
-    )
-  }
-
-  joined_by_id(listed)
+  joined_by_id(
+    lapply(set_names(nm = pkgs), listed_options),
+    function(twice, owners) {
+      blockr_abort(
+        "{qty(twice)}The board option{?s} {twice} {?is/are} listed by more ",
+        "than one package, {twice[1L]} by ", paste_enum(owners, quotes = ""),
+        ", where the client defines one board option for each ID.",
+        class = "package_options_conflict"
+      )
+    }
+  )
 }
 
 # The board options of an app: those that the available packages list, by ID,
@@ -328,8 +336,93 @@ available_options <- function() {
   packages_options(available_packages())
 }
 
+# The output families that package `pkg` lists in the `families` of its
+# `._BLOCKR_MODULES_`, by class, each as the package's namespace binds it
+# under the name that the package lists, which has to be the family's class.
+listed_families <- function(pkg, listing = package_listing(pkg)) {
+
+  entries <- listing[["families"]]
+
+  shaped <- is.character(entries) ||
+    (is.list(entries) && !is.object(entries))
+
+  if (!shaped || !all(lgl_ply(entries, is_nonempty_string))) {
+    check_listing_part(
+      "They are no names of output families, each a non-empty string.",
+      pkg,
+      "output families",
+      "families"
+    )
+  }
+
+  classes <- unique(as.character(unlst(entries)))
+
+  if (!length(classes)) {
+    return(list())
+  }
+
+  found <- lapply(
+    set_names(nm = classes),
+    get0,
+    envir = asNamespace(pkg),
+    inherits = FALSE
+  )
+
+  bound <- lgl_ply(
+    classes,
+    function(x) {
+      is_output_family(found[[x]]) && identical(class(found[[x]])[1L], x)
+    }
+  )
+
+  faults <- if (!all(bound)) {
+    paste0(
+      "It binds no output family of class ", classes[!bound],
+      " under that name."
+    )
+  }
+
+  check_listing_part(faults, pkg, "output families", "families")
+
+  found
+}
+
+# The output families that the available packages list, by class, which an app
+# holds as `serve()` reads them, and to which an open family hands its results.
+# Two packages that list a family of one class stop the app, naming both,
+# since R tells families apart by their class.
+app_families <- function(pkgs = available_packages()) {
+
+  joined_by_id(
+    lapply(set_names(nm = pkgs), listed_families),
+    function(twice, owners) {
+      blockr_abort(
+        "{qty(twice)}The output famil{?y/ies} {twice} {?is/are} listed by ",
+        "more than one package, {twice[1L]} by ",
+        paste_enum(owners, quotes = ""),
+        ", where R tells families apart by their class.",
+        class = "package_families_conflict"
+      )
+    }
+  )
+}
+
 # The lists by ID that `x` holds, joined into one list by ID.
-joined_by_id <- function(x) {
+# Where `conflict` is given, two lists that hold one ID stop the join: R calls
+# `conflict()` with the IDs that more than one list holds and the names, in
+# `x`, of the lists that hold the first of them, such as their packages.
+joined_by_id <- function(x, conflict = NULL) {
+
+  if (not_null(conflict)) {
+
+    ids <- unlst(lapply(x, names))
+    twice <- unique(ids[duplicated(ids)])
+
+    if (length(twice)) {
+      conflict(twice, names(x)[lgl_ply(x, function(y) twice[1L] %in% names(y))])
+    }
+  }
+
   coal(unlst(unname(x), use_names = TRUE), list(), fail_all = FALSE)
 }
 

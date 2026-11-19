@@ -292,6 +292,8 @@ A block class's entry in the block registry names, in `output_options`, the boar
 They are the board options that the families read and those that the renderers of their outputs read, since no renderer names any of its own, and the renderer of an output reads their values through its host.
 The client puts them on the board before it asks for a block's first output, and every output request carries their values, so that the family gets the board options it reads, such as the `n_rows` by which a table output pages, on a fresh board too.
 The entry names, in `renderers`, the renderer of each of those families that makes outputs of its own class: the one that the deployment names for the family in the blockr option `renderers`, or else the family's own.
+A block class whose results can be anything, as a code block's can, names an open family.
+An open family hands its results to every family that the available packages list, so the entry of such a class names the board options and the renderers of all of them.
 The client loads them all before it asks for a block's first output, and the page loads those of the opening board's blocks as it starts.
 Each output names the one that draws it, and where it names another, as an older R may, the client loads that one too.
 

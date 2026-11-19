@@ -12,7 +12,15 @@ import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var SEVERITIES = ["error", "warning", "message"];
 function useFooter(status, notifications, severities = SEVERITIES) {
   const shown = useShown(status);
-  const [open, setOpen] = useState(OPEN_AT_START);
+  const opened = useOpened(OPEN_AT_START);
+  return { status, shown, settled: isSettled(status, shown), notifications, severities, ...opened };
+}
+function usePills(notifications, severities = SEVERITIES) {
+  const opened = useOpened(NONE_OPEN);
+  return { status: void 0, shown: void 0, settled: true, notifications, severities, ...opened };
+}
+function useOpened(atStart) {
+  const [open, setOpen] = useState(atStart);
   const panel = useId();
   const toggle = useCallback((severity) => {
     setOpen((was) => {
@@ -21,20 +29,30 @@ function useFooter(status, notifications, severities = SEVERITIES) {
       return next;
     });
   }, []);
-  return { status, shown, notifications, severities, open, toggle, panel };
+  return { open, toggle, panel };
 }
-function Footer({ status, shown }) {
+function Footer({ status, shown, settled }) {
   return /* @__PURE__ */ jsx(
     "footer",
     {
       "aria-busy": status?.running === true,
       "data-status": shown?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled(status, shown) ? "" : "bc:opacity-50"}`,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled ? "" : "bc:opacity-50"}`,
       children: shown?.status === "ready" ? shown.summary : null
     }
   );
 }
-function Pills({ status, shown, notifications, severities, open, toggle, panel }) {
+function Pills({
+  status,
+  shown,
+  settled,
+  notifications,
+  severities,
+  open,
+  toggle,
+  panel,
+  className = "bc:justify-center bc:px-5"
+}) {
   const pills = SEVERITIES.flatMap((severity) => {
     const n = counted(shown, notifications, severities, severity);
     return n === 0 ? [] : [{ severity, n }];
@@ -46,7 +64,7 @@ function Pills({ status, shown, notifications, severities, open, toggle, panel }
       role: "group",
       "aria-label": "Status",
       "aria-busy": status?.running === true,
-      className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled(status, shown) ? "" : "bc:opacity-50"}`,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled ? "" : "bc:opacity-50"}`,
       children: pills.map(({ severity, n }) => {
         const mark = MARKS[severity];
         return /* @__PURE__ */ jsxs(
@@ -79,7 +97,7 @@ function Banners({ shown, notifications, severities, open, panel }) {
   if (listed.length === 0) return null;
   return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx(Banner, { severity, message }, i)) });
 }
-function settled(status, shown) {
+function isSettled(status, shown) {
   return status !== void 0 && status === shown && !status.running;
 }
 function counted(status, notifications, severities, severity) {
@@ -155,6 +173,7 @@ function useShown(status) {
   return now ?? kept;
 }
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+var NONE_OPEN = /* @__PURE__ */ new Set();
 
 // srcts/card/mounted.tsx
 import { useLayoutEffect, useRef } from "react";
@@ -779,7 +798,7 @@ var BlockCard = memo(function BlockCard2({
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
-  const notified = useNotified(core, id2);
+  const notified = useNotified(core, { block: id2 });
   const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState8(false);
@@ -981,12 +1000,38 @@ function OptionUi({ id: id2 }) {
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback5, useLayoutEffect as useLayoutEffect4, useRef as useRef5 } from "react";
+import { useCallback as useCallback5, useId as useId2, useLayoutEffect as useLayoutEffect4, useRef as useRef5, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useNotified as useNotified2 } from "@blockr/core/react";
 import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
-function placed(core) {
-  return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
+function createSections() {
+  const collapsed = /* @__PURE__ */ new Set();
+  const listeners = /* @__PURE__ */ new Set();
+  return {
+    collapsed: (plugin) => collapsed.has(plugin),
+    collapse(plugin, collapse) {
+      if (collapsed.has(plugin) === collapse) return;
+      if (collapse) collapsed.add(plugin);
+      else collapsed.delete(plugin);
+      for (const fn of [...listeners]) fn();
+    },
+    subscribe(fn) {
+      const wrapped = () => {
+        fn();
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
 }
-function Plugins() {
+function hasSection(core, plugin) {
+  return Object.hasOwn(core.plugins.appPlugins(), plugin) && core.plugins.pluginClass(plugin).ui !== void 0;
+}
+function placed(core) {
+  return Object.entries(core.plugins.appPlugins()).filter(([id2]) => hasSection(core, id2));
+}
+function Plugins({ severities }) {
   const { core } = useFrontEnd();
   const shown = placed(core);
   if (shown.length === 0) return null;
@@ -995,29 +1040,75 @@ function Plugins() {
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown.map(([id2, plugin]) => /* @__PURE__ */ jsx9(PluginSection, { id: id2, plugin }, id2))
+      children: shown.map(([id2, plugin]) => /* @__PURE__ */ jsx9(PluginSection, { id: id2, plugin, severities }, id2))
     }
   );
 }
-function PluginSection({ id: id2, plugin }) {
-  const { core, inView: inView2 } = useFrontEnd();
+function PluginSection({
+  id: id2,
+  plugin,
+  severities
+}) {
+  const { core, inView: inView2, sections } = useFrontEnd();
+  const notified = useNotified2(core, { plugin: id2 });
+  const pills = usePills(notified, severities);
+  const collapsed = useSyncExternalStore2(sections.subscribe, () => sections.collapsed(id2));
+  const body = useId2();
   const ref = useRef5(null);
   useLayoutEffect4(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
   }, [inView2, id2]);
   const mount = useCallback5((el) => core.mountPlugin(el, id2), [core, id2]);
-  return /* @__PURE__ */ jsxs7("details", { open: true, className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`, children: [
-    /* @__PURE__ */ jsx9("summary", { className: `${classes.heading} bc:cursor-pointer`, children: plugin.name }),
-    /* @__PURE__ */ jsx9("div", { ref, className: "bc:mt-3 bc:min-w-0", children: /* @__PURE__ */ jsx9(Mounted, { mount, className: "bc:min-w-0" }) })
-  ] });
+  return /* @__PURE__ */ jsxs7(
+    "section",
+    {
+      "aria-label": plugin.name,
+      className: `${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:p-3`,
+      children: [
+        /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
+          /* @__PURE__ */ jsx9("h3", { className: classes.heading, children: /* @__PURE__ */ jsxs7(
+            "button",
+            {
+              type: "button",
+              "aria-expanded": !collapsed,
+              "aria-controls": body,
+              onClick: () => {
+                sections.collapse(id2, !collapsed);
+              },
+              className: "bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1.5 bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:[font:inherit]",
+              children: [
+                /* @__PURE__ */ jsx9(Marker, { collapsed }),
+                plugin.name
+              ]
+            }
+          ) }),
+          /* @__PURE__ */ jsx9(Pills, { ...pills, className: "" })
+        ] }),
+        /* @__PURE__ */ jsx9(Banners, { ...pills }),
+        /* @__PURE__ */ jsx9("div", { id: body, ref, hidden: collapsed, className: "bc:min-w-0", children: /* @__PURE__ */ jsx9(Mounted, { mount, className: "bc:min-w-0" }) })
+      ]
+    }
+  );
+}
+function Marker({ collapsed }) {
+  return /* @__PURE__ */ jsx9(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      fill: "currentColor",
+      className: `bc:size-3 bc:shrink-0 bc:transition-transform bc:motion-reduce:transition-none ${collapsed ? "" : "bc:rotate-90"}`,
+      children: /* @__PURE__ */ jsx9("path", { d: "M5.5 3.5 11 8l-5.5 4.5Z" })
+    }
+  );
 }
 
 // srcts/modules/basic/toasts.ts
-import { useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useSyncExternalStore as useSyncExternalStore3 } from "react";
 var SHOWN_FOR = 5e3;
 var FADES_FOR = 300;
-function createToasts(notifications) {
+function createToasts(notifications, sectioned) {
   const shown = /* @__PURE__ */ new Map();
   const gone = /* @__PURE__ */ new Set();
   const inside = [];
@@ -1063,7 +1154,7 @@ function createToasts(notifications) {
       if (!holding.has(id2)) gone.delete(id2);
     }
     for (const notification of heard) {
-      if (aboutBlock(notification) || gone.has(notification.id)) continue;
+      if (shownElsewhere(notification, sectioned) || gone.has(notification.id)) continue;
       const toast = shown.get(notification.id);
       if (toast === void 0) {
         const added = { toast: { notification, fading: false }, timer: void 0, kept: /* @__PURE__ */ new Set() };
@@ -1127,15 +1218,16 @@ function createToasts(notifications) {
     }
   };
 }
-function aboutBlock(notification) {
+function shownElsewhere(notification, sectioned) {
   const { about } = notification;
-  return about !== void 0 && "block" in about;
+  if (about === void 0) return false;
+  return "block" in about || "plugin" in about && sectioned(about.plugin);
 }
 function useToasts(toasts) {
-  return useSyncExternalStore2(toasts.subscribe, toasts.list);
+  return useSyncExternalStore3(toasts.subscribe, toasts.list);
 }
 function useShownIn(toasts) {
-  return useSyncExternalStore2(toasts.subscribe, toasts.shownIn);
+  return useSyncExternalStore3(toasts.subscribe, toasts.shownIn);
 }
 function concerned(about, core, board) {
   if (about === void 0) return "Board";
@@ -1518,7 +1610,7 @@ function Page() {
       }
     ),
     /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
-      /* @__PURE__ */ jsx11(Plugins, {}),
+      /* @__PURE__ */ jsx11(Plugins, { severities }),
       /* @__PURE__ */ jsxs9("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
         items.length === 0 ? /* @__PURE__ */ jsx11("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item) => {
@@ -1715,17 +1807,17 @@ var drawn = /* @__PURE__ */ new WeakMap();
 function render({ el, core }) {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
-  const toasts = createToasts(core.notifications);
-  const front = { core, toasts, inView: shown };
+  const toasts = createToasts(core.notifications, (plugin) => hasSection(core, plugin));
+  const front = { core, toasts, inView: shown, sections: createSections() };
   const root = createRoot(el);
   flushSync2(() => {
     root.render(/* @__PURE__ */ jsx12(BasicBoard, { front }));
   });
   shown.measure();
   const unbind = bindShortcuts(doc, core);
-  drawn.set(el, shown);
+  drawn.set(el, front);
   return () => {
-    if (drawn.get(el) === shown) drawn.delete(el);
+    if (drawn.get(el) === front) drawn.delete(el);
     unbind();
     toasts.stop();
     shown.release();
@@ -1733,12 +1825,18 @@ function render({ el, core }) {
   };
 }
 function show({ object, el }) {
-  const target2 = drawn.get(el)?.element(object);
-  if (target2 === void 0) return;
+  const front = drawn.get(el);
+  const target2 = front?.inView.element(object);
+  if (front === void 0 || target2 === void 0) return;
+  if ("plugin" in object) {
+    flushSync2(() => {
+      front.sections.collapse(object.plugin, false);
+    });
+  }
   for (let node = target2.parentElement; node !== null && node !== el; node = node.parentElement) {
     if (node.localName === "details" && !node.hasAttribute("open")) node.setAttribute("open", "");
   }
-  const into = "plugin" in object ? target2.closest("details") ?? target2 : target2;
+  const into = "plugin" in object ? target2.closest("section") ?? target2 : target2;
   into.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 export {

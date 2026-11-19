@@ -1363,7 +1363,7 @@ function createOneTime(blocks, params, priority, statuses, inputs) {
   return { priority, params, parts };
 }
 function settle(oneTimes, statuses) {
-  const settled3 = [];
+  const settled2 = [];
   for (const [id2, oneTime] of oneTimes) {
     if ("params" in oneTime) continue;
     const blocks = [...oneTime.blocks];
@@ -1373,18 +1373,18 @@ function settle(oneTimes, statuses) {
       const status = statuses.get(block);
       if (status !== void 0) result[block] = status;
     }
-    settled3.push([id2, { statuses: result }]);
+    settled2.push([id2, { statuses: result }]);
   }
-  return { oneTimes: without2(oneTimes, settled3.map(([id2]) => id2)), settled: settled3 };
+  return { oneTimes: without2(oneTimes, settled2.map(([id2]) => id2)), settled: settled2 };
 }
 function left(oneTimes, gone) {
   const kept = /* @__PURE__ */ new Map();
-  const settled3 = [];
+  const settled2 = [];
   for (const [id2, oneTime] of oneTimes) {
     if (!("params" in oneTime)) {
       const blocks = new Set([...oneTime.blocks].filter((block) => !gone.has(block)));
       if (blocks.size === 0) {
-        settled3.push([id2, { error: new Error("Every block of the one-time evaluation left the board.") }]);
+        settled2.push([id2, { error: new Error("Every block of the one-time evaluation left the board.") }]);
       } else {
         kept.set(id2, blocks.size === oneTime.blocks.size ? oneTime : { ...oneTime, blocks });
       }
@@ -1399,10 +1399,10 @@ function left(oneTimes, gone) {
       const error = new Error(
         `Block "${early[0]}" left the board before its evaluation with parameters was sent.`
       );
-      settled3.push([id2, { error }]);
+      settled2.push([id2, { error }]);
     }
   }
-  return { oneTimes: kept, settled: settled3 };
+  return { oneTimes: kept, settled: settled2 };
 }
 function sent(oneTimes, id2, block, evaluation) {
   return withPart(oneTimes, id2, block, { recipe: evaluation.recipe, sent: evaluation.id });
@@ -2049,10 +2049,10 @@ function createScheduler(options) {
   let heard = /* @__PURE__ */ new Map();
   const dispose = effect(() => {
     const now = statuses.value;
-    const settled3 = settle(oneTimes.value, now);
-    if (settled3.settled.length > 0) {
+    const settled2 = settle(oneTimes.value, now);
+    if (settled2.settled.length > 0) {
       untracked(() => {
-        update(settled3);
+        update(settled2);
       });
     }
     const changed = changedSince(heard, now);
@@ -3529,10 +3529,10 @@ function createMounts(options) {
     const given = def.default;
     const started = typeof given === "function" ? Promise.resolve().then(() => given(options.core())) : Promise.resolve(given);
     resolving.set(id2, started);
-    const settled3 = () => {
+    const settled2 = () => {
       if (resolving.get(id2) === started) resolving.delete(id2);
     };
-    started.then(settled3, settled3);
+    started.then(settled2, settled2);
     return started;
   }
   async function addOptions(ids3, by) {
@@ -9267,7 +9267,15 @@ import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
 function useFooter(status, notifications, severities = SEVERITIES2) {
   const shown2 = useShown(status);
-  const [open, setOpen] = useState(OPEN_AT_START);
+  const opened = useOpened(OPEN_AT_START);
+  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, severities, ...opened };
+}
+function usePills(notifications, severities = SEVERITIES2) {
+  const opened = useOpened(NONE_OPEN);
+  return { status: void 0, shown: void 0, settled: true, notifications, severities, ...opened };
+}
+function useOpened(atStart) {
+  const [open, setOpen] = useState(atStart);
   const panel = useId();
   const toggle = useCallback((severity) => {
     setOpen((was) => {
@@ -9276,20 +9284,30 @@ function useFooter(status, notifications, severities = SEVERITIES2) {
       return next;
     });
   }, []);
-  return { status, shown: shown2, notifications, severities, open, toggle, panel };
+  return { open, toggle, panel };
 }
-function Footer({ status, shown: shown2 }) {
+function Footer({ status, shown: shown2, settled: settled2 }) {
   return /* @__PURE__ */ jsx(
     "footer",
     {
       "aria-busy": status?.running === true,
       "data-status": shown2?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
       children: shown2?.status === "ready" ? shown2.summary : null
     }
   );
 }
-function Pills({ status, shown: shown2, notifications, severities, open, toggle, panel }) {
+function Pills({
+  status,
+  shown: shown2,
+  settled: settled2,
+  notifications,
+  severities,
+  open,
+  toggle,
+  panel,
+  className = "bc:justify-center bc:px-5"
+}) {
   const pills = SEVERITIES2.flatMap((severity) => {
     const n = counted(shown2, notifications, severities, severity);
     return n === 0 ? [] : [{ severity, n }];
@@ -9301,7 +9319,7 @@ function Pills({ status, shown: shown2, notifications, severities, open, toggle,
       role: "group",
       "aria-label": "Status",
       "aria-busy": status?.running === true,
-      className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
       children: pills.map(({ severity, n }) => {
         const mark = MARKS[severity];
         return /* @__PURE__ */ jsxs(
@@ -9334,7 +9352,7 @@ function Banners({ shown: shown2, notifications, severities, open, panel }) {
   if (listed.length === 0) return null;
   return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx(Banner, { severity, message }, i)) });
 }
-function settled2(status, shown2) {
+function isSettled(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
 function counted(status, notifications, severities, severity) {
@@ -9410,6 +9428,7 @@ function useShown(status) {
   return now ?? kept;
 }
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+var NONE_OPEN = /* @__PURE__ */ new Set();
 
 // srcts/card/mounted.tsx
 import { useLayoutEffect, useRef } from "react";
@@ -9620,7 +9639,7 @@ function useStatus(core, block) {
   );
   return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
 }
-function useNotified(core, block) {
+function useNotified(core, about) {
   const subscribe = useCallback2(
     (notify) => core.notifications.subscribe(() => {
       notify();
@@ -9628,9 +9647,10 @@ function useNotified(core, block) {
     [core]
   );
   const all = useSyncExternalStore(subscribe, () => core.notifications.get());
+  const [kind, id2] = about === null ? [] : Object.entries(about)[0] ?? [];
   return useMemo(
-    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
-    [all, block]
+    () => kind === void 0 ? all : all.filter((notification) => notification.about !== void 0 && own(notification.about, kind) === id2),
+    [all, kind, id2]
   );
 }
 
@@ -10817,7 +10837,7 @@ var BlockCard = memo(function BlockCard2({
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
-  const notified = useNotified(core, id2);
+  const notified = useNotified(core, { block: id2 });
   const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState12(false);
@@ -11018,12 +11038,37 @@ function OptionUi({ id: id2 }) {
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback6, useLayoutEffect as useLayoutEffect5, useRef as useRef8 } from "react";
+import { useCallback as useCallback6, useId as useId2, useLayoutEffect as useLayoutEffect5, useRef as useRef8, useSyncExternalStore as useSyncExternalStore3 } from "react";
 import { jsx as jsx18, jsxs as jsxs12 } from "react/jsx-runtime";
-function placed(core) {
-  return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
+function createSections() {
+  const collapsed = /* @__PURE__ */ new Set();
+  const listeners = /* @__PURE__ */ new Set();
+  return {
+    collapsed: (plugin) => collapsed.has(plugin),
+    collapse(plugin, collapse) {
+      if (collapsed.has(plugin) === collapse) return;
+      if (collapse) collapsed.add(plugin);
+      else collapsed.delete(plugin);
+      for (const fn of [...listeners]) fn();
+    },
+    subscribe(fn) {
+      const wrapped = () => {
+        fn();
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
 }
-function Plugins() {
+function hasSection(core, plugin) {
+  return Object.hasOwn(core.plugins.appPlugins(), plugin) && core.plugins.pluginClass(plugin).ui !== void 0;
+}
+function placed(core) {
+  return Object.entries(core.plugins.appPlugins()).filter(([id2]) => hasSection(core, id2));
+}
+function Plugins({ severities }) {
   const { core } = useFrontEnd();
   const shown2 = placed(core);
   if (shown2.length === 0) return null;
@@ -11032,29 +11077,75 @@ function Plugins() {
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx18(PluginSection, { id: id2, plugin }, id2))
+      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx18(PluginSection, { id: id2, plugin, severities }, id2))
     }
   );
 }
-function PluginSection({ id: id2, plugin }) {
-  const { core, inView: inView2 } = useFrontEnd();
+function PluginSection({
+  id: id2,
+  plugin,
+  severities
+}) {
+  const { core, inView: inView2, sections } = useFrontEnd();
+  const notified = useNotified(core, { plugin: id2 });
+  const pills = usePills(notified, severities);
+  const collapsed = useSyncExternalStore3(sections.subscribe, () => sections.collapsed(id2));
+  const body = useId2();
   const ref = useRef8(null);
   useLayoutEffect5(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
   }, [inView2, id2]);
   const mount2 = useCallback6((el) => core.mountPlugin(el, id2), [core, id2]);
-  return /* @__PURE__ */ jsxs12("details", { open: true, className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`, children: [
-    /* @__PURE__ */ jsx18("summary", { className: `${classes.heading} bc:cursor-pointer`, children: plugin.name }),
-    /* @__PURE__ */ jsx18("div", { ref, className: "bc:mt-3 bc:min-w-0", children: /* @__PURE__ */ jsx18(Mounted, { mount: mount2, className: "bc:min-w-0" }) })
-  ] });
+  return /* @__PURE__ */ jsxs12(
+    "section",
+    {
+      "aria-label": plugin.name,
+      className: `${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:p-3`,
+      children: [
+        /* @__PURE__ */ jsxs12("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
+          /* @__PURE__ */ jsx18("h3", { className: classes.heading, children: /* @__PURE__ */ jsxs12(
+            "button",
+            {
+              type: "button",
+              "aria-expanded": !collapsed,
+              "aria-controls": body,
+              onClick: () => {
+                sections.collapse(id2, !collapsed);
+              },
+              className: "bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1.5 bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:[font:inherit]",
+              children: [
+                /* @__PURE__ */ jsx18(Marker, { collapsed }),
+                plugin.name
+              ]
+            }
+          ) }),
+          /* @__PURE__ */ jsx18(Pills, { ...pills, className: "" })
+        ] }),
+        /* @__PURE__ */ jsx18(Banners, { ...pills }),
+        /* @__PURE__ */ jsx18("div", { id: body, ref, hidden: collapsed, className: "bc:min-w-0", children: /* @__PURE__ */ jsx18(Mounted, { mount: mount2, className: "bc:min-w-0" }) })
+      ]
+    }
+  );
+}
+function Marker({ collapsed }) {
+  return /* @__PURE__ */ jsx18(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      fill: "currentColor",
+      className: `bc:size-3 bc:shrink-0 bc:transition-transform bc:motion-reduce:transition-none ${collapsed ? "" : "bc:rotate-90"}`,
+      children: /* @__PURE__ */ jsx18("path", { d: "M5.5 3.5 11 8l-5.5 4.5Z" })
+    }
+  );
 }
 
 // srcts/modules/basic/toasts.ts
-import { useSyncExternalStore as useSyncExternalStore3 } from "react";
+import { useSyncExternalStore as useSyncExternalStore4 } from "react";
 var SHOWN_FOR = 5e3;
 var FADES_FOR = 300;
-function createToasts(notifications) {
+function createToasts(notifications, sectioned) {
   const shown2 = /* @__PURE__ */ new Map();
   const gone = /* @__PURE__ */ new Set();
   const inside = [];
@@ -11100,7 +11191,7 @@ function createToasts(notifications) {
       if (!holding.has(id2)) gone.delete(id2);
     }
     for (const notification of heard) {
-      if (aboutBlock(notification) || gone.has(notification.id)) continue;
+      if (shownElsewhere(notification, sectioned) || gone.has(notification.id)) continue;
       const toast = shown2.get(notification.id);
       if (toast === void 0) {
         const added = { toast: { notification, fading: false }, timer: void 0, kept: /* @__PURE__ */ new Set() };
@@ -11164,15 +11255,16 @@ function createToasts(notifications) {
     }
   };
 }
-function aboutBlock(notification) {
+function shownElsewhere(notification, sectioned) {
   const { about } = notification;
-  return about !== void 0 && "block" in about;
+  if (about === void 0) return false;
+  return "block" in about || "plugin" in about && sectioned(about.plugin);
 }
 function useToasts(toasts) {
-  return useSyncExternalStore3(toasts.subscribe, toasts.list);
+  return useSyncExternalStore4(toasts.subscribe, toasts.list);
 }
 function useShownIn(toasts) {
-  return useSyncExternalStore3(toasts.subscribe, toasts.shownIn);
+  return useSyncExternalStore4(toasts.subscribe, toasts.shownIn);
 }
 function concerned(about, core, board) {
   if (about === void 0) return "Board";
@@ -11554,7 +11646,7 @@ function Page() {
       }
     ),
     /* @__PURE__ */ jsxs14("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
-      /* @__PURE__ */ jsx20(Plugins, {}),
+      /* @__PURE__ */ jsx20(Plugins, { severities }),
       /* @__PURE__ */ jsxs14("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
         items.length === 0 ? /* @__PURE__ */ jsx20("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item) => {
@@ -11750,17 +11842,17 @@ var drawn2 = /* @__PURE__ */ new WeakMap();
 function render({ el, core }) {
   const doc = el.ownerDocument;
   const shown2 = demandShown(core, doc.defaultView ?? window);
-  const toasts = createToasts(core.notifications);
-  const front = { core, toasts, inView: shown2 };
+  const toasts = createToasts(core.notifications, (plugin) => hasSection(core, plugin));
+  const front = { core, toasts, inView: shown2, sections: createSections() };
   const root = createRoot2(el);
   flushSync3(() => {
     root.render(/* @__PURE__ */ jsx21(BasicBoard, { front }));
   });
   shown2.measure();
   const unbind = bindShortcuts(doc, core);
-  drawn2.set(el, shown2);
+  drawn2.set(el, front);
   return () => {
-    if (drawn2.get(el) === shown2) drawn2.delete(el);
+    if (drawn2.get(el) === front) drawn2.delete(el);
     unbind();
     toasts.stop();
     shown2.release();
@@ -11768,12 +11860,18 @@ function render({ el, core }) {
   };
 }
 function show({ object: object2, el }) {
-  const target2 = drawn2.get(el)?.element(object2);
-  if (target2 === void 0) return;
+  const front = drawn2.get(el);
+  const target2 = front?.inView.element(object2);
+  if (front === void 0 || target2 === void 0) return;
+  if ("plugin" in object2) {
+    flushSync3(() => {
+      front.sections.collapse(object2.plugin, false);
+    });
+  }
   for (let node = target2.parentElement; node !== null && node !== el; node = node.parentElement) {
     if (node.localName === "details" && !node.hasAttribute("open")) node.setAttribute("open", "");
   }
-  const into = "plugin" in object2 ? target2.closest("details") ?? target2 : target2;
+  const into = "plugin" in object2 ? target2.closest("section") ?? target2 : target2;
   into.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
@@ -12224,7 +12322,7 @@ function blockName(board, block) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { useId as useId2, useState as useState17 } from "react";
+import { useId as useId3, useState as useState17 } from "react";
 import { Fragment as Fragment10, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
@@ -12469,7 +12567,7 @@ function StackForm({
   );
 }
 function ColorField({ color: color2, onChange }) {
-  const id2 = useId2();
+  const id2 = useId3();
   const [last, setLast] = useState17(color2 ?? PALETTE[0]);
   return /* @__PURE__ */ jsxs17("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx24("legend", { className: styles.legend, children: "Colour" }),

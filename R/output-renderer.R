@@ -199,11 +199,13 @@ chosen_renderers <- function() {
 # whose outputs each draws: for each family that `x` reaches and that gives a
 # renderer, the one that the deployment names for its class in the blockr
 # option `renderers`, or else its own.
-family_renderers <- function(x) {
+# An open family reaches the families that the available packages list,
+# `families`.
+family_renderers <- function(x, families = app_families()) {
 
   chosen <- chosen_renderers()
   drawing <- Filter(function(f) not_null(attr(f, "renderer")),
-                    reached_families(x))
+                    reached_families(x, families))
 
   Map(
     function(family, class) {
@@ -219,17 +221,24 @@ family_renderers <- function(x) {
 
 # The renderer that draws `out`, an output that family `x` made: that of the
 # family whose class comes first in the output's class vector, among the
-# families that `x` reaches.
-drawing_renderer <- function(x, out) {
+# families that `x` reaches, where an open family reaches the families that
+# the available packages list, `families`.
+drawing_renderer <- function(x, out, families = app_families()) {
 
-  renderers <- family_renderers(x)
+  renderers <- family_renderers(x, families)
   drawn <- intersect(class(out), names(renderers))
 
   if (!length(drawn)) {
+
+    others <- if (is_open_family(x)) {
+      "a family that the available packages list"
+    } else {
+      "a family that it names in `families`"
+    }
+
     blockr_abort(
       "Output family {class(x)[1L]} made an output of class ",
-      "{class(out)[1L]}, which neither it nor a family that it names in ",
-      "`families` draws.",
+      "{class(out)[1L]}, which neither it nor ", others, " draws.",
       class = "output_renderer_missing"
     )
   }

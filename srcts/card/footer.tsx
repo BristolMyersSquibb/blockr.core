@@ -28,10 +28,18 @@
 // they show of its status: its notifications of R's conditions hold until R
 // replies, as its status keeps the conditions of the reply before.
 //
+// Core's basic frontend draws the same pills and banners for the
+// notifications about a plugin, in the plugin's section
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#cores-basic-frontend).
+// A section's pills sit beside the plugin's name. They count no reason and
+// never dim, since a plugin has no status. Each of them starts closed, since
+// the plugin shows the notifications in its UI.
+//
 // A card draws the footer with Footer, as the last line of its output's box,
 // the pills with Pills below the box, and the banners with Banners below the
 // pills.
-// The three components draw from what useFooter() returns.
+// The three components draw from what useFooter() returns, and a section's
+// pills and banners from what usePills() returns.
 
 import { useCallback, useId, useState } from "react";
 import type { ReactElement } from "react";
@@ -43,14 +51,18 @@ const SEVERITIES: readonly Severity[] = ["error", "warning", "message"];
 
 // What Footer, Pills and Banners draw from.
 export interface FooterProps {
-  // The block's status.
+  // The block's status, or none for a plugin's section.
   readonly status: BlockStatus | undefined;
   // The status that the footer shows: the block's, where it has a line of its
   // own, and otherwise the last that had one.
   readonly shown: BlockStatus | undefined;
-  // The notifications about the block, in the order they came.
+  // Whether the footer and the pills show the block's status as it is: R
+  // evaluates nothing of it, and it has a line of its own. They dim
+  // otherwise. The pills of a plugin's section never dim.
+  readonly settled: boolean;
+  // The notifications about the block or the plugin, in the order they came.
   readonly notifications: readonly Notification[];
-  // The severities whose pills and banners the card shows.
+  // The severities whose pills and banners the card or the section shows.
   readonly severities: readonly Severity[];
   // The severities whose banners are open.
   readonly open: ReadonlySet<Severity>;
@@ -69,7 +81,23 @@ export function useFooter(
   severities: readonly Severity[] = SEVERITIES,
 ): FooterProps {
   const shown = useShown(status);
-  const [open, setOpen] = useState<ReadonlySet<Severity>>(OPEN_AT_START);
+  const opened = useOpened(OPEN_AT_START);
+  return { status, shown, settled: isSettled(status, shown), notifications, severities, ...opened };
+}
+
+// What the pills and the banners of a plugin's section draw from, for the
+// notifications about the plugin and the severities given, or every severity
+// where none are given.
+export function usePills(notifications: readonly Notification[], severities: readonly Severity[] = SEVERITIES): FooterProps {
+  const opened = useOpened(NONE_OPEN);
+  return { status: undefined, shown: undefined, settled: true, notifications, severities, ...opened };
+}
+
+// The severities whose banners are open, starting with those given, what
+// opens or closes the banners of a severity, and the id of the list of
+// banners.
+function useOpened(atStart: ReadonlySet<Severity>): Pick<FooterProps, "open" | "toggle" | "panel"> {
+  const [open, setOpen] = useState<ReadonlySet<Severity>>(atStart);
   const panel = useId();
   const toggle = useCallback((severity: Severity) => {
     setOpen((was) => {
@@ -78,17 +106,17 @@ export function useFooter(
       return next;
     });
   }, []);
-  return { status, shown, notifications, severities, open, toggle, panel };
+  return { open, toggle, panel };
 }
 
 // The footer, which dims while R evaluates the block.
-export function Footer({ status, shown }: FooterProps): ReactElement {
+export function Footer({ status, shown, settled }: FooterProps): ReactElement {
   return (
     <footer
       aria-busy={status?.running === true}
       data-status={shown?.status}
       className={`bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${
-        settled(status, shown) ? "" : "bc:opacity-50"
+        settled ? "" : "bc:opacity-50"
       }`}
     >
       {shown?.status === "ready" ? shown.summary : null}
@@ -98,7 +126,19 @@ export function Footer({ status, shown }: FooterProps): ReactElement {
 
 // The pills, which dim while R evaluates the block: one for each severity
 // that has something to count. A block with none has no line of pills.
-export function Pills({ status, shown, notifications, severities, open, toggle, panel }: FooterProps): ReactElement | null {
+// By default they sit on a centred line of their own, as a card's do, and
+// `className` places them otherwise, as a section's beside its name.
+export function Pills({
+  status,
+  shown,
+  settled,
+  notifications,
+  severities,
+  open,
+  toggle,
+  panel,
+  className = "bc:justify-center bc:px-5",
+}: FooterProps & { readonly className?: string }): ReactElement | null {
   const pills = SEVERITIES.flatMap((severity) => {
     const n = counted(shown, notifications, severities, severity);
     return n === 0 ? [] : [{ severity, n }];
@@ -109,8 +149,8 @@ export function Pills({ status, shown, notifications, severities, open, toggle, 
       role="group"
       aria-label="Status"
       aria-busy={status?.running === true}
-      className={`bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${
-        settled(status, shown) ? "" : "bc:opacity-50"
+      className={`bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${
+        settled ? "" : "bc:opacity-50"
       }`}
     >
       {pills.map(({ severity, n }) => {
@@ -155,7 +195,7 @@ export function Banners({ shown, notifications, severities, open, panel }: Foote
 
 // Whether the footer and the pills show the block's status as it is: R
 // evaluates nothing of it, and it has a line of its own.
-function settled(status: BlockStatus | undefined, shown: BlockStatus | undefined): boolean {
+function isSettled(status: BlockStatus | undefined, shown: BlockStatus | undefined): boolean {
   return status !== undefined && status === shown && !status.running;
 }
 
@@ -269,3 +309,6 @@ function useShown(status: BlockStatus | undefined): BlockStatus | undefined {
 // The severities whose banners are open as the card starts: the errors, since
 // their pill names no more of them than their severity.
 const OPEN_AT_START: ReadonlySet<Severity> = new Set<Severity>(["error"]);
+
+// The severities whose banners are open as a plugin's section starts: none.
+const NONE_OPEN: ReadonlySet<Severity> = new Set<Severity>();
