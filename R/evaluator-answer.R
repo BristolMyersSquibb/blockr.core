@@ -148,6 +148,8 @@ answer_evaluate <- function(ev, job) {
 # The output carries the renderer that draws it, that of the family whose
 # class the output has, with where R serves the renderer's module, and R keeps
 # that renderer with the result, for the renderer's own requests.
+# An open family hands its results to the families that the available
+# packages list, which the evaluator holds as the app read them.
 # R also gets the requests that the output's classes give for it, and keeps
 # them with the result, for the requests of its output class.
 # So an output fails where its classes give no named list of functions.
@@ -176,7 +178,7 @@ answer_output <- function(ev, job) {
         info = req[["info"]],
         params = req[["params"]]
       )
-      drawn <- drawing_renderer(family, res)
+      drawn <- drawing_renderer(family, res, ev$families)
       list(
         class = class(res),
         parts = shape_output(res),

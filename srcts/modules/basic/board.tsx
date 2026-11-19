@@ -47,8 +47,8 @@ function Page(): ReactElement {
   const { core } = useFrontEnd();
   const board = useBoard(core);
   const items = useMemo(() => layoutItems(board), [board]);
-  // The same array until show_conditions changes, so that a card draws again
-  // only as its own block changes.
+  // The same array until show_conditions changes, so that a card or a
+  // plugin's section draws again only as what it shows changes.
   const shown = board.options.show_conditions;
   const severities = useMemo(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState<Shown | null>(null);
@@ -86,7 +86,7 @@ function Page(): ReactElement {
           above the board and the keyboard reaches them first. A wide page
           shows them beside the board. */}
       <div className="bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start">
-        <Plugins />
+        <Plugins severities={severities} />
         <div className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-4">
           {items.length === 0 ? <p className={styles.hint}>The board holds no blocks yet.</p> : null}
           {items.map((item) => {

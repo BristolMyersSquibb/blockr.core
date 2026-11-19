@@ -386,6 +386,13 @@ coef_output <- new_output_family(
 )
 ```
 
+A family that takes results of any class, as a code block's family does, is open.
+It gives `families = TRUE`, and hands its results to every family that the available packages list in the `families` of their `._BLOCKR_MODULES_`.
+A package that adds a method to an open family lists the family that the method hands its results to.
+For a method `code_output.sf()` that hands a map to the package's own `map_output`, the package lists `map_output`.
+The entry of a block class whose family is open names the board options and the renderer of every listed family.
+Each output request of such a block then carries the board options of every listed family, and the client loads every listed renderer before the block's first output.
+
 R reads what a family holds from the family as its package defines it now, the one bound under the name of its class, so a block class built against an older version of the family's package draws with the family's current renderer and board options.
 
 ## Evaluation
@@ -591,7 +598,8 @@ The SDK holds these:
 - The button `Button`, and the overlays: `Modal`, `Dialog`, `DialogTrigger` and `Heading`, `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with `Keyboard` for an item's shortcut, and `Popover`, which are React Aria's in core's theme.
   React Aria draws each overlay in a portal at the end of the page's body, and opens a menu or a dialog of a trigger from its `Button`.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
-- For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a block through `CoreApi`.
+- For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a board object through `CoreApi`.
+  A plugin's UI reads those about the plugin itself with `useNotified(core, { plugin })`, given the id of its class.
 
 A `ComboBox` whose items a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
 Once they are known, the select marks a value that they lack, such as a column that the data no longer has.

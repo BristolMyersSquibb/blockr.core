@@ -34,8 +34,13 @@
 # packages offer each other, `modules`, which `offered_modules()` read.
 # R answers a board option's request with the function that `options` holds
 # for it.
-# Outside an app, as in a test, R reads both from the available packages as
-# the evaluator starts.
+# It also carries the output families that those packages list, `families`,
+# which `app_families()` read.
+# R reads them where it reaches an open family, which hands its results to
+# them: in the entries of the block registry that the reply to `hello` sends,
+# and as it picks the renderer of each output.
+# Outside an app, as in a test, R reads all three from the available packages
+# as the evaluator starts.
 #
 # The reply to `hello` carries the locks that the app sets, which R reads as
 # the evaluator starts, and R holds every evaluation to them
@@ -94,6 +99,7 @@ new_evaluator <- function(board, data = list(), lock = NULL,
                           frontend = as_json_object(list()),
                           options = app_options(),
                           modules = offered_modules(),
+                          families = app_families(),
                           session_id = NULL) {
 
   if (missing(board) || is.null(board)) {
@@ -138,6 +144,7 @@ new_evaluator <- function(board, data = list(), lock = NULL,
   ev$frontend <- frontend
   ev$options <- options
   ev$modules <- modules
+  ev$families <- families
   ev$session_id <- session_id
   ev$started <- FALSE
   ev$shared <- character()
@@ -347,7 +354,8 @@ start_session <- function(ev, req, send) {
           capabilities = I(evaluator_capabilities(ev))
         ),
         loaded_reply(
-          ev$registry, ev$plugins, ev$frontend, ev$options, ev$modules
+          ev$registry, ev$plugins, ev$frontend, ev$options, ev$modules,
+          ev$families
         ),
         list(lock = ev$locks),
         ev$opening

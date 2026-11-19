@@ -14,7 +14,7 @@ import type { Binding } from "../binding/index.ts";
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
-import type { CoreApi, CoreFailure, Notification } from "../types/core-api.ts";
+import type { BoardObject, CoreApi, CoreFailure, Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { errorMessage, own } from "../util/index.ts";
@@ -210,13 +210,17 @@ export function useStatus(
   return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
 }
 
-// The notifications about the block, or every notification of the board given
-// null, in the order they came.
+// The notifications about the board object given, or every notification of
+// the board given null, in the order they came: those about a block for its
+// card, or those about a plugin for the plugin's UI and for the section that a
+// frontend draws for it.
 // CoreApi keeps the same array of them until one comes or goes, so the
 // component draws them again only then.
+// The board object goes by its kind and its id, so that a component may give
+// a new object on each render, as `{ plugin: id }`.
 export function useNotified(
   core: { readonly notifications: Pick<CoreApi["notifications"], "get" | "subscribe"> },
-  block: BlockId | null,
+  about: BoardObject | null,
 ): readonly Notification[] {
   const subscribe = useCallback(
     (notify: () => void) =>
@@ -226,11 +230,14 @@ export function useNotified(
     [core],
   );
   const all = useSyncExternalStore(subscribe, () => core.notifications.get());
+  // The kind and the id of the board object, as "plugin" and the id of its
+  // class, or neither given null.
+  const [kind, id] = about === null ? [] : (Object.entries(about)[0] ?? []);
   return useMemo(
     () =>
-      block === null
+      kind === undefined
         ? all
-        : all.filter((notification) => notification.about !== undefined && "block" in notification.about && notification.about.block === block),
-    [all, block],
+        : all.filter((notification) => notification.about !== undefined && own(notification.about, kind) === id),
+    [all, kind, id],
   );
 }

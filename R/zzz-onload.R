@@ -9,10 +9,11 @@
 
 # What core lists in its `._BLOCKR_MODULES_`, which its `.onLoad()` fills: its
 # block classes, as its `inst/registry/blocks.yml` lists them, its plugin
-# classes and its board options, each with its module, and its inputs for
+# classes and its board options, each with its module, its inputs for
 # modules written without React, which it offers other packages' modules as
 # blockr.core-controls, in the file that the page's import map names
-# `@blockr/core/controls`, so that both reach one copy.
+# `@blockr/core/controls`, so that both reach one copy, and its output
+# families, to which an open family hands its results.
 core_listing <- function(pkgname = "blockr.core") {
   list(
     blocks = read_blocks_yml(pkgname),
@@ -38,6 +39,7 @@ core_listing <- function(pkgname = "blockr.core") {
       show_conditions = list(module = "js/show-conditions-option.js"),
       dark_mode = list(module = "js/dark-mode-option.js")
     ),
-    modules = list(controls = "js/blockr-core-controls.js")
+    modules = list(controls = "js/blockr-core-controls.js"),
+    families = c("table_output", "text_output", "plot_output")
   )
 }

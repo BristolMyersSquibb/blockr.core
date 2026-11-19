@@ -10,6 +10,9 @@
 # its module and the version of its shape, as `app_options()` gives them, the
 # renderers that the app names for board options, and the versions of the
 # packages that all of these come from.
+# The entry of a class whose output family is open names the board options
+# and renderers of the families that the available packages list, `families`,
+# as `app_families()` gives them.
 # An app hands it what `serve()` read as it built the app (see `serve_app()`),
 # so that R reads no package's listing for it, in whatever process runs the
 # app.
@@ -20,12 +23,13 @@
 loaded_reply <- function(registry = block_registry, plugins = list(),
                          frontend = as_json_object(list()),
                          options = app_options(),
-                         modules = offered_modules()) {
+                         modules = offered_modules(),
+                         families = app_families()) {
 
   entries <- registry_entries(registry)
   renderers <- option_renderers()
 
-  drawn <- lapply(entries, entry_renderers)
+  drawn <- lapply(entries, entry_renderers, families)
 
   # The packages that the reply's parts come from, whose versions it names
   sources <- c(
@@ -43,7 +47,13 @@ loaded_reply <- function(registry = block_registry, plugins = list(),
 
   list(
     packages = package_versions(sources),
-    block_registry = as_json_object(Map(registry_entry_reply, entries, drawn)),
+    block_registry = as_json_object(
+      Map(
+        function(x, renderers) registry_entry_reply(x, renderers, families),
+        entries,
+        drawn
+      )
+    ),
     modules = as_json_object(lapply(modules, served_module)),
     plugins = as_json_object(lapply(plugins, plugin_entry_reply)),
     frontend = frontend,
@@ -75,8 +85,10 @@ package_versions <- function(packages) {
 # renderers of its outputs, `renderers` from `entry_renderers()`. A class whose
 # module ships no schema has the empty schema, which allows any state, and its
 # state is written bare, so that its module takes a value of length one in
-# either form.
-registry_entry_reply <- function(x, renderers = entry_renderers(x)) {
+# either form. An open family reads the board options of the families that the
+# available packages list, `families`.
+registry_entry_reply <- function(x, renderers = entry_renderers(x, families),
+                                 families = app_families()) {
   c(
     list(
       id = x[["id"]],
@@ -103,7 +115,9 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x)) {
       state = entry_state(x),
       options = I(option_ctor_ids(x[["block_class"]][["options"]])),
       requests = as_json_object(lapply(x[["requests"]], request_entry_reply)),
-      output_options = I(family_option_ids(x[["block_class"]][["output"]])),
+      output_options = I(
+        family_option_ids(x[["block_class"]][["output"]], families)
+      ),
       renderers = I(lapply(unname(renderers), output_renderer_reply))
     )
   )
@@ -113,9 +127,10 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x)) {
 # class's entry of the block registry, so that the client loads them, and adds
 # the board options that they name to the board, before it asks for a block's
 # first output: those of the output family that the class names, and of the
-# families that it hands its results to.
-entry_renderers <- function(x) {
-  unname(family_renderers(x[["block_class"]][["output"]]))
+# families that it hands its results to, which for an open family are those
+# that the available packages list, `families`.
+entry_renderers <- function(x, families = app_families()) {
+  unname(family_renderers(x[["block_class"]][["output"]], families))
 }
 
 # The state a new block of a class starts with, as R writes a block's state, by

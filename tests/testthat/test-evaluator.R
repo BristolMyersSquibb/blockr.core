@@ -628,6 +628,89 @@ test_that("an output that warns replies ok with the warning, which R logs", {
   )
 })
 
+test_that("R draws an open family's outputs by the families the app read", {
+
+  any_output <- new_output_family(
+    function(result, ...) {
+      if (is.data.frame(result)) {
+        return(table_output(result, ...))
+      }
+      text_output(result, ...)
+    },
+    "any_output",
+    families = TRUE
+  )
+
+  for (cls in list(
+    test_block_class(
+      "table_any_block",
+      expr = function() quote(datasets::BOD),
+      ui = js_module("any-block.js", package = NULL),
+      output = any_output
+    ),
+    test_block_class(
+      "text_any_block",
+      expr = function() quote(month.name),
+      ui = js_module("any-block.js", package = NULL),
+      output = any_output
+    )
+  )) {
+    local_block_class(cls)
+  }
+
+  session <- local_evaluator(
+    families = list(table_output = table_output),
+    hello = FALSE
+  )
+
+  # The evaluator reads no listing after it starts, whatever the packages
+  # list by then
+  local_mocked_bindings(app_families = function(...) stop("A listing read"))
+
+  session$receive(hello_message())
+  session$run()
+
+  entry <- last_reply(session)$block_registry[["table_any_block"]]
+
+  expect_identical(chr_xtr(entry$renderers, "id"), "blockr.core-table_output")
+  expect_identical(as.character(entry$output_options), "n_rows")
+
+  hold_result(
+    session, "t", 1L,
+    recipe = list(registry_id = "table_any_block", state = obj(),
+                  inputs = list())
+  )
+
+  session$receive(
+    list(output_request("2", "t", 1L, options = list(n_rows = 2L)))
+  )
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "ok")
+  expect_identical(reply$output$renderer$id, "blockr.core-table_output")
+
+  # A text output, which no family that the app read draws, fails
+  hold_result(
+    session, "x", 1L,
+    recipe = list(registry_id = "text_any_block", state = obj(),
+                  inputs = list())
+  )
+
+  session$receive(list(output_request("3", "x", 1L)))
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "error")
+  expect_match(
+    reply$conditions[[1L]]$message,
+    "neither it nor a family that the available packages list draws",
+    fixed = TRUE
+  )
+})
+
 test_that("R shows a result as text where its class names no output", {
 
   session <- local_evaluator()

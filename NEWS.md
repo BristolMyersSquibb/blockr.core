@@ -68,6 +68,7 @@
   output as JSON, so nothing assumes a table.
   A family holds the constructors of the board options that it reads, as `table_output` holds `new_n_rows_option`, and the renderer that draws its outputs, and R reads both from the family as its package defines it now, so that a block class built against an older version of that package reads the current ones.
   A family that hands its results to other families, as a wrapper does, names them in `families`, reads their board options too, and has each of its outputs drawn by the renderer of the family whose class the output has, and `new_output_family()` refuses a class that another family has.
+  A family that takes results of any class, as a code block's does, is open: it gives `families = TRUE`, and hands its results to every family that the available packages list, with their board options and renderers.
   The class vector of an output
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a
@@ -80,7 +81,7 @@
   R calls `output_requests()` on each output that it makes and keeps the requests with the block's result, so a class may give an output's requests by what the output holds.
   The function
   `run_output_class_request()`
-  runs such a request as R does (#422, #440, #465, #685, #707).
+  runs such a request as R does (#422, #440, #465, #685, #707, #712).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table, with the page it shows and how many rows a page holds, by which a renderer draws its pager. Its
   family `table_output()` pages a data frame by the board option
@@ -91,13 +92,14 @@
   that draws a base plot captures it with `capture_plot()` in its
   `block_eval()` method, so that a change of theme draws the plot again
   without evaluating the block (#422).
-* A package lists what it offers core in one object that it exports, `._BLOCKR_MODULES_`, a list or an environment that its `.onLoad()` fills: its block classes, its plugin classes and its board options, each with its module, and the modules that it offers other packages' UIs, each under the ID `{pkg}-{name}`.
+* A package lists what it offers core in one object that it exports, `._BLOCKR_MODULES_`, a list or an environment that its `.onLoad()` fills: its block classes, its plugin classes and its board options, each with its module, the modules that it offers other packages' UIs, each under the ID `{pkg}-{name}`, and its output families, by the name of each, which is the family's class.
   The new `read_blocks_yml()` reads a package's block classes from its `inst/registry/blocks.yml`, from which core's own `.onLoad()` fills core's object.
   R finds the available packages by that export, from the `Meta/nsInfo.rds` of each installed package, which it reads without loading the package, and among the loaded packages, those that `pkgload::load_all()` loaded included, and loads each as it reads its object.
   A plugin class's module has the class without its id as its default export, as a board option's module has the board option, and the schema of a class's state or of a board option's value sits beside the module.
   A board option's `default` that is a function gets `CoreApi`, as `n_rows` reads its blockr option through it.
-  Core lists its basic frontend, its storage plugin and its Edit board plugin, its board options `n_rows`, `show_conditions` and `dark_mode`, and its inputs for modules written without React, which it offers as `blockr.core-controls`.
-  The startup modules go, with `register_startup_module()`, `register_module()` and the order of packages by their NAMESPACE (#424, #504, #560).
+  Core lists its basic frontend, its storage plugin and its Edit board plugin, its board options `n_rows`, `show_conditions` and `dark_mode`, its inputs for modules written without React, which it offers as `blockr.core-controls`, and its output families `table_output`, `text_output` and `plot_output`.
+  R reads the output families that the available packages list as `serve()` builds the app, and two packages that list a family of one class stop the app.
+  The startup modules go, with `register_startup_module()`, `register_module()` and the order of packages by their NAMESPACE (#424, #504, #560, #712).
 * A renderer, which `new_renderer()` makes, is a module that draws the
   outputs of an output family or the value of a board option, under the ID
   `{pkg}-{name}`. An output family holds the renderer that draws its outputs, as core's
@@ -250,7 +252,8 @@
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
-  Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a block through `CoreApi`, as core's own frontend and cards do (#673).
+  Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a board object through `CoreApi`, as core's own frontend and cards do.
+  The hook `useNotified()` takes the board object as `{ block: id }` or `{ plugin: id }`, or null for every notification (#673, #710).
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
   Beside the preset, the build package exports the plugin `vendorCheck`, which fails a build that puts code from `node_modules` into one of a package's own files, so that the libraries a package bundles go into its vendor file instead.
   The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.
@@ -601,14 +604,16 @@
   A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
   In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
   Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it (#539).
-* Core's basic frontend shows each notification that concerns no block as a toast, whatever its severity and whoever raised it, in place of its list above the board.
+* Core's basic frontend shows each notification that concerns neither a block nor a plugin that it shows in a section as a toast, whatever its severity and whoever raised it, in place of its list above the board.
+  Each plugin's section shows the notifications about the plugin, of the severities that `show_conditions` names, as pills on its title beside the plugin's name, whether the section is open or collapsed, as a card's pills count those about its block.
+  Each pill opens the messages of its notifications below the title, and starts closed, since the plugin shows them in its UI.
   The toasts sit in the window's bottom right corner.
   Each names what it concerns, such as a board option or a plugin, and the package that its source names.
   A message's toast fades after five seconds, but not while the pointer rests on it or the keyboard's focus is in it.
   A warning's or an error's toast stays until the user closes it.
   A toast goes as soon as core withdraws its notification, and one that faded or that the user closed does not come back while its notification holds.
   While a dialog of the frontend is open, the toasts show inside it, so that the user can still close them.
-  The toast of `page_reload_needed` offers to reload the page (#549).
+  The toast of `page_reload_needed` offers to reload the page (#549, #710).
 * A storage plugin tells the user why one of its buttons failed, through a notification of its own, since it alone knows its backend and when the failure is over.
   Its `controls()` gets the id of its class beside `core` for that.
   Core's file storage plugin raises a file that Open cannot read as an error of the code `board_open_failed`.
@@ -685,6 +690,18 @@
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
   The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
   Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708).
+* Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
+  A board action changes the board only through commands, and runs each batch as one undo step of the user.
+  Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
+  It refuses the whole class where one of its board actions has the ID of another, an empty `on`, `run` beside `quick` or `advanced`, or none of the three, and raises `module_failed` about the class.
+  The call `core.boardActions.on(target)` gives the board actions that apply to a target: each whose `on` names the kind of the target, and whose `offers` passes for it or which has none.
+  Core's come first, then each package's, in the order of the app's plugins and as each class lists them.
+  The call `core.boardActions.trigger(id, target, opts)` runs the batch that a board action's `run` returns, with the commands that the caller's `extend` adds at its end, as one step.
+  It resolves once the batch has run, and rejects with the refusal, which goes to the caller's `notifier` where it gives one.
+  It runs nothing where `on()` leaves the board action out for the target.
+  Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
+  Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
+  Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
 * The select of core's React SDK searches where a request answers with only a part of the items, such as with the first 1,000 of a long column's values.
   It calls `onSearch` with what the user typed, once the user pauses for 250 ms, and with `""` as its list closes.
   The module then asks the request again with the text.
