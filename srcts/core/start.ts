@@ -58,7 +58,8 @@
 // 1. The store on the page checks the board as it would open it, once core
 //    has imported the UI modules of the block classes that it migrates. A
 //    board that it refuses leaves the page as it was: core raises a
-//    notification of why, and open() rejects with the reason.
+//    notification of why, or hands it to the notifier that the caller of
+//    open() passes, and open() rejects with the reason.
 // 2. One abort ends everything that core runs for the board on the page: the
 //    frontend and what it mounted, every plugin that runs, the store with its
 //    undo history, the command registry and the plugin classes, the board
@@ -70,6 +71,8 @@
 //    with the board given in place of R's, which no load() replaces. Where that
 //    board fails to open after all, core opens the board before in the new
 //    store, raises a notification of why, and open() rejects with the reason.
+//    It raises that notification whatever notifier the caller passed, since
+//    the opening has ended the code that called open().
 // Only what is fixed for the page outlives an opening: the code and
 // stylesheets that have loaded, the page's element, the transport with its
 // session, the protocol's client, the blockr options that core has read, the
@@ -116,13 +119,13 @@ import type { Scheduler } from "../scheduler/index.ts";
 import { createStore, StoreError } from "../store/index.ts";
 import type { Dropped, Option, PluginClass, Store } from "../store/index.ts";
 import type { PluginClassId } from "../types/board.ts";
-import type { CoreApi, FrontendModule, Notification } from "../types/core-api.ts";
+import type { CoreApi, FrontendModule, Notification, Notifier } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { fallBack, log, logSettings, serviceName, setUpLogging } from "../log/index.ts";
 import type { OtelModule } from "../log/index.ts";
 import { setUpTracing, steps, tracesUrl } from "../trace/index.ts";
 import type { Steps } from "../trace/index.ts";
-import { asError, coreNotification, errorMessage, isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, givenNotifier, isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Concerns, Raise } from "../util/index.ts";
 import { createBlockrOptions } from "./blockr-options.ts";
 import { createCore } from "./core.ts";
@@ -503,7 +506,7 @@ export function start(options: StartOptions): Started {
     const { api: core, plugins } = createCore({
       store: {
         ...store,
-        open: (given) => reopen(given, controller),
+        open: (given, opts) => reopen(given, controller, opts),
       },
       commands,
       scheduler,
@@ -735,16 +738,24 @@ export function start(options: StartOptions): Started {
   let queue: Promise<unknown> = Promise.resolve();
 
   // Opens a board in place of the one that the store of the opening holds,
-  // whose controller is given, by starting core again for it.
-  function reopen(given: string | HelloReply, of: AbortController): Promise<Dropped[]> {
+  // whose controller is given, by starting core again for it. Where the store
+  // on the page refuses the board, the notifier in `opts` takes why, in place
+  // of core raising it.
+  function reopen(given: string | HelloReply, of: AbortController, opts: Parameters<Store["open"]>[1]): Promise<Dropped[]> {
+    let notifier: Notifier | undefined;
+    try {
+      notifier = givenNotifier(opts, "open()");
+    } catch (error) {
+      return Promise.reject(asError(error));
+    }
     // The span of the opening runs from now, under the span active now.
     const opening = steps("open");
-    const run = queue.then(() => reopening(given, of, opening));
+    const run = queue.then(() => reopening(given, of, opening, notifier));
     queue = run.catch(() => undefined);
     return run;
   }
 
-  async function reopening(given: string | HelloReply, of: AbortController, opening: Steps): Promise<Dropped[]> {
+  async function reopening(given: string | HelloReply, of: AbortController, opening: Steps, notifier: Notifier | undefined): Promise<Dropped[]> {
     const refused = "The store refused to open the board";
     const current = running;
     if (current?.controller !== of || of.signal.aborted) {
@@ -767,11 +778,12 @@ export function start(options: StartOptions): Started {
       } catch (error) {
         // The board on the page stays open. Core tells the user why the store
         // refused the board, anew for each refusal, so that no caller of
-        // open() needs to, and logs why at debug alone, as it logs a refused
-        // edit (./core.ts). Then open() rejects with the reason.
+        // open() needs to, or hands that to the caller's notifier, and logs
+        // why at debug alone, as it logs a refused edit (./core.ts). Then
+        // open() rejects with the reason.
         const why = errorMessage(error);
         log.debug(why);
-        current.notifications.raiseAgain(coreNotification("board_open_failed", "error", why));
+        current.notifications.raiseAgain(coreNotification("board_open_failed", "error", why), notifier);
         throw error;
       }
       before = current.store.save();

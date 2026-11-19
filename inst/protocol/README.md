@@ -218,7 +218,7 @@ Each of core's types names the request in `name`, such as `"n_max"`:
 | Type | A request of | How R finds the function | Properties beside `name`, `args` and `body` |
 |---|---|---|---|
 | `block_class` | a block class | among the requests of the class that `registry_id` names, with `block` naming the block that asks | `registry_id`, `block`, `reads` and `options` |
-| `output_class` | an output class | among those that the method of `output_requests()` for the class vector of the latest output that R made from the result that `output` names, as `{ "block": "c", "revision": 7 }`, gives, a subclass's before its class's | `output`, `options` and `params` |
+| `output_class` | an output class | among those that the method of `output_requests()` gave for the latest output that R made from the result that `output` names, as `{ "block": "c", "revision": 7 }`, a subclass's before its class's | `output`, `options` and `params` |
 | `renderer` | a renderer of an output class | among the requests of the renderer that draws that output, which has to be the one that `renderer` names, as `"blockr.ui-table_preview"`, never among those of the output class | `renderer`, `output`, `options` and `params` |
 | `option` | a board option | among the requests of the board option that `option` names, which R got as `serve()` built the app from the method of `board_option_requests()` for its class `{id}_option`, which the package that lists the board option has | `option` |
 | `plugin` | a plugin class | among the requests of the app's plugin whose class's id `plugin` names, as `"blockr.md-md_plugin"`, which R got as `serve()` built the app from the method of `plugin_requests()` for the class, which the package of the class has, called on the plugin that the class's constructor makes | `plugin` and `reads` |
@@ -244,7 +244,8 @@ That argument holds each result by block id, as a list of the block's `result` a
 R calls a renderer's request as it calls an output class's, and the client keeps its answer as it keeps an output class's.
 A renderer brings requests of its own for what its output does not hold, such as the labels of a table's columns ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)).
 R checks the results that a request of any type reads, and replies `missing` where it lacks one, so that a request's function gets only results that R holds.
-R resolves the request of an output class, or of a renderer, against the class vector of the latest output that it made from that result, and replies `error` where it has made none.
+R resolves the request of an output class, or of a renderer, against what it kept of the latest output that it made from that result: the requests that the method of `output_requests()` gave for that output as R made it, or the renderer that drew the output.
+It replies `error` where it has made none.
 R passes the body that a request carries to a block class's request in the argument that its `new_block_request()` names for a file, and to the request of an output class, a renderer, a board option or a plugin in the argument `file`, where its function takes one.
 That argument is a list of the path of the file that R wrote the bytes to, in `datapath`, and the file's `name`, `type` and `size`.
 R replies `error` to a block class's request that carries a body but names no argument for a file, and the client sends no such request.
@@ -284,6 +285,7 @@ An `output` asks for the output that the output family its block's class names i
 | `params` | the output's parameters, which its renderer keeps, such as a table's `{ "page": 2, "sort": { "column": "x" } }`, in the shape that the output class's contract gives |
 
 R replies `ok` with the output in `output`, a description in JSON whose `renderer` is the renderer that draws it, that of the family whose class the output has, among the block class's output family and the families that it hands its results to, with its id and where R serves its module, `{ "id": "blockr.core-table_output", "module": "blockr.core/js/basic-table.js?v=b7e2a915" }`, which the client mounts to draw it ([Renderers](https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers)), and whose other properties its output class's contract gives, with at most one binary body, such as a plot's PNG beside its output. An output family that fails, or that makes an output of a class that none of those families draws, makes R reply `error`, with the phase `output`, which leaves the block's status as it was.
+R replies the same where the method of `output_requests()` for the output returns no named list of functions.
 An `ok` reply carries `conditions` as well: every message and warning that the output family raised, with the phase `output`.
 
 A block class's entry in the block registry names, in `output_options`, the board options that the output family the class names reads, by ID, with those of each family that it hands its results to, as the families hold their constructors.

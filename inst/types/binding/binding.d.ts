@@ -1,4 +1,5 @@
 import type { OptionId } from "../types/board.ts";
+import type { Notifier } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 export declare const PAUSE = 500;
@@ -12,6 +13,7 @@ export interface Binding {
 }
 export interface BindOptions {
     readonly settled?: (error: unknown) => void;
+    readonly notifier?: Notifier;
 }
 export interface FollowOptions {
     readonly args?: () => Readonly<Record<string, Json>>;

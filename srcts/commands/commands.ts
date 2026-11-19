@@ -51,6 +51,7 @@ import type { Lock } from "../protocol/index.ts";
 import { isDeltas, isRandId, mintId, pluginClassFromPath, RAND_IDS, StoreError } from "../store/index.ts";
 import type { BlockMod, Delta, Origin, Patch, RandId, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
+import type { Notification } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 import { failSpan, keepContext, tracer } from "../trace/index.ts";
 import { compile, errorMessage, packageFromId, quoted } from "../util/index.ts";
@@ -129,7 +130,10 @@ export interface Commands {
   // step is an undo step unless the command has `undo: false` or sets only
   // board options. A command that does not prepare is applied before run()
   // returns.
-  run(id: string, args?: Json, origin?: Origin): Promise<void>;
+  // Through `CoreApi`, core tells the user why the command was refused, or
+  // hands that notification to the notifier in `opts`, before run() rejects
+  // (../core/core.ts). The command registry itself ignores the notifier.
+  run(id: string, args?: Json, origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<void>;
   // Runs the commands of the list in order, each planned on the board that the
   // deltas of the commands before it leave, and applies the deltas of every
   // command as one step of the origin, "user" unless given. Where a command
@@ -137,8 +141,13 @@ export interface Commands {
   // command's index. The step is an undo step where a command without
   // `undo: false` changes something besides board options, and its undo
   // takes back only what those commands changed. A list whose commands do
-  // not prepare is applied before run() returns.
-  run(list: readonly { readonly id: string; readonly args?: Json }[], origin?: Origin): Promise<void>;
+  // not prepare is applied before run() returns. Its notifier is as for a
+  // command alone.
+  run(
+    list: readonly { readonly id: string; readonly args?: Json }[],
+    origin?: Origin,
+    opts?: { notifier?(notifications: readonly Notification[]): void },
+  ): Promise<void>;
   // The deltas the command returns on the current board, not applied, with
   // the edit ids of the board they were built on, so that the store refuses
   // them once another edit has come first, and with `undo: false` where the
@@ -498,13 +507,16 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         return false;
       }
     },
-    // A list comes with its origin second, in place of the args.
+    // A list comes with its origin second, in place of the args, and its
+    // options third, in place of the origin. The command registry ignores the
+    // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(
       target: string | readonly { readonly id: string; readonly args?: Json }[],
       given?: Json,
-      origin: Origin = "user",
+      third?: Origin | { notifier?(notifications: readonly Notification[]): void },
     ) {
       if (typeof target !== "string") return runList(target, typeof given === "string" ? given : "user");
+      const origin = typeof third === "string" ? third : "user";
       return traced(`command ${target}`, { "blockr.command.id": target, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
         const { item, args } = lookup(target, given);

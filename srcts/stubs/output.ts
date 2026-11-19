@@ -13,7 +13,7 @@ import type { LogLine } from "../types/log.ts";
 import { asError, jsonEqual } from "../util/index.ts";
 import { answer } from "./option.ts";
 import type { Answered } from "./option.ts";
-import { announcer, lineHolder, notifier } from "./util.ts";
+import { announcer, lineHolder, raisedHolder } from "./util.ts";
 
 export interface StubOutputHostOptions {
   // The output it holds, with its body and the parameters it was asked with,
@@ -72,7 +72,7 @@ export function stubOutputHost(options: StubOutputHostOptions = {}): StubOutputH
   const asked: Json[] = [];
   const requested: { name: string; args: Readonly<Record<string, Json>>; scope: "class" | "renderer" }[] = [];
   const on = announcer(["output"] as const);
-  const { notified, notify } = notifier();
+  const { notified, notify } = raisedHolder();
   const { logged, log } = lineHolder();
 
   return {
