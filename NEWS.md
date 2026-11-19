@@ -68,6 +68,7 @@
   output as JSON, so nothing assumes a table.
   A family holds the constructors of the board options that it reads, as `table_output` holds `new_n_rows_option`, and the renderer that draws its outputs, and R reads both from the family as its package defines it now, so that a block class built against an older version of that package reads the current ones.
   A family that hands its results to other families, as a wrapper does, names them in `families`, reads their board options too, and has each of its outputs drawn by the renderer of the family whose class the output has, and `new_output_family()` refuses a class that another family has.
+  A family that takes results of any class, as a code block's does, is open: it gives `families = "listed"`, and hands its results to every family that the available packages list, with their board options and renderers.
   The class vector of an output
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a
@@ -80,7 +81,7 @@
   R calls `output_requests()` on each output that it makes and keeps the requests with the block's result, so a class may give an output's requests by what the output holds.
   The function
   `run_output_class_request()`
-  runs such a request as R does (#422, #440, #465, #685, #707).
+  runs such a request as R does (#422, #440, #465, #685, #707, #712).
 * Core defines three output classes. A table output holds one page of rows
   and the total row count, which may be unknown, as for a lazy table, with the page it shows and how many rows a page holds, by which a renderer draws its pager. Its
   family `table_output()` pages a data frame by the board option
@@ -91,13 +92,14 @@
   that draws a base plot captures it with `capture_plot()` in its
   `block_eval()` method, so that a change of theme draws the plot again
   without evaluating the block (#422).
-* A package lists what it offers core in one object that it exports, `._BLOCKR_MODULES_`, a list or an environment that its `.onLoad()` fills: its block classes, its plugin classes and its board options, each with its module, and the modules that it offers other packages' UIs, each under the ID `{pkg}-{name}`.
+* A package lists what it offers core in one object that it exports, `._BLOCKR_MODULES_`, a list or an environment that its `.onLoad()` fills: its block classes, its plugin classes and its board options, each with its module, the modules that it offers other packages' UIs, each under the ID `{pkg}-{name}`, and its output families, by the name of each, which is the family's class.
   The new `read_blocks_yml()` reads a package's block classes from its `inst/registry/blocks.yml`, from which core's own `.onLoad()` fills core's object.
   R finds the available packages by that export, from the `Meta/nsInfo.rds` of each installed package, which it reads without loading the package, and among the loaded packages, those that `pkgload::load_all()` loaded included, and loads each as it reads its object.
   A plugin class's module has the class without its id as its default export, as a board option's module has the board option, and the schema of a class's state or of a board option's value sits beside the module.
   A board option's `default` that is a function gets `CoreApi`, as `n_rows` reads its blockr option through it.
-  Core lists its basic frontend, its storage plugin and its Edit board plugin, its board options `n_rows`, `show_conditions` and `dark_mode`, and its inputs for modules written without React, which it offers as `blockr.core-controls`.
-  The startup modules go, with `register_startup_module()`, `register_module()` and the order of packages by their NAMESPACE (#424, #504, #560).
+  Core lists its basic frontend, its storage plugin and its Edit board plugin, its board options `n_rows`, `show_conditions` and `dark_mode`, its inputs for modules written without React, which it offers as `blockr.core-controls`, and its output families `table_output`, `text_output` and `plot_output`.
+  R reads the output families that the available packages list as `serve()` builds the app, and two packages that list a family of one class stop the app.
+  The startup modules go, with `register_startup_module()`, `register_module()` and the order of packages by their NAMESPACE (#424, #504, #560, #712).
 * A renderer, which `new_renderer()` makes, is a module that draws the
   outputs of an output family or the value of a board option, under the ID
   `{pkg}-{name}`. An output family holds the renderer that draws its outputs, as core's

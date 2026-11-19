@@ -251,6 +251,84 @@ test_that("an output family hands its results to the families it names", {
                c("both_output", "coef_output", "table_output"))
 })
 
+test_that("an open family hands its results to every listed family", {
+
+  any_output <- new_output_family(
+    function(result, ...) {
+      if (is.data.frame(result)) {
+        return(table_output(result, ...))
+      }
+      text_output(result, ...)
+    },
+    "any_output",
+    families = "listed"
+  )
+
+  expect_true(is_open_family(any_output))
+  expect_false(is_open_family(table_output))
+  expect_identical(attr(any_output, "families"), "listed")
+
+  expect_s3_class(any_output(datasets::BOD, options = list(n_rows = 2L)),
+                  "table_output")
+  expect_s3_class(any_output(month.name), "text_output")
+
+  # It reaches the families that the available packages list, core's here,
+  # and reads their board options
+  expect_named(
+    reached_families(any_output),
+    c("any_output", "table_output", "text_output", "plot_output")
+  )
+  expect_identical(family_option_ids(any_output), "n_rows")
+
+  # Or the families that the app read, with those that they name, each once
+  themed_output <- new_output_family(
+    function(result, ...) text_output(format(result), ...),
+    "themed_output",
+    options = new_dark_mode_option,
+    families = text_output
+  )
+
+  listed <- list(themed_output = themed_output, table_output = table_output)
+
+  expect_named(
+    reached_families(any_output, listed),
+    c("any_output", "themed_output", "table_output", "text_output")
+  )
+  expect_identical(
+    family_option_ids(any_output, listed),
+    c("dark_mode", "n_rows")
+  )
+
+  # A family that names an open family reaches the listed families too
+  wrap_output <- new_output_family(
+    function(result, ...) any_output(result, ...),
+    "wrap_output",
+    families = any_output
+  )
+
+  expect_named(
+    reached_families(wrap_output, listed),
+    c("wrap_output", "any_output", "themed_output", "table_output",
+      "text_output")
+  )
+
+  # R reads the listings only where it reaches an open family
+  local_mocked_bindings(app_families = function(...) stop("A listing read"))
+
+  expect_identical(family_option_ids(table_output), "n_rows")
+  expect_identical(family_option_ids(any_output, listed),
+                   c("dark_mode", "n_rows"))
+  expect_error(family_option_ids(any_output), "A listing read")
+
+  # No other value makes a family open
+  for (families in list("all", c("listed", "listed"), list("listed"), NA)) {
+    expect_error(
+      new_output_family(identity, "any_output", families = families),
+      class = "output_family_invalid"
+    )
+  }
+})
+
 test_that("an output family takes no other family's class", {
 
   # A family that took the class of another would draw its outputs, but read

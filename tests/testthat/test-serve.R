@@ -943,6 +943,51 @@ test_that("the page imports the modules of plugins, options and blocks", {
   expect_length(modules, length(unique(chr_xtr(modules, "path"))))
 })
 
+test_that("an app holds the output families that serve() read", {
+
+  local_family_package()
+
+  any_output <- new_output_family(
+    function(result, ...) text_output(result, ...),
+    "any_output",
+    families = "listed"
+  )
+
+  dir <- withr::local_tempdir()
+  writeLines("export const api = 1;", file.path(dir, "any-block.js"))
+
+  cls <- test_block_class(
+    "any_block",
+    expr = function() quote(month.name),
+    ui = js_module(file.path(dir, "any-block.js"), package = NULL),
+    output = any_output
+  )
+
+  board <- new_board(c(a = block_constructor(cls)()), id = "open_board")
+  app <- serve(board)
+
+  # Its sessions read no listing, whatever the packages list by then
+  local_mocked_bindings(app_families = function(...) stop("A listing read"))
+
+  reply <- served_replies(app, hello_message())[[1L]]
+
+  expect_identical(
+    chr_xtr(reply$block_registry[["any_block"]]$renderers, "id"),
+    c("blockr.core-table_output", "blockr.core-text_output",
+      "blockr.core-plot_output", "famprobe-probe_output")
+  )
+
+  # The page imports the renderers of the families that it is given
+  modules <- page_modules(
+    encode_message(blockr_ser(board)),
+    served_registry(app),
+    families = list(text_output = text_output)
+  )
+
+  expect_true("js/basic-text.js" %in% chr_xtr(modules, "path"))
+  expect_false("js/basic-table.js" %in% chr_xtr(modules, "path"))
+})
+
 test_that("the page names the files that it imports, which R serves at once", {
 
   # A module of its own content, which R serves nowhere yet.

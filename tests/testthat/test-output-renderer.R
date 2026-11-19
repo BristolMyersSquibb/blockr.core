@@ -123,6 +123,61 @@ test_that("an output is drawn by the renderer of its class's family", {
   )
 })
 
+test_that("an open family's outputs are drawn by the listed families", {
+
+  words <- new_renderer("words", test_module("words.js"))
+  preview <- new_renderer("preview", test_module("preview.js", "blockr.ui"))
+
+  words_output <- new_output_family(
+    function(result, ...) {
+      new_block_output(list(words = as.character(result)), "words_output")
+    },
+    "words_output",
+    renderer = words
+  )
+
+  # A family that hands text to words_output and the rest to table_output,
+  # both of which the available packages list
+  any_output <- new_output_family(
+    function(result, ...) {
+      if (is.character(result)) {
+        return(words_output(result, ...))
+      }
+      table_output(result, ...)
+    },
+    "any_output",
+    families = "listed"
+  )
+
+  listed <- list(words_output = words_output, table_output = table_output)
+
+  expect_named(
+    family_renderers(any_output, listed),
+    c("words_output", "table_output")
+  )
+
+  tbl <- any_output(datasets::BOD, options = list(n_rows = 2L))
+
+  expect_identical(drawing_renderer(any_output, any_output("hi"), listed),
+                   words)
+  expect_identical(
+    drawing_renderer(any_output, tbl, listed)$id,
+    "blockr.core-table_output"
+  )
+
+  # The deployment's choice for a listed family comes before its own
+  withr::local_options(blockr.renderers = list(table_output = preview))
+
+  expect_identical(drawing_renderer(any_output, tbl, listed), preview)
+
+  # An output of a class that no listed family draws is an error
+  expect_error(
+    drawing_renderer(any_output, any_output("hi"), listed["table_output"]),
+    "neither it nor a family that the available packages list draws",
+    class = "output_renderer_missing"
+  )
+})
+
 test_that("a family is drawn by a renderer of outputs", {
 
   rows <- new_renderer("rows", test_module("rows.js"), option = "n_rows")

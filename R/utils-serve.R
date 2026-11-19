@@ -362,9 +362,9 @@ check_outside_classes <- function(classes) {
 # does what the app's frontend reads of the arguments of `serve()`,
 # `frontend`, as `frontend_reply()` gives it, an empty JSON object for a block
 # that `serve()` serves alone.
-# So do the board options and the modules that the available packages list,
-# which R reads here, so that the replies name the same ones in whatever
-# process runs the app.
+# So do the board options, the modules and the output families that the
+# available packages list, which R reads here, so that the replies name the
+# same ones in whatever process runs the app.
 # R writes or reads the opening board here, as `serve()` is called, rather than
 # as a session starts, and so reads it for the locks.
 # Every session's evaluator holds its evaluations to what R read.
@@ -389,11 +389,13 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 
   lock <- lock_board(board, data, registry)
 
-  # Two packages that list one board option stop the app here
+  # Two packages that list one board option, or a family of one class, stop
+  # the app here
   options <- app_options()
   offered <- offered_modules()
+  families <- app_families()
 
-  modules <- page_modules(board, registry, plugins, options)
+  modules <- page_modules(board, registry, plugins, options, families)
   dark_mode <- board_dark_mode(board)
 
   shiny::shinyApp(
@@ -410,6 +412,7 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
         board, data, lock, registry, plugins, frontend,
         options = options,
         modules = offered,
+        families = families,
         session_id = session$token
       )
 
@@ -430,10 +433,12 @@ serve_app <- function(board, registry, data = list(), alone = FALSE,
 # The frontend then imports the UI module of the class of each block on the
 # board, and the module of the class's renderer, from the app's block
 # registry, `registry`.
+# A class whose output family is open has the renderers of the families that
+# the available packages list, `families`.
 # A block whose class the registry lacks adds nothing, since the board fails
 # to open with it.
 page_modules <- function(board, registry, plugins = list(),
-                         options = app_options()) {
+                         options = app_options(), families = app_families()) {
 
   json <- if (inherits(board, "json")) board else encode_message(board)
   blocks <- decode_message(json)[["board"]][["blocks"]]
@@ -442,7 +447,10 @@ page_modules <- function(board, registry, plugins = list(),
   ids <- intersect(ids, ls(envir = registry))
 
   entries <- lapply(ids, get_registry_entry, registry)
-  renderers <- unlist(lapply(entries, entry_renderers), recursive = FALSE)
+  renderers <- unlist(
+    lapply(entries, entry_renderers, families),
+    recursive = FALSE
+  )
 
   modules <- c(
     lst_xtr(plugins, "module"),

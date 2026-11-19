@@ -18,11 +18,14 @@
 # served alone.
 # The evaluator knows its session by `session_id`, as by Shiny's token of the
 # session, and knows none unless given.
+# It holds the output families that the available packages list, as `serve()`
+# reads them, unless `families` gives others.
 local_evaluator <- function(board = list(blocks = list()), data = list(),
                             lock = lock_board(board, data),
                             plugins = default_app_plugins(data),
                             frontend = default_frontend(plugins),
                             hello = TRUE, session_id = NULL,
+                            families = app_families(),
                             frame = parent.frame()) {
 
   session <- new.env()
@@ -55,6 +58,7 @@ local_evaluator <- function(board = list(blocks = list()), data = list(),
     lock = lock,
     plugins = plugins,
     frontend = frontend,
+    families = families,
     session_id = session_id
   )
 
