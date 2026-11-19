@@ -34,6 +34,25 @@ export function type(input: HTMLInputElement | HTMLTextAreaElement, text: string
   }
 }
 
+// The error message below a field of core's React SDK in `el`, or null where
+// it shows none.
+export function fieldError(el: ParentNode): string | null {
+  return el.querySelector('[slot="errorMessage"]')?.textContent ?? null;
+}
+
+// What the browser's own number input says of the number in the text, under
+// the range and the step given, as the SDK's NumberField says it, or null
+// where the number fits them.
+export function numberSaid(text: string, { min, max, step }: { min?: number; max?: number; step?: number }): string | null {
+  const input = document.createElement("input");
+  input.type = "number";
+  if (min !== undefined) input.min = String(min);
+  if (max !== undefined) input.max = String(max);
+  if (step !== undefined) input.step = String(step);
+  input.value = text;
+  return input.validationMessage === "" ? null : input.validationMessage;
+}
+
 export function press(input: HTMLElement, key: string, init: KeyboardEventInit = {}): void {
   input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...init }));
 }

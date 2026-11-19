@@ -340,10 +340,15 @@ const LIBRARIES = [
 // Maps the imports in core's sources of core's React SDK, its binding and its
 // controls, from their sources in srcts, to their names in the import map,
 // which the preset leaves imports.
-// The SDK holds the inputs, so an import of srcts/inputs is one of the SDK.
+// The SDK holds the inputs and the overlays, so an import of srcts/inputs or
+// srcts/overlays is one of the SDK.
 // The build of a library bundles the library's own sources, which `own` names.
 function sourceImports(src: string, own?: Import): esbuild.Plugin {
-  const libraries: readonly (readonly [Import, string])[] = [...LIBRARIES, ["@blockr/core/react", "inputs"]];
+  const libraries: readonly (readonly [Import, string])[] = [
+    ...LIBRARIES,
+    ["@blockr/core/react", "inputs"],
+    ["@blockr/core/react", "overlays"],
+  ];
   const names = new Map(
     libraries.filter(([name]) => name !== own).map(([name, dir]) => [join(src, dir, "index.ts"), name] as const),
   );
@@ -860,11 +865,10 @@ function packageVersion(name: string): string {
 // and a package may depend on other versions of the two packages.
 // Then npm puts core's versions in the node_modules of `@blockr/core`.
 // The SDK draws its inputs with React Aria, whose parts srcts/aria/index.ts
-// names, from react-aria-components and react-aria, which the bundles leave
-// imports too.
-// The package names them as its dependencies, at the versions that core's
-// vendor file bundles, since core's declarations name their types, while a
-// package draws with React Aria only through the components of the SDK.
+// names, from react-aria-components, which the bundles leave an import too.
+// The package names it as its dependency, at the version that core's vendor
+// file bundles, since core's declarations name its types, while a package
+// draws with React Aria only through the components of the SDK.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -883,7 +887,6 @@ export const TYPES_PACKAGE = {
     "@preact/signals-core": packageVersion("@preact/signals-core"),
     "@cfworker/json-schema": packageVersion("@cfworker/json-schema"),
     "react-aria-components": packageVersion("react-aria-components"),
-    "react-aria": packageVersion("react-aria"),
   },
   peerDependencies: {
     react: packageVersion("react"),

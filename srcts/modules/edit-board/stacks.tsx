@@ -20,12 +20,12 @@
 
 import { useId, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
-import { ComboBox, ComboBoxSection } from "../../react/index.ts";
+import { ComboBox, ComboBoxSection, TextField } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, Pager, runCommand, TableSearch, TextField, useSearch, useTableView } from "../../ui/index.ts";
+import { classes, Pager, runCommand, TableSearch, useSearch, useTableView } from "../../ui/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
 import { blockItem, blockName, blockRow, blockTexts } from "./links.tsx";
 import type { BlockItem } from "./links.tsx";
@@ -289,7 +289,8 @@ function StackForm({
           label="Name"
           value={name}
           placeholder={fallbackName}
-          hint={editing === undefined ? `Optional. "${fallbackName}" where left empty.` : undefined}
+          description={editing === undefined ? `Optional. "${fallbackName}" where left empty.` : undefined}
+          autoComplete="off"
           onChange={setName}
         />
         <ColorField color={color} onChange={setColor} />
