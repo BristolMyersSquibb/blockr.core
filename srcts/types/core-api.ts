@@ -8,10 +8,11 @@
 // instead (./hosts.ts), but for the `ui` of a plugin class, which gets
 // CoreApi.
 
+import type { BoardAction, CommandCall, Target } from "../actions/index.ts";
 import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
+import type { Delta, Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
@@ -37,6 +38,44 @@ export interface CoreApi {
   // run() still rejects with the reason, unless the call's notifier takes the
   // notification, as for the store.
   readonly commands: Commands;
+  // The board actions: what users trigger from menus, buttons and gestures, on
+  // the board, on one of its board objects or on a selection of them, which
+  // run commands of any package, each batch as one undo step of the user
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#a-board-action).
+  // Core registers its own and those that the classes of the app's plugins
+  // list in `boardActions`, for each board that opens.
+  readonly boardActions: {
+    // The board actions that a menu of the target offers: each whose `on`
+    // names the kind of the target, and whose `offers` passes for it or which
+    // has none. Core's come first, in the order of their table, then each
+    // package's, in the order of the app's plugins and as its class lists
+    // them. It throws for what is no target, and gives none while the store
+    // holds no board.
+    on(target: Target): readonly BoardAction[];
+    // Runs the board action with the id given on the target, where the board
+    // action asks the user nothing: the batch that its `run` returns, or that
+    // a promise of its `run` resolves with, with the commands that `extend`
+    // returns at its end, as one step of the user. It runs nothing where on()
+    // leaves the board action out for the target, as under the board lock for
+    // every board action of core's but Copy block ID. Where the store or the
+    // command registry refuses the batch, core tells the user why through a
+    // notification of the code `board_edit_failed`, unless the notifier takes
+    // it. It resolves once the batch has run, and rejects with the refusal. It
+    // rejects for an id that no board action has, for a board action without
+    // `run`, since core opens no quick action and no advanced action yet, and
+    // for what is no target.
+    trigger(
+      id: string,
+      target: Target,
+      opts?: {
+        // The caller's commands, which run after the batch in the same step,
+        // for the deltas that the batch will apply, as core.commands.plan()
+        // returns them, such as the position of a block that the batch adds.
+        extend?(deltas: readonly Delta[]): readonly CommandCall[];
+        notifier?(notifications: readonly Notification[]): void;
+      },
+    ): Promise<void>;
+  };
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
   readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
@@ -329,7 +368,9 @@ export type CoreCode =
   | "evaluation_unsent"
   // An ask of a block's output that got no reply, or an error reply to one
   // that holds no condition.
-  | "output_unanswered";
+  | "output_unanswered"
+  // A copy to the clipboard that the browser refuses, as of a block's id.
+  | "copy_failed";
 
 // Why core could not get or draw a block's output where R gave no error, as
 // the output host's error() gives it in place of R's condition. Its code is

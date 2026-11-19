@@ -1,7 +1,8 @@
+import type { BoardAction, CommandCall, Target } from "../actions/index.ts";
 import type { Commands } from "../commands/index.ts";
 import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
-import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
+import type { Delta, Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
 import type { Rendered } from "./hosts.ts";
 import type { Json } from "./json.ts";
@@ -10,6 +11,13 @@ import type { RegistryEntry } from "./registry.ts";
 export interface CoreApi {
     readonly store: Store;
     readonly commands: Commands;
+    readonly boardActions: {
+        on(target: Target): readonly BoardAction[];
+        trigger(id: string, target: Target, opts?: {
+            extend?(deltas: readonly Delta[]): readonly CommandCall[];
+            notifier?(notifications: readonly Notification[]): void;
+        }): Promise<void>;
+    };
     readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;
     blockRegistry(): BlockRegistry;
     readonly options: Options & {
@@ -108,7 +116,7 @@ export interface CoreSource {
     readonly code: CoreCode;
     readonly module?: SourceModule;
 }
-export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_edit_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered";
+export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_edit_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered" | "copy_failed";
 export interface CoreFailure {
     readonly kind: "core";
     readonly code: Extract<CoreCode, "output_unanswered" | "board_option_failed">;
