@@ -26,13 +26,13 @@ export interface Commands {
     preflight(id: string, args?: Json): boolean;
     run(id: string, args?: Json, origin?: Origin, opts?: {
         notifier?(notifications: readonly Notification[]): void;
-    }): Promise<void>;
+    }): Promise<boolean>;
     run(list: readonly {
         readonly id: string;
         readonly args?: Json;
     }[], origin?: Origin, opts?: {
         notifier?(notifications: readonly Notification[]): void;
-    }): Promise<void>;
+    }): Promise<boolean>;
     plan(id: string, args?: Json): Promise<Delta[]>;
     plan(list: readonly {
         readonly id: string;

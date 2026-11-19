@@ -11,7 +11,9 @@
 // `undo: false`, whether the command runs alone or in a list. The store keeps
 // no inverse of such a delta, as it keeps no board option values. So a step
 // is one undo step only where the store keeps the inverse of at least one of
-// its deltas (../store/store.ts).
+// its deltas (../store/store.ts). The command registry's run() resolves with
+// whether the step took one, as the store's apply() returns it, so that no
+// caller copies the store's rule.
 // Beside the board and its args, the command registry hands every command its
 // context: what the app fixes for the page.
 // Core creates a command registry for each store and hands it to plugins,
@@ -126,28 +128,29 @@ export interface Commands {
   // args, which fit the schema of its args.
   preflight(id: string, args?: Json): boolean;
   // Runs the command and applies its deltas as one step of the origin, "user"
-  // unless given, or rejects with what refused it, having changed nothing. The
-  // step is an undo step unless the command has `undo: false` or sets only
-  // board options. A command that does not prepare is applied before run()
-  // returns.
+  // unless given, or rejects with what refused it, having changed nothing. It
+  // resolves with whether the step took an undo step, as the store's apply()
+  // returns it: none where the command has `undo: false` or changes nothing
+  // besides board options. A command that does not prepare is applied before
+  // run() returns.
   // Through `CoreApi`, core tells the user why the command was refused, or
   // hands that notification to the notifier in `opts`, before run() rejects
   // (../core/core.ts). The command registry itself ignores the notifier.
-  run(id: string, args?: Json, origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<void>;
+  run(id: string, args?: Json, origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<boolean>;
   // Runs the commands of the list in order, each planned on the board that the
   // deltas of the commands before it leave, and applies the deltas of every
   // command as one step of the origin, "user" unless given. Where a command
   // refuses, it applies none and rejects with a CommandError that gives the
-  // command's index. The step is an undo step where a command without
-  // `undo: false` changes something besides board options, and its undo
-  // takes back only what those commands changed. A list whose commands do
-  // not prepare is applied before run() returns. Its notifier is as for a
-  // command alone.
+  // command's index. It resolves with whether the step took an undo step, as
+  // for a command alone: one where a command without `undo: false` changes
+  // something besides board options. Its undo takes back only what those
+  // commands changed. A list whose commands do not prepare is applied before
+  // run() returns. Its notifier is as for a command alone.
   run(
     list: readonly { readonly id: string; readonly args?: Json }[],
     origin?: Origin,
     opts?: { notifier?(notifications: readonly Notification[]): void },
-  ): Promise<void>;
+  ): Promise<boolean>;
   // The deltas the command returns on the current board, not applied, with
   // the edit ids of the board they were built on, so that the store refuses
   // them once another edit has come first, and with `undo: false` where the
@@ -430,23 +433,21 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
   // Applies the deltas of the commands of a list as one step of the origin.
   // The list runs in one span, which names the ids of its commands in order,
   // since the store applies their deltas at once.
-  function runList(list: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<void> {
+  function runList(list: readonly { readonly id: string; readonly args?: Json }[], origin: Origin): Promise<boolean> {
     const ids = list.map(({ id }) => id);
     return traced("command list", { "blockr.command.ids": ids, "blockr.delta.origin": origin }, () =>
-      planned(list, (built) => {
-        store.apply(built, origin);
-      }),
+      planned(list, (built) => store.apply(built, origin)),
     );
   }
 
   // Runs a command, or a list of commands, in a span of its own, as the head
-  // of this file has it. The span is active as `run` is called, and `run`
-  // keeps it active after an await, as keepContext() keeps it. A refusal or a
-  // failure marks the span failed.
-  async function traced(name: string, attributes: Attributes, run: () => Promise<void>): Promise<void> {
+  // of this file has it, and resolves with what `run` resolves with. The span
+  // is active as `run` is called, and `run` keeps it active after an await,
+  // as keepContext() keeps it. A refusal or a failure marks the span failed.
+  async function traced<T>(name: string, attributes: Attributes, run: () => Promise<T>): Promise<T> {
     const span = tracer().startSpan(name, { attributes });
     try {
-      await otelContext.with(trace.setSpan(otelContext.active(), span), run);
+      return await otelContext.with(trace.setSpan(otelContext.active(), span), run);
     } catch (error) {
       failSpan(span, error);
       throw error;
@@ -522,9 +523,7 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
         const { item, args } = lookup(target, given);
         const step = deltas(item, args);
         const ready = Array.isArray(step) ? step : await step;
-        within(() => {
-          store.apply(ready, origin);
-        });
+        return within(() => store.apply(ready, origin));
       });
     },
     async plan(target: string | readonly { readonly id: string; readonly args?: Json }[], given?: Json) {

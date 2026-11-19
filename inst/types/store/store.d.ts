@@ -20,7 +20,7 @@ export interface Store {
     apply(delta: Delta | readonly Delta[], origin?: Origin, opts?: {
         readonly undo?: false;
         notifier?(notifications: readonly Notification[]): void;
-    }): void;
+    }): boolean;
     dryRun(delta: Delta | readonly Delta[]): Board;
     open(given: string | HelloReply, opts?: {
         notifier?(notifications: readonly Notification[]): void;

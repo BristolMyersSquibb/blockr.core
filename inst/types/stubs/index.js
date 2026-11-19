@@ -6262,20 +6262,22 @@ function createStore(options = {}) {
   function apply(delta, origin = "user", opts = {}) {
     guard2();
     const given = isDeltas(delta) ? delta : [delta];
-    if (given.length === 0) return;
+    if (given.length === 0) return false;
     const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
     busy = true;
     try {
       const { start: start2, applied, inverses } = runOnBoard(deltas);
-      if (applied.length === 0) return;
+      if (applied.length === 0) return false;
       number(applied, applied.at(-1)?.board ?? start2);
-      if (inverses.length > 0) {
+      const undoStep = inverses.length > 0;
+      if (undoStep) {
         history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
       }
       for (const { delta: delta2, board: next } of applied) {
         board.value = next;
         announce2({ delta: delta2, origin }, next);
       }
+      return undoStep;
     } finally {
       busy = false;
     }
@@ -7154,15 +7156,13 @@ function createCommands(store, options = {}) {
     return traced(
       "command list",
       { "blockr.command.ids": ids3, "blockr.delta.origin": origin },
-      () => planned(list, (built) => {
-        store.apply(built, origin);
-      })
+      () => planned(list, (built) => store.apply(built, origin))
     );
   }
   async function traced(name2, attributes, run) {
     const span = tracer().startSpan(name2, { attributes });
     try {
-      await otelContext.with(trace3.setSpan(otelContext.active(), span), run);
+      return await otelContext.with(trace3.setSpan(otelContext.active(), span), run);
     } catch (error) {
       failSpan(span, error);
       throw error;
@@ -7219,9 +7219,7 @@ function createCommands(store, options = {}) {
         const { item, args } = lookup(target2, given);
         const step2 = deltas(item, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        within(() => {
-          store.apply(ready, origin);
-        });
+        return within(() => store.apply(ready, origin));
       });
     },
     async plan(target2, given) {
@@ -7682,7 +7680,7 @@ function refusing(store, commands, refused2) {
   function edit(opts, call, fn) {
     const notifier = givenNotifier(opts, call);
     try {
-      fn();
+      return fn();
     } catch (error) {
       refused2(error, void 0, notifier);
       throw error;
@@ -7704,9 +7702,7 @@ function refusing(store, commands, refused2) {
     store: {
       ...store,
       apply(delta, origin, opts) {
-        edit(opts, "apply()", () => {
-          store.apply(delta, origin, opts?.undo === false ? { undo: false } : void 0);
-        });
+        return edit(opts, "apply()", () => store.apply(delta, origin, opts?.undo === false ? { undo: false } : void 0));
       },
       undo(origin, opts) {
         edit(opts, "undo()", () => {

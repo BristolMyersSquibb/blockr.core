@@ -794,7 +794,7 @@ describe("core's notifications", () => {
     s.core.notifications.subscribe((all) => {
       heard.push(all.filter((n) => notificationCode(n) === "board_edit_failed").map((n) => n.message));
     });
-    const remove = (): Promise<void> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" });
+    const remove = (): Promise<boolean> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" });
 
     await expect(remove()).rejects.toThrow();
     const [first] = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
@@ -852,7 +852,7 @@ describe("core's notifications", () => {
   test("of a list of commands that the command registry refuses are raised as for a command alone, for the user's list and the assistant's alike", async () => {
     const s = await stubCore();
     await s.settled();
-    const run = (origin?: string): Promise<void> =>
+    const run = (origin?: string): Promise<boolean> =>
       s.core.commands.run(
         [
           { id: "blockr.core-rename_board", args: { name: "Sepals" } },
@@ -886,7 +886,7 @@ describe("core's notifications", () => {
       heard.push("notified");
       taken.push(...notifications);
     };
-    const refusing = (): Promise<void> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "user", { notifier });
+    const refusing = (): Promise<boolean> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "user", { notifier });
 
     // A command, a list of commands, a delta, an undo and a redo, each of
     // which the store or the command registry refuses.
@@ -933,6 +933,27 @@ describe("core's notifications", () => {
     reported.restore();
     // Core logs each refusal at debug, with a notifier or without.
     expect(reported.lines().map((line) => line.level)).toEqual(Array.from({ length: 7 }, () => "debug"));
+    s.stop();
+  });
+
+  test("of an edit that the store applies are none, and the call returns or resolves with whether the step took an undo step, with a notifier or without", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const taken: Notification[] = [];
+    const notifier = (notifications: readonly Notification[]): void => {
+      taken.push(...notifications);
+    };
+
+    expect(s.core.store.apply({ name: "Sepals" })).toBe(true);
+    expect(s.core.store.apply({ name: "Petals" }, "assistant", { undo: false, notifier })).toBe(false);
+    await expect(s.core.commands.run("blockr.core-rename_board", { name: "Sepals" }, "assistant", { notifier })).resolves.toBe(true);
+    await expect(s.core.commands.run("blockr.core-set_option", { id: "n_rows", value: 30 })).resolves.toBe(false);
+    await expect(s.core.commands.run([{ id: "blockr.core-rename_board", args: { name: "Petals" } }], "assistant", { notifier })).resolves.toBe(true);
+    await expect(s.core.commands.run([], "assistant")).resolves.toBe(false);
+    await s.settled();
+
+    expect(taken).toEqual([]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
     s.stop();
   });
 

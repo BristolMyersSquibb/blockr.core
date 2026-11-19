@@ -339,11 +339,11 @@ export function createCore(parts: CoreParts): Core {
 // anything runs.
 function refusing(store: Store, commands: Commands, refused: Refused): { store: Store; commands: Commands } {
   // Makes an edit through the store, and tells the user why the store refused
-  // it, or hands that to the notifier.
-  function edit(opts: NotifierOpts, call: string, fn: () => void): void {
+  // it, or hands that to the notifier. It returns what the store returns.
+  function edit<T>(opts: NotifierOpts, call: string, fn: () => T): T {
     const notifier = givenNotifier(opts, call);
     try {
-      fn();
+      return fn();
     } catch (error) {
       refused(error, undefined, notifier);
       throw error;
@@ -351,8 +351,9 @@ function refusing(store: Store, commands: Commands, refused: Refused): { store: 
   }
   // Waits for a command, or a list of commands, that the command registry
   // runs, and tells the user why the command registry or the store refused it,
-  // or hands that to the notifier.
-  function ran(opts: NotifierOpts, run: () => Promise<void>): Promise<void> {
+  // or hands that to the notifier. It resolves with what the command registry
+  // resolves with.
+  function ran(opts: NotifierOpts, run: () => Promise<boolean>): Promise<boolean> {
     let notifier: Notifier | undefined;
     try {
       notifier = givenNotifier(opts, "run()");
@@ -368,9 +369,7 @@ function refusing(store: Store, commands: Commands, refused: Refused): { store: 
     store: {
       ...store,
       apply(delta, origin, opts) {
-        edit(opts, "apply()", () => {
-          store.apply(delta, origin, opts?.undo === false ? { undo: false } : undefined);
-        });
+        return edit(opts, "apply()", () => store.apply(delta, origin, opts?.undo === false ? { undo: false } : undefined));
       },
       undo(origin, opts) {
         edit(opts, "undo()", () => {
