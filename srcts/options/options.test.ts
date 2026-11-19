@@ -15,7 +15,7 @@ import nRowsModule, * as nRowsExports from "../modules/n-rows-option/index.ts";
 // eslint-disable-next-line no-restricted-imports
 import showConditionsModule, * as showConditionsExports from "../modules/show-conditions-option/index.ts";
 import { stubOptionHost } from "../stubs/index.ts";
-import { find, type } from "../testing/inputs.ts";
+import { type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
 import { chipLabels, labelled, listed, picked } from "../testing/select.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -192,12 +192,11 @@ describe("the UIs of core's board options", () => {
     return { el, host };
   }
 
-  test("n_rows is a number input under its label that submits a whole number of rows from one, once the user pauses", async () => {
+  test("n_rows is a number field under its label that submits a whole number of rows from one, once the user pauses", async () => {
     vi.useFakeTimers();
     const { el, host } = await mounted("n_rows", nRows, 50);
-    const input = find(el, "input", HTMLInputElement);
-    expect(el.querySelector("label")?.textContent).toContain("Preview rows");
-    expect([input.type, input.min, input.value]).toEqual(["number", "1", "50"]);
+    const input = labelled(el, "Preview rows");
+    expect([input.getAttribute("aria-roledescription"), input.value]).toEqual(["Number field", "50"]);
 
     await step(() => {
       type(input, "0");
@@ -205,6 +204,14 @@ describe("the UIs of core's board options", () => {
     await step(() => {
       vi.advanceTimersByTime(PAUSE);
     });
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    await step(() => {
+      type(input, "2.5");
+    });
+    await step(() => {
+      vi.advanceTimersByTime(PAUSE);
+    });
+    expect(input.getAttribute("aria-invalid")).toBe("true");
     await step(() => {
       type(input, "25");
     });

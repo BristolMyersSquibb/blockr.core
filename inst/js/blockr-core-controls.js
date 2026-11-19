@@ -119,15 +119,15 @@ function controls(host, signal) {
     return request;
   }
   function text(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx(inputs.TextInput, { bound, ...options }));
+    input(key, (bound) => /* @__PURE__ */ jsx(inputs.TextField, { bound, spellCheck: "false", ...options }));
   }
   function number(key, options) {
-    let max;
+    let maxValue = options.maxValue;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx(inputs.NumberInput, { bound, label: options.label, min: options.min, max, outdated }));
+    input(key, (bound) => /* @__PURE__ */ jsx(inputs.NumberField, { bound, ...options, maxValue, outdated }));
     return {
-      setMax(next) {
-        max = next;
+      setMaxValue(next) {
+        maxValue = next;
         redraw();
       },
       setOutdated(next) {

@@ -16,6 +16,11 @@ export declare function NameField({ label, name, onSubmit, onDone, fill, }: {
     onDone: () => void;
     fill?: boolean;
 }): ReactElement;
+export declare const identifier: {
+    readonly spellCheck: "false";
+    readonly autoCapitalize: "none";
+    readonly autoCorrect: "off";
+};
 export declare function Refusal({ refusal }: {
     refusal: string | null;
 }): ReactElement | null;

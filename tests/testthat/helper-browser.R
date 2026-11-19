@@ -520,8 +520,10 @@ window.e2e = {
       return cards[ids.indexOf(id)];
     }, 'card of ' + id);
   },
+  // The dialog that is open, which React Aria draws at the end of the page's
+  // body.
   dialog() {
-    return e2e.until(() => document.querySelector('dialog[open]'), 'dialog');
+    return e2e.until(() => document.querySelector('[role=dialog]'), 'dialog');
   },
   element(selector) {
     return e2e.until(() => document.querySelector(selector), selector);
@@ -558,6 +560,7 @@ window.e2e = {
       'field ' + label
     );
     if (field.disabled && field.value === value) return;
+    await e2e.reveal(field);
     field.click();
     const found = await e2e.until(
       () => e2e.rows(field).find((o) => o.dataset.key === value),
@@ -565,6 +568,15 @@ window.e2e = {
     );
     found.click();
     e2e.close(field);
+  },
+  // Scrolls the field into view, as a user does before clicking it, and waits
+  // for the scroll to end, since React Aria closes the list of a select as
+  // the page around it scrolls.
+  async reveal(field) {
+    field.scrollIntoView({ block: 'center' });
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve))
+    );
   },
   // The field that the label of the text given names, through its for
   // attribute or by holding it.
@@ -610,6 +622,7 @@ window.e2e = {
       () => e2e.labelled(within, label),
       'field ' + label
     );
+    await e2e.reveal(field);
     field.focus();
     field.click();
     e2e.set(field, search, 'input');

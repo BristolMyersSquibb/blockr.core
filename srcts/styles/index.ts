@@ -1,3 +1,4 @@
-// The classes of the inputs that core's UIs draw, with React or without.
+// The classes of the inputs that core's UIs draw, with React or without, and
+// of its buttons.
 
-export { styles } from "./styles.ts";
+export { buttons, styles } from "./styles.ts";

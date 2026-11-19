@@ -6,6 +6,11 @@
 // and a CoreApi for tests, on which a frontend or a plugin runs on a
 // board with R played from the protocol's fixtures
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#testing).
+// Loading them makes happy-dom, the DOM that the tests run on, measure and
+// check numbers as the components of core's React SDK need it to
+// (../testing/dom.ts).
+
+import "../testing/dom.ts";
 
 export { stubBlockHost } from "./block.ts";
 export type { BlockFixture, StubBlockHost, StubBlockHostOptions } from "./block.ts";

@@ -32,12 +32,12 @@ var optionSchemas = {
 };
 
 // srcts/options/ui.tsx
-import { ComboBox, ComboBoxItem, NumberInput } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, NumberField } from "@blockr/core/react";
 import { reactModule, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 function numberUi(label, min) {
   function NumberUi({ host }) {
-    return /* @__PURE__ */ jsx(NumberInput, { bound: useValue(host), label, min });
+    return /* @__PURE__ */ jsx(NumberField, { bound: useValue(host), label, minValue: min, step: 1 });
   }
   return reactModule(NumberUi);
 }

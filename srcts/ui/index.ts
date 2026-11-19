@@ -1,9 +1,11 @@
 // What core's basic frontend and its Edit board plugin draw with: the classes
-// of their buttons, lists and surfaces, the fields of their forms, the search
-// and the pages of their tables, and the hook through which the frontend
-// follows the store's undo history.
+// of their buttons, lists and surfaces, what the text fields of their forms
+// take where they hold an identifier, the search and the pages of their
+// tables, and the hook through which the frontend follows the store's undo
+// history.
 // It also holds how each runs an edit, and the Edit board plugin's line that
 // says why one was refused.
+// They draw their text fields with the SDK's TextField.
 // The bundles of the basic frontend and of the Edit board plugin each hold a
 // copy of it, as each holds one of srcts/util.
 // Both follow the board itself through useBoard() of core's React SDK, and
@@ -12,10 +14,9 @@
 
 export { runCommand, useEdits } from "./edits.ts";
 export type { Edits } from "./edits.ts";
-export { TextField } from "./fields.tsx";
 export { useHistory } from "./hooks.ts";
 export { useSearch } from "./search.ts";
 export type { Search } from "./search.ts";
 export { Pager, TableSearch, useTableView } from "./table.tsx";
 export type { TableView } from "./table.tsx";
-export { classes, NameField, Refusal } from "./ui.tsx";
+export { classes, identifier, NameField, Refusal } from "./ui.tsx";
