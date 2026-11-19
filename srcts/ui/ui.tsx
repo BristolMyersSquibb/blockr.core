@@ -30,16 +30,22 @@ export const classes = {
 
 // A text field that edits a name in place: Enter or leaving the field
 // submits what it holds, unless it is empty or unchanged, and Escape gives up.
+// It is at least 10rem wide, or with `fill` exactly as wide as its container,
+// as the cell of a table that it must not spill out of. Its width then counts
+// its padding and border, which core's stylesheet does not do for every
+// element, since it leaves out Tailwind's reset.
 export function NameField({
   label,
   name,
   onSubmit,
   onDone,
+  fill = false,
 }: {
   label: string;
   name: string;
   onSubmit: (name: string) => void;
   onDone: () => void;
+  fill?: boolean;
 }): ReactElement {
   const [text, setText] = useState(name);
   const ref = useRef<HTMLInputElement>(null);
@@ -65,7 +71,7 @@ export function NameField({
       aria-label={label}
       value={text}
       spellCheck={false}
-      className={`${styles.box} bc:min-w-40`}
+      className={`${styles.box} ${fill ? "bc:box-border bc:w-full" : "bc:min-w-40"}`}
       onChange={(event) => {
         setText(event.target.value);
       }}

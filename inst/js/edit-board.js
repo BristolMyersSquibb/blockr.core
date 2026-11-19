@@ -368,7 +368,8 @@ function NameField({
   label,
   name: name2,
   onSubmit,
-  onDone
+  onDone,
+  fill = false
 }) {
   const [text, setText] = useState3(name2);
   const ref = useRef(null);
@@ -392,7 +393,7 @@ function NameField({
       "aria-label": label,
       value: text,
       spellCheck: false,
-      className: `${styles.box} bc:min-w-40`,
+      className: `${styles.box} ${fill ? "bc:box-border bc:w-full" : "bc:min-w-40"}`,
       onChange: (event) => {
         setText(event.target.value);
       },
@@ -779,6 +780,7 @@ function BlockRow({ edits, id: id2, block, className }) {
       {
         label: "Block name",
         name: block.name,
+        fill: true,
         onSubmit: (name2) => {
           void edits.run("blockr.core-rename_block", { id: id2, name: name2 }, `Could not rename the block "${block.name}".`);
         },

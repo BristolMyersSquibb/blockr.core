@@ -446,7 +446,8 @@ function NameField({
   label,
   name: name2,
   onSubmit,
-  onDone
+  onDone,
+  fill = false
 }) {
   const [text, setText] = useState5(name2);
   const ref = useRef2(null);
@@ -470,7 +471,7 @@ function NameField({
       "aria-label": label,
       value: text,
       spellCheck: false,
-      className: `${styles.box} bc:min-w-40`,
+      className: `${styles.box} ${fill ? "bc:box-border bc:w-full" : "bc:min-w-40"}`,
       onChange: (event) => {
         setText(event.target.value);
       },

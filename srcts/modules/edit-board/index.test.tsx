@@ -297,6 +297,10 @@ describe("the blocks", () => {
     const blocks = section(el, "Blocks");
 
     await click(button(blocks, "Rename the block Head"));
+    // The field is as wide as the column of names, rather than spilling into
+    // the next.
+    expect(find(blocks, 'input[aria-label="Block name"]').className).toMatch(/(^| )bc:w-full( |$)/);
+    expect(find(blocks, 'input[aria-label="Block name"]').className).not.toContain("bc:min-w-40");
     await step(() => {
       const name = find(blocks, 'input[aria-label="Block name"]', HTMLInputElement);
       type(name, "First rows");

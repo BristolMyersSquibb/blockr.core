@@ -9,11 +9,12 @@ export declare const classes: {
     readonly heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold";
     readonly list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0";
 };
-export declare function NameField({ label, name, onSubmit, onDone, }: {
+export declare function NameField({ label, name, onSubmit, onDone, fill, }: {
     label: string;
     name: string;
     onSubmit: (name: string) => void;
     onDone: () => void;
+    fill?: boolean;
 }): ReactElement;
 export declare function Refusal({ refusal }: {
     refusal: string | null;

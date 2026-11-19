@@ -9,7 +9,7 @@
 // Where the store or the command registry refuses an edit, the form says why
 // below its button. Where it refuses to rename or remove a block, the table
 // says so below itself, naming the block, until the user's next edit in the
-// table.
+// table. The name of a block that the user renames takes its column's width.
 
 import { useState } from "react";
 import type { ReactElement } from "react";
@@ -91,6 +91,7 @@ function BlockRow({ edits, id, block, className }: { edits: Edits; id: BlockId; 
           <NameField
             label="Block name"
             name={block.name}
+            fill
             onSubmit={(name) => {
               void edits.run("blockr.core-rename_block", { id, name }, `Could not rename the block "${block.name}".`);
             }}
