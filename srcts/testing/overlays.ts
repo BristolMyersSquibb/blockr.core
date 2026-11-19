@@ -15,16 +15,32 @@ export function openMenu(label: string): HTMLElement {
   return find(document, `[role="menu"][aria-label="${label}"]`);
 }
 
-// The item of the menu, or of one of its groups, whose text is the one given.
-export function menuItem(menu: ParentNode, text: string): HTMLElement {
-  const found = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((item) => item.textContent.trim() === text);
-  if (found === undefined) throw new Error(`Found no menu item ${text}.`);
+// The item of the menu, or of one of its groups, whose label is the one given.
+export function menuItem(menu: ParentNode, label: string): HTMLElement {
+  const found = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((item) => itemLabel(item) === label);
+  if (found === undefined) throw new Error(`Found no menu item ${label}.`);
   return found;
 }
 
-// The text of each item of the menu, or of one of its groups, in order.
+// The label of each item of the menu, or of one of its groups, in order.
 export function menuItems(menu: ParentNode): string[] {
-  return [...menu.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent.trim());
+  return [...menu.querySelectorAll('[role="menuitem"]')].map(itemLabel);
+}
+
+// What an item's label slot holds, as React Aria names the item by it, where
+// the item has one, and otherwise its text.
+function itemLabel(item: Element): string {
+  const id = (item.getAttribute("aria-labelledby") ?? "").split(" ")[0] ?? "";
+  return ((id === "" ? null : item.ownerDocument.getElementById(id)) ?? item).textContent.trim();
+}
+
+// The texts that name the item's description and shortcut to assistive
+// technology, through its aria-describedby, in order.
+export function itemDescribed(item: Element): string[] {
+  return (item.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .flatMap((id) => (id === "" ? [] : [item.ownerDocument.getElementById(id)?.textContent.trim() ?? ""]))
+    .filter((text) => text !== "");
 }
 
 // The group of the menu under the title given.

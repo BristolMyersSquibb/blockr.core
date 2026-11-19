@@ -19,23 +19,25 @@
 //   Aria's menus hold no group inside a group.
 // - A status is text in the muted colour, and in a menu an item that the user
 //   cannot pick.
-// A control's tooltip shows as the browser's tooltip.
-// A button's shortcut is named to assistive technology in the toolbar, and
-// in a menu not at all, since React Aria's menu items take no such attribute.
+// A control's tooltip shows as the browser's tooltip in the toolbar, and in a
+// menu as the item's description, a muted line below it, since React Aria's
+// menu items take no title.
+// A button's shortcut is named to assistive technology in the toolbar, and in
+// a menu shows at the item's right, which React Aria names as well.
 // The toolbar draws the controls again whenever the storage's subscribe()
 // calls back, and as the board changes. Where a button's run() rejects, the
 // frontend logs it, since the storage plugin or core tells the user why.
 
 import { useEffect, useReducer, useState } from "react";
 import type { ReactElement } from "react";
-import { Button as SdkButton, Menu, MenuItem, MenuSection, MenuTrigger } from "../../react/index.ts";
+import { Button as SdkButton, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Text } from "../../react/index.ts";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { classes, NameField, runCommand, useHistory } from "../../ui/index.ts";
 import { asError } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
-import { ariaShortcuts } from "./shortcuts.ts";
+import { ariaShortcuts, onMac, shortcutLabel } from "./shortcuts.ts";
 import { drawnControls, runButton } from "./storage.ts";
 import type { Button } from "./storage.ts";
 
@@ -205,6 +207,7 @@ function StorageButton({ button, className }: { button: Button; className: strin
 // its buttons runs, on Escape and on a press elsewhere.
 function StorageMenu({ label, items }: { label: string; items: readonly StorageControl[] }): ReactElement {
   const { core } = useFrontEnd();
+  const mac = onMac(window);
   return (
     <MenuTrigger placement="bottom end">
       <SdkButton variant="secondary">
@@ -214,10 +217,10 @@ function StorageMenu({ label, items }: { label: string; items: readonly StorageC
       <Menu aria-label={label}>
         {groups(label, items).flatMap((group) =>
           group.title === undefined
-            ? entries(group.items, core)
+            ? entries(group.items, core, mac)
             : [
                 <MenuSection key={group.id} id={group.id} title={group.title}>
-                  {entries(group.items, core)}
+                  {entries(group.items, core, mac)}
                 </MenuSection>,
               ],
         )}
@@ -227,29 +230,32 @@ function StorageMenu({ label, items }: { label: string; items: readonly StorageC
 }
 
 // The buttons and statuses of a menu, or of one of its groups, as the items of
-// the SDK's menu. A status is an item that the user cannot pick.
-// The tooltip of either shows on its text, since React Aria's menu items take
-// no title of their own.
-function entries(items: readonly Entry[], core: CoreApi): ReactElement[] {
-  return items.map((item) =>
-    item.kind === "button" ? (
+// the SDK's menu, each with its tooltip as its description and a button with
+// its shortcut. A status is an item that the user cannot pick.
+function entries(items: readonly Entry[], core: CoreApi, mac: boolean): ReactElement[] {
+  return items.map((item) => {
+    const label = item.kind === "button" ? item.label : item.text;
+    const shortcut = item.kind === "button" ? shortcutLabel(item.shortcut, mac) : undefined;
+    return (
       <MenuItem
         key={item.id}
         id={item.id}
-        textValue={item.label}
-        isDisabled={item.disabled}
-        onAction={() => {
-          void runButton(core, item);
-        }}
+        textValue={label}
+        isDisabled={item.kind === "status" || item.disabled}
+        onAction={
+          item.kind === "button"
+            ? () => {
+                void runButton(core, item);
+              }
+            : undefined
+        }
       >
-        <span title={item.tooltip}>{item.label}</span>
+        <Text slot="label">{label}</Text>
+        {item.tooltip === undefined ? null : <Text slot="description">{item.tooltip}</Text>}
+        {shortcut === undefined ? null : <Keyboard>{shortcut}</Keyboard>}
       </MenuItem>
-    ) : (
-      <MenuItem key={item.id} id={item.id} textValue={item.text} isDisabled>
-        <span title={item.tooltip}>{item.text}</span>
-      </MenuItem>
-    ),
-  );
+    );
+  });
 }
 
 // What a menu holds, as groups of buttons and statuses in the order in which

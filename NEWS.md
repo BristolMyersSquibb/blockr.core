@@ -645,9 +645,10 @@
   While it is `outdated`, it takes no `maxValue`, as `NumberInput` took no `max`.
   The `text()` and `number()` of `controls()` take React Aria's names, such as `minValue` in place of `min`, and the handle that `number()` returns has `setMaxValue()` in place of `setMax()`.
   Core's other text fields, in the forms of the Edit board plugin, in renaming a block or the board, and in the search of a table, draw with the `TextField` of the SDK too.
-  The SDK also offers React Aria's `Button`, with the starter kit's `variant`, its `Modal`, `Dialog`, `DialogTrigger` and `Heading`, its `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, and its `Popover`, in core's theme, after the starter kit.
+  The SDK also offers React Aria's `Button`, with the starter kit's `variant`, its `Modal`, `Dialog`, `DialogTrigger` and `Heading`, its `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with its `Keyboard` for an item's shortcut, and its `Popover`, in core's theme, after the starter kit.
   React Aria draws every overlay of the SDK in a portal at the end of the page's body.
   Core's basic frontend draws its dialogs and its menus with them, in place of native dialogs that `showModal()` opened and lists of its own.
+  An item of a storage control's menu shows the control's tooltip below its label and its shortcut at its right.
   A select in such a dialog opens its list above the dialog, so the select no longer draws its list in a layer of its own where a native dialog or popover holds it.
   The select draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.

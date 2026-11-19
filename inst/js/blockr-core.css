@@ -562,6 +562,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.bc\:grid-cols-\[minmax\(0\,1fr\)_auto\] {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .bc\:flex-col {
   flex-direction: column;
 }
@@ -624,6 +628,10 @@
 
 .bc\:gap-4 {
   gap: calc(var(--bc-spacing) * 4);
+}
+
+.bc\:gap-x-4 {
+  column-gap: calc(var(--bc-spacing) * 4);
 }
 
 .bc\:justify-self-stretch {
@@ -1327,6 +1335,46 @@
 }
 
 .bc\:\[\&_\[slot\=description\]\]\:text-text-muted [slot="description"] {
+  color: var(--bc-color-text-muted);
+}
+
+.bc\:\[\&\>\*\]\:truncate > * {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.bc\:\[\&\>\[slot\=description\]\]\:col-start-1 > [slot="description"] {
+  grid-column-start: 1;
+}
+
+.bc\:\[\&\>\[slot\=description\]\]\:text-xs > [slot="description"] {
+  font-size: var(--bc-text-xs);
+  line-height: var(--tw-leading, var(--bc-text-xs--line-height));
+}
+
+.bc\:\[\&\>\[slot\=description\]\]\:text-text-muted > [slot="description"] {
+  color: var(--bc-color-text-muted);
+}
+
+.bc\:\[\&\>kbd\]\:col-start-2 > kbd {
+  grid-column-start: 2;
+}
+
+.bc\:\[\&\>kbd\]\:row-start-1 > kbd {
+  grid-row-start: 1;
+}
+
+.bc\:\[\&\>kbd\]\:font-sans > kbd {
+  font-family: var(--bc-font-sans);
+}
+
+.bc\:\[\&\>kbd\]\:text-xs > kbd {
+  font-size: var(--bc-text-xs);
+  line-height: var(--tw-leading, var(--bc-text-xs--line-height));
+}
+
+.bc\:\[\&\>kbd\]\:text-text-muted > kbd {
   color: var(--bc-color-text-muted);
 }
 

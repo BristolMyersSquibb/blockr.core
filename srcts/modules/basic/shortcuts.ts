@@ -81,6 +81,39 @@ export function ariaShortcuts(text: string | undefined): string | undefined {
   return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
 }
 
+// The shortcut as a menu shows it, in the notation of blockr.ui's design
+// system, as the dock shows it: glyphs run together on a Mac, as "⌘⇧Z", and
+// words joined by "+" elsewhere, as "Ctrl+Shift+Z", where Mod is Command on a
+// Mac and Ctrl elsewhere. It gives nothing for a shortcut that the frontend
+// cannot read, since the frontend binds no such shortcut.
+export function shortcutLabel(text: string | undefined, mac: boolean): string | undefined {
+  const shortcut = text === undefined ? undefined : readShortcut(text);
+  if (shortcut === undefined) return undefined;
+  const key = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
+  if (mac) {
+    const glyphs = [
+      ...(shortcut.ctrl ? ["⌃"] : []),
+      ...(shortcut.alt ? ["⌥"] : []),
+      ...(shortcut.mod || shortcut.meta ? ["⌘"] : []),
+      ...(shortcut.shift ? ["⇧"] : []),
+    ];
+    return [...glyphs, key].join("");
+  }
+  const words = [
+    ...(shortcut.mod || shortcut.ctrl ? ["Ctrl"] : []),
+    ...(shortcut.alt ? ["Alt"] : []),
+    ...(shortcut.shift ? ["Shift"] : []),
+    ...(shortcut.meta ? ["Meta"] : []),
+  ];
+  return [...words, key].join("+");
+}
+
+// Whether the page runs on a Mac, where Mod is Command.
+export function onMac(win: Window): boolean {
+  const nav = win.navigator as Navigator & { readonly userAgentData?: { readonly platform?: string } };
+  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
+}
+
 interface Shortcut {
   readonly key: string;
   readonly mod: boolean;

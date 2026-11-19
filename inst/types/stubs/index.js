@@ -9285,6 +9285,7 @@ import {
   Header,
   Heading,
   Input,
+  Keyboard,
   Label,
   ListBox,
   ListBoxItem,
@@ -9883,7 +9884,7 @@ function MenuItem2(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
   return /* @__PURE__ */ jsx11(MenuItem, { ...props, textValue, className: composeRenderProps(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps(props.children, (children, { selectionMode, isSelected }) => /* @__PURE__ */ jsxs6(Fragment6, { children: [
     selectionMode === "none" ? null : /* @__PURE__ */ jsx11("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx11(Tick2, {}) : null }),
-    /* @__PURE__ */ jsx11("span", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2 bc:truncate", children })
+    /* @__PURE__ */ jsx11("span", { className: CONTENT, children })
   ] })) });
 }
 function MenuSection2({ title, items, children, ...props }) {
@@ -9912,6 +9913,7 @@ function Tick2() {
 var MENU = "bc:grid bc:max-h-[inherit] bc:gap-0.5 bc:overflow-auto bc:p-1 bc:outline-none";
 var ITEM = "bc:box-border bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var HEADING2 = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
+var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 
 // srcts/ui/edits.ts
 function runCommand(core, id2, args) {
@@ -10853,6 +10855,31 @@ function ariaShortcuts(text) {
   const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
   return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
 }
+function shortcutLabel(text, mac) {
+  const shortcut = text === void 0 ? void 0 : readShortcut(text);
+  if (shortcut === void 0) return void 0;
+  const key2 = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
+  if (mac) {
+    const glyphs = [
+      ...shortcut.ctrl ? ["\u2303"] : [],
+      ...shortcut.alt ? ["\u2325"] : [],
+      ...shortcut.mod || shortcut.meta ? ["\u2318"] : [],
+      ...shortcut.shift ? ["\u21E7"] : []
+    ];
+    return [...glyphs, key2].join("");
+  }
+  const words = [
+    ...shortcut.mod || shortcut.ctrl ? ["Ctrl"] : [],
+    ...shortcut.alt ? ["Alt"] : [],
+    ...shortcut.shift ? ["Shift"] : [],
+    ...shortcut.meta ? ["Meta"] : []
+  ];
+  return [...words, key2].join("+");
+}
+function onMac(win) {
+  const nav = win.navigator;
+  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
+}
 var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
 function readShortcut(text) {
   const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
@@ -11012,34 +11039,41 @@ function StorageButton({ button, className }) {
 }
 function StorageMenu({ label, items }) {
   const { core } = useFrontEnd();
+  const mac = onMac(window);
   return /* @__PURE__ */ jsxs13(MenuTrigger2, { placement: "bottom end", children: [
     /* @__PURE__ */ jsxs13(Button2, { variant: "secondary", children: [
       label,
       /* @__PURE__ */ jsx19("span", { "aria-hidden": "true", children: "\u25BE" })
     ] }),
     /* @__PURE__ */ jsx19(Menu2, { "aria-label": label, children: groups(label, items).flatMap(
-      (group) => group.title === void 0 ? entries(group.items, core) : [
-        /* @__PURE__ */ jsx19(MenuSection2, { id: group.id, title: group.title, children: entries(group.items, core) }, group.id)
+      (group) => group.title === void 0 ? entries(group.items, core, mac) : [
+        /* @__PURE__ */ jsx19(MenuSection2, { id: group.id, title: group.title, children: entries(group.items, core, mac) }, group.id)
       ]
     ) })
   ] });
 }
-function entries(items, core) {
-  return items.map(
-    (item) => item.kind === "button" ? /* @__PURE__ */ jsx19(
+function entries(items, core, mac) {
+  return items.map((item) => {
+    const label = item.kind === "button" ? item.label : item.text;
+    const shortcut = item.kind === "button" ? shortcutLabel(item.shortcut, mac) : void 0;
+    return /* @__PURE__ */ jsxs13(
       MenuItem2,
       {
         id: item.id,
-        textValue: item.label,
-        isDisabled: item.disabled,
-        onAction: () => {
+        textValue: label,
+        isDisabled: item.kind === "status" || item.disabled,
+        onAction: item.kind === "button" ? () => {
           void runButton(core, item);
-        },
-        children: /* @__PURE__ */ jsx19("span", { title: item.tooltip, children: item.label })
+        } : void 0,
+        children: [
+          /* @__PURE__ */ jsx19(Text, { slot: "label", children: label }),
+          item.tooltip === void 0 ? null : /* @__PURE__ */ jsx19(Text, { slot: "description", children: item.tooltip }),
+          shortcut === void 0 ? null : /* @__PURE__ */ jsx19(Keyboard, { children: shortcut })
+        ]
       },
       item.id
-    ) : /* @__PURE__ */ jsx19(MenuItem2, { id: item.id, textValue: item.text, isDisabled: true, children: /* @__PURE__ */ jsx19("span", { title: item.tooltip, children: item.text }) }, item.id)
-  );
+    );
+  });
 }
 function groups(id2, items, title) {
   const own2 = items.filter((item) => item.kind !== "menu");

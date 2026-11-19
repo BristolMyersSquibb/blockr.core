@@ -15,7 +15,7 @@ import { find, picking, press, texts, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
 import { logged } from "../../testing/logged.ts";
-import { inert, menuGroup, menuItem, menuItems, openDialog, openMenu } from "../../testing/overlays.ts";
+import { inert, itemDescribed, menuGroup, menuItem, menuItems, openDialog, openMenu } from "../../testing/overlays.ts";
 import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
@@ -813,7 +813,7 @@ describe("the storage controls", () => {
     ]);
   });
 
-  test("open a menu of what it holds, a menu inside it as a group under its label, and close it as one of its buttons runs", async () => {
+  test("open a menu of what it holds, a menu inside it as a group under its label, each item with its tooltip below it and its shortcut at its right, and close it as one of its buttons runs", async () => {
     const { runs, ran } = running();
     const storage = storagePlugin(() => [
       {
@@ -821,7 +821,7 @@ describe("the storage controls", () => {
         id: "versions",
         label: "Versions",
         items: [
-          { kind: "button", id: "restore", label: "Restore", run: ran("restore") },
+          { kind: "button", id: "restore", label: "Restore", shortcut: "Mod+Shift+K", run: ran("restore") },
           { kind: "status", id: "latest", text: "Version 3", tooltip: "Saved at noon" },
           {
             kind: "menu",
@@ -839,14 +839,17 @@ describe("the storage controls", () => {
     await click(opener);
     expect(opener.getAttribute("aria-expanded")).toBe("true");
     const shown = openMenu("Versions");
-    // A status is an item that the user cannot pick, and the tooltip of an
-    // item shows on its text.
+    // A status is an item that the user cannot pick. An item's tooltip shows
+    // as its description, and a button's shortcut at its right, as the page
+    // names it off a Mac, and React Aria names both to assistive technology.
     expect(menuItems(shown)).toEqual(["Restore", "Version 3", "Version 1"]);
     expect(menuItem(shown, "Version 3").getAttribute("aria-disabled")).toBe("true");
-    expect(find(menuItem(shown, "Version 3"), "[title]").title).toBe("Saved at noon");
+    expect(itemDescribed(menuItem(shown, "Version 3"))).toEqual(["Saved at noon"]);
+    expect(find(menuItem(shown, "Restore"), "kbd").textContent).toBe("Ctrl+Shift+K");
+    expect(itemDescribed(menuItem(shown, "Restore"))).toEqual(["Ctrl+Shift+K"]);
     const older = menuGroup(shown, "Older");
     expect(menuItems(older)).toEqual(["Version 1"]);
-    expect(find(menuItem(older, "Version 1"), "[title]").title).toBe("Saved in May");
+    expect(itemDescribed(menuItem(older, "Version 1"))).toEqual(["Saved in May"]);
 
     await click(menuItem(older, "Version 1"));
     expect(runs).toEqual(["v1"]);

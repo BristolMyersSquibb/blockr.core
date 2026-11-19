@@ -9,6 +9,11 @@
 // React Aria closes the menu as the user picks an item, on Escape and on a
 // press outside it, and moves the focus through its items by the arrow keys.
 // An item shows a tick where the menu picks, and the item is picked.
+// An item holds its text, or its label in a Text of the slot "label", with
+// its description, in a Text of the slot "description", in a muted line below
+// it, and its shortcut, in React Aria's Keyboard, at its right.
+// React Aria names both the description and the shortcut to assistive
+// technology, in the item's aria-describedby.
 // A section groups items under its title.
 
 import { Children } from "react";
@@ -60,7 +65,7 @@ export function MenuItem(props: MenuItemProps): ReactElement {
           {selectionMode === "none" ? null : (
             <span className="bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent">{isSelected ? <Tick /> : null}</span>
           )}
-          <span className="bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2 bc:truncate">{children}</span>
+          <span className={CONTENT}>{children}</span>
         </>
       ))}
     </AriaMenuItem>
@@ -105,3 +110,7 @@ const MENU = "bc:grid bc:max-h-[inherit] bc:gap-0.5 bc:overflow-auto bc:p-1 bc:o
 const ITEM =
   "bc:box-border bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 const HEADING = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
+// The item's text or label, its description in a second row, and its
+// shortcut in a column of its own at its right, each cut to one line.
+const CONTENT =
+  "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";

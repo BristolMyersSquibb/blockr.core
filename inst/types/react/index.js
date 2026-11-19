@@ -389,6 +389,7 @@ import {
   Header,
   Heading,
   Input,
+  Keyboard,
   Label,
   ListBox,
   ListBoxItem,
@@ -1015,7 +1016,7 @@ function MenuItem2(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
   return /* @__PURE__ */ jsx9(MenuItem, { ...props, textValue, className: composeRenderProps(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps(props.children, (children, { selectionMode, isSelected }) => /* @__PURE__ */ jsxs5(Fragment5, { children: [
     selectionMode === "none" ? null : /* @__PURE__ */ jsx9("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx9(Tick2, {}) : null }),
-    /* @__PURE__ */ jsx9("span", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2 bc:truncate", children })
+    /* @__PURE__ */ jsx9("span", { className: CONTENT, children })
   ] })) });
 }
 function MenuSection2({ title, items, children, ...props }) {
@@ -1044,6 +1045,7 @@ function Tick2() {
 var MENU = "bc:grid bc:max-h-[inherit] bc:gap-0.5 bc:overflow-auto bc:p-1 bc:outline-none";
 var ITEM = "bc:box-border bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var HEADING2 = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
+var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 export {
   Button2 as Button,
   Checkbox,
@@ -1054,6 +1056,7 @@ export {
   DialogTrigger,
   Field,
   Heading,
+  Keyboard,
   Menu2 as Menu,
   MenuItem2 as MenuItem,
   MenuSection2 as MenuSection,

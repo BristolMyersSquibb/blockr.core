@@ -341,7 +341,7 @@ function useHistory(core) {
 
 // srcts/ui/search.ts
 import { useState as useState3 } from "react";
-import { useFilter } from "./vendor-ebb3c5aa.js";
+import { useFilter } from "./vendor-b25170e7.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState3("");
@@ -1109,7 +1109,7 @@ function isReload(notification) {
 
 // srcts/modules/basic/toolbar.tsx
 import { useEffect, useReducer, useState as useState8 } from "react";
-import { Button as SdkButton, Menu as Menu2, MenuItem, MenuSection, MenuTrigger as MenuTrigger2 } from "@blockr/core/react";
+import { Button as SdkButton, Keyboard, Menu as Menu2, MenuItem, MenuSection, MenuTrigger as MenuTrigger2, Text as Text2 } from "@blockr/core/react";
 
 // srcts/modules/basic/storage.ts
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -1200,6 +1200,31 @@ function ariaShortcuts(text) {
   const rest = [...shortcut.alt ? ["Alt"] : [], ...shortcut.shift ? ["Shift"] : [], shortcut.key];
   const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
   return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
+}
+function shortcutLabel(text, mac) {
+  const shortcut = text === void 0 ? void 0 : readShortcut(text);
+  if (shortcut === void 0) return void 0;
+  const key = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
+  if (mac) {
+    const glyphs = [
+      ...shortcut.ctrl ? ["\u2303"] : [],
+      ...shortcut.alt ? ["\u2325"] : [],
+      ...shortcut.mod || shortcut.meta ? ["\u2318"] : [],
+      ...shortcut.shift ? ["\u21E7"] : []
+    ];
+    return [...glyphs, key].join("");
+  }
+  const words = [
+    ...shortcut.mod || shortcut.ctrl ? ["Ctrl"] : [],
+    ...shortcut.alt ? ["Alt"] : [],
+    ...shortcut.shift ? ["Shift"] : [],
+    ...shortcut.meta ? ["Meta"] : []
+  ];
+  return [...words, key].join("+");
+}
+function onMac(win) {
+  const nav = win.navigator;
+  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
 }
 var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
 function readShortcut(text) {
@@ -1360,34 +1385,41 @@ function StorageButton({ button, className }) {
 }
 function StorageMenu({ label, items }) {
   const { core } = useFrontEnd();
+  const mac = onMac(window);
   return /* @__PURE__ */ jsxs8(MenuTrigger2, { placement: "bottom end", children: [
     /* @__PURE__ */ jsxs8(SdkButton, { variant: "secondary", children: [
       label,
       /* @__PURE__ */ jsx10("span", { "aria-hidden": "true", children: "\u25BE" })
     ] }),
     /* @__PURE__ */ jsx10(Menu2, { "aria-label": label, children: groups(label, items).flatMap(
-      (group) => group.title === void 0 ? entries(group.items, core) : [
-        /* @__PURE__ */ jsx10(MenuSection, { id: group.id, title: group.title, children: entries(group.items, core) }, group.id)
+      (group) => group.title === void 0 ? entries(group.items, core, mac) : [
+        /* @__PURE__ */ jsx10(MenuSection, { id: group.id, title: group.title, children: entries(group.items, core, mac) }, group.id)
       ]
     ) })
   ] });
 }
-function entries(items, core) {
-  return items.map(
-    (item) => item.kind === "button" ? /* @__PURE__ */ jsx10(
+function entries(items, core, mac) {
+  return items.map((item) => {
+    const label = item.kind === "button" ? item.label : item.text;
+    const shortcut = item.kind === "button" ? shortcutLabel(item.shortcut, mac) : void 0;
+    return /* @__PURE__ */ jsxs8(
       MenuItem,
       {
         id: item.id,
-        textValue: item.label,
-        isDisabled: item.disabled,
-        onAction: () => {
+        textValue: label,
+        isDisabled: item.kind === "status" || item.disabled,
+        onAction: item.kind === "button" ? () => {
           void runButton(core, item);
-        },
-        children: /* @__PURE__ */ jsx10("span", { title: item.tooltip, children: item.label })
+        } : void 0,
+        children: [
+          /* @__PURE__ */ jsx10(Text2, { slot: "label", children: label }),
+          item.tooltip === void 0 ? null : /* @__PURE__ */ jsx10(Text2, { slot: "description", children: item.tooltip }),
+          shortcut === void 0 ? null : /* @__PURE__ */ jsx10(Keyboard, { children: shortcut })
+        ]
       },
       item.id
-    ) : /* @__PURE__ */ jsx10(MenuItem, { id: item.id, textValue: item.text, isDisabled: true, children: /* @__PURE__ */ jsx10("span", { title: item.tooltip, children: item.text }) }, item.id)
-  );
+    );
+  });
 }
 function groups(id2, items, title) {
   const own2 = items.filter((item) => item.kind !== "menu");
