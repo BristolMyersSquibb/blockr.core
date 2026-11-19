@@ -384,7 +384,7 @@ coef_output <- new_output_family(
 ```
 
 A family that takes results of any class, as a code block's family does, is open.
-It gives `families = "listed"`, and hands its results to every family that the available packages list in the `families` of their `._BLOCKR_MODULES_`.
+It gives `families = TRUE`, and hands its results to every family that the available packages list in the `families` of their `._BLOCKR_MODULES_`.
 A package that adds a method to an open family lists the family that the method hands its results to.
 For a method `code_output.sf()` that hands a map to the package's own `map_output`, the package lists `map_output`.
 The entry of a block class whose family is open names the board options and the renderer of every listed family.

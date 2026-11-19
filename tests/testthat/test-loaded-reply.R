@@ -332,7 +332,7 @@ test_that("an entry of a class whose family is open names every listed one", {
   any_output <- new_output_family(
     function(result, ...) text_output(result, ...),
     "any_output",
-    families = "listed"
+    families = TRUE
   )
 
   head <- get_registry_entry("blockr.core-head_block")

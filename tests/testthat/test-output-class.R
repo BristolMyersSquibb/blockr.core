@@ -261,12 +261,12 @@ test_that("an open family hands its results to every listed family", {
       text_output(result, ...)
     },
     "any_output",
-    families = "listed"
+    families = TRUE
   )
 
   expect_true(is_open_family(any_output))
   expect_false(is_open_family(table_output))
-  expect_identical(attr(any_output, "families"), "listed")
+  expect_true(attr(any_output, "families"))
 
   expect_s3_class(any_output(datasets::BOD, options = list(n_rows = 2L)),
                   "table_output")
@@ -320,8 +320,8 @@ test_that("an open family hands its results to every listed family", {
                    c("dark_mode", "n_rows"))
   expect_error(family_option_ids(any_output), "A listing read")
 
-  # No other value makes a family open
-  for (families in list("all", c("listed", "listed"), list("listed"), NA)) {
+  # No other value makes a family open, and FALSE does not stand for no family
+  for (families in list("all", FALSE, NA, c(TRUE, TRUE), list(TRUE))) {
     expect_error(
       new_output_family(identity, "any_output", families = families),
       class = "output_family_invalid"

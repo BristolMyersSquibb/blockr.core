@@ -146,7 +146,7 @@ test_that("an open family's outputs are drawn by the listed families", {
       table_output(result, ...)
     },
     "any_output",
-    families = "listed"
+    families = TRUE
   )
 
   listed <- list(words_output = words_output, table_output = table_output)

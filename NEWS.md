@@ -68,7 +68,7 @@
   output as JSON, so nothing assumes a table.
   A family holds the constructors of the board options that it reads, as `table_output` holds `new_n_rows_option`, and the renderer that draws its outputs, and R reads both from the family as its package defines it now, so that a block class built against an older version of that package reads the current ones.
   A family that hands its results to other families, as a wrapper does, names them in `families`, reads their board options too, and has each of its outputs drawn by the renderer of the family whose class the output has, and `new_output_family()` refuses a class that another family has.
-  A family that takes results of any class, as a code block's does, is open: it gives `families = "listed"`, and hands its results to every family that the available packages list, with their board options and renderers.
+  A family that takes results of any class, as a code block's does, is open: it gives `families = TRUE`, and hands its results to every family that the available packages list, with their board options and renderers.
   The class vector of an output
   ends in `block_output`, and `new_block_output()` makes one. An output may
   hold one binary body, which `new_reply_body()` makes from a raw vector or a

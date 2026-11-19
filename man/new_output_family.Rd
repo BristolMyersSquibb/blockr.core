@@ -22,7 +22,7 @@ reads, or that the renderers of its outputs read, a function such as
 makes, made by \code{\link[=new_renderer]{new_renderer()}}}
 
 \item{families}{The families that \code{fun} hands its results to, a family or
-a list of them, or \code{"listed"} for every family that the available packages
+a list of them, or \code{TRUE} for every family that the available packages
 list}
 }
 \value{
@@ -80,7 +80,7 @@ dispatches on the result as it does for any generic.
 
 A family that takes results of any class, as a code block's family does, is
 open.
-An open family gives \code{families = "listed"}, and hands its results to every
+An open family gives \code{families = TRUE}, and hands its results to every
 family that the available packages list in the \code{families} of their
 \code{._BLOCKR_MODULES_} (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}).
 S3 lets any package add a method to an open family, such as
@@ -120,7 +120,7 @@ any_output <- new_output_family(
     text_output(result, ...)
   },
   "any_output",
-  families = "listed"
+  families = TRUE
 )
 
 class(any_output(month.name[1:3]))

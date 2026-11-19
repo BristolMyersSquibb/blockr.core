@@ -274,7 +274,7 @@ print.reply_body <- function(x, ...) {
 #'
 #' A family that takes results of any class, as a code block's family does, is
 #' open.
-#' An open family gives `families = "listed"`, and hands its results to every
+#' An open family gives `families = TRUE`, and hands its results to every
 #' family that the available packages list in the `families` of their
 #' `._BLOCKR_MODULES_` (see [read_blocks_yml()]).
 #' S3 lets any package add a method to an open family, such as
@@ -299,7 +299,7 @@ print.reply_body <- function(x, ...) {
 #' @param renderer The renderer of the outputs of class `class` that `fun`
 #'   makes, made by [new_renderer()]
 #' @param families The families that `fun` hands its results to, a family or
-#'   a list of them, or `"listed"` for every family that the available packages
+#'   a list of them, or `TRUE` for every family that the available packages
 #'   list
 #'
 #' @examples
@@ -328,7 +328,7 @@ print.reply_body <- function(x, ...) {
 #'     text_output(result, ...)
 #'   },
 #'   "any_output",
-#'   families = "listed"
+#'   families = TRUE
 #' )
 #'
 #' class(any_output(month.name[1:3]))
@@ -388,11 +388,11 @@ new_output_family <- function(fun, class, options = NULL, renderer = NULL,
     families <- list(families)
   }
 
-  if (!is.null(families) && !identical(families, "listed") &&
+  if (!is.null(families) && !isTRUE(families) &&
         !(is.list(families) && all(lgl_ply(families, is_output_family)))) {
     blockr_abort(
       "The families that an output family hands its results to are expected ",
-      "to be an output family or a list of them, or \"listed\" for every ",
+      "to be an output family or a list of them, or TRUE for every ",
       "family that the available packages list.",
       class = "output_family_invalid"
     )
@@ -422,7 +422,7 @@ is_output_family <- function(x) {
 # Whether family `x` is open: one that hands its results to every family that
 # the available packages list.
 is_open_family <- function(x) {
-  identical(attr(x, "families"), "listed")
+  isTRUE(attr(x, "families"))
 }
 
 # Whether another output family has the class `class`: one bound under that

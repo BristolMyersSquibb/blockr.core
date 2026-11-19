@@ -638,7 +638,7 @@ test_that("R draws an open family's outputs by the families the app read", {
       text_output(result, ...)
     },
     "any_output",
-    families = "listed"
+    families = TRUE
   )
 
   for (cls in list(

@@ -950,7 +950,7 @@ test_that("an app holds the output families that serve() read", {
   any_output <- new_output_family(
     function(result, ...) text_output(result, ...),
     "any_output",
-    families = "listed"
+    families = TRUE
   )
 
   dir <- withr::local_tempdir()
