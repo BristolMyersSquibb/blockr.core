@@ -21,6 +21,10 @@
 // - A binding reads the value from the host when it submits,
 //   so that a control that changes part of it, such as one column of a list,
 //   keeps an edit made in the meantime, such as a column the assistant added.
+// - Where the host refuses a submit, core tells the user why through a
+//   notification about the block or the board option, unless the binding
+//   passes the host a notifier, as one does for a control that shows why
+//   itself, as core's inputs do below themselves.
 // A followed request is asked again whenever what it reads changes,
 // the revisions of a block's linked data inputs among them,
 // and hands on only the answer of the latest request asked.
@@ -29,6 +33,7 @@
 // until that ask answers or fails.
 
 import type { OptionId } from "../types/board.ts";
+import type { Notifier } from "../types/core-api.ts";
 import type { BlockHost, HostRequestOpts, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { jsonEqual, own } from "../util/index.ts";
@@ -68,6 +73,10 @@ export interface BindOptions {
   // Hears how each submit ended: null where the host took it,
   // and what refused it otherwise.
   readonly settled?: (error: unknown) => void;
+  // Takes the notification of each submit that the host refuses, which core
+  // then does not raise, for a control that shows why itself, through
+  // `settled`. The binding passes it to the host's submit().
+  readonly notifier?: Notifier;
 }
 
 export interface FollowOptions {
@@ -118,6 +127,7 @@ export function bind(
 ): Binding {
   const source = createSource(host);
   source.check(key);
+  const submitting = options.notifier === undefined ? {} : { notifier: options.notifier };
 
   // The value the control last showed, what the user typed while the
   // binding waits for the pause, and whether the binding has ended.
@@ -139,7 +149,7 @@ export function bind(
   const submit = async (value: Json | undefined): Promise<boolean> => {
     if (jsonEqual(source.get(key), value)) return true;
     try {
-      await (value === undefined ? source.unset(key) : source.submit(key, value));
+      await (value === undefined ? source.unset(key, submitting) : source.submit(key, value, submitting));
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -250,14 +260,17 @@ export function follow(host: BlockHost | OptionHost, name: string, options: Foll
   };
 }
 
+// The options that a binding passes to its host's submit().
+type SubmitOpts = Parameters<OptionHost["submit"]>[1];
+
 // What a binding and a followed request read, follow and submit,
 // from either host.
 interface Source {
   // Throws where the host holds no value under the key.
   check(key: string): void;
   get(key: string): Json | undefined;
-  submit(key: string, value: Json): Promise<void>;
-  unset(key: string): Promise<void>;
+  submit(key: string, value: Json, opts: SubmitOpts): Promise<void>;
+  unset(key: string, opts: SubmitOpts): Promise<void>;
   // Follows the values, and what a request reads besides them.
   onValues(fn: () => void): () => void;
   onContext(fn: () => void): () => void;
@@ -279,9 +292,9 @@ function createSource(host: BlockHost | OptionHost): Source {
         check(key);
         return host.value();
       },
-      submit(key, value) {
+      submit(key, value, opts) {
         check(key);
-        return host.submit(value);
+        return host.submit(value, opts);
       },
       unset(key) {
         check(key);
@@ -296,8 +309,8 @@ function createSource(host: BlockHost | OptionHost): Source {
   return {
     check: () => undefined,
     get: (key) => own(host.state(), key),
-    submit: (key, value) => host.submit({ [key]: value }),
-    unset: (key) => host.submit({ [key]: undefined }),
+    submit: (key, value, opts) => host.submit({ [key]: value }, opts),
+    unset: (key, opts) => host.submit({ [key]: undefined }, opts),
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input) => ({ input: input.input, revision: input.revision })),

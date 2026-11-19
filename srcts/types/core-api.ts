@@ -9,7 +9,7 @@
 // CoreApi.
 
 import type { Commands } from "../commands/index.ts";
-import type { Condition, Lock, Phase } from "../protocol/index.ts";
+import type { Lock, Phase } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Options, PluginClass, Storage, Store } from "../store/index.ts";
 import type { BlockId, LinkId, OptionId, PluginClassId, RegistryId, StackId } from "./board.ts";
@@ -25,14 +25,17 @@ export interface CoreApi {
   // board's text would. Where this store refuses the board, core tells the
   // user why through a notification of the code `board_open_failed`, and
   // open() rejects with the reason. Where it refuses a delta, an undo or a
-  // redo of the origin "user", core tells the user why through a notification
+  // redo, of whatever origin, core tells the user why through a notification
   // of the code `board_edit_failed`, and the call still throws the reason.
+  // A call whose caller shows the reason itself, or hands it on, passes a
+  // notifier in its options, which takes the notification in place of core
+  // (Notifier, below).
   readonly store: Store;
   // The command registry, for menus and shortcuts. Where it or the store
-  // refuses a command, or a list of commands, of the origin "user", core tells
+  // refuses a command, or a list of commands, of whatever origin, core tells
   // the user why through a notification of the code `board_edit_failed`, and
-  // run() still rejects with the reason. An edit of another origin, such as
-  // the assistant's, only rejects or throws.
+  // run() still rejects with the reason, unless the call's notifier takes the
+  // notification, as for the store.
   readonly commands: Commands;
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
@@ -141,7 +144,9 @@ export interface CoreApi {
   // A request of a plugin that runs, by the id of the plugin's class, which
   // the method of R's plugin_requests() for the class answers. Its args go to
   // the request's function by name. Core has the blocks that it reads
-  // evaluated first, and keeps none of its answers, since it may write.
+  // evaluated first, and keeps none of its answers, since it may write. Each
+  // condition of R's reply, ok or error, raises a notification about the
+  // plugin, unless the request's notifier takes them.
   request<T = Json>(plugin: PluginClassId, name: string, args?: Readonly<Record<string, Json>>, opts?: RequestOpts): Promise<T | Blob>;
   // A module another package offers, by id.
   module<T = unknown>(id: string): Promise<T>;
@@ -151,6 +156,13 @@ export interface CoreApi {
   // own where nothing sets it. It rejects where R cannot give the value, as for
   // a blockr option whose R option and environment variable disagree.
   blockrOption(name: string): Promise<Json | undefined>;
+  // A new id, such as "calm_heron", that `taken` does not hold, in the shape
+  // that the blockr option rand_id names, as core's commands mint ids. It
+  // serves a caller that names an object before a batch adds it. A batch hands
+  // no value from one command to the next, so a caller that adds a block and
+  // links it in one batch mints the block's id first, as the block picker
+  // does.
+  mintId(taken: (id: string) => boolean): string;
   // The block's UI module, its output, and a board option's UI or the
   // renderer R picked for it, each mounted in the element until the cleanup
   // that the call returns runs.
@@ -281,8 +293,7 @@ export type CoreCode =
   | "plugin_start_failed"
   // A board that does not open.
   | "board_open_failed"
-  // An edit of the origin "user" that the store or the command registry
-  // refuses.
+  // An edit that the store or the command registry refuses.
   | "board_edit_failed"
   // What the store dropped as the board opened.
   | "board_objects_dropped"
@@ -404,15 +415,28 @@ export interface RequestOpts {
   file?: File;
   // Hears each progress note that R sends for it.
   progress?(note: { value?: number; message?: string }): void;
-  // Takes the conditions of R's reply to it, ok or error, for a caller that
-  // hands them on itself, as the assistant hands them to the model.
-  // Core then raises no notification for them, and leaves the notifications
-  // of earlier replies to the request as they are.
+  // Takes the notifications of each of R's replies to it, ok or error, one for
+  // each condition of the reply, and none for a reply without conditions
+  // (Notifier, below).
   // A reply of error still rejects with its conditions.
   // A plugin passes it only for a request of its own, since core cannot tell
   // which plugin calls.
-  conditions?(conditions: readonly Condition[]): void;
+  notifier?(notifications: readonly Notification[]): void;
 }
+
+// Takes the notifications that a call would raise, for a caller that shows
+// the user why the call failed itself, or hands that on, as the assistant
+// hands it to the model, so that the user is told once
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#taking-a-calls-notifications).
+// A caller passes it in the options of a request, of an edit through the
+// store or the command registry, of the store's open(), or of a host's
+// submit(). Core then raises none of those notifications, and leaves those
+// that earlier calls raised as they are, since another caller may have made
+// those calls. Core hands it the notifications of each reply to a request, and
+// the notification of a refused edit or board before the call rejects or
+// throws, which it still does. Core logs what a notifier throws, and the call
+// ends as it would have.
+export type Notifier = (notifications: readonly Notification[]) => void;
 
 export interface OutputEvents {
   // Calls `fn` with each event that a renderer emits.

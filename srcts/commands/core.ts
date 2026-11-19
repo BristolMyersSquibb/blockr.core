@@ -1,11 +1,22 @@
 // Core's commands, which cover what core's plugins of today and the dock's
 // actions did: adding, removing and renaming a block, setting and unsetting its
-// state args, setting its lock, appending, prepending and inserting one on a
-// link, adding, changing, moving and removing links, adding, changing,
-// renaming and removing stacks, renaming the board and setting a board option,
-// and setting a plugin's state, while the app's opening board sets which
-// plugins a board holds. A block that a command adds starts with a lock of
-// null, which follows the board lock.
+// state args, setting its lock, adding, changing, moving and removing links,
+// adding, changing, renaming and removing stacks, renaming the board and
+// setting a board option, and setting a plugin's state, while the app's
+// opening board sets which plugins a board holds. A block that a command adds
+// starts with a lock of null, which follows the board lock.
+// Appending, prepending and inserting a block are batches of these, so that
+// each rule about links lives in add_link alone
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.2#commands):
+// - Appending block n after block a runs add_block for n, then add_link from a
+//   to n.
+// - Prepending block n before block b runs add_block for n, then add_link from
+//   n to b.
+// - Inserting block n on link l runs add_block for n, then add_link from the
+//   source of l to n, then change_link, which has l come from n. So l keeps
+//   its id, its input and its place among the links.
+// A batch hands no value from one command to the next, so the caller fixes the
+// id of n first, and mints it with CoreApi's mintId() where it has none.
 // Besides core's command for any plugin's state, a plugin class's package
 // registers commands of its own for what its plugins keep.
 //
@@ -91,13 +102,13 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
   }
 
   // The id and the block that a command adds, its id minted where it is left
-  // out, with its class.
+  // out.
   function added(
     command: string,
     board: Board,
     args: NewBlock,
     mintId: CommandContext["mintId"],
-  ): [BlockId, Block, RegistryEntry] {
+  ): [BlockId, Block] {
     const entry = registryEntry(command, args.registry_id);
     const state = { ...entry.state, ...args.state };
     const failures = stateFailures(entry, state);
@@ -105,26 +116,36 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       throw refusal(command, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id = args.id ?? mintId((id) => Object.hasOwn(board.blocks, id));
-    return [
-      id,
-      { registry_id: entry.id, state, name: args.name ?? defaultBlockName(entry.id), locked: null },
-      entry,
-    ];
+    return [id, { registry_id: entry.id, state, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
 
   // Why block `to` cannot take one more link, into the input given or else a
   // free one, with a sentence for each failure: another link feeds the input
-  // given, or, where none is given, every input of the block. A variadic block
-  // takes any number of links, under any name. The caller checks that the
-  // board holds the block.
+  // given, or, where none is given, the block has no free input. The sentence
+  // for that comes from noFreeInput(). A variadic block takes any number of
+  // links, under any name. The caller checks that the board holds the block.
   function inputFailures(board: Board, to: BlockId, given?: string): string[] {
     const registry = store.blockRegistry();
     if (!named(given)) {
       const free = freeInputs(board, registry, to) ?? [];
-      return free.length > 0 ? [] : [`The block "${to}" has no input that no link feeds.`];
+      return free.length > 0 ? [] : [noFreeInput(board, to)];
     }
     const other = linkFeeding(board, registry, to, given);
     return other === undefined ? [] : [`The link "${other}" feeds the input "${given}" of block "${to}" already.`];
+  }
+
+  // Why no new link can go to block `to`, which has no free input, in a
+  // sentence: the board lacks the block, the block registry lacks its class,
+  // its class takes no input, or links feed every input that it has.
+  function noFreeInput(board: Board, to: BlockId): string {
+    const block = own(board.blocks, to);
+    if (block === undefined) return `The board holds no block "${to}".`;
+    const entry = own(store.blockRegistry(), block.registry_id);
+    if (entry === undefined) return `The block registry has no block class "${block.registry_id}".`;
+    if (entry.inputs.length === 0) {
+      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+    }
+    return `Every input of the block "${to}" takes a link already.`;
   }
 
   // The input of block `to` that a new link goes to: the one given, and
@@ -144,22 +165,8 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     return one(
       command,
       free,
-      `The block "${to}" has no input that no link feeds.`,
+      noFreeInput(board, to),
       `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`,
-    );
-  }
-
-  // The input of a new block of the class that takes a link: the one given,
-  // and otherwise its only input, or an empty input for a variadic class.
-  // Where the class has several inputs, the args have to name one.
-  function newInput(command: string, entry: RegistryEntry, given?: string): string {
-    if (named(given)) return given;
-    if (entry.inputs.includes("...")) return "";
-    return one(
-      command,
-      entry.inputs,
-      `The block class "${entry.id}" has no input to take a link.`,
-      `The block class "${entry.id}" has the inputs ${quoted(entry.inputs)}, so the args have to name the one to use.`,
     );
   }
 
@@ -168,7 +175,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
       id: "blockr.core-add_block",
       label: "Add block",
       description:
-        "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given.",
+        "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
       args: object(newBlock, ["registry_id"]),
       run(board, args, { mintId }) {
         const [id, block] = added(this.id, board, args, mintId);
@@ -227,105 +234,6 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
             mod: {
               [id]: { ...(state === undefined ? {} : { state }), ...(unset === undefined ? {} : { unset }) },
             },
-          },
-        };
-      },
-    }),
-    command<NewBlock & { readonly from: BlockId; readonly input?: string }>({
-      id: "blockr.core-append_block",
-      label: "Append block",
-      description:
-        "Adds a block that takes the result of another, through a new link from that block into an input of the new block.",
-      args: object(
-        {
-          from: { ...schemas.blockId, description: "The block whose result the new block takes." },
-          ...newBlock,
-          input: {
-            ...schemas.input,
-            description:
-              "The input of the new block that takes the result, which may be left out where the new block has one input or is variadic.",
-          },
-        },
-        ["from", "registry_id"],
-      ),
-      preflight: (board, { from }) => Object.hasOwn(board.blocks, from),
-      run(board, args, { mintId }) {
-        const [id, block, entry] = added(this.id, board, args, mintId);
-        const input = newInput(this.id, entry, args.input);
-        const link = mintId((id) => Object.hasOwn(board.links, id));
-        return {
-          blocks: { add: { [id]: block } },
-          links: { add: { [link]: { from: args.from, to: id, input } } },
-        };
-      },
-    }),
-    command<NewBlock & { readonly to: BlockId; readonly input?: string }>({
-      id: "blockr.core-prepend_block",
-      label: "Prepend block",
-      description:
-        "Adds a block whose result another takes, through a new link from the new block into an input of that block.",
-      args: object(
-        {
-          to: { ...schemas.blockId, description: "The block that takes the new block's result." },
-          ...newBlock,
-          input: {
-            ...schemas.input,
-            description:
-              "The input of that block that takes the result, which may be left out where only one of its inputs is free or it is variadic.",
-          },
-        },
-        ["to", "registry_id"],
-      ),
-      // The new block has no links, so its link can close no cycle.
-      preflight: (board, { to, input }, { refusal }) =>
-        Object.hasOwn(board.blocks, to) && passes(inputFailures(board, to, input), refusal),
-      run(board, args, { mintId }) {
-        const input = linkInput(this.id, board, args.to, args.input);
-        const [id, block] = added(this.id, board, args, mintId);
-        const link = mintId((id) => Object.hasOwn(board.links, id));
-        return {
-          blocks: { add: { [id]: block } },
-          links: { add: { [link]: { from: id, to: args.to, input } } },
-        };
-      },
-    }),
-    command<NewBlock & { readonly link: LinkId; readonly input?: string }>({
-      id: "blockr.core-insert_block",
-      label: "Insert block",
-      description:
-        "Adds a block on a link, which it replaces with a link from the link's source into an input of the new block and one from the new block into the input that the link fed.",
-      args: object(
-        {
-          link: { ...schemas.linkId, description: "The link that the new block goes on." },
-          ...newBlock,
-          input: {
-            ...schemas.input,
-            description:
-              "The input of the new block that takes the result of the link's source, which may be left out where the new block has one input or is variadic.",
-          },
-        },
-        ["link", "registry_id"],
-      ),
-      preflight: (board, { link }) => Object.hasOwn(board.links, link),
-      run(board, args, { mintId }) {
-        const split = own(board.links, args.link);
-        if (split === undefined) return [];
-        const [id, block, entry] = added(this.id, board, args, mintId);
-        const input = newInput(this.id, entry, args.input);
-        const near = mintId((id) => Object.hasOwn(board.links, id));
-        const far = mintId((id) => Object.hasOwn(board.links, id) || id === near);
-
-        // The link into the input that the split link fed takes its place
-        // among the links, since a variadic block takes its links in order.
-        return {
-          blocks: { add: { [id]: block } },
-          links: {
-            rm: [args.link],
-            add: {
-              [near]: { from: split.from, to: id, input },
-              [far]: { from: id, to: split.to, input: split.input },
-            },
-            before: { [far]: args.link },
           },
         };
       },

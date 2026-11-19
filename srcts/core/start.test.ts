@@ -517,7 +517,7 @@ describe("starting the page", () => {
     ]);
   });
 
-  test("has core's commands mint ids in the shape that the blockr option rand_id names", async () => {
+  test("has core's commands and CoreApi's mintId() mint ids in the shape that the blockr option rand_id names", async () => {
     const basic = frontEnd();
     const s = setup({ [BASIC]: basic.exports });
     s.r.session();
@@ -525,12 +525,14 @@ describe("starting the page", () => {
     s.r.options({ rand_id: "uuid" });
     const core = await s.started.ready;
     const before = Object.keys(core.store.board().blocks);
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
     await core.commands.run("blockr.core-add_block", { registry_id: "blockr.core-head_block" });
 
     const minted = Object.keys(core.store.board().blocks).filter((id) => !before.includes(id));
     expect(minted).toHaveLength(1);
-    expect(minted[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(minted[0]).toMatch(uuid);
+    expect(core.mintId((id) => Object.hasOwn(core.store.board().blocks, id))).toMatch(uuid);
   });
 
   test("imports the module of each of the app's plugin classes and board options before it opens the board, once for the page", async () => {
@@ -949,10 +951,16 @@ describe("a board opened later", () => {
     return { ...s, core };
   }
 
-  // Opens the board through the store's open(), and answers the hello with
-  // which core starts again.
-  async function reopen(s: Setup, core: CoreApi, text: string, reply: HelloReply = hello): Promise<unknown> {
-    const opening = core.store.open(text);
+  // Opens the board through the store's open(), with the options given, and
+  // answers the hello with which core starts again.
+  async function reopen(
+    s: Setup,
+    core: CoreApi,
+    text: string,
+    reply: HelloReply = hello,
+    opts?: Parameters<CoreApi["store"]["open"]>[1],
+  ): Promise<unknown> {
+    const opening = core.store.open(text, opts);
     await tick();
     s.r.answer(reply);
     return opening;
@@ -1026,6 +1034,40 @@ describe("a board opened later", () => {
     );
     s.core.store.apply({ name: "Still open" });
     expect(s.core.store.board().name).toBe("Still open");
+  });
+
+  test("hands why the store on the page refused the board to the notifier of open(), as core would raise it, and core raises none, while open() still rejects with the reason", async () => {
+    const basic = frontEnd();
+    const s = await started({ [BASIC]: basic.exports });
+    const sent = s.r.sent.length;
+    const taken: (readonly Notification[])[] = [];
+    const notifier = (notifications: readonly Notification[]): void => {
+      taken.push(notifications);
+    };
+    const refusal = "The store refused to open the board\n- The text holds no JSON";
+    const reported = logged();
+
+    await expect(s.core.store.open("{", { notifier })).rejects.toThrow(refusal);
+    const failed = (): Notification[] => s.core.notifications.get().filter((n) => notificationCode(n) === "board_open_failed");
+    expect(failed()).toEqual([]);
+    expect(taken.map((notifications) => notifications.map((n) => [n.severity, n.source, n.about]))).toEqual([
+      [["error", { kind: "core", code: "board_open_failed" }, undefined]],
+    ]);
+    expect(taken[0]?.[0]?.message).toMatch(/^The store refused to open the board\n- The text holds no JSON/);
+
+    // Without a notifier, core raises the same notification, with the same
+    // id.
+    await expect(s.core.store.open("{")).rejects.toThrow(refusal);
+    expect(failed()).toEqual(taken[0]);
+    // A notifier that is no function is refused at once.
+    await expect(s.core.store.open("{", { notifier: "quiet" as never })).rejects.toThrow(
+      new TypeError("The `notifier` of open() is a function."),
+    );
+    reported.restore();
+
+    expect(s.r.sent.slice(sent)).toEqual([]);
+    expect(s.started.core()).toBe(s.core);
+    expect(reported.lines().map((line) => line.level)).toEqual(["debug", "debug"]);
   });
 
   test("ends everything core ran for the board with one abort, and starts core again as the page starts, once R has answered another hello", async () => {
@@ -1187,7 +1229,7 @@ describe("a board opened later", () => {
     expect(s.r.kinds().filter((kind) => kind === "hello")).toHaveLength(2);
   });
 
-  test("that fails to open after all opens the board before in the new store, and open() rejects with the reason, which core tells the user and logs at debug", async () => {
+  test("that fails to open after all opens the board before in the new store, and open() rejects with the reason, which core tells the user, whatever notifier the caller passed, and logs at debug", async () => {
     // A plugin class whose module the first session serves with a schema that
     // a zoom of any kind fits, and the next, as after R restarts with the
     // package rebuilt, with one that only a number fits, so that the board
@@ -1214,9 +1256,15 @@ describe("a board opened later", () => {
     });
 
     const reported = logged();
-    const opening = reopen(s, s.core, board, rebuilt);
+    const taken: (readonly Notification[])[] = [];
+    const opening = reopen(s, s.core, board, rebuilt, {
+      notifier: (notifications) => {
+        taken.push(notifications);
+      },
+    });
     await expect(opening).rejects.toThrow('The state of the plugin "blockr.strict-zoom_plugin"');
     reported.restore();
+    expect(taken).toEqual([]);
 
     expect(s.started.core()?.store.board().name).toBe("Kept");
     expect(basic.renders).toHaveLength(2);

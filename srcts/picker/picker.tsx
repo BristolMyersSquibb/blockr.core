@@ -8,24 +8,28 @@
 //   entries, by their names, descriptions, keywords and registry ids, grouped
 //   by category.
 // - The input that the new link feeds, where the mode adds one (below).
-// - The new block's id and its name, which the user may leave empty, where
-//   the command mints the id, or takes the name from the block's class.
-// Each of the three modes runs a command of its own:
-// - On its own, with add_block.
-// - After a block, taking that block's result, with append_block. The new
-//   block's class needs an input for that.
-// - Before a block, feeding an input of that block that no link feeds, with
-//   prepend_block.
+// - The new block's id and its name, which the user may leave empty. Then the
+//   id is minted, and the name taken from the block's class.
+// Each of the three modes adds the block in one step:
+// - On its own, with add_block, which mints the id.
+// - After a block, taking that block's result, with a batch of add_block and
+//   add_link from that block to the new one. The new block's class needs an
+//   input for that.
+// - Before a block, feeding an input of that block that no link feeds, with a
+//   batch of add_block and add_link from the new block to that block.
 // Added after or before a block, the new block comes with a link:
 // - Where the link could go into one of several inputs, the user picks the
 //   input, since the input that a link feeds changes what a block computes,
 //   as the left and the right table of a merge.
 // - Where it goes into a variadic block, the user may name the input, as
 //   `b2` in `rbind(a, b2 = b)`, or leave it empty for a positional one.
+// - A batch hands no value from one command to the next, and add_link names
+//   the new block. So where the user leaves the id empty, the form mints it
+//   through CoreApi.
 // The form checks the id and the input's name as the user leaves each field
-// and as they submit, before the command does, so that the user learns what
-// to change next to the field. What the command or the store refuses all the
-// same, the caller tells the user of.
+// and as they submit, before the commands do, so that the user learns what to
+// change next to the field. What the command registry or the store refuses
+// all the same, CoreApi tells the user of.
 
 import { useMemo, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
@@ -37,7 +41,7 @@ import type { BlockId, Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { classes, TextField, useSearch } from "../ui/index.ts";
+import { classes, runCommand, TextField, useSearch } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 
 // Where the new block goes.
@@ -47,12 +51,10 @@ export type AddMode =
   | { readonly kind: "before"; readonly to: BlockId };
 
 export interface PickerProps {
-  readonly core: Pick<CoreApi, "store" | "blockRegistry">;
+  // Through which the form runs its edits, as edits of the user, and mints the
+  // id of a block that it adds with a link.
+  readonly core: Pick<CoreApi, "store" | "blockRegistry" | "commands" | "mintId">;
   readonly mode: AddMode;
-  // Runs the command with the args, as one step of the user, and resolves
-  // whether it ran. Where the command registry or the store refuses it, the
-  // caller tells the user why.
-  readonly run: (command: string, args: Json) => Promise<boolean>;
   // Called once the block is on the board, as where a dialog that shows the
   // form closes.
   readonly onAdded?: () => void;
@@ -63,7 +65,7 @@ export interface PickerProps {
 
 type Errors = Partial<Record<"registry" | "id" | "input", string>>;
 
-export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: PickerProps): ReactElement {
+export function BlockPicker({ core, mode, onAdded, autofocus = false }: PickerProps): ReactElement {
   const board = useBoard(core);
   const registry = core.blockRegistry();
   const [picked, setPicked] = useState<string | undefined>(undefined);
@@ -112,16 +114,16 @@ export function BlockPicker({ core, mode, run, onAdded, autofocus = false }: Pic
       registry_id: entry.id,
       ...filled("id", id),
       ...filled("name", name),
+    };
+    const into: Record<string, Json> = {
       ...(chosen === undefined ? {} : { input: chosen }),
       ...(link.kind === "name" ? filled("input", inputName) : {}),
     };
     setBusy(true);
     const ran =
-      mode.kind === "after"
-        ? await run("blockr.core-append_block", { ...args, from: mode.from })
-        : mode.kind === "before"
-          ? await run("blockr.core-prepend_block", { ...args, to: mode.to })
-          : await run("blockr.core-add_block", args);
+      mode.kind === "add"
+        ? await runCommand(core, "blockr.core-add_block", args)
+        : await runCommand(core, addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(undefined);
@@ -270,6 +272,24 @@ function linkChoice(
     if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
   }
   return { kind: "none" };
+}
+
+// The batch that adds a block after or before the block of the mode and links
+// the two, in one step: add_block, then add_link, into the input that `into`
+// gives, where it gives one. The batch fixes the new block's id first, since
+// add_link names the block. It mints the id where `args` gives none.
+function addAndLink(
+  core: Pick<CoreApi, "store" | "mintId">,
+  mode: Exclude<AddMode, { readonly kind: "add" }>,
+  args: Readonly<Record<string, Json>>,
+  into: Readonly<Record<string, Json>>,
+): { readonly id: string; readonly args: Json }[] {
+  const block = typeof args.id === "string" ? args.id : core.mintId((id) => Object.hasOwn(core.store.board().blocks, id));
+  const ends = mode.kind === "after" ? { from: mode.from, to: block } : { from: block, to: mode.to };
+  return [
+    { id: "blockr.core-add_block", args: { ...args, id: block } },
+    { id: "blockr.core-add_link", args: { ...ends, ...into } },
+  ];
 }
 
 // The names that the links into a variadic block give its inputs.

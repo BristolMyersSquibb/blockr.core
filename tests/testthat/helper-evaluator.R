@@ -249,7 +249,8 @@ hold_result <- function(session, block, revision, inputs = list(),
 }
 
 # Has R make an output of a block that it holds,
-# so that it knows the output's class vector, and forgets what R sent for it.
+# so that it keeps what it needs of the output to answer the output's
+# requests, and forgets what R sent for it.
 make_output <- function(session, block, revision,
                         options = as_json_object(list())) {
 

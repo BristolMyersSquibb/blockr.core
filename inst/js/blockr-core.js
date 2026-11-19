@@ -188,6 +188,12 @@ function asLogical(text) {
 var raiseNothing = () => () => void 0;
 var repliedNothing = () => void 0;
 var notifyNothing = () => () => void 0;
+var refusedNothing = () => void 0;
+function givenNotifier(opts, call) {
+  if (opts?.notifier === void 0) return void 0;
+  if (typeof opts.notifier !== "function") throw new TypeError(`The \`notifier\` of ${call} is a function.`);
+  return opts.notifier.bind(opts);
+}
 function sourceModule(object2, pkg, renderer) {
   return {
     object: object2,
@@ -2288,6 +2294,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
       `The request "${name3}" of the block class "${entry.id}" takes no file, since its new_block_request() names no argument for one.`
     );
   }
+  const notifier = givenNotifier(opts, `the request "${name3}" of block "${block}"`);
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name3}" of block "${block}"`;
   const module = sourceModule({ block }, packageFromId(entry.id));
@@ -2334,7 +2341,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
     const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
       case "ok":
-        deps.replied(module, { type: "block_class", name: name3 }, conditions);
+        deps.replied(module, { type: "block_class", name: name3 }, conditions, notifier);
         if (body !== null) return body;
         return "value" in reply && reply.value !== void 0 ? reply.value : null;
       case "missing":
@@ -2345,7 +2352,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name3}" of block "${block}".`, { status: "cancelled" });
       default:
-        deps.replied(module, { type: "block_class", name: name3 }, conditions);
+        deps.replied(module, { type: "block_class", name: name3 }, conditions, notifier);
         throw new RequestError(`R replied ${reply.status} to the request "${name3}" of block "${block}".`, {
           status: reply.status,
           conditions
@@ -2483,9 +2490,15 @@ function mountOption(deps, el, option) {
         listeners.delete(wrapped);
       };
     },
-    submit(next) {
-      if (!bound()) return Promise.reject(unboundError());
-      return deps.commands.run("blockr.core-set_option", { id: option, value: next });
+    async submit(next, opts) {
+      if (!bound()) throw unboundError();
+      const notifier = givenNotifier(opts, `a submit of the board option "${option}"`);
+      try {
+        await deps.commands.run("blockr.core-set_option", { id: option, value: next });
+      } catch (error) {
+        deps.refused(error, { option }, notifier);
+        throw error;
+      }
     },
     request(name3, args = {}, opts = {}) {
       if (typeof name3 !== "string" || name3 === "") {
@@ -2571,6 +2584,7 @@ function mountOption(deps, el, option) {
   return end;
 }
 async function optionRequest(deps, module, option, name3, args, opts) {
+  const notifier = givenNotifier(opts, `the request "${name3}" of the board option "${option}"`);
   const { reply, body } = await deps.scheduler.request(
     { kind: "request", type: "option", option, name: name3, args: { ...args } },
     {
@@ -2582,13 +2596,13 @@ async function optionRequest(deps, module, option, name3, args, opts) {
   const conditions = "conditions" in reply ? reply.conditions : [];
   switch (reply.status) {
     case "ok":
-      deps.replied(module, { type: "option", name: name3 }, conditions);
+      deps.replied(module, { type: "option", name: name3 }, conditions, notifier);
       if (body !== null) return body;
       return "value" in reply && reply.value !== void 0 ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name3}" of the board option "${option}".`, { status: "cancelled" });
     default:
-      deps.replied(module, { type: "option", name: name3 }, conditions);
+      deps.replied(module, { type: "option", name: name3 }, conditions, notifier);
       throw new RequestError(`R replied ${reply.status} to the request "${name3}" of the board option "${option}".`, {
         status: reply.status,
         conditions
@@ -2997,6 +3011,7 @@ function mountOutput(deps, el, block) {
   }
   async function request(prepared, name3, args, opts) {
     const what = `The request "${name3}" of the output of block "${block}"`;
+    const notifier = givenNotifier(opts, `the request "${name3}" of the output of block "${block}"`);
     const module = rendererModule(prepared.renderer);
     const requested2 = { type: opts.scope === "renderer" ? "renderer" : "output_class", name: name3 };
     const inCaller = keepContext();
@@ -3018,7 +3033,7 @@ function mountOutput(deps, el, block) {
       const conditions = "conditions" in reply ? reply.conditions : [];
       switch (reply.status) {
         case "ok":
-          deps.replied(module, requested2, conditions);
+          deps.replied(module, requested2, conditions, notifier);
           if (body !== null) return body;
           return "value" in reply && reply.value !== void 0 ? reply.value : null;
         case "missing":
@@ -3027,7 +3042,7 @@ function mountOutput(deps, el, block) {
         case "cancelled":
           throw new RequestError(`R cancelled ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, { status: "cancelled" });
         default:
-          deps.replied(module, requested2, conditions);
+          deps.replied(module, requested2, conditions, notifier);
           throw new RequestError(`R replied ${reply.status} to ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, {
             status: reply.status,
             conditions
@@ -3203,6 +3218,7 @@ function createMounts(options) {
   const raise = options.raise ?? raiseNothing;
   const replied2 = options.replied ?? repliedNothing;
   const notify = options.notify ?? notifyNothing;
+  const refused2 = options.refused ?? refusedNothing;
   const optionPackage = options.optionPackage ?? (() => void 0);
   store.subscribe((change) => {
     if ("opened" in change) return;
@@ -3319,6 +3335,7 @@ function createMounts(options) {
       replaced: replaced2,
       replied: replied2,
       notify,
+      refused: refused2,
       unbound: end
     });
     const offEnd = onAbort(replaced2, end);
@@ -3381,7 +3398,11 @@ function createMounts(options) {
       el,
       block
     ),
-    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, optionPackage }, el, option),
+    mountOption: (el, option) => mountOption(
+      { store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
+      el,
+      option
+    ),
     addOptions,
     keepOptions
   };
@@ -3495,14 +3516,20 @@ function blockHost(deps) {
         heard.delete(wrapped);
       };
     },
-    submit(change) {
-      if (!bound()) return Promise.reject(unboundError());
-      if (!isObject(change)) {
-        return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
-      }
+    // The store commits what the command sets before submit() returns, as it
+    // commits every command that does not prepare.
+    async submit(change, opts) {
+      if (!bound()) throw unboundError();
+      if (!isObject(change)) throw new TypeError("A submit takes the state args it changes, as an object.");
+      const notifier = givenNotifier(opts, `a submit of block "${block}"`);
       const set = Object.fromEntries(Object.entries(change).filter(([, value2]) => value2 !== void 0));
       const unset = Object.entries(change).flatMap(([arg, value2]) => value2 === void 0 ? [arg] : []);
-      return commands.run("blockr.core-set_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
+      try {
+        await commands.run("blockr.core-set_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
+      } catch (error) {
+        deps.refused(error, { block }, notifier);
+        throw error;
+      }
     },
     request(name3, args = {}, opts = {}) {
       if (!bound()) return Promise.reject(unboundError());
@@ -4739,6 +4766,11 @@ var RAND_IDS = [
 ];
 function isRandId(value2) {
   return typeof value2 === "string" && RAND_IDS.includes(value2);
+}
+function asRandId(randId) {
+  if (randId === void 0) return "adjective_animal";
+  if (isRandId(randId)) return randId;
+  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 function isId(id2) {
   return typeof id2 === "string" && id2 !== "" && !/^\d+$/.test(id2);
@@ -6466,20 +6498,26 @@ function coreCommands(store) {
       throw refusal(command2, failures.map((failure) => `The state of the new block ${failure}`));
     }
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
-    return [
-      id2,
-      { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null },
-      entry
-    ];
+    return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
   function inputFailures(board2, to, given) {
     const registry = store.blockRegistry();
     if (!named(given)) {
       const free = freeInputs(board2, registry, to) ?? [];
-      return free.length > 0 ? [] : [`The block "${to}" has no input that no link feeds.`];
+      return free.length > 0 ? [] : [noFreeInput(board2, to)];
     }
     const other = linkFeeding(board2, registry, to, given);
     return other === void 0 ? [] : [`The link "${other}" feeds the input "${given}" of block "${to}" already.`];
+  }
+  function noFreeInput(board2, to) {
+    const block = own(board2.blocks, to);
+    if (block === void 0) return `The board holds no block "${to}".`;
+    const entry = own(store.blockRegistry(), block.registry_id);
+    if (entry === void 0) return `The block registry has no block class "${block.registry_id}".`;
+    if (entry.inputs.length === 0) {
+      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+    }
+    return `Every input of the block "${to}" takes a link already.`;
   }
   function linkInput(command2, board2, to, given, except) {
     if (named(given)) return given;
@@ -6487,25 +6525,15 @@ function coreCommands(store) {
     return one(
       command2,
       free,
-      `The block "${to}" has no input that no link feeds.`,
+      noFreeInput(board2, to),
       `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`
-    );
-  }
-  function newInput(command2, entry, given) {
-    if (named(given)) return given;
-    if (entry.inputs.includes("...")) return "";
-    return one(
-      command2,
-      entry.inputs,
-      `The block class "${entry.id}" has no input to take a link.`,
-      `The block class "${entry.id}" has the inputs ${quoted(entry.inputs)}, so the args have to name the one to use.`
     );
   }
   const blocks = [
     command({
       id: "blockr.core-add_block",
       label: "Add block",
-      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given.",
+      description: "Adds a block of a class from the block registry, with the state its class starts a block with, changed by the state args given. To add a block that reads from another, give the new block an id, and link it with blockr.core-add_link in the same batch, after this command.",
       args: object(newBlock, ["registry_id"]),
       run(board2, args, { mintId: mintId2 }) {
         const [id2, block] = added(this.id, board2, args, mintId2);
@@ -6562,95 +6590,6 @@ function coreCommands(store) {
             mod: {
               [id2]: { ...state2 === void 0 ? {} : { state: state2 }, ...unset === void 0 ? {} : { unset } }
             }
-          }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-append_block",
-      label: "Append block",
-      description: "Adds a block that takes the result of another, through a new link from that block into an input of the new block.",
-      args: object(
-        {
-          from: { ...blockId, description: "The block whose result the new block takes." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of the new block that takes the result, which may be left out where the new block has one input or is variadic."
-          }
-        },
-        ["from", "registry_id"]
-      ),
-      preflight: (board2, { from }) => Object.hasOwn(board2.blocks, from),
-      run(board2, args, { mintId: mintId2 }) {
-        const [id2, block, entry] = added(this.id, board2, args, mintId2);
-        const input2 = newInput(this.id, entry, args.input);
-        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        return {
-          blocks: { add: { [id2]: block } },
-          links: { add: { [link]: { from: args.from, to: id2, input: input2 } } }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-prepend_block",
-      label: "Prepend block",
-      description: "Adds a block whose result another takes, through a new link from the new block into an input of that block.",
-      args: object(
-        {
-          to: { ...blockId, description: "The block that takes the new block's result." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of that block that takes the result, which may be left out where only one of its inputs is free or it is variadic."
-          }
-        },
-        ["to", "registry_id"]
-      ),
-      // The new block has no links, so its link can close no cycle.
-      preflight: (board2, { to, input: input2 }, { refusal: refusal2 }) => Object.hasOwn(board2.blocks, to) && passes(inputFailures(board2, to, input2), refusal2),
-      run(board2, args, { mintId: mintId2 }) {
-        const input2 = linkInput(this.id, board2, args.to, args.input);
-        const [id2, block] = added(this.id, board2, args, mintId2);
-        const link = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        return {
-          blocks: { add: { [id2]: block } },
-          links: { add: { [link]: { from: id2, to: args.to, input: input2 } } }
-        };
-      }
-    }),
-    command({
-      id: "blockr.core-insert_block",
-      label: "Insert block",
-      description: "Adds a block on a link, which it replaces with a link from the link's source into an input of the new block and one from the new block into the input that the link fed.",
-      args: object(
-        {
-          link: { ...linkId, description: "The link that the new block goes on." },
-          ...newBlock,
-          input: {
-            ...input,
-            description: "The input of the new block that takes the result of the link's source, which may be left out where the new block has one input or is variadic."
-          }
-        },
-        ["link", "registry_id"]
-      ),
-      preflight: (board2, { link }) => Object.hasOwn(board2.links, link),
-      run(board2, args, { mintId: mintId2 }) {
-        const split = own(board2.links, args.link);
-        if (split === void 0) return [];
-        const [id2, block, entry] = added(this.id, board2, args, mintId2);
-        const input2 = newInput(this.id, entry, args.input);
-        const near = mintId2((id3) => Object.hasOwn(board2.links, id3));
-        const far = mintId2((id3) => Object.hasOwn(board2.links, id3) || id3 === near);
-        return {
-          blocks: { add: { [id2]: block } },
-          links: {
-            rm: [args.link],
-            add: {
-              [near]: { from: split.from, to: id2, input: input2 },
-              [far]: { from: id2, to: split.to, input: split.input }
-            },
-            before: { [far]: args.link }
           }
         };
       }
@@ -6980,7 +6919,7 @@ function createCommands(store, options = {}) {
     () => Object.fromEntries([...commands.value].map(([id2, { command: command2 }]) => [id2, command2]))
   );
   const ended = () => options.signal?.aborted === true;
-  const randId = options.randId === void 0 ? "adjective_animal" : asRandId(options.randId);
+  const randId = asRandId(options.randId);
   const shared = {
     lock: options.lock ?? { board: false, load: false },
     mintId: (taken) => mintId(taken, randId),
@@ -7177,9 +7116,12 @@ function createCommands(store, options = {}) {
         return false;
       }
     },
-    // A list comes with its origin second, in place of the args.
-    async run(target2, given, origin = "user") {
+    // A list comes with its origin second, in place of the args, and its
+    // options third, in place of the origin. The command registry ignores the
+    // notifier in the options, which CoreApi acts on (../core/core.ts).
+    async run(target2, given, third) {
       if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
+      const origin = typeof third === "string" ? third : "user";
       return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
         const { item, args } = lookup(target2, given);
@@ -7200,10 +7142,6 @@ function createCommands(store, options = {}) {
     registry.register(command2);
   }
   return registry;
-}
-function asRandId(randId) {
-  if (isRandId(randId)) return randId;
-  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 function isCommandId(id2) {
   const pkg = packageFromId(id2);
@@ -7416,15 +7354,12 @@ async function pluginRequest(deps, plugin, name3, args, opts) {
   if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
     throw new TypeError(`The blocks that the request "${name3}" of the plugin "${plugin}" reads are an array of their ids.`);
   }
-  if (opts.conditions !== void 0 && typeof opts.conditions !== "function") {
-    throw new TypeError(`The \`conditions\` of the request "${name3}" of the plugin "${plugin}" is a function.`);
-  }
+  const notifier = givenNotifier(opts, `the request "${name3}" of the plugin "${plugin}"`);
   const what = `The request "${name3}" of the plugin "${plugin}"`;
   const module = sourceModule({ plugin }, packageFromId(plugin));
   const inCaller = keepContext();
   const handOn = (conditions) => {
-    if (opts.conditions === void 0) deps.replied(module, { type: "plugin", name: name3 }, conditions);
-    else opts.conditions(conditions);
+    deps.replied(module, { type: "plugin", name: name3 }, conditions, notifier);
   };
   for (let attempt3 = 1; ; attempt3++) {
     const revisions = await evaluateReads2(deps, what, reads, opts.signal);
@@ -7486,6 +7421,7 @@ async function evaluateReads2(deps, what, blocks, signal5) {
 // srcts/core/core.ts
 function createCore(parts) {
   const { store, commands, scheduler, loader, blockrOptions, notifications } = parts;
+  const randId = asRandId(parts.randId);
   const { raise } = notifications;
   notifications.follow(scheduler);
   const optionPackage = (id2) => own(parts.options, id2)?.package;
@@ -7508,6 +7444,11 @@ function createCore(parts) {
       };
     }
   };
+  const refused2 = (error, about, notifier) => {
+    const why = errorMessage(error);
+    if (!isLogged(error)) log.debug(why);
+    notifications.raiseAgain(coreNotification("board_edit_failed", "error", why, about === void 0 ? {} : { about }), notifier);
+  };
   const mounts = createMounts({
     store,
     commands,
@@ -7518,6 +7459,7 @@ function createCore(parts) {
     raise,
     replied: notifications.replied,
     notify: notifications.notify,
+    refused: refused2,
     optionPackage,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
@@ -7540,7 +7482,7 @@ function createCore(parts) {
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const focus = createFocus(store, parts.signal);
-  const edits = refusing(store, commands, notifications.raiseAgain);
+  const edits = refusing(store, commands, refused2);
   const api = {
     store: edits.store,
     commands: edits.commands,
@@ -7592,6 +7534,7 @@ function createCore(parts) {
     request: (plugin, name3, args = {}, opts = {}) => pluginRequest({ plugins, scheduler, replied: notifications.replied }, plugin, name3, args, opts),
     module: (id2) => loader.module(id2),
     blockrOption: (name3) => blockrOptions.read(name3),
+    mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
     mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),
@@ -7643,24 +7586,25 @@ function createCore(parts) {
   }
   return { api, plugins };
 }
-function refusing(store, commands, raiseAgain) {
-  function refused2(origin, error) {
-    if ((origin ?? "user") !== "user") return;
-    const why = errorMessage(error);
-    if (!isLogged(error)) log.debug(why);
-    raiseAgain(coreNotification("board_edit_failed", "error", why));
-  }
-  function edit(origin, fn) {
+function refusing(store, commands, refused2) {
+  function edit(opts, call, fn) {
+    const notifier = givenNotifier(opts, call);
     try {
       fn();
     } catch (error) {
-      refused2(origin, error);
+      refused2(error, void 0, notifier);
       throw error;
     }
   }
-  function ran(origin, running2) {
-    return running2.catch((error) => {
-      refused2(origin, error);
+  function ran(opts, run) {
+    let notifier;
+    try {
+      notifier = givenNotifier(opts, "run()");
+    } catch (error) {
+      return Promise.reject(asError(error));
+    }
+    return run().catch((error) => {
+      refused2(error, void 0, notifier);
       throw error;
     });
   }
@@ -7668,29 +7612,32 @@ function refusing(store, commands, raiseAgain) {
     store: {
       ...store,
       apply(delta, origin, opts) {
-        edit(origin, () => {
-          store.apply(delta, origin, opts);
+        edit(opts, "apply()", () => {
+          store.apply(delta, origin, opts?.undo === false ? { undo: false } : void 0);
         });
       },
-      undo(origin) {
-        edit(origin, () => {
+      undo(origin, opts) {
+        edit(opts, "undo()", () => {
           store.undo(origin);
         });
       },
-      // A redo names no origin, so it is the user's, as the store announces
-      // it.
-      redo() {
-        edit(void 0, () => {
+      redo(opts) {
+        edit(opts, "redo()", () => {
           store.redo();
         });
       }
     },
     commands: {
       ...commands,
-      run(target2, given, origin) {
-        if (typeof target2 === "string") return ran(origin, commands.run(target2, given, origin));
+      // A list comes with its origin second, in place of the args, and its
+      // options third, as the command registry takes it.
+      run(target2, given, third, fourth) {
+        if (typeof target2 === "string") {
+          const origin = typeof third === "string" ? third : void 0;
+          return ran(fourth, () => commands.run(target2, given, origin));
+        }
         const listed = typeof given === "string" ? given : void 0;
-        return ran(listed, commands.run(target2, listed));
+        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, listed));
       }
     }
   };
@@ -8055,19 +8002,25 @@ function createNotifications(store, options = {}) {
     }
     return replace(JSON.stringify(["status", block]), about, next);
   }
-  const replied2 = (module, request, conditions) => {
-    if (ended) return;
+  const replied2 = (module, request, conditions, notifier) => {
     const about = module.object;
     const by = moduleCopy(module);
     const next = /* @__PURE__ */ new Map();
-    if (present(about)) {
-      for (const condition of conditions) {
-        const source = { kind: "r", class: condition.class, request, module: by };
-        const id2 = JSON.stringify(["request", condition.severity, source, condition.message]);
-        if (!next.has(id2)) next.set(id2, frozen(id2, { severity: condition.severity, message: condition.message, source, about }));
+    for (const condition of conditions) {
+      const source = { kind: "r", class: condition.class, request, module: by };
+      const id2 = JSON.stringify(["request", condition.severity, source, condition.message]);
+      if (!next.has(id2)) next.set(id2, frozen(id2, { severity: condition.severity, message: condition.message, source, about }));
+    }
+    if (notifier !== void 0) {
+      handTo(notifier, [...next.values()]);
+      return;
+    }
+    if (ended) return;
+    if (!present(about)) {
+      if (next.size > 0) {
+        log.debug(`Core drops the notifications of R's reply to ${requested(request, module)} about ${named2(about)}, which the board does not hold.`);
       }
-    } else if (conditions.length > 0) {
-      log.debug(`Core drops the notifications of R's reply to ${requested(request, module)} about ${named2(about)}, which the board does not hold.`);
+      next.clear();
     }
     if (replace(JSON.stringify(["request", by, request]), about, next)) publish();
   };
@@ -8093,8 +8046,12 @@ function createNotifications(store, options = {}) {
       if (held2.delete(id2)) publish();
     };
   };
-  const raiseAgain = (given) => {
+  const raiseAgain = (given, notifier) => {
     const id2 = raisedId(given);
+    if (notifier !== void 0) {
+      handTo(notifier, [frozen(id2, given)]);
+      return;
+    }
     again.get(id2)?.();
     const withdraw = raise(given);
     if (!ended) again.set(id2, withdraw);
@@ -8173,6 +8130,13 @@ function createNotifications(store, options = {}) {
       if (store.hasBoard()) heard(Object.keys(store.board().blocks));
     }
   };
+}
+function handTo(notifier, notifications) {
+  try {
+    notifier(Object.freeze(notifications));
+  } catch (error) {
+    log.error(asError(error));
+  }
 }
 function raisedId(given) {
   return JSON.stringify([
@@ -8447,12 +8411,13 @@ function start(options) {
     const { api: core, plugins } = createCore({
       store: {
         ...store,
-        open: (given) => reopen(given, controller)
+        open: (given, opts) => reopen(given, controller, opts)
       },
       commands,
       scheduler,
       loader,
       blockrOptions,
+      randId,
       lock: (first ?? reply).lock,
       renderers: () => latest?.renderers ?? {},
       plugins: reply.plugins,
@@ -8629,13 +8594,19 @@ function start(options) {
     return { text, plugin };
   }
   let queue = Promise.resolve();
-  function reopen(given, of) {
+  function reopen(given, of, opts) {
+    let notifier;
+    try {
+      notifier = givenNotifier(opts, "open()");
+    } catch (error) {
+      return Promise.reject(asError(error));
+    }
     const opening2 = steps("open");
-    const run = queue.then(() => reopening(given, of, opening2));
+    const run = queue.then(() => reopening(given, of, opening2, notifier));
     queue = run.catch(() => void 0);
     return run;
   }
-  async function reopening(given, of, opening2) {
+  async function reopening(given, of, opening2, notifier) {
     const refused2 = "The store refused to open the board";
     const current2 = running2;
     if (current2?.controller !== of || of.signal.aborted) {
@@ -8657,7 +8628,7 @@ function start(options) {
       } catch (error) {
         const why = errorMessage(error);
         log.debug(why);
-        current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", why));
+        current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", why), notifier);
         throw error;
       }
       before = current2.store.save();

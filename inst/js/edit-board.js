@@ -3,11 +3,11 @@ import { flushSync as flushSync3 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState8 } from "react";
+import { useCallback as useCallback2, useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState8 } from "react";
 import { useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/modules/edit-board/blocks.tsx
-import { useCallback as useCallback2, useState as useState5 } from "react";
+import { useState as useState5 } from "react";
 
 // srcts/picker/picker.tsx
 import { useMemo, useState as useState4 } from "react";
@@ -243,8 +243,9 @@ var styles = {
 };
 
 // srcts/ui/edits.ts
-function runCommand(core, id2, args) {
-  return core.commands.run(id2, args).then(
+function runCommand(core, target2, args) {
+  const running = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
+  return running.then(
     () => true,
     () => false
   );
@@ -460,7 +461,7 @@ function Pager({ label, view }) {
 
 // srcts/picker/picker.tsx
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
-function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
+function BlockPicker({ core, mode, onAdded, autofocus = false }) {
   const board = useBoard(core);
   const registry = core.blockRegistry();
   const [picked, setPicked] = useState4(void 0);
@@ -504,12 +505,14 @@ function BlockPicker({ core, mode, run, onAdded, autofocus = false }) {
     const args = {
       registry_id: entry.id,
       ...filled("id", id2),
-      ...filled("name", name2),
+      ...filled("name", name2)
+    };
+    const into = {
       ...chosen === void 0 ? {} : { input: chosen },
       ...link.kind === "name" ? filled("input", inputName) : {}
     };
     setBusy(true);
-    const ran = mode.kind === "after" ? await run("blockr.core-append_block", { ...args, from: mode.from }) : mode.kind === "before" ? await run("blockr.core-prepend_block", { ...args, to: mode.to }) : await run("blockr.core-add_block", args);
+    const ran = mode.kind === "add" ? await runCommand(core, "blockr.core-add_block", args) : await runCommand(core, addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(void 0);
@@ -633,6 +636,14 @@ function linkChoice(mode, board, registry, entry) {
   }
   return { kind: "none" };
 }
+function addAndLink(core, mode, args, into) {
+  const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
+  const ends = mode.kind === "after" ? { from: mode.from, to: block } : { from: block, to: mode.to };
+  return [
+    { id: "blockr.core-add_block", args: { ...args, id: block } },
+    { id: "blockr.core-add_link", args: { ...ends, ...into } }
+  ];
+}
 function namesInto(board, to, except) {
   return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
 }
@@ -698,13 +709,12 @@ function without2(errors, key) {
 import { Fragment, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 var ADD = { kind: "add" };
 function BlocksSection({ core, board }) {
-  const run = useCallback2((command, args) => runCommand(core, command, args), [core]);
   const registry = core.blockRegistry();
   const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
   const count = Object.keys(board.blocks).length;
   return /* @__PURE__ */ jsxs4(Section, { title: "Blocks", count, children: [
-    /* @__PURE__ */ jsx5(Part, { title: "Add a block", children: /* @__PURE__ */ jsx5(BlockPicker, { core, mode: ADD, run }) }),
+    /* @__PURE__ */ jsx5(Part, { title: "Add a block", children: /* @__PURE__ */ jsx5(BlockPicker, { core, mode: ADD }) }),
     /* @__PURE__ */ jsx5(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx5("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs4(Fragment, { children: [
       /* @__PURE__ */ jsx5(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx5("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsxs4("table", { className: table.table, children: [
@@ -1419,10 +1429,10 @@ function useRowEditing() {
     closed.current = false;
     button.current?.focus();
   }, [editing]);
-  const open = useCallback3(() => {
+  const open = useCallback2(() => {
     setEditing(true);
   }, []);
-  const close = useCallback3(() => {
+  const close = useCallback2(() => {
     closed.current = true;
     setEditing(false);
   }, []);

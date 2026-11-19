@@ -98,6 +98,18 @@ is_block_output <- function(x) {
   inherits(x, "block_output")
 }
 
+validate_block_output <- function(x) {
+
+  if (!is_block_output(x)) {
+    blockr_abort(
+      "An output is expected to inherit from `block_output`.",
+      class = "block_output_invalid"
+    )
+  }
+
+  invisible(x)
+}
+
 #' @export
 format.block_output <- function(x, ...) {
 
@@ -466,9 +478,7 @@ family_option_ids <- function(x) {
 #' through its methods of two generics, which it registers as it registers
 #' any S3 method, so that S3 dispatch gives a subclass what its class gives,
 #' unless it gives its own.
-#' A method answers by the class alone, whatever the output holds, since R also
-#' calls it on an empty output of the class, as it resolves a request of an
-#' output that it made before.
+#' R calls each method on an output that it makes.
 #'
 #' The method of `output_schema()` returns the JSON Schema of the class's
 #' outputs, by which R writes each output, as it writes a block's state by the
@@ -486,6 +496,13 @@ family_option_ids <- function(x) {
 #' A subclass that adds requests puts them before those of its class, which
 #' `NextMethod()` returns, so that a request of its own takes the place of one
 #' of the same name.
+#' R keeps the requests that the method returns for an output with the block's
+#' result, and answers the requests of that output by them.
+#' So a method may give requests by what the output holds, as a table's might
+#' give one that counts the rows only where the output holds no `total`.
+#' A request's function may capture the output, which R then keeps with the
+#' requests.
+#' R fails to make an output whose method returns no named list of functions.
 #' R calls a request's function with these arguments, each where the function
 #' takes it:
 #'
@@ -500,12 +517,13 @@ family_option_ids <- function(x) {
 #' No request of an output class writes.
 #' The function `run_output_class_request()` runs a request as R does, to test
 #' an output class, or the requests of a renderer, without Shiny.
+#' It takes an output, on which it calls the method of `output_requests()`, as
+#' R does on each output that it makes.
 #'
 #' The renderer that draws the class's outputs comes from the output family
 #' that makes them, which a deployment may replace (see [new_output_family()]).
 #'
-#' @param x An output, and for `run_output_class_request()`, an output or its
-#'   class vector
+#' @param x An output
 #' @param ... Generic consistency
 #' @param path The path of the file that holds a JSON Schema, relative to the
 #'   package's `inst/`, or as given outside a package
@@ -598,29 +616,36 @@ read_json_schema <- function(path, package = pkg_name(parent.frame())) {
   decode_schema(file)
 }
 
-# The function of a request of an output: where a renderer is given, one of
-# that renderer's own requests, and otherwise one of the output class's, as its
-# method of `output_requests()` gives them, a subclass's before its class's.
-output_class_request <- function(class, name, renderer = NULL) {
+# The requests that the classes of output `x` give for it, through their
+# methods of `output_requests()`, a subclass's before its class's.
+# R gets them as it makes the output, and keeps them with the result, by which
+# it answers the requests of the output.
+output_class_requests <- function(x) {
 
-  if (not_null(renderer)) {
-    return(renderer_request(renderer, name))
-  }
-
-  out <- structure(list(), class = unique(c(class, "block_output")))
-
-  reqs <- output_requests(out)
+  reqs <- output_requests(x)
 
   if (!is.list(reqs) || is.object(reqs) || !all(lgl_ply(reqs, is.function)) ||
         (length(reqs) && (is.null(names(reqs)) || !all(nzchar(names(reqs)))))) {
     blockr_abort(
-      "The method of `output_requests()` for output class {class[1L]} ",
+      "The method of `output_requests()` for output class {class(x)[1L]} ",
       "returns no named list of functions.",
       class = "output_class_requests_invalid"
     )
   }
 
-  fun <- reqs[[name]]
+  reqs
+}
+
+# The function of a request of an output: where a renderer is given, one of
+# that renderer's own requests, and otherwise one of `requests`, those that
+# the output's classes give for it, where `class` is the output's class vector.
+output_class_request <- function(requests, class, name, renderer = NULL) {
+
+  if (not_null(renderer)) {
+    return(renderer_request(renderer, name))
+  }
+
+  fun <- requests[[name]]
 
   if (!is.function(fun)) {
     blockr_abort(
@@ -638,8 +663,10 @@ run_output_class_request <- function(x, name, result, args = list(),
                                      options = list(), params = list(),
                                      file = NULL, renderer = NULL) {
 
-  call <- output_request_call(x, name, result, args, options, params, file,
-                              renderer)
+  validate_block_output(x)
+
+  call <- output_request_call(output_class_requests(x), class(x), name,
+                              result, args, options, params, file, renderer)
 
   do.call(call[["fun"]], call[["args"]], quote = TRUE)
 }
@@ -647,8 +674,9 @@ run_output_class_request <- function(x, name, result, args = list(),
 # The function of a request of an output, or of a renderer,
 # with the arguments that R binds for it,
 # so that R can resolve a request apart from running it.
-output_request_call <- function(x, name, result, args, options, params, file,
-                                renderer) {
+# The output has the class vector `class`, and its classes give it `requests`.
+output_request_call <- function(requests, class, name, result, args, options,
+                                params, file, renderer) {
 
   if (!is_string(name)) {
     blockr_abort(
@@ -665,8 +693,7 @@ output_request_call <- function(x, name, result, args, options, params, file,
     )
   }
 
-  class <- if (is.character(x)) x else class(x)
-  fun <- output_class_request(class, name, renderer)
+  fun <- output_class_request(requests, class, name, renderer)
 
   if (!has_unique_names(args)) {
     blockr_abort(
@@ -726,12 +753,7 @@ request_call_args <- function(fun, name, args, bound, reserved, class) {
 # Its body, if it holds one, travels beside them.
 shape_output <- function(x) {
 
-  if (!is_block_output(x)) {
-    blockr_abort(
-      "An output is expected to inherit from `block_output`.",
-      class = "block_output_invalid"
-    )
-  }
+  validate_block_output(x)
 
   fields <- unclass(x)
   body <- lgl_ply(fields, is_reply_body)

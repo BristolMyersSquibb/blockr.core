@@ -3,6 +3,8 @@
 // out, from the same words (words.ts), so that an id looks the same whichever
 // side minted it.
 
+import type { Json } from "../types/json.ts";
+import { quoted } from "../util/index.ts";
 import { adjectives, animals } from "./words.ts";
 
 // The shapes that the blockr option rand_id names, which R's rand_id_shapes()
@@ -22,6 +24,16 @@ export type RandId = (typeof RAND_IDS)[number];
 
 export function isRandId(value: unknown): value is RandId {
   return typeof value === "string" && (RAND_IDS as readonly string[]).includes(value);
+}
+
+// The shape of the ids that core's commands and CoreApi's mintId() mint, from
+// the blockr option rand_id as R sent it. It is "adjective_animal" where
+// nothing sets the option. A value that names no shape fails, as it does in
+// R's rand_names(), a value that is no string among them.
+export function asRandId(randId: Json | undefined): RandId {
+  if (randId === undefined) return "adjective_animal";
+  if (isRandId(randId)) return randId;
+  throw new RangeError(`The blockr option rand_id is ${JSON.stringify(randId)}, where it takes one of ${quoted(RAND_IDS)}.`);
 }
 
 // An id is any string that is neither empty nor made of digits alone, since a

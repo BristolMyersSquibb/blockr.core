@@ -1,5 +1,6 @@
 import type { HelloReply } from "../protocol/index.ts";
 import type { BlockId, Board, JsonBoard, PluginClassId, RegistryId } from "../types/board.ts";
+import type { Notification } from "../types/core-api.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Delta, Origin } from "./delta.ts";
 import type { Dropped } from "./open.ts";
@@ -18,14 +19,21 @@ export interface Store {
     subscribe(fn: (change: Change, board: Board) => void): () => void;
     apply(delta: Delta | readonly Delta[], origin?: Origin, opts?: {
         readonly undo?: false;
+        notifier?(notifications: readonly Notification[]): void;
     }): void;
     dryRun(delta: Delta | readonly Delta[]): Board;
-    open(given: string | HelloReply): Promise<Dropped[]>;
+    open(given: string | HelloReply, opts?: {
+        notifier?(notifications: readonly Notification[]): void;
+    }): Promise<Dropped[]>;
     check(text: string): Promise<Dropped[]>;
     jsonBoard(): JsonBoard;
     save(): string;
-    undo(origin?: Origin): void;
-    redo(): void;
+    undo(origin?: Origin, opts?: {
+        notifier?(notifications: readonly Notification[]): void;
+    }): void;
+    redo(opts?: {
+        notifier?(notifications: readonly Notification[]): void;
+    }): void;
     canUndo(origin?: Origin): boolean;
     canRedo(): boolean;
     readonly plugins: Plugins;
