@@ -446,6 +446,9 @@
   Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
   A new step empties the redo steps, whoever takes it.
   An undo or a redo is a change of the origin that asks for it, `"user"` where none is given (#608).
+* The store's `apply()` returns whether the step took an undo step, and `commands.run()` resolves with that value, for a command alone and for a list.
+  So a plugin, such as the assistant's edit tool, need not work it out from the deltas that it hears.
+  It could not always do so, since a delta can set a board option's value and give a block's state the value it holds already: the store keeps no inverse of such a delta, but announces all of it (#725).
 * The command registry takes a list of commands, each as `{ id, args }`, in `commands.run(list, origin)` and `commands.plan(list)`, as the assistant's edit tool runs one.
   It plans each command on the board that the deltas of the commands before it leave, so that a list can add a block and then link it.
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.

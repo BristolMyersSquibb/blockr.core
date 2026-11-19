@@ -246,7 +246,7 @@ describe("running a command", () => {
     await expect(commands.run("blockr.core-rename_board")).rejects.toThrow(
       'Instance does not have required property "name".',
     );
-    await expect(commands.run("blockr.core-add_stack")).resolves.toBeUndefined();
+    await expect(commands.run("blockr.core-add_stack")).resolves.toBe(true);
   });
 
   test("refuses a command that no package registered", async () => {
@@ -339,6 +339,30 @@ describe("running a command", () => {
     const { store, commands } = await setup();
     await commands.run("blockr.core-rename_board", { name: "Iris review" });
     expect(store.canUndo()).toBe(false);
+  });
+
+  test("resolves with whether its step took an undo step, as the store's apply() returns it", async () => {
+    const { store, commands } = await setup();
+    commands.register(renameB({ undo: false }));
+    commands.register(later(() => Promise.resolve(" and petals")));
+    // A plugin's command whose delta sets a board option's value and gives
+    // block b the state it holds, { n: 6 }.
+    commands.register({
+      id: "test.pkg-set_rows",
+      label: "Set the rows",
+      run: () => ({ blocks: { mod: { b: { state: { n: 6 } } } }, options: { set: { n_rows: 10 } } }),
+    });
+
+    await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).resolves.toBe(true);
+    await expect(commands.run("blockr.core-rename_board", { name: "Sepals" })).resolves.toBe(false);
+    await expect(commands.run("test.pkg-later")).resolves.toBe(true);
+    await expect(commands.run("test.pkg-rename_b", { name: "Renamed" })).resolves.toBe(false);
+    await expect(commands.run("blockr.core-set_option", { id: "n_rows", value: 30 })).resolves.toBe(false);
+    await expect(commands.run("test.pkg-set_rows", {}, "assistant")).resolves.toBe(false);
+
+    expect(store.board().name).toBe("Sepals and petals");
+    expect(store.board().options.n_rows).toBe(10);
+    expect(store.canUndo("assistant")).toBe(false);
   });
 });
 
@@ -710,6 +734,38 @@ describe("running a list", () => {
     await commands.run([], "assistant");
     expect(store.board()).toBe(board);
     expect(store.canUndo("assistant")).toBe(false);
+  });
+
+  test("resolves with whether its step took an undo step, as for a command alone", async () => {
+    const { store, commands } = await setup();
+    commands.register(renameB({ undo: false }));
+    commands.register(later(() => Promise.resolve(" and petals")));
+
+    await expect(
+      commands.run(
+        [
+          { id: "test.pkg-rename_b", args: { name: "Viewed" } },
+          { id: "blockr.core-rename_board", args: { name: "Sepals" } },
+        ],
+        "assistant",
+      ),
+    ).resolves.toBe(true);
+    // As for a list of the dock's activate_view, which has undo: false, and
+    // core's set_option.
+    await expect(
+      commands.run(
+        [
+          { id: "test.pkg-rename_b", args: { name: "Looked" } },
+          { id: "blockr.core-set_option", args: { id: "n_rows", value: 30 } },
+        ],
+        "assistant",
+      ),
+    ).resolves.toBe(false);
+    await expect(commands.run([{ id: "test.pkg-later" }])).resolves.toBe(true);
+    await expect(commands.run([], "assistant")).resolves.toBe(false);
+
+    expect(store.board().name).toBe("Sepals and petals");
+    expect(store.board().blocks.b?.name).toBe("Looked");
   });
 });
 

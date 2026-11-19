@@ -62,6 +62,9 @@ export interface Store {
   // with `undo: false`. It applies and announces such a delta as any other.
   // A step of which it keeps no inverse is no undo step: it leaves the undo
   // and redo lists as they are.
+  // It returns whether the step took an undo step: false for no deltas, or
+  // where they change nothing. A subscriber cannot tell that from the deltas
+  // it hears, since an inverse holds only what a delta changed.
   // Given `{ undo: false }`, the store sets `undo: false` on every delta of
   // the step, and announces each delta with it.
   // Under the board lock, it refuses every delta but one that changes the
@@ -76,7 +79,7 @@ export interface Store {
     delta: Delta | readonly Delta[],
     origin?: Origin,
     opts?: { readonly undo?: false; notifier?(notifications: readonly Notification[]): void },
-  ): void;
+  ): boolean;
   // The board that apply() would leave, given the same deltas: it expands and
   // checks them as apply() does, or throws the StoreError that apply() would
   // throw, but commits nothing, announces nothing and keeps no undo step.
@@ -401,18 +404,19 @@ export function createStore(options: StoreOptions = {}): Store {
     delta: Delta | readonly Delta[],
     origin: Origin = "user",
     opts: { readonly undo?: false } = {},
-  ): void {
+  ): boolean {
     guard();
     const given: readonly Delta[] = isDeltas(delta) ? delta : [delta];
-    if (given.length === 0) return;
+    if (given.length === 0) return false;
     const deltas = opts.undo === false ? given.map((each): Delta => ({ ...each, undo: false })) : given;
 
     busy = true;
     try {
       const { start, applied, inverses } = runOnBoard(deltas);
-      if (applied.length === 0) return;
+      if (applied.length === 0) return false;
       number(applied, applied.at(-1)?.board ?? start);
-      if (inverses.length > 0) {
+      const undoStep = inverses.length > 0;
+      if (undoStep) {
         history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
       }
 
@@ -420,6 +424,7 @@ export function createStore(options: StoreOptions = {}): Store {
         board.value = next;
         announce({ delta, origin }, next);
       }
+      return undoStep;
     } finally {
       busy = false;
     }
