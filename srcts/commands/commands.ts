@@ -541,8 +541,8 @@ export function createCommands(store: Store, options: CommandsOptions = {}): Com
 }
 
 // Whether an id is named as a registry id is: a package name, a dash, and a
-// name.
-function isCommandId(id: string): boolean {
+// name. A board action's id is named so too (../actions/actions.ts).
+export function isCommandId(id: string): boolean {
   const pkg = packageFromId(id);
   return pkg !== null && id.length > pkg.length + 1;
 }

@@ -685,6 +685,18 @@
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
   The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
   Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708).
+* Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
+  A board action changes the board only through commands, and runs each batch as one undo step of the user.
+  Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
+  It refuses the whole class where one of its board actions has the ID of another, an empty `on`, `run` beside `quick` or `advanced`, or none of the three, and raises `module_failed` about the class.
+  The call `core.boardActions.on(target)` gives the board actions that apply to a target: each whose `on` names the kind of the target, and whose `offers` passes for it or which has none.
+  Core's come first, then each package's, in the order of the app's plugins and as each class lists them.
+  The call `core.boardActions.trigger(id, target, opts)` runs the batch that a board action's `run` returns, with the commands that the caller's `extend` adds at its end, as one step.
+  It resolves once the batch has run, and rejects with the refusal, which goes to the caller's `notifier` where it gives one.
+  It runs nothing where `on()` leaves the board action out for the target.
+  Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
+  Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
+  Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
 * Core's React SDK offers the list of the select in place, always open, as `ListBox`: [React Aria's `ListBox`](https://react-aria.adobe.com/ListBox), in core's theme, after the `ListBox` of React Aria's Tailwind starter kit.
   It takes the props of React Aria's `ListBox`, and draws the rows that `ListBoxItem` gives, which are the rows of the list of the select.
   As the select does, it draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.

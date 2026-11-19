@@ -58,4 +58,5 @@ export interface CommandsOptions {
     readonly blockrOption?: (name: string) => Promise<Json | undefined>;
 }
 export declare function createCommands(store: Store, options?: CommandsOptions): Commands;
+export declare function isCommandId(id: string): boolean;
 export declare function isLogged(error: unknown): boolean;
