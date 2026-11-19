@@ -1,3 +1,4 @@
+import type { BoardActions } from "../actions/index.ts";
 import type { Commands } from "../commands/index.ts";
 import type { Loader, Measure } from "../mount/index.ts";
 import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index.ts";
@@ -12,6 +13,7 @@ import type { RunningPlugins } from "./plugins.ts";
 export interface CoreParts {
     readonly store: Store;
     readonly commands: Commands;
+    readonly boardActions: BoardActions;
     readonly scheduler: Scheduler;
     readonly loader: Loader;
     readonly blockrOptions: BlockrOptions;
