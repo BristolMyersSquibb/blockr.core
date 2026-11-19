@@ -255,6 +255,10 @@
   Beside the preset, the build package exports the plugin `vendorCheck`, which fails a build that puts code from `node_modules` into one of a package's own files, so that the libraries a package bundles go into its vendor file instead.
   The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.
   The page that R serves resolves those imports through an import map, to the files that the package ships, so that a module's bundle holds none of React or of core's code, and every module runs the one copy of each that the blockr.core it runs on ships (#495).
+  The preset fails a build that imports React Aria: `react-aria-components`, `react-aria` or `react-stately`, an entry point of one of them, such as `react-aria-components/Button`, or a package under `@react-aria/` or `@react-stately/`.
+  Its error names `@blockr/core/react`, from which a package draws React Aria's components.
+  A second copy of React Aria would hold React contexts of its own, which the components of the SDK do not read.
+  The preset leaves `@internationalized/date` and `@internationalized/number` to the package, since they hold no React context (#754).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-border-default`, which follow the text around them unless a frontend sets them.
   What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
   Its default is the page's background, and under the dark theme it mixes in 10% of the text, so that a menu is lighter than the card below it.
