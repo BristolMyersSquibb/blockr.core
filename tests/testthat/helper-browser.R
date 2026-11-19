@@ -526,12 +526,6 @@ window.e2e = {
   element(selector) {
     return e2e.until(() => document.querySelector(selector), selector);
   },
-  label(within, text) {
-    return [...within.querySelectorAll('label')].find((label) =>
-      label.textContent.trim() === text ||
-        label.querySelector('span')?.textContent === text
-    );
-  },
   set(field, value, event) {
     Reflect.set(Object.getPrototypeOf(field), 'value', value, field);
     field.dispatchEvent(new Event(event, { bubbles: true }));
@@ -619,13 +613,6 @@ window.e2e = {
     );
     found.click();
     e2e.close(field);
-  },
-  async check(label, within) {
-    const box = await e2e.until(
-      () => e2e.label(within, label)?.querySelector('input[type=checkbox]'),
-      'checkbox ' + label
-    );
-    box.click();
   },
   // Types the name into the field of the label given and submits it with
   // Enter, once React has drawn what was typed.
