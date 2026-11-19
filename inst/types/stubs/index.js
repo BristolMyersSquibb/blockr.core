@@ -9592,26 +9592,32 @@ function useTyped2(onSearch) {
     []
   );
   const send = (text) => {
-    clearTimeout(timer.current);
     timer.current = void 0;
     setPending(false);
     if (text === sent2) return;
     setSent(text);
     latest.current?.(text);
   };
+  const after = (ms, text) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      send(text);
+    }, ms);
+  };
   return {
     sent: sent2,
     pending,
     type: (text) => {
       if (onSearch === void 0) return;
-      clearTimeout(timer.current);
       setPending(true);
-      timer.current = setTimeout(() => {
-        send(text);
-      }, SEARCH_PAUSE);
+      after(SEARCH_PAUSE, text);
     },
+    // React Aria closes the list from an effect, as after a pick of one, so
+    // the select hands "" on once React has drawn, rather than inside the
+    // effect, where a caller that draws at once, as the controls do, could
+    // not.
     close: () => {
-      if (pending || sent2 !== "") send("");
+      if (pending || sent2 !== "") after(0, "");
     }
   };
 }

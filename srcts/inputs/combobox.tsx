@@ -367,12 +367,19 @@ function useTyped(onSearch: ((text: string) => void) | undefined): Typed {
   );
 
   const send = (text: string): void => {
-    clearTimeout(timer.current);
     timer.current = undefined;
     setPending(false);
     if (text === sent) return;
     setSent(text);
     latest.current?.(text);
+  };
+  // Hands the text on once the time given has passed, unless the user types
+  // on or the list closes first.
+  const after = (ms: number, text: string): void => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      send(text);
+    }, ms);
   };
 
   return {
@@ -380,14 +387,15 @@ function useTyped(onSearch: ((text: string) => void) | undefined): Typed {
     pending,
     type: (text) => {
       if (onSearch === undefined) return;
-      clearTimeout(timer.current);
       setPending(true);
-      timer.current = setTimeout(() => {
-        send(text);
-      }, SEARCH_PAUSE);
+      after(SEARCH_PAUSE, text);
     },
+    // React Aria closes the list from an effect, as after a pick of one, so
+    // the select hands "" on once React has drawn, rather than inside the
+    // effect, where a caller that draws at once, as the controls do, could
+    // not.
     close: () => {
-      if (pending || sent !== "") send("");
+      if (pending || sent !== "") after(0, "");
     },
   };
 }

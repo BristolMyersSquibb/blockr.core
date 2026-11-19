@@ -626,6 +626,8 @@ describe("a select that searches", () => {
     await step(() => {
       optionFromLabel(field, "date").click();
     });
+    // The select hands "" on once React has drawn the list's closing.
+    await pause(0);
     await step(release);
     await step(() => {
       field.blur();
