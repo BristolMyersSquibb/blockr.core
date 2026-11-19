@@ -24,6 +24,8 @@
 //   inputs draw with, as the one place in core's code that imports React
 //   Aria. The file bundles those parts alone, since the whole of React Aria is
 //   several times the size of React.
+//   It keeps React Aria's strings in English alone, the language of core's own
+//   text.
 //   React's entry points, such as `react` and `react-dom/client`, are written
 //   as ES modules of their own, such as react.js and react-dom-client.js,
 //   which read React from that file.
@@ -185,6 +187,7 @@ function reactNames(): Record<string, string[]> {
 // it by that name.
 // A file that the import map names, which R serves at a URL that holds a hash
 // of the content, is named as given instead.
+// The file holds React Aria's strings in English alone (ariaStrings()).
 async function vendored(
   out: string,
   name: string,
@@ -203,6 +206,7 @@ async function vendored(
     define: preset.define,
     minify: true,
     legalComments: "inline",
+    plugins: [ariaStrings()],
     logLevel: "warning",
   });
   if (result.warnings.length > 0) {
@@ -216,6 +220,35 @@ async function vendored(
     file,
     imports: externalImports(result.metafile),
     sources: [...licensedSources(result.metafile, repo).values()].flat(),
+  };
+}
+
+// The files of React Aria's strings, one for each language that it ships, by
+// their paths, such as node_modules/react-aria/dist/private/intl/combobox/de-DE.mjs,
+// with the language.
+const ARIA_STRINGS = /[/\\]node_modules[/\\](?:react-aria-components|react-aria|react-stately)[/\\].*[/\\]([a-z]{2}-[A-Z]{2})\.mjs$/;
+
+// Leaves out React Aria's strings in every language but en-US, the language
+// of core's own text.
+// React Aria ships the strings of its components in 34 languages.
+// It shows those of the browser's language, since core gives it none.
+// Each import of the strings of another language reads an empty module instead.
+// React Aria drops the empty ones, so it takes those of en-US, its default, for
+// every browser
+// (https://github.com/adobe/react-spectrum/blob/02770b8caa5142ea343f71c83cafa448a7d9d625/packages/@internationalized/string/src/LocalizedStringDictionary.ts#L37-L40).
+// React Aria's plugin for this, @react-aria/optimize-locales-plugin, fails with
+// esbuild, which cannot load the empty module that the plugin resolves to.
+function ariaStrings(): esbuild.Plugin {
+  const empty = { path: "other-languages", namespace: "blockr.core-aria-strings" };
+  return {
+    name: "blockr.core-aria-strings",
+    setup(build) {
+      build.onResolve({ filter: /[a-z]{2}-[A-Z]{2}\.mjs$/ }, (args) => {
+        const language = ARIA_STRINGS.exec(resolve(args.resolveDir, args.path))?.[1];
+        return language === undefined || language === "en-US" ? undefined : empty;
+      });
+      build.onLoad({ filter: /.*/, namespace: empty.namespace }, () => ({ contents: "export default undefined;", loader: "js" }));
+    },
   };
 }
 

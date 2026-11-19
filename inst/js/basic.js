@@ -361,7 +361,7 @@ function useHistory(core) {
 
 // srcts/ui/search.ts
 import { useState as useState3 } from "react";
-import { useFilter } from "./vendor-b25170e7.js";
+import { useFilter } from "./vendor-a8c646e9.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState3("");

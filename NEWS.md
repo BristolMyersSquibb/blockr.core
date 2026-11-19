@@ -668,6 +668,9 @@
   The page loads the parts of React Aria that core draws with in core's vendor file, and the types of `@blockr/core` name React Aria as a dependency.
   The `comboBox()` of `controls()` takes `items`, `selectionMode`, `ordered` and `renderEmptyState`, in place of `select()` and `checklist()`, which are gone, as are `Choice` and `asChoices()`.
   Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).
+  Core's vendor file holds React Aria's strings in English alone, the language of core's own text.
+  So in every browser, React Aria's labels and what it announces to screen readers are English, such as "Show suggestions" on the button that opens the list of a select.
+  React Aria still formats numbers in the browser's language (#774).
 * The `selection` of `CoreApi` holds the board objects that the user selected, such as `[{ block: "a" }, { link: "ab" }]`.
   Whatever selects sets it, as the DAG will as the user selects nodes, links and stacks, while core's basic frontend selects nothing.
   Its `get()` gives the board objects selected, its `set()` selects those given in place of them, and its `subscribe()` calls back whenever they change.

@@ -153,6 +153,24 @@ test("bundles the packages that core's code imports beside React into the vendor
   expect(await read("import-map.json")).not.toContain(file);
 });
 
+test("bundles React Aria's strings in English alone into the vendor file", async () => {
+  await write({
+    "srcts/runtime/index.ts": "document.title = 'runtime';\n",
+    "srcts/aria/index.ts": 'export { ComboBox } from "react-aria-components";\n',
+  });
+
+  await build(root);
+
+  const out = join(root, "inst/js");
+  const vendor = (await readdir(out)).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file)) ?? "";
+  const bundled = await readFile(join(out, vendor), "utf8");
+  // React Aria ships the label of a combobox's button in 34 languages, such as
+  // German and French. The file holds it in English alone.
+  expect(bundled).toContain("Show suggestions");
+  expect(bundled).not.toContain("Empfehlungen anzeigen");
+  expect(bundled).not.toContain("Afficher les suggestions");
+});
+
 test("fails where one of core's files would bundle a package from node_modules that the vendor file does not hold, through the vendor check", async () => {
   await write({
     "node_modules/@acme/pad/package.json": '{ "name": "@acme/pad", "type": "module", "main": "index.js" }\n',
