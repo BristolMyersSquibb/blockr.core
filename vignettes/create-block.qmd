@@ -513,8 +513,8 @@ The host gives the module everything it may use:
 | `state()` | the block's state |
 | `context()` | the block's name, status, linked inputs and `option(id)`, which gives the value of a board option that the class reads |
 | `on("state", fn)`, `on("context", fn)` | a subscription to changes of either, which returns the function that ends it |
-| `submit(change)` | one edit of the state, which leaves unset a state arg that `change` gives as `undefined`, and rejects with what refused it |
-| `request(name, args, opts)` | a request of the class, with state args and parameters in `args` |
+| `submit(change, opts)` | one edit of the state, which leaves unset a state arg that `change` gives as `undefined`, and rejects with what refused it, which core also shows the user unless `opts.notifier` takes it |
+| `request(name, args, opts)` | a request of the class, with state args and parameters in `args`, whose reply's conditions core shows the user unless `opts.notifier` takes them |
 | `evaluate(params)` | a one-time evaluation of the block with parameters, which its `block_eval()` method reads |
 | `module(id)` | a module that another package offers, by its ID |
 

@@ -61,6 +61,7 @@ function outputSnapshot(host: OutputHost): OutputSnapshot {
 // A value that a component shows and edits:
 // the value as the binding last showed it,
 // why the host refused the last submit, if it did,
+// which the component shows, as core's inputs do below themselves,
 // and what reads and submits the value, as a Binding does.
 export interface Bound {
   readonly value: Json | undefined;
@@ -74,6 +75,8 @@ export interface Bound {
 
 // Binds a block's state arg by its name, or a board option's value,
 // for as long as the component is mounted.
+// The binding takes the notification of each submit that the host refuses,
+// so that core raises none, since the component shows why as `error`.
 export function useValue<S extends State>(host: BlockHost<S>, key: Extract<keyof S, string>): Bound;
 export function useValue<V extends Json>(host: OptionHost<V>): Bound;
 export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
@@ -89,6 +92,7 @@ export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
       settled: (refused) => {
         setError(refused === null ? null : errorMessage(refused));
       },
+      notifier: () => undefined,
     });
     binding.current = bound;
     return () => {

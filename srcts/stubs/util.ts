@@ -86,7 +86,7 @@ export function announcer<E extends string>(
 
 // The notifications that a module raised through a stub's notify(), each
 // while it holds, in the order they came, checked as core checks them.
-export function notifier(): { notified: readonly Raised[]; notify: (notification: Raised) => () => void } {
+export function raisedHolder(): { notified: readonly Raised[]; notify: (notification: Raised) => () => void } {
   const notified: Raised[] = [];
   return {
     notified,

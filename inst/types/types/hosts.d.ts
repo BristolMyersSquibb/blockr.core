@@ -1,7 +1,7 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
-import type { CoreFailure, Raised, RequestOpts } from "./core-api.ts";
+import type { CoreFailure, Notification, Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
 export type State = Readonly<Record<string, Json>>;
@@ -33,7 +33,9 @@ export interface BlockHost<S extends State = State> {
     state(): S;
     context(): BlockContext;
     on(event: "state" | "context", fn: () => void): () => void;
-    submit(change: Partial<S>): Promise<void>;
+    submit(change: Partial<S>, opts?: {
+        notifier?(notifications: readonly Notification[]): void;
+    }): Promise<void>;
     request<T = Json>(name: string, args?: Partial<S> & Record<string, Json>, opts?: HostRequestOpts): Promise<T | Blob>;
     evaluate(params: Record<string, Json>): Promise<BlockStatus>;
     module<T = unknown>(id: string): Promise<T>;
@@ -49,7 +51,7 @@ export interface BlockContext {
     }[];
     option(id: OptionId): Json;
 }
-export type HostRequestOpts = Omit<RequestOpts, "reads" | "conditions">;
+export type HostRequestOpts = Omit<RequestOpts, "reads">;
 export interface OutputRequestOpts extends HostRequestOpts {
     scope?: "class" | "renderer";
 }
@@ -57,7 +59,9 @@ export interface OptionHost<V extends Json = Json> {
     readonly option: OptionId;
     value(): V;
     on(event: "value", fn: () => void): () => void;
-    submit(value: V): Promise<void>;
+    submit(value: V, opts?: {
+        notifier?(notifications: readonly Notification[]): void;
+    }): Promise<void>;
     request<T = Json>(name: string, args?: Record<string, Json>, opts?: HostRequestOpts): Promise<T | Blob>;
     notify(notification: Raised): () => void;
     readonly log: Log;

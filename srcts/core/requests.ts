@@ -14,8 +14,9 @@
 // condition of R's reply, ok or error, raises a notification that concerns
 // the plugin, which holds until R next replies to a request of the same name.
 // Its source names the plugin class's module, which made the request.
-// A caller that passes `conditions` takes the conditions of the reply itself.
-// Core then raises no notification for them and withdraws none.
+// A caller that passes a notifier gets the notifications of each reply in
+// place of the holder, which then holds none of them and withdraws none
+// (./notifications.ts).
 // The request's span goes under the span that was active as the caller called
 // `CoreApi.request()`, though core sends the request only once the blocks it
 // reads are evaluated (../trace/index.ts).
@@ -26,7 +27,7 @@ import type { BlockId, PluginClassId } from "../types/board.ts";
 import type { RequestOpts } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { keepContext } from "../trace/index.ts";
-import { isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
+import { givenNotifier, isObject, own, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Replied } from "../util/index.ts";
 import { RequestError } from "../mount/index.ts";
 import type { RunningPlugins } from "./plugins.ts";
@@ -40,8 +41,8 @@ export interface PluginRequestDeps {
   readonly plugins: Pick<RunningPlugins, "appPlugins">;
   readonly scheduler: Pick<Scheduler, "evaluate" | "request" | "status">;
   // Holds a notification for each condition of R's latest reply to each of
-  // the plugin's requests, which concern the plugin (./notifications.ts),
-  // unless the caller takes the conditions itself.
+  // the plugin's requests, which concern the plugin (./notifications.ts), or
+  // hands them to the request's notifier.
   readonly replied: Replied;
 }
 
@@ -71,18 +72,15 @@ export async function pluginRequest(
   if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
     throw new TypeError(`The blocks that the request "${name}" of the plugin "${plugin}" reads are an array of their ids.`);
   }
-  if (opts.conditions !== undefined && typeof opts.conditions !== "function") {
-    throw new TypeError(`The \`conditions\` of the request "${name}" of the plugin "${plugin}" is a function.`);
-  }
+  const notifier = givenNotifier(opts, `the request "${name}" of the plugin "${plugin}"`);
   const what = `The request "${name}" of the plugin "${plugin}"`;
   // The plugin class's module, which made the request.
   const module = sourceModule({ plugin }, packageFromId(plugin));
   const inCaller = keepContext();
-  // Hands the conditions of R's reply to the caller, where it takes them, or
-  // else holds a notification for each of them.
+  // Holds a notification for each condition of R's reply, or hands them to
+  // the caller's notifier.
   const handOn = (conditions: readonly Condition[]): void => {
-    if (opts.conditions === undefined) deps.replied(module, { type: "plugin", name }, conditions);
-    else opts.conditions(conditions);
+    deps.replied(module, { type: "plugin", name }, conditions, notifier);
   };
 
   for (let attempt = 1; ; attempt++) {

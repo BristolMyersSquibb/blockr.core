@@ -206,7 +206,7 @@ describe("the notifications of R's replies to requests", () => {
     s.stop();
   });
 
-  test("are none for a plugin's request whose caller takes its conditions, which leaves those of the request's earlier replies as they are", async () => {
+  test("of a plugin's request whose caller passes a notifier go to the notifier, as core would hold them, and core holds none and withdraws none that earlier replies raised", async () => {
     let full = true;
     const s = await stubCore({
       answer: (request) => {
@@ -217,23 +217,93 @@ describe("the notifications of R's replies to requests", () => {
     });
     await s.settled();
     const ofRequests = (n: Notification): boolean => n.source.kind === "r" && n.source.request.type === "plugin";
-    const taken: (readonly Condition[])[] = [];
-    const conditions = (given: readonly Condition[]): void => {
-      taken.push(given);
+    const taken: (readonly Notification[])[] = [];
+    const notifier = (notifications: readonly Notification[]): void => {
+      taken.push(notifications);
     };
 
-    await expect(s.core.request(FILE, "save", {}, { conditions })).rejects.toThrow("The disk is full.");
+    await expect(s.core.request(FILE, "save", {}, { notifier })).rejects.toThrow("The disk is full.");
     expect(held(s.core, ofRequests)).toEqual([]);
-    expect(taken).toEqual([[{ severity: "error", class: ["blockr_error", "error", "condition"], phase: "request", message: "The disk is full." }]]);
+    expect(taken.map((notifications) => notifications.map((n) => [n.severity, n.message, n.about]))).toEqual([
+      [["error", "The disk is full.", { plugin: FILE }]],
+    ]);
 
-    // A call that does not take the conditions raises them, and a later call
-    // that takes them leaves that notification as it is.
+    // A call that passes no notifier raises the same notification, with the
+    // same id, and a later call that passes one leaves it as it is, while its
+    // notifier gets none for a reply without conditions.
     await expect(s.core.request(FILE, "save")).rejects.toThrow("The disk is full.");
+    expect(s.core.notifications.get().filter(ofRequests)).toEqual(taken[0]);
     full = false;
-    await expect(s.core.request(FILE, "save", {}, { conditions })).resolves.toBe("saved");
+    await expect(s.core.request(FILE, "save", {}, { notifier })).resolves.toBe("saved");
     expect(held(s.core, ofRequests).map((n) => n.message)).toEqual(["The disk is full."]);
     expect(taken).toHaveLength(2);
     expect(taken[1]).toEqual([]);
+    s.stop();
+  });
+
+  test("of a host's request whose module passes a notifier go to the notifier, for the block's UI module, the renderer of its output and the board option's module alike, and core holds none", async () => {
+    const hosts: { block?: BlockHost; output?: OutputHost; option?: OptionHost } = {};
+    const zoom: Option = {
+      id: "zoom",
+      label: "Zoom",
+      category: "View options",
+      schema: { type: "number" },
+      default: 1,
+      ui: {
+        render: ({ host }: { host: OptionHost }) => {
+          hosts.option = host;
+        },
+      },
+    };
+    const s = await stubCore({
+      hello: withOptions(["zoom"]),
+      modules: {
+        ...listedModules([], [zoom]),
+        [HEAD]: {
+          api: 1,
+          default: {
+            render: ({ host }: { host: BlockHost }) => {
+              hosts.block = host;
+            },
+          },
+        },
+        [TABLE]: {
+          api: 1,
+          default: {
+            options: ["n_rows"],
+            render: ({ host }: { host: OutputHost }) => {
+              hosts.output = host;
+            },
+          },
+        },
+      },
+      answer: () => {
+        throw new Error("No answer.");
+      },
+    });
+    s.core.scheduler.demand("test", ["b"]);
+    s.core.mountBlock(document.createElement("div"), "b");
+    s.core.mountOutput(document.createElement("div"), "b");
+    s.core.mountOption(document.createElement("div"), "zoom");
+    await s.settled();
+    const taken: Notification[] = [];
+    const notifier = (notifications: readonly Notification[]): void => {
+      taken.push(...notifications);
+    };
+
+    await expect(hosts.block?.request("n_max", {}, { notifier })).rejects.toMatchObject({ status: "error" });
+    await expect(hosts.output?.request("download", {}, { notifier })).rejects.toMatchObject({ status: "error" });
+    await expect(hosts.option?.request("list_dir", {}, { notifier })).rejects.toMatchObject({ status: "error" });
+
+    expect(held(s.core, (n) => n.source.kind === "r")).toEqual([]);
+    expect(taken.map(({ message, source, about }) => [message, source.module?.object, about])).toEqual([
+      ["No answer.", { block: "b" }, { block: "b" }],
+      ["No answer.", { block: "b" }, { block: "b" }],
+      ["No answer.", { option: "zoom" }, { option: "zoom" }],
+    ]);
+    await expect(hosts.block?.request("n_max", {}, { notifier: "quiet" as never })).rejects.toThrow(
+      'The `notifier` of the request "n_max" of block "b" is a function.',
+    );
     s.stop();
   });
 
@@ -737,7 +807,7 @@ describe("core's notifications", () => {
     s.stop();
   });
 
-  test("of an edit of another origin are none, and core logs no line of it: the assistant's, whose tool hands the refusal to its model, and core's own, which puts the default of a board option on the board", async () => {
+  test("of an edit of another origin are raised as for the user's, the assistant's among them, while core's own edit of a board option's default raises board_option_failed alone", async () => {
     const reported = logged();
     const unfit: Option = { id: "unfit", label: "Unfit", category: "View options", schema: { type: "number" }, default: "big", ui: { render: () => undefined } };
     const needy: PluginClass = { id: "blockr.test-needy_plugin", ui: pluginUi().ui };
@@ -763,15 +833,23 @@ describe("core's notifications", () => {
     }).toThrow("The store refused to undo the step");
     quiet.restore();
 
-    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
-    expect(quiet.lines()).toEqual([]);
+    const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
+    expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual(
+      Array.from({ length: 3 }, () => ["error", { kind: "core", code: "board_edit_failed" }, undefined]),
+    );
+    expect(refused.map((n) => n.message)).toEqual([
+      expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/),
+      expect.stringMatching(/^The store rejected the delta/),
+      expect.stringMatching(/^The store refused to undo the step/),
+    ]);
+    expect(quiet.lines().map((line) => [line.level, line.message])).toEqual(refused.map((n) => ["debug", n.message]));
     // The store refused core's edit of the default, which core names as the
     // board option's failure alone.
     expect(held(s.core, (n) => notificationCode(n) === "board_option_failed").map((n) => n.about)).toEqual([{ option: "unfit" }]);
     s.stop();
   });
 
-  test("of a list of commands that the command registry refuses are raised as for a command alone, for the user's list and none for the assistant's", async () => {
+  test("of a list of commands that the command registry refuses are raised as for a command alone, for the user's list and the assistant's alike", async () => {
     const s = await stubCore();
     await s.settled();
     const run = (origin?: string): Promise<void> =>
@@ -785,17 +863,130 @@ describe("core's notifications", () => {
     const refusal = 'The list of commands was refused at command 2, "blockr.core-remove_block"';
 
     await expect(run("assistant")).rejects.toThrow(refusal);
-    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
+    const [first] = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
     await expect(run()).rejects.toThrow(refusal);
 
-    const refused = held(s.core, (n) => notificationCode(n) === "board_edit_failed");
+    // The same refusal again is the same notification, which core raised
+    // anew.
+    const refused = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
+    expect(refused).toEqual([first]);
     expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual([["error", { kind: "core", code: "board_edit_failed" }, undefined]]);
     expect(refused.map((n) => n.message)).toEqual([expect.stringMatching(/^The list of commands was refused at command 2, "blockr\.core-remove_block"\n/)]);
     expect(s.core.store.board().name).not.toBe("Sepals");
     s.stop();
   });
 
-  test("of a block's or a board option's UI module whose submit() the store refuses are none, since the module says why itself, as core's inputs do below themselves, and submit() rejects with the reason", async () => {
+  test("of an edit whose caller passes a notifier go to the notifier, as core would raise them, before the call rejects or throws, and core raises none and withdraws none", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const reported = logged();
+    const heard: string[] = [];
+    const taken: Notification[] = [];
+    const notifier = (notifications: readonly Notification[]): void => {
+      heard.push("notified");
+      taken.push(...notifications);
+    };
+    const refusing = (): Promise<void> => s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "user", { notifier });
+
+    // A command, a list of commands, a delta, an undo and a redo, each of
+    // which the store or the command registry refuses.
+    await refusing().catch(() => heard.push("rejected"));
+    await expect(
+      s.core.commands.run([{ id: "blockr.core-remove_block", args: { id: "nowhere" } }], "assistant", { notifier }),
+    ).rejects.toThrow('The list of commands was refused at command 1, "blockr.core-remove_block"');
+    expect(() => {
+      s.core.store.apply({ links: { add: { db: { from: "d", to: "b", input: "nowhere" } } } }, "assistant", { undo: false, notifier });
+    }).toThrow("The store rejected the delta");
+    await s.core.commands.run("blockr.core-remove_link", { id: "ab" });
+    await s.core.commands.run("blockr.core-add_link", { from: "d", to: "b", input: "data" }, "assistant");
+    expect(() => {
+      s.core.store.undo("user", { notifier });
+    }).toThrow("The store refused to undo the step");
+    await s.core.commands.run("blockr.core-remove_link", { id: "keen_finch" });
+    await s.core.commands.run("blockr.core-add_link", { id: "df", from: "d", to: "f", input: "data" });
+    s.core.store.undo();
+    s.core.store.apply({ links: { add: { bf: { from: "b", to: "f", input: "data" } } } }, "assistant", { undo: false });
+    expect(() => {
+      s.core.store.redo({ notifier });
+    }).toThrow("The store refused to redo the step");
+    await s.settled();
+
+    expect(heard.slice(0, 2)).toEqual(["notified", "rejected"]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
+    expect(taken.map(({ severity, source, about }) => [severity, source, about])).toEqual(
+      Array.from({ length: 5 }, () => ["error", { kind: "core", code: "board_edit_failed" }, undefined]),
+    );
+    expect(taken.map((n) => n.message)).toEqual([
+      expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/),
+      expect.stringMatching(/^The list of commands was refused at command 1/),
+      expect.stringMatching(/^The store rejected the delta/),
+      expect.stringMatching(/^The store refused to undo the step/),
+      expect.stringMatching(/^The store refused to redo the step/),
+    ]);
+
+    // The same refusal without a notifier raises the same notification, and
+    // the next with a notifier leaves it held.
+    await expect(s.core.commands.run("blockr.core-remove_block", { id: "nowhere" })).rejects.toThrow();
+    await expect(refusing()).rejects.toThrow();
+    expect(s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed")).toEqual([taken[0]]);
+    expect(taken[5]).toEqual(taken[0]);
+    reported.restore();
+    // Core logs each refusal at debug, with a notifier or without.
+    expect(reported.lines().map((line) => line.level)).toEqual(Array.from({ length: 7 }, () => "debug"));
+    s.stop();
+  });
+
+  test("of an edit whose notifier is no function are none: the call fails with a TypeError at once, and the edit does not run", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const bad = { notifier: "quiet" as never };
+
+    await expect(s.core.commands.run("blockr.core-rename_board", { name: "Sepals" }, "user", bad)).rejects.toThrow(
+      new TypeError("The `notifier` of run() is a function."),
+    );
+    await expect(s.core.commands.run([{ id: "blockr.core-rename_board", args: { name: "Sepals" } }], "user", bad)).rejects.toThrow(
+      new TypeError("The `notifier` of run() is a function."),
+    );
+    expect(() => {
+      s.core.store.apply({ name: "Sepals" }, "user", bad);
+    }).toThrow(new TypeError("The `notifier` of apply() is a function."));
+    expect(() => {
+      s.core.store.undo(undefined, bad);
+    }).toThrow(new TypeError("The `notifier` of undo() is a function."));
+    expect(() => {
+      s.core.store.redo(bad);
+    }).toThrow(new TypeError("The `notifier` of redo() is a function."));
+
+    expect(s.core.store.board().name).not.toBe("Sepals");
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
+    s.stop();
+  });
+
+  test("of an edit whose notifier throws are none, and core logs what the notifier threw at error, while the call rejects with the reason, as it would have", async () => {
+    const s = await stubCore();
+    await s.settled();
+    const thrown = new Error("The notifier broke.");
+    const reported = logged();
+
+    await expect(
+      s.core.commands.run("blockr.core-remove_block", { id: "nowhere" }, "user", {
+        notifier: () => {
+          throw thrown;
+        },
+      }),
+    ).rejects.toThrow('The command "blockr.core-remove_block" refused to run');
+    reported.restore();
+
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
+    expect(reported.lines().map((line) => [line.level, line.message])).toEqual([
+      ["debug", expect.stringMatching(/^The command "blockr\.core-remove_block" refused to run/)],
+      ["error", "The notifier broke."],
+    ]);
+    expect(reported.lines()[1]?.error).toBe(thrown);
+    s.stop();
+  });
+
+  test("of a block's or a board option's UI module whose submit() the store refuses concern the block or the board option, unless the module takes them through its notifier, as core's inputs do, and submit() rejects with the reason either way", async () => {
     const blocks: BlockHost[] = [];
     const options: OptionHost[] = [];
     const rows = HELLO.options.n_rows?.module ?? "";
@@ -830,10 +1021,40 @@ describe("core's notifications", () => {
     s.core.mountOption(document.createElement("div"), "n_rows");
     await s.settled();
 
+    const reported = logged();
     await expect(blocks[0]?.submit({ n: -1 })).rejects.toThrow('The state of block "b" fails its schema at /n');
     await expect(options[0]?.submit(0)).rejects.toThrow('The value of the board option "n_rows" fails its schema');
 
-    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
+    const refused = s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed");
+    expect(refused.map(({ severity, source, about }) => [severity, source, about])).toEqual([
+      ["error", { kind: "core", code: "board_edit_failed" }, { block: "b" }],
+      ["error", { kind: "core", code: "board_edit_failed" }, { option: "n_rows" }],
+    ]);
+    expect(refused.map((n) => n.message)).toEqual([
+      expect.stringContaining('The state of block "b" fails its schema at /n'),
+      expect.stringContaining('The value of the board option "n_rows" fails its schema'),
+    ]);
+
+    // The same refusals, taken through a notifier, which gets the same
+    // notifications, while core leaves those that it raised as they are.
+    const taken: Notification[] = [];
+    const notifier = (notifications: readonly Notification[]): void => {
+      taken.push(...notifications);
+    };
+    await expect(blocks[0]?.submit({ n: -1 }, { notifier })).rejects.toThrow('The state of block "b" fails its schema at /n');
+    await expect(options[0]?.submit(0, { notifier })).rejects.toThrow('The value of the board option "n_rows" fails its schema');
+    expect(taken).toEqual(refused);
+    expect(s.core.notifications.get().filter((n) => notificationCode(n) === "board_edit_failed")).toEqual(refused);
+
+    // A notifier that is no function is refused at once, and nothing runs.
+    await expect(blocks[0]?.submit({ n: 2 }, { notifier: "quiet" as never })).rejects.toThrow(
+      new TypeError('The `notifier` of a submit of block "b" is a function.'),
+    );
+    await expect(options[0]?.submit(2, { notifier: "quiet" as never })).rejects.toThrow(
+      new TypeError('The `notifier` of a submit of the board option "n_rows" is a function.'),
+    );
+    expect(s.core.store.board().blocks.b?.state).not.toMatchObject({ n: 2 });
+    reported.restore();
     s.stop();
   });
 });

@@ -30,6 +30,10 @@
 // at once, each with a host of its own. A host is bound to the board it was
 // made on and to its block. Once another board opens or the block leaves the
 // board, core ends the mount, and the host's submit() and evaluate() reject.
+// Where the store or the command registry refuses a submit, core tells the
+// user why through a notification of the code `board_edit_failed` about the
+// block, unless the submit's notifier takes it, and submit() rejects with the
+// reason.
 // What the module raises through its host's notify() names the block's UI
 // module as its source, with the package of the block's class, and holds
 // until the mount ends at the latest.
@@ -61,13 +65,15 @@ import {
   jsonEqual,
   own,
   checkRaised,
+  givenNotifier,
   notifyNothing,
   packageFromId,
   raiseNothing,
+  refusedNothing,
   repliedNothing,
   sourceModule,
 } from "../util/index.ts";
-import type { Notify, Raise, Replied } from "../util/index.ts";
+import type { Notify, Raise, Refused, Replied } from "../util/index.ts";
 import { createAnswers } from "./answers.ts";
 import type { Answers } from "./answers.ts";
 import { ModuleError } from "./load.ts";
@@ -140,6 +146,10 @@ export interface MountsOptions {
   // Raises the notification that a mounted module gives through its host. It
   // raises none unless given.
   readonly notify?: Notify;
+  // Tells the user why the store or the command registry refused what a
+  // module submitted through its host, or hands that to the submit's
+  // notifier (../core/core.ts). It tells nothing unless given.
+  readonly refused?: Refused;
   // The package that lists a board option, from R's reply to `hello`, which
   // the notifications of the board option's module name.
   readonly optionPackage?: (option: OptionId) => string | undefined;
@@ -164,6 +174,7 @@ export function createMounts(options: MountsOptions): Mounts {
   const raise = options.raise ?? raiseNothing;
   const replied = options.replied ?? repliedNothing;
   const notify = options.notify ?? notifyNothing;
+  const refused = options.refused ?? refusedNothing;
   const optionPackage = options.optionPackage ?? ((): undefined => undefined);
 
   // What core keeps of the board, which goes with the mounts as another board
@@ -323,6 +334,7 @@ export function createMounts(options: MountsOptions): Mounts {
       replaced,
       replied,
       notify,
+      refused,
       unbound: end,
     });
     const offEnd = onAbort(replaced, end);
@@ -401,7 +413,11 @@ export function createMounts(options: MountsOptions): Mounts {
         block,
       ),
     mountOption: (el, option) =>
-      mountOption({ store, commands, scheduler, loader, renderers, replaced, keepOptions, raise, replied, notify, optionPackage }, el, option),
+      mountOption(
+        { store, commands, scheduler, loader, renderers, replaced, keepOptions, raise, replied, notify, refused, optionPackage },
+        el,
+        option,
+      ),
     addOptions,
     keepOptions,
   };
@@ -430,6 +446,7 @@ interface HostDeps {
   readonly replaced: AbortSignal;
   readonly replied: Replied;
   readonly notify: Notify;
+  readonly refused: Refused;
   // What ends the mount once the host is no longer bound to its board and
   // its block.
   readonly unbound: () => void;
@@ -583,14 +600,20 @@ function blockHost(deps: HostDeps): MountedHost {
         heard.delete(wrapped);
       };
     },
-    submit(change) {
-      if (!bound()) return Promise.reject(unboundError());
-      if (!isObject(change)) {
-        return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
-      }
+    // The store commits what the command sets before submit() returns, as it
+    // commits every command that does not prepare.
+    async submit(change, opts) {
+      if (!bound()) throw unboundError();
+      if (!isObject(change)) throw new TypeError("A submit takes the state args it changes, as an object.");
+      const notifier = givenNotifier(opts, `a submit of block "${block}"`);
       const set = Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined));
       const unset = Object.entries(change).flatMap(([arg, value]) => (value === undefined ? [arg] : []));
-      return commands.run("blockr.core-set_block", { id: block, state: set as State, ...(unset.length === 0 ? {} : { unset }) });
+      try {
+        await commands.run("blockr.core-set_block", { id: block, state: set as State, ...(unset.length === 0 ? {} : { unset }) });
+      } catch (error) {
+        deps.refused(error, { block }, notifier);
+        throw error;
+      }
     },
     request<T = Json>(
       name: string,

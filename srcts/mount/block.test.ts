@@ -16,6 +16,7 @@ import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { logged } from "../testing/logged.ts";
+import { handedOn } from "../testing/notifications.ts";
 import { recordSpans } from "../testing/spans.ts";
 import { coreOptions, hello, noCore, noUi } from "../testing/store.ts";
 import type { BlockId } from "../types/board.ts";
@@ -175,7 +176,7 @@ async function setup(
         };
       },
       replied: (...args) => {
-        replies.push(args);
+        replies.push(handedOn(...args));
       },
       notify: (module, notification) => {
         const given = { module, notification };

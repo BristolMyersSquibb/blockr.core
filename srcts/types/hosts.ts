@@ -12,7 +12,7 @@
 import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus } from "../scheduler/index.ts";
 import type { BlockId, OptionId, RegistryId } from "./board.ts";
-import type { CoreFailure, Raised, RequestOpts } from "./core-api.ts";
+import type { CoreFailure, Notification, Raised, RequestOpts } from "./core-api.ts";
 import type { Json } from "./json.ts";
 import type { Log } from "./log.ts";
 
@@ -59,13 +59,14 @@ export interface BlockHost<S extends State = State> {
   context(): BlockContext;
   on(event: "state" | "context", fn: () => void): () => void;
   // One edit, on a user's action only, through core's command that sets the
-  // block's state. It rejects with what refused it. Core raises no
-  // notification of that, so the module shows the user why, as core's inputs
-  // do below themselves.
+  // block's state. It rejects with what refused it. Core also tells the user
+  // why, through a notification of the code `board_edit_failed` about the
+  // block, unless the module takes it through the notifier in `opts`, as
+  // core's inputs do, which show why below themselves (./core-api.ts).
   // A state arg that the change gives as undefined, it unsets, as where the
   // user clears an arg without a default, which then stays out of the block's
   // state until something sets it.
-  submit(change: Partial<S>): Promise<void>;
+  submit(change: Partial<S>, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<void>;
   // A request of the block class, with state args and parameters. It resolves
   // with the answer as R writes it, every vector as an array, or with a File
   // for a download.
@@ -108,10 +109,11 @@ export interface BlockContext {
 // The options of a host's request, such as the file of an upload or the bitmap
 // of a chart. The host fills in the blocks it reads, from the block's inputs or
 // the output it holds.
-// A module that core mounts does not take the conditions of R's reply itself.
-// Those conditions raise notifications about its block or board option, which
-// the frontend shows, as on the block's card.
-export type HostRequestOpts = Omit<RequestOpts, "reads" | "conditions">;
+// The conditions of R's reply raise notifications about the module's block or
+// board option, which the frontend shows, as on the block's card, unless the
+// module takes them through the request's notifier, as a module that shows
+// them itself does (./core-api.ts).
+export type HostRequestOpts = Omit<RequestOpts, "reads">;
 
 // The options of an output's request: as a host's, and the scope of the
 // request, "class" for one of the output class, as unless given, or
@@ -129,8 +131,9 @@ export interface OptionHost<V extends Json = Json> {
   value(): V;
   on(event: "value", fn: () => void): () => void;
   // Runs core's command that sets a board option. It rejects with what
-  // refused it, and the module shows the user why, as for a block's submit().
-  submit(value: V): Promise<void>;
+  // refused it, which core also raises, about the board option, unless the
+  // notifier in `opts` takes it, as for a block's submit().
+  submit(value: V, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<void>;
   // A request of the board option, never kept.
   request<T = Json>(
     name: string,

@@ -45,9 +45,9 @@ which the block's UI sends (see \code{\link[=new_block_request]{new_block_reques
 R finds it among the requests of the class that \code{registry_id} names.
 \item The type \code{output_class}, a request of an output class,
 which a renderer sends (see \code{\link[=output_requests]{output_requests()}}).
-R finds it by the class vector of the latest output that it made from the
-result that \code{output} names, through the classes' methods of
-\code{output_requests()}.
+R finds it among the requests that the classes' methods of
+\code{output_requests()} gave for the latest output that R made from the
+result that \code{output} names.
 \item The type \code{renderer}, a renderer's own request (see \code{\link[=new_renderer]{new_renderer()}}).
 R finds it among the requests of the renderer that draws that output,
 which has to be the one that \code{renderer} names.

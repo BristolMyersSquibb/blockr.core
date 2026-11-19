@@ -14,9 +14,9 @@
 #'   R finds it among the requests of the class that `registry_id` names.
 #' * The type `output_class`, a request of an output class,
 #'   which a renderer sends (see [output_requests()]).
-#'   R finds it by the class vector of the latest output that it made from the
-#'   result that `output` names, through the classes' methods of
-#'   `output_requests()`.
+#'   R finds it among the requests that the classes' methods of
+#'   `output_requests()` gave for the latest output that R made from the
+#'   result that `output` names.
 #' * The type `renderer`, a renderer's own request (see [new_renderer()]).
 #'   R finds it among the requests of the renderer that draws that output,
 #'   which has to be the one that `renderer` names.
@@ -100,7 +100,9 @@ NULL
 # in `fun`, and its arguments by name, in `args`.
 # The results that the request reads come in `reads`, by block ID, each a list
 # of the block's `result`, its block expression `expr` and, where R made an
-# output from the result, the class vector of the latest output in `output`.
+# output from the result, what R kept of the latest output: its class vector in
+# `output`, the requests that its classes gave for it in `requests` and the
+# renderer that drew it in `renderer`.
 # A request of a block class reads the class from the app's block registry,
 # which R hands it in `registry`, a request of a board option finds its
 # function among the app's board options, which R hands it in `options`, and a
@@ -242,9 +244,9 @@ plugin_requests.plugin <- function(x, ...) {
 }
 
 # The call of a request of an output, of its output class or of the renderer
-# that `renderer` names, resolved against the latest output that R made from
-# the result that the request names, its class vector or the renderer that
-# drew it, and run with that result.
+# that `renderer` names, resolved against what R kept of the latest output that
+# it made from the result that the request names, the requests that its
+# classes gave for it or the renderer that drew it, and run with that result.
 output_read_call <- function(x, reads, renderer) {
 
   out <- x[["output"]]
@@ -274,6 +276,7 @@ output_read_call <- function(x, reads, renderer) {
   }
 
   output_request_call(
+    held[["requests"]],
     held[["output"]],
     x[["name"]],
     held[["result"]],

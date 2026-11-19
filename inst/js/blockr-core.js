@@ -169,6 +169,12 @@ function asLogical(text) {
 var raiseNothing = () => () => void 0;
 var repliedNothing = () => void 0;
 var notifyNothing = () => () => void 0;
+var refusedNothing = () => void 0;
+function givenNotifier(opts, call) {
+  if (opts?.notifier === void 0) return void 0;
+  if (typeof opts.notifier !== "function") throw new TypeError(`The \`notifier\` of ${call} is a function.`);
+  return opts.notifier.bind(opts);
+}
 function sourceModule(object2, pkg, renderer) {
   return {
     object: object2,
@@ -2269,6 +2275,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
       `The request "${name3}" of the block class "${entry.id}" takes no file, since its new_block_request() names no argument for one.`
     );
   }
+  const notifier = givenNotifier(opts, `the request "${name3}" of block "${block}"`);
   const share = spec.action === true || opts.file !== void 0 ? "once" : spec.volatile === true ? "merge" : "keep";
   const what = `The request "${name3}" of block "${block}"`;
   const module = sourceModule({ block }, packageFromId(entry.id));
@@ -2315,7 +2322,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
     const conditions = "conditions" in reply ? reply.conditions : [];
     switch (reply.status) {
       case "ok":
-        deps.replied(module, { type: "block_class", name: name3 }, conditions);
+        deps.replied(module, { type: "block_class", name: name3 }, conditions, notifier);
         if (body !== null) return body;
         return "value" in reply && reply.value !== void 0 ? reply.value : null;
       case "missing":
@@ -2326,7 +2333,7 @@ async function blockRequest(deps, block, entry, name3, given, opts) {
       case "cancelled":
         throw new RequestError(`R cancelled the request "${name3}" of block "${block}".`, { status: "cancelled" });
       default:
-        deps.replied(module, { type: "block_class", name: name3 }, conditions);
+        deps.replied(module, { type: "block_class", name: name3 }, conditions, notifier);
         throw new RequestError(`R replied ${reply.status} to the request "${name3}" of block "${block}".`, {
           status: reply.status,
           conditions
@@ -2466,9 +2473,15 @@ function mountOption(deps, el, option) {
         listeners.delete(wrapped);
       };
     },
-    submit(next) {
-      if (!bound()) return Promise.reject(unboundError());
-      return deps.commands.run("blockr.core-set_option", { id: option, value: next });
+    async submit(next, opts) {
+      if (!bound()) throw unboundError();
+      const notifier = givenNotifier(opts, `a submit of the board option "${option}"`);
+      try {
+        await deps.commands.run("blockr.core-set_option", { id: option, value: next });
+      } catch (error) {
+        deps.refused(error, { option }, notifier);
+        throw error;
+      }
     },
     request(name3, args = {}, opts = {}) {
       if (typeof name3 !== "string" || name3 === "") {
@@ -2554,6 +2567,7 @@ function mountOption(deps, el, option) {
   return end;
 }
 async function optionRequest(deps, module, option, name3, args, opts) {
+  const notifier = givenNotifier(opts, `the request "${name3}" of the board option "${option}"`);
   const { reply, body } = await deps.scheduler.request(
     { kind: "request", type: "option", option, name: name3, args: { ...args } },
     {
@@ -2565,13 +2579,13 @@ async function optionRequest(deps, module, option, name3, args, opts) {
   const conditions = "conditions" in reply ? reply.conditions : [];
   switch (reply.status) {
     case "ok":
-      deps.replied(module, { type: "option", name: name3 }, conditions);
+      deps.replied(module, { type: "option", name: name3 }, conditions, notifier);
       if (body !== null) return body;
       return "value" in reply && reply.value !== void 0 ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name3}" of the board option "${option}".`, { status: "cancelled" });
     default:
-      deps.replied(module, { type: "option", name: name3 }, conditions);
+      deps.replied(module, { type: "option", name: name3 }, conditions, notifier);
       throw new RequestError(`R replied ${reply.status} to the request "${name3}" of the board option "${option}".`, {
         status: reply.status,
         conditions
@@ -2949,6 +2963,7 @@ function mountOutput(deps, el, block) {
   }
   async function request(prepared, name3, args, opts) {
     const what = `The request "${name3}" of the output of block "${block}"`;
+    const notifier = givenNotifier(opts, `the request "${name3}" of the output of block "${block}"`);
     const module = rendererModule(prepared.renderer);
     const requested2 = { type: opts.scope === "renderer" ? "renderer" : "output_class", name: name3 };
     const inCaller = keepContext();
@@ -2970,7 +2985,7 @@ function mountOutput(deps, el, block) {
       const conditions = "conditions" in reply ? reply.conditions : [];
       switch (reply.status) {
         case "ok":
-          deps.replied(module, requested2, conditions);
+          deps.replied(module, requested2, conditions, notifier);
           if (body !== null) return body;
           return "value" in reply && reply.value !== void 0 ? reply.value : null;
         case "missing":
@@ -2979,7 +2994,7 @@ function mountOutput(deps, el, block) {
         case "cancelled":
           throw new RequestError(`R cancelled ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, { status: "cancelled" });
         default:
-          deps.replied(module, requested2, conditions);
+          deps.replied(module, requested2, conditions, notifier);
           throw new RequestError(`R replied ${reply.status} to ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, {
             status: reply.status,
             conditions
@@ -3158,6 +3173,7 @@ function createMounts(options) {
   const raise = options.raise ?? raiseNothing;
   const replied2 = options.replied ?? repliedNothing;
   const notify = options.notify ?? notifyNothing;
+  const refused2 = options.refused ?? refusedNothing;
   const optionPackage = options.optionPackage ?? (() => void 0);
   store.subscribe((change) => {
     if ("opened" in change) return;
@@ -3274,6 +3290,7 @@ function createMounts(options) {
       replaced: replaced2,
       replied: replied2,
       notify,
+      refused: refused2,
       unbound: end
     });
     const offEnd = onAbort(replaced2, end);
@@ -3335,7 +3352,11 @@ function createMounts(options) {
       el,
       block
     ),
-    mountOption: (el, option) => mountOption({ store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, optionPackage }, el, option),
+    mountOption: (el, option) => mountOption(
+      { store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
+      el,
+      option
+    ),
     addOptions,
     keepOptions
   };
@@ -3450,14 +3471,20 @@ function blockHost(deps) {
         heard.delete(wrapped);
       };
     },
-    submit(change) {
-      if (!bound()) return Promise.reject(unboundError());
-      if (!isObject(change)) {
-        return Promise.reject(new TypeError("A submit takes the state args it changes, as an object."));
-      }
+    // The store commits what the command sets before submit() returns, as it
+    // commits every command that does not prepare.
+    async submit(change, opts) {
+      if (!bound()) throw unboundError();
+      if (!isObject(change)) throw new TypeError("A submit takes the state args it changes, as an object.");
+      const notifier = givenNotifier(opts, `a submit of block "${block}"`);
       const set = Object.fromEntries(Object.entries(change).filter(([, value2]) => value2 !== void 0));
       const unset = Object.entries(change).flatMap(([arg, value2]) => value2 === void 0 ? [arg] : []);
-      return commands.run("blockr.core-set_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
+      try {
+        await commands.run("blockr.core-set_block", { id: block, state: set, ...unset.length === 0 ? {} : { unset } });
+      } catch (error) {
+        deps.refused(error, { block }, notifier);
+        throw error;
+      }
     },
     request(name3, args = {}, opts = {}) {
       if (!bound()) return Promise.reject(unboundError());
@@ -7105,9 +7132,12 @@ function createCommands(store, options = {}) {
         return false;
       }
     },
-    // A list comes with its origin second, in place of the args.
-    async run(target2, given, origin = "user") {
+    // A list comes with its origin second, in place of the args, and its
+    // options third, in place of the origin. The command registry ignores the
+    // notifier in the options, which CoreApi acts on (../core/core.ts).
+    async run(target2, given, third) {
       if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
+      const origin = typeof third === "string" ? third : "user";
       return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
         const within = keepContext();
         const { item, args } = lookup(target2, given);
@@ -7344,15 +7374,12 @@ async function pluginRequest(deps, plugin, name3, args, opts) {
   if (!Array.isArray(reads) || !reads.every((block) => typeof block === "string")) {
     throw new TypeError(`The blocks that the request "${name3}" of the plugin "${plugin}" reads are an array of their ids.`);
   }
-  if (opts.conditions !== void 0 && typeof opts.conditions !== "function") {
-    throw new TypeError(`The \`conditions\` of the request "${name3}" of the plugin "${plugin}" is a function.`);
-  }
+  const notifier = givenNotifier(opts, `the request "${name3}" of the plugin "${plugin}"`);
   const what = `The request "${name3}" of the plugin "${plugin}"`;
   const module = sourceModule({ plugin }, packageFromId(plugin));
   const inCaller = keepContext();
   const handOn = (conditions) => {
-    if (opts.conditions === void 0) deps.replied(module, { type: "plugin", name: name3 }, conditions);
-    else opts.conditions(conditions);
+    deps.replied(module, { type: "plugin", name: name3 }, conditions, notifier);
   };
   for (let attempt3 = 1; ; attempt3++) {
     const revisions = await evaluateReads2(deps, what, reads, opts.signal);
@@ -7436,6 +7463,11 @@ function createCore(parts) {
       };
     }
   };
+  const refused2 = (error, about, notifier) => {
+    const why = errorMessage(error);
+    if (!isLogged(error)) log.debug(why);
+    notifications.raiseAgain(coreNotification("board_edit_failed", "error", why, about === void 0 ? {} : { about }), notifier);
+  };
   const mounts = createMounts({
     store,
     commands,
@@ -7446,6 +7478,7 @@ function createCore(parts) {
     raise,
     replied: notifications.replied,
     notify: notifications.notify,
+    refused: refused2,
     optionPackage,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
@@ -7468,7 +7501,7 @@ function createCore(parts) {
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const focus = createFocus(store, parts.signal);
-  const edits = refusing(store, commands, notifications.raiseAgain);
+  const edits = refusing(store, commands, refused2);
   const api = {
     store: edits.store,
     commands: edits.commands,
@@ -7571,24 +7604,25 @@ function createCore(parts) {
   }
   return { api, plugins };
 }
-function refusing(store, commands, raiseAgain) {
-  function refused2(origin, error) {
-    if ((origin ?? "user") !== "user") return;
-    const why = errorMessage(error);
-    if (!isLogged(error)) log.debug(why);
-    raiseAgain(coreNotification("board_edit_failed", "error", why));
-  }
-  function edit(origin, fn) {
+function refusing(store, commands, refused2) {
+  function edit(opts, call, fn) {
+    const notifier = givenNotifier(opts, call);
     try {
       fn();
     } catch (error) {
-      refused2(origin, error);
+      refused2(error, void 0, notifier);
       throw error;
     }
   }
-  function ran(origin, running2) {
-    return running2.catch((error) => {
-      refused2(origin, error);
+  function ran(opts, run) {
+    let notifier;
+    try {
+      notifier = givenNotifier(opts, "run()");
+    } catch (error) {
+      return Promise.reject(asError(error));
+    }
+    return run().catch((error) => {
+      refused2(error, void 0, notifier);
       throw error;
     });
   }
@@ -7596,29 +7630,32 @@ function refusing(store, commands, raiseAgain) {
     store: {
       ...store,
       apply(delta, origin, opts) {
-        edit(origin, () => {
-          store.apply(delta, origin, opts);
+        edit(opts, "apply()", () => {
+          store.apply(delta, origin, opts?.undo === false ? { undo: false } : void 0);
         });
       },
-      undo(origin) {
-        edit(origin, () => {
+      undo(origin, opts) {
+        edit(opts, "undo()", () => {
           store.undo(origin);
         });
       },
-      // A redo names no origin, so it is the user's, as the store announces
-      // it.
-      redo() {
-        edit(void 0, () => {
+      redo(opts) {
+        edit(opts, "redo()", () => {
           store.redo();
         });
       }
     },
     commands: {
       ...commands,
-      run(target2, given, origin) {
-        if (typeof target2 === "string") return ran(origin, commands.run(target2, given, origin));
+      // A list comes with its origin second, in place of the args, and its
+      // options third, as the command registry takes it.
+      run(target2, given, third, fourth) {
+        if (typeof target2 === "string") {
+          const origin = typeof third === "string" ? third : void 0;
+          return ran(fourth, () => commands.run(target2, given, origin));
+        }
         const listed = typeof given === "string" ? given : void 0;
-        return ran(listed, commands.run(target2, listed));
+        return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, listed));
       }
     }
   };
@@ -7983,19 +8020,25 @@ function createNotifications(store, options = {}) {
     }
     return replace(JSON.stringify(["status", block]), about, next);
   }
-  const replied2 = (module, request, conditions) => {
-    if (ended) return;
+  const replied2 = (module, request, conditions, notifier) => {
     const about = module.object;
     const by = moduleCopy(module);
     const next = /* @__PURE__ */ new Map();
-    if (present(about)) {
-      for (const condition of conditions) {
-        const source = { kind: "r", class: condition.class, request, module: by };
-        const id2 = JSON.stringify(["request", condition.severity, source, condition.message]);
-        if (!next.has(id2)) next.set(id2, frozen(id2, { severity: condition.severity, message: condition.message, source, about }));
+    for (const condition of conditions) {
+      const source = { kind: "r", class: condition.class, request, module: by };
+      const id2 = JSON.stringify(["request", condition.severity, source, condition.message]);
+      if (!next.has(id2)) next.set(id2, frozen(id2, { severity: condition.severity, message: condition.message, source, about }));
+    }
+    if (notifier !== void 0) {
+      handTo(notifier, [...next.values()]);
+      return;
+    }
+    if (ended) return;
+    if (!present(about)) {
+      if (next.size > 0) {
+        log.debug(`Core drops the notifications of R's reply to ${requested(request, module)} about ${named2(about)}, which the board does not hold.`);
       }
-    } else if (conditions.length > 0) {
-      log.debug(`Core drops the notifications of R's reply to ${requested(request, module)} about ${named2(about)}, which the board does not hold.`);
+      next.clear();
     }
     if (replace(JSON.stringify(["request", by, request]), about, next)) publish();
   };
@@ -8021,8 +8064,12 @@ function createNotifications(store, options = {}) {
       if (held2.delete(id2)) publish();
     };
   };
-  const raiseAgain = (given) => {
+  const raiseAgain = (given, notifier) => {
     const id2 = raisedId(given);
+    if (notifier !== void 0) {
+      handTo(notifier, [frozen(id2, given)]);
+      return;
+    }
     again.get(id2)?.();
     const withdraw = raise(given);
     if (!ended) again.set(id2, withdraw);
@@ -8101,6 +8148,13 @@ function createNotifications(store, options = {}) {
       if (store.hasBoard()) heard(Object.keys(store.board().blocks));
     }
   };
+}
+function handTo(notifier, notifications) {
+  try {
+    notifier(Object.freeze(notifications));
+  } catch (error) {
+    log.error(asError(error));
+  }
 }
 function raisedId(given) {
   return JSON.stringify([
@@ -8375,7 +8429,7 @@ function start(options) {
     const { api: core, plugins } = createCore({
       store: {
         ...store,
-        open: (given) => reopen(given, controller)
+        open: (given, opts) => reopen(given, controller, opts)
       },
       commands,
       scheduler,
@@ -8557,13 +8611,19 @@ function start(options) {
     return { text, plugin };
   }
   let queue = Promise.resolve();
-  function reopen(given, of) {
+  function reopen(given, of, opts) {
+    let notifier;
+    try {
+      notifier = givenNotifier(opts, "open()");
+    } catch (error) {
+      return Promise.reject(asError(error));
+    }
     const opening2 = steps("open");
-    const run = queue.then(() => reopening(given, of, opening2));
+    const run = queue.then(() => reopening(given, of, opening2, notifier));
     queue = run.catch(() => void 0);
     return run;
   }
-  async function reopening(given, of, opening2) {
+  async function reopening(given, of, opening2, notifier) {
     const refused2 = "The store refused to open the board";
     const current2 = running2;
     if (current2?.controller !== of || of.signal.aborted) {
@@ -8585,7 +8645,7 @@ function start(options) {
       } catch (error) {
         const why = errorMessage(error);
         log.debug(why);
-        current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", why));
+        current2.notifications.raiseAgain(coreNotification("board_open_failed", "error", why), notifier);
         throw error;
       }
       before = current2.store.save();

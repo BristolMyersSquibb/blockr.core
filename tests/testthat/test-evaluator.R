@@ -1016,6 +1016,80 @@ test_that("R resolves an output's request by an output it made", {
   expect_null(reply$conditions[[1L]]$phase)
 })
 
+test_that("R answers an output's requests by those given for the output", {
+
+  local_chart_output()
+
+  # The chart's requests read the output that they were given for
+  local_output_class(
+    "chart_output",
+    requests = function(x, ...) list(title = function() x$title)
+  )
+
+  session <- local_evaluator()
+
+  hold_result(session, "a", 2L)
+  hold_result(
+    session, "h", 9L,
+    recipe = list(
+      registry_id = "chart_block",
+      state = obj(),
+      inputs = list(recipe_input("a", 2L, "data"))
+    )
+  )
+
+  make_output(session, "h", 9L)
+
+  session$receive(
+    list(
+      list(
+        id = "2",
+        kind = "request",
+        type = "output_class",
+        output = list(block = "h", revision = 9L),
+        name = "title",
+        args = obj(),
+        options = obj(),
+        params = obj()
+      )
+    )
+  )
+
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "ok")
+  expect_identical(reply$value, encode_answer("Sepals"))
+})
+
+test_that("an output fails where its class gives no named list of requests", {
+
+  local_chart_output()
+  local_output_class("chart_output", requests = list(1))
+
+  session <- local_evaluator()
+
+  hold_result(session, "a", 2L)
+  hold_result(
+    session, "h", 9L,
+    recipe = list(
+      registry_id = "chart_block",
+      state = obj(),
+      inputs = list(recipe_input("a", 2L, "data"))
+    )
+  )
+
+  session$receive(list(output_request("2", "h", 9L)))
+  session$run()
+
+  reply <- last_reply(session)
+
+  expect_identical(reply$status, "error")
+  expect_identical(condition_class(reply), "output_class_requests_invalid")
+  expect_identical(reply$conditions[[1L]]$phase, "output")
+})
+
 test_that("a request names its failures by phase, and lacking results", {
 
   session <- local_evaluator()

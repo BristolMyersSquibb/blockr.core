@@ -17,8 +17,6 @@
 //   before, so that a request that fails again keeps its notifications, and
 //   one that succeeds with no condition withdraws them. Its source names the
 //   module that made the request.
-//   A plugin that takes the conditions of its request itself, through
-//   `conditions`, raises none and withdraws none (./requests.ts).
 // - Those that core raises, each with an id from what it holds, so that a
 //   failure raised twice, as by two mounts of one module, is one notification,
 //   which holds until each raise of it is withdrawn. Core raises each refusal
@@ -27,6 +25,13 @@
 //   frontend that has shown it shows it again.
 // - Those that the modules of packages raise, a plugin's through notify() and
 //   one that core mounts through its host, each with an id of its own.
+// A call whose caller passes a notifier gets the notifications of a reply to
+// its request, or of its refusal, in place of the holder, which then holds
+// none of them and withdraws none that earlier calls raised
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#taking-a-calls-notifications).
+// Each notification that a notifier gets is made as the holder would hold it,
+// with the same id. The holder logs what a notifier throws at error, so that
+// the call ends as it would have.
 // It withdraws every notification that concerns a block, a link or a stack as
 // that leaves the board, and those whose source names a module of the block
 // as the block leaves, and every one as the board ends, as the next board
@@ -44,9 +49,9 @@ import type { Condition } from "../protocol/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, PluginClassId } from "../types/board.ts";
-import type { BoardObject, CoreApi, EvaluatePhase, Notification, NotificationSource, RRequest, SourceModule } from "../types/core-api.ts";
+import type { BoardObject, CoreApi, EvaluatePhase, Notification, NotificationSource, Notifier, RRequest, SourceModule } from "../types/core-api.ts";
 import { log } from "../log/index.ts";
-import { checkRaised, jsonEqual, packageFromId, sourceModule } from "../util/index.ts";
+import { asError, checkRaised, jsonEqual, packageFromId, sourceModule } from "../util/index.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 
 export interface Holder {
@@ -59,9 +64,12 @@ export interface Holder {
   // board ends. Where the same notification holds already, it withdraws that
   // one first, so that a frontend that has shown it shows it again. Otherwise
   // the same refusal would be one notification, which a frontend shows once.
-  readonly raiseAgain: (notification: Omit<Notification, "id">) => void;
+  // Given the call's notifier, it hands the notifier the notification instead,
+  // and leaves what holds as it is.
+  readonly raiseAgain: (notification: Omit<Notification, "id">, notifier?: Notifier) => void;
   // Holds the notifications of the conditions of R's latest reply to a
-  // request, in place of those of the request's reply before.
+  // request, in place of those of the request's reply before, or hands them
+  // to the request's notifier.
   readonly replied: Replied;
   // Raises a notification that a package's module gives, from the board
   // object that the module belongs to, and returns what withdraws it.
@@ -227,19 +235,27 @@ export function createNotifications(
     return replace(JSON.stringify(["status", block]), about, next);
   }
 
-  const replied: Replied = (module, request, conditions) => {
-    if (ended) return;
+  const replied: Replied = (module, request, conditions, notifier) => {
     const about = module.object;
     const by = moduleCopy(module);
+    // The notifications of the reply, one for two conditions that share the
+    // severity, the source and the message.
     const next = new Map<string, Notification>();
-    if (present(about)) {
-      for (const condition of conditions) {
-        const source: NotificationSource = { kind: "r", class: condition.class, request, module: by };
-        const id = JSON.stringify(["request", condition.severity, source, condition.message]);
-        if (!next.has(id)) next.set(id, frozen(id, { severity: condition.severity, message: condition.message, source, about }));
+    for (const condition of conditions) {
+      const source: NotificationSource = { kind: "r", class: condition.class, request, module: by };
+      const id = JSON.stringify(["request", condition.severity, source, condition.message]);
+      if (!next.has(id)) next.set(id, frozen(id, { severity: condition.severity, message: condition.message, source, about }));
+    }
+    if (notifier !== undefined) {
+      handTo(notifier, [...next.values()]);
+      return;
+    }
+    if (ended) return;
+    if (!present(about)) {
+      if (next.size > 0) {
+        log.debug(`Core drops the notifications of R's reply to ${requested(request, module)} about ${named(about)}, which the board does not hold.`);
       }
-    } else if (conditions.length > 0) {
-      log.debug(`Core drops the notifications of R's reply to ${requested(request, module)} about ${named(about)}, which the board does not hold.`);
+      next.clear();
     }
     if (replace(JSON.stringify(["request", by, request]), about, next)) publish();
   };
@@ -267,8 +283,12 @@ export function createNotifications(
     };
   };
 
-  const raiseAgain = (given: Omit<Notification, "id">): void => {
+  const raiseAgain = (given: Omit<Notification, "id">, notifier?: Notifier): void => {
     const id = raisedId(given);
+    if (notifier !== undefined) {
+      handTo(notifier, [frozen(id, given)]);
+      return;
+    }
     again.get(id)?.();
     const withdraw = raise(given);
     if (!ended) again.set(id, withdraw);
@@ -349,6 +369,17 @@ export function createNotifications(
       if (store.hasBoard()) heard(Object.keys(store.board().blocks));
     },
   };
+}
+
+// Hands the notifier the notifications of a call, in place of holding them.
+// What the notifier throws is logged at error, since it is a failure in the
+// caller's code, and the call ends as it would have.
+function handTo(notifier: Notifier, notifications: readonly Notification[]): void {
+  try {
+    notifier(Object.freeze(notifications));
+  } catch (error) {
+    log.error(asError(error));
+  }
 }
 
 // The id of one of core's own notifications, from what it holds, so that the

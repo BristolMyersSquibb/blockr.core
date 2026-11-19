@@ -182,6 +182,20 @@ describe("the controls of a block's UI", () => {
     expect(texts(ui.el, '[role="alert"]')[0]).toContain("which the fixture does not list");
   });
 
+  test("pass the host a notifier with each submit, their inputs' and a widget's that the module binds, since they say why the host refused it, so that core raises no notification of it", async () => {
+    const { host, ui, direction } = drawn();
+    const submit = vi.spyOn(host, "submit");
+
+    await picked(direction, settled, "Tail");
+    host.setState(form({}));
+    await ui.bind("label", () => undefined).commit("yz");
+
+    expect(submit.mock.calls.map(([change, opts]) => [change, typeof opts?.notifier])).toEqual([
+      [{ direction: "tail" }, "function"],
+      [{ label: "yz" }, "function"],
+    ]);
+  });
+
   test("submit the picks of several once, as the list closes, after the strings the state holds then", async () => {
     const { host, by } = drawn();
 

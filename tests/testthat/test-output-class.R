@@ -365,7 +365,9 @@ test_that("a subclass's requests come before those of its class", {
   expect_identical(run_output_class_request(out, "size", letters), 26L)
   expect_identical(run_output_class_request(out, "label", letters), "Sub a")
   expect_identical(
-    run_output_class_request("base_output", "label", letters),
+    run_output_class_request(
+      new_block_output(list(), "base_output"), "label", letters
+    ),
     "Base a"
   )
   expect_identical(
@@ -377,13 +379,42 @@ test_that("a subclass's requests come before those of its class", {
                class = "output_class_request_unknown")
   expect_error(run_output_class_request(out, 1, letters),
                class = "output_class_request_unknown")
-  expect_error(run_output_class_request("text_output", "size", letters),
-               class = "output_class_request_unknown")
+  expect_error(
+    run_output_class_request(new_text_output("Hi"), "size", letters),
+    class = "output_class_request_unknown"
+  )
+  expect_error(run_output_class_request("base_output", "label", letters),
+               class = "block_output_invalid")
 
   local_output_class("bad_output", requests = list(1))
 
-  expect_error(run_output_class_request("bad_output", "x", 1),
-               class = "output_class_requests_invalid")
+  expect_error(
+    run_output_class_request(new_block_output(list(), "bad_output"), "x", 1),
+    class = "output_class_requests_invalid"
+  )
+})
+
+test_that("a class gives an output's requests by what the output holds", {
+
+  local_output_class(
+    "count_output",
+    requests = function(x, ...) {
+      if (is.null(x$total)) {
+        list(count = function(result) length(result))
+      } else {
+        list(total = function() x$total)
+      }
+    }
+  )
+
+  unknown <- new_block_output(list(total = NULL), "count_output")
+  known <- new_block_output(list(total = 3L), "count_output")
+
+  expect_identical(run_output_class_request(unknown, "count", letters), 26L)
+  expect_identical(run_output_class_request(known, "total", letters), 3L)
+
+  expect_error(run_output_class_request(known, "count", letters),
+               class = "output_class_request_unknown")
 })
 
 test_that("a request takes the result, board options, parameters and file", {
@@ -405,8 +436,10 @@ test_that("a request takes the result, board options, parameters and file", {
     )
   )
 
+  out <- new_block_output(list(), "arg_output")
+
   res <- run_output_class_request(
-    "arg_output", "all", 1:3,
+    out, "all", 1:3,
     args = list(format = "xlsx"),
     options = list(n_rows = 5L),
     params = list(page = 2L),
@@ -424,31 +457,31 @@ test_that("a request takes the result, board options, parameters and file", {
     )
   )
 
-  expect_identical(run_output_class_request("arg_output", "all", 1)$file,
+  expect_identical(run_output_class_request(out, "all", 1)$file,
                    "none")
 
   expect_identical(
-    run_output_class_request("arg_output", "dots", 1, args = list(a = 1L)),
+    run_output_class_request(out, "dots", 1, args = list(a = 1L)),
     list(a = 1L)
   )
 
   expect_identical(
-    run_output_class_request("arg_output", "some", 1,
+    run_output_class_request(out, "some", 1,
                              params = list(page = 1L)),
     list(page = 1L)
   )
 
   expect_error(
-    run_output_class_request("arg_output", "some", 1, args = list(x = 1)),
+    run_output_class_request(out, "some", 1, args = list(x = 1)),
     class = "output_class_request_args_invalid"
   )
   expect_error(
-    run_output_class_request("arg_output", "dots", 1,
+    run_output_class_request(out, "dots", 1,
                              args = list(result = 1)),
     class = "output_class_request_args_invalid"
   )
   expect_error(
-    run_output_class_request("arg_output", "all", 1, args = list(1)),
+    run_output_class_request(out, "all", 1, args = list(1)),
     class = "output_class_request_args_invalid"
   )
 })

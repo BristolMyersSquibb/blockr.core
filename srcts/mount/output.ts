@@ -67,6 +67,7 @@ import {
   coreNotification,
   errorMessage,
   frozenCopy,
+  givenNotifier,
   isObject,
   jsonEqual,
   own,
@@ -685,6 +686,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     opts: OutputRequestOpts,
   ): Promise<Json | Blob> {
     const what = `The request "${name}" of the output of block "${block}"`;
+    const notifier = givenNotifier(opts, `the request "${name}" of the output of block "${block}"`);
     // The renderer, which made the request, whichever scope the request has.
     const module = rendererModule(prepared.renderer);
     const requested = { type: opts.scope === "renderer" ? ("renderer" as const) : ("output_class" as const), name };
@@ -713,7 +715,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       const conditions = "conditions" in reply ? reply.conditions : [];
       switch (reply.status) {
         case "ok":
-          deps.replied(module, requested, conditions);
+          deps.replied(module, requested, conditions, notifier);
           if (body !== null) return body;
           return "value" in reply && reply.value !== undefined ? reply.value : null;
         case "missing":
@@ -722,7 +724,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         case "cancelled":
           throw new RequestError(`R cancelled ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, { status: "cancelled" });
         default:
-          deps.replied(module, requested, conditions);
+          deps.replied(module, requested, conditions, notifier);
           throw new RequestError(`R replied ${reply.status} to ${what.charAt(0).toLowerCase()}${what.slice(1)}.`, {
             status: reply.status,
             conditions,
