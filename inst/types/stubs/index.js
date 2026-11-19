@@ -6605,9 +6605,20 @@ function coreCommands(store) {
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
     return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
-  function linkable(board2, to, given) {
-    if (!Object.hasOwn(board2.blocks, to)) return false;
-    return named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0;
+  function linkable(command2, board2, from, to, given) {
+    if (!Object.hasOwn(board2.blocks, from) || !Object.hasOwn(board2.blocks, to)) return false;
+    if (named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0) return true;
+    throw refusal(command2, [noFreeInput(board2, to)]);
+  }
+  function noFreeInput(board2, to) {
+    const block = own(board2.blocks, to);
+    if (block === void 0) return `The board holds no block "${to}".`;
+    const entry = own(store.blockRegistry(), block.registry_id);
+    if (entry === void 0) return `The block registry has no block class "${block.registry_id}".`;
+    if (entry.inputs.length === 0) {
+      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+    }
+    return `Every input of the block "${to}" takes a link already.`;
   }
   function linkInput(command2, board2, to, given, except) {
     if (named(given)) return given;
@@ -6615,7 +6626,7 @@ function coreCommands(store) {
     return one(
       command2,
       free,
-      `The block "${to}" has no input that no link feeds.`,
+      noFreeInput(board2, to),
       `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`
     );
   }
@@ -6705,7 +6716,9 @@ function coreCommands(store) {
         },
         ["from", "to"]
       ),
-      preflight: (board2, { from, to, input: input2 }) => Object.hasOwn(board2.blocks, from) && linkable(board2, to, input2),
+      preflight(board2, { from, to, input: input2 }) {
+        return linkable(this.id, board2, from, to, input2);
+      },
       run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
         const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
         const resolved = linkInput(this.id, board2, to, input2);

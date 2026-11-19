@@ -113,11 +113,28 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     return [id, { registry_id: entry.id, state, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
 
-  // Whether a new link can go to block `to`, into the input given or a free
-  // one.
-  function linkable(board: Board, to: BlockId, given?: string): boolean {
-    if (!Object.hasOwn(board.blocks, to)) return false;
-    return named(given) || (freeInputs(board, store.blockRegistry(), to)?.length ?? 0) > 0;
+  // Whether a new link can go from block `from` to block `to`, into the input
+  // given or a free one. Where both blocks are on the board but `to` has no
+  // free input, it throws the refusal of the command instead. The refusal says
+  // why, so that the caller learns what went wrong.
+  function linkable(command: string, board: Board, from: BlockId, to: BlockId, given?: string): boolean {
+    if (!Object.hasOwn(board.blocks, from) || !Object.hasOwn(board.blocks, to)) return false;
+    if (named(given) || (freeInputs(board, store.blockRegistry(), to)?.length ?? 0) > 0) return true;
+    throw refusal(command, [noFreeInput(board, to)]);
+  }
+
+  // Why no new link can go to block `to`, which has no free input, in a
+  // sentence: the board lacks the block, the block registry lacks its class,
+  // its class takes no input, or links feed every input that it has.
+  function noFreeInput(board: Board, to: BlockId): string {
+    const block = own(board.blocks, to);
+    if (block === undefined) return `The board holds no block "${to}".`;
+    const entry = own(store.blockRegistry(), block.registry_id);
+    if (entry === undefined) return `The block registry has no block class "${block.registry_id}".`;
+    if (entry.inputs.length === 0) {
+      return `The block "${to}" takes no input, since its class "${entry.id}" has none.`;
+    }
+    return `Every input of the block "${to}" takes a link already.`;
   }
 
   // The input of block `to` that a new link goes to: the one given, and
@@ -137,7 +154,7 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     return one(
       command,
       free,
-      `The block "${to}" has no input that no link feeds.`,
+      noFreeInput(board, to),
       `The block "${to}" has the free inputs ${quoted(free)}, so the args have to name the one to use.`,
     );
   }
@@ -239,8 +256,9 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["from", "to"],
       ),
-      preflight: (board, { from, to, input }) =>
-        Object.hasOwn(board.blocks, from) && linkable(board, to, input),
+      preflight(board, { from, to, input }) {
+        return linkable(this.id, board, from, to, input);
+      },
       run(board, { from, to, input, id }, { mintId }) {
         const link = id ?? mintId((id) => Object.hasOwn(board.links, id));
         const resolved = linkInput(this.id, board, to, input);

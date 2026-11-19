@@ -214,7 +214,9 @@ describe("appending, prepending and inserting, as batches", () => {
         { id: "blockr.core-add_block", args: { registry_id: "blockr.core-dataset_block", id: "cars" } },
         { id: "blockr.core-add_link", args: { from: "d", to: "cars" } },
       ]),
-    ).rejects.toThrow('The list of commands was refused at command 2, "blockr.core-add_link"');
+    ).rejects.toThrow(
+      'The list of commands was refused at command 2, "blockr.core-add_link"\n- The block "cars" takes no input, since its class "blockr.core-dataset_block" has none.',
+    );
     expect(store.board()).toBe(board);
   });
 
@@ -307,10 +309,20 @@ describe("links", () => {
     expect(store.board().links.dc).toEqual({ from: "d", to: "c", input: "y" });
   });
 
-  test("add_link fails its preflight for a block whose inputs links feed", async () => {
+  test("add_link fails its preflight for a block without a free input, and says why", async () => {
     const { commands } = await setup();
+    await commands.run("blockr.core-add_block", { registry_id: "blockr.core-dataset_block", id: "cars" });
+
     expect(commands.preflight("blockr.core-add_link", { from: "d", to: "c" })).toBe(false);
+    expect(commands.preflight("blockr.core-add_link", { from: "d", to: "cars" })).toBe(false);
     expect(commands.preflight("blockr.core-add_link", { from: "d", to: "zz" })).toBe(false);
+
+    await expect(commands.run("blockr.core-add_link", { from: "d", to: "c" })).rejects.toThrow(
+      'The command "blockr.core-add_link" refused to run\n- Every input of the block "c" takes a link already.',
+    );
+    await expect(commands.run("blockr.core-add_link", { from: "d", to: "cars" })).rejects.toThrow(
+      'The block "cars" takes no input, since its class "blockr.core-dataset_block" has none.',
+    );
   });
 
   test("add_link keeps the input given, leaving its checks to the store", async () => {
@@ -339,7 +351,7 @@ describe("links", () => {
   test("change_link refuses a block whose inputs other links feed", async () => {
     const { commands } = await setup();
     await expect(commands.run("blockr.core-change_link", { id: "ab", to: "d" })).rejects.toThrow(
-      'The block "d" has no input that no link feeds.',
+      'Every input of the block "d" takes a link already.',
     );
   });
 
