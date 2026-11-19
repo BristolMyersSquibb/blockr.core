@@ -38,17 +38,16 @@ test_that("a merge block served alone joins its data as its UI says", {
   wait_for_statuses(app, set_names("invalid", id))
   expect_null(app_results(app))
 
-  # The first step picks the column to join by. Each step after it clicks one
-  # checkbox, which checks it or clears it. Each comes with the join that the
-  # block then makes.
-  keep_x <- "Keep the rows of x that y does not match"
-  keep_y <- "Keep the rows of y that x does not match"
+  # The first step picks the column to join by. Each step after it picks a
+  # join type, which sets all_x and all_y at once, as from a left join to a
+  # right join. Each comes with the join that the block then makes.
+  join_type <- function(type) list("pick", "Join type", type)
   joins <- list(
     list(list("pick", "By columns", "Time"), merge(x, y, by = "Time")),
-    list(list("check", keep_x), merge(x, y, by = "Time", all.x = TRUE)),
-    list(list("check", keep_y), merge(x, y, by = "Time", all = TRUE)),
-    list(list("check", keep_x), merge(x, y, by = "Time", all.y = TRUE)),
-    list(list("check", keep_y), merge(x, y, by = "Time"))
+    list(join_type("left"), merge(x, y, by = "Time", all.x = TRUE)),
+    list(join_type("right"), merge(x, y, by = "Time", all.y = TRUE)),
+    list(join_type("full"), merge(x, y, by = "Time", all = TRUE)),
+    list(join_type("inner"), merge(x, y, by = "Time"))
   )
 
   for (join in joins) {

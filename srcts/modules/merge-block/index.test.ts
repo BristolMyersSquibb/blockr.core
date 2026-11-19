@@ -4,7 +4,6 @@
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost } from "../../stubs/index.ts";
-import { find, toggle } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
@@ -18,6 +17,8 @@ const time: State = { by: ["Time"], all_x: false, all_y: false };
 const both: State = { by: ["Time", "demand"], all_x: false, all_y: false };
 const demandFirst: State = { by: ["demand", "Time"], all_x: false, all_y: false };
 const left: State = { by: ["Time"], all_x: true, all_y: false };
+const right: State = { by: ["Time"], all_x: false, all_y: true };
+const full: State = { by: ["Time"], all_x: true, all_y: true };
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -31,21 +32,16 @@ afterEach(() => {
 async function mounted(state: State, requests = fixture.requests) {
   const host = stubBlockHost<State>({ ...fixture, requests }, { state });
   const view = await mountOnPage(merge, host);
-  const checkbox = (label: string): HTMLInputElement => {
-    const found = [...view.el.querySelectorAll("label")].find((node) => node.textContent === label);
-    if (found === undefined) throw new Error(`Found no checkbox ${label}.`);
-    return find(found, "input", HTMLInputElement);
-  };
-  return { host, view, by: labelled(view.el, "By columns"), checkbox };
+  return { host, view, by: labelled(view.el, "By columns"), join: labelled(view.el, "Join type") };
 }
 
 test("shows the state, with a choice of each column its inputs share", async () => {
-  const { host, by, checkbox } = await mounted(time);
+  const { host, by, join } = await mounted(time);
   await settle();
 
   expect(chipLabels(by)).toEqual(["Time"]);
   expect(await listed(by, step)).toEqual(["Time", "demand"]);
-  expect(checkbox("Keep the rows of x that y does not match").checked).toBe(false);
+  expect(join.value).toBe("Inner");
   expect(host.requested).toEqual([{ name: "shared", args: {} }]);
   expect(host.submitted).toEqual([]);
 });
@@ -82,14 +78,37 @@ test("builds a submit from the state as it is, keeping a column set from outside
   expect(host.submitted).toEqual([demandFirst]);
 });
 
-test("submits whether to keep the unmatched rows of an input", async () => {
-  const { host, checkbox } = await mounted(time);
+test("shows the join that all_x and all_y make, of the four it offers, and one set from outside", async () => {
+  const { host, join } = await mounted(left);
+
+  expect(join.value).toBe("Left");
+  expect(await listed(join, step)).toEqual(["Inner", "Left", "Right", "Full"]);
 
   await step(() => {
-    toggle(checkbox("Keep the rows of x that y does not match"));
+    host.setState(full);
   });
+  expect(join.value).toBe("Full");
+  expect(host.submitted).toEqual([]);
+});
 
-  expect(host.submitted).toEqual([left]);
+test("submits both state args of the join the user picks, in one submit", async () => {
+  const { host, join } = await mounted(left);
+
+  await picked(join, step, "Right");
+  expect(host.submitted).toEqual([right]);
+  expect(join.value).toBe("Right");
+
+  await picked(join, step, "Full");
+  await picked(join, step, "Inner");
+  expect(host.submitted).toEqual([right, full, time]);
+});
+
+test("submits nothing where the user picks the join the state holds", async () => {
+  const { host, join } = await mounted(time);
+
+  await picked(join, step, "Inner");
+  expect(host.submitted).toEqual([]);
+  expect(join.value).toBe("Inner");
 });
 
 test("marks a column it joins by that the inputs do not share, once R says which they share", async () => {
