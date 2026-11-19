@@ -116,7 +116,7 @@ export interface CoreSource {
     readonly code: CoreCode;
     readonly module?: SourceModule;
 }
-export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_edit_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered" | "copy_failed";
+export type CoreCode = "module_failed" | "board_option_failed" | "on_change_failed" | "plugin_start_failed" | "board_open_failed" | "board_edit_failed" | "board_action_failed" | "board_objects_dropped" | "page_reload_needed" | "evaluation_unsent" | "output_unanswered" | "copy_failed";
 export interface CoreFailure {
     readonly kind: "core";
     readonly code: Extract<CoreCode, "output_unanswered" | "board_option_failed">;

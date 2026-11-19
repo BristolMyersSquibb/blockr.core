@@ -7272,16 +7272,20 @@ var KINDS2 = {
 };
 function createBoardActions(raise) {
   let registered = coreBoardActions(raise);
+  const classes = /* @__PURE__ */ new Map();
   return {
     register(plugin, given) {
       if (given === void 0) return () => void 0;
       const actions = checked2(plugin, given, new Set(registered.map(({ id: id2 }) => id2)));
       registered = [...registered, ...actions];
+      for (const { id: id2 } of actions) classes.set(id2, plugin);
       return () => {
         registered = registered.filter((action2) => !actions.includes(action2));
+        for (const { id: id2 } of actions) classes.delete(id2);
       };
     },
-    registered: () => registered
+    registered: () => registered,
+    classOf: (id2) => classes.get(id2)
   };
 }
 function checked2(plugin, given, taken) {
@@ -7339,7 +7343,7 @@ function checked2(plugin, given, taken) {
   });
 }
 function boardActionsApi(actions, parts) {
-  const { store, lock, refused: refused2 } = parts;
+  const { store, lock, refused: refused2, raiseAgain } = parts;
   function applies(action2, board, target2) {
     if (!action2.on.includes(kindOf(target2))) return false;
     if (action2.offers === void 0) return true;
@@ -7350,21 +7354,35 @@ function boardActionsApi(actions, parts) {
       return false;
     }
   }
-  async function batchOf(action2, target2) {
+  async function batchOf(action2, target2, notifier) {
     let batch2;
     try {
       batch2 = await action2.run?.(store.board(), target2, parts.core());
     } catch (error) {
-      const failure = new Error(`The board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error });
-      log.error(failure);
-      throw failure;
+      throw failed2(action2, new Error(`The board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }), notifier);
     }
     if (batch2 !== void 0 && !isBatch(batch2)) {
-      const failure = new TypeError(`The run of the board action "${action2.id}" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`);
-      log.error(failure);
-      throw failure;
+      throw failed2(
+        action2,
+        new TypeError(`The run of the board action "${action2.id}" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`),
+        notifier
+      );
     }
     return batch2;
+  }
+  function failed2(action2, failure, notifier) {
+    log.error(failure);
+    const plugin = actions.classOf(action2.id);
+    raiseAgain(
+      coreNotification(
+        "board_action_failed",
+        "error",
+        failure.message,
+        plugin === void 0 ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) }
+      ),
+      notifier
+    );
+    return failure;
   }
   return {
     on(given) {
@@ -7387,7 +7405,7 @@ function boardActionsApi(actions, parts) {
         throw new Error(`The board action "${id2}" asks the user through its quick action or its advanced action, which core does not open yet.`);
       }
       if (!store.hasBoard() || !applies(action2, store.board(), target2)) return;
-      const batch2 = await batchOf(action2, target2);
+      const batch2 = await batchOf(action2, target2, notifier);
       if (batch2 === void 0 || batch2.length === 0) return;
       const core = parts.core();
       let added = [];
@@ -7744,7 +7762,13 @@ function createCore(parts) {
   const api = {
     store: edits.store,
     commands: edits.commands,
-    boardActions: boardActionsApi(parts.boardActions, { store, lock: parts.lock, core: () => api, refused: refused2 }),
+    boardActions: boardActionsApi(parts.boardActions, {
+      store,
+      lock: parts.lock,
+      core: () => api,
+      refused: refused2,
+      raiseAgain: notifications.raiseAgain
+    }),
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
       evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),

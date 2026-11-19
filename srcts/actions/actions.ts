@@ -24,6 +24,11 @@
 //    block ID fails its `offers`.
 // 3. Core calls the board action's `run` with the board, the target and
 //    CoreApi, and waits for the batch where `run` returns a promise of it.
+//    Where `run` throws, rejects or returns no batch, core logs that as a
+//    fault of the board action's package and tells the user through a
+//    notification of the code `board_action_failed`, about the plugin whose
+//    class lists the board action, or hands it to the caller's notifier.
+//    Then trigger() rejects.
 // 4. Where the caller gives `extend`, core hands it the deltas that the batch
 //    will apply, as core.commands.plan() returns them, and adds the commands
 //    that it returns to the end of the batch.
@@ -38,11 +43,11 @@
 import { isCommandId } from "../commands/index.ts";
 import type { Delta, Store } from "../store/index.ts";
 import type { Board, PluginClassId } from "../types/board.ts";
-import type { BoardObject, CoreApi } from "../types/core-api.ts";
+import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
 import { log } from "../log/index.ts";
-import { errorMessage, givenNotifier, isBoardObject, isObject, quoted } from "../util/index.ts";
+import { coreNotification, errorMessage, givenNotifier, isBoardObject, isObject, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Raise, Refused } from "../util/index.ts";
 import { coreBoardActions } from "./core.ts";
 
@@ -120,23 +125,32 @@ export interface BoardActions {
   // - It has none of the three, so that nothing would run.
   register(plugin: PluginClassId, actions: readonly BoardAction[] | undefined): () => void;
   registered(): readonly BoardAction[];
+  // The plugin class that lists the board action with the id given, or
+  // undefined for one of core's own.
+  classOf(id: string): PluginClassId | undefined;
 }
 
 // The board actions of an open board, with core's own, whose notifications,
 // as of a copy that the browser refuses, core raises through `raise`.
 export function createBoardActions(raise: Raise): BoardActions {
   let registered: readonly BoardAction[] = coreBoardActions(raise);
+  // The plugin class that lists each board action that a class lists, by the
+  // board action's id.
+  const classes = new Map<string, PluginClassId>();
 
   return {
     register(plugin, given) {
       if (given === undefined) return () => undefined;
       const actions = checked(plugin, given, new Set(registered.map(({ id }) => id)));
       registered = [...registered, ...actions];
+      for (const { id } of actions) classes.set(id, plugin);
       return () => {
         registered = registered.filter((action) => !actions.includes(action));
+        for (const { id } of actions) classes.delete(id);
       };
     },
     registered: () => registered,
+    classOf: (id) => classes.get(id),
   };
 }
 
@@ -212,12 +226,16 @@ export interface BoardActionsParts {
   // caller's `extend`, or hands that to the caller's notifier, as CoreApi's
   // command registry does where it refuses to run one.
   readonly refused: Refused;
+  // Raises one of core's notifications anew, or hands it to the caller's
+  // notifier, as core raises a refusal: here, that a board action's `run`
+  // failed.
+  readonly raiseAgain: (notification: Omit<Notification, "id">, notifier?: Notifier) => void;
 }
 
 // CoreApi's `boardActions`, over the board actions registered for the open
 // board.
 export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts): CoreApi["boardActions"] {
-  const { store, lock, refused } = parts;
+  const { store, lock, refused, raiseAgain } = parts;
 
   // Whether a menu of the target offers the board action: its `on` names the
   // kind of the target, and its `offers` passes for the target or it has none.
@@ -237,23 +255,44 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
   // The batch that the board action's `run` returns, which it calls at once,
   // so that a copy that needs the user's click or key press, as Copy block ID's
   // does, runs within it. A `run` that throws, rejects or returns what is no
-  // batch is a fault of the board action's package, which core logs, and the
-  // call rejects with an Error that names the board action.
-  async function batchOf(action: BoardAction, target: Target): Promise<readonly CommandCall[] | undefined> {
+  // batch fails (failed(), below), and the call rejects with an Error that
+  // names the board action.
+  async function batchOf(action: BoardAction, target: Target, notifier: Notifier | undefined): Promise<readonly CommandCall[] | undefined> {
     let batch: unknown;
     try {
       batch = await action.run?.(store.board(), target, parts.core());
     } catch (error) {
-      const failure = new Error(`The board action "${action.id}" failed: ${errorMessage(error)}`, { cause: error });
-      log.error(failure);
-      throw failure;
+      throw failed(action, new Error(`The board action "${action.id}" failed: ${errorMessage(error)}`, { cause: error }), notifier);
     }
     if (batch !== undefined && !isBatch(batch)) {
-      const failure = new TypeError(`The run of the board action "${action.id}" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`);
-      log.error(failure);
-      throw failure;
+      throw failed(
+        action,
+        new TypeError(`The run of the board action "${action.id}" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`),
+        notifier,
+      );
     }
     return batch;
+  }
+
+  // The failure of a board action's `run`, which is a fault of the board
+  // action's package: core logs it at error, and tells the user through a
+  // notification of the code board_action_failed, about the plugin whose
+  // class lists the board action, naming the class's module, or hands it to
+  // the notifier. Core raises it anew for each failure, as a refusal, so that
+  // a frontend that has shown it shows it again.
+  function failed(action: BoardAction, failure: Error, notifier: Notifier | undefined): Error {
+    log.error(failure);
+    const plugin = actions.classOf(action.id);
+    raiseAgain(
+      coreNotification(
+        "board_action_failed",
+        "error",
+        failure.message,
+        plugin === undefined ? {} : { module: sourceModule({ plugin }, packageFromId(plugin)) },
+      ),
+      notifier,
+    );
+    return failure;
   }
 
   return {
@@ -277,7 +316,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
         throw new Error(`The board action "${id}" asks the user through its quick action or its advanced action, which core does not open yet.`);
       }
       if (!store.hasBoard() || !applies(action, store.board(), target)) return;
-      const batch = await batchOf(action, target);
+      const batch = await batchOf(action, target, notifier);
       if (batch === undefined || batch.length === 0) return;
       const core = parts.core();
       let added: readonly CommandCall[] = [];

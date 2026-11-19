@@ -432,16 +432,46 @@ describe("trigger()", () => {
       () => ({ id: "blockr.core-remove_block" }) as unknown as CommandCall[],
       'The run of the board action "blockr.test-runs_action" returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].',
     ],
-  ])("rejects where run %s, as a fault of the board action's package, which core logs and tells nobody else", async (_what, run, message) => {
+  ])("rejects where run %s, as a fault of the board action's package, which core logs and raises as board_action_failed about the plugin", async (_what, run, message) => {
     const { cls, id } = running(run);
     const s = await stubbed([cls]);
 
     const reported = logged();
     await expect(s.core.boardActions.trigger(id, { block: "b" })).rejects.toThrow(message);
+    // Anew for each failure, in place of the one before.
+    await expect(s.core.boardActions.trigger(id, { block: "b" })).rejects.toThrow(message);
     reported.restore();
 
-    expect(reported.errors().map((line) => line.message)).toEqual([message]);
+    expect(reported.errors().map((line) => line.message)).toEqual([message, message]);
+    expect(held(s.core, (n) => n.source.kind === "core")).toEqual([
+      {
+        severity: "error",
+        message,
+        source: { kind: "core", code: "board_action_failed", module: { object: { plugin: cls.id }, package: "blockr.test" } },
+        about: { plugin: cls.id },
+      },
+    ]);
+    s.stop();
+  });
+
+  test("hands the notifier the board_action_failed of a run that fails, in place of core raising it", async () => {
+    const { cls, id } = running(() => Promise.reject(new Error("boom")));
+    const s = await stubbed([cls]);
+    const handed: (readonly Notification[])[] = [];
+
+    const reported = logged();
+    await expect(
+      s.core.boardActions.trigger(id, { block: "b" }, {
+        notifier(notifications) {
+          handed.push(notifications);
+        },
+      }),
+    ).rejects.toThrow('The board action "blockr.test-runs_action" failed: boom');
+    reported.restore();
+
+    expect(handed.map((notifications) => notifications.map(notificationCode))).toEqual([["board_action_failed"]]);
     expect(held(s.core, (n) => n.source.kind === "core")).toEqual([]);
+    expect(reported.errors()).toHaveLength(1);
     s.stop();
   });
 

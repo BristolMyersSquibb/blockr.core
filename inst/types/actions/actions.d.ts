@@ -1,6 +1,6 @@
 import type { Store } from "../store/index.ts";
 import type { Board, PluginClassId } from "../types/board.ts";
-import type { BoardObject, CoreApi } from "../types/core-api.ts";
+import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
 import type { Raise, Refused } from "../util/index.ts";
@@ -26,6 +26,7 @@ export interface BoardAction {
 export interface BoardActions {
     register(plugin: PluginClassId, actions: readonly BoardAction[] | undefined): () => void;
     registered(): readonly BoardAction[];
+    classOf(id: string): PluginClassId | undefined;
 }
 export declare function createBoardActions(raise: Raise): BoardActions;
 export interface BoardActionsParts {
@@ -33,5 +34,6 @@ export interface BoardActionsParts {
     readonly lock: Lock;
     readonly core: () => CoreApi;
     readonly refused: Refused;
+    readonly raiseAgain: (notification: Omit<Notification, "id">, notifier?: Notifier) => void;
 }
 export declare function boardActionsApi(actions: BoardActions, parts: BoardActionsParts): CoreApi["boardActions"];

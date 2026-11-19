@@ -224,7 +224,13 @@ export function createCore(parts: CoreParts): Core {
   const api: CoreApi = {
     store: edits.store,
     commands: edits.commands,
-    boardActions: boardActionsApi(parts.boardActions, { store, lock: parts.lock, core: () => api, refused }),
+    boardActions: boardActionsApi(parts.boardActions, {
+      store,
+      lock: parts.lock,
+      core: () => api,
+      refused,
+      raiseAgain: notifications.raiseAgain,
+    }),
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
       evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),

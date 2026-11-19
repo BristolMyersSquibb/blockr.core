@@ -694,6 +694,7 @@
   The call `core.boardActions.trigger(id, target, opts)` runs the batch that a board action's `run` returns, with the commands that the caller's `extend` adds at its end, as one step.
   It resolves once the batch has run, and rejects with the refusal, which goes to the caller's `notifier` where it gives one.
   It runs nothing where `on()` leaves the board action out for the target.
+  Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
 

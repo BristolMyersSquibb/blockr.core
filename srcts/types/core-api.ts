@@ -59,8 +59,11 @@ export interface CoreApi {
     // leaves the board action out for the target, as under the board lock for
     // every board action of core's but Copy block ID. Where the store or the
     // command registry refuses the batch, core tells the user why through a
-    // notification of the code `board_edit_failed`, unless the notifier takes
-    // it. It resolves once the batch has run, and rejects with the refusal. It
+    // notification of the code `board_edit_failed`. Where `run` throws,
+    // rejects or returns no batch, core tells the user through one of the code
+    // `board_action_failed`, about the plugin whose class lists the board
+    // action. The notifier takes either in place of core. It resolves once
+    // the batch has run, and rejects with the refusal or the failure. It
     // rejects for an id that no board action has, for a board action without
     // `run`, since core opens no quick action and no advanced action yet, and
     // for what is no target.
@@ -340,7 +343,8 @@ export interface CoreSource {
   // - A module that cannot load or draw.
   // - The board option's own module, whose default failed or does not fit its
   //   schema, or whose onChange() threw.
-  // - The plugin class's module, whose start threw.
+  // - The plugin class's module, whose start threw, or the run of whose board
+  //   action failed.
   // - The storage plugin's module, whose load() failed or named a board that
   //   does not open.
   readonly module?: SourceModule;
@@ -360,6 +364,8 @@ export type CoreCode =
   | "board_open_failed"
   // An edit that the store or the command registry refuses.
   | "board_edit_failed"
+  // A board action whose run throws, rejects or returns no batch.
+  | "board_action_failed"
   // What the store dropped as the board opened.
   | "board_objects_dropped"
   // A package that R runs at another version than the page loaded.
