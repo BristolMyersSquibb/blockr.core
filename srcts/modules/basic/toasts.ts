@@ -1,8 +1,11 @@
 // The toasts of core's basic frontend, as Core's basic frontend has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#cores-basic-frontend).
-// Every notification of the board that concerns no block shows as a toast,
-// whatever its severity and whoever raised it. Each block's card shows those
-// about the block.
+// Every notification of the board shows as a toast, whatever its severity and
+// whoever raised it, but for those that concern a block or a plugin that the
+// frontend shows in a section. Each block's card shows those about the block,
+// and each plugin's section those about the plugin. So the toasts show those
+// about the board, a link, a stack, a board option, and a plugin without a
+// section, such as a storage plugin.
 // - The toasts sit in the window's bottom right corner, one above the other,
 //   in the order that their notifications came. The first line of each names
 //   what its notification concerns, with the package that its source names.
@@ -22,7 +25,7 @@
 //   which a screen reader reads out at once.
 
 import { useSyncExternalStore } from "react";
-import type { Board } from "../../types/board.ts";
+import type { Board, PluginClassId } from "../../types/board.ts";
 import type { BoardObject, CoreApi, Notification } from "../../types/core-api.ts";
 import { own } from "../../util/index.ts";
 
@@ -71,7 +74,12 @@ interface Shown {
   readonly kept: Set<"pointer" | "focus">;
 }
 
-export function createToasts(notifications: Pick<CoreApi["notifications"], "get" | "subscribe">): Toasts {
+// The toasts of the notifications, but for those about a block and those
+// about a plugin for which `sectioned` holds, whose section shows them.
+export function createToasts(
+  notifications: Pick<CoreApi["notifications"], "get" | "subscribe">,
+  sectioned: (plugin: PluginClassId) => boolean,
+): Toasts {
   // The toasts that show, by the ids of their notifications.
   const shown = new Map<string, Shown>();
   // The ids of the notifications whose toasts faded or that the user closed,
@@ -129,7 +137,7 @@ export function createToasts(notifications: Pick<CoreApi["notifications"], "get"
       if (!holding.has(id)) gone.delete(id);
     }
     for (const notification of heard) {
-      if (aboutBlock(notification) || gone.has(notification.id)) continue;
+      if (shownElsewhere(notification, sectioned) || gone.has(notification.id)) continue;
       const toast = shown.get(notification.id);
       if (toast === undefined) {
         const added: Shown = { toast: { notification, fading: false }, timer: undefined, kept: new Set() };
@@ -196,10 +204,13 @@ export function createToasts(notifications: Pick<CoreApi["notifications"], "get"
   };
 }
 
-// Whether the notification concerns a block, whose card shows it.
-function aboutBlock(notification: Notification): boolean {
+// Whether the frontend shows the notification elsewhere than in a toast: it
+// concerns a block, whose card shows it, or a plugin with a section, which
+// shows it.
+function shownElsewhere(notification: Notification, sectioned: (plugin: PluginClassId) => boolean): boolean {
   const { about } = notification;
-  return about !== undefined && "block" in about;
+  if (about === undefined) return false;
+  return "block" in about || ("plugin" in about && sectioned(about.plugin));
 }
 
 // The toasts, which a component follows as React's useSyncExternalStore

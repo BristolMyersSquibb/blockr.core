@@ -115,7 +115,7 @@ function useStatus(core, block) {
   );
   return useSyncExternalStore(subscribe, () => core.scheduler.status(block));
 }
-function useNotified(core, block) {
+function useNotified(core, about) {
   const subscribe = useCallback(
     (notify) => core.notifications.subscribe(() => {
       notify();
@@ -123,9 +123,10 @@ function useNotified(core, block) {
     [core]
   );
   const all = useSyncExternalStore(subscribe, () => core.notifications.get());
+  const [kind, id] = about === null ? [] : Object.entries(about)[0] ?? [];
   return useMemo(
-    () => block === null ? all : all.filter((notification) => notification.about !== void 0 && "block" in notification.about && notification.about.block === block),
-    [all, block]
+    () => kind === void 0 ? all : all.filter((notification) => notification.about !== void 0 && own(notification.about, kind) === id),
+    [all, kind, id]
   );
 }
 

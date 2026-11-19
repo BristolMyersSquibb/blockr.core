@@ -2,33 +2,11 @@
 // test sets, as CoreApi's would hold them, with the browser's timers faked.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import type { Board } from "../../types/board.ts";
+import type { Board, PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
+import { holding } from "../../testing/notifications.ts";
 import { concerned, createToasts, FADES_FOR, isReload, SHOWN_FOR, sourcePackage } from "./toasts.ts";
 import type { Toasts } from "./toasts.ts";
-
-// Notifications that hold what the test sets, the same array until it sets
-// another, as CoreApi's are.
-function holding(initial: readonly Notification[] = []) {
-  let all = initial;
-  const listeners = new Set<(all: readonly Notification[]) => void>();
-  return {
-    notifications: {
-      get: () => all,
-      subscribe(fn: (all: readonly Notification[]) => void) {
-        listeners.add(fn);
-        return () => {
-          listeners.delete(fn);
-        };
-      },
-    } satisfies Pick<CoreApi["notifications"], "get" | "subscribe">,
-    set(next: readonly Notification[]): void {
-      all = next;
-      for (const fn of [...listeners]) fn(all);
-    },
-    listening: () => listeners.size,
-  };
-}
 
 // A notification that a plugin of core's raised, of the severity given.
 function raised(id: string, severity: Notification["severity"], about?: Notification["about"]): Notification {
@@ -44,9 +22,14 @@ function raised(id: string, severity: Notification["severity"], about?: Notifica
 // The ids of the notifications whose toasts show, each marked where it fades.
 const ids = (toasts: Toasts): string[] => toasts.list().map((toast) => `${toast.notification.id}${toast.fading ? " fading" : ""}`);
 
+// The toasts of the notifications, where the frontend shows the plugins for
+// which `sectioned` holds in a section of their own, and no other.
 const made: Toasts[] = [];
-function toastsFromNotifications(notifications: Pick<CoreApi["notifications"], "get" | "subscribe">): Toasts {
-  const toasts = createToasts(notifications);
+function toastsFromNotifications(
+  notifications: Pick<CoreApi["notifications"], "get" | "subscribe">,
+  sectioned: (plugin: PluginClassId) => boolean = () => false,
+): Toasts {
+  const toasts = createToasts(notifications, sectioned);
   made.push(toasts);
   return toasts;
 }
@@ -61,13 +44,17 @@ afterEach(() => {
 });
 
 describe("the toasts", () => {
-  test("show each notification that concerns no block, whatever its severity, in the order they came, and leave those about a block to its card", () => {
+  test("show each notification that concerns neither a block nor a plugin with a section, whatever its severity, in the order they came, and leave those to the block's card and the plugin's section", () => {
     const given = holding([raised("a", "error"), raised("b", "message", { block: "b" }), raised("c", "warning", { stack: "s" })]);
-    const toasts = toastsFromNotifications(given.notifications);
+    const toasts = toastsFromNotifications(given.notifications, (plugin) => plugin === "blockr.core-edit_board_plugin");
 
     expect(ids(toasts)).toEqual(["a", "c"]);
     const shown = toasts.list();
-    given.set([...given.notifications.get(), raised("d", "message", { plugin: "blockr.core-edit_board_plugin" })]);
+    given.set([
+      ...given.notifications.get(),
+      raised("d", "message", { plugin: "blockr.core-file_storage_plugin" }),
+      raised("e", "error", { plugin: "blockr.core-edit_board_plugin" }),
+    ]);
     expect(ids(toasts)).toEqual(["a", "c", "d"]);
     expect(toasts.list()[0]).toBe(shown[0]);
   });

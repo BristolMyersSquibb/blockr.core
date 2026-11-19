@@ -182,8 +182,42 @@ function toast(el: ParentNode, message: string): HTMLElement {
   return found;
 }
 
+// The section of each plugin that the page shows, in order.
+function sections(el: HTMLElement): HTMLElement[] {
+  return [...el.querySelectorAll<HTMLElement>('aside[aria-label="Plugins"] > section')];
+}
+
+// The section of the plugin of the name given.
+function section(el: HTMLElement, name: string): HTMLElement {
+  return find(el, `aside[aria-label="Plugins"] > section[aria-label="${name}"]`);
+}
+
+// The button of a section's title, which holds the plugin's name and
+// collapses and expands the section.
+const titled = (section: HTMLElement): HTMLButtonElement => find(section, "h3 > button", HTMLButtonElement);
+
+// The element of a section that holds its plugin's UI, which the section's
+// button shows and hides.
+function bodyOf(section: HTMLElement): HTMLElement {
+  const id = titled(section).getAttribute("aria-controls") ?? "";
+  const body = section.ownerDocument.getElementById(id);
+  if (body === null || !section.contains(body)) throw new Error(`Found no element "${id}" in the section.`);
+  return body;
+}
+
+// Whether the section is open, as its button says, which the test checks
+// against whether the section shows its plugin's UI.
+function isOpen(section: HTMLElement): boolean {
+  const open = titled(section).getAttribute("aria-expanded") === "true";
+  expect(bodyOf(section).hidden).toBe(!open);
+  return open;
+}
+
 // The class of core's basic frontend, which raises its own notifications.
 const BASIC = "blockr.core-basic_frontend_plugin";
+
+// The class of core's Edit board plugin, which the page shows in a section.
+const EDIT_BOARD = "blockr.core-edit_board_plugin";
 
 // The class of core's own storage plugin, which the app of the fixture hello
 // runs.
@@ -666,8 +700,8 @@ describe("the toolbar", () => {
     const { el } = await drawn();
 
     expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save", "Open"]);
-    expect(texts(find(el, 'aside[aria-label="Plugins"]'), "summary")).toEqual(["Edit board"]);
-    expect(find(el, 'aside[aria-label="Plugins"] details').textContent).toContain("Edit board");
+    expect(sections(el).map((shown) => titled(shown).textContent)).toEqual(["Edit board"]);
+    expect(bodyOf(section(el, "Edit board")).textContent).toBe("Edit board");
   });
 
   test("sets the board options that the board holds through their UIs, by category", async () => {
@@ -1069,12 +1103,7 @@ describe("a plugin", () => {
         ...plugin(later, "Later"),
       }),
     );
-    const sections = (): HTMLDetailsElement[] => [...find(page.el, 'aside[aria-label="Plugins"]').querySelectorAll("details")];
-    const shown = () => sections().map((section) => [section.querySelector("summary")?.textContent, section.open]);
-    const summary = (name: string): HTMLElement => {
-      const found = sections().find((section) => section.querySelector("summary")?.textContent === name);
-      return find(found ?? document.createElement("details"), "summary");
-    };
+    const shown = () => sections(page.el).map((drawn) => [titled(drawn).textContent, isOpen(drawn)]);
 
     // Each section starts open, in the order of the app's plugins, titled by
     // the name of the plugin's class, and core mounts the UI of the class in
@@ -1086,7 +1115,7 @@ describe("a plugin", () => {
       ["Later", true],
     ]);
     expect(ui.renders.map((render) => render.plugin)).toEqual([notes.id, later.id]);
-    expect(sections()[1]?.contains(ui.renders[0]?.el ?? null)).toBe(true);
+    expect(bodyOf(section(page.el, "To do")).contains(ui.renders[0]?.el ?? null)).toBe(true);
     expect(ui.renders[0]?.el.textContent).toBe("To do");
     expect(page.el.querySelectorAll("article")).toHaveLength(6);
     expect(buttons(toolbar(page.el)).at(-1)).toBe("Open");
@@ -1095,7 +1124,7 @@ describe("a plugin", () => {
 
     // A collapsed section stays collapsed as the board changes, and its
     // plugin's UI stays mounted.
-    await click(summary("To do"));
+    await click(titled(section(page.el, "To do")));
     await act(() => page.core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
     await page.settled();
     expect(page.board().name).toBe("Sepals");
@@ -1107,13 +1136,103 @@ describe("a plugin", () => {
     expect(ui.renders).toHaveLength(2);
     expect(ui.cleanups()).toBe(0);
 
-    await click(summary("To do"));
+    await click(titled(section(page.el, "To do")));
     expect(shown()).toEqual([
       ["Edit board", true],
       ["To do", true],
       ["Later", true],
     ]);
     expect(ui.renders).toHaveLength(2);
+  });
+
+  test("shows the notifications about it, whoever raised them, as pills on its section's title for the severities that show_conditions names, each of which opens their messages below the title, closed at first, whether the section is open or collapsed", async () => {
+    const { el, core } = await drawn();
+    const edit = section(el, "Edit board");
+    let withdraw: () => void = () => undefined;
+    await step(() => {
+      core.notifications.notify(EDIT_BOARD, { severity: "warning", code: "registry_large", message: "The registry holds 900 classes." });
+      withdraw = core.notifications.notify(EDIT_BOARD, { severity: "error", code: "table_failed", message: "The table cannot draw." });
+      core.notifications.notify(FILE_STORAGE, {
+        severity: "warning",
+        code: "edits_unsaved",
+        message: "Edits are unsaved.",
+        about: { plugin: EDIT_BOARD },
+      });
+      core.notifications.notify(EDIT_BOARD, { severity: "message", code: "class_picked", message: "Picked a class." });
+    });
+
+    // The board holds show_conditions at warnings and errors, so no pill
+    // shows for the message. Each pill starts closed, and no notification
+    // about the plugin shows as a toast.
+    expect(pills(edit)).toEqual(["error", "2 warnings"]);
+    expect(banners(edit)).toEqual([]);
+    expect(toasts(el)).toEqual([]);
+
+    // A pill opens the messages of its notifications below the title, in the
+    // order they came, above the plugin's UI.
+    await click(button(edit, "2 warnings"));
+    expect(banners(edit)).toEqual([
+      ["warning", "The registry holds 900 classes."],
+      ["warning", "Edits are unsaved."],
+    ]);
+    const list = find(edit, 'ul[aria-label="Conditions"]');
+    expect(list.previousElementSibling?.contains(titled(edit))).toBe(true);
+    expect(list.nextElementSibling).toBe(bodyOf(edit));
+
+    // A collapsed section keeps its pills, which still open their messages
+    // and leave the section collapsed.
+    await click(titled(edit));
+    await click(button(edit, "error"));
+    expect(isOpen(edit)).toBe(false);
+    expect(pills(edit)).toEqual(["error", "2 warnings"]);
+    expect(banners(edit)).toEqual([
+      ["warning", "The registry holds 900 classes."],
+      ["error", "The table cannot draw."],
+      ["warning", "Edits are unsaved."],
+    ]);
+
+    // A pill goes with its notifications, and shows for each severity that
+    // show_conditions comes to name.
+    await step(() => {
+      withdraw();
+    });
+    expect(pills(edit)).toEqual(["2 warnings"]);
+    await step(() => {
+      core.store.apply({ options: { set: { show_conditions: ["message", "warning"] } } });
+    });
+    expect(pills(edit)).toEqual(["2 warnings", "1 message"]);
+    expect(toasts(el)).toEqual([]);
+  });
+
+  test("whose ui cannot draw shows why on its section, from its pill, and in no toast, while the section leaves the element of its ui empty", async () => {
+    const broken: PluginClass = {
+      id: "blockr.test-broken_plugin",
+      ui: {
+        render() {
+          throw new Error("No canvas.");
+        },
+      },
+    };
+    const reported = logged();
+    let page: Drawn;
+    let errors: readonly LogLine[];
+    try {
+      page = await drawn(withClasses([broken], plugin(broken, "Broken")));
+    } finally {
+      reported.restore();
+      errors = reported.errors();
+    }
+    expect(errors.map((line) => line.error?.message)).toEqual([
+      'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): No canvas.',
+    ]);
+
+    const shown = section(page.el, "Broken");
+    expect(pills(shown)).toEqual(["error"]);
+    expect(banners(shown)).toEqual([]);
+    expect(toasts(page.el)).toEqual([]);
+    await click(button(shown, "error"));
+    expect(banners(shown)).toEqual([["error", 'The ui of the plugin class "blockr.test-broken_plugin" failed in render(): No canvas.']]);
+    expect(bodyOf(shown).textContent).toBe("");
   });
 });
 
@@ -1145,7 +1264,7 @@ describe("what is on screen", () => {
     // The page lays out the card of Head and the UI of the Edit board plugin
     // in view, and nothing else.
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
-      const shown = this.matches('article[aria-label="Head"]') || this.parentElement?.querySelector("summary")?.textContent === "Edit board";
+      const shown = this.matches('article[aria-label="Head"]') || this.parentElement?.matches('section[aria-label="Edit board"]') === true;
       const [width, height] = shown ? [400, 100] : [0, 0];
       return { top: 0, bottom: height, left: 0, right: width, width, height, x: 0, y: 0, toJSON: () => ({}) };
     });
@@ -1164,9 +1283,9 @@ describe("showing a block or a plugin", () => {
     const stack = find(el, 'section[aria-label="Input"]');
     const group = find(stack, "details", HTMLDetailsElement);
     await click(find(stack, "summary"));
-    const section = find(find(el, 'aside[aria-label="Plugins"]'), "details", HTMLDetailsElement);
-    await click(find(section, "summary"));
-    expect([group.open, section.open]).toEqual([false, false]);
+    const edit = section(el, "Edit board");
+    await click(titled(edit));
+    expect([group.open, isOpen(edit)]).toEqual([false, false]);
     const actions = find(card(el, "Merge"), 'button[aria-label="Actions of Merge"]');
     await step(() => {
       actions.focus();
@@ -1178,9 +1297,9 @@ describe("showing a block or a plugin", () => {
     expect(core.focus.get()).toBe("b");
     expect(document.activeElement).toBe(actions);
 
-    await act(() => core.show({ plugin: "blockr.core-edit_board_plugin" }));
-    expect(section.open).toBe(true);
-    expect(scrolled).toEqual([card(el, "Head"), section]);
+    await act(() => core.show({ plugin: EDIT_BOARD }));
+    expect(isOpen(edit)).toBe(true);
+    expect(scrolled).toEqual([card(el, "Head"), edit]);
     expect(core.focus.get()).toBe("b");
     expect(document.activeElement).toBe(actions);
   });
@@ -1242,7 +1361,7 @@ describe("what the user learns", () => {
     expect(toasts(page.el)).toEqual([]);
   });
 
-  test("is each notification of the board that concerns no block, whoever raised it, as a toast in the colour of its severity, until it is withdrawn or the user closes it, while a block's card shows those about the block", async () => {
+  test("is each notification of the board that concerns neither a block nor a plugin with a section, whoever raised it, as a toast in the colour of its severity, until it is withdrawn or the user closes it, while a block's card shows those about the block", async () => {
     const { el, core } = await drawn({
       evaluate: (request) =>
         request.block === "b"
@@ -1522,7 +1641,7 @@ describe("a locked board", () => {
     // The board options, the history, saving and the plugins stay, since no
     // lock fixes them, and the load lock takes opening another board.
     expect(buttons(toolbar(el))).toEqual(["Options", "Undo", "Redo", "Save"]);
-    expect(texts(find(el, 'aside[aria-label="Plugins"]'), "summary")).toEqual(["Edit board", "To do"]);
+    expect(sections(el).map((shown) => titled(shown).textContent)).toEqual(["Edit board", "To do"]);
     expect(el.querySelector('button[aria-label="Rename board"]')).toBeNull();
     // No card has a menu.
     expect(el.querySelectorAll("article button")).toHaveLength(0);

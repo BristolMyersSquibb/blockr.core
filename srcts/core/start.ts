@@ -10,10 +10,11 @@
 // 3. It imports the module of the class of each of the app's plugins and of
 //    each board option that R's reply names, each once per page, and
 //    registers the default export of each under the id that the reply gives
-//    it, with the commands of each plugin class. It raises a notification for
-//    a module that fails to load, or whose class or board option the store
-//    refuses, and carries on, so that the board opens without what that module
-//    defines.
+//    it, with the commands and the board actions of each plugin class. It
+//    raises a notification for a module that fails to load, for one whose
+//    class or board option the store refuses, and for one whose class lists a
+//    board action that breaks a rule, and carries on, so that the board opens
+//    without what that module defines.
 // 4. It creates the scheduler and CoreApi.
 // 5. Unless the load lock is on, it calls the load() of the storage of the
 //    app's storage plugin, where it has one, which may resolve with the text of
@@ -62,9 +63,9 @@
 //    open() passes, and open() rejects with the reason.
 // 2. One abort ends everything that core runs for the board on the page: the
 //    frontend and what it mounted, every plugin that runs, the store with its
-//    undo history, the command registry and the plugin classes, the board
-//    options, the scheduler with its demands, which block has focus, and what
-//    core keeps of outputs and answers.
+//    undo history, the command registry, the board actions and the plugin
+//    classes, the board options, the scheduler with its demands, which block
+//    has focus, and what core keeps of outputs and answers.
 // 3. Core sends another hello, which R takes as a fresh start of the session,
 //    so that R drops every result and request of the board before.
 // 4. Once R has answered it, core starts as the page does, from step 2 on,
@@ -108,6 +109,8 @@
 // (../trace/settings.ts). The span of a later opening goes under the span that
 // was active as the store's open() was called.
 
+import { createBoardActions } from "../actions/index.ts";
+import type { BoardActions } from "../actions/index.ts";
 import { createCommands } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { createLoader, ModuleError, moduleExports } from "../mount/index.ts";
@@ -419,14 +422,14 @@ export function start(options: StartOptions): Started {
 
   // Starts core for one board, with what R's reply to hello holds, as the page
   // starts and as each later board opens: the store, the notifications of the
-  // board, the command registry, the scheduler and CoreApi, each of which the
-  // abort of the opening's controller ends. It registers the plugin classes and
-  // board options that the reply names, opens the board in the store, or as the
-  // page starts the one that the app's storage plugin names in its place,
-  // raises the notification that names what the store dropped, draws the board
-  // with its frontend, starts the scheduler, then starts the app's plugins, and
-  // resolves with CoreApi and what the store dropped. It notes its steps in
-  // `opening`.
+  // board, the command registry, the board actions, the scheduler and CoreApi,
+  // each of which the abort of the opening's controller ends. It registers the
+  // plugin classes and board options that the reply names, opens the board in
+  // the store, or as the page starts the one that the app's storage plugin
+  // names in its place, raises the notification that names what the store
+  // dropped, draws the board with its frontend, starts the scheduler, then
+  // starts the app's plugins, and resolves with CoreApi and what the store
+  // dropped. It notes its steps in `opening`.
   async function boot(
     reply: HelloReply,
     later: Later | undefined,
@@ -492,7 +495,8 @@ export function start(options: StartOptions): Started {
       randId,
       blockrOption: (name) => blockrOptions.read(name),
     });
-    await opening.step("modules", () => register(reply, store, commands, signal, raise));
+    const boardActions = createBoardActions(raise);
+    await opening.step("modules", () => register(reply, store, commands, boardActions, signal, raise));
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;
     const scheduler = createScheduler({
@@ -511,6 +515,7 @@ export function start(options: StartOptions): Started {
         open: (given, opts) => reopen(given, controller, opts),
       },
       commands,
+      boardActions,
       scheduler,
       loader,
       blockrOptions,
@@ -602,16 +607,20 @@ export function start(options: StartOptions): Started {
 
   // Registers in the store the class of each of the app's plugins and each
   // board option that the reply names, from the module that R serves for it,
-  // which the loader imports once per page, and the commands of each plugin
-  // class in the command registry. It raises a notification for a module that
-  // fails to load and for a default export that the store refuses, which
+  // which the loader imports once per page, with the board actions of each
+  // plugin class, and its commands in the command registry. It refuses the
+  // whole class, with its board actions and its commands, where the store
+  // refuses the class or one of its board actions breaks a rule
+  // (../actions/actions.ts), while it only logs a command that the command
+  // registry refuses, naming the class. It raises a notification for a module
+  // that fails to load and for a default export that it refuses, which
   // concerns the plugin class or the board option, with the module's package,
-  // names a command that the registry refuses, and carries on, so that the
-  // board opens without them.
+  // and carries on, so that the board opens without them.
   async function register(
     reply: HelloReply,
     store: Store,
     commands: Commands,
+    boardActions: BoardActions,
     signal: AbortSignal,
     raise: Raise,
   ): Promise<void> {
@@ -651,7 +660,13 @@ export function start(options: StartOptions): Started {
       let cls: PluginClass;
       try {
         cls = { ...(def as unknown as PluginClass), id };
-        store.plugins.register(cls);
+        const unregister = store.plugins.register(cls);
+        try {
+          boardActions.register(id, cls.boardActions);
+        } catch (error) {
+          unregister();
+          throw error;
+        }
       } catch (error) {
         failed(error, { module: sourceModule({ plugin: id }, packageFromId(id)) });
         return;

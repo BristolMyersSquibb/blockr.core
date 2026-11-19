@@ -28,6 +28,10 @@
 // raises a notification that holds until its next call returns, and so do
 // those that the call raises through its `notify`.
 //
+// It gives the board actions that apply to a target, and triggers one by its
+// id, running its batch through CoreApi's command registry
+// (../actions/actions.ts).
+//
 // Where the store or the command registry refuses an edit that a plugin makes
 // through CoreApi, of whatever origin, core tells the user why, as an error of
 // the code `board_edit_failed`, whichever plugin made the edit, unless the
@@ -35,6 +39,8 @@
 // (refusing(), below). So does a host's submit(), whose notification concerns
 // the host's block or board option (../mount/block.ts, ../mount/option.ts).
 
+import { boardActionsApi } from "../actions/index.ts";
+import type { BoardActions } from "../actions/index.ts";
 import { isLogged } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
@@ -72,6 +78,9 @@ export interface CoreParts {
   // (refusing(), below).
   readonly store: Store;
   readonly commands: Commands;
+  // The board actions registered for the board, core's own and those of the
+  // classes of the app's plugins, which CoreApi offers and triggers.
+  readonly boardActions: BoardActions;
   readonly scheduler: Scheduler;
   readonly loader: Loader;
   readonly blockrOptions: BlockrOptions;
@@ -215,6 +224,13 @@ export function createCore(parts: CoreParts): Core {
   const api: CoreApi = {
     store: edits.store,
     commands: edits.commands,
+    boardActions: boardActionsApi(parts.boardActions, {
+      store,
+      lock: parts.lock,
+      core: () => api,
+      refused,
+      raiseAgain: notifications.raiseAgain,
+    }),
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
       evaluate: (blocks, params, options) => scheduler.evaluate(blocks, params, options),
