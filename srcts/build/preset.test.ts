@@ -171,6 +171,31 @@ test("refuses an entry point of React that the import map does not name", async 
   ).rejects.toThrow("A module imports react-dom/server, which the page's import map does not name.");
 });
 
+// The preset refuses each import before esbuild resolves it.
+// So the scoped packages fail alike, though npm does not install them with
+// this version of React Aria.
+test.each(["react-aria-components", "react-aria-components/Button", "react-aria", "react-stately", "@react-aria/button", "@react-stately/utils"])(
+  "refuses an import of React Aria, %s, naming the React SDK",
+  async (name) => {
+    await expect(bundle(`import * as aria from "${name}";\n\nexport default aria;\n`)).rejects.toThrow(
+      `A module imports ${name}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, so that the page runs one copy of React Aria.`,
+    );
+  },
+);
+
+test("leaves a package's module bundling @internationalized/date and @internationalized/number, which hold no React context, and importing React Aria's types", async () => {
+  const file = await bundle(`import type { Key } from "react-aria-components";
+import { CalendarDate } from "@internationalized/date";
+import { NumberFormatter } from "@internationalized/number";
+
+export const keys: Key[] = [new CalendarDate(2026, 11, 19).toString(), new NumberFormatter("en-US").format(1234.5)];
+`);
+
+  expect(importedPackages(await readFile(file, "utf8"))).toEqual([]);
+  const { keys } = (await import(pathToFileURL(file).href)) as { keys: string[] };
+  expect(keys).toEqual(["2026-11-19", "1,234.5"]);
+});
+
 test("the vendor check fails a package's build that puts code from node_modules into one of its own files, naming each npm package and the file", async () => {
   const files: Record<string, string> = {
     "node_modules/@acme/pad/package.json": '{ "name": "@acme/pad", "type": "module", "main": "index.js" }\n',

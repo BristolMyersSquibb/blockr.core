@@ -4,16 +4,16 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 
 import type { ReactElement } from "react";
-import { ComboBox, ComboBoxItem, NumberInput } from "../inputs/index.ts";
+import { ComboBox, ComboBoxItem, NumberField } from "../inputs/index.ts";
 import { reactModule, useValue } from "../react/index.ts";
 import type { ModuleProps } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
 
-// A number input for a whole number of at least `min`, such as n_rows.
+// A number field for a whole number of at least `min`, such as n_rows.
 export function numberUi(label: string, min: number): OptionModule<number> {
   function NumberUi({ host }: ModuleProps<OptionHost<number>>): ReactElement {
-    return <NumberInput bound={useValue(host)} label={label} min={min} />;
+    return <NumberField bound={useValue(host)} label={label} minValue={min} step={1} />;
   }
   return reactModule(NumberUi);
 }

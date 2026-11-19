@@ -1,6 +1,6 @@
 // The parts of core's basic frontend that need no page: where it draws each
-// block, what it demands and has on screen, and the severities that
-// show_conditions names.
+// block, what it demands and has on screen, the severities that
+// show_conditions names, and how a menu shows a shortcut.
 
 import { describe, expect, test } from "vitest";
 import type { Stack } from "../../types/board.ts";
@@ -9,6 +9,7 @@ import { asSeverities } from "./board.tsx";
 import { demandShown, IN_VIEW, OWNER, SHOWN } from "./demand.ts";
 import type { View } from "./demand.ts";
 import { layoutItems } from "./layout.ts";
+import { onMac, shortcutLabel } from "./shortcuts.ts";
 
 describe("where each block goes", () => {
   const block = { registry_id: "blockr.core-head_block", state: {}, name: "Head", locked: null };
@@ -213,3 +214,27 @@ describe("the severities that show_conditions names", () => {
   });
 });
 
+describe("a shortcut as a menu shows it", () => {
+  test("is glyphs run together on a Mac, and words joined by + elsewhere, with Mod as Command or Ctrl", () => {
+    const shown = (text: string) => [shortcutLabel(text, false), shortcutLabel(text, true)];
+    expect(shown("Mod+s")).toEqual(["Ctrl+S", "⌘S"]);
+    expect(shown("Mod+Shift+Z")).toEqual(["Ctrl+Shift+Z", "⌘⇧Z"]);
+    expect(shown("Ctrl+Alt+Backspace")).toEqual(["Ctrl+Alt+Backspace", "⌃⌥Backspace"]);
+    expect(shown("Meta+K")).toEqual(["Meta+K", "⌘K"]);
+  });
+
+  test("is nothing for a shortcut that the frontend cannot read, or none", () => {
+    expect([shortcutLabel("Mod+Ctrl+S", false), shortcutLabel("Hyper+S", true), shortcutLabel(undefined, false)]).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  test("takes the page for one on a Mac by the platform that the browser names, its client hints first", () => {
+    const page = (navigator: object) => ({ navigator }) as unknown as Window;
+    expect(onMac(page({ platform: "MacIntel" }))).toBe(true);
+    expect(onMac(page({ platform: "Linux x86_64" }))).toBe(false);
+    expect(onMac(page({ platform: "MacIntel", userAgentData: { platform: "Windows" } }))).toBe(false);
+  });
+});

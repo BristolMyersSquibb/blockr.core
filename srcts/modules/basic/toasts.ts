@@ -14,9 +14,10 @@
 //   faded or that the user closed does not come back while its notification
 //   holds. The frontend keeps the ids of those notifications for the opening,
 //   and forgets each id once core withdraws its notification.
-// - A dialog that the frontend opens with showModal() sits in the top layer,
-//   and the rest of the page is inert. So while a dialog is open, the toasts
-//   show inside it, where the user can still close them.
+// - A dialog that the frontend opens, in the modal of core's React SDK, keeps
+//   the focus inside it and makes the rest of the page inert. So while a
+//   dialog is open, the toasts show inside it, where the user can still close
+//   them.
 // - A message's toast is a status, and a warning's or an error's is an alert,
 //   which a screen reader reads out at once.
 
