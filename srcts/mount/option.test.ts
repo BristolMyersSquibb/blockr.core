@@ -11,6 +11,7 @@ import type { Option, Store } from "../store/index.ts";
 import { playR } from "../testing/r.ts";
 import type { PlayedR } from "../testing/r.ts";
 import { logged } from "../testing/logged.ts";
+import { handedOn } from "../testing/notifications.ts";
 import { coreOptions, hello, noCore } from "../testing/store.ts";
 import type { Notification, Raised, SourceModule } from "../types/core-api.ts";
 import type { OptionHost, OptionModule } from "../types/hosts.ts";
@@ -114,7 +115,7 @@ async function setup(
       };
     },
     replied: (...args) => {
-      replies.push(args);
+      replies.push(handedOn(...args));
     },
     notify: (module, notification) => {
       const given = { module, notification };

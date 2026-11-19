@@ -17,7 +17,10 @@
 // The host gives the value as the board holds it, and announces each change of
 // it. A submit runs core's command that sets a board option, and a request goes
 // to the board option's requests in R, whose answers core never keeps. Once
-// another board opens, core ends the mount.
+// another board opens, core ends the mount. Where the store or the command
+// registry refuses a submit, core tells the user why through a notification
+// of the code `board_edit_failed` about the board option, unless the submit's
+// notifier takes it, and submit() rejects with the reason.
 // Where the renderer fails in render(), the error names the renderer's module
 // and its package. Where the UI of the board option's definition fails, the
 // error names the board option, since only one package can register its id.
@@ -41,8 +44,8 @@ import type { SourceModule } from "../types/core-api.ts";
 import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { createLog, log } from "../log/index.ts";
-import { asError, checkRaised, coreNotification, errorMessage, isObject, own, packageFromId, sourceModule } from "../util/index.ts";
-import type { Notify, Raise, Replied } from "../util/index.ts";
+import { asError, checkRaised, coreNotification, errorMessage, givenNotifier, isObject, own, packageFromId, sourceModule } from "../util/index.ts";
+import type { Notify, Raise, Refused, Replied } from "../util/index.ts";
 import { ModuleError } from "./load.ts";
 import type { Loader } from "./load.ts";
 import { RequestError } from "./requests.ts";
@@ -73,6 +76,9 @@ export interface OptionDeps {
   readonly replied: Replied;
   // Raises the notification that the module gives through its host.
   readonly notify: Notify;
+  // Tells the user why the store or the command registry refused a submit,
+  // or hands that to the submit's notifier.
+  readonly refused: Refused;
   // The package that lists a board option, from R's reply to `hello`.
   readonly optionPackage: (option: OptionId) => string | undefined;
 }
@@ -139,9 +145,15 @@ export function mountOption(deps: OptionDeps, el: HTMLElement, option: OptionId)
         listeners.delete(wrapped);
       };
     },
-    submit(next) {
-      if (!bound()) return Promise.reject(unboundError());
-      return deps.commands.run("blockr.core-set_option", { id: option, value: next });
+    async submit(next, opts) {
+      if (!bound()) throw unboundError();
+      const notifier = givenNotifier(opts, `a submit of the board option "${option}"`);
+      try {
+        await deps.commands.run("blockr.core-set_option", { id: option, value: next });
+      } catch (error) {
+        deps.refused(error, { option }, notifier);
+        throw error;
+      }
     },
     request<T = Json>(
       name: string,
@@ -255,6 +267,7 @@ async function optionRequest(
   args: Readonly<Record<string, Json>>,
   opts: HostRequestOpts,
 ): Promise<Json | Blob> {
+  const notifier = givenNotifier(opts, `the request "${name}" of the board option "${option}"`);
   const { reply, body } = await deps.scheduler.request(
     { kind: "request", type: "option", option, name, args: { ...args } },
     {
@@ -266,13 +279,13 @@ async function optionRequest(
   const conditions = "conditions" in reply ? reply.conditions : [];
   switch (reply.status) {
     case "ok":
-      deps.replied(module, { type: "option", name }, conditions);
+      deps.replied(module, { type: "option", name }, conditions, notifier);
       if (body !== null) return body;
       return "value" in reply && reply.value !== undefined ? reply.value : null;
     case "cancelled":
       throw new RequestError(`R cancelled the request "${name}" of the board option "${option}".`, { status: "cancelled" });
     default:
-      deps.replied(module, { type: "option", name }, conditions);
+      deps.replied(module, { type: "option", name }, conditions, notifier);
       throw new RequestError(`R replied ${reply.status} to the request "${name}" of the board option "${option}".`, {
         status: reply.status,
         conditions,

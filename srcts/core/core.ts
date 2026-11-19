@@ -25,10 +25,12 @@
 // raises a notification that holds until its next call returns, and so do
 // those that the call raises through its `notify`.
 //
-// Where the store or the command registry refuses an edit of the origin
-// "user" that a plugin makes through CoreApi, core tells the user why, as an
-// error of the code `board_edit_failed`, whichever plugin made the edit. The
-// call still rejects or throws with the reason (refusing(), below).
+// Where the store or the command registry refuses an edit that a plugin makes
+// through CoreApi, of whatever origin, core tells the user why, as an error of
+// the code `board_edit_failed`, whichever plugin made the edit, unless the
+// call's notifier takes it. The call still rejects or throws with the reason
+// (refusing(), below). So does a host's submit(), whose notification concerns
+// the host's block or board option (../mount/block.ts, ../mount/option.ts).
 
 import { isLogged } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
@@ -38,10 +40,11 @@ import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Origin, Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, OnScreen, OutputEvents, Raised } from "../types/core-api.ts";
+import type { CoreApi, Notification, Notifier, OnScreen, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { createLog, log } from "../log/index.ts";
-import { asError, coreNotification, errorMessage, isPackageName, jsonEqual, own, sourceModule } from "../util/index.ts";
+import { asError, coreNotification, errorMessage, givenNotifier, isPackageName, jsonEqual, own, sourceModule } from "../util/index.ts";
+import type { Refused } from "../util/index.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
 import type { Holder } from "./notifications.ts";
 import { runPlugins } from "./plugins.ts";
@@ -86,6 +89,8 @@ export interface CoreParts {
 
 // What CoreApi's show() takes: a block or a plugin, by its id.
 type ShownObject = Parameters<CoreApi["show"]>[0];
+// The options in which an edit through CoreApi gives its notifier.
+type NotifierOpts = { notifier?(notifications: readonly Notification[]): void } | undefined;
 // What CoreApi's onScreen holds once the frontend has set it.
 type Seen = NonNullable<ReturnType<OnScreen["get"]>>;
 
@@ -126,11 +131,27 @@ export function createCore(parts: CoreParts): Core {
     },
   };
 
+  // Tells the user why the store or the command registry refused an edit, an
+  // edit through CoreApi or a host's submit(), or hands that to the call's
+  // notifier, as Notifications has it
+  // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications).
+  // - Core raises the same refusal anew each time, so that a frontend that
+  //   has shown it shows it again.
+  // - Core logs the reason at debug alone, since the call hands it to its
+  //   caller. Where a command's own code threw, the command registry has
+  //   logged the reason at error already, with its stack, so core logs no
+  //   line of its own (../commands/commands.ts).
+  const refused: Refused = (error, about, notifier) => {
+    const why = errorMessage(error);
+    if (!isLogged(error)) log.debug(why);
+    notifications.raiseAgain(coreNotification("board_edit_failed", "error", why, about === undefined ? {} : { about }), notifier);
+  };
+
   // A host's submit() runs its command through the command registry itself,
-  // not through CoreApi. So where the store refuses it, submit() only
-  // rejects. The inputs of core's React SDK and its controls say below
-  // themselves why the host refused what they submitted, and a module that
-  // draws its own inputs says why itself.
+  // not through CoreApi, and tells the user why the store refused it, about
+  // the host's block or board option. The inputs of core's React SDK and its
+  // controls pass a notifier, since they say below themselves why the host
+  // refused what they submitted.
   const mounts = createMounts({
     store,
     commands,
@@ -141,6 +162,7 @@ export function createCore(parts: CoreParts): Core {
     raise,
     replied: notifications.replied,
     notify: notifications.notify,
+    refused,
     optionPackage,
     ...(parts.measure === undefined ? {} : { measure: parts.measure }),
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
@@ -168,7 +190,7 @@ export function createCore(parts: CoreParts): Core {
   });
 
   const focus = createFocus(store, parts.signal);
-  const edits = refusing(store, commands, notifications.raiseAgain);
+  const edits = refusing(store, commands, refused);
 
   const api: CoreApi = {
     store: edits.store,
@@ -288,10 +310,11 @@ export function createCore(parts: CoreParts): Core {
 }
 
 // The store and the command registry as plugins see them, through CoreApi.
-// Where either refuses an edit of the origin "user", a command, a list of
-// commands, a delta, an undo or a redo, core tells the user why through a
-// notification of the code `board_edit_failed`, and the call still rejects or
-// throws with the reason, as Notifications has it
+// Where either refuses an edit, a command, a list of commands, a delta, an
+// undo or a redo, of whatever origin, core tells the user why through a
+// notification of the code `board_edit_failed`, unless the call's notifier
+// takes it, and the call still rejects or throws with the reason, as
+// Notifications has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications).
 // - The notification concerns the board, since core knows the origin of an
 //   edit but not the plugin that made it, so a frontend does not show it on a
@@ -299,40 +322,38 @@ export function createCore(parts: CoreParts): Core {
 // - Core raises it where an edit enters through CoreApi, rather than in the
 //   command registry and in the store, since the command registry applies its
 //   deltas through the store. So core raises each refusal once.
-// - Core raises the same refusal anew each time, so that a frontend that has
-//   shown it shows it again.
-// - Core logs the reason at debug alone, since the call hands it to its
-//   caller. Where a command's own code threw, the command registry has
-//   logged the reason at error already, with its stack, so core logs no line
-//   of its own (../commands/commands.ts).
-// - An edit of another origin only rejects or throws. The assistant's edit
-//   tool hands each refusal to its model, which edits again
+// - A caller that shows the reason itself, or hands it on, as the assistant's
+//   edit tool hands each refusal to its model, passes a notifier
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.4.2#how-failures-reach-the-model).
-//   And where the store refuses the default of a board option, which core
-//   puts on the board as an edit of its own, core raises board_option_failed
-//   (../mount/block.ts).
-function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAgain"]): { store: Store; commands: Commands } {
-  function refused(origin: Origin | undefined, error: unknown): void {
-    if ((origin ?? "user") !== "user") return;
-    const why = errorMessage(error);
-    if (!isLogged(error)) log.debug(why);
-    raiseAgain(coreNotification("board_edit_failed", "error", why));
-  }
+// - Where the store refuses the default of a board option, which core puts on
+//   the board as an edit of its own, past CoreApi, core raises
+//   board_option_failed instead (../mount/block.ts).
+// A notifier that is no function is refused at once, with a TypeError, before
+// anything runs.
+function refusing(store: Store, commands: Commands, refused: Refused): { store: Store; commands: Commands } {
   // Makes an edit through the store, and tells the user why the store refused
-  // it.
-  function edit(origin: Origin | undefined, fn: () => void): void {
+  // it, or hands that to the notifier.
+  function edit(opts: NotifierOpts, call: string, fn: () => void): void {
+    const notifier = givenNotifier(opts, call);
     try {
       fn();
     } catch (error) {
-      refused(origin, error);
+      refused(error, undefined, notifier);
       throw error;
     }
   }
   // Waits for a command, or a list of commands, that the command registry
-  // runs, and tells the user why the command registry or the store refused it.
-  function ran(origin: Origin | undefined, running: Promise<void>): Promise<void> {
-    return running.catch((error: unknown) => {
-      refused(origin, error);
+  // runs, and tells the user why the command registry or the store refused it,
+  // or hands that to the notifier.
+  function ran(opts: NotifierOpts, run: () => Promise<void>): Promise<void> {
+    let notifier: Notifier | undefined;
+    try {
+      notifier = givenNotifier(opts, "run()");
+    } catch (error) {
+      return Promise.reject(asError(error));
+    }
+    return run().catch((error: unknown) => {
+      refused(error, undefined, notifier);
       throw error;
     });
   }
@@ -340,31 +361,37 @@ function refusing(store: Store, commands: Commands, raiseAgain: Holder["raiseAga
     store: {
       ...store,
       apply(delta, origin, opts) {
-        edit(origin, () => {
-          store.apply(delta, origin, opts);
+        edit(opts, "apply()", () => {
+          store.apply(delta, origin, opts?.undo === false ? { undo: false } : undefined);
         });
       },
-      undo(origin) {
-        edit(origin, () => {
+      undo(origin, opts) {
+        edit(opts, "undo()", () => {
           store.undo(origin);
         });
       },
-      // A redo names no origin, so it is the user's, as the store announces
-      // it.
-      redo() {
-        edit(undefined, () => {
+      redo(opts) {
+        edit(opts, "redo()", () => {
           store.redo();
         });
       },
     },
     commands: {
       ...commands,
-      run(target: string | readonly { readonly id: string; readonly args?: Json }[], given?: Json, origin?: Origin) {
-        if (typeof target === "string") return ran(origin, commands.run(target, given, origin));
-        // A list comes with its origin second, in place of the args, as the
-        // command registry takes it.
+      // A list comes with its origin second, in place of the args, and its
+      // options third, as the command registry takes it.
+      run(
+        target: string | readonly { readonly id: string; readonly args?: Json }[],
+        given?: Json,
+        third?: Origin | NotifierOpts,
+        fourth?: NotifierOpts,
+      ) {
+        if (typeof target === "string") {
+          const origin = typeof third === "string" ? third : undefined;
+          return ran(fourth, () => commands.run(target, given, origin));
+        }
         const listed = typeof given === "string" ? given : undefined;
-        return ran(listed, commands.run(target, listed));
+        return ran(typeof third === "string" ? undefined : third, () => commands.run(target, listed));
       },
     },
   };
