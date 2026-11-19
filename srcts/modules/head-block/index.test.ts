@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { PAUSE } from "../../binding/index.ts";
 import { READY, stubBlockHost } from "../../stubs/index.ts";
-import { find, press, type } from "../../testing/inputs.ts";
+import { fieldError, numberSaid, press, type } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle, unmount, wait } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
@@ -20,6 +20,11 @@ const tenHead: State = { n: 10, direction: "head" };
 const tenTail: State = { n: 10, direction: "tail" };
 const twentyTail: State = { n: 20, direction: "tail" };
 
+// What the browser's own number input says of the number in the text, with
+// the head block's range of 0 to the 150 rows of its input, and its step of 1,
+// as the number field says it.
+const said = (text: string): string | null => numberSaid(text, { min: 0, max: 150, step: 1 });
+
 beforeEach(() => {
   vi.useFakeTimers();
 });
@@ -32,18 +37,25 @@ afterEach(() => {
 async function mounted(state: State = six) {
   const host = stubBlockHost<State>(fixture, { state });
   const view = await mountOnPage(head, host);
-  const n = find(view.el, 'input[type="number"]', HTMLInputElement);
+  const n = labelled(view.el, "Number of rows");
   const direction = labelled(view.el, "Direction");
   return { host, view, n, direction };
 }
 
-test("shows the state, and takes the rows of its input as the most the input takes", async () => {
+test("shows the state, and takes the rows of its input as the most the field takes", async () => {
   const { host, n, direction } = await mounted();
   expect([n.value, direction.value]).toEqual(["6", "Head"]);
 
   await settle();
-  expect(n.max).toBe("150");
   expect(host.requested).toEqual([{ name: "n_max", args: {} }]);
+  await step(() => {
+    type(n, "150");
+  });
+  expect(n.getAttribute("aria-invalid")).toBeNull();
+  await step(() => {
+    type(n, "151");
+  });
+  expect(n.getAttribute("aria-invalid")).toBe("true");
   expect(host.submitted).toEqual([]);
 });
 
@@ -54,7 +66,7 @@ test("takes a state it did not make, in the elements it drew", async () => {
     host.setState(tenTail);
   });
 
-  expect(find(view.el, 'input[type="number"]')).toBe(n);
+  expect(labelled(view.el, "Number of rows")).toBe(n);
   expect([n.value, direction.value]).toEqual(["10", "Tail"]);
   expect(host.submitted).toEqual([]);
 });
@@ -73,7 +85,7 @@ test("submits a number once the user pauses typing, as one edit", async () => {
   expect(host.state()).toEqual(tenHead);
 });
 
-test("submits a number at once on Enter, and as the user leaves the input", async () => {
+test("submits a number at once on Enter, and as the user leaves the field", async () => {
   const { host, n } = await mounted();
 
   await step(() => {
@@ -98,10 +110,10 @@ test("submits a number at once on Enter, and as the user leaves the input", asyn
   expect(host.submitted).toHaveLength(2);
 });
 
-test("submits no number that the input does not take, and marks it and says why", async () => {
+test("submits no number that the field does not take, and marks it and says why", async () => {
   const { host, view, n } = await mounted();
   await settle();
-  const said = () => [n.getAttribute("aria-invalid"), view.el.querySelector('[role="alert"]')?.textContent ?? null];
+  const shownNow = () => [n.getAttribute("aria-invalid"), fieldError(view.el)];
 
   const shown: (string | null)[][] = [];
   for (const text of ["200", "-1", "2.5", ""]) {
@@ -109,20 +121,20 @@ test("submits no number that the input does not take, and marks it and says why"
       type(n, text);
     });
     await wait(PAUSE);
-    shown.push(said());
+    shown.push(shownNow());
   }
   expect(shown).toEqual([
-    ["true", "200 is above the maximum of 150."],
-    ["true", "-1 is below the minimum of 0."],
-    ["true", "2.5 is not a whole number."],
-    ["true", null],
+    ["true", said("200")],
+    ["true", said("-1")],
+    ["true", said("2.5")],
+    [null, null],
   ]);
   expect(host.submitted).toEqual([]);
 
   await step(() => {
     type(n, "10");
   });
-  expect(said()).toEqual(["false", null]);
+  expect(shownNow()).toEqual([null, null]);
   await wait(PAUSE);
   expect(host.submitted).toEqual([tenHead]);
 });
@@ -130,12 +142,12 @@ test("submits no number that the input does not take, and marks it and says why"
 test("goes back to the state as the user leaves a number above the rows, which clears what it said", async () => {
   const { host, view, n } = await mounted();
   await settle();
-  const shown = () => [n.value, view.el.querySelector('[role="alert"]')?.textContent ?? null];
+  const shown = () => [n.value, fieldError(view.el)];
 
   await step(() => {
     type(n, "200");
   });
-  expect(shown()).toEqual(["200", "200 is above the maximum of 150."]);
+  expect(shown()).toEqual(["200", said("200")]);
   await step(() => {
     n.blur();
   });
@@ -152,7 +164,7 @@ test("submits the direction as the user picks it", async () => {
   expect(host.submitted).toEqual([tenTail]);
 });
 
-test("leaves the input the user is typing in as the state changes, and submits on top of the state as it is then", async () => {
+test("leaves the field the user is typing in as the state changes, and submits on top of the state as it is then", async () => {
   const { host, n, direction } = await mounted();
 
   await step(() => {
@@ -201,30 +213,30 @@ test("takes no most while it asks for the rows of its input again, so that it ma
   const host = stubBlockHost<State>(fixture, { state: { n: 200, direction: "head" } });
   const release = holdRequests(host);
   const view = await mountOnPage(head, host);
-  const n = find(view.el, 'input[type="number"]', HTMLInputElement);
-  const shown = () => [n.max, n.getAttribute("aria-invalid")];
-  expect(shown()).toEqual(["", "false"]);
+  const n = labelled(view.el, "Number of rows");
+  const shown = () => [n.value, n.getAttribute("aria-invalid"), fieldError(view.el)];
+  expect(shown()).toEqual(["200", null, null]);
 
   release();
   await settle();
-  expect(shown()).toEqual(["150", "true"]);
+  expect(shown()).toEqual(["200", "true", said("200")]);
 
   await step(() => {
     host.setContext({ inputs: [{ input: "data", revision: 2 }] });
   });
-  expect(shown()).toEqual(["", "false"]);
+  expect(shown()).toEqual(["200", null, null]);
 
   release();
   await settle();
-  expect(shown()).toEqual(["150", "true"]);
+  expect(shown()).toEqual(["200", "true", said("200")]);
   expect(host.submitted).toEqual([]);
 });
 
 test("takes no most where its input has no rows to give", async () => {
-  const host = stubBlockHost<State>({ ...fixture, requests: [] }, { state: six });
+  const host = stubBlockHost<State>({ ...fixture, requests: [] }, { state: { n: 200, direction: "head" } });
   const view = await mountOnPage(head, host);
   await settle();
 
-  expect(find(view.el, 'input[type="number"]', HTMLInputElement).max).toBe("");
-  expect(view.el.querySelector('[role="alert"]')).toBeNull();
+  expect(labelled(view.el, "Number of rows").getAttribute("aria-invalid")).toBeNull();
+  expect(fieldError(view.el)).toBeNull();
 });

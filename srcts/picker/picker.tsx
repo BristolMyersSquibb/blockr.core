@@ -35,13 +35,13 @@ import { useMemo, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { defaultBlockName, freeInputs } from "../commands/index.ts";
-import { ComboBox, ComboBoxItem, ComboBoxSection, Text, useBoard } from "../react/index.ts";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Text, TextField, useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { classes, runCommand, TextField, useSearch } from "../ui/index.ts";
+import { classes, identifier, runCommand, useSearch } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 
 // Where the new block goes.
@@ -194,13 +194,15 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false }: PickerPr
         <TextField
           label={link.label}
           value={inputName}
-          hint="Optional. Leave it empty for an input without a name, which the block takes in the order of its links."
-          error={errors.input}
+          description="Optional. Leave it empty for an input without a name, which the block takes in the order of its links."
+          errorMessage={errors.input}
+          isInvalid={errors.input !== undefined}
+          autoComplete="off"
           onChange={(value) => {
             setInputName(value);
             setErrors((now) => without(now, "input"));
           }}
-          onLeave={() => {
+          onBlur={() => {
             setErrors((now) => ({ ...now, ...optional("input", inputNameError(inputName, link.taken)) }));
           }}
         />
@@ -210,14 +212,16 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false }: PickerPr
         <TextField
           label="ID"
           value={id}
-          hint="Optional. Made up where left empty."
-          error={errors.id}
-          identifier
+          description="Optional. Made up where left empty."
+          errorMessage={errors.id}
+          isInvalid={errors.id !== undefined}
+          autoComplete="off"
+          {...identifier}
           onChange={(value) => {
             setId(value);
             setErrors((now) => without(now, "id"));
           }}
-          onLeave={() => {
+          onBlur={() => {
             setErrors((now) => ({ ...now, ...optional("id", blockIdError(id, board)) }));
           }}
         />
@@ -225,7 +229,8 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false }: PickerPr
           label="Name"
           value={name}
           placeholder={entry === undefined ? undefined : defaultBlockName(entry.id)}
-          hint="Optional. The class's name where left empty."
+          description="Optional. The class's name where left empty."
+          autoComplete="off"
           onChange={setName}
         />
       </div>

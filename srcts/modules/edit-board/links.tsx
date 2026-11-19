@@ -34,13 +34,13 @@ import { flushSync } from "react-dom";
 import { freeInputs, linkFeeding } from "../../commands/index.ts";
 import { createGraph } from "../../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../../picker/index.ts";
-import { ComboBox, ComboBoxItem, Text } from "../../react/index.ts";
+import { ComboBox, ComboBoxItem, Text, TextField } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import type { RegistryEntry } from "../../types/registry.ts";
-import { classes, Pager, runCommand, TableSearch, TextField, useSearch, useTableView } from "../../ui/index.ts";
+import { classes, identifier, Pager, runCommand, TableSearch, useSearch, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
 
@@ -352,14 +352,16 @@ function LinkForm({
           <TextField
             label="Input name"
             value={name}
-            hint={`Optional. The block "${blockName(board, target)}" takes any number of links, each by its name or, where it has none, by its position.`}
-            error={errors.input}
-            identifier
+            description={`Optional. The block "${blockName(board, target)}" takes any number of links, each by its name or, where it has none, by its position.`}
+            errorMessage={errors.input}
+            isInvalid={errors.input !== undefined}
+            autoComplete="off"
+            {...identifier}
             onChange={(value) => {
               setName(value);
               setErrors((now) => without(now, "input"));
             }}
-            onLeave={() => {
+            onBlur={() => {
               setErrors((now) => ({ ...now, ...optional("input", inputNameError(name, taken)) }));
             }}
           />

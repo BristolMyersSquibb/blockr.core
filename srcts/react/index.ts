@@ -2,9 +2,11 @@
 // UIs draw with and which core ships to packages as `@blockr/core/react`.
 // It holds the hooks through which a component follows its host or CoreApi,
 // the helpers that make a module or a renderer from a component, the inputs,
-// each on one value that useValue() binds, and the one select, which every UI
-// draws with, bound or not, with its list in place and the search that
-// narrows that list.
+// each on one value that useValue() binds or for its caller, the one select,
+// which every UI draws with, bound or not, with its list in place and the
+// search that narrows that list, the button, and the overlays: the modal and
+// the dialog, the menu and the popover.
+// The inputs, the button and the overlays are React Aria's, in core's theme.
 
 export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } from "./hooks.ts";
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
@@ -12,6 +14,7 @@ export { outputRenderer, reactModule } from "./module.tsx";
 export type { ModuleProps, OutputProps } from "./module.tsx";
 export {
   Autocomplete,
+  Button,
   Checkbox,
   ComboBox,
   ComboBoxItem,
@@ -19,11 +22,21 @@ export {
   Field,
   ListBox,
   ListBoxItem,
-  NumberInput,
+  NumberField,
   SearchField,
   Stack,
   Text,
-  TextInput,
+  TextField,
   useFilter,
 } from "../inputs/index.ts";
-export type { ComboBoxProps, ComboBoxSectionProps, ListBoxProps, SearchFieldProps } from "../inputs/index.ts";
+export type {
+  ButtonProps,
+  ComboBoxProps,
+  ComboBoxSectionProps,
+  ListBoxProps,
+  NumberFieldProps,
+  SearchFieldProps,
+  TextFieldProps,
+} from "../inputs/index.ts";
+export { Dialog, DialogTrigger, Heading, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Modal, Popover } from "../overlays/index.ts";
+export type { MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";

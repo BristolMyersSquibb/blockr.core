@@ -1,11 +1,11 @@
 // srcts/modules/csv-block/index.tsx
-import { reactModule, Stack, TextInput, useValue } from "@blockr/core/react";
+import { reactModule, Stack, TextField, useValue } from "@blockr/core/react";
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 function CsvBlock({ host }) {
   return /* @__PURE__ */ jsxs(Stack, { children: [
-    /* @__PURE__ */ jsx(TextInput, { bound: useValue(host, "sep"), label: "Field separator" }),
-    /* @__PURE__ */ jsx(TextInput, { bound: useValue(host, "quote"), label: "Quoting characters" })
+    /* @__PURE__ */ jsx(TextField, { bound: useValue(host, "sep"), label: "Field separator", spellCheck: "false" }),
+    /* @__PURE__ */ jsx(TextField, { bound: useValue(host, "quote"), label: "Quoting characters", spellCheck: "false" })
   ] });
 }
 var csv_block_default = reactModule(CsvBlock);
