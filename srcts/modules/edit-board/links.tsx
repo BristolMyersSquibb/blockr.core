@@ -10,9 +10,10 @@
 //   the block's links too. Another place moves the link with move_link,
 //   which keeps its id and its ends, once change_link has changed the rest.
 //   Undo takes back each command that changed the link as a step of its own.
-// Where the store or the command registry refuses an edit, the form says why
-// below its buttons. Where it refuses to remove a link, the table says so below
-// itself, naming the link, until the user's next edit in the table.
+// Where the store or the command registry refuses an edit, the form that adds
+// a link says why below its buttons. Where it refuses an edit in the table, a
+// removal or the save of a row's form, the table says so below itself, naming
+// the link, until the user's next edit in the table.
 // The form and the edit offer only links that the store takes:
 // - As a link's target, a block with an input that no other link feeds, or a
 //   variadic block, which takes any number of links. A block without inputs
@@ -148,6 +149,7 @@ function LinkRow({
             core={core}
             board={board}
             editing={{ id, link }}
+            tableEdits={edits}
             submitLabel="Save"
             onDone={close}
           />
@@ -228,16 +230,22 @@ type Errors = Partial<Record<"from" | "to" | "input", string>>;
 // only links that the store takes (above). Where it changes a link into a
 // variadic block, it offers the link's place among the block's links as
 // well.
+// The form that adds a link says why the store or the command registry
+// refused it below its buttons. The form that changes a link runs its edits
+// through `tableEdits`, the edits of the table whose row it takes, and the
+// table says why below itself.
 function LinkForm({
   core,
   board,
   editing,
+  tableEdits,
   submitLabel,
   onDone,
 }: {
   core: CoreApi;
   board: Board;
   editing?: { readonly id: LinkId; readonly link: Link };
+  tableEdits?: Edits;
   submitLabel: string;
   onDone?: () => void;
 }): ReactElement {
@@ -251,7 +259,8 @@ function LinkForm({
   const [place, setPlace] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
-  const edits = useEdits(core);
+  const ownEdits = useEdits(core);
+  const edits = tableEdits ?? ownEdits;
 
   // The blocks that the form offers, with the links of the board but the one
   // that the form changes, which is about to move.
@@ -311,13 +320,16 @@ function LinkForm({
     const linkInput = variadic ? name.trim() : chosen;
     const args: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
     setBusy(true);
+    // The link as its row named it, for the table's reason.
+    const which =
+      editing === undefined ? undefined : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
     let ran =
       editing === undefined
         ? await edits.run("blockr.core-add_link", args)
-        : await edits.run("blockr.core-change_link", { id: editing.id, ...args });
+        : await edits.run("blockr.core-change_link", { id: editing.id, ...args }, which);
     if (ran && editing !== undefined && among !== undefined && position !== undefined && position !== among.place) {
       const before = placeAmong(core.store.board(), editing.id, target).others[position - 1];
-      ran = await edits.run("blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) });
+      ran = await edits.run("blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) }, which);
     }
     setBusy(false);
     if (!ran) return;
@@ -442,7 +454,7 @@ function LinkForm({
           </button>
         )}
       </div>
-      <Refusal refusal={edits.refusal} />
+      {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
     </form>
   );
 }

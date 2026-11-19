@@ -16,9 +16,10 @@
 // A new stack starts with a name and a colour that no other stack has, such
 // as "Stack 2" and the first colour of a palette that no stack uses, which
 // the user may change or, for the colour, leave out.
-// Where the store or the command registry refuses an edit, the form says why
-// below its buttons. Where it refuses to remove a stack, the table says so
-// below itself, naming the stack, until the user's next edit in the table.
+// Where the store or the command registry refuses an edit, the form that adds
+// a stack says why below its buttons. Where it refuses an edit in the table, a
+// removal or the save of a row's form, the table says so below itself, naming
+// the stack, until the user's next edit in the table.
 // Under the board lock, it lists the stacks alone.
 
 import { useId, useState } from "react";
@@ -133,6 +134,7 @@ function StackRow({
             core={core}
             board={board}
             editing={{ id, stack }}
+            tableEdits={edits}
             submitLabel="Save"
             onDone={close}
           />
@@ -216,16 +218,22 @@ function Swatch({ color }: { color: string | null }): ReactElement {
 }
 
 // The form that adds a stack, or that changes the stack given.
+// The form that adds a stack says why the store or the command registry
+// refused it below its buttons. The form that changes a stack runs its edits
+// through `tableEdits`, the edits of the table whose row it takes, and the
+// table says why below itself.
 function StackForm({
   core,
   board,
   editing,
+  tableEdits,
   submitLabel,
   onDone,
 }: {
   core: CoreApi;
   board: Board;
   editing?: { readonly id: StackId; readonly stack: Stack };
+  tableEdits?: Edits;
   submitLabel: string;
   onDone?: () => void;
 }): ReactElement {
@@ -235,7 +243,8 @@ function StackForm({
   const [color, setColor] = useState<string | null>(editing === undefined ? suggestedColor(stacks) : editing.stack.color);
   const [blocks, setBlocks] = useState<readonly BlockId[]>(editing?.stack.blocks ?? []);
   const [busy, setBusy] = useState(false);
-  const edits = useEdits(core);
+  const ownEdits = useEdits(core);
+  const edits = tableEdits ?? ownEdits;
   const fallbackName = editing === undefined ? suggestedName(stacks) : editing.stack.name;
 
   // The stack that holds each block, but the one that the form changes.
@@ -276,8 +285,10 @@ function StackForm({
         ...(sameBlocks(kept, stack.blocks) ? {} : { blocks: kept }),
         ...(color === stack.color ? {} : { color }),
       };
-      ran = !renamed || (await edits.run("blockr.core-rename_stack", { id, name: trimmed }));
-      if (ran && Object.keys(changed).length > 0) ran = await edits.run("blockr.core-change_stack", { id, ...changed });
+      // The stack as its row named it, for the table's reason.
+      const which = `Could not change the stack "${stack.name}".`;
+      ran = !renamed || (await edits.run("blockr.core-rename_stack", { id, name: trimmed }, which));
+      if (ran && Object.keys(changed).length > 0) ran = await edits.run("blockr.core-change_stack", { id, ...changed }, which);
     }
     setBusy(false);
     if (!ran) return;
@@ -346,7 +357,7 @@ function StackForm({
           </button>
         )}
       </div>
-      <Refusal refusal={edits.refusal} />
+      {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
     </form>
   );
 }

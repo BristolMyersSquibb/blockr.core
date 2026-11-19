@@ -12,8 +12,9 @@
 // the last one left it, a block that the user just added among it.
 // Where the store or the command registry refuses an edit, the plugin says why
 // close to the control that made it, in the colour of an error, until the
-// user's next edit there: below the buttons of a form, and below a table for
-// the buttons of its rows, after a sentence that names the edit. Each edit
+// user's next edit there: below the buttons of a form that adds to the board,
+// and below a table for an edit in its rows, from a row's buttons or from the
+// form that changes the row, after a sentence that names the edit. Each edit
 // takes the notification of its refusal, so that core raises none
 // (../../ui/edits.ts).
 // Under the board lock, the store refuses every edit that the plugin makes,

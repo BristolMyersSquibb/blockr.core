@@ -834,6 +834,7 @@ function LinkRow({
         core,
         board,
         editing: { id: id2, link },
+        tableEdits: edits,
         submitLabel: "Save",
         onDone: close
       }
@@ -894,6 +895,7 @@ function LinkForm({
   core,
   board,
   editing,
+  tableEdits,
   submitLabel,
   onDone
 }) {
@@ -906,7 +908,8 @@ function LinkForm({
   const [place, setPlace] = useState7(void 0);
   const [errors, setErrors] = useState7({});
   const [busy, setBusy] = useState7(false);
-  const edits = useEdits(core);
+  const ownEdits = useEdits(core);
+  const edits = tableEdits ?? ownEdits;
   const others = withoutLink(board, except);
   const graph = createGraph(others);
   const held = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
@@ -948,10 +951,11 @@ function LinkForm({
     const linkInput = variadic ? name2.trim() : chosen;
     const args = { from: source, to: target2, ...linkInput === void 0 ? {} : { input: linkInput } };
     setBusy(true);
-    let ran = editing === void 0 ? await edits.run("blockr.core-add_link", args) : await edits.run("blockr.core-change_link", { id: editing.id, ...args });
+    const which = editing === void 0 ? void 0 : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
+    let ran = editing === void 0 ? await edits.run("blockr.core-add_link", args) : await edits.run("blockr.core-change_link", { id: editing.id, ...args }, which);
     if (ran && editing !== void 0 && among !== void 0 && position !== void 0 && position !== among.place) {
       const before = placeAmong(core.store.board(), editing.id, target2).others[position - 1];
-      ran = await edits.run("blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
+      ran = await edits.run("blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } }, which);
     }
     setBusy(false);
     if (!ran) return;
@@ -1077,7 +1081,7 @@ function LinkForm({
             }
           )
         ] }),
-        /* @__PURE__ */ jsx5(Refusal, { refusal: edits.refusal })
+        tableEdits === void 0 ? /* @__PURE__ */ jsx5(Refusal, { refusal: ownEdits.refusal }) : null
       ]
     }
   );
@@ -1184,6 +1188,7 @@ function StackRow({
         core,
         board,
         editing: { id: id2, stack },
+        tableEdits: edits,
         submitLabel: "Save",
         onDone: close
       }
@@ -1256,6 +1261,7 @@ function StackForm({
   core,
   board,
   editing,
+  tableEdits,
   submitLabel,
   onDone
 }) {
@@ -1265,7 +1271,8 @@ function StackForm({
   const [color2, setColor] = useState8(editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
   const [blocks, setBlocks] = useState8(editing?.stack.blocks ?? []);
   const [busy, setBusy] = useState8(false);
-  const edits = useEdits(core);
+  const ownEdits = useEdits(core);
+  const edits = tableEdits ?? ownEdits;
   const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
   const holder = /* @__PURE__ */ new Map();
   for (const [id2, stack] of Object.entries(board.stacks)) {
@@ -1299,8 +1306,9 @@ function StackForm({
         ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
         ...color2 === stack.color ? {} : { color: color2 }
       };
-      ran = !renamed || await edits.run("blockr.core-rename_stack", { id: id2, name: trimmed });
-      if (ran && Object.keys(changed).length > 0) ran = await edits.run("blockr.core-change_stack", { id: id2, ...changed });
+      const which = `Could not change the stack "${stack.name}".`;
+      ran = !renamed || await edits.run("blockr.core-rename_stack", { id: id2, name: trimmed }, which);
+      if (ran && Object.keys(changed).length > 0) ran = await edits.run("blockr.core-change_stack", { id: id2, ...changed }, which);
     }
     setBusy(false);
     if (!ran) return;
@@ -1368,7 +1376,7 @@ function StackForm({
             }
           )
         ] }),
-        /* @__PURE__ */ jsx6(Refusal, { refusal: edits.refusal })
+        tableEdits === void 0 ? /* @__PURE__ */ jsx6(Refusal, { refusal: ownEdits.refusal }) : null
       ]
     }
   );

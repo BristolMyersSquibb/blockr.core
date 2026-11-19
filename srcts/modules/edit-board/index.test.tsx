@@ -739,7 +739,7 @@ describe("each edit", () => {
     expect(held(core)).toEqual([]);
   });
 
-  test("that the store refuses from a form, the plugin says why below the form's buttons, as the form stays as the user filled it in", async () => {
+  test("that the store refuses from a form that adds to the board, the plugin says why below the form's buttons, as the form stays as the user filled it in", async () => {
     const { el, core, board } = await refusing();
     const before = board();
     const addBlock = (): HTMLFormElement => form(section(el, "Blocks"), "Add block");
@@ -753,13 +753,36 @@ describe("each edit", () => {
     await click(button(form(stacks, "Add stack"), "Add stack"));
     expect(refusals(form(stacks, "Add stack"))).toEqual([expect.stringMatching(/^The store rejected the delta\n- The board lock refuses to add stack "[a-z_]+"\.$/)]);
 
+    expect(board()).toEqual(before);
+    expect(held(core)).toEqual([]);
+  });
+
+  test("that the store refuses from the form that changes a row of a table, the plugin says why below the table, naming the row, as the form stays as the user filled it in", async () => {
+    const { el, core, board } = await refusing();
+    const before = board();
+    const links = section(el, "Links");
+    const stacks = section(el, "Stacks");
+
+    await click(button(links, "Edit the link from Iris to Head"));
+    await chosen(form(links, "Change link"), "To", "Bind");
+    await click(button(form(links, "Change link"), "Save"));
+    expect(belowTable(links)).toEqual([expect.stringMatching(/^Could not change the link from "Iris" to "Head"\.\nThe store rejected the delta\n- /)]);
+    expect(refusals(form(links, "Change link"))).toEqual([]);
+    expect(labelled(form(links, "Change link"), "To").value).toBe("Bind");
+
     await click(button(stacks, "Edit the stack Input"));
     await step(() => {
       type(labelled(form(stacks, "Change stack"), "Name"), "Sources");
     });
     await click(button(form(stacks, "Change stack"), "Save"));
-    expect(refusals(form(stacks, "Change stack"))).toEqual(['The store rejected the delta\n- The board lock refuses to change stack "s1".']);
+    expect(belowTable(stacks)).toEqual(['Could not change the stack "Input".\nThe store rejected the delta\n- The board lock refuses to change stack "s1".']);
+    expect(refusals(form(stacks, "Change stack"))).toEqual([]);
     expect(labelled(form(stacks, "Change stack"), "Name").value).toBe("Sources");
+
+    // Saving the form again is the user's next edit in the table, and the
+    // reason shows anew.
+    await click(button(form(stacks, "Change stack"), "Save"));
+    expect(belowTable(stacks)).toHaveLength(1);
 
     expect(board()).toEqual(before);
     expect(held(core)).toEqual([]);

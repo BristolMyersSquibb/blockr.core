@@ -408,7 +408,7 @@
   Core's command `blockr.core-change_link` swaps them where the link keeps its block.
   Until now, the store refused that change, since an input takes one link.
   Each edit is one of core's commands, so that undo takes back each one.
-  Where the store or the command registry refuses one, the plugin says why close to the control that made it, in the color of an error, until the user's next edit there: below the buttons of a form, and below a table for the buttons of its rows, after a sentence that names the edit.
+  Where the store or the command registry refuses one, the plugin says why close to the control that made it, in the color of an error, until the user's next edit there: below the buttons of a form that adds a block, a link or a stack, and below a table for an edit in its rows, after a sentence that names the edit.
   It takes the edit's notification through the edit's `notifier`, so that core raises none.
   Under the board lock, it draws no control and lists the board's links and stacks alone.
   A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block.

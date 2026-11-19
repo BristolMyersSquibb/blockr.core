@@ -11,8 +11,9 @@
 // - The Edit board plugin runs its edits through useEdits(), which takes the
 //   notification of a refusal through the edit's notifier, so that core raises
 //   none. The plugin shows why close to the control that made the edit, until
-//   the user's next edit there: below the buttons of a form, and below a table
-//   for the buttons of its rows, as The Edit board plugin has it
+//   the user's next edit there: below the buttons of a form that adds to the
+//   board, and below a table for an edit in its rows, as The Edit board plugin
+//   has it
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
 
 import { useMemo, useState } from "react";
@@ -38,9 +39,9 @@ export function runCommand(core: Pick<CoreApi, "commands">, target: string | rea
   );
 }
 
-// The edits of one control, such as a form or the buttons of a table's rows,
-// and why the store or the command registry refused the last of them, which
-// the control shows close to itself.
+// The edits of one control, such as a form or a table with the buttons and
+// the forms of its rows, and why the store or the command registry refused
+// the last of them, which the control shows close to itself.
 export interface Edits {
   // Why the last edit that run() made was refused, or null where it ran. It
   // is the reason with which the command registry rejected the edit, after
@@ -50,9 +51,9 @@ export interface Edits {
   // Runs the command with the args, or the commands of the list in order, as
   // runCommand() does, and resolves whether it ran.
   // A control that shows the reason away from where the user made the edit,
-  // as a table does below itself for the buttons of its rows, gives the
-  // sentence `which`, such as `Could not remove the block "Head".`. The reason
-  // names the objects by their ids, which the table may not show.
+  // as a table does below itself for an edit in its rows, gives the sentence
+  // `which`, such as `Could not remove the block "Head".`. The reason names
+  // the objects by their ids, which the table may not show.
   run(id: string, args?: Json, which?: string): Promise<boolean>;
   run(list: readonly Listed[], which?: string): Promise<boolean>;
   // Takes the refusal down where the user's next edit there does not reach
