@@ -35,6 +35,19 @@
 // and otherwise what `renderEmptyState` says, "No options" by default, as
 // wherever the `items` that its caller filters are none.
 //
+// Given `onSearch`, it calls it with what the user typed into its field, once
+// the user pauses for 250 ms, as the select of blockr.ui's design system
+// does.
+// The module then asks R again for the items that match, as for a request
+// that answers with only a part of a long column's values.
+// The select calls `onSearch` with "" as its list closes, so that the list
+// opens again on the items before any search.
+// While the select waits for the pause, or for the items that match while
+// they are `outdated`, the list says "Loading…" where it shows no item.
+// Once they come, it says "No matches" where they are none.
+// Given `total`, how many items there are in all, the list says that number
+// below its rows, where the select has fewer items.
+//
 // Given `bound`, it shows and edits a block's state arg or a board option's
 // value, which useValue() binds, as the SDK's other inputs do
 // (./inputs.tsx): one string, or an array of strings where it picks several,
@@ -46,7 +59,10 @@
 // While it is `outdated`, as while the request that gives its items asks
 // again, the items may be for older data.
 // It then shows a value that they lack as it is too.
-// So its items must hold every value it takes, not a part of them.
+// So its items must hold every value it takes, unless they are only a part
+// of all items: those of a search, or fewer than `total`.
+// It then marks no value that they lack, and shows a pick of one that they
+// lack by its id.
 // One pick it submits as the user picks it.
 // Several it submits once, as the list closes, built from the value that the
 // host holds then, so that it keeps a string that the assistant added in the
@@ -58,9 +74,9 @@
 // A chip that the user removes while the list is closed it submits at once.
 // It says below itself why the host refused what it submitted.
 
-import { useContext, useRef, useState } from "react";
-import type { KeyboardEvent, ReactElement, ReactNode, RefObject } from "react";
-import { strings } from "../binding/index.ts";
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { ChangeEvent, KeyboardEvent, ReactElement, ReactNode, RefObject } from "react";
+import { SEARCH_PAUSE, strings } from "../binding/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import {
@@ -110,6 +126,12 @@ export interface ComboBoxProps<T extends object, M extends Mode = "single">
   readonly bound?: Bound;
   readonly outdated?: boolean;
   readonly ordered?: boolean;
+  // What the select calls with what the user typed, once the user pauses,
+  // and with "" as its list closes.
+  readonly onSearch?: (text: string) => void;
+  // How many items there are in all, where the select has only a part of
+  // them.
+  readonly total?: number;
 }
 
 export function ComboBox<T extends object, M extends Mode = "single">(props: ComboBoxProps<T, M>): ReactElement {
@@ -246,16 +268,33 @@ function Drawn({
   outdated = false,
   marking = false,
   onClear,
+  onSearch,
+  total,
+  onOpenChange,
   className,
   allowsEmptyCollection = true,
   ...props
 }: DrawnProps): ReactElement {
   const multiple = props.selectionMode === "multiple";
   const given = props.items ?? props.defaultItems;
+  const count = given === undefined ? 0 : [...given].length;
   // Whether it has no items yet, as its children draw an item with none given.
   const unknown = given === undefined && typeof children === "function";
-  const none = given === undefined ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
-  const empty = none && (outdated || unknown) ? "Loading…" : none ? (renderEmptyState?.() ?? "No options") : "No matches";
+  const none = given === undefined ? typeof children === "function" || !hasChildren(children) : count === 0;
+  const typed = useTyped(onSearch);
+  // Whether the items are only a part of all items: those of a search, or
+  // fewer than `total`.
+  const part = typed.sent !== "" || (total !== undefined && total > count);
+  const empty =
+    typed.pending || typed.sent !== ""
+      ? typed.pending || outdated
+        ? "Loading…"
+        : "No matches"
+      : none && (outdated || unknown)
+        ? "Loading…"
+        : none
+          ? (renderEmptyState?.() ?? "No options")
+          : "No matches";
   const field = useRef<HTMLDivElement>(null);
   const layer = useRef<HTMLDivElement>(null);
   const value = useSameValue(props.value);
@@ -266,15 +305,21 @@ function Drawn({
       defaultItems={unknown ? [] : props.defaultItems}
       allowsEmptyCollection={allowsEmptyCollection}
       className={composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`)}
+      onOpenChange={(isOpen, trigger) => {
+        if (!isOpen) typed.close();
+        onOpenChange?.(isOpen, trigger);
+      }}
     >
       {label === undefined ? null : <Label className={styles.label}>{label}</Label>}
       <Field
         ref={field}
         placeholder={placeholder}
         multiple={multiple}
-        marking={marking}
+        marking={marking && !part}
+        part={part}
         clearable={props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true}
         onClear={onClear}
+        onType={typed.type}
         label={label}
         autoFocus={props.autoFocus}
       />
@@ -290,10 +335,75 @@ function Drawn({
           <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
             {children}
           </ListBox>
+          {total !== undefined && total > count ? <Total total={total} /> : null}
         </Popover>
       </UNSAFE_PortalProvider>
     </AriaComboBox>
   );
+}
+
+// What the user typed into the field, which the select hands onSearch once
+// the user pauses, and "" as the list closes, unless it handed that last.
+interface Typed {
+  // What the select last handed onSearch, "" before it handed anything.
+  readonly sent: string;
+  // Whether what the user typed waits for the pause.
+  readonly pending: boolean;
+  readonly type: (text: string) => void;
+  readonly close: () => void;
+}
+
+function useTyped(onSearch: ((text: string) => void) | undefined): Typed {
+  const [sent, setSent] = useState("");
+  const [pending, setPending] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // The onSearch of the select as it last drew, which a pause that began
+  // before calls.
+  const latest = useRef(onSearch);
+  useLayoutEffect(() => {
+    latest.current = onSearch;
+  });
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const send = (text: string): void => {
+    clearTimeout(timer.current);
+    timer.current = undefined;
+    setPending(false);
+    if (text === sent) return;
+    setSent(text);
+    latest.current?.(text);
+  };
+
+  return {
+    sent,
+    pending,
+    type: (text) => {
+      if (onSearch === undefined) return;
+      clearTimeout(timer.current);
+      setPending(true);
+      timer.current = setTimeout(() => {
+        send(text);
+      }, SEARCH_PAUSE);
+    },
+    close: () => {
+      if (pending || sent !== "") send("");
+    },
+  };
+}
+
+// What the list says below its rows where the select has fewer items than
+// there are in all: how many there are, and that the user finds the others by
+// typing, as the select of blockr.ui's design system says.
+// It says nothing where the list shows no row, since the list then says why.
+function Total({ total }: { readonly total: number }): ReactElement | null {
+  const state = useContext(ComboBoxStateContext);
+  if (state === null || state.collection.size === 0) return null;
+  return <p className={TOTAL}>{`${total.toLocaleString()} values — type to search`}</p>;
 }
 
 // The value given, or the array of the keys that the select drew before where
@@ -327,17 +437,24 @@ function hasChildren(children: ReactNode): boolean {
 // the filter, and the button that opens and closes the list.
 // It shows a pick of one that the items lack in place of the placeholder, as
 // missing where `marking`, and marks itself invalid.
+// Where the items are only a `part` of all items, it shows such a pick by its
+// id instead, as the field's text.
 // The text field of one shows the pick's text while the user is not in it,
 // as React draws the pick, where React Aria would set it a step later, from
 // an effect, so that the controls show a state as the host announces it, with
 // no wait for React (../controls/controls.tsx).
+// It hands what the user types into the text field to `onType`.
+// React Aria's onInputChange would not do, since it hands on the text that
+// React Aria puts there itself as well, such as the pick's.
 function Field({
   ref,
   placeholder,
   multiple,
   marking,
+  part,
   clearable,
   onClear,
+  onType,
   label,
   autoFocus,
 }: {
@@ -345,8 +462,10 @@ function Field({
   readonly placeholder: string | undefined;
   readonly multiple: boolean;
   readonly marking: boolean;
+  readonly part: boolean;
   readonly clearable: boolean;
   readonly onClear: (() => void) | undefined;
+  readonly onType: (text: string) => void;
   readonly label: string | undefined;
   readonly autoFocus: boolean | undefined;
 }): ReactElement {
@@ -385,11 +504,18 @@ function Field({
           </TagGroup>
         )}
         <Input
-          value={multiple || state === null || state.isFocused || state.isOpen ? undefined : (item?.textValue ?? "")}
+          value={
+            multiple || state === null || state.isFocused || state.isOpen
+              ? undefined
+              : (item?.textValue ?? (part && one !== null ? String(one) : ""))
+          }
           placeholder={lackedOne ? (marking ? missing(String(one)) : String(one)) : keys.length > 0 ? undefined : placeholder}
           aria-invalid={invalid || undefined}
           data-autofocus={autoFocus === true || undefined}
           className={INPUT}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            onType(event.currentTarget.value);
+          }}
           onClick={() => {
             if (state !== null && !state.isOpen) state.open(null, "manual");
           }}
@@ -552,9 +678,12 @@ const CHIP =
   "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 const CHIP_REMOVE =
   "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
-// The list takes the field's width, and the box of the rows scrolls within
-// the height that React Aria leaves the list in the window, its border
-// included.
+// The list takes the field's width, inside the height that React Aria leaves
+// it in the window, its border included.
+// It lays out the box of the rows and the line below them in a column.
+// The line says how many items there are in all.
+// The column shrinks the box of the rows, so that the box scrolls within the
+// room that the border and the line leave.
 // The box fits the list to the pixel: where it stood out of the list by its
 // border, React Aria's scroll to the pick on opening moved the list by the
 // border, took that for a list out of view and scrolled the page, which
@@ -564,11 +693,13 @@ const CHIP_REMOVE =
 // above the dialog's content, and takes no clicks but on the list.
 const LAYER = "bc:pointer-events-none bc:fixed bc:inset-0 bc:z-[100000]";
 const LIST =
-  "bc:pointer-events-auto bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
-const LISTBOX =
-  "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none";
+  "bc:pointer-events-auto bc:box-border bc:flex bc:w-(--trigger-width) bc:flex-col bc:overflow-hidden bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
+const LISTBOX = "bc:box-border bc:max-h-[inherit] bc:min-h-0 bc:overflow-y-auto bc:p-1 bc:outline-none";
 const HEADING =
   "bc:sticky bc:-top-1 bc:z-10 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
 const ROW =
   "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 const NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
+// The line below the rows looks like what the list says where it shows no
+// row, with a rule above it that sets it apart from the rows.
+const TOTAL = `${NOTE} bc:shrink-0 bc:border-t bc:border-border-default`;

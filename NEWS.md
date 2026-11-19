@@ -667,6 +667,16 @@
   Core holds the selection outside the board, as it holds focus, so that nothing saves or undoes it, and nothing is selected as a board opens.
   The call `set()` refuses a block, a link or a stack that the board does not hold, a board option whose value the board does not hold, and a plugin that the app does not run.
   A board object given twice is selected once, and one that leaves the board leaves the selection (#740).
+* The select of core's React SDK searches where a request answers with only a part of the items, such as with the first 1,000 of a long column's values.
+  It calls `onSearch` with what the user typed, once the user pauses for 250 ms, and with `""` as its list closes.
+  The module then asks the request again with the text.
+  The pause is `SEARCH_PAUSE`, which `@blockr/core/binding` and the controls export beside `PAUSE`.
+  The select takes how many items there are in all as `total`.
+  Where it has fewer items, its list says how many there are in all below its rows.
+  While its items are only a part of all items, those of a search or fewer than `total`, the select marks no value that they lack as missing, and a select of one shows a pick that they lack by its id.
+  While the select waits for the pause, or for the items that match, its list says "Loading…" where it shows no row.
+  Once the items come and are none, it says "No matches".
+  The `comboBox()` of `controls()` takes `onSearch` in its options, and its `setTotal()` sets `total` (#690).
 
 # blockr.core 0.1.4
 

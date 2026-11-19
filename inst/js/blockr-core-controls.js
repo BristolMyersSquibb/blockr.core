@@ -139,6 +139,7 @@ function controls(host, signal) {
   function comboBox(key, options) {
     let items = options.items;
     let outdated = false;
+    let total;
     input(key, (bound) => /* @__PURE__ */ jsx(
       inputs.ComboBox,
       {
@@ -151,6 +152,8 @@ function controls(host, signal) {
         isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,
+        onSearch: options.onSearch,
+        total,
         children: (item) => /* @__PURE__ */ jsx(inputs.ComboBoxItem, { id: item.id, children: item.name ?? item.id })
       }
     ));
@@ -161,6 +164,10 @@ function controls(host, signal) {
       },
       setOutdated(next) {
         outdated = next;
+        redraw();
+      },
+      setTotal(next) {
+        total = next;
         redraw();
       }
     };
@@ -187,9 +194,10 @@ function Slot({ node }) {
 }
 
 // srcts/controls/index.ts
-import { PAUSE, strings } from "@blockr/core/binding";
+import { PAUSE, SEARCH_PAUSE, strings } from "@blockr/core/binding";
 export {
   PAUSE,
+  SEARCH_PAUSE,
   controls,
   strings,
   styles

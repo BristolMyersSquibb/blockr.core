@@ -3,6 +3,7 @@ import type { Notifier } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 export declare const PAUSE = 500;
+export declare const SEARCH_PAUSE = 250;
 export interface Binding {
     get(): Json | undefined;
     commit(value: Json): Promise<boolean>;

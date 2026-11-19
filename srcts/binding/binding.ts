@@ -42,6 +42,12 @@ import { jsonEqual, own } from "../util/index.ts";
 // in milliseconds.
 export const PAUSE = 500;
 
+// How long a select that searches waits after the last keystroke before it
+// hands what the user typed to its onSearch, in milliseconds
+// (../inputs/combobox.tsx).
+// The module then asks its request again.
+export const SEARCH_PAUSE = 250;
+
 export interface Binding {
   // The value as the host holds it now.
   get(): Json | undefined;

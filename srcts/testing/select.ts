@@ -89,6 +89,12 @@ export function listNote(field: HTMLElement): string | null {
   return listFromField(field)?.querySelector("p")?.textContent ?? null;
 }
 
+// What the open list says below its rows, how many items there are in all,
+// where it says it.
+export function listTotal(field: HTMLElement): string | null {
+  return listFromField(field)?.parentElement?.querySelector(":scope > p")?.textContent ?? null;
+}
+
 // The label of the row that the keyboard marks, as the field names it in
 // aria-activedescendant.
 export function markedLabel(field: HTMLElement): string | null {

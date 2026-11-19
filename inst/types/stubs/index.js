@@ -8916,7 +8916,7 @@ import { flushSync as flushSync3 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback7, useEffect as useEffect3, useMemo as useMemo3, useState as useState13 } from "react";
+import { useCallback as useCallback7, useEffect as useEffect4, useMemo as useMemo3, useState as useState13 } from "react";
 import { createPortal } from "react-dom";
 
 // srcts/card/footer.tsx
@@ -9108,6 +9108,7 @@ import { useCallback as useCallback2, useLayoutEffect as useLayoutEffect2, useMe
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
+var SEARCH_PAUSE = 250;
 function bind(host, key2, show2, options = {}) {
   const source = createSource(host);
   source.check(key2);
@@ -9413,7 +9414,7 @@ function useTyped(bound) {
 }
 
 // srcts/inputs/combobox.tsx
-import { useContext, useRef as useRef3, useState as useState5 } from "react";
+import { useContext, useEffect, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState5 } from "react";
 
 // srcts/aria/index.ts
 import {
@@ -9545,15 +9546,21 @@ function Drawn({
   outdated = false,
   marking = false,
   onClear,
+  onSearch,
+  total,
+  onOpenChange,
   className,
   allowsEmptyCollection = true,
   ...props
 }) {
   const multiple = props.selectionMode === "multiple";
   const given = props.items ?? props.defaultItems;
+  const count = given === void 0 ? 0 : [...given].length;
   const unknown2 = given === void 0 && typeof children === "function";
-  const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
-  const empty2 = none && (outdated || unknown2) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
+  const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : count === 0;
+  const typed = useTyped2(onSearch);
+  const part = typed.sent !== "" || total !== void 0 && total > count;
+  const empty2 = typed.pending || typed.sent !== "" ? typed.pending || outdated ? "Loading\u2026" : "No matches" : none && (outdated || unknown2) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const field = useRef3(null);
   const layer = useRef3(null);
   const value2 = useSameValue(props.value);
@@ -9565,6 +9572,10 @@ function Drawn({
       defaultItems: unknown2 ? [] : props.defaultItems,
       allowsEmptyCollection,
       className: composeRenderProps(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
+      onOpenChange: (isOpen, trigger) => {
+        if (!isOpen) typed.close();
+        onOpenChange?.(isOpen, trigger);
+      },
       children: [
         label === void 0 ? null : /* @__PURE__ */ jsx5(Label, { className: styles.label, children: label }),
         /* @__PURE__ */ jsx5(
@@ -9573,9 +9584,11 @@ function Drawn({
             ref: field,
             placeholder,
             multiple,
-            marking,
+            marking: marking && !part,
+            part,
             clearable: props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
             onClear,
+            onType: typed.type,
             label,
             autoFocus: props.autoFocus
           }
@@ -9583,10 +9596,56 @@ function Drawn({
         /* @__PURE__ */ jsx5(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx5(FieldError, { className: styles.alert, children: errorMessage2 }),
         /* @__PURE__ */ jsx5("div", { ref: layer, className: LAYER }),
-        /* @__PURE__ */ jsx5(UNSAFE_PortalProvider, { getContainer: () => container(field.current, layer.current), children: /* @__PURE__ */ jsx5(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx5(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx5("p", { className: NOTE, children: empty2 }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx5(UNSAFE_PortalProvider, { getContainer: () => container(field.current, layer.current), children: /* @__PURE__ */ jsxs3(Popover, { offset: 4, className: LIST, children: [
+          /* @__PURE__ */ jsx5(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx5("p", { className: NOTE, children: empty2 }), className: LISTBOX, children }),
+          total !== void 0 && total > count ? /* @__PURE__ */ jsx5(Total, { total }) : null
+        ] }) })
       ]
     }
   );
+}
+function useTyped2(onSearch) {
+  const [sent2, setSent] = useState5("");
+  const [pending, setPending] = useState5(false);
+  const timer = useRef3(void 0);
+  const latest = useRef3(onSearch);
+  useLayoutEffect3(() => {
+    latest.current = onSearch;
+  });
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+    },
+    []
+  );
+  const send = (text) => {
+    clearTimeout(timer.current);
+    timer.current = void 0;
+    setPending(false);
+    if (text === sent2) return;
+    setSent(text);
+    latest.current?.(text);
+  };
+  return {
+    sent: sent2,
+    pending,
+    type: (text) => {
+      if (onSearch === void 0) return;
+      clearTimeout(timer.current);
+      setPending(true);
+      timer.current = setTimeout(() => {
+        send(text);
+      }, SEARCH_PAUSE);
+    },
+    close: () => {
+      if (pending || sent2 !== "") send("");
+    }
+  };
+}
+function Total({ total }) {
+  const state2 = useContext(ComboBoxStateContext);
+  if (state2 === null || state2.collection.size === 0) return null;
+  return /* @__PURE__ */ jsx5("p", { className: TOTAL, children: `${total.toLocaleString()} values \u2014 type to search` });
 }
 function useSameValue(value2) {
   const [drawn3, setDrawn] = useState5(value2);
@@ -9608,8 +9667,10 @@ function Field2({
   placeholder,
   multiple,
   marking,
+  part,
   clearable,
   onClear,
+  onType,
   label,
   autoFocus
 }) {
@@ -9638,11 +9699,14 @@ function Field2({
       /* @__PURE__ */ jsx5(
         Input,
         {
-          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item?.textValue ?? "",
+          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item?.textValue ?? (part && one2 !== null ? String(one2) : ""),
           placeholder: lackedOne ? marking ? missing(String(one2)) : String(one2) : keys.length > 0 ? void 0 : placeholder,
           "aria-invalid": invalid || void 0,
           "data-autofocus": autoFocus === true || void 0,
           className: INPUT,
+          onChange: (event) => {
+            onType(event.currentTarget.value);
+          },
           onClick: () => {
             if (state2 !== null && !state2.isOpen) state2.open(null, "manual");
           },
@@ -9758,11 +9822,12 @@ var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:item
 var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
 var LAYER = "bc:pointer-events-none bc:fixed bc:inset-0 bc:z-[100000]";
-var LIST = "bc:pointer-events-auto bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
-var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none";
+var LIST = "bc:pointer-events-auto bc:box-border bc:flex bc:w-(--trigger-width) bc:flex-col bc:overflow-hidden bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
+var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:min-h-0 bc:overflow-y-auto bc:p-1 bc:outline-none";
 var HEADING = "bc:sticky bc:-top-1 bc:z-10 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb-1 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wider bc:text-text-muted";
 var ROW = "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
+var TOTAL = `${NOTE} bc:shrink-0 bc:border-t bc:border-border-default`;
 
 // srcts/ui/edits.ts
 function runCommand(core, target2, args) {
@@ -9848,7 +9913,7 @@ function useSearch(all, texts, none = "No options") {
 import { useState as useState8 } from "react";
 
 // srcts/ui/ui.tsx
-import { useLayoutEffect as useLayoutEffect3, useRef as useRef4, useState as useState7 } from "react";
+import { useLayoutEffect as useLayoutEffect4, useRef as useRef4, useState as useState7 } from "react";
 import { jsx as jsx7 } from "react/jsx-runtime";
 var classes = {
   button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
@@ -9873,7 +9938,7 @@ function NameField({
   const [text, setText] = useState7(name2);
   const ref = useRef4(null);
   const done = useRef4(false);
-  useLayoutEffect3(() => {
+  useLayoutEffect4(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
@@ -10238,7 +10303,7 @@ function without3(errors, key2) {
 }
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5, useRef as useRef6, useState as useState11 } from "react";
+import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect6, useRef as useRef6, useState as useState11 } from "react";
 
 // srcts/modules/basic/context.ts
 import { createContext, useContext as useContext2 } from "react";
@@ -10250,7 +10315,7 @@ function useFrontEnd() {
 }
 
 // srcts/modules/basic/ui.tsx
-import { useEffect, useLayoutEffect as useLayoutEffect4, useRef as useRef5, useState as useState10 } from "react";
+import { useEffect as useEffect2, useLayoutEffect as useLayoutEffect5, useRef as useRef5, useState as useState10 } from "react";
 import { jsx as jsx10, jsxs as jsxs7 } from "react/jsx-runtime";
 function Dialog({
   title,
@@ -10260,7 +10325,7 @@ function Dialog({
   const { toasts } = useFrontEnd();
   const ref = useRef5(null);
   const toastsRef = useRef5(null);
-  useLayoutEffect4(() => {
+  useLayoutEffect5(() => {
     const dialog = ref.current;
     const inside = toastsRef.current;
     if (dialog === null || inside === null) return;
@@ -10297,7 +10362,7 @@ var menuClasses = {
   item: "bc:w-full bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50"
 };
 function useDismiss(ref, open, setOpen) {
-  useEffect(() => {
+  useEffect2(() => {
     if (!open) return;
     const doc = ref.current?.ownerDocument ?? document;
     const away = (event) => {
@@ -10367,7 +10432,7 @@ var BlockCard = memo(function BlockCard2({
   const sized = useSized(status);
   const [renaming, setRenaming] = useState11(false);
   const ref = useRef6(null);
-  useLayoutEffect5(() => {
+  useLayoutEffect6(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ block: id2 }, el);
   }, [inView2, id2]);
@@ -10563,7 +10628,7 @@ function OptionUi({ id: id2 }) {
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback6, useLayoutEffect as useLayoutEffect6, useRef as useRef7 } from "react";
+import { useCallback as useCallback6, useLayoutEffect as useLayoutEffect7, useRef as useRef7 } from "react";
 import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 function placed(core) {
   return Object.entries(core.plugins.appPlugins()).filter(([id2]) => core.plugins.pluginClass(id2).ui !== void 0);
@@ -10584,7 +10649,7 @@ function Plugins() {
 function PluginSection({ id: id2, plugin }) {
   const { core, inView: inView2 } = useFrontEnd();
   const ref = useRef7(null);
-  useLayoutEffect6(() => {
+  useLayoutEffect7(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
   }, [inView2, id2]);
@@ -10737,7 +10802,7 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useEffect as useEffect2, useReducer, useRef as useRef8, useState as useState12 } from "react";
+import { useEffect as useEffect3, useReducer, useRef as useRef8, useState as useState12 } from "react";
 
 // srcts/modules/basic/storage.ts
 var KINDS2 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -10939,7 +11004,7 @@ function StorageControls() {
   const { core } = useFrontEnd();
   const storage = core.plugins.storage();
   const [, redraw] = useReducer((n) => n + 1, 0);
-  useEffect2(() => {
+  useEffect3(() => {
     if (storage?.subscribe === void 0) return void 0;
     try {
       return storage.subscribe(redraw);
@@ -10950,7 +11015,7 @@ function StorageControls() {
   }, [core, storage]);
   const drawn3 = drawnControls(core);
   const problem = drawn3?.problem;
-  useEffect2(() => {
+  useEffect3(() => {
     if (problem !== void 0) core.log("blockr.core").error(problem);
   }, [core, problem]);
   if (drawn3 === void 0) return null;
@@ -11130,7 +11195,7 @@ function ToastItem({ toast, title }) {
   const { id: id2, severity } = notification;
   const mark = MARKS[severity];
   const pkg = sourcePackage(notification);
-  useEffect3(
+  useEffect4(
     () => () => {
       toasts.release(id2, "pointer");
       toasts.release(id2, "focus");
@@ -11313,7 +11378,7 @@ import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback8, useLayoutEffect as useLayoutEffect7, useRef as useRef9, useState as useState17 } from "react";
+import { useCallback as useCallback8, useLayoutEffect as useLayoutEffect8, useRef as useRef9, useState as useState17 } from "react";
 
 // srcts/modules/edit-board/blocks.tsx
 import { useState as useState14 } from "react";
@@ -12033,7 +12098,7 @@ function useRowEditing() {
   const [editing, setEditing] = useState17(false);
   const closed = useRef9(false);
   const button = useRef9(null);
-  useLayoutEffect7(() => {
+  useLayoutEffect8(() => {
     if (editing || !closed.current) return;
     closed.current = false;
     button.current?.focus();

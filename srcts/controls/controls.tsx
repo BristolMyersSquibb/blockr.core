@@ -41,6 +41,11 @@ export interface ComboBox {
   // Meanwhile the select keeps them, and shows a value that they lack as it
   // is.
   setOutdated(outdated: boolean): void;
+  // Says how many items there are in all, as the request that gives the
+  // items answers, or nothing, given undefined.
+  // Where the select has fewer items, its list says how many there are below
+  // its rows, and the select shows a value that its items lack as it is.
+  setTotal(total: number | undefined): void;
 }
 
 // An item of a select of the controls: the value it sets by its id, and how
@@ -69,6 +74,13 @@ export interface ComboBoxOptions {
   readonly isRequired?: boolean;
   // What its list says once its items are known and there are none.
   readonly renderEmptyState?: () => string;
+  // What the select calls with what the user typed, once the user pauses,
+  // and with "" as its list closes.
+  // The module keeps the text for the args of the request that gives the
+  // items, and asks it again through refresh() of follow().
+  // While the items are those of a search, the select shows a value that
+  // they lack as it is.
+  readonly onSearch?: (text: string) => void;
 }
 
 // The controls of a module, by the keys of the values they bind:
@@ -102,7 +114,9 @@ export interface Controls<K extends string = string> {
   // Once they are, it shows a value that they lack as missing,
   // and marks itself invalid,
   // but not while setOutdated() says that they may be for older data.
-  // So its items must hold every value it takes, not a part of them.
+  // So its items must hold every value it takes, unless they are only a part
+  // of all items: those of a search, which it hands `onSearch`, or fewer than
+  // setTotal() says.
   // It submits one string as the user picks it, and several once, as its list
   // closes, after those the value holds, or where `ordered`, in the order of
   // the items.
@@ -274,6 +288,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   function comboBox(key: string, options: ComboBoxOptions): ComboBox {
     let items = options.items;
     let outdated = false;
+    let total: number | undefined;
     input(key, (bound) => (
       <inputs.ComboBox
         bound={bound}
@@ -285,6 +300,8 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
         isRequired={options.isRequired}
         renderEmptyState={options.renderEmptyState}
         outdated={outdated}
+        onSearch={options.onSearch}
+        total={total}
       >
         {(item) => <inputs.ComboBoxItem id={item.id}>{item.name ?? item.id}</inputs.ComboBoxItem>}
       </inputs.ComboBox>
@@ -296,6 +313,10 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
       },
       setOutdated(next) {
         outdated = next;
+        redraw();
+      },
+      setTotal(next) {
+        total = next;
         redraw();
       },
     };

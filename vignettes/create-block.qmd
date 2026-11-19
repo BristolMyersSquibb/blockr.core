@@ -588,6 +588,13 @@ The last answer is for older data while the request asks again, as after the blo
 The module then sets `outdated` on the select, which keeps the items on screen but marks no value that they lack.
 A `NumberInput` whose `max` a request gives takes `outdated` too, as in the head block above, and then marks no number above it.
 
+A request may answer with only a part of the items, such as the first 1,000 of a long column's values that match what the user typed.
+The select then searches: it calls `onSearch` with what the user typed, once the user pauses for 250 ms, and with `""` as its list closes.
+The module passes the text to the request as a parameter, such as the `query` of `useRequest(host, "values", { args: { query } })`, which `onSearch` sets.
+The select takes how many items there are in all as `total`.
+Where it has fewer items, its list says how many there are in all below its rows.
+While its items are only a part of all items, those of a search or fewer than `total`, the select marks no value that they lack as missing.
+
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
 
 ```ts
@@ -740,6 +747,9 @@ It has no items until the module gives them, in its options or through `setItems
 Given the `selectionMode` `"multiple"`, it picks an array of strings, which it submits once, as its list closes.
 The option `loading` of `follow()` runs each time the request is asked, and the option `answer` once it answers.
 In `loading`, a module calls `setOutdated(true)` on each input whose items or `max` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
+A select that searches takes `onSearch` in its options.
+There the module keeps the text for the request's `args`, and calls `refresh()` on what `follow()` returned.
+The `setTotal()` of the select says how many items there are in all.
 
 A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.
 A package that builds nothing writes the schema of the state by hand, with the description of each state arg in its property's `description`.

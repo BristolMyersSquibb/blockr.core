@@ -1,5 +1,5 @@
 // srcts/controls/controls.tsx
-import { Fragment as Fragment3, useLayoutEffect, useRef as useRef2 } from "react";
+import { Fragment as Fragment3, useLayoutEffect as useLayoutEffect2, useRef as useRef2 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
@@ -27,6 +27,7 @@ function jsonEqual(a, b) {
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
+var SEARCH_PAUSE = 250;
 function bind(host, key, show, options = {}) {
   const source = createSource(host);
   source.check(key);
@@ -335,7 +336,7 @@ function useTyped(bound) {
 }
 
 // srcts/inputs/combobox.tsx
-import { useContext, useRef, useState as useState2 } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef, useState as useState2 } from "react";
 
 // srcts/aria/index.ts
 import {
@@ -467,15 +468,21 @@ function Drawn({
   outdated = false,
   marking = false,
   onClear,
+  onSearch,
+  total,
+  onOpenChange,
   className,
   allowsEmptyCollection = true,
   ...props
 }) {
   const multiple = props.selectionMode === "multiple";
   const given = props.items ?? props.defaultItems;
+  const count = given === void 0 ? 0 : [...given].length;
   const unknown = given === void 0 && typeof children === "function";
-  const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
-  const empty = none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
+  const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : count === 0;
+  const typed = useTyped2(onSearch);
+  const part = typed.sent !== "" || total !== void 0 && total > count;
+  const empty = typed.pending || typed.sent !== "" ? typed.pending || outdated ? "Loading\u2026" : "No matches" : none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const field = useRef(null);
   const layer = useRef(null);
   const value = useSameValue(props.value);
@@ -487,6 +494,10 @@ function Drawn({
       defaultItems: unknown ? [] : props.defaultItems,
       allowsEmptyCollection,
       className: composeRenderProps(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
+      onOpenChange: (isOpen, trigger) => {
+        if (!isOpen) typed.close();
+        onOpenChange?.(isOpen, trigger);
+      },
       children: [
         label === void 0 ? null : /* @__PURE__ */ jsx2(Label, { className: styles.label, children: label }),
         /* @__PURE__ */ jsx2(
@@ -495,9 +506,11 @@ function Drawn({
             ref: field,
             placeholder,
             multiple,
-            marking,
+            marking: marking && !part,
+            part,
             clearable: props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
             onClear,
+            onType: typed.type,
             label,
             autoFocus: props.autoFocus
           }
@@ -505,10 +518,56 @@ function Drawn({
         /* @__PURE__ */ jsx2(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx2(FieldError, { className: styles.alert, children: errorMessage2 }),
         /* @__PURE__ */ jsx2("div", { ref: layer, className: LAYER }),
-        /* @__PURE__ */ jsx2(UNSAFE_PortalProvider, { getContainer: () => container(field.current, layer.current), children: /* @__PURE__ */ jsx2(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx2(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx2("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx2(UNSAFE_PortalProvider, { getContainer: () => container(field.current, layer.current), children: /* @__PURE__ */ jsxs2(Popover, { offset: 4, className: LIST, children: [
+          /* @__PURE__ */ jsx2(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx2("p", { className: NOTE, children: empty }), className: LISTBOX, children }),
+          total !== void 0 && total > count ? /* @__PURE__ */ jsx2(Total, { total }) : null
+        ] }) })
       ]
     }
   );
+}
+function useTyped2(onSearch) {
+  const [sent, setSent] = useState2("");
+  const [pending, setPending] = useState2(false);
+  const timer = useRef(void 0);
+  const latest = useRef(onSearch);
+  useLayoutEffect(() => {
+    latest.current = onSearch;
+  });
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+    },
+    []
+  );
+  const send = (text) => {
+    clearTimeout(timer.current);
+    timer.current = void 0;
+    setPending(false);
+    if (text === sent) return;
+    setSent(text);
+    latest.current?.(text);
+  };
+  return {
+    sent,
+    pending,
+    type: (text) => {
+      if (onSearch === void 0) return;
+      clearTimeout(timer.current);
+      setPending(true);
+      timer.current = setTimeout(() => {
+        send(text);
+      }, SEARCH_PAUSE);
+    },
+    close: () => {
+      if (pending || sent !== "") send("");
+    }
+  };
+}
+function Total({ total }) {
+  const state = useContext(ComboBoxStateContext);
+  if (state === null || state.collection.size === 0) return null;
+  return /* @__PURE__ */ jsx2("p", { className: TOTAL, children: `${total.toLocaleString()} values \u2014 type to search` });
 }
 function useSameValue(value) {
   const [drawn, setDrawn] = useState2(value);
@@ -530,8 +589,10 @@ function Field2({
   placeholder,
   multiple,
   marking,
+  part,
   clearable,
   onClear,
+  onType,
   label,
   autoFocus
 }) {
@@ -560,11 +621,14 @@ function Field2({
       /* @__PURE__ */ jsx2(
         Input,
         {
-          value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item?.textValue ?? "",
+          value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item?.textValue ?? (part && one !== null ? String(one) : ""),
           placeholder: lackedOne ? marking ? missing(String(one)) : String(one) : keys.length > 0 ? void 0 : placeholder,
           "aria-invalid": invalid || void 0,
           "data-autofocus": autoFocus === true || void 0,
           className: INPUT,
+          onChange: (event) => {
+            onType(event.currentTarget.value);
+          },
           onClick: () => {
             if (state !== null && !state.isOpen) state.open(null, "manual");
           },
@@ -674,10 +738,11 @@ var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:item
 var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
 var LAYER = "bc:pointer-events-none bc:fixed bc:inset-0 bc:z-[100000]";
-var LIST = "bc:pointer-events-auto bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
-var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none";
+var LIST = "bc:pointer-events-auto bc:box-border bc:flex bc:w-(--trigger-width) bc:flex-col bc:overflow-hidden bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
+var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:min-h-0 bc:overflow-y-auto bc:p-1 bc:outline-none";
 var ROW = "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
+var TOTAL = `${NOTE} bc:shrink-0 bc:border-t bc:border-border-default`;
 
 // srcts/controls/controls.tsx
 import { Fragment as Fragment4, jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
@@ -790,6 +855,7 @@ function controls(host, signal) {
   function comboBox(key, options) {
     let items = options.items;
     let outdated = false;
+    let total;
     input(key, (bound) => /* @__PURE__ */ jsx3(
       ComboBox2,
       {
@@ -802,6 +868,8 @@ function controls(host, signal) {
         isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,
+        onSearch: options.onSearch,
+        total,
         children: (item) => /* @__PURE__ */ jsx3(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
       }
     ));
@@ -812,6 +880,10 @@ function controls(host, signal) {
       },
       setOutdated(next) {
         outdated = next;
+        redraw();
+      },
+      setTotal(next) {
+        total = next;
         redraw();
       }
     };
@@ -831,13 +903,14 @@ function controls(host, signal) {
 }
 function Slot({ node }) {
   const ref = useRef2(null);
-  useLayoutEffect(() => {
+  useLayoutEffect2(() => {
     ref.current?.replaceChildren(node);
   }, [node]);
   return /* @__PURE__ */ jsx3("div", { ref, className: "bc:contents" });
 }
 export {
   PAUSE,
+  SEARCH_PAUSE,
   controls,
   strings,
   styles

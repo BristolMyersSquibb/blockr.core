@@ -19,6 +19,7 @@ function jsonEqual(a, b) {
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
+var SEARCH_PAUSE = 250;
 function bind(host, key, show, options = {}) {
   const source = createSource(host);
   source.check(key);
@@ -176,6 +177,7 @@ function strings(value) {
 }
 export {
   PAUSE,
+  SEARCH_PAUSE,
   bind,
   follow,
   strings

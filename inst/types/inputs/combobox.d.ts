@@ -12,6 +12,8 @@ export interface ComboBoxProps<T extends object, M extends Mode = "single"> exte
     readonly bound?: Bound;
     readonly outdated?: boolean;
     readonly ordered?: boolean;
+    readonly onSearch?: (text: string) => void;
+    readonly total?: number;
 }
 export declare function ComboBox<T extends object, M extends Mode = "single">(props: ComboBoxProps<T, M>): ReactElement;
 export declare function ComboBoxItem(props: ListBoxItemProps): ReactElement;

@@ -8,6 +8,7 @@ export interface NumberInput {
 export interface ComboBox {
     setItems(items: readonly Item[]): void;
     setOutdated(outdated: boolean): void;
+    setTotal(total: number | undefined): void;
 }
 export interface Item {
     readonly id: string;
@@ -21,6 +22,7 @@ export interface ComboBoxOptions {
     readonly ordered?: boolean;
     readonly isRequired?: boolean;
     readonly renderEmptyState?: () => string;
+    readonly onSearch?: (text: string) => void;
 }
 export interface Controls<K extends string = string> {
     readonly el: HTMLElement;

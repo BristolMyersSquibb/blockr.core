@@ -7,8 +7,8 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { find, press, texts, type } from "../testing/inputs.ts";
 import { holdRequests } from "../testing/requests.ts";
-import { chipLabels, labelled, listed, picked } from "../testing/select.ts";
-import { controls, PAUSE, strings } from "./index.ts";
+import { chipLabels, labelled, listed, listTotal, optionFromLabel, optionLabels, picked } from "../testing/select.ts";
+import { controls, PAUSE, SEARCH_PAUSE, strings } from "./index.ts";
 
 // Items of the ids given, which read as their ids.
 const ids = (values: readonly string[]) => values.map((id) => ({ id }));
@@ -153,6 +153,53 @@ describe("the controls of a block's UI", () => {
     await settled();
     expect(await shown()).toEqual(marked);
     expect(host.submitted).toEqual([]);
+  });
+
+  test("hand what the user typed into a select to its onSearch once the user pauses, for the module to ask its request again, and say how many items there are in all", async () => {
+    // The request answers with at most two of the ends whose ids hold the
+    // text of a search, and with how many there are in all.
+    const requests = [
+      { name: "ends", args: { query: "" }, options: {}, answer: { values: ["head", "tail"], total: [3] } },
+      { name: "ends", args: { query: "mid" }, options: {}, answer: { values: ["middle"], total: [3] } },
+    ];
+    const states = [...fixture.states, form({ direction: "middle" })];
+    const host = stubBlockHost<Form>({ states, requests }, { state: form({}) });
+    const ui = controls(host, abort.signal);
+    let query = "";
+    const direction = ui.comboBox("direction", {
+      label: "Direction",
+      onSearch(text) {
+        query = text;
+        ends.refresh();
+      },
+    });
+    const ends = ui.follow("ends", {
+      args: () => ({ query }),
+      loading() {
+        direction.setOutdated(true);
+      },
+      answer(answer) {
+        const found = answer as { values: string[]; total: number[] };
+        direction.setItems(ids(found.values));
+        direction.setTotal(found.total[0]);
+        direction.setOutdated(false);
+      },
+    });
+    document.body.append(ui.el);
+    await settled();
+    const field = labelled(ui.el, "Direction");
+
+    await settled(() => {
+      type(field, "mid");
+    });
+    await vi.advanceTimersByTimeAsync(SEARCH_PAUSE);
+
+    expect([optionLabels(field), listTotal(field)]).toEqual([["middle"], "3 values — type to search"]);
+    await settled(() => {
+      optionFromLabel(field, "middle").click();
+    });
+    expect(host.submitted).toEqual([form({ direction: "middle" })]);
+    expect(host.requested.map((request) => request.args)).toEqual([{ query: "" }, { query: "mid" }, { query: "" }]);
   });
 
   test("submit typing once the user pauses or presses Enter, and keep it while the state changes", async () => {

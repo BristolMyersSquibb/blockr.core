@@ -1,18 +1,21 @@
 // Core's select, React Aria's ComboBox in core's theme: what core adds to it,
 // the chips of the field of several, what the list says where it shows no
-// item, the opening by a press in the field, and the binding of a block's
-// state arg, on the stub of a block's host.
+// item, the opening by a press in the field, the binding of a block's state
+// arg, on the stub of a block's host, and the search, which asks the host's
+// request again with what the user typed.
 // The rest, such as the keys and the filter, is React Aria's.
 
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
-import { useValue } from "../react/index.ts";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { SEARCH_PAUSE, strings } from "../binding/index.ts";
+import { useRequest, useValue } from "../react/index.ts";
 import { stubBlockHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { press, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
+import { holdRequests } from "../testing/requests.ts";
 import {
   chipLabels,
   cleared,
@@ -20,6 +23,7 @@ import {
   labelled,
   listFromField,
   listNote,
+  listTotal,
   optionFromLabel,
   optionLabels,
   picked,
@@ -326,13 +330,31 @@ const fixture: BlockFixture = {
   requests: [],
 };
 
-function Bound({ host, outdated, ordered }: { host: BlockHost<Basket>; outdated?: boolean; ordered?: boolean }): ReactElement {
+function Bound({
+  host,
+  outdated,
+  ordered,
+  total,
+}: {
+  host: BlockHost<Basket>;
+  outdated?: boolean;
+  ordered?: boolean;
+  total?: number;
+}): ReactElement {
   return (
     <>
-      <ComboBox bound={useValue(host, "fruit")} label="Fruit" placeholder="Choose a fruit" defaultItems={fruits} outdated={outdated}>
+      <ComboBox bound={useValue(host, "fruit")} label="Fruit" placeholder="Choose a fruit" defaultItems={fruits} outdated={outdated} total={total}>
         {row}
       </ComboBox>
-      <ComboBox bound={useValue(host, "fruits")} selectionMode="multiple" label="Fruits" defaultItems={fruits} outdated={outdated} ordered={ordered}>
+      <ComboBox
+        bound={useValue(host, "fruits")}
+        selectionMode="multiple"
+        label="Fruits"
+        defaultItems={fruits}
+        outdated={outdated}
+        ordered={ordered}
+        total={total}
+      >
         {row}
       </ComboBox>
     </>
@@ -373,6 +395,20 @@ describe("a bound select", () => {
       ["durian (not available)"],
     ]);
     expect(await shown(true)).toEqual(["", "durian", null, ["Apple", "durian"], null, [false, false], []]);
+  });
+
+  test("marks no value that its items lack where they are fewer than `total`, and shows a pick of one that they lack by its id", async () => {
+    const state = basket({ fruit: "durian", fruits: ["apple", "durian"] });
+    const shown = async (total: number) => {
+      const { el, unmount } = await draw(<Bound host={stubBlockHost<Basket>(fixture, { state })} total={total} />);
+      const [one, several] = [labelled(el, "Fruit"), labelled(el, "Fruits")];
+      const seen = [one.value, one.getAttribute("aria-invalid"), chipLabels(several), several.getAttribute("aria-invalid")];
+      await unmount();
+      return seen;
+    };
+
+    expect(await shown(4)).toEqual(["durian", null, ["Apple", "durian"], null]);
+    expect(await shown(3)).toEqual(["", "true", ["Apple", "durian (not available)"], "true"]);
   });
 
   test("submits the picks of several once, as the list closes, after the strings that the state holds then", async () => {
@@ -436,5 +472,159 @@ describe("a bound select", () => {
     await picked(labelled(el, "Fruits"), step, "Apple");
 
     expect(host.submitted).toEqual([basket({ fruits: ["apple", "cherry"] })]);
+  });
+});
+
+// A request that answers with at most three of the fruits whose ids hold the
+// text of a search, and with how many fruits there are in all, which R writes
+// as an array, as every vector.
+// What it answers for a text that no fruit holds says nothing of the others.
+const searches: BlockFixture = {
+  states: [basket({}), basket({ fruit: "date" })],
+  requests: [
+    { name: "fruits", args: { query: "" }, options: {}, answer: { values: ["apple", "banana", "cherry"], total: [5] } },
+    { name: "fruits", args: { query: "da" }, options: {}, answer: { values: ["date"], total: [5] } },
+    { name: "fruits", args: { query: "kiwi" }, options: {}, answer: { values: [] } },
+  ],
+};
+
+// A module's select of one of the fruits that the request answers with, which
+// it asks again with what the user typed.
+// It gives the select the fruits as `defaultItems`, which React Aria narrows
+// at once as the user types, or where `controlled`, as `items`, which React
+// Aria leaves as they are.
+function Searched({ host, controlled = false }: { host: BlockHost<Basket>; controlled?: boolean }): ReactElement {
+  const [query, setQuery] = useState("");
+  const found = useRequest(host, "fruits", { args: { query } });
+  const answer = found.answer as { values: string[]; total?: number[] } | undefined;
+  const items = answer === undefined ? undefined : strings(answer.values).map((id) => ({ id }));
+  return (
+    <ComboBox
+      bound={useValue(host, "fruit")}
+      label="Fruit"
+      {...(controlled ? { items } : { defaultItems: items })}
+      total={answer?.total?.[0]}
+      outdated={found.loading || found.error !== null}
+      onSearch={setQuery}
+    >
+      {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
+    </ComboBox>
+  );
+}
+
+describe("a select that searches", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Lets the time given pass, the pause of the search unless given.
+  const pause = (ms = SEARCH_PAUSE): Promise<void> =>
+    step(() => {
+      vi.advanceTimersByTime(ms);
+    });
+
+  test('calls onSearch with what the user typed once the user pauses, and with "" as its list closes, but never with a text that React Aria puts in the field', async () => {
+    const searched: string[] = [];
+    const { el } = await draw(
+      <Held
+        label="Fruit"
+        defaultItems={fruits}
+        start={null}
+        seen={[]}
+        onSearch={(text) => {
+          searched.push(text);
+        }}
+      />,
+    );
+    const field = labelled(el, "Fruit");
+
+    await step(() => {
+      type(field, "an");
+    });
+    await pause(SEARCH_PAUSE - 1);
+    expect(searched).toEqual([]);
+    await pause(1);
+    expect(searched).toEqual(["an"]);
+
+    await step(() => {
+      optionFromLabel(field, "Banana").click();
+    });
+    await pause();
+    expect([searched, field.value]).toEqual([["an", ""], "Banana"]);
+
+    await step(() => {
+      field.click();
+    });
+    await step(() => {
+      press(field, "Escape");
+    });
+    await pause();
+    expect(searched).toEqual(["an", ""]);
+  });
+
+  test("asks again for the items that match what the user typed, saying that it loads meanwhile, and how many items there are in all below its rows", async () => {
+    const host = stubBlockHost<Basket>(searches, { state: basket({}) });
+    const { el } = await draw(<Searched host={host} />);
+    const field = labelled(el, "Fruit");
+    const release = holdRequests(host);
+    const shown = () => [optionLabels(field), listNote(field), listTotal(field), field.getAttribute("aria-invalid")];
+
+    await step(() => {
+      type(field, "da");
+    });
+    expect(shown()).toEqual([[], "Loading…", null, null]);
+    await pause();
+    expect(shown()).toEqual([[], "Loading…", null, null]);
+    await step(release);
+    expect(shown()).toEqual([["date"], null, "5 values — type to search", null]);
+
+    await step(() => {
+      optionFromLabel(field, "date").click();
+    });
+    await step(release);
+    await step(() => {
+      field.blur();
+    });
+
+    expect(host.submitted).toEqual([basket({ fruit: "date" })]);
+    expect(host.requested.map((request) => request.args)).toEqual([{ query: "" }, { query: "da" }, { query: "" }]);
+    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["date", null]);
+  });
+
+  test("says that no item matches where the items for what the user typed are none, and marks no pick that they lack", async () => {
+    const host = stubBlockHost<Basket>(searches, { state: basket({}) });
+    const { el } = await draw(<Searched host={host} controlled />);
+    const field = labelled(el, "Fruit");
+
+    await step(() => {
+      type(field, "kiwi");
+    });
+    expect(optionLabels(field)).toEqual(["apple", "banana", "cherry"]);
+    await pause();
+
+    expect([optionLabels(field), listNote(field), listTotal(field), field.getAttribute("aria-invalid")]).toEqual([[], "No matches", null, null]);
+    expect(host.requested.map((request) => request.args)).toEqual([{ query: "" }, { query: "kiwi" }]);
+  });
+
+  test("says below its rows how many items there are in all where it has fewer, but not where its list shows no row", async () => {
+    const shown = async (total: number, typed?: string): Promise<(string | null)[]> => {
+      const { el, unmount } = await draw(<Held label="Fruit" defaultItems={fruits} start={null} seen={[]} total={total} />);
+      const field = labelled(el, "Fruit");
+      await step(() => {
+        if (typed === undefined) field.click();
+        else type(field, typed);
+      });
+      const seen = [listNote(field), listTotal(field)];
+      await unmount();
+      return seen;
+    };
+
+    expect(await shown(1234)).toEqual([null, "1,234 values — type to search"]);
+    expect(await shown(3)).toEqual([null, null]);
+    expect(await shown(1234, "kiwi")).toEqual(["No matches", null]);
   });
 });
