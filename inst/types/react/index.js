@@ -902,7 +902,7 @@ function Drawn2({
   ...props
 }) {
   const unknown = items === void 0 && typeof children === "function";
-  return /* @__PURE__ */ jsxs3(
+  return /* @__PURE__ */ jsx5(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsxs3(
     ListBox,
     {
       ...props,
@@ -914,12 +914,12 @@ function Drawn2({
         /* @__PURE__ */ jsx5(Collection, { items: unknown ? [] : items, dependencies, children })
       ]
     }
-  );
+  ) });
 }
 function ListBoxItem2(props) {
   return /* @__PURE__ */ jsx5(ComboBoxItem, { ...props });
 }
-var LIST2 = "bc:box-border bc:max-h-72 bc:min-w-0 bc:justify-self-stretch bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:p-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-invalid:border-border-danger";
+var LIST2 = "bc:box-border bc:max-h-72 bc:min-w-0 bc:justify-self-stretch bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-invalid:border-border-danger";
 var MISSING = "bc:text-text-danger";
 
 // srcts/inputs/numberfield.tsx

@@ -20,6 +20,7 @@ import {
   labelled,
   listFromField,
   listNote,
+  measured,
   optionFromLabel,
   optionLabels,
   picked,
@@ -61,23 +62,6 @@ async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () 
       step(() => {
         root.unmount();
       }),
-  };
-}
-
-// Makes every element measure the width and the height given, until the
-// function that it returns runs, through getters on the prototype of
-// HTMLElement, which React Aria's Virtualizer takes for those of a test that
-// sizes the page, where happy-dom measures nothing (../testing/dom.ts).
-function measured(width: number, height: number): () => void {
-  for (const [name, value] of [
-    ["clientWidth", width],
-    ["clientHeight", height],
-  ] as const) {
-    Object.defineProperty(HTMLElement.prototype, name, { configurable: true, get: () => value });
-  }
-  return () => {
-    Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
-    Reflect.deleteProperty(HTMLElement.prototype, "clientHeight");
   };
 }
 

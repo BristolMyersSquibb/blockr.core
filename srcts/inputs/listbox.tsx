@@ -11,6 +11,9 @@
 // of several, and the pick of one in weight 600.
 // The list is a box as wide as the space it stands in, and its rows scroll
 // within a height of 18rem.
+// It draws its rows through React Aria's Virtualizer, as the select's list
+// does.
+// The Virtualizer puts on the page only the rows in view.
 // React Aria's Autocomplete around it, with the SDK's SearchField
 // (./searchfield.tsx), narrows its rows to those whose text holds what the
 // user types into the field.
@@ -53,9 +56,9 @@ import type { ReactElement } from "react";
 import { strings } from "../binding/index.ts";
 import type { Bound } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
-import { Collection, composeRenderProps, ListBox as AriaListBox } from "../aria/index.ts";
+import { Collection, composeRenderProps, ListBox as AriaListBox, ListLayout, Virtualizer } from "../aria/index.ts";
 import type { ListBoxItemProps, ListBoxProps as AriaListBoxProps } from "../aria/index.ts";
-import { ComboBoxItem, edited, emptyNote, ids, inOrder } from "./combobox.tsx";
+import { ComboBoxItem, edited, emptyNote, ids, inOrder, LAYOUT } from "./combobox.tsx";
 import { missing, Refusal } from "./inputs.tsx";
 
 export interface ListBoxProps<T extends object> extends Omit<AriaListBoxProps<T>, "layout" | "orientation"> {
@@ -193,21 +196,23 @@ function Drawn({
   // Whether it has no items yet, as its children draw an item with none given.
   const unknown = items === undefined && typeof children === "function";
   return (
-    <AriaListBox
-      {...props}
-      data-invalid={(marking && lacked.length > 0) || undefined}
-      className={composeRenderProps(className, (given) => `${LIST} ${given ?? ""}`)}
-      renderEmptyState={(values) => emptyNote(items, children, outdated, () => renderEmptyState?.(values))}
-    >
-      {lacked.map((value) => (
-        <ComboBoxItem key={value} id={value} textValue={marking ? missing(value) : value} data-missing={marking || undefined}>
-          {marking ? <span className={MISSING}>{missing(value)}</span> : value}
-        </ComboBoxItem>
-      ))}
-      <Collection items={unknown ? [] : items} dependencies={dependencies}>
-        {children}
-      </Collection>
-    </AriaListBox>
+    <Virtualizer layout={ListLayout} layoutOptions={LAYOUT}>
+      <AriaListBox
+        {...props}
+        data-invalid={(marking && lacked.length > 0) || undefined}
+        className={composeRenderProps(className, (given) => `${LIST} ${given ?? ""}`)}
+        renderEmptyState={(values) => emptyNote(items, children, outdated, () => renderEmptyState?.(values))}
+      >
+        {lacked.map((value) => (
+          <ComboBoxItem key={value} id={value} textValue={marking ? missing(value) : value} data-missing={marking || undefined}>
+            {marking ? <span className={MISSING}>{missing(value)}</span> : value}
+          </ComboBoxItem>
+        ))}
+        <Collection items={unknown ? [] : items} dependencies={dependencies}>
+          {children}
+        </Collection>
+      </AriaListBox>
+    </Virtualizer>
   );
 }
 
@@ -223,6 +228,8 @@ export function ListBoxItem(props: ListBoxItemProps): ReactElement {
 // The list is a box like core's other inputs, which shows in the colour of
 // danger where it marks a value that the items lack, through the attribute
 // that marks it, whose class wins over that of its default colour.
+// The Virtualizer lays the rows out inside a padding of 4 pixels, as in the
+// select's list, so the box holds none of it in its CSS.
 const LIST =
-  "bc:box-border bc:max-h-72 bc:min-w-0 bc:justify-self-stretch bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:p-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-invalid:border-border-danger";
+  "bc:box-border bc:max-h-72 bc:min-w-0 bc:justify-self-stretch bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-invalid:border-border-danger";
 const MISSING = "bc:text-text-danger";

@@ -132,6 +132,25 @@ function chips(field: HTMLElement): Element[] {
   return [...(field.closest('[role="group"]')?.querySelectorAll('[role="row"]') ?? [])];
 }
 
+// Makes every element measure the width and the height given, until the
+// function that it returns runs, through getters on the prototype of
+// HTMLElement.
+// React Aria's Virtualizer, which draws the rows of the select's list and of
+// the list in place, takes them for those of a test that sizes the page,
+// where happy-dom measures nothing (./dom.ts).
+export function measured(width: number, height: number): () => void {
+  for (const [name, value] of [
+    ["clientWidth", width],
+    ["clientHeight", height],
+  ] as const) {
+    Object.defineProperty(HTMLElement.prototype, name, { configurable: true, get: () => value });
+  }
+  return () => {
+    Reflect.deleteProperty(HTMLElement.prototype, "clientWidth");
+    Reflect.deleteProperty(HTMLElement.prototype, "clientHeight");
+  };
+}
+
 // The element of the id given in the tree that holds `node`, whether on the
 // page or not, as the element of controls() before a module puts it there, or
 // on the page, where React Aria draws the list.

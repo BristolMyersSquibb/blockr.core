@@ -625,7 +625,7 @@ var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text
 // srcts/inputs/listbox.tsx
 import { Children, isValidElement, useState as useState4 } from "react";
 import { strings as strings2 } from "@blockr/core/binding";
-import { Collection as Collection2, composeRenderProps as composeRenderProps3, ListBox as AriaListBox } from "./vendor-d953828e.js";
+import { Collection as Collection2, composeRenderProps as composeRenderProps3, ListBox as AriaListBox, ListLayout as ListLayout2, Virtualizer as Virtualizer2 } from "./vendor-d953828e.js";
 import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
 function ListBox2(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -718,7 +718,7 @@ function Drawn2({
   ...props
 }) {
   const unknown = items === void 0 && typeof children === "function";
-  return /* @__PURE__ */ jsxs3(
+  return /* @__PURE__ */ jsx5(Virtualizer2, { layout: ListLayout2, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsxs3(
     AriaListBox,
     {
       ...props,
@@ -730,12 +730,12 @@ function Drawn2({
         /* @__PURE__ */ jsx5(Collection2, { items: unknown ? [] : items, dependencies, children })
       ]
     }
-  );
+  ) });
 }
 function ListBoxItem2(props) {
   return /* @__PURE__ */ jsx5(ComboBoxItem, { ...props });
 }
-var LIST2 = "bc:box-border bc:max-h-72 bc:min-w-0 bc:justify-self-stretch bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:p-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-invalid:border-border-danger";
+var LIST2 = "bc:box-border bc:max-h-72 bc:min-w-0 bc:justify-self-stretch bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-invalid:border-border-danger";
 var MISSING = "bc:text-text-danger";
 
 // srcts/inputs/numberfield.tsx

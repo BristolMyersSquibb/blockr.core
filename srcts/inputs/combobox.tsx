@@ -576,7 +576,8 @@ const CHIP_REMOVE =
 // A row is one line, as ROW truncates what it holds, so the Virtualizer takes
 // each row to be 32 pixels high and each heading 28, the heights that ROW and
 // HEADING give them, rather than measure each as it draws it.
-const LAYOUT = { rowHeight: 32, headingHeight: 28, padding: 4 } as const;
+// The list in place lays out its rows alike (./listbox.tsx).
+export const LAYOUT = { rowHeight: 32, headingHeight: 28, padding: 4 } as const;
 const LIST =
   "bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
 const LISTBOX =

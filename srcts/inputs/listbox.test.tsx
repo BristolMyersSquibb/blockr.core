@@ -16,7 +16,7 @@ import type { BlockFixture } from "../stubs/index.ts";
 import { type } from "../testing/inputs.ts";
 import { wait } from "../testing/modules.ts";
 import { step } from "../testing/react.ts";
-import { labelled } from "../testing/select.ts";
+import { labelled, measured } from "../testing/select.ts";
 import type { BlockHost } from "../types/hosts.ts";
 import { Autocomplete, ListBox, ListBoxItem, SearchField, useFilter } from "./index.ts";
 import type { ListBoxProps } from "./index.ts";
@@ -151,6 +151,26 @@ describe("a list in place", () => {
     });
 
     expect([search.value, rowLabels(list(el, "Fruits"))]).toEqual(["", ["Apple", "Banana", "Cherry"]]);
+  });
+
+  test("draws only the rows in view, through React Aria's Virtualizer, however many items it holds", async () => {
+    const many = Array.from({ length: 500 }, (_, i) => ({ id: `fruit-${String(i)}`, name: `Fruit ${String(i)}` }));
+    const restore = measured(300, 200);
+    try {
+      const { el } = await draw(
+        <ListBox aria-label="Fruits" selectionMode="multiple" items={many}>
+          {row}
+        </ListBox>,
+      );
+
+      const drawn = rowLabels(list(el, "Fruits"));
+      expect(drawn[0]).toBe("Fruit 0");
+      // Rows of 32 pixels, with those that React Aria draws beyond the view.
+      expect(drawn.length).toBeGreaterThan(200 / 32);
+      expect(drawn.length).toBeLessThan(50);
+    } finally {
+      restore();
+    }
   });
 
   test("says that it loads while it has no items yet, that nothing matches where the search keeps none, and what renderEmptyState says where it has none", async () => {

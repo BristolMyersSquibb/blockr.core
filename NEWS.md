@@ -687,6 +687,7 @@
   Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708).
 * Core's React SDK offers the list of the select in place, always open, as `ListBox`: [React Aria's `ListBox`](https://react-aria.adobe.com/ListBox), in core's theme, after the `ListBox` of React Aria's Tailwind starter kit.
   It takes the props of React Aria's `ListBox`, and draws the rows that `ListBoxItem` gives, which are the rows of the list of the select.
+  As the select does, it draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
   The SDK also offers React Aria's `Autocomplete` and `useFilter()`, and React Aria's `SearchField` in core's theme, after the starter kit's.
   An `Autocomplete` around the list, with a `SearchField`, narrows the rows to those that hold what the user types.
   Given `bound`, the list binds a block's state arg or a board option's value, as the select does.
