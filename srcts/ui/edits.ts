@@ -10,8 +10,9 @@
 //   the frontend draws it as it draws every notification.
 // - The Edit board plugin runs its edits through useEdits(), which takes the
 //   notification of a refusal through the edit's notifier, so that core raises
-//   none. The plugin shows why beside the form or the button that made the
-//   edit, until the user's next edit there, as The Edit board plugin has it
+//   none. The plugin shows why close to the control that made the edit, until
+//   the user's next edit there: below the buttons of a form, and below a table
+//   for the buttons of its rows, as The Edit board plugin has it
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
 
 import { useMemo, useState } from "react";
@@ -37,21 +38,26 @@ export function runCommand(core: Pick<CoreApi, "commands">, target: string | rea
   );
 }
 
-// The edits of one control, such as a form or the buttons of a table's row,
+// The edits of one control, such as a form or the buttons of a table's rows,
 // and why the store or the command registry refused the last of them, which
-// the control shows beside itself.
+// the control shows close to itself.
 export interface Edits {
-  // Why the last edit that run() made was refused, the reason with which the
-  // command registry rejected it, or null where it ran. It holds until the
-  // next edit that run() makes, or until clear().
+  // Why the last edit that run() made was refused, or null where it ran. It
+  // is the reason with which the command registry rejected the edit, after
+  // the sentence `which` where run() was given one. It holds until the next
+  // edit that run() makes, or until clear().
   readonly refusal: string | null;
   // Runs the command with the args, or the commands of the list in order, as
   // runCommand() does, and resolves whether it ran.
-  run(id: string, args?: Json): Promise<boolean>;
-  run(list: readonly Listed[]): Promise<boolean>;
+  // A control that shows the reason away from where the user made the edit,
+  // as a table does below itself for the buttons of its rows, gives the
+  // sentence `which`, such as `Could not remove the block "Head".`. The reason
+  // names the objects by their ids, which the table may not show.
+  run(id: string, args?: Json, which?: string): Promise<boolean>;
+  run(list: readonly Listed[], which?: string): Promise<boolean>;
   // Takes the refusal down where the user's next edit there does not reach
-  // run(): where a form's own checks stop it, or where a form opens in place
-  // of the control.
+  // run(): where a form's own checks stop it, or where the user opens the
+  // form that changes a row of the table.
   clear(): void;
 }
 
@@ -66,7 +72,10 @@ export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
   const [refusal, setRefusal] = useState<string | null>(null);
   return useMemo(() => {
     const opts = { notifier: () => undefined };
-    function run(target: string | readonly Listed[], args?: Json): Promise<boolean> {
+    // The second argument is the args for a command, and `which` for a list.
+    function run(target: string | readonly Listed[], second?: Json, third?: string): Promise<boolean> {
+      const args = typeof target === "string" ? second : undefined;
+      const which = typeof target === "string" ? third : typeof second === "string" ? second : undefined;
       if (!shows) return typeof target === "string" ? runCommand(core, target, args) : runCommand(core, target);
       setRefusal(null);
       const running =
@@ -74,7 +83,7 @@ export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
       return running.then(
         () => true,
         (error: unknown) => {
-          setRefusal(errorMessage(error));
+          setRefusal(which === undefined ? errorMessage(error) : `${which}\n${errorMessage(error)}`);
           return false;
         },
       );

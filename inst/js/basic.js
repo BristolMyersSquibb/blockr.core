@@ -325,14 +325,17 @@ function useEdits(core, shows = true) {
   const [refusal2, setRefusal] = useState3(null);
   return useMemo(() => {
     const opts = { notifier: () => void 0 };
-    function run(target2, args) {
+    function run(target2, second, third) {
+      const args = typeof target2 === "string" ? second : void 0;
+      const which = typeof target2 === "string" ? third : typeof second === "string" ? second : void 0;
       if (!shows) return typeof target2 === "string" ? runCommand(core, target2, args) : runCommand(core, target2);
       setRefusal(null);
       const running = typeof target2 === "string" ? core.commands.run(target2, args, "user", opts) : core.commands.run(target2, "user", opts);
       return running.then(
         () => true,
         (error) => {
-          setRefusal(errorMessage(error));
+          setRefusal(which === void 0 ? errorMessage(error) : `${which}
+${errorMessage(error)}`);
           return false;
         }
       );

@@ -11,8 +11,8 @@
 //   which keeps its id and its ends, once change_link has changed the rest.
 //   Undo takes back each command that changed the link as a step of its own.
 // Where the store or the command registry refuses an edit, the form says why
-// below its buttons, and a line below the link's row says why the link was not
-// removed, until the user's next edit there.
+// below its buttons. Where it refuses to remove a link, the table says so below
+// itself, naming the link, until the user's next edit in the table.
 // The form and the edit offer only links that the store takes:
 // - As a link's target, a block with an input that no other link feeds, or a
 //   variadic block, which takes any number of links. A block without inputs
@@ -44,8 +44,9 @@ import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import type { RegistryEntry } from "../../types/registry.ts";
 import { classes, Pager, Refusal, TableSearch, TextField, useEdits, useSearch, useTableView } from "../../ui/index.ts";
+import type { Edits } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
-import { Part, RefusalRow, Section, table, useRowEditing } from "./board.tsx";
+import { Part, Section, table, useRowEditing } from "./board.tsx";
 
 type Registry = Readonly<Record<string, RegistryEntry>>;
 
@@ -55,6 +56,9 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
     [blockName(board, link.from), link.from, blockName(board, link.to), link.to, link.input].join(" "),
   );
   const variadic = variadicBlocks(board, core.blockRegistry());
+  // The edits of the table's rows, which say why one was refused below the
+  // table.
+  const edits = useEdits(core);
 
   return (
     <Section title="Links" count={links.length}>
@@ -94,11 +98,21 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
                 </thead>
                 <tbody>
                   {view.rows.map(([id, link]) => (
-                    <LinkRow key={id} core={core} board={board} id={id} link={link} variadic={variadic.has(link.to)} locked={locked} />
+                    <LinkRow
+                      key={id}
+                      core={core}
+                      edits={edits}
+                      board={board}
+                      id={id}
+                      link={link}
+                      variadic={variadic.has(link.to)}
+                      locked={locked}
+                    />
                   ))}
                 </tbody>
               </table>
             )}
+            <Refusal refusal={edits.refusal} />
             <Pager label="Pages of links" view={view} />
           </>
         )}
@@ -109,6 +123,7 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
 
 function LinkRow({
   core,
+  edits,
   board,
   id,
   link,
@@ -116,6 +131,7 @@ function LinkRow({
   locked,
 }: {
   core: CoreApi;
+  edits: Edits;
   board: Board;
   id: LinkId;
   link: Link;
@@ -123,7 +139,6 @@ function LinkRow({
   locked: boolean;
 }): ReactElement {
   const { editing, open, close, button } = useRowEditing();
-  const edits = useEdits(core);
   const label = `${blockName(board, link.from)} → ${blockName(board, link.to)}`;
   if (editing) {
     return (
@@ -141,48 +156,47 @@ function LinkRow({
     );
   }
   return (
-    <>
-      <tr aria-label={label} className={edits.refusal === null ? table.row : table.refusedRow}>
-        <td className={`${table.cell} bc:break-words`}>
-          <BlockLabel board={board} id={link.from} />
+    <tr aria-label={label} className={table.row}>
+      <td className={`${table.cell} bc:break-words`}>
+        <BlockLabel board={board} id={link.from} />
+      </td>
+      <td className={`${table.cell} bc:break-words`}>
+        <BlockLabel board={board} id={link.to} />
+      </td>
+      <td className={`${table.cell} bc:break-words`}>
+        {variadic ? <VariadicInput board={board} id={id} link={link} /> : <span className="bc:font-mono bc:text-xs">{link.input}</span>}
+      </td>
+      {locked ? null : (
+        <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
+          <button
+            type="button"
+            className={classes.quiet}
+            aria-label={`Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
+            ref={button}
+            onClick={() => {
+              // Opening the form is the user's next edit in the table, so the
+              // table's refusal goes. The form says why its own edits are
+              // refused.
+              edits.clear();
+              open();
+            }}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className={classes.quiet}
+            aria-label={`Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
+            onClick={() => {
+              const which = `Could not remove the link from "${blockName(board, link.from)}" to "${blockName(board, link.to)}".`;
+              void edits.run("blockr.core-remove_link", { id }, which);
+            }}
+          >
+            Remove
+          </button>
         </td>
-        <td className={`${table.cell} bc:break-words`}>
-          <BlockLabel board={board} id={link.to} />
-        </td>
-        <td className={`${table.cell} bc:break-words`}>
-          {variadic ? <VariadicInput board={board} id={id} link={link} /> : <span className="bc:font-mono bc:text-xs">{link.input}</span>}
-        </td>
-        {locked ? null : (
-          <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
-            <button
-              type="button"
-              className={classes.quiet}
-              aria-label={`Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
-              ref={button}
-              onClick={() => {
-                // The form takes the row's place and says why its own edits
-                // are refused, so the row's refusal goes.
-                edits.clear();
-                open();
-              }}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              className={classes.quiet}
-              aria-label={`Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
-              onClick={() => {
-                void edits.run("blockr.core-remove_link", { id });
-              }}
-            >
-              Remove
-            </button>
-          </td>
-        )}
-      </tr>
-      <RefusalRow refusal={edits.refusal} columns={locked ? 3 : 4} />
-    </>
+      )}
+    </tr>
   );
 }
 

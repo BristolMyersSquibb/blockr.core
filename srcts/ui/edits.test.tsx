@@ -23,37 +23,36 @@ afterEach(() => {
 
 // A control with a button for each edit, which removes blocks, and the line
 // that says why the last edit was refused, where the control shows refusals.
-const EDITS = {
-  "Remove Head": ["blockr.core-remove_block", { id: "b" }],
-  "Remove nowhere": ["blockr.core-remove_block", { id: "nowhere" }],
-} as const;
-
+// Two of the edits give the sentence that names the edit, as a table does for
+// the buttons of its rows.
 function Control({ core, shows }: { core: CoreApi; shows?: boolean }): ReactElement {
   const edits = useEdits(core, shows);
+  const runs: Record<string, () => Promise<boolean>> = {
+    "Remove Head": () => edits.run("blockr.core-remove_block", { id: "b" }),
+    "Remove nowhere": () => edits.run("blockr.core-remove_block", { id: "nowhere" }),
+    "Remove nowhere, naming it": () => edits.run("blockr.core-remove_block", { id: "nowhere" }, 'Could not remove the block "nowhere".'),
+    "Remove Iris and nowhere": () =>
+      edits.run(
+        [
+          { id: "blockr.core-remove_block", args: { id: "a" } },
+          { id: "blockr.core-remove_block", args: { id: "nowhere" } },
+        ],
+        'Could not remove the blocks "Iris" and "nowhere".',
+      ),
+  };
   return (
     <div>
-      {Object.entries(EDITS).map(([label, [id, args]]) => (
+      {Object.entries(runs).map(([label, run]) => (
         <button
           key={label}
           type="button"
           onClick={() => {
-            void edits.run(id, args);
+            void run();
           }}
         >
           {label}
         </button>
       ))}
-      <button
-        type="button"
-        onClick={() => {
-          void edits.run([
-            { id: "blockr.core-remove_block", args: { id: "a" } },
-            { id: "blockr.core-remove_block", args: { id: "nowhere" } },
-          ]);
-        }}
-      >
-        Remove Iris and nowhere
-      </button>
       <Refusal refusal={edits.refusal} />
     </div>
   );
@@ -99,9 +98,15 @@ describe("an edit that the command registry or the store refuses", () => {
     expect(find(el, '[role="alert"]').className).toContain("bc:text-text-danger");
     expect(held(core)).toEqual([]);
 
+    // The sentence that names the edit comes first.
+    await click(el, "Remove nowhere, naming it");
+    expect(refusals(el)).toEqual([expect.stringMatching(/^Could not remove the block "nowhere"\.\nThe command "blockr\.core-remove_block" refused to run/)]);
+
     // A list that refuses applies none of its commands.
     await click(el, "Remove Iris and nowhere");
-    expect(refusals(el)).toEqual([expect.stringMatching(/^The list of commands was refused at command 2, "blockr\.core-remove_block"/)]);
+    expect(refusals(el)).toEqual([
+      expect.stringMatching(/^Could not remove the blocks "Iris" and "nowhere"\.\nThe list of commands was refused at command 2, "blockr\.core-remove_block"/),
+    ]);
     expect(Object.keys(core.store.board().blocks)).toContain("a");
     expect(held(core)).toEqual([]);
 
@@ -114,9 +119,10 @@ describe("an edit that the command registry or the store refuses", () => {
   test("is left to core, which raises it, by a control that shows no refusal", async () => {
     const { el, core } = await drawn(false);
 
-    await click(el, "Remove nowhere");
+    await click(el, "Remove nowhere, naming it");
     await click(el, "Remove Iris and nowhere");
     expect(refusals(el)).toEqual([]);
+    // Core's notification holds the reason alone.
     expect(held(core).map((n) => [n.severity, notificationCode(n), n.message.split("\n")[0]])).toEqual([
       ["error", "board_edit_failed", 'The command "blockr.core-remove_block" refused to run'],
       ["error", "board_edit_failed", 'The list of commands was refused at command 2, "blockr.core-remove_block"'],

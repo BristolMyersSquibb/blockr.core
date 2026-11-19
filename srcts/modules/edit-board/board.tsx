@@ -11,10 +11,11 @@
 // It follows the board through the store, so the next edit reads the board as
 // the last one left it, a block that the user just added among it.
 // Where the store or the command registry refuses an edit, the plugin says why
-// beside the form or the button that made it, in the colour of an error, until
-// the user's next edit there: below the buttons of a form, and on a line below
-// the row of a table. Each edit takes the notification of its refusal, so that
-// core raises none (../../ui/edits.ts).
+// close to the control that made it, in the colour of an error, until the
+// user's next edit there: below the buttons of a form, and below a table for
+// the buttons of its rows, after a sentence that names the edit. Each edit
+// takes the notification of its refusal, so that core raises none
+// (../../ui/edits.ts).
 // Under the board lock, the store refuses every edit that the plugin makes,
 // so the plugin draws no control there, as it reads from core.lock.board. It
 // then lists only the board's links and stacks, since a frontend draws the
@@ -24,7 +25,6 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useBoard } from "../../react/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { Refusal } from "../../ui/index.ts";
 import { BlocksSection } from "./blocks.tsx";
 import { LinksSection } from "./links.tsx";
 import { StacksSection } from "./stacks.tsx";
@@ -75,24 +75,8 @@ export const table = {
   table: "bc:w-full bc:table-fixed bc:border-collapse bc:text-sm",
   head: "bc:border-b bc:border-border-default bc:px-1 bc:py-1 bc:text-left bc:text-xs bc:font-semibold bc:text-text-muted",
   row: "bc:border-b bc:border-border-default bc:align-top",
-  // A row that the line of a refusal follows, without a border between the
-  // two (RefusalRow).
-  refusedRow: "bc:align-top",
   cell: "bc:px-1 bc:py-1.5",
 } as const;
-
-// The line below a table's row that says why the store or the command
-// registry refused the last edit that the user made in the row, across the
-// row's columns. It draws nothing where the edit ran.
-export function RefusalRow({ refusal, columns }: { refusal: string | null; columns: number }): ReactElement | null {
-  return refusal === null ? null : (
-    <tr className={table.row}>
-      <td colSpan={columns} className={`${table.cell} bc:pt-0`}>
-        <Refusal refusal={refusal} />
-      </td>
-    </tr>
-  );
-}
 
 // Whether a table's row shows its edit form, and the ref of the row's Edit
 // button, which gets the focus back as the form closes, so that the keyboard

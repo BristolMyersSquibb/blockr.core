@@ -119,12 +119,14 @@ function refusals(el: ParentNode): string[] {
   return [...el.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent);
 }
 
-// What the line below a table's row says of why the store or the command
-// registry refused an edit in the row, or undefined where no such line
-// follows the row.
-function refusalBelow(tr: HTMLTableRowElement): string | undefined {
-  const next = tr.nextElementSibling;
-  return next === null || next.hasAttribute("aria-label") ? undefined : refusals(next).join("\n");
+// What the plugin says below the section's table of why the store or the
+// command registry refused an edit that the user made in the table's rows.
+function belowTable(el: HTMLElement): string[] {
+  const said: string[] = [];
+  for (let next = find(el, "table").nextElementSibling; next?.getAttribute("role") === "alert"; next = next.nextElementSibling) {
+    said.push(next.textContent);
+  }
+  return said;
 }
 
 // The line below a field, its hint or its error.
@@ -690,37 +692,40 @@ describe("each edit", () => {
     expect(Object.values(board().links)).toContainEqual({ from: "f", to: "e", input: "" });
   });
 
-  test("that the store refuses from a row of a table, the plugin says why on a line below the row, until the user's next edit there", async () => {
+  test("that the store refuses from the rows of a table, the plugin says why below the table, naming the edit, until the user's next edit in the table", async () => {
     const { el, core, board } = await refusing();
     const before = board();
     const blocks = section(el, "Blocks");
     const stacks = section(el, "Stacks");
 
     await click(button(blocks, "Remove the block Head"));
-    expect(refusalBelow(row(blocks, "Head"))).toContain('- The board lock refuses to remove block "b".');
+    expect(belowTable(blocks)).toEqual([
+      expect.stringMatching(/^Could not remove the block "Head"\.\nThe store rejected the delta\n- The board lock refuses to remove block "b"\.\n/),
+    ]);
 
+    // The next edit in the table takes the place of the last.
     await click(button(blocks, "Rename the block Iris"));
     await step(() => {
       const name = find(blocks, 'input[aria-label="Block name"]', HTMLInputElement);
       type(name, "Sources");
       press(name, "Enter");
     });
-    expect(refusalBelow(row(blocks, "Iris"))).toBe('The store rejected the delta\n- The board lock refuses to rename block "a".');
-    // Each row says why of its own edit.
-    expect(refusalBelow(row(blocks, "Head"))).toContain('- The board lock refuses to remove block "b".');
-    expect(refusalBelow(row(blocks, "Wide sepals"))).toBeUndefined();
+    expect(belowTable(blocks)).toEqual(['Could not rename the block "Iris".\nThe store rejected the delta\n- The board lock refuses to rename block "a".']);
 
+    // The tables do not show the ids of links and stacks, which the store's
+    // reason names, so the sentence before it names the link or the stack.
     await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
-    expect(refusalBelow(row(section(el, "Links"), "Iris → Head"))).toBe('The store rejected the delta\n- The board lock refuses to remove link "ab".');
-
+    expect(belowTable(section(el, "Links"))).toEqual([
+      'Could not remove the link from "Iris" to "Head".\nThe store rejected the delta\n- The board lock refuses to remove link "ab".',
+    ]);
     await click(button(stacks, "Remove the stack Input"));
-    expect(refusalBelow(row(stacks, "Input"))).toBe('The store rejected the delta\n- The board lock refuses to remove stack "s1".');
-    // The form that changes the stack takes the row's place, and the row's
-    // reason goes.
+    expect(belowTable(stacks)).toEqual(['Could not remove the stack "Input".\nThe store rejected the delta\n- The board lock refuses to remove stack "s1".']);
+    // Opening the form that changes a stack is the user's next edit in the
+    // table, and the reason goes.
     await click(button(stacks, "Edit the stack Input"));
     expect(refusals(stacks)).toEqual([]);
     await click(button(form(stacks, "Change stack"), "Cancel"));
-    expect(refusalBelow(row(stacks, "Input"))).toBeUndefined();
+    expect(belowTable(stacks)).toEqual([]);
 
     expect(board()).toEqual(before);
     expect(held(core)).toEqual([]);

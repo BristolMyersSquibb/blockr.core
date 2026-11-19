@@ -7,8 +7,9 @@
 //   each block renames it in place with rename_block, and a button removes it
 //   with remove_block, which removes its links and its place in its stack too.
 // Where the store or the command registry refuses an edit, the form says why
-// below its button, and a line below the block's row says why the block was
-// not renamed or removed, until the user's next edit there.
+// below its button. Where it refuses to rename or remove a block, the table
+// says so below itself, naming the block, until the user's next edit in the
+// table.
 
 import { useState } from "react";
 import type { ReactElement } from "react";
@@ -17,9 +18,10 @@ import type { AddMode } from "../../picker/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { Block, BlockId, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { classes, NameField, Pager, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
+import { classes, NameField, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
+import type { Edits } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
-import { Part, RefusalRow, Section, table } from "./board.tsx";
+import { Part, Section, table } from "./board.tsx";
 
 const ADD: AddMode = { kind: "add" };
 
@@ -28,6 +30,9 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
   const className = (block: Block): string => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id, block]) => `${block.name} ${id} ${className(block)}`);
   const count = Object.keys(board.blocks).length;
+  // The edits of the table's rows, which say why one was refused below the
+  // table.
+  const edits = useEdits(core);
 
   return (
     <Section title="Blocks" count={count}>
@@ -63,11 +68,12 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
                 </thead>
                 <tbody>
                   {view.rows.map(([id, block]) => (
-                    <BlockRow key={id} core={core} id={id} block={block} className={className(block)} />
+                    <BlockRow key={id} edits={edits} id={id} block={block} className={className(block)} />
                   ))}
                 </tbody>
               </table>
             )}
+            <Refusal refusal={edits.refusal} />
             <Pager label="Pages of blocks" view={view} />
           </>
         )}
@@ -76,31 +82,29 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
   );
 }
 
-function BlockRow({ core, id, block, className }: { core: CoreApi; id: BlockId; block: Block; className: string }): ReactElement {
+function BlockRow({ edits, id, block, className }: { edits: Edits; id: BlockId; block: Block; className: string }): ReactElement {
   const [renaming, setRenaming] = useState(false);
-  const edits = useEdits(core);
   return (
-    <>
-      <tr aria-label={block.name} className={edits.refusal === null ? table.row : table.refusedRow}>
-        <td className={table.cell}>
-          {renaming ? (
-            <NameField
-              label="Block name"
-              name={block.name}
-              onSubmit={(name) => {
-                void edits.run("blockr.core-rename_block", { id, name });
-              }}
-              onDone={() => {
-                setRenaming(false);
-              }}
-            />
-          ) : (
-            <span className="bc:font-medium bc:break-words">{block.name}</span>
-          )}
-        </td>
-        <td className={`${table.cell} bc:font-mono bc:text-xs bc:break-all`}>{id}</td>
-        <td className={`${table.cell} bc:text-text-muted`}>{className}</td>
-        <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
+    <tr aria-label={block.name} className={table.row}>
+      <td className={table.cell}>
+        {renaming ? (
+          <NameField
+            label="Block name"
+            name={block.name}
+            onSubmit={(name) => {
+              void edits.run("blockr.core-rename_block", { id, name }, `Could not rename the block "${block.name}".`);
+            }}
+            onDone={() => {
+              setRenaming(false);
+            }}
+          />
+        ) : (
+          <span className="bc:font-medium bc:break-words">{block.name}</span>
+        )}
+      </td>
+      <td className={`${table.cell} bc:font-mono bc:text-xs bc:break-all`}>{id}</td>
+      <td className={`${table.cell} bc:text-text-muted`}>{className}</td>
+      <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
           {renaming ? null : (
             <button
               type="button"
@@ -118,14 +122,12 @@ function BlockRow({ core, id, block, className }: { core: CoreApi; id: BlockId; 
             className={classes.quiet}
             aria-label={`Remove the block ${block.name}`}
             onClick={() => {
-              void edits.run("blockr.core-remove_block", { id });
+              void edits.run("blockr.core-remove_block", { id }, `Could not remove the block "${block.name}".`);
             }}
           >
             Remove
           </button>
-        </td>
-      </tr>
-      <RefusalRow refusal={edits.refusal} columns={4} />
-    </>
+      </td>
+    </tr>
   );
 }

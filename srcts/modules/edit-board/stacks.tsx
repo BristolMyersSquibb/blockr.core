@@ -17,8 +17,8 @@
 // as "Stack 2" and the first colour of a palette that no stack uses, which
 // the user may change or, for the colour, leave out.
 // Where the store or the command registry refuses an edit, the form says why
-// below its buttons, and a line below the stack's row says why the stack was
-// not removed, until the user's next edit there.
+// below its buttons. Where it refuses to remove a stack, the table says so
+// below itself, naming the stack, until the user's next edit in the table.
 // Under the board lock, it lists the stacks alone.
 
 import { useId, useState } from "react";
@@ -29,7 +29,8 @@ import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import { classes, Pager, Refusal, TableSearch, TextField, useEdits, useSearch, useTableView } from "../../ui/index.ts";
-import { Part, RefusalRow, Section, table, useRowEditing } from "./board.tsx";
+import type { Edits } from "../../ui/index.ts";
+import { Part, Section, table, useRowEditing } from "./board.tsx";
 import { blockItem, blockName, blockRow, blockTexts } from "./links.tsx";
 import type { BlockItem } from "./links.tsx";
 
@@ -55,6 +56,9 @@ function suggestedName(stacks: readonly Stack[]): string {
 export function StacksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
   const stacks = Object.entries(board.stacks);
   const view = useTableView(stacks, ([id, stack]) => [stack.name, id, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
+  // The edits of the table's rows, which say why one was refused below the
+  // table.
+  const edits = useEdits(core);
 
   return (
     <Section title="Stacks" count={stacks.length}>
@@ -91,11 +95,12 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
                 </thead>
                 <tbody>
                   {view.rows.map(([id, stack]) => (
-                    <StackRow key={id} core={core} board={board} id={id} stack={stack} locked={locked} />
+                    <StackRow key={id} core={core} edits={edits} board={board} id={id} stack={stack} locked={locked} />
                   ))}
                 </tbody>
               </table>
             )}
+            <Refusal refusal={edits.refusal} />
             <Pager label="Pages of stacks" view={view} />
           </>
         )}
@@ -106,19 +111,20 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
 
 function StackRow({
   core,
+  edits,
   board,
   id,
   stack,
   locked,
 }: {
   core: CoreApi;
+  edits: Edits;
   board: Board;
   id: StackId;
   stack: Stack;
   locked: boolean;
 }): ReactElement {
   const { editing, open, close, button } = useRowEditing();
-  const edits = useEdits(core);
   if (editing) {
     return (
       <tr aria-label={stack.name} className={table.row}>
@@ -135,48 +141,46 @@ function StackRow({
     );
   }
   return (
-    <>
-      <tr aria-label={stack.name} className={edits.refusal === null ? table.row : table.refusedRow}>
-        <td className={`${table.cell} bc:break-words`}>
-          <span className="bc:flex bc:items-center bc:gap-1.5">
-            <Swatch color={stack.color} />
-            <span className="bc:font-medium">{stack.name}</span>
-          </span>
+    <tr aria-label={stack.name} className={table.row}>
+      <td className={`${table.cell} bc:break-words`}>
+        <span className="bc:flex bc:items-center bc:gap-1.5">
+          <Swatch color={stack.color} />
+          <span className="bc:font-medium">{stack.name}</span>
+        </span>
+      </td>
+      <td className={`${table.cell} bc:break-words`}>
+        <StackBlocks board={board} blocks={stack.blocks} />
+      </td>
+      {locked ? null : (
+        <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
+          <button
+            type="button"
+            className={classes.quiet}
+            aria-label={`Edit the stack ${stack.name}`}
+            ref={button}
+            onClick={() => {
+              // Opening the form is the user's next edit in the table, so the
+              // table's refusal goes. The form says why its own edits are
+              // refused.
+              edits.clear();
+              open();
+            }}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className={classes.quiet}
+            aria-label={`Remove the stack ${stack.name}`}
+            onClick={() => {
+              void edits.run("blockr.core-remove_stack", { id }, `Could not remove the stack "${stack.name}".`);
+            }}
+          >
+            Remove
+          </button>
         </td>
-        <td className={`${table.cell} bc:break-words`}>
-          <StackBlocks board={board} blocks={stack.blocks} />
-        </td>
-        {locked ? null : (
-          <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
-            <button
-              type="button"
-              className={classes.quiet}
-              aria-label={`Edit the stack ${stack.name}`}
-              ref={button}
-              onClick={() => {
-                // The form takes the row's place and says why its own edits
-                // are refused, so the row's refusal goes.
-                edits.clear();
-                open();
-              }}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              className={classes.quiet}
-              aria-label={`Remove the stack ${stack.name}`}
-              onClick={() => {
-                void edits.run("blockr.core-remove_stack", { id });
-              }}
-            >
-              Remove
-            </button>
-          </td>
-        )}
-      </tr>
-      <RefusalRow refusal={edits.refusal} columns={locked ? 2 : 3} />
-    </>
+      )}
+    </tr>
   );
 }
 

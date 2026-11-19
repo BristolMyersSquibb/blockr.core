@@ -81,7 +81,7 @@ export function NameField({
 }
 
 // Says why the store or the command registry refused the last edit of a
-// control, beside the control, in the colour of an error, as the inputs of
+// control, close to the control, in the colour of an error, as the inputs of
 // core's React SDK say why their host refused what they submitted. A screen
 // reader reads it out as it shows. It draws nothing where the edit ran.
 export function Refusal({ refusal }: { refusal: string | null }): ReactElement | null {

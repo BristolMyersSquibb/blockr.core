@@ -9777,14 +9777,17 @@ function useEdits(core, shows = true) {
   const [refusal2, setRefusal] = useState6(null);
   return useMemo2(() => {
     const opts = { notifier: () => void 0 };
-    function run(target2, args) {
+    function run(target2, second, third) {
+      const args = typeof target2 === "string" ? second : void 0;
+      const which = typeof target2 === "string" ? third : typeof second === "string" ? second : void 0;
       if (!shows) return typeof target2 === "string" ? runCommand(core, target2, args) : runCommand(core, target2);
       setRefusal(null);
       const running2 = typeof target2 === "string" ? core.commands.run(target2, args, "user", opts) : core.commands.run(target2, "user", opts);
       return running2.then(
         () => true,
         (error) => {
-          setRefusal(errorMessage(error));
+          setRefusal(which === void 0 ? errorMessage(error) : `${which}
+${errorMessage(error)}`);
           return false;
         }
       );
@@ -11356,6 +11359,7 @@ function BlocksSection({ core, board }) {
   const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
   const count = Object.keys(board.blocks).length;
+  const edits = useEdits(core);
   return /* @__PURE__ */ jsxs13(Section, { title: "Blocks", count, children: [
     /* @__PURE__ */ jsx17(Part, { title: "Add a block", children: /* @__PURE__ */ jsx17(BlockPicker, { core, mode: ADD, showsRefusal: true }) }),
     /* @__PURE__ */ jsx17(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs13(Fragment5, { children: [
@@ -11368,60 +11372,57 @@ function BlocksSection({ core, board }) {
           /* @__PURE__ */ jsx17("th", { scope: "col", className: table.head, children: "Class" }),
           /* @__PURE__ */ jsx17("th", { scope: "col", className: `${table.head} bc:w-28`, children: /* @__PURE__ */ jsx17("span", { className: "bc:sr-only", children: "Actions" }) })
         ] }) }),
-        /* @__PURE__ */ jsx17("tbody", { children: view.rows.map(([id2, block]) => /* @__PURE__ */ jsx17(BlockRow, { core, id: id2, block, className: className(block) }, id2)) })
+        /* @__PURE__ */ jsx17("tbody", { children: view.rows.map(([id2, block]) => /* @__PURE__ */ jsx17(BlockRow, { edits, id: id2, block, className: className(block) }, id2)) })
       ] }),
+      /* @__PURE__ */ jsx17(Refusal2, { refusal: edits.refusal }),
       /* @__PURE__ */ jsx17(Pager, { label: "Pages of blocks", view })
     ] }) })
   ] });
 }
-function BlockRow({ core, id: id2, block, className }) {
+function BlockRow({ edits, id: id2, block, className }) {
   const [renaming, setRenaming] = useState15(false);
-  const edits = useEdits(core);
-  return /* @__PURE__ */ jsxs13(Fragment5, { children: [
-    /* @__PURE__ */ jsxs13("tr", { "aria-label": block.name, className: edits.refusal === null ? table.row : table.refusedRow, children: [
-      /* @__PURE__ */ jsx17("td", { className: table.cell, children: renaming ? /* @__PURE__ */ jsx17(
-        NameField,
-        {
-          label: "Block name",
-          name: block.name,
-          onSubmit: (name2) => {
-            void edits.run("blockr.core-rename_block", { id: id2, name: name2 });
-          },
-          onDone: () => {
-            setRenaming(false);
-          }
+  return /* @__PURE__ */ jsxs13("tr", { "aria-label": block.name, className: table.row, children: [
+    /* @__PURE__ */ jsx17("td", { className: table.cell, children: renaming ? /* @__PURE__ */ jsx17(
+      NameField,
+      {
+        label: "Block name",
+        name: block.name,
+        onSubmit: (name2) => {
+          void edits.run("blockr.core-rename_block", { id: id2, name: name2 }, `Could not rename the block "${block.name}".`);
+        },
+        onDone: () => {
+          setRenaming(false);
         }
-      ) : /* @__PURE__ */ jsx17("span", { className: "bc:font-medium bc:break-words", children: block.name }) }),
-      /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:font-mono bc:text-xs bc:break-all`, children: id2 }),
-      /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:text-text-muted`, children: className }),
-      /* @__PURE__ */ jsxs13("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
-        renaming ? null : /* @__PURE__ */ jsx17(
-          "button",
-          {
-            type: "button",
-            className: classes.quiet,
-            "aria-label": `Rename the block ${block.name}`,
-            onClick: () => {
-              setRenaming(true);
-            },
-            children: "Rename"
-          }
-        ),
-        /* @__PURE__ */ jsx17(
-          "button",
-          {
-            type: "button",
-            className: classes.quiet,
-            "aria-label": `Remove the block ${block.name}`,
-            onClick: () => {
-              void edits.run("blockr.core-remove_block", { id: id2 });
-            },
-            children: "Remove"
-          }
-        )
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx17(RefusalRow, { refusal: edits.refusal, columns: 4 })
+      }
+    ) : /* @__PURE__ */ jsx17("span", { className: "bc:font-medium bc:break-words", children: block.name }) }),
+    /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:font-mono bc:text-xs bc:break-all`, children: id2 }),
+    /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:text-text-muted`, children: className }),
+    /* @__PURE__ */ jsxs13("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+      renaming ? null : /* @__PURE__ */ jsx17(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Rename the block ${block.name}`,
+          onClick: () => {
+            setRenaming(true);
+          },
+          children: "Rename"
+        }
+      ),
+      /* @__PURE__ */ jsx17(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Remove the block ${block.name}`,
+          onClick: () => {
+            void edits.run("blockr.core-remove_block", { id: id2 }, `Could not remove the block "${block.name}".`);
+          },
+          children: "Remove"
+        }
+      )
+    ] })
   ] });
 }
 
@@ -11436,6 +11437,7 @@ function LinksSection({ core, board, locked: locked2 }) {
     ([, link]) => [blockName(board, link.from), link.from, blockName(board, link.to), link.to, link.input].join(" ")
   );
   const variadic2 = variadicBlocks(board, core.blockRegistry());
+  const edits = useEdits(core);
   return /* @__PURE__ */ jsxs14(Section, { title: "Links", count: links.length, children: [
     locked2 ? null : /* @__PURE__ */ jsx18(Part, { title: "Add a link", children: /* @__PURE__ */ jsx18(LinkForm, { core, board, submitLabel: "Add link" }) }),
     /* @__PURE__ */ jsx18(Part, { title: "Links on the board", children: links.length === 0 ? /* @__PURE__ */ jsx18("p", { className: styles.hint, children: "No link joins two blocks yet." }) : /* @__PURE__ */ jsxs14(Fragment6, { children: [
@@ -11448,14 +11450,28 @@ function LinksSection({ core, board, locked: locked2 }) {
           /* @__PURE__ */ jsx18("th", { scope: "col", className: table.head, children: "Input" }),
           locked2 ? null : /* @__PURE__ */ jsx18("th", { scope: "col", className: `${table.head} bc:w-24`, children: /* @__PURE__ */ jsx18("span", { className: "bc:sr-only", children: "Actions" }) })
         ] }) }),
-        /* @__PURE__ */ jsx18("tbody", { children: view.rows.map(([id2, link]) => /* @__PURE__ */ jsx18(LinkRow, { core, board, id: id2, link, variadic: variadic2.has(link.to), locked: locked2 }, id2)) })
+        /* @__PURE__ */ jsx18("tbody", { children: view.rows.map(([id2, link]) => /* @__PURE__ */ jsx18(
+          LinkRow,
+          {
+            core,
+            edits,
+            board,
+            id: id2,
+            link,
+            variadic: variadic2.has(link.to),
+            locked: locked2
+          },
+          id2
+        )) })
       ] }),
+      /* @__PURE__ */ jsx18(Refusal2, { refusal: edits.refusal }),
       /* @__PURE__ */ jsx18(Pager, { label: "Pages of links", view })
     ] }) })
   ] });
 }
 function LinkRow({
   core,
+  edits,
   board,
   id: id2,
   link,
@@ -11463,7 +11479,6 @@ function LinkRow({
   locked: locked2
 }) {
   const { editing, open, close, button } = useRowEditing();
-  const edits = useEdits(core);
   const label = `${blockName(board, link.from)} \u2192 ${blockName(board, link.to)}`;
   if (editing) {
     return /* @__PURE__ */ jsx18("tr", { "aria-label": label, className: table.row, children: /* @__PURE__ */ jsx18("td", { colSpan: 4, className: `${table.cell} bc:py-2`, children: /* @__PURE__ */ jsx18(
@@ -11477,41 +11492,39 @@ function LinkRow({
       }
     ) }) });
   }
-  return /* @__PURE__ */ jsxs14(Fragment6, { children: [
-    /* @__PURE__ */ jsxs14("tr", { "aria-label": label, className: edits.refusal === null ? table.row : table.refusedRow, children: [
-      /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx18(BlockLabel, { board, id: link.from }) }),
-      /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx18(BlockLabel, { board, id: link.to }) }),
-      /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: variadic2 ? /* @__PURE__ */ jsx18(VariadicInput, { board, id: id2, link }) : /* @__PURE__ */ jsx18("span", { className: "bc:font-mono bc:text-xs", children: link.input }) }),
-      locked2 ? null : /* @__PURE__ */ jsxs14("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
-        /* @__PURE__ */ jsx18(
-          "button",
-          {
-            type: "button",
-            className: classes.quiet,
-            "aria-label": `Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
-            ref: button,
-            onClick: () => {
-              edits.clear();
-              open();
-            },
-            children: "Edit"
-          }
-        ),
-        /* @__PURE__ */ jsx18(
-          "button",
-          {
-            type: "button",
-            className: classes.quiet,
-            "aria-label": `Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
-            onClick: () => {
-              void edits.run("blockr.core-remove_link", { id: id2 });
-            },
-            children: "Remove"
-          }
-        )
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx18(RefusalRow, { refusal: edits.refusal, columns: locked2 ? 3 : 4 })
+  return /* @__PURE__ */ jsxs14("tr", { "aria-label": label, className: table.row, children: [
+    /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx18(BlockLabel, { board, id: link.from }) }),
+    /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx18(BlockLabel, { board, id: link.to }) }),
+    /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: variadic2 ? /* @__PURE__ */ jsx18(VariadicInput, { board, id: id2, link }) : /* @__PURE__ */ jsx18("span", { className: "bc:font-mono bc:text-xs", children: link.input }) }),
+    locked2 ? null : /* @__PURE__ */ jsxs14("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+      /* @__PURE__ */ jsx18(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
+          ref: button,
+          onClick: () => {
+            edits.clear();
+            open();
+          },
+          children: "Edit"
+        }
+      ),
+      /* @__PURE__ */ jsx18(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
+          onClick: () => {
+            const which = `Could not remove the link from "${blockName(board, link.from)}" to "${blockName(board, link.to)}".`;
+            void edits.run("blockr.core-remove_link", { id: id2 }, which);
+          },
+          children: "Remove"
+        }
+      )
+    ] })
   ] });
 }
 function BlockLabel({ board, id: id2 }) {
@@ -11786,6 +11799,7 @@ function suggestedName(stacks) {
 function StacksSection({ core, board, locked: locked2 }) {
   const stacks = Object.entries(board.stacks);
   const view = useTableView(stacks, ([id2, stack]) => [stack.name, id2, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
+  const edits = useEdits(core);
   return /* @__PURE__ */ jsxs15(Section, { title: "Stacks", count: stacks.length, children: [
     locked2 ? null : /* @__PURE__ */ jsx19(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx19(StackForm, { core, board, submitLabel: "Add stack" }) }),
     /* @__PURE__ */ jsx19(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx19("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs15(Fragment7, { children: [
@@ -11797,21 +11811,22 @@ function StacksSection({ core, board, locked: locked2 }) {
           /* @__PURE__ */ jsx19("th", { scope: "col", className: table.head, children: "Blocks" }),
           locked2 ? null : /* @__PURE__ */ jsx19("th", { scope: "col", className: `${table.head} bc:w-24`, children: /* @__PURE__ */ jsx19("span", { className: "bc:sr-only", children: "Actions" }) })
         ] }) }),
-        /* @__PURE__ */ jsx19("tbody", { children: view.rows.map(([id2, stack]) => /* @__PURE__ */ jsx19(StackRow, { core, board, id: id2, stack, locked: locked2 }, id2)) })
+        /* @__PURE__ */ jsx19("tbody", { children: view.rows.map(([id2, stack]) => /* @__PURE__ */ jsx19(StackRow, { core, edits, board, id: id2, stack, locked: locked2 }, id2)) })
       ] }),
+      /* @__PURE__ */ jsx19(Refusal2, { refusal: edits.refusal }),
       /* @__PURE__ */ jsx19(Pager, { label: "Pages of stacks", view })
     ] }) })
   ] });
 }
 function StackRow({
   core,
+  edits,
   board,
   id: id2,
   stack,
   locked: locked2
 }) {
   const { editing, open, close, button } = useRowEditing();
-  const edits = useEdits(core);
   if (editing) {
     return /* @__PURE__ */ jsx19("tr", { "aria-label": stack.name, className: table.row, children: /* @__PURE__ */ jsx19("td", { colSpan: 3, className: `${table.cell} bc:py-2`, children: /* @__PURE__ */ jsx19(
       StackForm,
@@ -11824,43 +11839,40 @@ function StackRow({
       }
     ) }) });
   }
-  return /* @__PURE__ */ jsxs15(Fragment7, { children: [
-    /* @__PURE__ */ jsxs15("tr", { "aria-label": stack.name, className: edits.refusal === null ? table.row : table.refusedRow, children: [
-      /* @__PURE__ */ jsx19("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsxs15("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
-        /* @__PURE__ */ jsx19(Swatch, { color: stack.color }),
-        /* @__PURE__ */ jsx19("span", { className: "bc:font-medium", children: stack.name })
-      ] }) }),
-      /* @__PURE__ */ jsx19("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx19(StackBlocks, { board, blocks: stack.blocks }) }),
-      locked2 ? null : /* @__PURE__ */ jsxs15("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
-        /* @__PURE__ */ jsx19(
-          "button",
-          {
-            type: "button",
-            className: classes.quiet,
-            "aria-label": `Edit the stack ${stack.name}`,
-            ref: button,
-            onClick: () => {
-              edits.clear();
-              open();
-            },
-            children: "Edit"
-          }
-        ),
-        /* @__PURE__ */ jsx19(
-          "button",
-          {
-            type: "button",
-            className: classes.quiet,
-            "aria-label": `Remove the stack ${stack.name}`,
-            onClick: () => {
-              void edits.run("blockr.core-remove_stack", { id: id2 });
-            },
-            children: "Remove"
-          }
-        )
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx19(RefusalRow, { refusal: edits.refusal, columns: locked2 ? 2 : 3 })
+  return /* @__PURE__ */ jsxs15("tr", { "aria-label": stack.name, className: table.row, children: [
+    /* @__PURE__ */ jsx19("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsxs15("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
+      /* @__PURE__ */ jsx19(Swatch, { color: stack.color }),
+      /* @__PURE__ */ jsx19("span", { className: "bc:font-medium", children: stack.name })
+    ] }) }),
+    /* @__PURE__ */ jsx19("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx19(StackBlocks, { board, blocks: stack.blocks }) }),
+    locked2 ? null : /* @__PURE__ */ jsxs15("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+      /* @__PURE__ */ jsx19(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Edit the stack ${stack.name}`,
+          ref: button,
+          onClick: () => {
+            edits.clear();
+            open();
+          },
+          children: "Edit"
+        }
+      ),
+      /* @__PURE__ */ jsx19(
+        "button",
+        {
+          type: "button",
+          className: classes.quiet,
+          "aria-label": `Remove the stack ${stack.name}`,
+          onClick: () => {
+            void edits.run("blockr.core-remove_stack", { id: id2 }, `Could not remove the stack "${stack.name}".`);
+          },
+          children: "Remove"
+        }
+      )
+    ] })
   ] });
 }
 var SHOWN_BLOCKS = 6;
@@ -12082,14 +12094,8 @@ var table = {
   table: "bc:w-full bc:table-fixed bc:border-collapse bc:text-sm",
   head: "bc:border-b bc:border-border-default bc:px-1 bc:py-1 bc:text-left bc:text-xs bc:font-semibold bc:text-text-muted",
   row: "bc:border-b bc:border-border-default bc:align-top",
-  // A row that the line of a refusal follows, without a border between the
-  // two (RefusalRow).
-  refusedRow: "bc:align-top",
   cell: "bc:px-1 bc:py-1.5"
 };
-function RefusalRow({ refusal: refusal2, columns }) {
-  return refusal2 === null ? null : /* @__PURE__ */ jsx20("tr", { className: table.row, children: /* @__PURE__ */ jsx20("td", { colSpan: columns, className: `${table.cell} bc:pt-0`, children: /* @__PURE__ */ jsx20(Refusal2, { refusal: refusal2 }) }) });
-}
 function useRowEditing() {
   const [editing, setEditing] = useState18(false);
   const closed = useRef9(false);
