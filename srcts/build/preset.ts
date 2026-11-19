@@ -7,6 +7,8 @@
 // OpenTelemetry's API stay imports, which the page that R serves resolves
 // through its import map.
 // So the module's bundle holds none of them.
+// It fails a build that imports React Aria, whose components a module draws
+// from the React SDK.
 // A package's build adds its entry points and where they go, as in
 // `esbuild.build({ ...preset, entryPoints: ["srcts/head-block.tsx"], outdir: "inst/js" })`.
 // To the builds of its own files, it adds the vendor check of
@@ -17,6 +19,24 @@
 import type { BuildOptions, Plugin } from "esbuild";
 import { IMPORTS, OTEL_API } from "../import-map/index.ts";
 
+// The imports of React Aria: react-aria-components, react-aria and
+// react-stately, each with its entry points, such as
+// react-aria-components/Button, and every package under @react-aria/ or
+// @react-stately/, which libraries built on older versions of React Aria
+// import.
+// A module draws React Aria's components from the React SDK.
+// Core bundles the SDK's copy of React Aria into its vendor file, without the
+// preset's plugins (./build.ts).
+// A second copy would hold React contexts of its own, which the SDK's
+// components do not read.
+// An item of the second copy inside the SDK's ComboBox would then find no
+// select.
+// The packages under @internationalized/, such as @internationalized/date,
+// hold no React context, so a module bundles them itself.
+// A type that a module imports with `import type` passes, since esbuild drops
+// that import before it resolves anything.
+const REACT_ARIA = /^(react-aria-components|react-aria|react-stately|@react-(aria|stately)\/[^/]+)(\/.*)?$/;
+
 // Leaves each import in a module that the page's import map names an import,
 // so that every module imports the one copy of each that blockr.core ships.
 // An entry point of React that the map does not name fails the build, rather
@@ -24,6 +44,8 @@ import { IMPORTS, OTEL_API } from "../import-map/index.ts";
 // OpenTelemetry's API has no side effects, as its package says, so a module
 // that imports none of its names, as from code of core's that it bundles,
 // keeps no import of it.
+// An import of React Aria fails the build as well, with an error that names
+// the React SDK (REACT_ARIA).
 const imports: Plugin = {
   name: "blockr.core-imports",
   setup(build) {
@@ -39,6 +61,13 @@ const imports: Plugin = {
       }
       return { path: args.path, external: true, ...(args.path === OTEL_API ? { sideEffects: false } : {}) };
     });
+    build.onResolve({ filter: REACT_ARIA }, (args) => ({
+      errors: [
+        {
+          text: `A module imports ${args.path}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, so that the page runs one copy of React Aria.`,
+        },
+      ],
+    }));
   },
 };
 
