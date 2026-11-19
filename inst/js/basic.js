@@ -3,7 +3,7 @@ import { flushSync as flushSync2 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback6, useEffect as useEffect3, useMemo as useMemo2, useState as useState10 } from "react";
+import { useCallback as useCallback6, useEffect as useEffect3, useMemo as useMemo3, useState as useState11 } from "react";
 import { createPortal } from "react-dom";
 
 // srcts/card/footer.tsx
@@ -293,7 +293,7 @@ function defaultBlockName(registryId2) {
 }
 
 // srcts/picker/picker.tsx
-import { useMemo, useState as useState6 } from "react";
+import { useMemo as useMemo2, useState as useState7 } from "react";
 import { flushSync } from "react-dom";
 import { ComboBox, ComboBoxItem, ComboBoxSection, Text, useBoard } from "@blockr/core/react";
 
@@ -313,12 +313,38 @@ var styles = {
 };
 
 // srcts/ui/edits.ts
+import { useMemo, useState as useState3 } from "react";
 function runCommand(core, target2, args) {
   const running = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
   return running.then(
     () => true,
     () => false
   );
+}
+function useEdits(core, shows = true) {
+  const [refusal2, setRefusal] = useState3(null);
+  return useMemo(() => {
+    const opts = { notifier: () => void 0 };
+    function run(target2, args) {
+      if (!shows) return typeof target2 === "string" ? runCommand(core, target2, args) : runCommand(core, target2);
+      setRefusal(null);
+      const running = typeof target2 === "string" ? core.commands.run(target2, args, "user", opts) : core.commands.run(target2, "user", opts);
+      return running.then(
+        () => true,
+        (error) => {
+          setRefusal(errorMessage(error));
+          return false;
+        }
+      );
+    }
+    return {
+      refusal: refusal2,
+      run,
+      clear: () => {
+        setRefusal(null);
+      }
+    };
+  }, [core, shows, refusal2]);
 }
 
 // srcts/ui/fields.tsx
@@ -378,11 +404,11 @@ function useHistory(core) {
 }
 
 // srcts/ui/search.ts
-import { useState as useState3 } from "react";
+import { useState as useState4 } from "react";
 import { useFilter } from "./vendor-0cfb4d33.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
-  const [query, setQuery] = useState3("");
+  const [query, setQuery] = useState4("");
   return {
     items: query === "" ? all : all.filter((item) => texts(item).some((text) => contains(text, query))),
     onInputChange: setQuery,
@@ -394,10 +420,10 @@ function useSearch(all, texts, none = "No options") {
 }
 
 // srcts/ui/table.tsx
-import { useState as useState5 } from "react";
+import { useState as useState6 } from "react";
 
 // srcts/ui/ui.tsx
-import { useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState4 } from "react";
+import { useLayoutEffect as useLayoutEffect2, useRef as useRef2, useState as useState5 } from "react";
 import { jsx as jsx4 } from "react/jsx-runtime";
 var classes = {
   button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
@@ -419,7 +445,7 @@ function NameField({
   onSubmit,
   onDone
 }) {
-  const [text, setText] = useState4(name2);
+  const [text, setText] = useState5(name2);
   const ref = useRef2(null);
   const done = useRef2(false);
   useLayoutEffect2(() => {
@@ -455,27 +481,31 @@ function NameField({
     }
   );
 }
+function Refusal({ refusal: refusal2 }) {
+  return refusal2 === null ? null : /* @__PURE__ */ jsx4("p", { role: "alert", className: styles.alert, children: refusal2 });
+}
 
 // srcts/ui/table.tsx
 import { jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
 
 // srcts/picker/picker.tsx
 import { jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
-function BlockPicker({ core, mode, onAdded, autofocus = false }) {
+function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = false }) {
   const board = useBoard(core);
   const registry = core.blockRegistry();
-  const [picked, setPicked] = useState6(void 0);
-  const [input2, setInput] = useState6(void 0);
-  const [inputName, setInputName] = useState6("");
-  const [id2, setId] = useState6("");
-  const [name2, setName] = useState6("");
-  const [errors, setErrors] = useState6({});
-  const [busy, setBusy] = useState6(false);
-  const entries = useMemo(
+  const edits = useEdits(core, showsRefusal);
+  const [picked, setPicked] = useState7(void 0);
+  const [input2, setInput] = useState7(void 0);
+  const [inputName, setInputName] = useState7("");
+  const [id2, setId] = useState7("");
+  const [name2, setName] = useState7("");
+  const [errors, setErrors] = useState7({});
+  const [busy, setBusy] = useState7(false);
+  const entries = useMemo2(
     () => Object.values(registry).filter((entry2) => mode.kind !== "after" || entry2.inputs.length > 0),
     [registry, mode.kind]
   );
-  const options = useMemo(() => entries.map(classItem).sort(byGroupAndName), [entries]);
+  const options = useMemo2(() => entries.map(classItem).sort(byGroupAndName), [entries]);
   const search = useSearch(
     options,
     (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
@@ -497,6 +527,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false }) {
     const found = check2();
     flushSync(() => {
       setErrors(found);
+      edits.clear();
     });
     if (Object.keys(found).length > 0 || entry === void 0 || busy) {
       focusFirstInvalid(form);
@@ -512,7 +543,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false }) {
       ...link.kind === "name" ? filled("input", inputName) : {}
     };
     setBusy(true);
-    const ran = mode.kind === "add" ? await runCommand(core, "blockr.core-add_block", args) : await runCommand(core, addAndLink(core, mode, args, into));
+    const ran = mode.kind === "add" ? await edits.run("blockr.core-add_block", args) : await edits.run(addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(void 0);
@@ -616,7 +647,8 @@ function BlockPicker({ core, mode, onAdded, autofocus = false }) {
             }
           )
         ] }),
-        /* @__PURE__ */ jsx6("div", { children: /* @__PURE__ */ jsx6("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "no_free_inputs", children: "Add block" }) })
+        /* @__PURE__ */ jsx6("div", { children: /* @__PURE__ */ jsx6("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "no_free_inputs", children: "Add block" }) }),
+        /* @__PURE__ */ jsx6(Refusal, { refusal: edits.refusal })
       ]
     }
   );
@@ -709,7 +741,7 @@ function without2(errors, key) {
 import { useBoard as useBoard3 } from "@blockr/core/react";
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect4, useRef as useRef4, useState as useState8 } from "react";
+import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect4, useRef as useRef4, useState as useState9 } from "react";
 import { useNotified, useStatus } from "@blockr/core/react";
 
 // srcts/modules/basic/context.ts
@@ -722,7 +754,7 @@ function useFrontEnd() {
 }
 
 // srcts/modules/basic/ui.tsx
-import { useEffect, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState7 } from "react";
+import { useEffect, useLayoutEffect as useLayoutEffect3, useRef as useRef3, useState as useState8 } from "react";
 import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 function Dialog({
   title,
@@ -787,7 +819,7 @@ function useDismiss(ref, open, setOpen) {
   }, [ref, open, setOpen]);
 }
 function Menu({ label, items }) {
-  const [open, setOpen] = useState7(false);
+  const [open, setOpen] = useState8(false);
   const ref = useRef3(null);
   useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs5("div", { ref, className: "bc:relative", children: [
@@ -837,7 +869,7 @@ var BlockCard = memo(function BlockCard2({
   const notified = useNotified(core, id2);
   const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
-  const [renaming, setRenaming] = useState8(false);
+  const [renaming, setRenaming] = useState9(false);
   const ref = useRef4(null);
   useLayoutEffect4(() => {
     const el = ref.current;
@@ -1210,7 +1242,7 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState9 } from "react";
+import { useEffect as useEffect2, useReducer, useRef as useRef6, useState as useState10 } from "react";
 
 // srcts/modules/basic/storage.ts
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -1331,7 +1363,7 @@ import { Fragment as Fragment2, jsx as jsx11, jsxs as jsxs9 } from "react/jsx-ru
 function Toolbar({ board, showOptions }) {
   const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
-  const [renaming, setRenaming] = useState9(false);
+  const [renaming, setRenaming] = useState10(false);
   const locked2 = core.lock.board;
   function step(back) {
     try {
@@ -1467,7 +1499,7 @@ function StorageButton({
   );
 }
 function StorageMenu({ label, items }) {
-  const [open, setOpen] = useState9(false);
+  const [open, setOpen] = useState10(false);
   const ref = useRef6(null);
   useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs9("div", { ref, className: "bc:relative", children: [
@@ -1522,10 +1554,10 @@ function BasicBoard({ front }) {
 function Page() {
   const { core } = useFrontEnd();
   const board = useBoard3(core);
-  const items = useMemo2(() => layoutItems(board), [board]);
+  const items = useMemo3(() => layoutItems(board), [board]);
   const shown = board.options.show_conditions;
-  const severities = useMemo2(() => asSeverities(shown), [shown]);
-  const [dialog, setDialog] = useState10(null);
+  const severities = useMemo3(() => asSeverities(shown), [shown]);
+  const [dialog, setDialog] = useState11(null);
   const add = useCallback6((mode) => {
     setDialog({ kind: "add", mode });
   }, []);

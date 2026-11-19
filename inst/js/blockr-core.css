@@ -854,6 +854,10 @@
   padding-block: calc(var(--bc-spacing) * 2);
 }
 
+.bc\:pt-0 {
+  padding-top: 0;
+}
+
 .bc\:pt-1 {
   padding-top: var(--bc-spacing);
 }

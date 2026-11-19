@@ -15,3 +15,6 @@ export declare function NameField({ label, name, onSubmit, onDone, }: {
     onSubmit: (name: string) => void;
     onDone: () => void;
 }): ReactElement;
+export declare function Refusal({ refusal }: {
+    refusal: string | null;
+}): ReactElement | null;

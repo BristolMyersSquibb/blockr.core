@@ -6,6 +6,9 @@
 //   a search narrows and which shows a page of rows at a time. The name of
 //   each block renames it in place with rename_block, and a button removes it
 //   with remove_block, which removes its links and its place in its stack too.
+// Where the store or the command registry refuses an edit, the form says why
+// below its button, and a line below the block's row says why the block was
+// not renamed or removed, until the user's next edit there.
 
 import { useState } from "react";
 import type { ReactElement } from "react";
@@ -14,9 +17,9 @@ import type { AddMode } from "../../picker/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { Block, BlockId, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { classes, NameField, Pager, runCommand, TableSearch, useTableView } from "../../ui/index.ts";
+import { classes, NameField, Pager, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
-import { Part, Section, table } from "./board.tsx";
+import { Part, RefusalRow, Section, table } from "./board.tsx";
 
 const ADD: AddMode = { kind: "add" };
 
@@ -29,7 +32,7 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
   return (
     <Section title="Blocks" count={count}>
       <Part title="Add a block">
-        <BlockPicker core={core} mode={ADD} />
+        <BlockPicker core={core} mode={ADD} showsRefusal />
       </Part>
       <Part title="Blocks on the board">
         {count === 0 ? (
@@ -75,27 +78,29 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
 
 function BlockRow({ core, id, block, className }: { core: CoreApi; id: BlockId; block: Block; className: string }): ReactElement {
   const [renaming, setRenaming] = useState(false);
+  const edits = useEdits(core);
   return (
-    <tr aria-label={block.name} className={table.row}>
-      <td className={table.cell}>
-        {renaming ? (
-          <NameField
-            label="Block name"
-            name={block.name}
-            onSubmit={(name) => {
-              void runCommand(core, "blockr.core-rename_block", { id, name });
-            }}
-            onDone={() => {
-              setRenaming(false);
-            }}
-          />
-        ) : (
-          <span className="bc:font-medium bc:break-words">{block.name}</span>
-        )}
-      </td>
-      <td className={`${table.cell} bc:font-mono bc:text-xs bc:break-all`}>{id}</td>
-      <td className={`${table.cell} bc:text-text-muted`}>{className}</td>
-      <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
+    <>
+      <tr aria-label={block.name} className={edits.refusal === null ? table.row : table.refusedRow}>
+        <td className={table.cell}>
+          {renaming ? (
+            <NameField
+              label="Block name"
+              name={block.name}
+              onSubmit={(name) => {
+                void edits.run("blockr.core-rename_block", { id, name });
+              }}
+              onDone={() => {
+                setRenaming(false);
+              }}
+            />
+          ) : (
+            <span className="bc:font-medium bc:break-words">{block.name}</span>
+          )}
+        </td>
+        <td className={`${table.cell} bc:font-mono bc:text-xs bc:break-all`}>{id}</td>
+        <td className={`${table.cell} bc:text-text-muted`}>{className}</td>
+        <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
           {renaming ? null : (
             <button
               type="button"
@@ -113,12 +118,14 @@ function BlockRow({ core, id, block, className }: { core: CoreApi; id: BlockId; 
             className={classes.quiet}
             aria-label={`Remove the block ${block.name}`}
             onClick={() => {
-              void runCommand(core, "blockr.core-remove_block", { id });
+              void edits.run("blockr.core-remove_block", { id });
             }}
           >
             Remove
           </button>
-      </td>
-    </tr>
+        </td>
+      </tr>
+      <RefusalRow refusal={edits.refusal} columns={4} />
+    </>
   );
 }

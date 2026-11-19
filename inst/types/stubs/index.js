@@ -8916,7 +8916,7 @@ import { flushSync as flushSync3 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback7, useEffect as useEffect3, useMemo as useMemo3, useState as useState13 } from "react";
+import { useCallback as useCallback7, useEffect as useEffect3, useMemo as useMemo4, useState as useState14 } from "react";
 import { createPortal } from "react-dom";
 
 // srcts/card/footer.tsx
@@ -9100,7 +9100,7 @@ function useSized(status) {
 }
 
 // srcts/picker/picker.tsx
-import { useMemo as useMemo2, useState as useState9 } from "react";
+import { useMemo as useMemo3, useState as useState10 } from "react";
 import { flushSync as flushSync2 } from "react-dom";
 
 // srcts/react/hooks.ts
@@ -9765,12 +9765,38 @@ var ROW = "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:roun
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/ui/edits.ts
+import { useMemo as useMemo2, useState as useState6 } from "react";
 function runCommand(core, target2, args) {
   const running2 = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
   return running2.then(
     () => true,
     () => false
   );
+}
+function useEdits(core, shows = true) {
+  const [refusal2, setRefusal] = useState6(null);
+  return useMemo2(() => {
+    const opts = { notifier: () => void 0 };
+    function run(target2, args) {
+      if (!shows) return typeof target2 === "string" ? runCommand(core, target2, args) : runCommand(core, target2);
+      setRefusal(null);
+      const running2 = typeof target2 === "string" ? core.commands.run(target2, args, "user", opts) : core.commands.run(target2, "user", opts);
+      return running2.then(
+        () => true,
+        (error) => {
+          setRefusal(errorMessage(error));
+          return false;
+        }
+      );
+    }
+    return {
+      refusal: refusal2,
+      run,
+      clear: () => {
+        setRefusal(null);
+      }
+    };
+  }, [core, shows, refusal2]);
 }
 
 // srcts/ui/fields.tsx
@@ -9830,10 +9856,10 @@ function useHistory(core) {
 }
 
 // srcts/ui/search.ts
-import { useState as useState6 } from "react";
+import { useState as useState7 } from "react";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
-  const [query, setQuery] = useState6("");
+  const [query, setQuery] = useState7("");
   return {
     items: query === "" ? all : all.filter((item) => texts(item).some((text) => contains(text, query))),
     onInputChange: setQuery,
@@ -9845,10 +9871,10 @@ function useSearch(all, texts, none = "No options") {
 }
 
 // srcts/ui/table.tsx
-import { useState as useState8 } from "react";
+import { useState as useState9 } from "react";
 
 // srcts/ui/ui.tsx
-import { useLayoutEffect as useLayoutEffect3, useRef as useRef4, useState as useState7 } from "react";
+import { useLayoutEffect as useLayoutEffect3, useRef as useRef4, useState as useState8 } from "react";
 import { jsx as jsx7 } from "react/jsx-runtime";
 var classes = {
   button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
@@ -9870,7 +9896,7 @@ function NameField({
   onSubmit,
   onDone
 }) {
-  const [text, setText] = useState7(name2);
+  const [text, setText] = useState8(name2);
   const ref = useRef4(null);
   const done = useRef4(false);
   useLayoutEffect3(() => {
@@ -9906,13 +9932,16 @@ function NameField({
     }
   );
 }
+function Refusal2({ refusal: refusal2 }) {
+  return refusal2 === null ? null : /* @__PURE__ */ jsx7("p", { role: "alert", className: styles.alert, children: refusal2 });
+}
 
 // srcts/ui/table.tsx
 import { jsx as jsx8, jsxs as jsxs5 } from "react/jsx-runtime";
 var PAGE_SIZE = 10;
 function useTableView(rows, text, size = PAGE_SIZE) {
-  const [query, setQueryState] = useState8("");
-  const [page, setPage] = useState8(0);
+  const [query, setQueryState] = useState9("");
+  const [page, setPage] = useState9(0);
   const needle = query.trim().toLowerCase();
   const matching = needle === "" ? rows : rows.filter((row) => text(row).toLowerCase().includes(needle));
   const pages = Math.max(1, Math.ceil(matching.length / size));
@@ -9993,21 +10022,22 @@ function Pager({ label, view }) {
 
 // srcts/picker/picker.tsx
 import { jsx as jsx9, jsxs as jsxs6 } from "react/jsx-runtime";
-function BlockPicker({ core, mode, onAdded, autofocus = false }) {
+function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = false }) {
   const board = useBoard(core);
   const registry = core.blockRegistry();
-  const [picked, setPicked] = useState9(void 0);
-  const [input2, setInput] = useState9(void 0);
-  const [inputName, setInputName] = useState9("");
-  const [id2, setId] = useState9("");
-  const [name2, setName] = useState9("");
-  const [errors, setErrors] = useState9({});
-  const [busy, setBusy] = useState9(false);
-  const entries = useMemo2(
+  const edits = useEdits(core, showsRefusal);
+  const [picked, setPicked] = useState10(void 0);
+  const [input2, setInput] = useState10(void 0);
+  const [inputName, setInputName] = useState10("");
+  const [id2, setId] = useState10("");
+  const [name2, setName] = useState10("");
+  const [errors, setErrors] = useState10({});
+  const [busy, setBusy] = useState10(false);
+  const entries = useMemo3(
     () => Object.values(registry).filter((entry2) => mode.kind !== "after" || entry2.inputs.length > 0),
     [registry, mode.kind]
   );
-  const options = useMemo2(() => entries.map(classItem).sort(byGroupAndName), [entries]);
+  const options = useMemo3(() => entries.map(classItem).sort(byGroupAndName), [entries]);
   const search = useSearch(
     options,
     (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
@@ -10029,6 +10059,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false }) {
     const found = check2();
     flushSync2(() => {
       setErrors(found);
+      edits.clear();
     });
     if (Object.keys(found).length > 0 || entry === void 0 || busy) {
       focusFirstInvalid(form);
@@ -10044,7 +10075,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false }) {
       ...link.kind === "name" ? filled("input", inputName) : {}
     };
     setBusy(true);
-    const ran = mode.kind === "add" ? await runCommand(core, "blockr.core-add_block", args) : await runCommand(core, addAndLink(core, mode, args, into));
+    const ran = mode.kind === "add" ? await edits.run("blockr.core-add_block", args) : await edits.run(addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(void 0);
@@ -10148,7 +10179,8 @@ function BlockPicker({ core, mode, onAdded, autofocus = false }) {
             }
           )
         ] }),
-        /* @__PURE__ */ jsx9("div", { children: /* @__PURE__ */ jsx9("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "no_free_inputs", children: "Add block" }) })
+        /* @__PURE__ */ jsx9("div", { children: /* @__PURE__ */ jsx9("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "no_free_inputs", children: "Add block" }) }),
+        /* @__PURE__ */ jsx9(Refusal2, { refusal: edits.refusal })
       ]
     }
   );
@@ -10238,7 +10270,7 @@ function without3(errors, key2) {
 }
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5, useRef as useRef6, useState as useState11 } from "react";
+import { memo, useCallback as useCallback4, useLayoutEffect as useLayoutEffect5, useRef as useRef6, useState as useState12 } from "react";
 
 // srcts/modules/basic/context.ts
 import { createContext, useContext as useContext2 } from "react";
@@ -10250,7 +10282,7 @@ function useFrontEnd() {
 }
 
 // srcts/modules/basic/ui.tsx
-import { useEffect, useLayoutEffect as useLayoutEffect4, useRef as useRef5, useState as useState10 } from "react";
+import { useEffect, useLayoutEffect as useLayoutEffect4, useRef as useRef5, useState as useState11 } from "react";
 import { jsx as jsx10, jsxs as jsxs7 } from "react/jsx-runtime";
 function Dialog({
   title,
@@ -10315,7 +10347,7 @@ function useDismiss(ref, open, setOpen) {
   }, [ref, open, setOpen]);
 }
 function Menu({ label, items }) {
-  const [open, setOpen] = useState10(false);
+  const [open, setOpen] = useState11(false);
   const ref = useRef5(null);
   useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs7("div", { ref, className: "bc:relative", children: [
@@ -10365,7 +10397,7 @@ var BlockCard = memo(function BlockCard2({
   const notified = useNotified(core, id2);
   const footer = useFooter(status, notified, severities);
   const sized = useSized(status);
-  const [renaming, setRenaming] = useState11(false);
+  const [renaming, setRenaming] = useState12(false);
   const ref = useRef6(null);
   useLayoutEffect5(() => {
     const el = ref.current;
@@ -10737,7 +10769,7 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useEffect as useEffect2, useReducer, useRef as useRef8, useState as useState12 } from "react";
+import { useEffect as useEffect2, useReducer, useRef as useRef8, useState as useState13 } from "react";
 
 // srcts/modules/basic/storage.ts
 var KINDS2 = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -10858,7 +10890,7 @@ import { Fragment as Fragment4, jsx as jsx14, jsxs as jsxs11 } from "react/jsx-r
 function Toolbar({ board, showOptions }) {
   const { core } = useFrontEnd();
   const { canUndo, canRedo } = useHistory(core);
-  const [renaming, setRenaming] = useState12(false);
+  const [renaming, setRenaming] = useState13(false);
   const locked2 = core.lock.board;
   function step2(back) {
     try {
@@ -10994,7 +11026,7 @@ function StorageButton({
   );
 }
 function StorageMenu({ label, items }) {
-  const [open, setOpen] = useState12(false);
+  const [open, setOpen] = useState13(false);
   const ref = useRef8(null);
   useDismiss(ref, open, setOpen);
   return /* @__PURE__ */ jsxs11("div", { ref, className: "bc:relative", children: [
@@ -11049,10 +11081,10 @@ function BasicBoard({ front }) {
 function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
-  const items = useMemo3(() => layoutItems(board), [board]);
+  const items = useMemo4(() => layoutItems(board), [board]);
   const shown2 = board.options.show_conditions;
-  const severities = useMemo3(() => asSeverities(shown2), [shown2]);
-  const [dialog, setDialog] = useState13(null);
+  const severities = useMemo4(() => asSeverities(shown2), [shown2]);
+  const [dialog, setDialog] = useState14(null);
   const add = useCallback7((mode) => {
     setDialog({ kind: "add", mode });
   }, []);
@@ -11313,10 +11345,10 @@ import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback8, useLayoutEffect as useLayoutEffect7, useRef as useRef9, useState as useState17 } from "react";
+import { useCallback as useCallback8, useLayoutEffect as useLayoutEffect7, useRef as useRef9, useState as useState18 } from "react";
 
 // srcts/modules/edit-board/blocks.tsx
-import { useState as useState14 } from "react";
+import { useState as useState15 } from "react";
 import { Fragment as Fragment5, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 var ADD = { kind: "add" };
 function BlocksSection({ core, board }) {
@@ -11325,7 +11357,7 @@ function BlocksSection({ core, board }) {
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
   const count = Object.keys(board.blocks).length;
   return /* @__PURE__ */ jsxs13(Section, { title: "Blocks", count, children: [
-    /* @__PURE__ */ jsx17(Part, { title: "Add a block", children: /* @__PURE__ */ jsx17(BlockPicker, { core, mode: ADD }) }),
+    /* @__PURE__ */ jsx17(Part, { title: "Add a block", children: /* @__PURE__ */ jsx17(BlockPicker, { core, mode: ADD, showsRefusal: true }) }),
     /* @__PURE__ */ jsx17(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs13(Fragment5, { children: [
       /* @__PURE__ */ jsx17(TableSearch, { label: "Search blocks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx17("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsxs13("table", { className: table.table, children: [
@@ -11343,54 +11375,58 @@ function BlocksSection({ core, board }) {
   ] });
 }
 function BlockRow({ core, id: id2, block, className }) {
-  const [renaming, setRenaming] = useState14(false);
-  return /* @__PURE__ */ jsxs13("tr", { "aria-label": block.name, className: table.row, children: [
-    /* @__PURE__ */ jsx17("td", { className: table.cell, children: renaming ? /* @__PURE__ */ jsx17(
-      NameField,
-      {
-        label: "Block name",
-        name: block.name,
-        onSubmit: (name2) => {
-          void runCommand(core, "blockr.core-rename_block", { id: id2, name: name2 });
-        },
-        onDone: () => {
-          setRenaming(false);
-        }
-      }
-    ) : /* @__PURE__ */ jsx17("span", { className: "bc:font-medium bc:break-words", children: block.name }) }),
-    /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:font-mono bc:text-xs bc:break-all`, children: id2 }),
-    /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:text-text-muted`, children: className }),
-    /* @__PURE__ */ jsxs13("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
-      renaming ? null : /* @__PURE__ */ jsx17(
-        "button",
+  const [renaming, setRenaming] = useState15(false);
+  const edits = useEdits(core);
+  return /* @__PURE__ */ jsxs13(Fragment5, { children: [
+    /* @__PURE__ */ jsxs13("tr", { "aria-label": block.name, className: edits.refusal === null ? table.row : table.refusedRow, children: [
+      /* @__PURE__ */ jsx17("td", { className: table.cell, children: renaming ? /* @__PURE__ */ jsx17(
+        NameField,
         {
-          type: "button",
-          className: classes.quiet,
-          "aria-label": `Rename the block ${block.name}`,
-          onClick: () => {
-            setRenaming(true);
+          label: "Block name",
+          name: block.name,
+          onSubmit: (name2) => {
+            void edits.run("blockr.core-rename_block", { id: id2, name: name2 });
           },
-          children: "Rename"
+          onDone: () => {
+            setRenaming(false);
+          }
         }
-      ),
-      /* @__PURE__ */ jsx17(
-        "button",
-        {
-          type: "button",
-          className: classes.quiet,
-          "aria-label": `Remove the block ${block.name}`,
-          onClick: () => {
-            void runCommand(core, "blockr.core-remove_block", { id: id2 });
-          },
-          children: "Remove"
-        }
-      )
-    ] })
+      ) : /* @__PURE__ */ jsx17("span", { className: "bc:font-medium bc:break-words", children: block.name }) }),
+      /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:font-mono bc:text-xs bc:break-all`, children: id2 }),
+      /* @__PURE__ */ jsx17("td", { className: `${table.cell} bc:text-text-muted`, children: className }),
+      /* @__PURE__ */ jsxs13("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+        renaming ? null : /* @__PURE__ */ jsx17(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            "aria-label": `Rename the block ${block.name}`,
+            onClick: () => {
+              setRenaming(true);
+            },
+            children: "Rename"
+          }
+        ),
+        /* @__PURE__ */ jsx17(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            "aria-label": `Remove the block ${block.name}`,
+            onClick: () => {
+              void edits.run("blockr.core-remove_block", { id: id2 });
+            },
+            children: "Remove"
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx17(RefusalRow, { refusal: edits.refusal, columns: 4 })
   ] });
 }
 
 // srcts/modules/edit-board/links.tsx
-import { useState as useState15 } from "react";
+import { useState as useState16 } from "react";
 import { flushSync as flushSync4 } from "react-dom";
 import { Fragment as Fragment6, jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 function LinksSection({ core, board, locked: locked2 }) {
@@ -11427,6 +11463,7 @@ function LinkRow({
   locked: locked2
 }) {
   const { editing, open, close, button } = useRowEditing();
+  const edits = useEdits(core);
   const label = `${blockName(board, link.from)} \u2192 ${blockName(board, link.to)}`;
   if (editing) {
     return /* @__PURE__ */ jsx18("tr", { "aria-label": label, className: table.row, children: /* @__PURE__ */ jsx18("td", { colSpan: 4, className: `${table.cell} bc:py-2`, children: /* @__PURE__ */ jsx18(
@@ -11440,35 +11477,41 @@ function LinkRow({
       }
     ) }) });
   }
-  return /* @__PURE__ */ jsxs14("tr", { "aria-label": label, className: table.row, children: [
-    /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx18(BlockLabel, { board, id: link.from }) }),
-    /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx18(BlockLabel, { board, id: link.to }) }),
-    /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: variadic2 ? /* @__PURE__ */ jsx18(VariadicInput, { board, id: id2, link }) : /* @__PURE__ */ jsx18("span", { className: "bc:font-mono bc:text-xs", children: link.input }) }),
-    locked2 ? null : /* @__PURE__ */ jsxs14("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
-      /* @__PURE__ */ jsx18(
-        "button",
-        {
-          type: "button",
-          className: classes.quiet,
-          "aria-label": `Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
-          ref: button,
-          onClick: open,
-          children: "Edit"
-        }
-      ),
-      /* @__PURE__ */ jsx18(
-        "button",
-        {
-          type: "button",
-          className: classes.quiet,
-          "aria-label": `Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
-          onClick: () => {
-            void runCommand(core, "blockr.core-remove_link", { id: id2 });
-          },
-          children: "Remove"
-        }
-      )
-    ] })
+  return /* @__PURE__ */ jsxs14(Fragment6, { children: [
+    /* @__PURE__ */ jsxs14("tr", { "aria-label": label, className: edits.refusal === null ? table.row : table.refusedRow, children: [
+      /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx18(BlockLabel, { board, id: link.from }) }),
+      /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx18(BlockLabel, { board, id: link.to }) }),
+      /* @__PURE__ */ jsx18("td", { className: `${table.cell} bc:break-words`, children: variadic2 ? /* @__PURE__ */ jsx18(VariadicInput, { board, id: id2, link }) : /* @__PURE__ */ jsx18("span", { className: "bc:font-mono bc:text-xs", children: link.input }) }),
+      locked2 ? null : /* @__PURE__ */ jsxs14("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+        /* @__PURE__ */ jsx18(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            "aria-label": `Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
+            ref: button,
+            onClick: () => {
+              edits.clear();
+              open();
+            },
+            children: "Edit"
+          }
+        ),
+        /* @__PURE__ */ jsx18(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            "aria-label": `Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`,
+            onClick: () => {
+              void edits.run("blockr.core-remove_link", { id: id2 });
+            },
+            children: "Remove"
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx18(RefusalRow, { refusal: edits.refusal, columns: locked2 ? 3 : 4 })
   ] });
 }
 function BlockLabel({ board, id: id2 }) {
@@ -11496,13 +11539,14 @@ function LinkForm({
 }) {
   const registry = core.blockRegistry();
   const except = editing?.id;
-  const [from, setFrom] = useState15(editing?.link.from);
-  const [to, setTo] = useState15(editing?.link.to);
-  const [input2, setInput] = useState15(editing?.link.input);
-  const [name2, setName] = useState15(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
-  const [place, setPlace] = useState15(void 0);
-  const [errors, setErrors] = useState15({});
-  const [busy, setBusy] = useState15(false);
+  const [from, setFrom] = useState16(editing?.link.from);
+  const [to, setTo] = useState16(editing?.link.to);
+  const [input2, setInput] = useState16(editing?.link.input);
+  const [name2, setName] = useState16(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  const [place, setPlace] = useState16(void 0);
+  const [errors, setErrors] = useState16({});
+  const [busy, setBusy] = useState16(false);
+  const edits = useEdits(core);
   const others = withoutLink(board, except);
   const graph = createGraph(others);
   const held3 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
@@ -11535,6 +11579,7 @@ function LinkForm({
     const found = check2();
     flushSync4(() => {
       setErrors(found);
+      edits.clear();
     });
     if (Object.keys(found).length > 0 || source === void 0 || target2 === void 0 || busy) {
       focusFirstInvalid(form);
@@ -11543,10 +11588,10 @@ function LinkForm({
     const linkInput = variadic2 ? name2.trim() : chosen;
     const args = { from: source, to: target2, ...linkInput === void 0 ? {} : { input: linkInput } };
     setBusy(true);
-    let ran = editing === void 0 ? await runCommand(core, "blockr.core-add_link", args) : await runCommand(core, "blockr.core-change_link", { id: editing.id, ...args });
+    let ran = editing === void 0 ? await edits.run("blockr.core-add_link", args) : await edits.run("blockr.core-change_link", { id: editing.id, ...args });
     if (ran && editing !== void 0 && among !== void 0 && position !== void 0 && position !== among.place) {
       const before = placeAmong(core.store.board(), editing.id, target2).others[position - 1];
-      ran = await runCommand(core, "blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
+      ran = await edits.run("blockr.core-move_link", { id: editing.id, ...before === void 0 ? {} : { before } });
     }
     setBusy(false);
     if (!ran) return;
@@ -11669,7 +11714,8 @@ function LinkForm({
               children: "Cancel"
             }
           )
-        ] })
+        ] }),
+        /* @__PURE__ */ jsx18(Refusal2, { refusal: edits.refusal })
       ]
     }
   );
@@ -11724,7 +11770,7 @@ function blockName(board, block) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { useId as useId3, useState as useState16 } from "react";
+import { useId as useId3, useState as useState17 } from "react";
 import { Fragment as Fragment7, jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
@@ -11765,6 +11811,7 @@ function StackRow({
   locked: locked2
 }) {
   const { editing, open, close, button } = useRowEditing();
+  const edits = useEdits(core);
   if (editing) {
     return /* @__PURE__ */ jsx19("tr", { "aria-label": stack.name, className: table.row, children: /* @__PURE__ */ jsx19("td", { colSpan: 3, className: `${table.cell} bc:py-2`, children: /* @__PURE__ */ jsx19(
       StackForm,
@@ -11777,37 +11824,43 @@ function StackRow({
       }
     ) }) });
   }
-  return /* @__PURE__ */ jsxs15("tr", { "aria-label": stack.name, className: table.row, children: [
-    /* @__PURE__ */ jsx19("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsxs15("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
-      /* @__PURE__ */ jsx19(Swatch, { color: stack.color }),
-      /* @__PURE__ */ jsx19("span", { className: "bc:font-medium", children: stack.name })
-    ] }) }),
-    /* @__PURE__ */ jsx19("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx19(StackBlocks, { board, blocks: stack.blocks }) }),
-    locked2 ? null : /* @__PURE__ */ jsxs15("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
-      /* @__PURE__ */ jsx19(
-        "button",
-        {
-          type: "button",
-          className: classes.quiet,
-          "aria-label": `Edit the stack ${stack.name}`,
-          ref: button,
-          onClick: open,
-          children: "Edit"
-        }
-      ),
-      /* @__PURE__ */ jsx19(
-        "button",
-        {
-          type: "button",
-          className: classes.quiet,
-          "aria-label": `Remove the stack ${stack.name}`,
-          onClick: () => {
-            void runCommand(core, "blockr.core-remove_stack", { id: id2 });
-          },
-          children: "Remove"
-        }
-      )
-    ] })
+  return /* @__PURE__ */ jsxs15(Fragment7, { children: [
+    /* @__PURE__ */ jsxs15("tr", { "aria-label": stack.name, className: edits.refusal === null ? table.row : table.refusedRow, children: [
+      /* @__PURE__ */ jsx19("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsxs15("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
+        /* @__PURE__ */ jsx19(Swatch, { color: stack.color }),
+        /* @__PURE__ */ jsx19("span", { className: "bc:font-medium", children: stack.name })
+      ] }) }),
+      /* @__PURE__ */ jsx19("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx19(StackBlocks, { board, blocks: stack.blocks }) }),
+      locked2 ? null : /* @__PURE__ */ jsxs15("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+        /* @__PURE__ */ jsx19(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            "aria-label": `Edit the stack ${stack.name}`,
+            ref: button,
+            onClick: () => {
+              edits.clear();
+              open();
+            },
+            children: "Edit"
+          }
+        ),
+        /* @__PURE__ */ jsx19(
+          "button",
+          {
+            type: "button",
+            className: classes.quiet,
+            "aria-label": `Remove the stack ${stack.name}`,
+            onClick: () => {
+              void edits.run("blockr.core-remove_stack", { id: id2 });
+            },
+            children: "Remove"
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx19(RefusalRow, { refusal: edits.refusal, columns: locked2 ? 2 : 3 })
   ] });
 }
 var SHOWN_BLOCKS = 6;
@@ -11846,10 +11899,11 @@ function StackForm({
 }) {
   const registry = core.blockRegistry();
   const stacks = Object.values(board.stacks);
-  const [name2, setName] = useState16(editing?.stack.name ?? "");
-  const [color2, setColor] = useState16(editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
-  const [blocks, setBlocks] = useState16(editing?.stack.blocks ?? []);
-  const [busy, setBusy] = useState16(false);
+  const [name2, setName] = useState17(editing?.stack.name ?? "");
+  const [color2, setColor] = useState17(editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
+  const [blocks, setBlocks] = useState17(editing?.stack.blocks ?? []);
+  const [busy, setBusy] = useState17(false);
+  const edits = useEdits(core);
   const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
   const holder = /* @__PURE__ */ new Map();
   for (const [id2, stack] of Object.entries(board.stacks)) {
@@ -11875,7 +11929,7 @@ function StackForm({
     let ran;
     if (editing === void 0) {
       const args = { blocks: kept, color: color2, name: trimmed === "" ? fallbackName : trimmed };
-      ran = await runCommand(core, "blockr.core-add_stack", args);
+      ran = await edits.run("blockr.core-add_stack", args);
     } else {
       const { id: id2, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
@@ -11883,8 +11937,8 @@ function StackForm({
         ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
         ...color2 === stack.color ? {} : { color: color2 }
       };
-      ran = !renamed || await runCommand(core, "blockr.core-rename_stack", { id: id2, name: trimmed });
-      if (ran && Object.keys(changed).length > 0) ran = await runCommand(core, "blockr.core-change_stack", { id: id2, ...changed });
+      ran = !renamed || await edits.run("blockr.core-rename_stack", { id: id2, name: trimmed });
+      if (ran && Object.keys(changed).length > 0) ran = await edits.run("blockr.core-change_stack", { id: id2, ...changed });
     }
     setBusy(false);
     if (!ran) return;
@@ -11950,14 +12004,15 @@ function StackForm({
               children: "Cancel"
             }
           )
-        ] })
+        ] }),
+        /* @__PURE__ */ jsx19(Refusal2, { refusal: edits.refusal })
       ]
     }
   );
 }
 function ColorField({ color: color2, onChange }) {
   const id2 = useId3();
-  const [last, setLast] = useState16(color2 ?? PALETTE[0]);
+  const [last, setLast] = useState17(color2 ?? PALETTE[0]);
   return /* @__PURE__ */ jsxs15("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx19("legend", { className: styles.legend, children: "Colour" }),
     /* @__PURE__ */ jsxs15("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
@@ -12027,10 +12082,16 @@ var table = {
   table: "bc:w-full bc:table-fixed bc:border-collapse bc:text-sm",
   head: "bc:border-b bc:border-border-default bc:px-1 bc:py-1 bc:text-left bc:text-xs bc:font-semibold bc:text-text-muted",
   row: "bc:border-b bc:border-border-default bc:align-top",
+  // A row that the line of a refusal follows, without a border between the
+  // two (RefusalRow).
+  refusedRow: "bc:align-top",
   cell: "bc:px-1 bc:py-1.5"
 };
+function RefusalRow({ refusal: refusal2, columns }) {
+  return refusal2 === null ? null : /* @__PURE__ */ jsx20("tr", { className: table.row, children: /* @__PURE__ */ jsx20("td", { colSpan: columns, className: `${table.cell} bc:pt-0`, children: /* @__PURE__ */ jsx20(Refusal2, { refusal: refusal2 }) }) });
+}
 function useRowEditing() {
-  const [editing, setEditing] = useState17(false);
+  const [editing, setEditing] = useState18(false);
   const closed = useRef9(false);
   const button = useRef9(null);
   useLayoutEffect7(() => {

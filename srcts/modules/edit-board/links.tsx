@@ -10,6 +10,9 @@
 //   the block's links too. Another place moves the link with move_link,
 //   which keeps its id and its ends, once change_link has changed the rest.
 //   Undo takes back each command that changed the link as a step of its own.
+// Where the store or the command registry refuses an edit, the form says why
+// below its buttons, and a line below the link's row says why the link was not
+// removed, until the user's next edit there.
 // The form and the edit offer only links that the store takes:
 // - As a link's target, a block with an input that no other link feeds, or a
 //   variadic block, which takes any number of links. A block without inputs
@@ -40,9 +43,9 @@ import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import type { RegistryEntry } from "../../types/registry.ts";
-import { classes, Pager, runCommand, TableSearch, TextField, useSearch, useTableView } from "../../ui/index.ts";
+import { classes, Pager, Refusal, TableSearch, TextField, useEdits, useSearch, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
-import { Part, Section, table, useRowEditing } from "./board.tsx";
+import { Part, RefusalRow, Section, table, useRowEditing } from "./board.tsx";
 
 type Registry = Readonly<Record<string, RegistryEntry>>;
 
@@ -120,6 +123,7 @@ function LinkRow({
   locked: boolean;
 }): ReactElement {
   const { editing, open, close, button } = useRowEditing();
+  const edits = useEdits(core);
   const label = `${blockName(board, link.from)} → ${blockName(board, link.to)}`;
   if (editing) {
     return (
@@ -137,40 +141,48 @@ function LinkRow({
     );
   }
   return (
-    <tr aria-label={label} className={table.row}>
-      <td className={`${table.cell} bc:break-words`}>
-        <BlockLabel board={board} id={link.from} />
-      </td>
-      <td className={`${table.cell} bc:break-words`}>
-        <BlockLabel board={board} id={link.to} />
-      </td>
-      <td className={`${table.cell} bc:break-words`}>
-        {variadic ? <VariadicInput board={board} id={id} link={link} /> : <span className="bc:font-mono bc:text-xs">{link.input}</span>}
-      </td>
-      {locked ? null : (
-        <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
-            ref={button}
-            onClick={open}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
-            onClick={() => {
-              void runCommand(core, "blockr.core-remove_link", { id });
-            }}
-          >
-            Remove
-          </button>
+    <>
+      <tr aria-label={label} className={edits.refusal === null ? table.row : table.refusedRow}>
+        <td className={`${table.cell} bc:break-words`}>
+          <BlockLabel board={board} id={link.from} />
         </td>
-      )}
-    </tr>
+        <td className={`${table.cell} bc:break-words`}>
+          <BlockLabel board={board} id={link.to} />
+        </td>
+        <td className={`${table.cell} bc:break-words`}>
+          {variadic ? <VariadicInput board={board} id={id} link={link} /> : <span className="bc:font-mono bc:text-xs">{link.input}</span>}
+        </td>
+        {locked ? null : (
+          <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
+            <button
+              type="button"
+              className={classes.quiet}
+              aria-label={`Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
+              ref={button}
+              onClick={() => {
+                // The form takes the row's place and says why its own edits
+                // are refused, so the row's refusal goes.
+                edits.clear();
+                open();
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className={classes.quiet}
+              aria-label={`Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
+              onClick={() => {
+                void edits.run("blockr.core-remove_link", { id });
+              }}
+            >
+              Remove
+            </button>
+          </td>
+        )}
+      </tr>
+      <RefusalRow refusal={edits.refusal} columns={locked ? 3 : 4} />
+    </>
   );
 }
 
@@ -225,6 +237,7 @@ function LinkForm({
   const [place, setPlace] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
+  const edits = useEdits(core);
 
   // The blocks that the form offers, with the links of the board but the one
   // that the form changes, which is about to move.
@@ -275,6 +288,7 @@ function LinkForm({
     const found = check();
     flushSync(() => {
       setErrors(found);
+      edits.clear();
     });
     if (Object.keys(found).length > 0 || source === undefined || target === undefined || busy) {
       focusFirstInvalid(form);
@@ -285,11 +299,11 @@ function LinkForm({
     setBusy(true);
     let ran =
       editing === undefined
-        ? await runCommand(core, "blockr.core-add_link", args)
-        : await runCommand(core, "blockr.core-change_link", { id: editing.id, ...args });
+        ? await edits.run("blockr.core-add_link", args)
+        : await edits.run("blockr.core-change_link", { id: editing.id, ...args });
     if (ran && editing !== undefined && among !== undefined && position !== undefined && position !== among.place) {
       const before = placeAmong(core.store.board(), editing.id, target).others[position - 1];
-      ran = await runCommand(core, "blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) });
+      ran = await edits.run("blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) });
     }
     setBusy(false);
     if (!ran) return;
@@ -412,6 +426,7 @@ function LinkForm({
           </button>
         )}
       </div>
+      <Refusal refusal={edits.refusal} />
     </form>
   );
 }

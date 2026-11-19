@@ -16,8 +16,13 @@ export declare const table: {
     readonly table: "bc:w-full bc:table-fixed bc:border-collapse bc:text-sm";
     readonly head: "bc:border-b bc:border-border-default bc:px-1 bc:py-1 bc:text-left bc:text-xs bc:font-semibold bc:text-text-muted";
     readonly row: "bc:border-b bc:border-border-default bc:align-top";
+    readonly refusedRow: "bc:align-top";
     readonly cell: "bc:px-1 bc:py-1.5";
 };
+export declare function RefusalRow({ refusal, columns }: {
+    refusal: string | null;
+    columns: number;
+}): ReactElement | null;
 export declare function useRowEditing(): {
     editing: boolean;
     open: () => void;

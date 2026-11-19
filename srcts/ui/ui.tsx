@@ -1,6 +1,6 @@
 // The pieces that core's basic frontend and its Edit board plugin draw with:
-// the classes of their buttons, lists and surfaces, and an inline field that
-// renames.
+// the classes of their buttons, lists and surfaces, an inline field that
+// renames, and the line that says why an edit was refused.
 // They are styled with Tailwind CSS under core's prefix. Their colours, fonts
 // and radii come from the variables of core's theme. Core's stylesheet leaves
 // out Tailwind's reset of the page, and a browser passes its font and colour
@@ -77,5 +77,17 @@ export function NameField({
         finish(true);
       }}
     />
+  );
+}
+
+// Says why the store or the command registry refused the last edit of a
+// control, beside the control, in the colour of an error, as the inputs of
+// core's React SDK say why their host refused what they submitted. A screen
+// reader reads it out as it shows. It draws nothing where the edit ran.
+export function Refusal({ refusal }: { refusal: string | null }): ReactElement | null {
+  return refusal === null ? null : (
+    <p role="alert" className={styles.alert}>
+      {refusal}
+    </p>
   );
 }

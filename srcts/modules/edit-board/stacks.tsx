@@ -16,6 +16,9 @@
 // A new stack starts with a name and a colour that no other stack has, such
 // as "Stack 2" and the first colour of a palette that no stack uses, which
 // the user may change or, for the colour, leave out.
+// Where the store or the command registry refuses an edit, the form says why
+// below its buttons, and a line below the stack's row says why the stack was
+// not removed, until the user's next edit there.
 // Under the board lock, it lists the stacks alone.
 
 import { useId, useState } from "react";
@@ -25,8 +28,8 @@ import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, Pager, runCommand, TableSearch, TextField, useSearch, useTableView } from "../../ui/index.ts";
-import { Part, Section, table, useRowEditing } from "./board.tsx";
+import { classes, Pager, Refusal, TableSearch, TextField, useEdits, useSearch, useTableView } from "../../ui/index.ts";
+import { Part, RefusalRow, Section, table, useRowEditing } from "./board.tsx";
 import { blockItem, blockName, blockRow, blockTexts } from "./links.tsx";
 import type { BlockItem } from "./links.tsx";
 
@@ -115,6 +118,7 @@ function StackRow({
   locked: boolean;
 }): ReactElement {
   const { editing, open, close, button } = useRowEditing();
+  const edits = useEdits(core);
   if (editing) {
     return (
       <tr aria-label={stack.name} className={table.row}>
@@ -131,40 +135,48 @@ function StackRow({
     );
   }
   return (
-    <tr aria-label={stack.name} className={table.row}>
-      <td className={`${table.cell} bc:break-words`}>
-        <span className="bc:flex bc:items-center bc:gap-1.5">
-          <Swatch color={stack.color} />
-          <span className="bc:font-medium">{stack.name}</span>
-        </span>
-      </td>
-      <td className={`${table.cell} bc:break-words`}>
-        <StackBlocks board={board} blocks={stack.blocks} />
-      </td>
-      {locked ? null : (
-        <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Edit the stack ${stack.name}`}
-            ref={button}
-            onClick={open}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Remove the stack ${stack.name}`}
-            onClick={() => {
-              void runCommand(core, "blockr.core-remove_stack", { id });
-            }}
-          >
-            Remove
-          </button>
+    <>
+      <tr aria-label={stack.name} className={edits.refusal === null ? table.row : table.refusedRow}>
+        <td className={`${table.cell} bc:break-words`}>
+          <span className="bc:flex bc:items-center bc:gap-1.5">
+            <Swatch color={stack.color} />
+            <span className="bc:font-medium">{stack.name}</span>
+          </span>
         </td>
-      )}
-    </tr>
+        <td className={`${table.cell} bc:break-words`}>
+          <StackBlocks board={board} blocks={stack.blocks} />
+        </td>
+        {locked ? null : (
+          <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
+            <button
+              type="button"
+              className={classes.quiet}
+              aria-label={`Edit the stack ${stack.name}`}
+              ref={button}
+              onClick={() => {
+                // The form takes the row's place and says why its own edits
+                // are refused, so the row's refusal goes.
+                edits.clear();
+                open();
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className={classes.quiet}
+              aria-label={`Remove the stack ${stack.name}`}
+              onClick={() => {
+                void edits.run("blockr.core-remove_stack", { id });
+              }}
+            >
+              Remove
+            </button>
+          </td>
+        )}
+      </tr>
+      <RefusalRow refusal={edits.refusal} columns={locked ? 2 : 3} />
+    </>
   );
 }
 
@@ -219,6 +231,7 @@ function StackForm({
   const [color, setColor] = useState<string | null>(editing === undefined ? suggestedColor(stacks) : editing.stack.color);
   const [blocks, setBlocks] = useState<readonly BlockId[]>(editing?.stack.blocks ?? []);
   const [busy, setBusy] = useState(false);
+  const edits = useEdits(core);
   const fallbackName = editing === undefined ? suggestedName(stacks) : editing.stack.name;
 
   // The stack that holds each block, but the one that the form changes.
@@ -251,7 +264,7 @@ function StackForm({
     let ran: boolean;
     if (editing === undefined) {
       const args: Record<string, Json> = { blocks: kept, color, name: trimmed === "" ? fallbackName : trimmed };
-      ran = await runCommand(core, "blockr.core-add_stack", args);
+      ran = await edits.run("blockr.core-add_stack", args);
     } else {
       const { id, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
@@ -259,8 +272,8 @@ function StackForm({
         ...(sameBlocks(kept, stack.blocks) ? {} : { blocks: kept }),
         ...(color === stack.color ? {} : { color }),
       };
-      ran = !renamed || (await runCommand(core, "blockr.core-rename_stack", { id, name: trimmed }));
-      if (ran && Object.keys(changed).length > 0) ran = await runCommand(core, "blockr.core-change_stack", { id, ...changed });
+      ran = !renamed || (await edits.run("blockr.core-rename_stack", { id, name: trimmed }));
+      if (ran && Object.keys(changed).length > 0) ran = await edits.run("blockr.core-change_stack", { id, ...changed });
     }
     setBusy(false);
     if (!ran) return;
@@ -328,6 +341,7 @@ function StackForm({
           </button>
         )}
       </div>
+      <Refusal refusal={edits.refusal} />
     </form>
   );
 }
