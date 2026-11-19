@@ -667,6 +667,14 @@
   Core holds the selection outside the board, as it holds focus, so that nothing saves or undoes it, and nothing is selected as a board opens.
   The call `set()` refuses a block, a link or a stack that the board does not hold, a board option whose value the board does not hold, and a plugin that the app does not run.
   A board object given twice is selected once, and one that leaves the board leaves the selection (#740).
+* Core's React SDK offers the list of the select in place, always open, as `ListBox`: [React Aria's `ListBox`](https://react-aria.adobe.com/ListBox), in core's theme, after the `ListBox` of React Aria's Tailwind starter kit.
+  It takes the props of React Aria's `ListBox`, and draws the rows that `ListBoxItem` gives, which are the rows of the list of the select.
+  The SDK also offers React Aria's `Autocomplete` and `useFilter()`, and React Aria's `SearchField` in core's theme, after the starter kit's.
+  An `Autocomplete` around the list, with a `SearchField`, narrows the rows to those that hold what the user types.
+  Given `bound`, the list binds a block's state arg or a board option's value, as the select does.
+  A bound list of one submits the pick as the user picks it, and leaves the state arg unset as the user unpicks it.
+  A bound list of several hands each pick to the binding's `type()`, which submits the picks once the user pauses, as it submits typing, so that a burst of picks is one edit and one undo step.
+  It shows a value that its items lack as a row of its own, picked, which the user unpicks to drop the value, and it takes `outdated` and `ordered` as the select does (#689).
 
 # blockr.core 0.1.4
 

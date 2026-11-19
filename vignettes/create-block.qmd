@@ -579,6 +579,10 @@ The SDK holds these:
   The field of several shows each pick as a chip, which the user removes by its button, and a button at the field's right clears the pick, or every pick, unless the select `isRequired`.
   A bound select of one leaves its state arg unset so.
   Given `value` and `onChange` in place of `bound`, it picks for its caller instead, as in the UI of a plugin.
+- The list of the select in place, `ListBox`, which is [React Aria's `ListBox`](https://react-aria.adobe.com/ListBox) in core's theme, with the rows `ListBoxItem`.
+  The list is the control itself, always open.
+  React Aria's `Autocomplete` around it, with the `SearchField` of the SDK, narrows its rows to those that hold what the user types, by the filter of `useFilter()`.
+  A bound list of several hands each pick to the binding, which submits the picks once the user pauses, as it submits typing, so that a burst of picks is one edit.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
 - For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a block through `CoreApi`.
 
@@ -587,6 +591,21 @@ Once they are known, the select shows a value that they lack, such as a column t
 The last answer is for older data while the request asks again, as after the block's inputs changed, and after an ask failed.
 The module then sets `outdated` on the select, which keeps the items on screen but marks no value that they lack.
 A `NumberInput` whose `max` a request gives takes `outdated` too, as in the head block above, and then marks no number above it.
+A `ListBox` takes its items and `outdated` as the select does, and shows a value that its items lack as a row of its own, picked, which the user unpicks to drop the value.
+
+This list of columns sits in place, with a search above it:
+
+```tsx
+const { contains } = useFilter({ sensitivity: "base" });
+return (
+  <Autocomplete filter={contains}>
+    <SearchField label="Columns" placeholder="Search" />
+    <ListBox bound={useValue(host, "columns")} aria-label="Columns" selectionMode="multiple" items={columns}>
+      {(column) => <ListBoxItem id={column.id}>{column.id}</ListBoxItem>}
+    </ListBox>
+  </Autocomplete>
+);
+```
 
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
 

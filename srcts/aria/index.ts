@@ -12,6 +12,7 @@
 // them to read the container that it gives (./aria.test.ts).
 
 export {
+  Autocomplete,
   Button,
   Collection,
   ComboBox,
@@ -26,6 +27,7 @@ export {
   ListBoxItem,
   ListBoxSection,
   Popover,
+  SearchField,
   Tag,
   TagGroup,
   TagList,
@@ -36,7 +38,10 @@ export type {
   ComboBoxProps,
   Key,
   ListBoxItemProps,
+  ListBoxProps,
   ListBoxSectionProps,
+  SearchFieldProps,
+  Selection,
   ValidationResult,
 } from "react-aria-components";
 export { UNSAFE_PortalProvider } from "react-aria";

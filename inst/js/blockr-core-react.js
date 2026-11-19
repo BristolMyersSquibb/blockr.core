@@ -380,7 +380,7 @@ import {
   TagList,
   Text,
   UNSAFE_PortalProvider
-} from "./vendor-0cfb4d33.js";
+} from "./vendor-729f7ee7.js";
 import { Fragment as Fragment2, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 function ComboBox(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -421,12 +421,8 @@ function BoundSeveral({
   const [picks, setPicks] = useState3(null);
   const pending = useRef2(null);
   const submit = (next, opened) => {
-    const added = next.filter((value2) => !opened.includes(value2));
-    const removed = opened.filter((value2) => !next.includes(value2));
-    if (added.length === 0 && removed.length === 0) return;
-    const now = strings(bound.get());
-    const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
-    void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
+    const value = edited(strings(bound.get()), opened, next);
+    if (value !== null) void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
   };
   return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     /* @__PURE__ */ jsx3(
@@ -476,6 +472,12 @@ function ids(items) {
 function inOrder(values, order) {
   return [...order.filter((id) => values.includes(id)), ...values.filter((value) => !order.includes(value))];
 }
+function edited(now, began, next) {
+  const added = next.filter((value) => !began.includes(value));
+  const removed = began.filter((value) => !next.includes(value));
+  if (added.length === 0 && removed.length === 0) return null;
+  return [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
+}
 function Drawn({
   label,
   description,
@@ -493,8 +495,6 @@ function Drawn({
   const multiple = props.selectionMode === "multiple";
   const given = props.items ?? props.defaultItems;
   const unknown = given === void 0 && typeof children === "function";
-  const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
-  const empty = none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const field = useRef2(null);
   const layer = useRef2(null);
   const value = useSameValue(props.value);
@@ -524,7 +524,7 @@ function Drawn({
         /* @__PURE__ */ jsx3(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx3(FieldError, { className: styles.alert, children: errorMessage2 }),
         /* @__PURE__ */ jsx3("div", { ref: layer, className: LAYER }),
-        /* @__PURE__ */ jsx3(UNSAFE_PortalProvider, { getContainer: () => container(field.current, layer.current), children: /* @__PURE__ */ jsx3(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx3(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx3("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx3(UNSAFE_PortalProvider, { getContainer: () => container(field.current, layer.current), children: /* @__PURE__ */ jsx3(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx3(ListBox, { renderEmptyState: () => emptyNote(given, children, outdated, () => renderEmptyState?.()), className: LISTBOX, children }) }) })
       ]
     }
   );
@@ -543,6 +543,11 @@ function container(field, layer) {
 }
 function hasChildren(children) {
   return Array.isArray(children) ? children.some((child) => hasChildren(child)) : children !== null && children !== void 0 && children !== false;
+}
+function emptyNote(items, children, outdated, said) {
+  const unknown = items === void 0 && typeof children === "function";
+  const none = items === void 0 ? typeof children === "function" || !hasChildren(children) : [...items].length === 0;
+  return /* @__PURE__ */ jsx3("p", { className: NOTE, children: none && (outdated || unknown) ? "Loading\u2026" : none ? said() ?? "No options" : "No matches" });
 }
 function Field2({
   ref,
@@ -705,21 +710,179 @@ var HEADING = "bc:sticky bc:-top-1 bc:z-10 bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:
 var ROW = "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
+// srcts/inputs/listbox.tsx
+import { Children, isValidElement, useState as useState4 } from "react";
+import { strings as strings2 } from "@blockr/core/binding";
+import { Collection as Collection2, composeRenderProps as composeRenderProps2, ListBox as AriaListBox } from "./vendor-729f7ee7.js";
+import { Fragment as Fragment3, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+function ListBox2(props) {
+  const { bound, ordered = false, ...rest } = props;
+  if (bound === void 0) return /* @__PURE__ */ jsx4(Drawn2, { ...rest });
+  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx4(BoundSeveral2, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx4(BoundOne2, { ...rest, bound });
+}
+function BoundOne2({ bound, outdated = false, onSelectionChange, ...props }) {
+  const rows = rowIds(props);
+  const picks = rows !== void 0 && typeof bound.value === "string" ? [bound.value] : [];
+  return /* @__PURE__ */ jsxs3(Fragment3, { children: [
+    /* @__PURE__ */ jsx4(
+      Drawn2,
+      {
+        ...props,
+        selectionMode: "single",
+        outdated,
+        marking: !outdated,
+        lacked: lacking(picks, rows),
+        selectedKeys: picks,
+        onSelectionChange: (keys) => {
+          const [key] = keys === "all" ? [] : [...keys];
+          void (key === void 0 ? bound.unset() : bound.commit(String(key)));
+          onSelectionChange?.(keys);
+        }
+      }
+    ),
+    /* @__PURE__ */ jsx4(Refusal, { error: bound.error })
+  ] });
+}
+function BoundSeveral2({
+  bound,
+  outdated = false,
+  ordered,
+  onSelectionChange,
+  ...props
+}) {
+  const rows = rowIds(props);
+  const held2 = strings2(bound.value);
+  const [burst, setBurst] = useState4(null);
+  const [seen, setSeen] = useState4(bound.value);
+  if (!Object.is(seen, bound.value)) {
+    setSeen(bound.value);
+    setBurst(null);
+  }
+  const picks = rows === void 0 ? [] : burst?.picks ?? held2;
+  return /* @__PURE__ */ jsxs3(Fragment3, { children: [
+    /* @__PURE__ */ jsx4(
+      Drawn2,
+      {
+        ...props,
+        selectionMode: "multiple",
+        outdated,
+        marking: !outdated,
+        lacked: lacking(picks, rows),
+        selectedKeys: picks,
+        onSelectionChange: (keys) => {
+          const next = keys === "all" ? [...picks, ...(rows ?? []).filter((id) => !picks.includes(id))] : [...keys].map(String);
+          const began = burst?.began ?? held2;
+          setBurst({ picks: next, began });
+          const now = strings2(bound.get());
+          const value = edited(now, began, next);
+          bound.type(value === null ? now : ordered && rows !== void 0 ? inOrder(value, rows) : value);
+          onSelectionChange?.(keys);
+        }
+      }
+    ),
+    /* @__PURE__ */ jsx4(Refusal, { error: bound.error })
+  ] });
+}
+function rowIds({ items, children }) {
+  if (items !== void 0) return ids(items);
+  if (typeof children === "function") return void 0;
+  return Children.toArray(children).flatMap((child) => {
+    const id = isValidElement(child) ? child.props.id : void 0;
+    return typeof id === "string" || typeof id === "number" ? [String(id)] : [];
+  });
+}
+function lacking(picks, rows) {
+  return rows === void 0 ? [] : picks.filter((pick) => !rows.includes(pick));
+}
+function Drawn2({
+  children,
+  items,
+  dependencies,
+  renderEmptyState,
+  outdated = false,
+  marking = false,
+  lacked = [],
+  className,
+  ...props
+}) {
+  const unknown = items === void 0 && typeof children === "function";
+  return /* @__PURE__ */ jsxs3(
+    AriaListBox,
+    {
+      ...props,
+      "data-invalid": marking && lacked.length > 0 || void 0,
+      className: composeRenderProps2(className, (given) => `${LIST2} ${given ?? ""}`),
+      renderEmptyState: (values) => emptyNote(items, children, outdated, () => renderEmptyState?.(values)),
+      children: [
+        lacked.map((value) => /* @__PURE__ */ jsx4(ComboBoxItem, { id: value, textValue: marking ? missing(value) : value, "data-missing": marking || void 0, children: marking ? /* @__PURE__ */ jsx4("span", { className: MISSING, children: missing(value) }) : value }, value)),
+        /* @__PURE__ */ jsx4(Collection2, { items: unknown ? [] : items, dependencies, children })
+      ]
+    }
+  );
+}
+function ListBoxItem2(props) {
+  return /* @__PURE__ */ jsx4(ComboBoxItem, { ...props });
+}
+var LIST2 = "bc:box-border bc:max-h-72 bc:min-w-0 bc:justify-self-stretch bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:p-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-invalid:border-border-danger";
+var MISSING = "bc:text-text-danger";
+
+// srcts/inputs/searchfield.tsx
+import { Button as Button2, composeRenderProps as composeRenderProps3, FieldError as FieldError2, Group as Group2, Input as Input2, Label as Label2, SearchField as AriaSearchField, Text as Text2 } from "./vendor-729f7ee7.js";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+function SearchField({ label, description, errorMessage: errorMessage2, placeholder, className, ...props }) {
+  return /* @__PURE__ */ jsxs4(AriaSearchField, { ...props, className: composeRenderProps3(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx5(Label2, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs4(Group2, { className: FIELD, children: [
+      /* @__PURE__ */ jsx5(Magnifier, {}),
+      /* @__PURE__ */ jsx5(Input2, { placeholder, className: `${INPUT} ${SEARCH}` }),
+      /* @__PURE__ */ jsx5(Button2, { className: `${CLEAR} bc:group-data-empty:invisible`, children: /* @__PURE__ */ jsx5(Cross, {}) })
+    ] }),
+    /* @__PURE__ */ jsx5(Text2, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx5(FieldError2, { className: styles.alert, children: errorMessage2 })
+  ] });
+}
+function Magnifier() {
+  return /* @__PURE__ */ jsxs4(
+    "svg",
+    {
+      width: "12",
+      height: "12",
+      viewBox: "0 0 12 12",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.4",
+      strokeLinecap: "round",
+      "aria-hidden": "true",
+      className: "bc:shrink-0 bc:text-text-muted",
+      children: [
+        /* @__PURE__ */ jsx5("circle", { cx: "5", cy: "5", r: "3.5" }),
+        /* @__PURE__ */ jsx5("path", { d: "M7.75 7.75l2.75 2.75" })
+      ]
+    }
+  );
+}
+var SEARCH = "bc:appearance-none bc:[&::-webkit-search-cancel-button]:hidden";
+
 // srcts/inputs/index.ts
-import { Text as Text2 } from "./vendor-0cfb4d33.js";
+import { Autocomplete, Text as Text3, useFilter } from "./vendor-729f7ee7.js";
 export {
+  Autocomplete,
   Checkbox,
   ComboBox,
   ComboBoxItem,
   ComboBoxSection,
   Field,
+  ListBox2 as ListBox,
+  ListBoxItem2 as ListBoxItem,
   NumberInput,
+  SearchField,
   Stack,
-  Text2 as Text,
+  Text3 as Text,
   TextInput,
   outputRenderer,
   reactModule,
   useBoard,
+  useFilter,
   useNotified,
   useOutput,
   useRequest,

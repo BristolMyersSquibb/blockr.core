@@ -1,5 +1,5 @@
 // srcts/controls/controls.tsx
-import { Fragment as Fragment3, useLayoutEffect, useRef as useRef2 } from "react";
+import { Fragment as Fragment4, useLayoutEffect, useRef as useRef2 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
@@ -339,6 +339,7 @@ import { useContext, useRef, useState as useState2 } from "react";
 
 // srcts/aria/index.ts
 import {
+  Autocomplete,
   Button,
   Collection,
   ComboBox,
@@ -353,6 +354,7 @@ import {
   ListBoxItem,
   ListBoxSection,
   Popover,
+  SearchField,
   Tag,
   TagGroup,
   TagList,
@@ -402,12 +404,8 @@ function BoundSeveral({
   const [picks, setPicks] = useState2(null);
   const pending = useRef(null);
   const submit = (next, opened) => {
-    const added = next.filter((value2) => !opened.includes(value2));
-    const removed = opened.filter((value2) => !next.includes(value2));
-    if (added.length === 0 && removed.length === 0) return;
-    const now = strings(bound.get());
-    const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
-    void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
+    const value = edited(strings(bound.get()), opened, next);
+    if (value !== null) void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
   };
   return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     /* @__PURE__ */ jsx2(
@@ -457,6 +455,12 @@ function ids(items) {
 function inOrder(values, order) {
   return [...order.filter((id) => values.includes(id)), ...values.filter((value) => !order.includes(value))];
 }
+function edited(now, began, next) {
+  const added = next.filter((value) => !began.includes(value));
+  const removed = began.filter((value) => !next.includes(value));
+  if (added.length === 0 && removed.length === 0) return null;
+  return [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
+}
 function Drawn({
   label,
   description,
@@ -474,8 +478,6 @@ function Drawn({
   const multiple = props.selectionMode === "multiple";
   const given = props.items ?? props.defaultItems;
   const unknown = given === void 0 && typeof children === "function";
-  const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
-  const empty = none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const field = useRef(null);
   const layer = useRef(null);
   const value = useSameValue(props.value);
@@ -505,7 +507,7 @@ function Drawn({
         /* @__PURE__ */ jsx2(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx2(FieldError, { className: styles.alert, children: errorMessage2 }),
         /* @__PURE__ */ jsx2("div", { ref: layer, className: LAYER }),
-        /* @__PURE__ */ jsx2(UNSAFE_PortalProvider, { getContainer: () => container(field.current, layer.current), children: /* @__PURE__ */ jsx2(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx2(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx2("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx2(UNSAFE_PortalProvider, { getContainer: () => container(field.current, layer.current), children: /* @__PURE__ */ jsx2(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx2(ListBox, { renderEmptyState: () => emptyNote(given, children, outdated, () => renderEmptyState?.()), className: LISTBOX, children }) }) })
       ]
     }
   );
@@ -524,6 +526,11 @@ function container(field, layer) {
 }
 function hasChildren(children) {
   return Array.isArray(children) ? children.some((child) => hasChildren(child)) : children !== null && children !== void 0 && children !== false;
+}
+function emptyNote(items, children, outdated, said) {
+  const unknown = items === void 0 && typeof children === "function";
+  const none = items === void 0 ? typeof children === "function" || !hasChildren(children) : [...items].length === 0;
+  return /* @__PURE__ */ jsx2("p", { className: NOTE, children: none && (outdated || unknown) ? "Loading\u2026" : none ? said() ?? "No options" : "No matches" });
 }
 function Field2({
   ref,
@@ -679,8 +686,15 @@ var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg
 var ROW = "bc:flex bc:min-h-8 bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
+// srcts/inputs/listbox.tsx
+import { Children, isValidElement, useState as useState3 } from "react";
+import { Fragment as Fragment3, jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
+
+// srcts/inputs/searchfield.tsx
+import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
+
 // srcts/controls/controls.tsx
-import { Fragment as Fragment4, jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 function controls(host, signal) {
   const el = document.createElement("div");
   el.className = styles.stack;
@@ -692,12 +706,12 @@ function controls(host, signal) {
   let ended = false;
   const redraw = () => {
     if (ended) return;
-    const drawn = entries.map((entry) => /* @__PURE__ */ jsx3(Fragment3, { children: entry.draw() }, entry.id));
+    const drawn = entries.map((entry) => /* @__PURE__ */ jsx5(Fragment4, { children: entry.draw() }, entry.id));
     flushSync(() => {
       root.render(
-        /* @__PURE__ */ jsxs3(Fragment4, { children: [
+        /* @__PURE__ */ jsxs5(Fragment5, { children: [
           drawn,
-          error === null ? null : /* @__PURE__ */ jsx3("p", { role: "alert", className: styles.alert, children: error })
+          error === null ? null : /* @__PURE__ */ jsx5("p", { role: "alert", className: styles.alert, children: error })
         ] })
       );
     });
@@ -707,7 +721,7 @@ function controls(host, signal) {
     redraw();
   }
   function add(node) {
-    put(() => /* @__PURE__ */ jsx3(Slot, { node }));
+    put(() => /* @__PURE__ */ jsx5(Slot, { node }));
   }
   function input(key, draw) {
     let value;
@@ -770,12 +784,12 @@ function controls(host, signal) {
     return request;
   }
   function text(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx3(TextInput, { bound, ...options }));
+    input(key, (bound) => /* @__PURE__ */ jsx5(TextInput, { bound, ...options }));
   }
   function number(key, options) {
     let max;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx3(NumberInput, { bound, label: options.label, min: options.min, max, outdated }));
+    input(key, (bound) => /* @__PURE__ */ jsx5(NumberInput, { bound, label: options.label, min: options.min, max, outdated }));
     return {
       setMax(next) {
         max = next;
@@ -790,7 +804,7 @@ function controls(host, signal) {
   function comboBox(key, options) {
     let items = options.items;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx3(
+    input(key, (bound) => /* @__PURE__ */ jsx5(
       ComboBox2,
       {
         bound,
@@ -802,7 +816,7 @@ function controls(host, signal) {
         isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,
-        children: (item) => /* @__PURE__ */ jsx3(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
+        children: (item) => /* @__PURE__ */ jsx5(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
       }
     ));
     return {
@@ -817,7 +831,7 @@ function controls(host, signal) {
     };
   }
   function checkbox(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx3(Checkbox, { bound, label: options.label }));
+    input(key, (bound) => /* @__PURE__ */ jsx5(Checkbox, { bound, label: options.label }));
   }
   function cleanup() {
     if (ended) return;
@@ -834,7 +848,7 @@ function Slot({ node }) {
   useLayoutEffect(() => {
     ref.current?.replaceChildren(node);
   }, [node]);
-  return /* @__PURE__ */ jsx3("div", { ref, className: "bc:contents" });
+  return /* @__PURE__ */ jsx5("div", { ref, className: "bc:contents" });
 }
 export {
   PAUSE,

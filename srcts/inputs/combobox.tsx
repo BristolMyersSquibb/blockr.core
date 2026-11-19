@@ -172,12 +172,8 @@ function BoundSeveral({
   // user picked since the list opened, after those the value holds, without
   // those the user removed.
   const submit = (next: readonly string[], opened: readonly string[]): void => {
-    const added = next.filter((value) => !opened.includes(value));
-    const removed = opened.filter((value) => !next.includes(value));
-    if (added.length === 0 && removed.length === 0) return;
-    const now = strings(bound.get());
-    const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
-    void bound.commit(ordered && items !== undefined ? inOrder(value, ids(items)) : value);
+    const value = edited(strings(bound.get()), opened, next);
+    if (value !== null) void bound.commit(ordered && items !== undefined ? inOrder(value, ids(items)) : value);
   };
 
   return (
@@ -223,7 +219,7 @@ function known(props: DrawnProps): boolean {
 }
 
 // The ids of the items, as React Aria keys an item by its id.
-function ids(items: Iterable<object>): string[] {
+export function ids(items: Iterable<object>): string[] {
   return [...items].flatMap((item) => {
     const id = (item as { id?: unknown }).id;
     return typeof id === "string" || typeof id === "number" ? [String(id)] : [];
@@ -231,8 +227,20 @@ function ids(items: Iterable<object>): string[] {
 }
 
 // The values in the order of the ids, those that the ids lack after them.
-function inOrder(values: readonly string[], order: readonly string[]): string[] {
+export function inOrder(values: readonly string[], order: readonly string[]): string[] {
   return [...order.filter((id) => values.includes(id)), ...values.filter((value) => !order.includes(value))];
+}
+
+// The strings that the host holds now, after the picks of several that the
+// user made since the value read `began`: without the strings that the user
+// removed, and with those that the user added after them, in the order the
+// user picked them.
+// It gives null where the user added none and removed none.
+export function edited(now: readonly string[], began: readonly string[], next: readonly string[]): string[] | null {
+  const added = next.filter((value) => !began.includes(value));
+  const removed = began.filter((value) => !next.includes(value));
+  if (added.length === 0 && removed.length === 0) return null;
+  return [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
 }
 
 // The label, the field, the description, the error message and the list.
@@ -254,8 +262,6 @@ function Drawn({
   const given = props.items ?? props.defaultItems;
   // Whether it has no items yet, as its children draw an item with none given.
   const unknown = given === undefined && typeof children === "function";
-  const none = given === undefined ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
-  const empty = none && (outdated || unknown) ? "Loading…" : none ? (renderEmptyState?.() ?? "No options") : "No matches";
   const field = useRef<HTMLDivElement>(null);
   const layer = useRef<HTMLDivElement>(null);
   const value = useSameValue(props.value);
@@ -287,7 +293,7 @@ function Drawn({
       <div ref={layer} className={LAYER} />
       <UNSAFE_PortalProvider getContainer={() => container(field.current, layer.current)}>
         <Popover offset={4} className={LIST}>
-          <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
+          <ListBox renderEmptyState={() => emptyNote(given, children, outdated, () => renderEmptyState?.())} className={LISTBOX}>
             {children}
           </ListBox>
         </Popover>
@@ -321,6 +327,23 @@ function container(field: HTMLElement | null, layer: HTMLElement | null): HTMLEl
 
 function hasChildren(children: ReactNode): boolean {
   return Array.isArray(children) ? children.some((child) => hasChildren(child as ReactNode)) : children !== null && children !== undefined && children !== false;
+}
+
+// What a list says where it shows no row, the select's list and the list in
+// place alike (./listbox.tsx).
+// It says "Loading…" while the list has no items yet, as its children draw an
+// item with none given, or while its items are `outdated` and there are none.
+// Where it has none, it says what `said` gives, "No options" by default.
+// Otherwise it says "No matches", as where a filter keeps none of its items.
+export function emptyNote(
+  items: Iterable<object> | undefined,
+  children: ReactNode | ((item: never) => ReactNode),
+  outdated: boolean,
+  said: () => ReactNode,
+): ReactElement {
+  const unknown = items === undefined && typeof children === "function";
+  const none = items === undefined ? typeof children === "function" || !hasChildren(children) : [...items].length === 0;
+  return <p className={NOTE}>{none && (outdated || unknown) ? "Loading…" : none ? (said() ?? "No options") : "No matches"}</p>;
 }
 
 // The field: the chips of the picks of several, the text field, which takes
@@ -513,7 +536,7 @@ function Tick(): ReactElement {
 }
 
 // The cross of a chip's button.
-function Cross(): ReactElement {
+export function Cross(): ReactElement {
   return (
     <svg
       width="10"
@@ -534,14 +557,16 @@ function Cross(): ReactElement {
 // The field is a box like core's other inputs, which holds the chips, the text
 // field and the button, and draws the outline of the focus while the focus is
 // in it.
-const FIELD =
+// The SDK's search field draws with the classes of the field, of the text
+// field and of the button that clears it too (./searchfield.tsx).
+export const FIELD =
   "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 // The box of the chips and the text field, which wraps the chips onto more
 // lines, while the buttons stay at the field's right.
 const VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
-const INPUT =
+export const INPUT =
   "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
-const CLEAR =
+export const CLEAR =
   "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 const OPENER =
   "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";

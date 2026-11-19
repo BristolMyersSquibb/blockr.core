@@ -3,11 +3,27 @@
 // It holds the hooks through which a component follows its host or CoreApi,
 // the helpers that make a module or a renderer from a component, the inputs,
 // each on one value that useValue() binds, and the one select, which every UI
-// draws with, bound or not.
+// draws with, bound or not, with its list in place and the search that
+// narrows that list.
 
 export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } from "./hooks.ts";
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
 export { outputRenderer, reactModule } from "./module.tsx";
 export type { ModuleProps, OutputProps } from "./module.tsx";
-export { Checkbox, ComboBox, ComboBoxItem, ComboBoxSection, Field, NumberInput, Stack, Text, TextInput } from "../inputs/index.ts";
-export type { ComboBoxProps, ComboBoxSectionProps } from "../inputs/index.ts";
+export {
+  Autocomplete,
+  Checkbox,
+  ComboBox,
+  ComboBoxItem,
+  ComboBoxSection,
+  Field,
+  ListBox,
+  ListBoxItem,
+  NumberInput,
+  SearchField,
+  Stack,
+  Text,
+  TextInput,
+  useFilter,
+} from "../inputs/index.ts";
+export type { ComboBoxProps, ComboBoxSectionProps, ListBoxProps, SearchFieldProps } from "../inputs/index.ts";
