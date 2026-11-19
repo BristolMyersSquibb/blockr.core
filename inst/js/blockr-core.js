@@ -1049,7 +1049,7 @@ function createOneTime(blocks, params, priority, statuses, inputs) {
   return { priority, params, parts };
 }
 function settle(oneTimes, statuses) {
-  const settled3 = [];
+  const settled2 = [];
   for (const [id2, oneTime] of oneTimes) {
     if ("params" in oneTime) continue;
     const blocks = [...oneTime.blocks];
@@ -1059,18 +1059,18 @@ function settle(oneTimes, statuses) {
       const status = statuses.get(block);
       if (status !== void 0) result[block] = status;
     }
-    settled3.push([id2, { statuses: result }]);
+    settled2.push([id2, { statuses: result }]);
   }
-  return { oneTimes: without2(oneTimes, settled3.map(([id2]) => id2)), settled: settled3 };
+  return { oneTimes: without2(oneTimes, settled2.map(([id2]) => id2)), settled: settled2 };
 }
 function left(oneTimes, gone) {
   const kept = /* @__PURE__ */ new Map();
-  const settled3 = [];
+  const settled2 = [];
   for (const [id2, oneTime] of oneTimes) {
     if (!("params" in oneTime)) {
       const blocks = new Set([...oneTime.blocks].filter((block) => !gone.has(block)));
       if (blocks.size === 0) {
-        settled3.push([id2, { error: new Error("Every block of the one-time evaluation left the board.") }]);
+        settled2.push([id2, { error: new Error("Every block of the one-time evaluation left the board.") }]);
       } else {
         kept.set(id2, blocks.size === oneTime.blocks.size ? oneTime : { ...oneTime, blocks });
       }
@@ -1085,10 +1085,10 @@ function left(oneTimes, gone) {
       const error = new Error(
         `Block "${early[0]}" left the board before its evaluation with parameters was sent.`
       );
-      settled3.push([id2, { error }]);
+      settled2.push([id2, { error }]);
     }
   }
-  return { oneTimes: kept, settled: settled3 };
+  return { oneTimes: kept, settled: settled2 };
 }
 function sent(oneTimes, id2, block, evaluation) {
   return withPart(oneTimes, id2, block, { recipe: evaluation.recipe, sent: evaluation.id });
@@ -1735,10 +1735,10 @@ function createScheduler(options) {
   let heard = /* @__PURE__ */ new Map();
   const dispose = effect(() => {
     const now = statuses.value;
-    const settled3 = settle(oneTimes.value, now);
-    if (settled3.settled.length > 0) {
+    const settled2 = settle(oneTimes.value, now);
+    if (settled2.settled.length > 0) {
       untracked(() => {
-        update(settled3);
+        update(settled2);
       });
     }
     const changed = changedSince(heard, now);
@@ -3215,10 +3215,10 @@ function createMounts(options) {
     const given = def.default;
     const started = typeof given === "function" ? Promise.resolve().then(() => given(options.core())) : Promise.resolve(given);
     resolving.set(id2, started);
-    const settled3 = () => {
+    const settled2 = () => {
       if (resolving.get(id2) === started) resolving.delete(id2);
     };
-    started.then(settled3, settled3);
+    started.then(settled2, settled2);
     return started;
   }
   async function addOptions(ids2, by) {
@@ -9083,7 +9083,11 @@ import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
 function useFooter(status, notifications, severities = SEVERITIES2) {
   const shown2 = useShown(status);
-  const [open, setOpen] = useState(OPEN_AT_START);
+  const opened = useOpened(OPEN_AT_START);
+  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, severities, ...opened };
+}
+function useOpened(atStart) {
+  const [open, setOpen] = useState(atStart);
   const panel = useId();
   const toggle = useCallback((severity) => {
     setOpen((was) => {
@@ -9092,20 +9096,30 @@ function useFooter(status, notifications, severities = SEVERITIES2) {
       return next;
     });
   }, []);
-  return { status, shown: shown2, notifications, severities, open, toggle, panel };
+  return { open, toggle, panel };
 }
-function Footer({ status, shown: shown2 }) {
+function Footer({ status, shown: shown2, settled: settled2 }) {
   return /* @__PURE__ */ jsx(
     "footer",
     {
       "aria-busy": status?.running === true,
       "data-status": shown2?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
       children: shown2?.status === "ready" ? shown2.summary : null
     }
   );
 }
-function Pills({ status, shown: shown2, notifications, severities, open, toggle, panel }) {
+function Pills({
+  status,
+  shown: shown2,
+  settled: settled2,
+  notifications,
+  severities,
+  open,
+  toggle,
+  panel,
+  className = "bc:justify-center bc:px-5"
+}) {
   const pills = SEVERITIES2.flatMap((severity) => {
     const n = counted(shown2, notifications, severities, severity);
     return n === 0 ? [] : [{ severity, n }];
@@ -9117,7 +9131,7 @@ function Pills({ status, shown: shown2, notifications, severities, open, toggle,
       role: "group",
       "aria-label": "Status",
       "aria-busy": status?.running === true,
-      className: `bc:flex bc:flex-wrap bc:items-center bc:justify-center bc:gap-2 bc:px-5 bc:font-mono bc:text-xs bc:transition-opacity ${settled2(status, shown2) ? "" : "bc:opacity-50"}`,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
       children: pills.map(({ severity, n }) => {
         const mark = MARKS[severity];
         return /* @__PURE__ */ jsxs(
@@ -9150,7 +9164,7 @@ function Banners({ shown: shown2, notifications, severities, open, panel }) {
   if (listed.length === 0) return null;
   return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx(Banner, { severity, message }, i)) });
 }
-function settled2(status, shown2) {
+function isSettled(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
 function counted(status, notifications, severities, severity) {

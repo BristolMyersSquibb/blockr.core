@@ -272,6 +272,22 @@ print.reply_body <- function(x, ...) {
 #' A family that is a generic stays one, since S3 registers its methods and
 #' dispatches on the result as it does for any generic.
 #'
+#' A family that takes results of any class, as a code block's family does, is
+#' open.
+#' An open family gives `families = TRUE`, and hands its results to every
+#' family that the available packages list in the `families` of their
+#' `._BLOCKR_MODULES_` (see [read_blocks_yml()]).
+#' S3 lets any package add a method to an open family, such as
+#' `code_output.sf()`, which hands a result to that package's `map_output`.
+#' That package then lists `map_output`.
+#' R reads the families that the packages list as [serve()] builds the app, as
+#' it reads their board options.
+#' The entry of a block class whose family is open names the board options and
+#' the renderer of every listed family.
+#' So each output request of such a block carries the board options of every
+#' listed family, and the client loads every listed renderer before the
+#' block's first output.
+#'
 #' @param fun The function that makes an output from the result, with the
 #'   board option values, the `info` and the parameters that the output was
 #'   asked with, as `options`, `info` and `params`
@@ -283,7 +299,8 @@ print.reply_body <- function(x, ...) {
 #' @param renderer The renderer of the outputs of class `class` that `fun`
 #'   makes, made by [new_renderer()]
 #' @param families The families that `fun` hands its results to, a family or
-#'   a list of them
+#'   a list of them, or `TRUE` for every family that the available packages
+#'   list
 #'
 #' @examples
 #' class(table_output)
@@ -300,6 +317,21 @@ print.reply_body <- function(x, ...) {
 #'
 #' fit <- stats::lm(Sepal.Length ~ Sepal.Width, datasets::iris)
 #' coef_output(fit, options = list(n_rows = 5L))$total
+#'
+#' # An open family, which hands a data frame to table_output and any other
+#' # result to text_output, both of which core lists
+#' any_output <- new_output_family(
+#'   function(result, ...) {
+#'     if (is.data.frame(result)) {
+#'       return(table_output(result, ...))
+#'     }
+#'     text_output(result, ...)
+#'   },
+#'   "any_output",
+#'   families = TRUE
+#' )
+#'
+#' class(any_output(month.name[1:3]))
 #'
 #' @return The function `fun`, of class `class`, `output_family` and
 #' `function`.
@@ -356,11 +388,12 @@ new_output_family <- function(fun, class, options = NULL, renderer = NULL,
     families <- list(families)
   }
 
-  if (!is.null(families) &&
+  if (!is.null(families) && !isTRUE(families) &&
         !(is.list(families) && all(lgl_ply(families, is_output_family)))) {
     blockr_abort(
       "The families that an output family hands its results to are expected ",
-      "to be an output family or a list of them.",
+      "to be an output family or a list of them, or TRUE for every ",
+      "family that the available packages list.",
       class = "output_family_invalid"
     )
   }
@@ -384,6 +417,12 @@ new_output_family <- function(fun, class, options = NULL, renderer = NULL,
 
 is_output_family <- function(x) {
   is.function(x) && inherits(x, "output_family")
+}
+
+# Whether family `x` is open: one that hands its results to every family that
+# the available packages list.
+is_open_family <- function(x) {
+  isTRUE(attr(x, "families"))
 }
 
 # Whether another output family has the class `class`: one bound under that
@@ -428,7 +467,10 @@ current_family <- function(x) {
 # Every family whose outputs `x` makes, by class: `x` and the families that it
 # hands its results to, and theirs, each as its package defines it now and
 # each once.
-reached_families <- function(x) {
+# An open family hands its results to the families that the available packages
+# list, `families`, as `app_families()` gives them.
+# R reads those lists only where it reaches an open family.
+reached_families <- function(x, families = app_families()) {
 
   todo <- list(x)
   found <- list()
@@ -443,7 +485,12 @@ reached_families <- function(x) {
     }
 
     found[[class(family)[1L]]] <- family
-    todo <- c(todo, attr(family, "families"))
+
+    if (is_open_family(family)) {
+      todo <- c(todo, unname(families))
+    } else {
+      todo <- c(todo, attr(family, "families"))
+    }
   }
 
   found
@@ -452,10 +499,12 @@ reached_families <- function(x) {
 # The IDs of the board options that the outputs of `x` read, those of every
 # family that it reaches, as their constructors give them, which R names in
 # the entry of each block class that names `x`, in the block registry.
-family_option_ids <- function(x) {
+# An open family reaches the families that the available packages list,
+# `families`.
+family_option_ids <- function(x, families = app_families()) {
 
   ctors <- unlist(
-    lapply(reached_families(x), attr, "options"),
+    lapply(reached_families(x, families), attr, "options"),
     recursive = FALSE,
     use.names = FALSE
   )

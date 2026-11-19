@@ -30,6 +30,8 @@ test_module <- function(path, package = "blockr.test") {
 # A package whose listing gives plugin classes is no fit for it, since R looks
 # up their constructors in the package's namespace, which `pkg` lacks; a test
 # lists those with `local_plugin_classes()`.
+# The same holds for output families, which a test lists with
+# `local_family_package()`.
 local_listing <- function(pkg, listing = list(), frame = parent.frame()) {
 
   force(pkg)
@@ -39,7 +41,7 @@ local_listing <- function(pkg, listing = list(), frame = parent.frame()) {
   read <- package_listing
 
   given <- lapply(
-    set_names(nm = c("blocks", "plugins", "options", "modules")),
+    set_names(nm = listing_parts),
     function(part) coal(listing[[part]], list(), fail_all = FALSE)
   )
 
@@ -66,7 +68,7 @@ local_empty_core_listing <- function(frame = parent.frame()) {
     package_listing = function(pkg) {
       if (identical(pkg, "blockr.core")) {
         lapply(
-          set_names(nm = c("blocks", "plugins", "options", "modules")),
+          set_names(nm = listing_parts),
           function(part) list()
         )
       } else {

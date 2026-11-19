@@ -18,7 +18,8 @@ which is empty where the package ships no such file.
 \description{
 A package lists what it offers core in one object that it exports,
 \code{._BLOCKR_MODULES_}: its block classes, its plugin classes, its board
-options and the modules that it offers other packages' UIs.
+options, the modules that it offers other packages' UIs and its output
+families.
 R finds the packages that export it, the available packages, without
 loading any: the installed packages whose \code{Meta/nsInfo.rds} lists the object
 among their exports, and the loaded packages that export it, among them
@@ -31,7 +32,8 @@ package as it reads the package's object, as \code{\link[=available_blocks]{avai
 }
 \details{
 The object is a list, or an environment that the package's \code{.onLoad()}
-fills, of up to four parts, each a list:
+fills, of up to five parts, each a list or, for the output families, a
+character vector:
 \itemize{
 \item Its block classes, in \code{blocks}: each block constructor by name, with the
 registry metadata of the class that it makes, as the block registration
@@ -46,6 +48,11 @@ the human-readable form of its id, and the class's \code{module} (see
 \item The modules that it offers other packages' UIs, in \code{modules}: each by a
 name that gives it the ID \code{{pkg}-{name}}, as a registry id is, by which
 \code{host.module()} and \code{CoreApi.module()} reach it in the client.
+\item Its output families, in \code{families}: the name of each output family that
+it offers, which is the family's class, and under which its namespace
+binds the family (see \code{\link[=new_output_family]{new_output_family()}}).
+An open family hands its results to every family that the available
+packages list there.
 }
 
 A module is given by its path in the package's \verb{inst/}, as \code{\link[=js_module]{js_module()}}
@@ -105,6 +112,15 @@ Such a file has no hash in its URL, so the package names it with a hash of
 its content, as blockr.core names the bundle that holds React
 \verb{vendor-<hash>.js}.
 It serves nothing else of the package.
+
+R reads the output families that the available packages list as \code{\link[=serve]{serve()}}
+builds the app, as it reads their board options.
+It gets each family from the namespace of the package that lists it, by
+the name that the package lists.
+It names their board options and renderers in the entry of each block class
+whose family is open, in the block registry (see \code{\link[=new_output_family]{new_output_family()}}).
+Two packages that list a family of one class stop the app, naming both,
+since R tells families apart by their class.
 }
 \examples{
 names(read_blocks_yml("blockr.core"))

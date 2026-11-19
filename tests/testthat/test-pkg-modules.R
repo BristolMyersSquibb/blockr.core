@@ -4,7 +4,10 @@ test_that("core lists what it offers core in its `._BLOCKR_MODULES_`", {
 
   # Its `.onLoad()` fills the object that it exports
   expect_identical(listing, core_listing())
-  expect_identical(names(listing), c("blocks", "plugins", "options", "modules"))
+  expect_identical(
+    names(listing),
+    c("blocks", "plugins", "options", "modules", "families")
+  )
 
   # Its block classes, as its inst/registry/blocks.yml lists them
   expect_identical(listing$blocks, read_blocks_yml("blockr.core"))
@@ -17,6 +20,20 @@ test_that("core lists what it offers core in its `._BLOCKR_MODULES_`", {
   expect_identical(
     names(listing$options),
     c("n_rows", "show_conditions", "dark_mode")
+  )
+
+  # Its output families, by the names under which its namespace binds them
+  expect_identical(
+    listing$families,
+    c("table_output", "text_output", "plot_output")
+  )
+  expect_identical(
+    listed_families("blockr.core"),
+    list(
+      table_output = table_output,
+      text_output = text_output,
+      plot_output = plot_output
+    )
   )
 
   # Every module that core lists ships with it
@@ -84,7 +101,8 @@ test_that("a package lists nothing where it exports no object", {
 
   expect_identical(
     package_listing("utils"),
-    list(blocks = list(), plugins = list(), options = list(), modules = list())
+    list(blocks = list(), plugins = list(), options = list(), modules = list(),
+         families = list())
   )
 })
 
@@ -105,7 +123,10 @@ test_that("a package's object is a list or an environment of its parts", {
   env <- list2env(list(modules = list(a = "js/a.js"), later = TRUE))
 
   expect_identical(read(env)$modules, list(a = "js/a.js"))
-  expect_named(read(env), c("blocks", "plugins", "options", "modules"))
+  expect_named(
+    read(env),
+    c("blocks", "plugins", "options", "modules", "families")
+  )
 
   for (obj in list("listing", list(1, 2), data.frame(blocks = 1))) {
     expect_error(read(obj), class = "package_listing_invalid")
@@ -245,6 +266,98 @@ test_that("two packages that list one board option stop the app", {
   )
 
   expect_named(packages_options("blockr.one"), "grid_gap")
+})
+
+test_that("a package lists its output families by name", {
+
+  local_family_package()
+
+  probe <- get("probe_output", envir = asNamespace("famprobe"))
+
+  expect_identical(listed_families("famprobe"), list(probe_output = probe))
+
+  # An app holds them beside core's, by class
+  families <- app_families()
+
+  expect_identical(families[["probe_output"]], probe)
+  expect_true(
+    all(c("table_output", "text_output", "plot_output") %in% names(families))
+  )
+
+  # A list of names does as a character vector does, and a name given twice
+  # counts once
+  expect_identical(
+    listed_families(
+      "blockr.core",
+      list(families = list("text_output", "text_output"))
+    ),
+    list(text_output = text_output)
+  )
+  expect_identical(
+    listed_families("blockr.core", list(families = list())),
+    list()
+  )
+})
+
+test_that("output families that R cannot read stop what reads them", {
+
+  read <- function(families) {
+    listed_families("blockr.core", list(families = families))
+  }
+
+  for (families in list(1L, list("table_output", 2L), NA_character_, "",
+                        list(table_output = list()))) {
+    expect_error(
+      read(families),
+      "They are no names of output families, each a non-empty string.",
+      fixed = TRUE,
+      class = "package_families_invalid"
+    )
+  }
+
+  # Names under which core binds no output family of that class: a function
+  # that is no family, and nothing
+  expect_error(
+    read(c("new_head_block", "table_output", "nope")),
+    paste(
+      "Package blockr.core lists output families in its `._BLOCKR_MODULES_`",
+      "that R cannot read. It binds no output family of class new_head_block",
+      "under that name. It binds no output family of class nope under that",
+      "name."
+    ),
+    fixed = TRUE,
+    class = "package_listing_invalid"
+  )
+
+  # A family bound under a name other than its class
+  local_family_package()
+
+  expect_error(
+    listed_families("famprobe", list(families = "probe_alias")),
+    "It binds no output family of class probe_alias under that name.",
+    fixed = TRUE,
+    class = "package_families_invalid"
+  )
+})
+
+test_that("two packages that list a family of one class stop the app", {
+
+  local_mocked_bindings(
+    listed_families = function(pkg, ...) list(table_output = table_output)
+  )
+
+  expect_error(
+    app_families(c("blockr.one", "blockr.two")),
+    paste(
+      "The output family table_output is listed by more than one package,",
+      "table_output by blockr.one and blockr.two, where R tells families",
+      "apart by their class."
+    ),
+    fixed = TRUE,
+    class = "package_families_conflict"
+  )
+
+  expect_named(app_families("blockr.one"), "table_output")
 })
 
 test_that("a reply names the board options of every available package", {
