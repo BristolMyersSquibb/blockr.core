@@ -615,8 +615,8 @@ The select takes how many items there are in all as `total`.
 Where it has fewer items, its list says how many there are in all below its rows.
 
 The select marks a value that its items lack, also where they are only a part of all items.
-So a request that answers with only a part of the values answers with the values that the state holds as well, where the data holds them, as the filter block's `values` below does.
-Its function names the state arg, which the host fills in, and the module names the state arg's value in `reads`, so that the request is asked again as the value changes.
+So a request that answers with only a part of the values answers with the values that the state holds as well, where the data holds them, as the filter block's `values` above does.
+Its function names the state args, which the host fills in, and the module names their values in `reads`, the column's included, so that the request is asked again as they change.
 The select marks no value while its list is open, nor while its items are those of a search, since a value that the user picked there is not in the state yet.
 
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
@@ -774,7 +774,7 @@ The option `loading` of `follow()` runs each time the request is asked, and the 
 In `loading`, a module calls `setOutdated(true)` on each input whose items or `maxValue` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
 A select that searches takes `onSearch` in its options.
 There the module keeps the text for the request's `args`, and calls `refresh()` on what `follow()` returned.
-The option `reads` of `follow()` names the values that the state holds, as `reads: () => host.state().values`, so that the request is asked again as they change.
+The option `reads` of `follow()` names the values of the state args that the request reads, as `reads: () => [host.state().column, host.state().values]`, so that the request is asked again as they change.
 The `setTotal()` of the select says how many items there are in all.
 
 A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.
