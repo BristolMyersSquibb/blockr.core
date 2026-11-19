@@ -30,6 +30,7 @@ var PAUSE = 500;
 function bind(host, key, show, options = {}) {
   const source = createSource(host);
   source.check(key);
+  const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
   let shown;
   let typed;
   let timer;
@@ -44,7 +45,7 @@ function bind(host, key, show, options = {}) {
   const submit = async (value) => {
     if (jsonEqual(source.get(key), value)) return true;
     try {
-      await (value === void 0 ? source.unset(key) : source.submit(key, value));
+      await (value === void 0 ? source.unset(key, submitting) : source.submit(key, value, submitting));
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -153,9 +154,9 @@ function createSource(host) {
         check(key);
         return host.value();
       },
-      submit(key, value) {
+      submit(key, value, opts) {
         check(key);
-        return host.submit(value);
+        return host.submit(value, opts);
       },
       unset(key) {
         check(key);
@@ -170,8 +171,8 @@ function createSource(host) {
   return {
     check: () => void 0,
     get: (key) => own(host.state(), key),
-    submit: (key, value) => host.submit({ [key]: value }),
-    unset: (key) => host.submit({ [key]: void 0 }),
+    submit: (key, value, opts) => host.submit({ [key]: value }, opts),
+    unset: (key, opts) => host.submit({ [key]: void 0 }, opts),
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input) => ({ input: input.input, revision: input.revision })),
@@ -805,7 +806,10 @@ function controls(host, signal) {
         settled: (refused) => {
           refusal = refused === null ? null : errorMessage(refused);
           redraw();
-        }
+        },
+        // The input shows why the host refused what it submitted, so core
+        // raises no notification of it.
+        notifier: () => void 0
       }
     );
     bindings.push(binding);
@@ -838,7 +842,7 @@ function controls(host, signal) {
     return host.value();
   }
   function bind2(key, show) {
-    const binding = bind(host, key, show, { settled: alert });
+    const binding = bind(host, key, show, { settled: alert, notifier: () => void 0 });
     bindings.push(binding);
     return binding;
   }

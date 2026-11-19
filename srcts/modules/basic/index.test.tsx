@@ -540,6 +540,33 @@ describe("a card", () => {
     await click(button(dialog(), "Add block"));
     expect(Object.values(board().links)).toContainEqual({ from: "more", to: "e", input: "extra" });
   });
+
+  test("adds a block after or before its block with its link in one step, which one undo takes back, minting the block's id where the user leaves it empty", async () => {
+    const { el, core, board } = await drawn({ blockrOptions: { rand_id: "letters_8" } });
+    const opened = board();
+
+    await menu(el, "Head", "Add block after");
+    await chosen(dialog(), "Block class", "subset", "subset block");
+    await click(button(dialog(), "Add block"));
+    const [after] = added(board());
+    expect(after?.[0]).toMatch(/^[a-z]{8}$/);
+    expect(Object.values(board().links)).toContainEqual({ from: "b", to: after?.[0], input: "data" });
+    await step(() => {
+      core.store.undo();
+    });
+    expect(board()).toEqual(opened);
+
+    await menu(el, "Bind", "Add block before");
+    await chosen(dialog(), "Block class", "dataset", "dataset block");
+    await click(button(dialog(), "Add block"));
+    const [before] = added(board());
+    expect(before?.[0]).toMatch(/^[a-z]{8}$/);
+    expect(Object.values(board().links)).toContainEqual({ from: before?.[0], to: "e", input: "" });
+    await step(() => {
+      core.store.undo();
+    });
+    expect(board()).toEqual(opened);
+  });
 });
 
 describe("a card's block before", () => {

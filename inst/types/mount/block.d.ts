@@ -4,7 +4,7 @@ import type { Scheduler } from "../scheduler/index.ts";
 import type { Store } from "../store/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
-import type { Notify, Raise, Replied } from "../util/index.ts";
+import type { Notify, Raise, Refused, Replied } from "../util/index.ts";
 import type { Loader } from "./load.ts";
 import type { Measure } from "./measure.ts";
 import type { OutputEvent } from "./output.ts";
@@ -31,6 +31,7 @@ export interface MountsOptions {
     readonly raise?: Raise;
     readonly replied?: Replied;
     readonly notify?: Notify;
+    readonly refused?: Refused;
     readonly optionPackage?: (option: OptionId) => string | undefined;
 }
 export declare function createMounts(options: MountsOptions): Mounts;

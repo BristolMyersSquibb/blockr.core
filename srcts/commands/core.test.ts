@@ -187,46 +187,49 @@ describe("blocks", () => {
   });
 });
 
-describe("appending, prepending and inserting", () => {
-  test("append_block adds a block that takes a block's result into its only input", async () => {
+describe("appending, prepending and inserting, as batches", () => {
+  test("add_block and add_link append a block in one step, which takes a block's result into its only input", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await commands.run("blockr.core-append_block", { from: "d", registry_id: head, id: "top" });
+    await commands.run([
+      { id: "blockr.core-add_block", args: { registry_id: head, id: "top" } },
+      { id: "blockr.core-add_link", args: { from: "d", to: "top" } },
+    ]);
 
     expect(store.board().blocks.top?.registry_id).toBe(head);
     expect(inputs(store.board(), "top")).toEqual([["d", "data"]]);
     expect(added(board.links, store.board().links)).toHaveLength(1);
+
+    store.undo();
+    expect(store.board()).toEqual(board);
   });
 
-  test("append_block refuses a class that takes no input", async () => {
-    const { commands } = await setup();
+  test("the batch that appends a block of a class that takes no input adds nothing", async () => {
+    const { store, commands } = await setup();
+    const board = store.board();
+
     await expect(
-      commands.run("blockr.core-append_block", { from: "d", registry_id: "blockr.core-dataset_block" }),
-    ).rejects.toThrow('The block class "blockr.core-dataset_block" has no input to take a link.');
-  });
-
-  test("append_block takes the input given where the new block has several, and refuses to pick one", async () => {
-    const { store, commands } = await setup();
-    const merge = { from: "d", registry_id: "blockr.core-merge_block", id: "joined" };
-
-    await expect(commands.run("blockr.core-append_block", merge)).rejects.toThrow(
-      'The block class "blockr.core-merge_block" has the inputs "x" and "y", so the args have to name the one to use.',
+      commands.run([
+        { id: "blockr.core-add_block", args: { registry_id: "blockr.core-dataset_block", id: "cars" } },
+        { id: "blockr.core-add_link", args: { from: "d", to: "cars" } },
+      ]),
+    ).rejects.toThrow(
+      'The list of commands was refused at command 2, "blockr.core-add_link"\n- The block "cars" takes no input, since its class "blockr.core-dataset_block" has none.',
     );
-
-    await commands.run("blockr.core-append_block", { ...merge, input: "y" });
-    expect(inputs(store.board(), "joined")).toEqual([["d", "y"]]);
+    expect(store.board()).toBe(board);
   });
 
-  test("prepend_block adds a block whose result goes to a block's free input, in link order where it is variadic", async () => {
+  test("add_block and add_link prepend a block, whose result goes to a block's free input, in link order where it is variadic", async () => {
     const { store, commands } = await setup();
 
-    await commands.run("blockr.core-prepend_block", {
-      to: "e",
-      registry_id: "blockr.core-dataset_block",
-      id: "cars",
-      state: { dataset: "mtcars" },
-    });
+    await commands.run([
+      {
+        id: "blockr.core-add_block",
+        args: { registry_id: "blockr.core-dataset_block", id: "cars", state: { dataset: "mtcars" } },
+      },
+      { id: "blockr.core-add_link", args: { from: "cars", to: "e" } },
+    ]);
 
     expect(store.board().blocks.cars?.state).toEqual({ dataset: "mtcars", package: "datasets" });
     expect(inputs(store.board(), "e")).toEqual([
@@ -236,69 +239,43 @@ describe("appending, prepending and inserting", () => {
     ]);
   });
 
-  test("prepend_block fails its preflight for a block whose inputs links feed", async () => {
-    const { commands } = await setup();
-    expect(commands.preflight("blockr.core-prepend_block", { to: "b", registry_id: head })).toBe(false);
-    expect(commands.preflight("blockr.core-prepend_block", { to: "e", registry_id: head })).toBe(true);
-  });
-
-  test("prepend_block refuses to pick one of several free inputs", async () => {
-    const { store, commands } = await setup();
-    await commands.run("blockr.core-remove_link", { id: "ac" });
-    await commands.run("blockr.core-remove_link", { id: "bc" });
-    const top = { to: "c", registry_id: head, id: "top" };
-
-    expect(commands.preflight("blockr.core-prepend_block", top)).toBe(true);
-    await expect(commands.run("blockr.core-prepend_block", top)).rejects.toThrow(
-      'The block "c" has the free inputs "x" and "y", so the args have to name the one to use.',
-    );
-
-    await commands.run("blockr.core-prepend_block", { ...top, input: "y" });
-    expect(inputs(store.board(), "c")).toEqual([["top", "y"]]);
-  });
-
-  test("insert_block puts a block on a link, whose input the new link takes in its place among the links", async () => {
+  test("add_block, add_link and change_link insert a block on a link, which keeps its id, its input and its place among the links", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    await commands.run("blockr.core-insert_block", { link: "be", registry_id: head, id: "top" });
+    await commands.run([
+      { id: "blockr.core-add_block", args: { registry_id: head, id: "top" } },
+      { id: "blockr.core-add_link", args: { from: "b", to: "top" } },
+      { id: "blockr.core-change_link", args: { id: "be", from: "top" } },
+    ]);
 
     const after = store.board();
-    expect(Object.hasOwn(after.links, "be")).toBe(false);
+    expect(after.links.be).toEqual({ from: "top", to: "e", input: "" });
     expect(inputs(after, "top")).toEqual([["b", "data"]]);
     expect(inputs(after, "e")).toEqual([
       ["top", ""],
       ["d", ""],
     ]);
+    expect(Object.keys(after.links).filter((id) => Object.hasOwn(board.links, id))).toEqual(Object.keys(board.links));
 
     store.undo();
     expect(store.board()).toEqual(board);
-    expect(Object.keys(store.board().links)).toEqual(Object.keys(board.links));
   });
 
-  test("insert_block keeps the input that the link fed", async () => {
+  test("the batch that inserts a block keeps the input that the link fed", async () => {
     const { store, commands } = await setup();
 
-    await commands.run("blockr.core-insert_block", { link: "ac", registry_id: head, id: "top" });
+    await commands.run([
+      { id: "blockr.core-add_block", args: { registry_id: head, id: "top" } },
+      { id: "blockr.core-add_link", args: { from: "a", to: "top" } },
+      { id: "blockr.core-change_link", args: { id: "ac", from: "top" } },
+    ]);
 
     expect(inputs(store.board(), "top")).toEqual([["a", "data"]]);
     expect(inputs(store.board(), "c")).toEqual([
       ["top", "x"],
       ["b", "y"],
     ]);
-  });
-
-  test("insert_block takes the input given where the new block has several, and refuses to pick one", async () => {
-    const { store, commands } = await setup();
-    const merge = { link: "ab", registry_id: "blockr.core-merge_block", id: "joined" };
-
-    await expect(commands.run("blockr.core-insert_block", merge)).rejects.toThrow(
-      'The block class "blockr.core-merge_block" has the inputs "x" and "y", so the args have to name the one to use.',
-    );
-
-    await commands.run("blockr.core-insert_block", { ...merge, input: "x" });
-    expect(inputs(store.board(), "joined")).toEqual([["a", "x"]]);
-    expect(inputs(store.board(), "b")).toEqual([["joined", "data"]]);
   });
 });
 
@@ -332,10 +309,20 @@ describe("links", () => {
     expect(store.board().links.dc).toEqual({ from: "d", to: "c", input: "y" });
   });
 
-  test("add_link fails its preflight for a block whose inputs links feed", async () => {
+  test("add_link fails its preflight for a block without a free input, and says why", async () => {
     const { commands } = await setup();
+    await commands.run("blockr.core-add_block", { registry_id: "blockr.core-dataset_block", id: "cars" });
+
     expect(commands.preflight("blockr.core-add_link", { from: "d", to: "c" })).toBe(false);
+    expect(commands.preflight("blockr.core-add_link", { from: "d", to: "cars" })).toBe(false);
     expect(commands.preflight("blockr.core-add_link", { from: "d", to: "zz" })).toBe(false);
+
+    await expect(commands.run("blockr.core-add_link", { from: "d", to: "c" })).rejects.toThrow(
+      'The command "blockr.core-add_link" refused to run\n- Every input of the block "c" takes a link already.',
+    );
+    await expect(commands.run("blockr.core-add_link", { from: "d", to: "cars" })).rejects.toThrow(
+      'The block "cars" takes no input, since its class "blockr.core-dataset_block" has none.',
+    );
   });
 
   test("add_link keeps the input given, leaving its checks to the store", async () => {
@@ -364,7 +351,7 @@ describe("links", () => {
   test("change_link refuses a block whose inputs other links feed", async () => {
     const { commands } = await setup();
     await expect(commands.run("blockr.core-change_link", { id: "ab", to: "d" })).rejects.toThrow(
-      'The block "d" has no input that no link feeds.',
+      'Every input of the block "d" takes a link already.',
     );
   });
 
@@ -709,7 +696,9 @@ describe("ids", () => {
     const commands = createCommands(store, { randId: "letters_8" });
     const board = store.board();
 
-    await commands.run("blockr.core-append_block", { from: "d", registry_id: head });
+    await commands.run("blockr.core-add_block", { registry_id: head });
+    const [block = ""] = added(board.blocks, store.board().blocks);
+    await commands.run("blockr.core-add_link", { from: "d", to: block });
     await commands.run("blockr.core-add_stack");
 
     const minted = [

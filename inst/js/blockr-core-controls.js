@@ -73,7 +73,10 @@ function controls(host, signal) {
         settled: (refused) => {
           refusal = refused === null ? null : errorMessage(refused);
           redraw();
-        }
+        },
+        // The input shows why the host refused what it submitted, so core
+        // raises no notification of it.
+        notifier: () => void 0
       }
     );
     bindings.push(binding);
@@ -106,7 +109,7 @@ function controls(host, signal) {
     return host.value();
   }
   function bind(key, show) {
-    const binding = bindValue(host, key, show, { settled: alert });
+    const binding = bindValue(host, key, show, { settled: alert, notifier: () => void 0 });
     bindings.push(binding);
     return binding;
   }

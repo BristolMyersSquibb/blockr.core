@@ -226,6 +226,9 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
           refusal = refused === null ? null : errorMessage(refused);
           redraw();
         },
+        // The input shows why the host refused what it submitted, so core
+        // raises no notification of it.
+        notifier: () => undefined,
       },
     );
     bindings.push(binding);
@@ -263,7 +266,9 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   function bind(key: string, show: (value: Json | undefined) => void): Binding {
     // The binding's overloads take the host's own type, which the union here
     // is not.
-    const binding = bindValue(host as BlockHost, key, show, { settled: alert });
+    // The line below the controls shows why the host refused what the widget
+    // submitted, so core raises no notification of it.
+    const binding = bindValue(host as BlockHost, key, show, { settled: alert, notifier: () => undefined });
     bindings.push(binding);
     return binding;
   }

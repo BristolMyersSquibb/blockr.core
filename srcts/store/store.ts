@@ -12,6 +12,7 @@
 import { signal } from "@preact/signals-core";
 import type { HelloReply } from "../protocol/index.ts";
 import type { BlockId, Board, JsonBoard, PluginClassId, RegistryId } from "../types/board.ts";
+import type { Notification } from "../types/core-api.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import { log } from "../log/index.ts";
 import { asError, own, packageFromId } from "../util/index.ts";
@@ -67,7 +68,15 @@ export interface Store {
   // state of a block that the board lock leaves open, a board option's value
   // or what sits inside a plugin's state, which the plugin locks itself
   // (./lock.ts).
-  apply(delta: Delta | readonly Delta[], origin?: Origin, opts?: { readonly undo?: false }): void;
+  // Through `CoreApi`, core tells the user why the store refused the deltas,
+  // or hands that notification to the notifier in `opts`, before apply()
+  // throws (../core/core.ts). The store itself ignores the notifier, as it
+  // does for undo(), redo() and open().
+  apply(
+    delta: Delta | readonly Delta[],
+    origin?: Origin,
+    opts?: { readonly undo?: false; notifier?(notifications: readonly Notification[]): void },
+  ): void;
   // The board that apply() would leave, given the same deltas: it expands and
   // checks them as apply() does, or throws the StoreError that apply() would
   // throw, but commits nothing, announces nothing and keeps no undo step.
@@ -84,7 +93,9 @@ export interface Store {
   // `CoreApi`, open() starts core again in place with the board given, in a
   // new store, once the store on the page has checked the board
   // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#opening-a-board).
-  open(given: string | HelloReply): Promise<Dropped[]>;
+  // Where that check refuses the board, core tells the user why, or hands
+  // that notification to the notifier in `opts`, before open() rejects.
+  open(given: string | HelloReply, opts?: { notifier?(notifications: readonly Notification[]): void }): Promise<Dropped[]>;
   // Opens a JSON board given as its text as open() would, with what is
   // registered and the last reply to `hello`, without holding it: it resolves
   // with what opening the board would drop, or rejects with the StoreError that
@@ -132,14 +143,16 @@ export interface Store {
   // origin has changed since, the last writer winning, and does nothing where
   // what the step changed is gone.
   // Each throws a StoreError, having changed nothing, where the board it would
-  // make fails a check, such as a fixed input that takes two links.
+  // make fails a check, such as a fixed input that takes two links. Through
+  // `CoreApi`, core tells the user why, or hands that notification to the
+  // notifier in `opts`, as for apply().
   // Neither changes a board option's value, since a board option never changes
   // what the board computes.
   // Whether there is a step to take back or to apply again: canUndo() says
   // whether the undo list holds a step, of the origin given if any, and
   // canRedo() whether the redo list holds one.
-  undo(origin?: Origin): void;
-  redo(): void;
+  undo(origin?: Origin, opts?: { notifier?(notifications: readonly Notification[]): void }): void;
+  redo(opts?: { notifier?(notifications: readonly Notification[]): void }): void;
   canUndo(origin?: Origin): boolean;
   canRedo(): boolean;
 

@@ -202,6 +202,27 @@ describe("the inputs of a block's UI", () => {
     expect(texts(el, '[role="alert"]')[0]).toContain("which the fixture does not list");
   });
 
+  test("pass the host a notifier with each submit, since each says below itself why the host refused it, so that core raises no notification of it", async () => {
+    const { host, inputs } = block();
+    const submit = vi.spyOn(host, "submit");
+
+    await step(() => {
+      inputs.direction.click();
+    });
+    await step(() => {
+      optionFromLabel(inputs.direction, "Tail").click();
+    });
+    await act(async () => {
+      toggle(inputs.keep);
+      await Promise.resolve();
+    });
+
+    expect(submit.mock.calls.map(([change, opts]) => [change, typeof opts?.notifier])).toEqual([
+      [{ direction: "tail" }, "function"],
+      [{ keep: true }, "function"],
+    ]);
+  });
+
   test("submit the strings of several once, as the list closes, built from the state as it is then", async () => {
     const { host, inputs } = block(form({ by: ["a"] }));
 

@@ -1,6 +1,7 @@
 import type { Lock } from "../protocol/index.ts";
 import type { Delta, Origin, Store } from "../store/index.ts";
 import type { Board } from "../types/board.ts";
+import type { Notification } from "../types/core-api.ts";
 import type { Json, JsonSchema } from "../types/json.ts";
 export interface CommandContext {
     readonly lock: Lock;
@@ -23,11 +24,15 @@ export interface Commands {
     register<A extends Json, P = A>(command: Command<A, P>): () => void;
     registered(): Readonly<Record<string, Command<Json, unknown>>>;
     preflight(id: string, args?: Json): boolean;
-    run(id: string, args?: Json, origin?: Origin): Promise<void>;
+    run(id: string, args?: Json, origin?: Origin, opts?: {
+        notifier?(notifications: readonly Notification[]): void;
+    }): Promise<void>;
     run(list: readonly {
         readonly id: string;
         readonly args?: Json;
-    }[], origin?: Origin): Promise<void>;
+    }[], origin?: Origin, opts?: {
+        notifier?(notifications: readonly Notification[]): void;
+    }): Promise<void>;
     plan(id: string, args?: Json): Promise<Delta[]>;
     plan(list: readonly {
         readonly id: string;

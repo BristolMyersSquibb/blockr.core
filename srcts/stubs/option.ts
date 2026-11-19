@@ -8,7 +8,7 @@ import type { HostRequestOpts, OptionHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import { asError, isObject, jsonEqual } from "../util/index.ts";
-import { announcer, lineHolder, notifier } from "./util.ts";
+import { announcer, lineHolder, raisedHolder } from "./util.ts";
 
 // What a request answers, given its name and the args it is called with.
 export interface Answered {
@@ -44,7 +44,7 @@ export function stubOptionHost<V extends Json = Json>(options: StubOptionHostOpt
   const submitted: V[] = [];
   const requested: { name: string; args: Readonly<Record<string, Json>> }[] = [];
   const on = announcer(["value"] as const);
-  const { notified, notify } = notifier();
+  const { notified, notify } = raisedHolder();
   const { logged, log } = lineHolder();
 
   return {

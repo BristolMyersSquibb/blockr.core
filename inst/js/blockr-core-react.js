@@ -45,7 +45,8 @@ function useValue(host, key) {
     const bound = bind(host, name, setValue, {
       settled: (refused) => {
         setError(refused === null ? null : errorMessage(refused));
-      }
+      },
+      notifier: () => void 0
     });
     binding.current = bound;
     return () => {

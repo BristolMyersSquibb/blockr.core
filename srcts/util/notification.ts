@@ -6,7 +6,7 @@
 // what the modules of packages raise.
 
 import type { Condition } from "../protocol/index.ts";
-import type { BoardObject, CoreCode, Notification, Raised, RRequest, SourceModule } from "../types/core-api.ts";
+import type { BoardObject, CoreCode, Notification, Notifier, Raised, RRequest, SourceModule } from "../types/core-api.ts";
 import { isObject } from "./util.ts";
 
 // Raises a notification of the open board, and returns what withdraws it.
@@ -17,12 +17,21 @@ export type Raise = (notification: Omit<Notification, "id">) => () => void;
 // before to a request of the same name, so that a request that fails again
 // keeps its notifications and one that succeeds with no condition withdraws
 // them. They concern the board object that the module belongs to, for which
-// the request was made.
+// the request was made. Given the request's notifier, it hands the notifier
+// those notifications instead, and leaves what holds as it is.
 export type Replied = (
   module: SourceModule,
   request: Extract<RRequest, { readonly name: string }>,
   conditions: readonly Condition[],
+  notifier?: Notifier,
 ) => void;
+
+// Tells the user why the store or the command registry refused an edit,
+// through a notification of the code `board_edit_failed` about the board
+// object given, or about the board where none is given, which core raises
+// anew for each refusal. Given the edit's notifier, it hands the notifier that
+// notification instead.
+export type Refused = (error: unknown, about: BoardObject | undefined, notifier: Notifier | undefined) => void;
 
 // Raises a notification that a package's module gives, from the module, and
 // returns what withdraws the notification.
@@ -32,6 +41,20 @@ export type Notify = (module: SourceModule, notification: Raised) => () => void;
 export const raiseNothing: Raise = () => () => undefined;
 export const repliedNothing: Replied = () => undefined;
 export const notifyNothing: Notify = () => () => undefined;
+export const refusedNothing: Refused = () => undefined;
+
+// The notifier in a call's options, bound to them, or undefined where they
+// give none. It throws a TypeError for a notifier that is no function, as a
+// caller in plain JS may give, naming the call, as "the request "save" of the
+// plugin "blockr.core-file_storage_plugin"".
+export function givenNotifier(
+  opts: { notifier?(notifications: readonly Notification[]): void } | null | undefined,
+  call: string,
+): Notifier | undefined {
+  if (opts?.notifier === undefined) return undefined;
+  if (typeof opts.notifier !== "function") throw new TypeError(`The \`notifier\` of ${call} is a function.`);
+  return opts.notifier.bind(opts);
+}
 
 // A package's module, as a notification's source names it, from the board
 // object whose module it is, its package and, where the module is a renderer,

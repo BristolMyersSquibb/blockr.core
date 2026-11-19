@@ -55,8 +55,10 @@
 # The results live in an environment keyed by block id.
 # For each block that R evaluated, it holds the revision,
 # value, block expression and registry id of the latest evaluation.
-# It also holds the class vector of the latest output that R made from that
-# value, by which R resolves a request of the output.
+# It also holds what R kept of the latest output that it made from that
+# value, by which R resolves a request of the output: the output's class
+# vector, the requests that its classes gave for it and the renderer that drew
+# it.
 # A block's entry changes only once its next evaluation ends,
 # so the previous value stays while the next computes.
 #

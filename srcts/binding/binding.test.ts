@@ -57,6 +57,29 @@ describe("a binding", () => {
     expect(settled[1]).toBeNull();
   });
 
+  test("passes its notifier to each submit of the host, an unset among them, and none where it was given none", async () => {
+    const host = stubBlockHost(fixture);
+    const submit = vi.spyOn(host, "submit");
+    const notifier = (): void => undefined;
+    const columns = bind(host, "columns", () => undefined, { notifier });
+    const label = bind(host, "label", () => undefined);
+
+    await columns.commit(["a", "b"]);
+    await columns.unset();
+    await label.commit("y");
+
+    expect(submit.mock.calls).toEqual([
+      [{ columns: ["a", "b"] }, { notifier }],
+      [{ columns: undefined }, { notifier }],
+      [{ label: "y" }, {}],
+    ]);
+
+    const option = stubOptionHost({ option: "n_rows", value: 50 });
+    const submitOption = vi.spyOn(option, "submit");
+    await bind(option, "n_rows", () => undefined, { notifier }).commit(10);
+    expect(submitOption.mock.calls).toEqual([[10, { notifier }]]);
+  });
+
   test("submits what the user typed once the user pauses, and shows nothing the host announces until then", async () => {
     const host = stubBlockHost(fixture);
     const shown: (Json | undefined)[] = [];
