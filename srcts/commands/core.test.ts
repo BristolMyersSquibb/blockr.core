@@ -309,13 +309,14 @@ describe("links", () => {
     expect(store.board().links.dc).toEqual({ from: "d", to: "c", input: "y" });
   });
 
-  test("add_link fails its preflight for a block without a free input, and says why", async () => {
+  test("add_link fails its preflight for a block without a free input, saying why, and for a block that the board lacks", async () => {
     const { commands } = await setup();
     await commands.run("blockr.core-add_block", { registry_id: "blockr.core-dataset_block", id: "cars" });
 
     expect(commands.preflight("blockr.core-add_link", { from: "d", to: "c" })).toBe(false);
     expect(commands.preflight("blockr.core-add_link", { from: "d", to: "cars" })).toBe(false);
     expect(commands.preflight("blockr.core-add_link", { from: "d", to: "zz" })).toBe(false);
+    expect(commands.preflight("blockr.core-add_link", { from: "zz", to: "e" })).toBe(false);
 
     await expect(commands.run("blockr.core-add_link", { from: "d", to: "c" })).rejects.toThrow(
       'The command "blockr.core-add_link" refused to run\n- Every input of the block "c" takes a link already.',
@@ -323,13 +324,60 @@ describe("links", () => {
     await expect(commands.run("blockr.core-add_link", { from: "d", to: "cars" })).rejects.toThrow(
       'The block "cars" takes no input, since its class "blockr.core-dataset_block" has none.',
     );
+    // A block that the board lacks fails the preflight without a sentence.
+    await expect(commands.run("blockr.core-add_link", { from: "d", to: "zz" })).rejects.toMatchObject({
+      preflight: false,
+    });
   });
 
-  test("add_link keeps the input given, leaving its checks to the store", async () => {
+  test("add_link fails its preflight for an input that another link feeds, naming that link, and leaves an input that the class lacks to the store", async () => {
     const { commands } = await setup();
-    await expect(commands.run("blockr.core-add_link", { from: "d", to: "c", input: "x", id: "dc" })).rejects.toThrow(
-      'The input "x" of block "c" takes the links "ac" and "dc", where it takes one.',
+    expect(commands.preflight("blockr.core-add_link", { from: "d", to: "c", input: "x" })).toBe(false);
+    await expect(commands.run("blockr.core-add_link", { from: "d", to: "c", input: "x" })).rejects.toThrow(
+      'The link "ac" feeds the input "x" of block "c" already.',
     );
+    await expect(commands.run("blockr.core-add_link", { from: "d", to: "c", input: "z", id: "dc" })).rejects.toThrow(
+      'The link "dc" feeds the input "z" of block "c", whose class has no such input.',
+    );
+    // The rbind block e takes any number of links, so a third link without a
+    // name passes, beside be and de.
+    expect(commands.preflight("blockr.core-add_link", { from: "c", to: "e", input: "" })).toBe(true);
+  });
+
+  test("add_link fails its preflight for a link that would join a block to itself or close a cycle, naming the blocks of the cycle in their order", async () => {
+    const { commands } = await setup();
+    expect(commands.preflight("blockr.core-add_link", { from: "e", to: "e" })).toBe(false);
+    await expect(commands.run("blockr.core-add_link", { from: "e", to: "e" })).rejects.toThrow(
+      'The link would join block "e" to itself.',
+    );
+
+    // A head block g takes the result of the rbind block e, and e takes that
+    // of the head block b. The one input of b is free.
+    await commands.run("blockr.core-add_block", { registry_id: head, id: "g" });
+    await commands.run("blockr.core-add_link", { from: "e", to: "g" });
+    await commands.run("blockr.core-remove_link", { id: "ab" });
+    expect(commands.preflight("blockr.core-add_link", { from: "g", to: "b" })).toBe(false);
+    await expect(commands.run("blockr.core-add_link", { from: "g", to: "b" })).rejects.toThrow(
+      'The link would close a cycle through the blocks "b", "e" and "g".',
+    );
+    expect(commands.preflight("blockr.core-add_link", { from: "d", to: "b" })).toBe(true);
+  });
+
+  test("add_link and change_link give a sentence for each failure of the link", async () => {
+    const { commands } = await setup();
+
+    // The head block b takes the result of a into its one input, and feeds the
+    // merge block c.
+    const failures = [
+      'The link would close a cycle through the blocks "b" and "c".',
+      'The link "ab" feeds the input "data" of block "b" already.',
+    ];
+    await expect(commands.run("blockr.core-add_link", { from: "c", to: "b", input: "data" })).rejects.toMatchObject({
+      failures,
+    });
+    await expect(
+      commands.run("blockr.core-change_link", { id: "be", from: "c", to: "b", input: "data" }),
+    ).rejects.toMatchObject({ failures });
   });
 
   test("change_link keeps the input where the link goes to the same block, and takes the only free one where it goes to another", async () => {
@@ -348,18 +396,44 @@ describe("links", () => {
     expect(store.board().links.bc).toEqual({ from: "b", to: "c", input: "y" });
   });
 
-  test("change_link refuses a block whose inputs other links feed", async () => {
+  test("change_link fails its preflight for another block whose inputs other links feed, saying so, and for a block or a link that the board lacks", async () => {
     const { commands } = await setup();
+    expect(commands.preflight("blockr.core-change_link", { id: "ab", to: "d" })).toBe(false);
     await expect(commands.run("blockr.core-change_link", { id: "ab", to: "d" })).rejects.toThrow(
       'Every input of the block "d" takes a link already.',
     );
+
+    expect(commands.preflight("blockr.core-change_link", { id: "ab", from: "zz" })).toBe(false);
+    expect(commands.preflight("blockr.core-change_link", { id: "ab", to: "zz" })).toBe(false);
+    expect(commands.preflight("blockr.core-change_link", { id: "zz", from: "d" })).toBe(false);
+  });
+
+  test("change_link fails its preflight for a source that would join the link's block to itself or close a cycle, so that a menu offers no such source", async () => {
+    const { commands } = await setup();
+    const sources = (id: string): string[] =>
+      ["a", "b", "c", "d", "e", "f"].filter((from) => commands.preflight("blockr.core-change_link", { id, from }));
+
+    // The link ab feeds the head block b. The merge block c and the rbind
+    // block e take the result of b.
+    expect(sources("ab")).toEqual(["a", "d", "f"]);
+    await expect(commands.run("blockr.core-change_link", { id: "ab", from: "b" })).rejects.toThrow(
+      'The link would join block "b" to itself.',
+    );
+    await expect(commands.run("blockr.core-change_link", { id: "ab", from: "e" })).rejects.toThrow(
+      'The link would close a cycle through the blocks "b" and "e".',
+    );
+
+    // The link bc feeds the merge block c, and no block takes the result of c.
+    expect(sources("bc")).toEqual(["a", "b", "d", "e", "f"]);
   });
 
   test("change_link swaps the inputs of two links into a block that is not variadic, in one step that one undo takes back", async () => {
     const { store, commands } = await setup();
     const board = store.board();
 
-    // The merge block c takes ac as x and bc as y.
+    // The merge block c takes ac as x and bc as y. The link ac passes the
+    // preflight for y, which bc feeds, since the two links swap their inputs.
+    expect(commands.preflight("blockr.core-change_link", { id: "ac", input: "y" })).toBe(true);
     await commands.run("blockr.core-change_link", { id: "ac", input: "y" });
     expect(inputs(store.board(), "c")).toEqual([
       ["a", "y"],
@@ -382,9 +456,10 @@ describe("links", () => {
     const { store, commands } = await setup();
 
     // The old input of ab, the data of block b, means nothing to block c, so
-    // ac keeps x.
+    // ac keeps x. The preflight refuses to have ab feed x as well.
+    expect(commands.preflight("blockr.core-change_link", { id: "ab", to: "c", input: "x" })).toBe(false);
     await expect(commands.run("blockr.core-change_link", { id: "ab", to: "c", input: "x" })).rejects.toThrow(
-      'The input "x" of block "c" takes the links "ab" and "ac", where it takes one.',
+      'The link "ac" feeds the input "x" of block "c" already.',
     );
 
     // The rbind block e takes be and de by their place, as neither gives a

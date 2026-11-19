@@ -36,7 +36,8 @@ function createGraph(board) {
     cycle() {
       cycle ??= { found: findCycle(board, targets) };
       return cycle.found;
-    }
+    },
+    path: (from, to) => findPath(from, to, downstream)
   };
 }
 function once(ends) {
@@ -91,6 +92,24 @@ function findCycle(board, targets) {
     if (!targets.has(block)) continue;
     const cycle = visit(block);
     if (cycle !== void 0) return cycle;
+  }
+  return void 0;
+}
+function findPath(from, to, downstream) {
+  if (!downstream.has(from)) return void 0;
+  const before = /* @__PURE__ */ new Map([[from, void 0]]);
+  const todo = [from];
+  for (const block of todo) {
+    if (block === to) {
+      const path = [block];
+      for (let at = before.get(block); at !== void 0; at = before.get(at)) path.unshift(at);
+      return path;
+    }
+    for (const next of downstream.get(block) ?? []) {
+      if (before.has(next)) continue;
+      before.set(next, block);
+      todo.push(next);
+    }
   }
   return void 0;
 }
@@ -6102,20 +6121,22 @@ function createStore(options = {}) {
   function apply(delta, origin = "user", opts = {}) {
     guard2();
     const given = isDeltas(delta) ? delta : [delta];
-    if (given.length === 0) return;
+    if (given.length === 0) return false;
     const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
     busy = true;
     try {
       const { start: start2, applied, inverses } = runOnBoard(deltas);
-      if (applied.length === 0) return;
+      if (applied.length === 0) return false;
       number(applied, applied.at(-1)?.board ?? start2);
-      if (inverses.length > 0) {
+      const undoStep = inverses.length > 0;
+      if (undoStep) {
         history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
       }
       for (const { delta: delta2, board: next } of applied) {
         board.value = next;
         announce2({ delta: delta2, origin }, next);
       }
+      return undoStep;
     } finally {
       busy = false;
     }
@@ -6452,10 +6473,14 @@ function coreCommands(store) {
     const id2 = args.id ?? mintId2((id3) => Object.hasOwn(board2.blocks, id3));
     return [id2, { registry_id: entry.id, state: state2, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
-  function linkable(command2, board2, from, to, given) {
-    if (!Object.hasOwn(board2.blocks, from) || !Object.hasOwn(board2.blocks, to)) return false;
-    if (named(given) || (freeInputs(board2, store.blockRegistry(), to)?.length ?? 0) > 0) return true;
-    throw refusal(command2, [noFreeInput(board2, to)]);
+  function inputFailures(board2, to, given) {
+    const registry = store.blockRegistry();
+    if (!named(given)) {
+      const free = freeInputs(board2, registry, to) ?? [];
+      return free.length > 0 ? [] : [noFreeInput(board2, to)];
+    }
+    const other = linkFeeding(board2, registry, to, given);
+    return other === void 0 ? [] : [`The link "${other}" feeds the input "${given}" of block "${to}" already.`];
   }
   function noFreeInput(board2, to) {
     const block = own(board2.blocks, to);
@@ -6563,9 +6588,7 @@ function coreCommands(store) {
         },
         ["from", "to"]
       ),
-      preflight(board2, { from, to, input: input2 }) {
-        return linkable(this.id, board2, from, to, input2);
-      },
+      preflight: (board2, { from, to, input: input2 }, { refusal: refusal2 }) => Object.hasOwn(board2.blocks, from) && Object.hasOwn(board2.blocks, to) && passes([...cycleFailures(board2, from, to), ...inputFailures(board2, to, input2)], refusal2),
       run(board2, { from, to, input: input2, id: id2 }, { mintId: mintId2 }) {
         const link = id2 ?? mintId2((id3) => Object.hasOwn(board2.links, id3));
         const resolved = linkInput(this.id, board2, to, input2);
@@ -6588,7 +6611,15 @@ function coreCommands(store) {
         },
         ["id"]
       ),
-      preflight: (board2, { id: id2 }) => Object.hasOwn(board2.links, id2),
+      preflight(board2, args, { refusal: refusal2 }) {
+        const link = own(board2.links, args.id);
+        if (link === void 0) return false;
+        const from = args.from ?? link.from;
+        const to = args.to ?? link.to;
+        if (!Object.hasOwn(board2.blocks, from) || !Object.hasOwn(board2.blocks, to)) return false;
+        const inputs = to === link.to ? [] : inputFailures(board2, to, args.input);
+        return passes([...cycleFailures(board2, from, to, args.id), ...inputs], refusal2);
+      },
       run(board2, args) {
         const link = own(board2.links, args.id);
         if (link === void 0) return [];
@@ -6786,6 +6817,16 @@ function defaultBlockName(registryId2) {
   const name3 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
   return sentenceCase(name3.replace(/_block$/, ""));
 }
+function cycleFailures(board, from, to, except) {
+  if (from === to) return [`The link would join block "${to}" to itself.`];
+  const links = except === void 0 ? board.links : without(board.links, [except]);
+  const cycle = createGraph({ blocks: board.blocks, links }).path(to, from);
+  return cycle === void 0 ? [] : [`The link would close a cycle through the blocks ${quoted(cycle)}.`];
+}
+function passes(failures, refusal2) {
+  if (failures.length > 0) throw refusal2(failures);
+  return true;
+}
 function lastPlace(board, to, id2) {
   const others = Object.keys(board.links).filter((other) => other !== id2);
   const last = others.filter((other) => own(board.links, other)?.to === to).at(-1);
@@ -6909,8 +6950,8 @@ function createCommands(store, options = {}) {
     return store.board();
   }
   function allow({ command: command2, context: context4 }, board, args) {
-    const passes = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
-    if (!passes) {
+    const passes2 = attempt2(command2, () => command2.preflight?.(board, args, context4) ?? true);
+    if (!passes2) {
       throw refusal(
         command2.id,
         [`It fails its preflight on the board as it is, with the args ${JSON.stringify(args)}.`],
@@ -6994,15 +7035,13 @@ function createCommands(store, options = {}) {
     return traced(
       "command list",
       { "blockr.command.ids": ids2, "blockr.delta.origin": origin },
-      () => planned(list, (built) => {
-        store.apply(built, origin);
-      })
+      () => planned(list, (built) => store.apply(built, origin))
     );
   }
   async function traced(name3, attributes, run) {
     const span = tracer().startSpan(name3, { attributes });
     try {
-      await otelContext.with(trace3.setSpan(otelContext.active(), span), run);
+      return await otelContext.with(trace3.setSpan(otelContext.active(), span), run);
     } catch (error) {
       failSpan(span, error);
       throw error;
@@ -7059,9 +7098,7 @@ function createCommands(store, options = {}) {
         const { item, args } = lookup(target2, given);
         const step2 = deltas(item, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        within(() => {
-          store.apply(ready, origin);
-        });
+        return within(() => store.apply(ready, origin));
       });
     },
     async plan(target2, given) {
@@ -7414,6 +7451,7 @@ function createCore(parts) {
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const focus = createFocus(store, parts.signal);
+  const selection = createSelection(store, plugins, parts.signal);
   const edits = refusing(store, commands, refused2);
   const api = {
     store: edits.store,
@@ -7449,6 +7487,7 @@ function createCore(parts) {
       return createLog(given);
     },
     focus,
+    selection,
     onScreen: createOnScreen(parts.signal),
     show(object2) {
       if (parts.signal?.aborted === true) return Promise.resolve();
@@ -7522,7 +7561,7 @@ function refusing(store, commands, refused2) {
   function edit(opts, call, fn) {
     const notifier = givenNotifier(opts, call);
     try {
-      fn();
+      return fn();
     } catch (error) {
       refused2(error, void 0, notifier);
       throw error;
@@ -7544,9 +7583,7 @@ function refusing(store, commands, refused2) {
     store: {
       ...store,
       apply(delta, origin, opts) {
-        edit(opts, "apply()", () => {
-          store.apply(delta, origin, opts?.undo === false ? { undo: false } : void 0);
-        });
+        return edit(opts, "apply()", () => store.apply(delta, origin, opts?.undo === false ? { undo: false } : void 0));
       },
       undo(origin, opts) {
         edit(opts, "undo()", () => {
@@ -7669,6 +7706,74 @@ function createFocus(store, signal5) {
       };
     }
   };
+}
+var NOTHING_SELECTED = Object.freeze([]);
+function createSelection(store, plugins, signal5) {
+  let selected = NOTHING_SELECTED;
+  const listeners = /* @__PURE__ */ new Set();
+  function holds(object2, board) {
+    if ("block" in object2) return Object.hasOwn(board.blocks, object2.block);
+    if ("link" in object2) return Object.hasOwn(board.links, object2.link);
+    if ("stack" in object2) return Object.hasOwn(board.stacks, object2.stack);
+    if ("option" in object2) return Object.hasOwn(board.options, object2.option);
+    return Object.hasOwn(plugins.appPlugins(), object2.plugin);
+  }
+  const offStore = store.subscribe((_change, board) => {
+    const kept = selected.filter((object2) => holds(object2, board));
+    if (kept.length === selected.length) return;
+    selected = Object.freeze(kept);
+    announceTo(listeners, selected);
+  });
+  signal5?.addEventListener(
+    "abort",
+    () => {
+      offStore();
+      listeners.clear();
+    },
+    { once: true }
+  );
+  return {
+    get: () => selected,
+    set(objects) {
+      const given = selectionGiven(objects);
+      const lacking = given.find((object2) => !store.hasBoard() || !holds(object2, store.board()));
+      if (lacking !== void 0) throw new Error(unheld(lacking));
+      if (sameIds(selected.map(objectKey), given.map(objectKey))) return;
+      selected = given;
+      announceTo(listeners, selected);
+    },
+    subscribe(fn) {
+      const wrapped = (objects) => {
+        fn(objects);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    }
+  };
+}
+function selectionGiven(given) {
+  if (!Array.isArray(given) || !given.every(isBoardObject)) {
+    throw new TypeError(`A selection is an array of board objects, as [{ block: "a" }, { link: "ab" }], not ${JSON.stringify(given)}.`);
+  }
+  const copies = /* @__PURE__ */ new Map();
+  for (const object2 of given) {
+    const copy = Object.freeze({ ...object2 });
+    const key2 = objectKey(copy);
+    if (!copies.has(key2)) copies.set(key2, copy);
+  }
+  return Object.freeze([...copies.values()]);
+}
+function objectKey(object2) {
+  return JSON.stringify(object2);
+}
+function unheld(object2) {
+  if ("block" in object2) return `The board holds no block ${JSON.stringify(object2.block)} to select.`;
+  if ("link" in object2) return `The board holds no link ${JSON.stringify(object2.link)} to select.`;
+  if ("stack" in object2) return `The board holds no stack ${JSON.stringify(object2.stack)} to select.`;
+  if ("option" in object2) return `The board holds no board option ${JSON.stringify(object2.option)} to select.`;
+  return `The app runs no plugin ${JSON.stringify(object2.plugin)} to select.`;
 }
 
 // srcts/core/frontends.ts

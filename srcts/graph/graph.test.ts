@@ -50,6 +50,23 @@ describe("the blocks reached", () => {
   });
 });
 
+describe("a path", () => {
+  test("follows the fewest links from one block to another, taking the links in link order, and leads from a block to itself at once", () => {
+    const graph = createGraph(sample);
+    expect(graph.path("a", "c")).toEqual(["a", "c"]);
+    expect(graph.path("a", "e")).toEqual(["a", "b", "e"]);
+    expect(graph.path("b", "b")).toEqual(["b"]);
+  });
+
+  test("is undefined against the direction of the links, and for a block that the board lacks", () => {
+    const graph = createGraph(sample);
+    expect(graph.path("e", "a")).toBeUndefined();
+    expect(graph.path("c", "e")).toBeUndefined();
+    expect(graph.path("a", "z")).toBeUndefined();
+    expect(graph.path("z", "z")).toBeUndefined();
+  });
+});
+
 describe("a cycle", () => {
   test("is named by its blocks in order, and the sample board has none", () => {
     expect(createGraph(sample).cycle()).toBeUndefined();

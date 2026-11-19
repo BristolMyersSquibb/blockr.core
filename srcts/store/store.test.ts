@@ -1867,6 +1867,40 @@ describe("applying a delta", () => {
 
     expect(store.board().blocks.b?.state).toEqual({ n: 10, direction: "head" });
   });
+
+  test("returns whether the step took an undo step: false for no deltas, for a delta that changes nothing, for one that changes only board option values and for one with undo: false", async () => {
+    const store = await opened();
+
+    expect(store.apply({ name: "Renamed" })).toBe(true);
+    expect(store.apply([{ options: { set: { n_rows: 20 } } }, { name: "Again" }], "assistant")).toBe(true);
+    expect(store.apply([])).toBe(false);
+    expect(store.apply({ name: "Again" })).toBe(false);
+    expect(store.apply({ options: { set: { n_rows: 30 } } }, "assistant")).toBe(false);
+    expect(store.apply({ name: "Seen" }, "user", { undo: false })).toBe(false);
+    expect(store.apply([{ options: { set: { n_rows: 40 } } }, { name: "Looked", undo: false }])).toBe(false);
+
+    // The undo list holds the two steps for which apply() returned true.
+    expect(store.board().name).toBe("Looked");
+    store.undo();
+    expect(store.board().name).toBe("Renamed");
+    expect(store.canUndo("assistant")).toBe(false);
+    store.undo();
+    expect(store.board().name).toBe("Iris review");
+    expect(store.canUndo()).toBe(false);
+  });
+
+  test("returns false for a delta that sets a board option's value and gives a block's state the value it holds, which a subscriber hears with the block's part", async () => {
+    const store = await opened();
+    const seen = changes(store);
+
+    // Block b holds { n: 6 } on the board of the fixture hello.
+    const delta: Delta = { blocks: { mod: { b: { state: { n: 6 } } } }, options: { set: { n_rows: 10 } } };
+    expect(store.apply(delta, "assistant")).toBe(false);
+
+    expect(store.board().options.n_rows).toBe(10);
+    expect(seen).toEqual([{ delta, origin: "assistant" }]);
+    expect(store.canUndo("assistant")).toBe(false);
+  });
 });
 
 describe("a dry run", () => {

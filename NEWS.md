@@ -446,6 +446,9 @@
   Its `redo()` applies again the step that the last undo took back, and neither it nor `canRedo()` takes an origin.
   A new step empties the redo steps, whoever takes it.
   An undo or a redo is a change of the origin that asks for it, `"user"` where none is given (#608).
+* The store's `apply()` returns whether the step took an undo step, and `commands.run()` resolves with that value, for a command alone and for a list.
+  So a plugin, such as the assistant's edit tool, need not work it out from the deltas that it hears.
+  It could not always do so, since a delta can set a board option's value and give a block's state the value it holds already: the store keeps no inverse of such a delta, but announces all of it (#725).
 * The command registry takes a list of commands, each as `{ id, args }`, in `commands.run(list, origin)` and `commands.plan(list)`, as the assistant's edit tool runs one.
   It plans each command on the board that the deltas of the commands before it leave, so that a list can add a block and then link it.
   The store's new `dryRun()` gives that board: it expands and checks deltas as `apply()` does, but commits nothing.
@@ -455,6 +458,14 @@
   The step of a list is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
   Where the registry refuses a list that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
   The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
+* Core's commands `blockr.core-add_link` and `blockr.core-change_link` check a link in their preflight before the store does.
+  The preflight fails for a link that would join a block to itself, close a cycle or feed an input that another link feeds.
+  It throws the `refusal()` of the command's context, with a sentence for each failure, such as `The link would close a cycle through the blocks "a", "b" and "d".`
+  So `commands.preflight()` answers `false` for such a link, and `commands.run()` rejects with the sentences before the command does any work.
+  A menu that offers only the links whose preflight passes then offers none that the store refuses.
+  A link that `blockr.core-change_link` keeps on its block may still take an input that another link feeds, since the command swaps the inputs of the two links.
+  Where the args name no input and the block has no free input, both preflights say why, such as `Every input of the block "c" takes a link already.`
+  The preflight of `blockr.core-change_link` also fails where the args name a block that the board lacks, as that of `blockr.core-add_link` does (#695, #741).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.
@@ -646,6 +657,12 @@
   The page loads the parts of React Aria that core draws with in core's vendor file, and the types of `@blockr/core` name React Aria as a dependency.
   The `comboBox()` of `controls()` takes `items`, `selectionMode`, `ordered` and `renderEmptyState`, in place of `select()` and `checklist()`, which are gone, as are `Choice` and `asChoices()`.
   Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).
+* The `selection` of `CoreApi` holds the board objects that the user selected, such as `[{ block: "a" }, { link: "ab" }]`.
+  Whatever selects sets it, as the DAG will as the user selects nodes, links and stacks, while core's basic frontend selects nothing.
+  Its `get()` gives the board objects selected, its `set()` selects those given in place of them, and its `subscribe()` calls back whenever they change.
+  Core holds the selection outside the board, as it holds focus, so that nothing saves or undoes it, and nothing is selected as a board opens.
+  The call `set()` refuses a block, a link or a stack that the board does not hold, a board option whose value the board does not hold, and a plugin that the app does not run.
+  A board object given twice is selected once, and one that leaves the board leaves the selection (#740).
 * Core's React SDK offers a text field, `TextField`, and a number field, `NumberField`, which core's own UIs, frontends, the UIs of plugins and those of blocks all draw with: [React Aria's `TextField`](https://react-aria.adobe.com/TextField) and [`NumberField`](https://react-aria.adobe.com/NumberField), in core's theme, after those of React Aria's Tailwind starter kit, in place of `TextInput` and `NumberInput`, which are gone.
   Each takes the props of its part of React Aria, and the `label`, `description`, `errorMessage` and `placeholder` that the starter kit adds.
   The `TextField` holds a text area where its `lines` is above 1, since React Aria has no prop for text on several lines.

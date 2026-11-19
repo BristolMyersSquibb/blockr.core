@@ -22,6 +22,11 @@ export interface Graph {
   withDownstream(ids: Iterable<BlockId>): ReadonlySet<BlockId>;
   // The blocks of a cycle among the links, in order, if the links form one.
   cycle(): readonly BlockId[] | undefined;
+  // The blocks along a path of links from block `from` to block `to`, both
+  // included, in order, or undefined where no path joins them. Of several
+  // paths, it takes one with the fewest links. The path from a block to
+  // itself is the block alone.
+  path(from: BlockId, to: BlockId): readonly BlockId[] | undefined;
 }
 
 export function createGraph(board: Pick<Board, "blocks" | "links">): Graph {
@@ -65,6 +70,7 @@ export function createGraph(board: Pick<Board, "blocks" | "links">): Graph {
       cycle ??= { found: findCycle(board, targets) };
       return cycle.found;
     },
+    path: (from, to) => findPath(from, to, downstream),
   };
 }
 
@@ -143,6 +149,34 @@ function findCycle(
     if (!targets.has(block)) continue;
     const cycle = visit(block);
     if (cycle !== undefined) return cycle;
+  }
+  return undefined;
+}
+
+// A breadth-first search from block `from`, which follows the links in link
+// order. So the first path that it finds to block `to` has the fewest links.
+function findPath(
+  from: BlockId,
+  to: BlockId,
+  downstream: ReadonlyMap<BlockId, readonly BlockId[]>,
+): BlockId[] | undefined {
+  if (!downstream.has(from)) return undefined;
+  // The block before each block that the search reached, on its path from
+  // block `from`, before which no block comes.
+  const before = new Map<BlockId, BlockId | undefined>([[from, undefined]]);
+  const todo = [from];
+  // The loop visits the blocks it appends as well.
+  for (const block of todo) {
+    if (block === to) {
+      const path = [block];
+      for (let at = before.get(block); at !== undefined; at = before.get(at)) path.unshift(at);
+      return path;
+    }
+    for (const next of downstream.get(block) ?? []) {
+      if (before.has(next)) continue;
+      before.set(next, block);
+      todo.push(next);
+    }
   }
   return undefined;
 }

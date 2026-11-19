@@ -23,13 +23,19 @@
 // Each reads the board and returns its deltas, leaving the checks of the board
 // to the store. A command that sets a block's state checks it against the
 // schema of the block's class before the store does, so that the error names
-// the command. An edit that changes nothing is the store's to drop, which
-// makes no step of it.
+// the command. The preflights of the commands that add or change a link check
+// the link before the store does, too. A link fails them where it would join a
+// block to itself, close a cycle or feed an input that another link feeds, and
+// the refusal says which, in a sentence for each failure. So a menu that offers
+// only the links whose preflight passes offers none that the store refuses.
+// An edit that changes nothing is the store's to drop, which makes no step of
+// it.
 // They read the board lock and mint ids through the context that the command
 // registry hands every command, as a plugin class's commands do. So the ids
 // that they mint for what they add take the shape that the blockr option
 // rand_id names, as R's rand_names() draws them.
 
+import { createGraph } from "../graph/index.ts";
 import { pathFromSegments, sentenceCase, stateFailures } from "../store/index.ts";
 import type { Patch, Store } from "../store/index.ts";
 import type {
@@ -113,14 +119,19 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
     return [id, { registry_id: entry.id, state, name: args.name ?? defaultBlockName(entry.id), locked: null }];
   }
 
-  // Whether a new link can go from block `from` to block `to`, into the input
-  // given or a free one. Where both blocks are on the board but `to` has no
-  // free input, it throws the refusal of the command instead. The refusal says
-  // why, so that the caller learns what went wrong.
-  function linkable(command: string, board: Board, from: BlockId, to: BlockId, given?: string): boolean {
-    if (!Object.hasOwn(board.blocks, from) || !Object.hasOwn(board.blocks, to)) return false;
-    if (named(given) || (freeInputs(board, store.blockRegistry(), to)?.length ?? 0) > 0) return true;
-    throw refusal(command, [noFreeInput(board, to)]);
+  // Why block `to` cannot take one more link, into the input given or else a
+  // free one, with a sentence for each failure: another link feeds the input
+  // given, or, where none is given, the block has no free input. The sentence
+  // for that comes from noFreeInput(). A variadic block takes any number of
+  // links, under any name. The caller checks that the board holds the block.
+  function inputFailures(board: Board, to: BlockId, given?: string): string[] {
+    const registry = store.blockRegistry();
+    if (!named(given)) {
+      const free = freeInputs(board, registry, to) ?? [];
+      return free.length > 0 ? [] : [noFreeInput(board, to)];
+    }
+    const other = linkFeeding(board, registry, to, given);
+    return other === undefined ? [] : [`The link "${other}" feeds the input "${given}" of block "${to}" already.`];
   }
 
   // Why no new link can go to block `to`, which has no free input, in a
@@ -256,9 +267,10 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["from", "to"],
       ),
-      preflight(board, { from, to, input }) {
-        return linkable(this.id, board, from, to, input);
-      },
+      preflight: (board, { from, to, input }, { refusal }) =>
+        Object.hasOwn(board.blocks, from) &&
+        Object.hasOwn(board.blocks, to) &&
+        passes([...cycleFailures(board, from, to), ...inputFailures(board, to, input)], refusal),
       run(board, { from, to, input, id }, { mintId }) {
         const link = id ?? mintId((id) => Object.hasOwn(board.links, id));
         const resolved = linkInput(this.id, board, to, input);
@@ -288,7 +300,17 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
         },
         ["id"],
       ),
-      preflight: (board, { id }) => Object.hasOwn(board.links, id),
+      preflight(board, args, { refusal }) {
+        const link = own(board.links, args.id);
+        if (link === undefined) return false;
+        const from = args.from ?? link.from;
+        const to = args.to ?? link.to;
+        if (!Object.hasOwn(board.blocks, from) || !Object.hasOwn(board.blocks, to)) return false;
+        // Where the link keeps its block, an input that another link feeds
+        // swaps the inputs of the two links, as run() has it.
+        const inputs = to === link.to ? [] : inputFailures(board, to, args.input);
+        return passes([...cycleFailures(board, from, to, args.id), ...inputs], refusal);
+      },
       run(board, args) {
         const link = own(board.links, args.id);
         if (link === undefined) return [];
@@ -541,6 +563,24 @@ export function defaultBlockName(registryId: RegistryId): string {
   const pkg = packageFromId(registryId);
   const name = pkg === null ? registryId : registryId.slice(pkg.length + 1);
   return sentenceCase(name.replace(/_block$/, ""));
+}
+
+// Why a link from block `from` to block `to` would make the board's links form
+// a cycle, with a sentence for the failure: the link joins a block to itself,
+// or a path of other links leads from block `to` back to block `from`. The
+// link `except`, which a command is about to change, is no part of a path.
+function cycleFailures(board: Board, from: BlockId, to: BlockId, except?: LinkId): string[] {
+  if (from === to) return [`The link would join block "${to}" to itself.`];
+  const links = except === undefined ? board.links : without(board.links, [except]);
+  const cycle = createGraph({ blocks: board.blocks, links }).path(to, from);
+  return cycle === undefined ? [] : [`The link would close a cycle through the blocks ${quoted(cycle)}.`];
+}
+
+// Passes a preflight where nothing fails, and otherwise refuses the command
+// with a sentence for each failure, so that the refusal says why.
+function passes(failures: readonly string[], refusal: CommandContext["refusal"]): true {
+  if (failures.length > 0) throw refusal(failures);
+  return true;
 }
 
 // Where the link `id` goes to be the last of the links into block `to`: before
