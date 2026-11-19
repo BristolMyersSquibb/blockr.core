@@ -458,6 +458,14 @@
   The step of a list is an undo step where a command without `undo: false` changes something besides board options, and its undo takes back only what those commands changed.
   Where the registry refuses a list that a plugin runs through `CoreApi`, core raises `board_edit_failed`, as for a command.
   The client records a list in one span, `command list`, which names the ids of its commands in order in `blockr.command.ids`, beside the step's origin, since the store applies their deltas as one step (#619, #662).
+* Core's commands `blockr.core-add_link` and `blockr.core-change_link` check a link in their preflight before the store does.
+  The preflight fails for a link that would join a block to itself, close a cycle or feed an input that another link feeds.
+  It throws the `refusal()` of the command's context, with a sentence for each failure, such as `The link would close a cycle through the blocks "a", "b" and "d".`
+  So `commands.preflight()` answers `false` for such a link, and `commands.run()` rejects with the sentences before the command does any work.
+  A menu that offers only the links whose preflight passes then offers none that the store refuses.
+  A link that `blockr.core-change_link` keeps on its block may still take an input that another link feeds, since the command swaps the inputs of the two links.
+  Where the args name no input and the block has no free input, both preflights say why, such as `Every input of the block "c" takes a link already.`
+  The preflight of `blockr.core-change_link` also fails where the args name a block that the board lacks, as that of `blockr.core-add_link` does (#695, #741).
 * Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.
