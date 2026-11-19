@@ -62,6 +62,17 @@ describe("the stub of a block's host", () => {
     await expect(host.request("preview")).rejects.toThrow('records no answer of the request "preview"');
   });
 
+  test("gives the context's board option values through option(), which throws for a board option that the test gives none of", () => {
+    const host = stubBlockHost(datasets, { context: { options: { n_rows: 10 } } });
+    expect(host.context().option("n_rows")).toBe(10);
+    expect(() => host.context().option("n_row")).toThrow(
+      "The stub's context holds no board option \"n_row\", whose value a test gives in its `options`.",
+    );
+
+    host.setContext({ name: "Renamed" });
+    expect(host.context().option("n_rows")).toBe(10);
+  });
+
   test("records each submit, and refuses one that would leave the block in a state the fixture does not list", async () => {
     const host = stubBlockHost(datasets);
     const heard: unknown[] = [];
@@ -113,7 +124,7 @@ describe("the stub of a block's host", () => {
     host.setContext({ name: "Datasets" });
 
     expect(heard).toEqual(['state "mtcars"', "context stale"]);
-    expect(host.context()).toMatchObject({ name: "Datasets", inputs: [], options: {} });
+    expect(host.context()).toMatchObject({ name: "Datasets", inputs: [] });
     expect(() => host.on("output" as "state", () => undefined)).toThrow('The host announces "state" and "context", not "output".');
   });
 
@@ -239,13 +250,15 @@ describe("the stub of an output's host", () => {
   });
 
   test("gives the board option values the output was asked with, those given or else those of the first of the fixtures", () => {
-    expect(stubOutputHost({ fixtures: tables, options: { n_rows: 50 } }).options()).toEqual({ n_rows: 50 });
-    expect(stubOutputHost({ fixtures: tables }).options()).toEqual({ n_rows: 3 });
+    expect(stubOutputHost({ fixtures: tables, options: { n_rows: 50 } }).option("n_rows")).toBe(50);
+    expect(stubOutputHost({ fixtures: tables }).option("n_rows")).toBe(3);
 
     const host = stubOutputHost({ fixtures: tables });
     host.setParams({ page: 2 });
     expect(host.error()).toBeNull();
-    expect(stubOutputHost({ output: { renderer: "blockr.core-text_output", text: "1" } }).options()).toEqual({});
+    expect(() => stubOutputHost({ output: { renderer: "blockr.core-text_output", text: "1" } }).option("n_rows")).toThrow(
+      "The stub's output host holds no board option \"n_rows\", whose value a test gives in its `options`.",
+    );
   });
 
   test("holds what the renderer logs, naming no package", () => {

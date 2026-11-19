@@ -55,6 +55,9 @@
 #' `text_output`.
 #' The family makes an output from a result, and holds the board options that
 #' it reads and the renderer of its outputs (see [new_output_family()]).
+#' A class names the board options that its UI module reads itself in
+#' `options`, by their constructors, as a request names those that it reads,
+#' such as `options = new_n_rows_option`.
 #' Any other property that a class leaves out is `NULL`.
 #'
 #' A UI module is an ES module that exports the major of core's JS API
@@ -62,7 +65,11 @@
 #' and a default with a `render()` function.
 #' Core calls `render()` with the element to draw in,
 #' the block's host and a signal,
-#' once it has added the board options that the default names to the board.
+#' once it has added to the board the board options that the class reads,
+#' those that it names in `options` and those that its requests read.
+#' The module reads their values through its host,
+#' as `host.context().option("n_rows")`,
+#' which throws for any other ID, naming the class and the ID.
 #' The types that a module is written against ship in the installed package,
 #' in the directory `system.file("types", package = "blockr.core")`.
 #' A package's build resolves that directory as `@blockr/core`,
@@ -115,6 +122,9 @@
 #'   from 1, which a package raises as it changes that shape, so that the
 #'   client migrates the states that a JSON board holds of an older version
 #'   (see [blockr_ser()])
+#' @param options The constructors of the board options that the class's UI
+#'   module reads itself, a function such as `new_n_rows_option` or a list of
+#'   them, beside those that its requests read
 #'
 #' @examples
 #' head_block <- new_block_class(
@@ -156,7 +166,8 @@
 #'
 #' @export
 new_block_class <- function(id, inputs = NULL, expr, ui, requests = NULL,
-                            output = text_output, version = 1L) {
+                            output = text_output, version = 1L,
+                            options = NULL) {
 
   package <- pkg_name(parent.frame())
 
@@ -179,6 +190,16 @@ new_block_class <- function(id, inputs = NULL, expr, ui, requests = NULL,
     requests <- lapply(requests, as_block_request)
   }
 
+  options <- as_option_ctors(
+    options,
+    paste0(
+      "The board options that the UI module of block class {id} reads are ",
+      "expected to be given by their constructors, a function such as ",
+      "`new_n_rows_option` or a list of them."
+    ),
+    "block_class_options_invalid"
+  )
+
   validate_block_class(
     structure(
       list(
@@ -190,7 +211,8 @@ new_block_class <- function(id, inputs = NULL, expr, ui, requests = NULL,
         ui = ui,
         requests = requests,
         output = output,
-        version = version
+        version = version,
+        options = options
       ),
       class = "block_class"
     )
@@ -534,9 +556,13 @@ class_state_args <- function(cls) {
   formal_names(cls[["expr"]])
 }
 
+# The board options that a block class reads, those that its UI module reads
+# itself and those that its requests read, each made without a value.
 class_board_options <- function(cls) {
   combine_board_options(
-    call_option_ctors(unlst(lst_xtr(cls[["requests"]], "options")))
+    call_option_ctors(
+      c(cls[["options"]], unlst(lst_xtr(cls[["requests"]], "options")))
+    )
   )
 }
 

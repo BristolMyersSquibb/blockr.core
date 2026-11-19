@@ -2410,11 +2410,13 @@ function mountableModule(exports, module, pkg) {
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new ModuleError(module, pkg, "has no default export with a render() function.");
   }
-  const named3 = mod.options;
-  if (named3 !== void 0 && !(Array.isArray(named3) && named3.every((id2) => typeof id2 === "string"))) {
-    throw new ModuleError(module, pkg, "names its board options in something other than an array of their ids.");
-  }
   return mod;
+}
+function optionReader(values2, named3, unnamed) {
+  return (id2) => {
+    if (!named3.includes(id2)) throw new Error(unnamed(id2));
+    return own(values2, id2);
+  };
 }
 function withoutOptions(module, ids2) {
   return `Without the board option${ids2.length === 1 ? "" : "s"} ${quoted(ids2)}, ${module} cannot draw.`;
@@ -2660,15 +2662,14 @@ function mountOutput(deps, el, block) {
   const controller = new AbortController();
   const ended = () => controller.signal.aborted;
   const outputOptions = entry.output_options ?? [];
+  const registryId2 = entry.id;
   const expected = /* @__PURE__ */ new Map();
   const ready = /* @__PURE__ */ new Map();
-  const keeping = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
   let held2;
   let asking;
   let error = null;
-  let unfit;
   let drawing;
   let options = store.board().options;
   const waiting2 = /* @__PURE__ */ new Set();
@@ -2687,10 +2688,7 @@ function mountOutput(deps, el, block) {
         const pkg = packageFromId(given.id);
         const source = given.css === void 0 ? { module: given.module } : { module: given.module, css: given.css };
         const mod = mountableModule(await loader.load(source, pkg), given.module, pkg);
-        const named4 = mod.options ?? [];
-        const failures = await deps.addOptions(named4, `the renderer "${given.id}"`);
-        if (failures.length > 0) throw missingOptions(given, named4);
-        return { renderer: given, mod, named: named4 };
+        return { renderer: given, mod };
       })();
       preparing.set(given.id, loading);
     }
@@ -2703,12 +2701,6 @@ function mountOutput(deps, el, block) {
       (prepared) => {
         if (ended()) return;
         ready.set(given.id, prepared);
-        keeping.set(
-          given.id,
-          deps.keepOptions(prepared.named, `the renderer "${given.id}"`, () => {
-            fail(missingOptions(given, prepared.named), given);
-          })
-        );
         sync();
       },
       (failure) => {
@@ -2716,14 +2708,9 @@ function mountOutput(deps, el, block) {
       }
     );
   }
-  function missingOptions(given, ids2) {
-    const missing = ids2.filter((id2) => !Object.hasOwn(store.board().options, id2));
-    return new Error(withoutOptions(`the renderer "${given.id}"`, missing));
-  }
   function named3() {
-    const loaded = [...expected.keys()].map((id2) => ready.get(id2));
-    if (loaded.some((prepared) => prepared === void 0)) return void 0;
-    return [.../* @__PURE__ */ new Set([...outputOptions, ...loaded.flatMap((prepared) => prepared?.named ?? [])])];
+    if ([...expected.keys()].some((id2) => !ready.has(id2))) return void 0;
+    return outputOptions;
   }
   function values2(ids2) {
     const options2 = store.board().options;
@@ -2872,30 +2859,14 @@ function mountOutput(deps, el, block) {
     announce2();
   }
   function fail(failure, by2) {
-    if (ended()) return;
-    const notification = coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) });
-    if (failure instanceof ModuleError) {
-      if (!broken.has(failure)) {
-        log.error(failure);
-        deps.raise(notification);
-      }
-      broken.add(failure);
-      return;
-    }
-    const before = unfit;
-    unfit = deps.raise(notification);
-    before?.();
-    failed2(coreFailure("module_failed", errorMessage(failure)));
-  }
-  function fit2() {
-    const before = unfit;
-    unfit = void 0;
-    before?.();
+    if (ended() || broken.has(failure)) return;
+    broken.add(failure);
+    log.error(asError(failure));
+    deps.raise(coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) }));
   }
   function take(next) {
     held2 = next;
     error = null;
-    fit2();
     const named4 = next.output.renderer;
     expect(named4);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
@@ -2950,10 +2921,10 @@ function mountOutput(deps, el, block) {
   function wake() {
     announceTo(waiting2);
   }
-  function optionsFor(prepared, asked) {
+  function optionsFor(asked) {
     const now = store.board().options;
     return Object.fromEntries(
-      prepared.named.flatMap((id2) => {
+      outputOptions.flatMap((id2) => {
         const value2 = asked !== void 0 && Object.hasOwn(asked.options, id2) ? asked.options[id2] : own(now, id2);
         return value2 === void 0 ? [] : [[id2, value2]];
       })
@@ -3071,13 +3042,18 @@ function mountOutput(deps, el, block) {
       output: () => held2?.output ?? null,
       body: () => held2?.body ?? null,
       params: () => held2?.asked.params ?? EMPTY,
-      options() {
+      option(id2) {
         let memo = named4;
         if (memo === void 0 || memo.for !== held2) {
-          memo = { for: held2, values: optionsFor(prepared, held2?.asked) };
+          const read = optionReader(
+            optionsFor(held2?.asked),
+            outputOptions,
+            (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
+          );
+          memo = { for: held2, read };
           named4 = memo;
         }
-        return memo.values;
+        return memo.read(id2);
       },
       loading: () => asking !== void 0,
       error: () => error,
@@ -3174,13 +3150,11 @@ function mountOutput(deps, el, block) {
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
-    for (const kept of keeping.values()) kept.stop();
     shelf.mounts.delete(sync);
     stopWatching();
     if (settling !== void 0) clearTimeout(settling);
     asking?.leave();
     asking = void 0;
-    fit2();
     unmountRenderer();
     el.replaceChildren();
     wake();
@@ -3351,12 +3325,11 @@ function createMounts(options) {
       let mod;
       try {
         mod = mountableModule(exports, entry.module, pkg);
-        checkOptions(mod, entry, pkg);
       } catch (error) {
         fail(error);
         return;
       }
-      const named3 = mod.options ?? [];
+      const named3 = classOptions(entry);
       const kept = keepOptions(named3, by, () => {
         if (ended()) return;
         end();
@@ -3407,17 +3380,11 @@ function createMounts(options) {
     keepOptions
   };
 }
-function checkOptions(mod, entry, pkg) {
-  const named3 = new Set(mod.options ?? []);
-  const gaps = Object.entries(entry.requests).flatMap(([name3, request]) => {
-    const left2 = [...new Set(request.options)].filter((id2) => !named3.has(id2));
-    if (left2.length === 0) return [];
-    return [`- The request "${name3}" reads the board option${left2.length === 1 ? "" : "s"} ${quoted(left2)}.`];
-  });
-  if (gaps.length === 0) return;
-  const what = `leaves out of its \`options\` board options that requests of block class "${entry.id}" read:`;
-  throw new ModuleError(entry.module, pkg, [what, ...gaps].join("\n"));
+function classOptions(entry) {
+  const read = Object.values(entry.requests).flatMap((request) => request.options);
+  return [.../* @__PURE__ */ new Set([...entry.options ?? [], ...read])];
 }
+var contextValues = /* @__PURE__ */ new WeakMap();
 function blockHost(deps) {
   const { store, commands, scheduler, block, entry } = deps;
   let seen = store.board();
@@ -3433,7 +3400,15 @@ function blockHost(deps) {
   }
   function blockContext(now) {
     const recipe = scheduler.inputs(block)?.recipe ?? [];
-    return Object.freeze({
+    const values2 = Object.freeze(
+      Object.fromEntries(
+        named3.flatMap((id2) => {
+          const value2 = own(seen.options, id2);
+          return value2 === void 0 ? [] : [[id2, value2]];
+        })
+      )
+    );
+    const context5 = Object.freeze({
       name: now?.name ?? "",
       status: scheduler.status(block) ?? NO_STATUS,
       inputs: Object.freeze(
@@ -3441,15 +3416,14 @@ function blockHost(deps) {
           (input2) => input2.block === void 0 ? [] : [Object.freeze({ input: input2.input, revision: scheduler.status(input2.block)?.revision ?? 0 })]
         )
       ),
-      options: Object.freeze(
-        Object.fromEntries(
-          named3.flatMap((id2) => {
-            const value2 = own(seen.options, id2);
-            return value2 === void 0 ? [] : [[id2, value2]];
-          })
-        )
+      option: optionReader(
+        values2,
+        named3,
+        (id2) => `The block class "${entry.id}" names no board option "${id2}" in R, so its UI module cannot read it.`
       )
     });
+    contextValues.set(context5, values2);
+    return context5;
   }
   function bound() {
     return !gone && !deps.replaced.aborted && Object.hasOwn(store.board().blocks, block);
@@ -3571,7 +3545,7 @@ function blockHost(deps) {
   };
 }
 function sameContext(a, b) {
-  return a.name === b.name && a.status === b.status && a.inputs.length === b.inputs.length && a.inputs.every((input2, i) => input2.input === b.inputs[i]?.input && input2.revision === b.inputs[i].revision) && jsonEqual(a.options, b.options);
+  return a.name === b.name && a.status === b.status && a.inputs.length === b.inputs.length && a.inputs.every((input2, i) => input2.input === b.inputs[i]?.input && input2.revision === b.inputs[i].revision) && jsonEqual(contextValues.get(a) ?? {}, contextValues.get(b) ?? {});
 }
 
 // srcts/transport/shiny.ts
@@ -5962,9 +5936,6 @@ function createRegistrations(migration = () => void 0) {
     if (given.commands !== void 0 && !Array.isArray(given.commands)) {
       throw new Error(`The plugin class "${id2}" gives commands that are no array.`);
     }
-    if (given.options !== void 0 && (!Array.isArray(given.options) || !given.options.every((option) => typeof option === "string"))) {
-      throw new Error(`The plugin class "${id2}" requires board options that are no array of their ids.`);
-    }
     const what = `the state of the plugin class "${id2}"`;
     let validate = () => [];
     const state2 = given.state;
@@ -7193,10 +7164,10 @@ function runPlugins(deps) {
     stops.push(kept.stop);
     return kept.added;
   }
+  const optionsOf = (id2) => own(deps.plugins, id2)?.options ?? [];
   function opened() {
     for (const id2 of Object.keys(appPlugins())) {
-      const def = registeredClass(id2);
-      if (def?.options !== void 0) added.set(id2, keep(def.options, `the plugin class "${id2}"`));
+      added.set(id2, keep(optionsOf(id2), `the plugin class "${id2}"`));
     }
   }
   const offStore = store.subscribe((change) => {
@@ -7307,7 +7278,7 @@ function runPlugins(deps) {
       cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
     }
     void (async () => {
-      const named3 = def.options ?? [];
+      const named3 = optionsOf(plugin);
       const kept = keepOptions(named3, `the plugin class "${plugin}"`, () => {
         if (ended()) return;
         end();

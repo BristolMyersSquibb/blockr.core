@@ -25,14 +25,14 @@ export type State = Readonly<Record<string, Json>>;
 // render() whenever it mounts the module, with the element to draw in, the
 // host, and a signal that it aborts when it unmounts the module. The render()
 // function may be async and may return its cleanup, which core runs when it
-// aborts the signal. The default of a block class's UI module or of an
-// output's renderer may name the board options the module requires. Core adds
-// each to the board, with its definition's default where the board lacks it,
-// before it calls render(). A block class's UI module names among them every
-// board option that a request of its class reads, as the class's registry
-// entry names them, and core refuses a module that leaves one out.
+// aborts the signal. No module names the board options that it reads: R names
+// them in its reply to `hello`, as a block class names those of its UI module
+// and its requests, and an output family those of its outputs, which every
+// renderer of them reads. Core adds each to the board, with its definition's
+// default where the board lacks it, before it calls render(), and the host
+// gives the module their values through option(), which throws for any other
+// id.
 export interface BlockModule<S extends State = State> {
-  readonly options?: readonly OptionId[];
   render(args: { el: HTMLElement; host: BlockHost<S>; signal: AbortSignal }): Rendered;
 }
 
@@ -43,7 +43,6 @@ export interface OptionModule<V extends Json = Json> {
 }
 
 export interface OutputModule {
-  readonly options?: readonly OptionId[];
   render(args: { el: HTMLElement; host: OutputHost; signal: AbortSignal }): Rendered;
 }
 
@@ -100,8 +99,11 @@ export interface BlockContext {
   // Its linked inputs, in the order of its class's inputs, whose revisions
   // say when the data changed.
   readonly inputs: readonly { readonly input: string; readonly revision: number }[];
-  // The values of the board options that its module names.
-  readonly options: Readonly<Record<OptionId, Json>>;
+  // The value of a board option that its class reads, as the board holds it:
+  // one that the class names in `options` in R, or that a request of the
+  // class reads. It throws for any other id, a misspelled one included, naming
+  // the class and the id.
+  option(id: OptionId): Json;
 }
 
 // The options of a host's request, such as the file of an upload or the bitmap
@@ -157,9 +159,11 @@ export interface OutputHost {
   // The parameters that the output it holds was made with, such as a table's
   // page and sort.
   params(): Json;
-  // The values of the board options that its module names, which the output
-  // it holds was asked with.
-  options(): Readonly<Record<OptionId, Json>>;
+  // The value of a board option that the output family of its block's class
+  // names for its outputs, as the output it holds was asked with. It throws
+  // for any other id, a misspelled one included, naming the block's class, the
+  // renderer and the id.
+  option(id: OptionId): Json;
   // Whether core is asking R for a newer output.
   loading(): boolean;
   // Why the latest ask failed, while output() keeps what it held: R's

@@ -25,12 +25,11 @@ describe("reactModule()", () => {
       seen.push(props);
       return <p>{JSON.stringify(props.host.value())}</p>;
     }
-    const mod = reactModule(Rows, { options: ["n_rows"] });
+    const mod = reactModule(Rows);
     const host = stubOptionHost({ option: "n_rows", value: 50 });
 
     const mounted = await mountReact({ api: 1, default: mod }, host);
 
-    expect(mod.options).toEqual(["n_rows"]);
     expect(mounted.el.textContent).toBe("50");
     expect(seen[0]?.host).toBe(host);
     expect(seen[0]?.signal).toBe(mounted.signal);
@@ -41,23 +40,23 @@ describe("reactModule()", () => {
     expect(mounted.el.childNodes).toHaveLength(0);
   });
 
-  test("names no board options where none are given", () => {
-    expect("options" in reactModule(() => null)).toBe(false);
-  });
 });
 
 describe("outputRenderer()", () => {
-  test("hands its component the output, its parameters and the board option values, and draws again as the host announces another output", async () => {
+  test("hands its component the output, its parameters and the host, through which it reads the board option values, and draws again as the host announces another output", async () => {
     const seen: OutputProps<TextOutput>[] = [];
+    const rows: unknown[] = [];
     const renderer = outputRenderer<TextOutput>((props) => {
       seen.push(props);
+      rows.push(props.host.option("n_rows"));
       return <pre>{props.output.text}</pre>;
     });
     const host = stubOutputHost({ output: { ...text("one") }, params: { page: 1 }, options: { n_rows: 5 } });
 
     const { el } = await mountReact({ api: 1, default: renderer }, host);
     expect(el.querySelector("pre")?.textContent).toBe("one");
-    expect(seen.at(-1)).toMatchObject({ params: { page: 1 }, options: { n_rows: 5 }, body: null, loading: false, error: null, host });
+    expect(seen.at(-1)).toMatchObject({ params: { page: 1 }, body: null, loading: false, error: null, host });
+    expect(rows.at(-1)).toBe(5);
 
     await step(() => {
       host.setOutput({ ...text("two") });

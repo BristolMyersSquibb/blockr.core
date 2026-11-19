@@ -84,11 +84,14 @@ export function withoutPlugins(replied: HelloReply, ...classes: readonly PluginC
   };
 }
 
-// A plugin that withPlugins() has the app run: its class's name, and the state
-// that the opening board holds for it, if any.
+// A plugin that withPlugins() has the app run: its class's name, the state
+// that the opening board holds for it, if any, and the board options that it
+// reads, if any, as the method of R's `plugin_options()` for its class names
+// them.
 export interface GivenPlugin {
   readonly name: string;
   readonly state?: Json;
+  readonly options?: readonly OptionId[];
 }
 
 // Where R serves the module of the plugin class with the id given, as the
@@ -144,7 +147,15 @@ export function withPlugins(
     plugins: {
       ...replied.plugins,
       ...Object.fromEntries(
-        Object.entries(plugins).map(([cls, given]) => [cls, { name: given.name, version: version(cls), module: pluginUrl(cls) }]),
+        Object.entries(plugins).map(([cls, given]) => [
+          cls,
+          {
+            name: given.name,
+            version: version(cls),
+            ...(given.options === undefined ? {} : { options: [...given.options] }),
+            module: pluginUrl(cls),
+          },
+        ]),
       ),
     },
     board: {

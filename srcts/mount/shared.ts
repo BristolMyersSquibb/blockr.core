@@ -1,17 +1,17 @@
 // What the mounts of block UIs, outputs and board options share: checking what
-// a module exports, saying why a module cannot draw without its board options,
-// showing why core cannot draw the page, and running a cleanup.
+// a module exports, giving a module the values of the board options that R
+// names for it, saying why a module cannot draw without them, showing why core
+// cannot draw the page, and running a cleanup.
 
 import type { OptionId } from "../types/board.ts";
 import type { Rendered } from "../types/hosts.ts";
+import type { Json } from "../types/json.ts";
 import { log } from "../log/index.ts";
-import { asError, isObject, quoted } from "../util/index.ts";
+import { asError, isObject, own, quoted } from "../util/index.ts";
 import { API, ModuleError } from "./load.ts";
 
-// What a module that core mounts exports as its default: the board options
-// that it names, and its render().
+// What a module that core mounts exports as its default: its render().
 export interface Mountable<A> {
-  readonly options?: readonly string[];
   render(args: A): Rendered;
 }
 
@@ -39,11 +39,23 @@ export function mountableModule<A>(exports: unknown, module: string, pkg: string
   if (!isObject(mod) || typeof mod.render !== "function") {
     throw new ModuleError(module, pkg, "has no default export with a render() function.");
   }
-  const named: unknown = mod.options;
-  if (named !== undefined && !(Array.isArray(named) && named.every((id) => typeof id === "string"))) {
-    throw new ModuleError(module, pkg, "names its board options in something other than an array of their ids.");
-  }
   return mod as unknown as Mountable<A>;
+}
+
+// What gives a module the value of a board option that R names for it, by id,
+// from `values`, the values that the board holds of those that `named` holds.
+// It throws for any other id, a misspelled one included, with what `unnamed`
+// says of the id: that what the module draws for names no such board option
+// in R.
+export function optionReader(
+  values: Readonly<Record<OptionId, Json>>,
+  named: readonly OptionId[],
+  unnamed: (id: string) => string,
+): (id: OptionId) => Json {
+  return (id) => {
+    if (!named.includes(id)) throw new Error(unnamed(id));
+    return own(values, id) as Json;
+  };
 }
 
 // Why a module cannot draw while board options that it requires are not on

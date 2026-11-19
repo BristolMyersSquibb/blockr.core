@@ -70,9 +70,9 @@ package_versions <- function(packages) {
 # gives, with `register_block()`'s `link` as `url`, and what the client cannot
 # read off a class that stays in R. Those are its data inputs, where R serves
 # its UI module, the schema of its state that the module ships, the state a
-# new block starts with, its requests, the board options that its output
-# family reads and the renderers of its outputs, `renderers` from
-# `entry_renderers()`. A class whose
+# new block starts with, the board options that its UI module reads itself,
+# its requests, the board options that its output family reads and the
+# renderers of its outputs, `renderers` from `entry_renderers()`. A class whose
 # module ships no schema has the empty schema, which allows any state, and its
 # state is written bare, so that its module takes a value of length one in
 # either form.
@@ -101,6 +101,7 @@ registry_entry_reply <- function(x, renderers = entry_renderers(x)) {
       version = x[["block_class"]][["version"]],
       schema = coal(x[["schema"]], as_json_object(list()), fail_all = FALSE),
       state = entry_state(x),
+      options = I(option_ctor_ids(x[["block_class"]][["options"]])),
       requests = as_json_object(lapply(x[["requests"]], request_entry_reply)),
       output_options = I(family_option_ids(x[["block_class"]][["output"]])),
       renderers = I(lapply(unname(renderers), output_renderer_reply))
@@ -151,11 +152,15 @@ request_entry_reply <- function(x) {
 }
 
 # One of the app's plugins as the client gets it, the `PluginEntry` of
-# srcts/protocol/messages.ts: its class's name and version, and where R serves
-# the class's module.
+# srcts/protocol/messages.ts: its class's name and version, the IDs of the
+# board options that its plugin reads, and where R serves the class's module.
 plugin_entry_reply <- function(x) {
   c(
-    list(name = x[["name"]], version = x[["version"]]),
+    list(
+      name = x[["name"]],
+      version = x[["version"]],
+      options = I(x[["options"]])
+    ),
     served_module(x[["module"]])
   )
 }

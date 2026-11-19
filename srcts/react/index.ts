@@ -8,6 +8,6 @@
 export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } from "./hooks.ts";
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
 export { outputRenderer, reactModule } from "./module.tsx";
-export type { ModuleOptions, ModuleProps, OutputProps } from "./module.tsx";
+export type { ModuleProps, OutputProps } from "./module.tsx";
 export { Checkbox, ComboBox, ComboBoxItem, ComboBoxSection, Field, NumberInput, Stack, Text, TextInput } from "../inputs/index.ts";
 export type { ComboBoxProps, ComboBoxSectionProps } from "../inputs/index.ts";

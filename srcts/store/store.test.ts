@@ -639,8 +639,8 @@ describe("opening a board", () => {
         default: read,
         ui: noUi,
       });
-      store.plugins.register({ ...dock, options: ["page_rows"] });
-    }, withPlugins(plugin(dock, "Dock", { views: {} })));
+      store.plugins.register(dock);
+    }, withPlugins({ [dock.id]: { name: "Dock", state: { views: {} }, options: ["page_rows"] } }));
 
     await store.open(file({ options: { n_rows: 20 }, plugins: { [dock.id]: { views: {} } } }));
 
@@ -2680,9 +2680,6 @@ describe("registering", () => {
       `The plugin class "${id}" has a storage whose load is no function.`,
     );
     expect(() => register({ id, commands: { relayout: {} } })).toThrow(`The plugin class "${id}" gives commands that are no array.`);
-    expect(() => register({ id, options: "n_rows" })).toThrow(
-      `The plugin class "${id}" requires board options that are no array of their ids.`,
-    );
     expect(() => register({ id, state: { schema: {} } })).toThrow(
       `The plugin class "${id}" gives a state without a schema and a default.`,
     );

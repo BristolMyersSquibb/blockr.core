@@ -9,7 +9,6 @@ import type { ComponentType, ReactElement, ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { Condition } from "../protocol/index.ts";
-import type { OptionId } from "../types/board.ts";
 import type { CoreFailure } from "../types/core-api.ts";
 import type { OutputHost, OutputModule } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
@@ -25,20 +24,13 @@ export interface ModuleProps<H> {
   readonly signal: AbortSignal;
 }
 
-// What a module names beside its render(): the board options it requires.
-export interface ModuleOptions {
-  readonly options?: readonly OptionId[];
-}
-
 // A module drawn by a React component. Core's render() call mounts the
 // component in the element, drawing it before it returns, and the cleanup
 // unmounts it, which empties the element.
 export function reactModule<H>(
   Draw: ComponentType<ModuleProps<H>>,
-  options: ModuleOptions = {},
-): ModuleOptions & { render(args: { el: HTMLElement; host: H; signal: AbortSignal }): () => void } {
+): { render(args: { el: HTMLElement; host: H; signal: AbortSignal }): () => void } {
   return {
-    ...(options.options === undefined ? {} : { options: options.options }),
     render({ el, host, signal }) {
       const root = createRoot(el);
       flushSync(() => {
@@ -53,13 +45,13 @@ export function reactModule<H>(
 
 // What outputRenderer() hands a renderer's component: what its output host
 // holds, with the output and its parameters typed by the output class's
-// contract, and the host itself, through which the renderer asks for other
-// parameters, calls requests and reports what the user did.
+// contract, and the host itself, through which the renderer reads the board
+// options of its output family, asks for other parameters, calls requests and
+// reports what the user did.
 export interface OutputProps<O extends BlockOutput = BlockOutput, P = Json> {
   readonly output: O;
   readonly body: Blob | null;
   readonly params: P;
-  readonly options: Readonly<Record<OptionId, Json>>;
   readonly loading: boolean;
   readonly error: Condition | CoreFailure | null;
   readonly host: OutputHost;
@@ -79,7 +71,6 @@ export interface OutputProps<O extends BlockOutput = BlockOutput, P = Json> {
 // frontend places.
 export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
   Draw: ComponentType<OutputProps<O, P>>,
-  options: ModuleOptions = {},
 ): OutputModule {
   function Renderer({ host }: ModuleProps<OutputHost>): ReactElement {
     const now = useOutput(host);
@@ -91,7 +82,6 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
               output={now.output as unknown as O}
               body={now.body}
               params={now.params as P}
-              options={now.options}
               loading={now.loading}
               error={now.error}
               host={host}
@@ -101,7 +91,7 @@ export function outputRenderer<O extends BlockOutput = BlockOutput, P = Json>(
       </div>
     );
   }
-  return reactModule(Renderer, options);
+  return reactModule(Renderer);
 }
 
 // Draws nothing in place of a renderer's component that throws, and raises a

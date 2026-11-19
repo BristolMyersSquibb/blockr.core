@@ -20,7 +20,8 @@ new_block_class(
   ui,
   requests = NULL,
   output = text_output,
-  version = 1L
+  version = 1L,
+  options = NULL
 )
 
 is_block_class(x)
@@ -63,6 +64,10 @@ makes the block expression from}
 from 1, which a package raises as it changes that shape, so that the
 client migrates the states that a JSON board holds of an older version
 (see \code{\link[=blockr_ser]{blockr_ser()}})}
+
+\item{options}{The constructors of the board options that the class's UI
+module reads itself, a function such as \code{new_n_rows_option} or a list of
+them, beside those that its requests read}
 
 \item{x}{Object}
 
@@ -145,6 +150,9 @@ output family of its outputs, as \code{output}, such as \code{table_output}, or 
 \code{text_output}.
 The family makes an output from a result, and holds the board options that
 it reads and the renderer of its outputs (see \code{\link[=new_output_family]{new_output_family()}}).
+A class names the board options that its UI module reads itself in
+\code{options}, by their constructors, as a request names those that it reads,
+such as \code{options = new_n_rows_option}.
 Any other property that a class leaves out is \code{NULL}.
 
 A UI module is an ES module that exports the major of core's JS API
@@ -152,7 +160,11 @@ that it was built against, as \verb{export const api = 1},
 and a default with a \code{render()} function.
 Core calls \code{render()} with the element to draw in,
 the block's host and a signal,
-once it has added the board options that the default names to the board.
+once it has added to the board the board options that the class reads,
+those that it names in \code{options} and those that its requests read.
+The module reads their values through its host,
+as \verb{host.context().option("n_rows")},
+which throws for any other ID, naming the class and the ID.
 The types that a module is written against ship in the installed package,
 in the directory \code{system.file("types", package = "blockr.core")}.
 A package's build resolves that directory as \verb{@blockr/core},

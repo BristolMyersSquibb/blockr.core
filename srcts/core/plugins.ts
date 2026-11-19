@@ -4,8 +4,9 @@
 // the id of its class, and they run on every board that the app opens, as far
 // as a package registers their classes:
 // 1. As the store opens the board, core adds to the board the board options
-//    that the class of each plugin that runs names in `options`, each with its
-//    default where the board lacks it. Until the next board opens, it adds
+//    that the entry of each plugin that runs names in `options`, from the
+//    method of R's `plugin_options()` for its class, each with its default
+//    where the board lacks it. Until the next board opens, it adds
 //    again each that a delta removes, so that the board holds the value of
 //    every board option that a plugin requires, as it holds those of a
 //    mounted module (../mount/block.ts). For a block that serve() serves
@@ -113,10 +114,13 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     return kept.added;
   }
 
+  // The board options that the plugin of a class reads, as R names them in
+  // the plugin's entry.
+  const optionsOf = (id: PluginClassId): readonly OptionId[] => own(deps.plugins, id)?.options ?? [];
+
   function opened(): void {
     for (const id of Object.keys(appPlugins())) {
-      const def = registeredClass(id);
-      if (def?.options !== undefined) added.set(id, keep(def.options, `the plugin class "${id}"`));
+      added.set(id, keep(optionsOf(id), `the plugin class "${id}"`));
     }
   }
 
@@ -266,7 +270,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     void (async () => {
       // Where a board option that the class names does not go onto the board,
       // the ui does not draw. A ui that has drawn ends then.
-      const named = def.options ?? [];
+      const named = optionsOf(plugin);
       const kept = keepOptions(named, `the plugin class "${plugin}"`, () => {
         if (ended()) return;
         end();

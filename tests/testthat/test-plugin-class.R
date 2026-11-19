@@ -273,6 +273,54 @@ test_that("the app holds the requests of each plugin's class, or none", {
   }
 })
 
+test_that("the app holds the board options that each plugin's class reads", {
+
+  local_plugin_classes(
+    Notes = plugin_ctor(function() NULL, "notes_plugin"),
+    Bad = plugin_ctor(function() NULL, "bad_plugin")
+  )
+
+  rows <- subset(available_plugins(), id != "bad_plugin")
+  plugins <- app_plugins(rows)
+
+  # Core's basic frontend reads two, and a class without a method of its own
+  # reads none
+  expect_identical(
+    plugins[["blockr.core-basic_frontend_plugin"]]$options,
+    c("show_conditions", "dark_mode")
+  )
+  expect_identical(plugins[["blockr.test-notes_plugin"]]$options, character())
+  expect_null(plugin_options(new_file_storage_plugin()))
+
+  testthat::local_mocked_s3_method(
+    "plugin_options",
+    "notes_plugin",
+    function(x, ...) new_n_rows_option
+  )
+
+  expect_identical(
+    app_plugins(rows)[["blockr.test-notes_plugin"]]$options,
+    "n_rows"
+  )
+
+  # A method that gives anything but board option constructors stops the app
+  for (bad in list("n_rows", new_n_rows_option(), list(function() 1))) {
+
+    testthat::local_mocked_s3_method(
+      "plugin_options",
+      "bad_plugin",
+      function(x, ...) bad
+    )
+
+    expect_error(
+      app_plugins(available_plugins()),
+      "for plugin class blockr.test-bad_plugin returns",
+      fixed = TRUE,
+      class = "plugin_options_invalid"
+    )
+  }
+})
+
 test_that("the app runs the plugins of its rows, by the ids of their classes", {
 
   local_plugin_classes(
