@@ -47,22 +47,29 @@
 // Once they come, it says "No matches" where they are none.
 // Given `total`, how many items there are in all, the list says that number
 // below its rows, where the select has fewer items.
+// The number changes nothing else, such as which values the select marks
+// (below).
 //
 // Given `bound`, it shows and edits a block's state arg or a board option's
 // value, which useValue() binds, as the SDK's other inputs do
 // (./inputs.tsx): one string, or an array of strings where it picks several,
 // by the ids of its items.
-// It shows a value that its items lack, such as a column that the data no
-// longer has, as missing, and marks itself invalid.
+// It marks a value that its items lack, such as a column that the data no
+// longer has.
+// It shows such a value by its id, as it shows any value that its items
+// lack, marks itself invalid, draws the value's chip in the colour of danger,
+// and says below itself which values are not available, as "Not available:
+// wt".
 // While it has no items yet, as `items` and `defaultItems` are undefined while
-// its children draw an item, it shows a value as it is.
+// its children draw an item, it marks no value.
 // While it is `outdated`, as while the request that gives its items asks
-// again, the items may be for older data.
-// It then shows a value that they lack as it is too.
-// So its items must hold every value it takes, unless they are only a part
-// of all items: those of a search, or fewer than `total`.
-// It then marks no value that they lack, and shows a pick of one that they
-// lack by its id.
+// again, the items may be for older data, so it marks no value either.
+// It marks none while its list is open, as the user then picks from the
+// items, nor while its items are those of a search.
+// So its items must hold every value it takes that the data holds.
+// A request that answers with only a part of the values, such as the first
+// thousand, answers with the values that the select holds as well, where the
+// data holds them.
 // One pick it submits as the user picks it.
 // Several it submits once, as the list closes, built from the value that the
 // host holds then, so that it keeps a string that the assistant added in the
@@ -75,7 +82,7 @@
 // It says below itself why the host refused what it submitted.
 
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { ChangeEvent, ContextType, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { SEARCH_PAUSE, strings } from "../binding/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
@@ -108,7 +115,7 @@ import type {
   ListBoxSectionProps,
   ValidationResult,
 } from "../aria/index.ts";
-import { missing, Refusal } from "./inputs.tsx";
+import { Refusal } from "./inputs.tsx";
 
 type Mode = "single" | "multiple";
 
@@ -130,8 +137,8 @@ export interface ComboBoxProps<T extends object, M extends Mode = "single">
   // What the select calls with what the user typed, once the user pauses,
   // and with "" as its list closes.
   readonly onSearch?: (text: string) => void;
-  // How many items there are in all, where the select has only a part of
-  // them.
+  // How many items there are in all, which the list says below its rows,
+  // where the select has only a part of them.
   readonly total?: number;
 }
 
@@ -146,8 +153,7 @@ export function ComboBox<T extends object, M extends Mode = "single">(props: Com
 }
 
 // What the select draws with, of either mode, whether it marks a value that
-// its items lack as missing, and whether its field may offer to clear the
-// pick.
+// its items lack, and whether its field may offer to clear the pick.
 type DrawnProps = Omit<ComboBoxProps<object, Mode>, "bound" | "ordered"> & {
   readonly marking?: boolean;
   // What clears the pick in place of the select's own clearing, as where a
@@ -282,20 +288,18 @@ function Drawn({
   // Whether it has no items yet, as its children draw an item with none given.
   const unknown = given === undefined && typeof children === "function";
   const none = given === undefined ? typeof children === "function" || !hasChildren(children) : count === 0;
-  const typed = useTyped(onSearch);
-  // Whether the items are only a part of all items: those of a search, or
-  // fewer than `total`.
-  const part = typed.sent !== "" || (total !== undefined && total > count);
-  const empty =
-    typed.pending || typed.sent !== ""
-      ? typed.pending || outdated
-        ? "Loading…"
-        : "No matches"
-      : none && (outdated || unknown)
-        ? "Loading…"
-        : none
-          ? (renderEmptyState?.() ?? "No options")
-          : "No matches";
+  const search = useSearchText(onSearch);
+  // Whether the items are, or are about to be, those of a search.
+  const searching = search.pending || search.sent !== "";
+  const empty = searching
+    ? search.pending || outdated
+      ? "Loading…"
+      : "No matches"
+    : none && (outdated || unknown)
+      ? "Loading…"
+      : none
+        ? (renderEmptyState?.() ?? "No options")
+        : "No matches";
   const value = useSameValue(props.value);
   return (
     <AriaComboBox
@@ -305,7 +309,7 @@ function Drawn({
       allowsEmptyCollection={allowsEmptyCollection}
       className={composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`)}
       onOpenChange={(isOpen, trigger) => {
-        if (!isOpen) typed.close();
+        if (!isOpen) search.close();
         onOpenChange?.(isOpen, trigger);
       }}
     >
@@ -313,11 +317,10 @@ function Drawn({
       <Field
         placeholder={placeholder}
         multiple={multiple}
-        marking={marking && !part}
-        part={part}
+        marking={marking && !searching}
         clearable={props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true}
         onClear={onClear}
-        onType={typed.type}
+        onType={search.type}
         label={label}
       />
       {/* React Aria names the description of the field only where the
@@ -326,6 +329,7 @@ function Drawn({
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
+      {marking && !searching ? <NotAvailable multiple={multiple} /> : null}
       <Popover offset={4} className={LIST}>
         <Virtualizer layout={ListLayout} layoutOptions={LAYOUT}>
           <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
@@ -338,9 +342,10 @@ function Drawn({
   );
 }
 
-// What the user typed into the field, which the select hands onSearch once
-// the user pauses, and "" as the list closes, unless it handed that last.
-interface Typed {
+// The text of the select's search: what the user typed into the field, which
+// the select hands onSearch once the user pauses, and "" as the list closes,
+// unless it handed that last.
+interface SearchText {
   // What the select last handed onSearch, "" before it handed anything.
   readonly sent: string;
   // Whether what the user typed waits for the pause.
@@ -349,7 +354,7 @@ interface Typed {
   readonly close: () => void;
 }
 
-function useTyped(onSearch: ((text: string) => void) | undefined): Typed {
+function useSearchText(onSearch: ((text: string) => void) | undefined): SearchText {
   const [sent, setSent] = useState("");
   const [pending, setPending] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -432,10 +437,10 @@ function hasChildren(children: ReactNode): boolean {
 
 // The field: the chips of the picks of several, the text field, which takes
 // the filter, and the button that opens and closes the list.
-// It shows a pick of one that the items lack in place of the placeholder, as
-// missing where `marking`, and marks itself invalid.
-// Where the items are only a `part` of all items, it shows such a pick by its
-// id instead, as the field's text.
+// It shows a pick that the items lack by its id, as the text of its chip, or
+// as the text of the field of one.
+// Where `marking`, it marks itself invalid while it holds such a pick, and
+// draws the pick's chip in the colour of danger, but while the list is open.
 // The text field of one shows the pick's text while the user is not in it,
 // as React draws the pick, where React Aria would set it a step later, from
 // an effect, so that the controls show a state as the host announces it, with
@@ -447,7 +452,6 @@ function Field({
   placeholder,
   multiple,
   marking,
-  part,
   clearable,
   onClear,
   onType,
@@ -456,22 +460,15 @@ function Field({
   readonly placeholder: string | undefined;
   readonly multiple: boolean;
   readonly marking: boolean;
-  readonly part: boolean;
   readonly clearable: boolean;
   readonly onClear: (() => void) | undefined;
   readonly onType: (text: string) => void;
   readonly label: string | undefined;
 }): ReactElement {
-  const state = useContext(ComboBoxStateContext);
-  const value = state?.value ?? null;
-  const keys = multiple && Array.isArray(value) ? (value as readonly Key[]) : [];
-  const one = !multiple && value !== null && !Array.isArray(value) ? (value as Key) : null;
-  // The item of the pick of one, where the items hold it.
-  const item = state?.selectedItems[0] ?? null;
-  const lackedOne = one !== null && item === null;
-  const known = new Map((state?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
-  const lacked = keys.some((key) => !known.has(key));
-  const invalid = marking && (lackedOne || lacked);
+  const { state, keys, one, known, lacked } = usePicks(multiple, marking);
+  // The text of the pick of one, where the items hold it.
+  const item = one === null ? undefined : known.get(one);
+  const invalid = lacked.length > 0;
   const remove = (gone: ReadonlySet<Key>): void => {
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
@@ -483,10 +480,10 @@ function Field({
             <TagList className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1">
               {keys.map((key) => {
                 const text = known.get(key) ?? String(key);
-                const gone = marking && !known.has(key);
+                const gone = lacked.includes(key);
                 return (
                   <Tag key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
-                    <span className="bc:truncate">{gone ? missing(text) : text}</span>
+                    <span className="bc:truncate">{text}</span>
                     <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
                       <Cross />
                     </Button>
@@ -500,9 +497,9 @@ function Field({
           value={
             multiple || state === null || state.isFocused || state.isOpen
               ? undefined
-              : (item?.textValue ?? (part && one !== null ? String(one) : ""))
+              : (item ?? (one === null ? "" : String(one)))
           }
-          placeholder={lackedOne ? (marking ? missing(String(one)) : String(one)) : keys.length > 0 ? undefined : placeholder}
+          placeholder={one !== null && item === undefined ? String(one) : keys.length > 0 ? undefined : placeholder}
           aria-invalid={invalid || undefined}
           className={INPUT}
           onChange={(event: ChangeEvent<HTMLInputElement>) => {
@@ -546,6 +543,41 @@ function Field({
         <Chevron />
       </Button>
     </Group>
+  );
+}
+
+// The picks that the select holds, as React Aria's state of the ComboBox has
+// them: the keys of several, or the key of one, the text of each pick that
+// the items hold, and, where `marking`, the picks that they lack, but while
+// the list is open, as the user then picks from the items.
+function usePicks(
+  multiple: boolean,
+  marking: boolean,
+): {
+  readonly state: ContextType<typeof ComboBoxStateContext>;
+  readonly keys: readonly Key[];
+  readonly one: Key | null;
+  readonly known: ReadonlyMap<Key, string>;
+  readonly lacked: readonly Key[];
+} {
+  const state = useContext(ComboBoxStateContext);
+  const value = state?.value ?? null;
+  const keys = multiple && Array.isArray(value) ? (value as readonly Key[]) : [];
+  const one = !multiple && value !== null && !Array.isArray(value) ? (value as Key) : null;
+  const known = new Map((state?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
+  const lacked = !marking || state?.isOpen === true ? [] : (one === null ? keys : [one]).filter((key) => !known.has(key));
+  return { state, keys, one, known, lacked };
+}
+
+// What the select says below itself where it marks picks that its items lack:
+// which picks are not available, by their ids.
+function NotAvailable({ multiple }: { readonly multiple: boolean }): ReactElement | null {
+  const { lacked } = usePicks(multiple, true);
+  if (lacked.length === 0) return null;
+  return (
+    <p role="alert" className={styles.alert}>
+      {`Not available: ${lacked.map(String).join(", ")}`}
+    </p>
   );
 }
 

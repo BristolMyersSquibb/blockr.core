@@ -1830,9 +1830,9 @@ function createScheduler(options) {
     update(left(oneTimes.value, gone));
     client.forget(revised.gone);
   });
-  const lacking = action((missing2) => {
+  const lacking = action((missing) => {
     const lost = /* @__PURE__ */ new Set();
-    for (const { block, revision: at } of missing2) {
+    for (const { block, revision: at } of missing) {
       if (revisions.value.get(block) === at && statuses.value.get(block)?.status === "ready") {
         lost.add(block);
       }
@@ -3454,8 +3454,8 @@ function mountOutput(deps, el, block) {
   });
   function lackOutputOptions() {
     if (ended()) return;
-    const missing2 = outputOptions.filter((id2) => !Object.hasOwn(store.board().options, id2));
-    failed3(coreFailure("board_option_failed", withoutOptions(by, missing2)));
+    const missing = outputOptions.filter((id2) => !Object.hasOwn(store.board().options, id2));
+    failed3(coreFailure("board_option_failed", withoutOptions(by, missing)));
   }
   function end() {
     if (ended()) return;
@@ -3673,8 +3673,8 @@ function createMounts(options) {
       raise(coreNotification("module_failed", "error", errorMessage(error), { module }));
     }
     function lacking(ids3) {
-      const missing2 = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
-      raise(coreNotification("module_failed", "error", withoutOptions(by, missing2), { module }));
+      const missing = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      raise(coreNotification("module_failed", "error", withoutOptions(by, missing), { module }));
     }
     return end;
   }
@@ -7453,8 +7453,8 @@ function runPlugins(deps) {
       deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
     }
     function lacking(ids3) {
-      const missing2 = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
-      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing2));
+      const missing = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
     }
     void (async () => {
       const named3 = optionsOf(plugin);
@@ -8894,8 +8894,8 @@ function helloError(reply) {
   return void 0;
 }
 function noFrontend(reply, core) {
-  const missing2 = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
-  const why = missing2.length === 0 ? "none of the app's plugins is a frontend" : `core registered no class of the app's ${missing2.length === 1 ? "plugin" : "plugins"} ${quoted(missing2)}`;
+  const missing = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
+  const why = missing.length === 0 ? "none of the app's plugins is a frontend" : `core registered no class of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
   return `The app runs no frontend that draws the board, since ${why}.`;
 }
 function changedPackages(loaded, reply) {
@@ -9401,9 +9401,6 @@ function Button2({ variant = "primary", className, ...props }) {
 // srcts/inputs/inputs.tsx
 import { useState as useState4 } from "react";
 import { Fragment as Fragment2, jsx as jsx5, jsxs as jsxs2 } from "react/jsx-runtime";
-function missing(value2) {
-  return `${value2} (not available)`;
-}
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx5("p", { role: "alert", className: styles.alert, children: error });
 }
@@ -9536,9 +9533,9 @@ function Drawn({
   const count = given === void 0 ? 0 : [...given].length;
   const unknown2 = given === void 0 && typeof children === "function";
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : count === 0;
-  const typed = useTyped2(onSearch);
-  const part = typed.sent !== "" || total !== void 0 && total > count;
-  const empty2 = typed.pending || typed.sent !== "" ? typed.pending || outdated ? "Loading\u2026" : "No matches" : none && (outdated || unknown2) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
+  const search = useSearchText(onSearch);
+  const searching = search.pending || search.sent !== "";
+  const empty2 = searching ? search.pending || outdated ? "Loading\u2026" : "No matches" : none && (outdated || unknown2) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const value2 = useSameValue(props.value);
   return /* @__PURE__ */ jsxs3(
     ComboBox,
@@ -9549,7 +9546,7 @@ function Drawn({
       allowsEmptyCollection,
       className: composeRenderProps(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
       onOpenChange: (isOpen, trigger) => {
-        if (!isOpen) typed.close();
+        if (!isOpen) search.close();
         onOpenChange?.(isOpen, trigger);
       },
       children: [
@@ -9559,16 +9556,16 @@ function Drawn({
           {
             placeholder,
             multiple,
-            marking: marking && !part,
-            part,
+            marking: marking && !searching,
             clearable: props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
             onClear,
-            onType: typed.type,
+            onType: search.type,
             label
           }
         ),
         /* @__PURE__ */ jsx6(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx6(FieldError, { className: styles.alert, children: errorMessage2 }),
+        marking && !searching ? /* @__PURE__ */ jsx6(NotAvailable, { multiple }) : null,
         /* @__PURE__ */ jsxs3(Popover, { offset: 4, className: LIST, children: [
           /* @__PURE__ */ jsx6(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx6(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx6("p", { className: NOTE, children: empty2 }), className: LISTBOX, children }) }),
           total !== void 0 && total > count ? /* @__PURE__ */ jsx6(Total, { total }) : null
@@ -9577,7 +9574,7 @@ function Drawn({
     }
   );
 }
-function useTyped2(onSearch) {
+function useSearchText(onSearch) {
   const [sent2, setSent] = useState5("");
   const [pending, setPending] = useState5(false);
   const timer = useRef3(void 0);
@@ -9642,21 +9639,14 @@ function Field({
   placeholder,
   multiple,
   marking,
-  part,
   clearable,
   onClear,
   onType,
   label
 }) {
-  const state2 = useContext(ComboBoxStateContext);
-  const value2 = state2?.value ?? null;
-  const keys = multiple && Array.isArray(value2) ? value2 : [];
-  const one2 = !multiple && value2 !== null && !Array.isArray(value2) ? value2 : null;
-  const item = state2?.selectedItems[0] ?? null;
-  const lackedOne = one2 !== null && item === null;
-  const known2 = new Map((state2?.selectedItems ?? []).map((item2) => [item2.key, item2.textValue]));
-  const lacked = keys.some((key2) => !known2.has(key2));
-  const invalid = marking && (lackedOne || lacked);
+  const { state: state2, keys, one: one2, known: known2, lacked } = usePicks(multiple, marking);
+  const item = one2 === null ? void 0 : known2.get(one2);
+  const invalid = lacked.length > 0;
   const remove2 = (gone) => {
     state2?.setValue(keys.filter((key2) => !gone.has(key2)));
   };
@@ -9664,17 +9654,17 @@ function Field({
     /* @__PURE__ */ jsxs3("div", { className: VALUES, children: [
       keys.length === 0 ? null : /* @__PURE__ */ jsx6(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove2, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx6(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key2) => {
         const text = known2.get(key2) ?? String(key2);
-        const gone = marking && !known2.has(key2);
+        const gone = lacked.includes(key2);
         return /* @__PURE__ */ jsxs3(Tag, { id: key2, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-          /* @__PURE__ */ jsx6("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+          /* @__PURE__ */ jsx6("span", { className: "bc:truncate", children: text }),
           /* @__PURE__ */ jsx6(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx6(Cross, {}) })
         ] }, key2);
       }) }) }),
       /* @__PURE__ */ jsx6(
         Input,
         {
-          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item?.textValue ?? (part && one2 !== null ? String(one2) : ""),
-          placeholder: lackedOne ? marking ? missing(String(one2)) : String(one2) : keys.length > 0 ? void 0 : placeholder,
+          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item ?? (one2 === null ? "" : String(one2)),
+          placeholder: one2 !== null && item === void 0 ? String(one2) : keys.length > 0 ? void 0 : placeholder,
           "aria-invalid": invalid || void 0,
           className: INPUT,
           onChange: (event) => {
@@ -9716,6 +9706,20 @@ function Field({
     ) : null,
     /* @__PURE__ */ jsx6(Button, { className: OPENER, children: /* @__PURE__ */ jsx6(Chevron, {}) })
   ] });
+}
+function usePicks(multiple, marking) {
+  const state2 = useContext(ComboBoxStateContext);
+  const value2 = state2?.value ?? null;
+  const keys = multiple && Array.isArray(value2) ? value2 : [];
+  const one2 = !multiple && value2 !== null && !Array.isArray(value2) ? value2 : null;
+  const known2 = new Map((state2?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
+  const lacked = !marking || state2?.isOpen === true ? [] : (one2 === null ? keys : [one2]).filter((key2) => !known2.has(key2));
+  return { state: state2, keys, one: one2, known: known2, lacked };
+}
+function NotAvailable({ multiple }) {
+  const { lacked } = usePicks(multiple, true);
+  if (lacked.length === 0) return null;
+  return /* @__PURE__ */ jsx6("p", { role: "alert", className: styles.alert, children: `Not available: ${lacked.map(String).join(", ")}` });
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);

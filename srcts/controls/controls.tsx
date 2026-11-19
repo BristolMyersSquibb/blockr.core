@@ -38,13 +38,12 @@ export interface ComboBox {
   setItems(items: readonly Item[]): void;
   // Says whether the items may be for older data,
   // as from the option `loading` of follow() until the request answers.
-  // Meanwhile the select keeps them, and shows a value that they lack as it
-  // is.
+  // Meanwhile the select keeps them, and marks no value that they lack.
   setOutdated(outdated: boolean): void;
   // Says how many items there are in all, as the request that gives the
   // items answers, or nothing, given undefined.
   // Where the select has fewer items, its list says how many there are below
-  // its rows, and the select shows a value that its items lack as it is.
+  // its rows.
   setTotal(total: number | undefined): void;
 }
 
@@ -106,8 +105,8 @@ export interface ComboBoxOptions {
   // and with "" as its list closes.
   // The module keeps the text for the args of the request that gives the
   // items, and asks it again through refresh() of follow().
-  // While the items are those of a search, the select shows a value that
-  // they lack as it is.
+  // While the items are those of a search, the select marks no value that
+  // they lack.
   readonly onSearch?: (text: string) => void;
 }
 
@@ -141,12 +140,13 @@ export interface Controls<K extends string = string> {
   // nothing is picked.
   // It takes no items until they are given, here or through setItems(),
   // and shows a value meanwhile as it is.
-  // Once they are, it shows a value that they lack as missing,
-  // and marks itself invalid,
-  // but not while setOutdated() says that they may be for older data.
-  // So its items must hold every value it takes, unless they are only a part
-  // of all items: those of a search, which it hands `onSearch`, or fewer than
-  // setTotal() says.
+  // Once they are, it marks a value that they lack:
+  // it marks itself invalid and says below itself that the value is not
+  // available, but not while setOutdated() says that they may be for older
+  // data, nor while its list is open, nor while the items are those of a
+  // search, which it hands `onSearch`.
+  // So its items must hold every value it takes that the data holds, those
+  // of a request that answers with only a part of the values included.
   // It submits one string as the user picks it, and several once, as its list
   // closes, after those the value holds, or where `ordered`, in the order of
   // the items.

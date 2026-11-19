@@ -36,7 +36,6 @@ async function mounted(state: State, requests = fixture.requests) {
 // What a select shows: its field's text, the rows of its list and whether it
 // marks itself invalid.
 async function shown(select: HTMLInputElement): Promise<[string, string[], string | null]> {
-  // The field shows a pick that the items lack in place of its placeholder.
   return [select.value || select.placeholder, await listed(select, step), select.getAttribute("aria-invalid")];
 }
 
@@ -60,14 +59,14 @@ test("never picks a column once the columns arrive", async () => {
   expect(host.submitted).toEqual([]);
 });
 
-test("shows a column that its input lacks as it is until the columns arrive, then as missing", async () => {
+test("shows a column that its input lacks as it is, and marks it once the columns arrive", async () => {
   const unanswered = await mounted({ x: "wt", y: "Sepal.Width" }, []);
   await settle();
   expect(await shown(unanswered.x)).toEqual(["wt", [], null]);
 
   const { host, x, y } = await mounted({ x: "wt", y: "Sepal.Width" });
   await settle();
-  expect(await shown(x)).toEqual(["wt (not available)", columns, "true"]);
+  expect(await shown(x)).toEqual(["wt", columns, "true"]);
   expect(await shown(y)).toEqual(["Sepal.Width", columns, null]);
   expect(host.submitted).toEqual([]);
 });
@@ -82,7 +81,7 @@ test("marks no column while the columns are asked again, as once its input chang
 
   release();
   await settle();
-  const marked = ["wt (not available)", columns, "true"];
+  const marked = ["wt", columns, "true"];
   expect(await shown(x)).toEqual(marked);
 
   await step(() => {

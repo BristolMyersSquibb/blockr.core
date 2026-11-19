@@ -7,7 +7,7 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { press, texts, type } from "../testing/inputs.ts";
 import { holdRequests } from "../testing/requests.ts";
-import { chipLabels, labelled, listed, listTotal, optionFromLabel, optionLabels, picked } from "../testing/select.ts";
+import { chipLabels, labelled, listed, listTotal, notAvailable, optionFromLabel, optionLabels, picked } from "../testing/select.ts";
 import { controls, PAUSE, SEARCH_PAUSE, strings } from "./index.ts";
 
 // Items of the ids given, which read as their ids.
@@ -85,29 +85,28 @@ describe("the controls of a block's UI", () => {
     ui.add(own);
     const by = ui.comboBox("by", { label: "By columns", selectionMode: "multiple" });
     const field = labelled(ui.el, "By columns");
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["c"], null]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(field)]).toEqual([["c"], null, null]);
 
     by.setItems(ids(["a", "b"]));
 
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["c (not available)"], "true"]);
-    expect(texts(ui.el, "label > span, p, label[for]")).toEqual(["Label", "A line of the module's own", "By columns"]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(field)]).toEqual([["c"], "true", "Not available: c"]);
+    expect(texts(ui.el, "label > span, p, label[for]")).toEqual(["Label", "A line of the module's own", "By columns", "Not available: c"]);
   });
 
-  test("show a value as it is until a select's items are given, and as missing where they lack it", async () => {
+  test("show a value as it is until a select's items are given, and say below the select that it is not available where they lack it", async () => {
     const host = stubBlockHost<Form>(fixture, { state: form({ direction: "middle" }) });
     const ui = controls(host, abort.signal);
     const direction = ui.comboBox("direction", { label: "Direction", placeholder: "Choose an end" });
     const field = labelled(ui.el, "Direction");
-    // The field shows a pick that the items lack in place of its placeholder.
-    const shown = async () => [field.value || field.placeholder, await listed(field, settled), field.getAttribute("aria-invalid")];
-    expect(await shown()).toEqual(["middle", [], null]);
+    const shown = async () => [field.value, field.getAttribute("aria-invalid"), notAvailable(field), await listed(field, settled)];
+    expect(await shown()).toEqual(["middle", null, null, []]);
 
     direction.setItems([
       { id: "head", name: "Head" },
       { id: "tail", name: "Tail" },
     ]);
 
-    expect(await shown()).toEqual(["middle (not available)", ["Head", "Tail"], "true"]);
+    expect(await shown()).toEqual(["middle", "true", "Not available: middle", ["Head", "Tail"]]);
     expect(host.submitted).toEqual([]);
   });
 
@@ -133,17 +132,17 @@ describe("the controls of a block's UI", () => {
     const one = labelled(ui.el, "Direction");
     const several = labelled(ui.el, "By columns");
     const shown = async () => [
-      one.value || one.placeholder,
-      one.getAttribute("aria-invalid"),
+      one.value,
+      notAvailable(one),
       chipLabels(several),
-      several.getAttribute("aria-invalid"),
+      notAvailable(several),
       await listed(several, settled),
     ];
     expect(await shown()).toEqual(["middle", null, ["c"], null, []]);
 
     release();
     await settled();
-    const marked = ["middle (not available)", "true", ["c (not available)"], "true", ["head", "tail"]];
+    const marked = ["middle", "Not available: middle", ["c"], "Not available: c", ["head", "tail"]];
     expect(await shown()).toEqual(marked);
 
     host.setContext({ inputs: [{ input: "data", revision: 2 }] });

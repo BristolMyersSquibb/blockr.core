@@ -34,7 +34,6 @@ async function mounted(state: State, requests = fixture.requests) {
 // What the select shows: its field's text, the rows of its list and whether
 // it marks itself invalid.
 async function shown(select: HTMLInputElement): Promise<[string, string[], string | null]> {
-  // The field shows a pick that the items lack in place of its placeholder.
   return [select.value || select.placeholder, await listed(select, step), select.getAttribute("aria-invalid")];
 }
 
@@ -47,14 +46,14 @@ test("shows the state, with a choice of each data frame the package ships", asyn
   expect(host.submitted).toEqual([]);
 });
 
-test("shows a dataset that the choices lack as it is until they arrive, then as missing", async () => {
+test("shows a dataset that the choices lack as it is, and marks it once they arrive", async () => {
   const unanswered = await mounted({ dataset: "Nile", package: "datasets" }, []);
   await settle();
   expect(await shown(unanswered.select)).toEqual(["Nile", [], null]);
 
   const { host, select } = await mounted({ dataset: "Nile", package: "datasets" });
   await settle();
-  expect(await shown(select)).toEqual(["Nile (not available)", ["BOD", "iris", "mtcars"], "true"]);
+  expect(await shown(select)).toEqual(["Nile", ["BOD", "iris", "mtcars"], "true"]);
   expect(host.submitted).toEqual([]);
 });
 

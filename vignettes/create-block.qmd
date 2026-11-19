@@ -245,7 +245,8 @@ A request is bounded by its author.
 There is no generic request for the values of a column, since one column can hold millions of values.
 A class that lists values for a user to pick from writes a request of its own, which returns a bounded number of them.
 This class filters a data frame by the values of one column.
-Its request `values` returns at most `limit` values that start with what a user typed:
+Its request `values` returns at most `limit` values that start with what a user typed.
+It also returns the values that the block's state holds, where the column holds them, so that the select can mark the others:
 
 ```{r}
 filter_block <- new_block_class(
@@ -257,9 +258,11 @@ filter_block <- new_block_class(
   ui = js_module("js/filter-block.js"),
   requests = list(
     columns = function(data) names(data),
-    values = function(data, column, query = "", limit = 100L) {
+    values = function(data, column, values = character(), query = "",
+                      limit = 100L) {
       vals <- unique(as.character(data[[column]]))
-      utils::head(vals[startsWith(vals, query)], limit)
+      found <- utils::head(vals[startsWith(vals, query)], limit)
+      union(found, intersect(as.character(values), vals))
     }
   ),
   output = table_output
@@ -269,7 +272,7 @@ run_block_request(filter_block, "values", list(data = datasets::iris),
                   args = list(column = "Species", query = "v"))
 ```
 
-The state arg `column` comes from the block's state, while the parameters `query` and `limit` come from the UI.
+The state args `column` and `values` come from the block's state, while the parameters `query` and `limit` come from the UI.
 A parameter holds only what the UI shows, such as the text typed into a search box, and never what the block computes.
 The function `expr` never sees a parameter, so no parameter changes a block's expression or its state.
 
@@ -591,7 +594,8 @@ The SDK holds these:
 - For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a block through `CoreApi`.
 
 A `ComboBox` whose items a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
-Once they are known, the select shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.
+Once they are known, the select marks a value that they lack, such as a column that the data no longer has.
+It marks itself invalid, says below itself that the value is not available, as "Not available: wt", and submits nothing, so that the state stays as the user left it.
 The last answer is for older data while the request asks again, as after the block's inputs changed, and after an ask failed.
 The module then sets `outdated` on the select, which keeps the items on screen but marks no value that they lack.
 A `NumberField` whose `maxValue` a request gives takes `outdated` too, as in the head block above, and then marks no number above it.
@@ -601,7 +605,11 @@ The select then searches: it calls `onSearch` with what the user typed, once the
 The module passes the text to the request as a parameter, such as the `query` of `useRequest(host, "values", { args: { query } })`, which `onSearch` sets.
 The select takes how many items there are in all as `total`.
 Where it has fewer items, its list says how many there are in all below its rows.
-While its items are only a part of all items, those of a search or fewer than `total`, the select marks no value that they lack as missing.
+
+The select marks a value that its items lack, also where they are only a part of all items.
+So a request that answers with only a part of the values answers with the values that the state holds as well, where the data holds them, as the filter block's `values` below does.
+Its function names the state arg, which the host fills in, and the module names the state arg's value in `reads`, so that the request is asked again as the value changes.
+The select marks no value while its list is open, nor while its items are those of a search, since a value that the user picked there is not in the state yet.
 
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
 
@@ -758,6 +766,7 @@ The option `loading` of `follow()` runs each time the request is asked, and the 
 In `loading`, a module calls `setOutdated(true)` on each input whose items or `maxValue` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
 A select that searches takes `onSearch` in its options.
 There the module keeps the text for the request's `args`, and calls `refresh()` on what `follow()` returned.
+The option `reads` of `follow()` names the values that the state holds, as `reads: () => host.state().values`, so that the request is asked again as they change.
 The `setTotal()` of the select says how many items there are in all.
 
 A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.

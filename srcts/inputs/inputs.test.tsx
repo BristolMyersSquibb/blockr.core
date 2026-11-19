@@ -12,7 +12,7 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture, StubBlockHost } from "../stubs/index.ts";
 import { fieldError, find, numberSaid, press, texts, toggle, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
-import { chipLabels, labelled, listed, optionFromLabel, optionLabels, removeChip } from "../testing/select.ts";
+import { chipLabels, labelled, listed, notAvailable, optionFromLabel, optionLabels, removeChip } from "../testing/select.ts";
 import { holdRequests } from "../testing/requests.ts";
 import type { BlockHost, OptionHost } from "../types/hosts.ts";
 import { Checkbox, ComboBox, ComboBoxItem, NumberField, Stack, TextField } from "./index.ts";
@@ -533,16 +533,16 @@ describe("the inputs of a board option's UI", () => {
     expect(host.submitted).toEqual([["message", "error"]]);
   });
 
-  test("show a string that the items lack as missing, whose chip the user removes", async () => {
+  test("say below the field that a string the items lack is not available, whose chip the user removes", async () => {
     const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
     const { el } = draw(<Conditions host={host} />);
     const field = labelled(el, "Message types to display");
 
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
-    await removeChip(field, step, "debug (not available)");
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(field)]).toEqual([["error", "debug"], "true", "Not available: debug"]);
+    await removeChip(field, step, "debug");
 
     expect(host.submitted).toEqual([["error"]]);
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error"], null]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(field)]).toEqual([["error"], null, null]);
     expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
   });
 
@@ -551,28 +551,27 @@ describe("the inputs of a board option's UI", () => {
     const { el, redraw } = draw(<Conditions host={host} outdated />);
     const field = labelled(el, "Message types to display");
 
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug"], null]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(field)]).toEqual([["error", "debug"], null, null]);
     expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
 
     redraw(<Conditions host={host} />);
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(field)]).toEqual([["error", "debug"], "true", "Not available: debug"]);
     expect(host.submitted).toEqual([]);
   });
 
-  // The field shows a pick that the items lack in place of its placeholder.
-  const shownMode = async (field: HTMLInputElement) => [field.value || field.placeholder, await listed(field, step), field.getAttribute("aria-invalid")];
+  const shownMode = async (field: HTMLInputElement) => [field.value, notAvailable(field), await listed(field, step)];
 
-  test("show a mode that the items lack as it is until they are known, and as missing while they lack it", async () => {
+  test("show a mode that the items lack as it is until they are known, and say below the field that it is not available while they lack it", async () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
     const { el, redraw } = draw(<Mode host={host} />);
     const field = labelled(el, "Light/dark mode");
-    expect(await shownMode(field)).toEqual(["auto", [], null]);
+    expect(await shownMode(field)).toEqual(["auto", null, []]);
 
     redraw(<Mode host={host} items={modes} />);
-    expect(await shownMode(field)).toEqual(["auto (not available)", ["Light", "Dark"], "true"]);
+    expect(await shownMode(field)).toEqual(["auto", "Not available: auto", ["Light", "Dark"]]);
 
     redraw(<Mode host={host} items={[...modes, { id: "auto", name: "Auto" }]} />);
-    expect(await shownMode(field)).toEqual(["Auto", ["Light", "Dark", "Auto"], null]);
+    expect(await shownMode(field)).toEqual(["Auto", null, ["Light", "Dark", "Auto"]]);
     expect(host.submitted).toEqual([]);
   });
 
@@ -580,10 +579,10 @@ describe("the inputs of a board option's UI", () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
     const { el, redraw } = draw(<Mode host={host} items={modes} outdated />);
     const field = labelled(el, "Light/dark mode");
-    expect(await shownMode(field)).toEqual(["auto", ["Light", "Dark"], null]);
+    expect(await shownMode(field)).toEqual(["auto", null, ["Light", "Dark"]]);
 
     redraw(<Mode host={host} items={modes} />);
-    expect(await shownMode(field)).toEqual(["auto (not available)", ["Light", "Dark"], "true"]);
+    expect(await shownMode(field)).toEqual(["auto", "Not available: auto", ["Light", "Dark"]]);
     expect(host.submitted).toEqual([]);
   });
 

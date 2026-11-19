@@ -89,6 +89,12 @@ export function listNote(field: HTMLElement): string | null {
   return listFromField(field)?.querySelector("p")?.textContent ?? null;
 }
 
+// What the select says below its field about the picks that its items lack,
+// as "Not available: wt", where it says it.
+export function notAvailable(field: HTMLElement): string | null {
+  return field.closest('[role="group"]')?.parentElement?.querySelector(':scope > p[role="alert"]')?.textContent ?? null;
+}
+
 // What the open list says below its rows, how many items there are in all,
 // where it says it.
 export function listTotal(field: HTMLElement): string | null {

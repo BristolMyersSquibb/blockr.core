@@ -24,6 +24,7 @@ import {
   listFromField,
   listNote,
   listTotal,
+  notAvailable,
   optionFromLabel,
   optionLabels,
   picked,
@@ -412,7 +413,7 @@ describe("a bound select", () => {
     expect(host.submitted).toEqual([basket({ fruit: "banana" })]);
   });
 
-  test("shows a value that its items lack as missing, in place of the placeholder or as a chip, and marks itself invalid, but not while outdated", async () => {
+  test("shows a value that its items lack by its id, marks itself invalid and says below the field that the value is not available, but not while outdated", async () => {
     const state = basket({ fruit: "durian", fruits: ["apple", "durian"] });
     const shown = async (outdated: boolean) => {
       const { el, unmount } = await draw(<Bound host={stubBlockHost<Basket>(fixture, { state })} outdated={outdated} />);
@@ -421,35 +422,56 @@ describe("a bound select", () => {
       // colour of danger by the attributes that mark them.
       const marked = [one, several].map((field) => field.closest('[role="group"]')?.hasAttribute("data-invalid"));
       const missing = [...(several.closest('[role="group"]')?.querySelectorAll("[data-missing]") ?? [])].map((chip) => chip.textContent.trim());
-      const seen = [one.value, one.placeholder, one.getAttribute("aria-invalid"), chipLabels(several), several.getAttribute("aria-invalid"), marked, missing];
+      const seen = [
+        one.value,
+        one.getAttribute("aria-invalid"),
+        notAvailable(one),
+        chipLabels(several),
+        several.getAttribute("aria-invalid"),
+        notAvailable(several),
+        marked,
+        missing,
+      ];
       await unmount();
       return seen;
     };
 
     expect(await shown(false)).toEqual([
-      "",
-      "durian (not available)",
+      "durian",
       "true",
-      ["Apple", "durian (not available)"],
+      "Not available: durian",
+      ["Apple", "durian"],
       "true",
+      "Not available: durian",
       [true, true],
-      ["durian (not available)"],
+      ["durian"],
     ]);
-    expect(await shown(true)).toEqual(["", "durian", null, ["Apple", "durian"], null, [false, false], []]);
+    expect(await shown(true)).toEqual(["durian", null, null, ["Apple", "durian"], null, null, [false, false], []]);
   });
 
-  test("marks no value that its items lack where they are fewer than `total`, and shows a pick of one that they lack by its id", async () => {
-    const state = basket({ fruit: "durian", fruits: ["apple", "durian"] });
-    const shown = async (total: number) => {
-      const { el, unmount } = await draw(<Bound host={stubBlockHost<Basket>(fixture, { state })} total={total} />);
-      const [one, several] = [labelled(el, "Fruit"), labelled(el, "Fruits")];
-      const seen = [one.value, one.getAttribute("aria-invalid"), chipLabels(several), several.getAttribute("aria-invalid")];
-      await unmount();
-      return seen;
-    };
+  test("marks no value while its list is open, as the user then picks from its items", async () => {
+    const { el } = await draw(<Bound host={stubBlockHost<Basket>(fixture, { state: basket({ fruits: ["apple", "durian"] }) })} />);
+    const field = labelled(el, "Fruits");
+    const shown = () => [field.getAttribute("aria-invalid"), notAvailable(field)];
+    expect(shown()).toEqual(["true", "Not available: durian"]);
 
-    expect(await shown(4)).toEqual(["durian", null, ["Apple", "durian"], null]);
-    expect(await shown(3)).toEqual(["", "true", ["Apple", "durian (not available)"], "true"]);
+    await step(() => {
+      field.click();
+    });
+    expect(shown()).toEqual([null, null]);
+    await step(() => {
+      press(field, "Escape");
+    });
+
+    expect(shown()).toEqual(["true", "Not available: durian"]);
+  });
+
+  test("marks a value that its items lack whatever `total` says, which only the list reads", async () => {
+    const state = basket({ fruit: "durian", fruits: ["apple", "durian"] });
+    const { el } = await draw(<Bound host={stubBlockHost<Basket>(fixture, { state })} total={4} />);
+    const [one, several] = [labelled(el, "Fruit"), labelled(el, "Fruits")];
+
+    expect([notAvailable(one), notAvailable(several)]).toEqual(["Not available: durian", "Not available: durian"]);
   });
 
   test("submits the picks of several once, as the list closes, after the strings that the state holds then", async () => {
@@ -519,29 +541,34 @@ describe("a bound select", () => {
 // A request that answers with at most three of the fruits whose ids hold the
 // text of a search, and with how many fruits there are in all, which R writes
 // as an array, as every vector.
+// For no search, it answers with the fruit that the state holds as well, which
+// the host fills in.
 // What it answers for a text that no fruit holds says nothing of the others.
 const searches: BlockFixture = {
   states: [basket({}), basket({ fruit: "date" })],
   requests: [
-    { name: "fruits", args: { query: "" }, options: {}, answer: { values: ["apple", "banana", "cherry"], total: [5] } },
+    { name: "fruits", args: { query: "", fruit: "apple" }, options: {}, answer: { values: ["apple", "banana", "cherry"], total: [5] } },
+    { name: "fruits", args: { query: "", fruit: "date" }, options: {}, answer: { values: ["apple", "banana", "cherry", "date"], total: [5] } },
     { name: "fruits", args: { query: "da" }, options: {}, answer: { values: ["date"], total: [5] } },
     { name: "fruits", args: { query: "kiwi" }, options: {}, answer: { values: [] } },
   ],
 };
 
 // A module's select of one of the fruits that the request answers with, which
-// it asks again with what the user typed.
+// it asks again with what the user typed, and as the pick changes, which the
+// request reads.
 // It gives the select the fruits as `defaultItems`, which React Aria narrows
 // at once as the user types, or where `controlled`, as `items`, which React
 // Aria leaves as they are.
 function Searched({ host, controlled = false }: { host: BlockHost<Basket>; controlled?: boolean }): ReactElement {
   const [query, setQuery] = useState("");
-  const found = useRequest(host, "fruits", { args: { query } });
+  const fruit = useValue(host, "fruit");
+  const found = useRequest(host, "fruits", { args: { query }, reads: fruit.value ?? null });
   const answer = found.answer as { values: string[]; total?: number[] } | undefined;
   const items = answer === undefined ? undefined : strings(answer.values).map((id) => ({ id }));
   return (
     <ComboBox
-      bound={useValue(host, "fruit")}
+      bound={fruit}
       label="Fruit"
       {...(controlled ? { items } : { defaultItems: items })}
       total={answer?.total?.[0]}
@@ -634,8 +661,8 @@ describe("a select that searches", () => {
     });
 
     expect(host.submitted).toEqual([basket({ fruit: "date" })]);
-    expect(host.requested.map((request) => request.args)).toEqual([{ query: "" }, { query: "da" }, { query: "" }]);
-    expect([field.value, field.getAttribute("aria-invalid")]).toEqual(["date", null]);
+    expect(host.requested.map((request) => request.args)).toEqual([{ query: "" }, { query: "da" }, { query: "da" }, { query: "" }]);
+    expect([field.value, field.getAttribute("aria-invalid"), notAvailable(field)]).toEqual(["date", null, null]);
   });
 
   test("says that no item matches where the items for what the user typed are none, and marks no pick that they lack", async () => {

@@ -263,9 +263,6 @@ function Checkbox({ bound, label }) {
     /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
   ] });
 }
-function missing(value) {
-  return `${value} (not available)`;
-}
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx3("p", { role: "alert", className: styles.alert, children: error });
 }
@@ -421,9 +418,9 @@ function Drawn({
   const count = given === void 0 ? 0 : [...given].length;
   const unknown = given === void 0 && typeof children === "function";
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : count === 0;
-  const typed = useTyped2(onSearch);
-  const part = typed.sent !== "" || total !== void 0 && total > count;
-  const empty = typed.pending || typed.sent !== "" ? typed.pending || outdated ? "Loading\u2026" : "No matches" : none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
+  const search = useSearchText(onSearch);
+  const searching = search.pending || search.sent !== "";
+  const empty = searching ? search.pending || outdated ? "Loading\u2026" : "No matches" : none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const value = useSameValue(props.value);
   return /* @__PURE__ */ jsxs2(
     AriaComboBox,
@@ -434,7 +431,7 @@ function Drawn({
       allowsEmptyCollection,
       className: composeRenderProps2(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
       onOpenChange: (isOpen, trigger) => {
-        if (!isOpen) typed.close();
+        if (!isOpen) search.close();
         onOpenChange?.(isOpen, trigger);
       },
       children: [
@@ -444,16 +441,16 @@ function Drawn({
           {
             placeholder,
             multiple,
-            marking: marking && !part,
-            part,
+            marking: marking && !searching,
             clearable: props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
             onClear,
-            onType: typed.type,
+            onType: search.type,
             label
           }
         ),
         /* @__PURE__ */ jsx4(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx4(FieldError, { className: styles.alert, children: errorMessage2 }),
+        marking && !searching ? /* @__PURE__ */ jsx4(NotAvailable, { multiple }) : null,
         /* @__PURE__ */ jsxs2(Popover, { offset: 4, className: LIST, children: [
           /* @__PURE__ */ jsx4(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx4(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx4("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }),
           total !== void 0 && total > count ? /* @__PURE__ */ jsx4(Total, { total }) : null
@@ -462,7 +459,7 @@ function Drawn({
     }
   );
 }
-function useTyped2(onSearch) {
+function useSearchText(onSearch) {
   const [sent, setSent] = useState3("");
   const [pending, setPending] = useState3(false);
   const timer = useRef2(void 0);
@@ -527,21 +524,14 @@ function Field2({
   placeholder,
   multiple,
   marking,
-  part,
   clearable,
   onClear,
   onType,
   label
 }) {
-  const state = useContext(ComboBoxStateContext);
-  const value = state?.value ?? null;
-  const keys = multiple && Array.isArray(value) ? value : [];
-  const one = !multiple && value !== null && !Array.isArray(value) ? value : null;
-  const item = state?.selectedItems[0] ?? null;
-  const lackedOne = one !== null && item === null;
-  const known2 = new Map((state?.selectedItems ?? []).map((item2) => [item2.key, item2.textValue]));
-  const lacked = keys.some((key) => !known2.has(key));
-  const invalid = marking && (lackedOne || lacked);
+  const { state, keys, one, known: known2, lacked } = usePicks(multiple, marking);
+  const item = one === null ? void 0 : known2.get(one);
+  const invalid = lacked.length > 0;
   const remove = (gone) => {
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
@@ -549,17 +539,17 @@ function Field2({
     /* @__PURE__ */ jsxs2("div", { className: VALUES, children: [
       keys.length === 0 ? null : /* @__PURE__ */ jsx4(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx4(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key) => {
         const text = known2.get(key) ?? String(key);
-        const gone = marking && !known2.has(key);
+        const gone = lacked.includes(key);
         return /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-          /* @__PURE__ */ jsx4("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+          /* @__PURE__ */ jsx4("span", { className: "bc:truncate", children: text }),
           /* @__PURE__ */ jsx4(Button2, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx4(Cross, {}) })
         ] }, key);
       }) }) }),
       /* @__PURE__ */ jsx4(
         Input,
         {
-          value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item?.textValue ?? (part && one !== null ? String(one) : ""),
-          placeholder: lackedOne ? marking ? missing(String(one)) : String(one) : keys.length > 0 ? void 0 : placeholder,
+          value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item ?? (one === null ? "" : String(one)),
+          placeholder: one !== null && item === void 0 ? String(one) : keys.length > 0 ? void 0 : placeholder,
           "aria-invalid": invalid || void 0,
           className: INPUT,
           onChange: (event) => {
@@ -601,6 +591,20 @@ function Field2({
     ) : null,
     /* @__PURE__ */ jsx4(Button2, { className: OPENER, children: /* @__PURE__ */ jsx4(Chevron, {}) })
   ] });
+}
+function usePicks(multiple, marking) {
+  const state = useContext(ComboBoxStateContext);
+  const value = state?.value ?? null;
+  const keys = multiple && Array.isArray(value) ? value : [];
+  const one = !multiple && value !== null && !Array.isArray(value) ? value : null;
+  const known2 = new Map((state?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
+  const lacked = !marking || state?.isOpen === true ? [] : (one === null ? keys : [one]).filter((key) => !known2.has(key));
+  return { state, keys, one, known: known2, lacked };
+}
+function NotAvailable({ multiple }) {
+  const { lacked } = usePicks(multiple, true);
+  if (lacked.length === 0) return null;
+  return /* @__PURE__ */ jsx4("p", { role: "alert", className: styles.alert, children: `Not available: ${lacked.map(String).join(", ")}` });
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);

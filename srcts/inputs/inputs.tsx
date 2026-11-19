@@ -51,11 +51,6 @@ export function Checkbox({ bound, label }: { bound: Bound; label: string }): Rea
   );
 }
 
-// How a select shows a value that its choices lack.
-export function missing(value: string): string {
-  return `${value} (not available)`;
-}
-
 // Says why the host refused what an input submitted.
 export function Refusal({ error }: { error: string | null }): ReactElement | null {
   return error === null ? null : (

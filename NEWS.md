@@ -691,10 +691,13 @@
   The pause is `SEARCH_PAUSE`, which `@blockr/core/binding` and the controls export beside `PAUSE`.
   The select takes how many items there are in all as `total`.
   Where it has fewer items, its list says how many there are in all below its rows.
-  While its items are only a part of all items, those of a search or fewer than `total`, the select marks no value that they lack as missing, and a select of one shows a pick that they lack by its id.
   While the select waits for the pause, or for the items that match, its list says "Loading…" where it shows no row.
   Once the items come and are none, it says "No matches".
-  The `comboBox()` of `controls()` takes `onSearch` in its options, and its `setTotal()` sets `total` (#690).
+  The `comboBox()` of `controls()` takes `onSearch` in its options, and its `setTotal()` sets `total`.
+  A select no longer adds `(not available)` to the text of a value that its items lack.
+  It shows the value by its id, marks itself invalid, draws the value's chip in the color of danger, and says below its field which values are not available, as "Not available: wt".
+  It marks no value while its list is open, nor while its items are those of a search, since a value that the user picked there is not in the state yet.
+  So a request that answers with only a part of the values answers with the values that the state holds as well, where the data holds them (#690).
 
 # blockr.core 0.1.4
 
