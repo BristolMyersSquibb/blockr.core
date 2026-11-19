@@ -148,6 +148,9 @@ answer_evaluate <- function(ev, job) {
 # The output carries the renderer that draws it, that of the family whose
 # class the output has, with where R serves the renderer's module, and R keeps
 # that renderer with the result, for the renderer's own requests.
+# R also gets the requests that the output's classes give for it, and keeps
+# them with the result, for the requests of its output class.
+# So an output fails where its classes give no named list of functions.
 # Its reply carries every message and warning raised while R made it,
 # as an evaluation's reply does.
 # R logs each of them (see `log_reply()`).
@@ -177,6 +180,7 @@ answer_output <- function(ev, job) {
       list(
         class = class(res),
         parts = shape_output(res),
+        requests = output_class_requests(res),
         drawn = drawn,
         renderer = output_renderer_reply(drawn)
       )
@@ -188,6 +192,7 @@ answer_output <- function(ev, job) {
   }
 
   held[["output"]] <- made[["value"]][["class"]]
+  held[["requests"]] <- made[["value"]][["requests"]]
   held[["renderer"]] <- made[["value"]][["drawn"]]
   assign(out[["block"]], held, envir = ev$results)
 
@@ -298,8 +303,10 @@ lacking_results <- function(ev, reads) {
 
 # The results that R holds of what a recipe's inputs or a request's reads
 # name, by block id.
-# Each is a list of its `result`, its block expression `expr`,
-# and the class vector of the latest output that R made from it in `output`.
+# Each is a list of its `result`, its block expression `expr`, and what R kept
+# of the latest output that it made from it: the output's class vector in
+# `output`, the requests that its classes give for it in `requests` and the
+# renderer that drew it in `renderer`.
 # An input named alone is one that R binds itself to the data that `serve()`
 # was given, so its entry, named by the input, holds that data as its result.
 held_reads <- function(ev, reads) {
@@ -317,6 +324,7 @@ held_reads <- function(ev, reads) {
           result = held[["result"]],
           expr = held[["expr"]],
           output = held[["output"]],
+          requests = held[["requests"]],
           renderer = held[["renderer"]]
         )
       )
