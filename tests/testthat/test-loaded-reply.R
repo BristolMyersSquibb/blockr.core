@@ -325,6 +325,44 @@ test_that("an entry names the board options that its class's outputs read", {
   expect_identical(family_option_ids(text_output), character())
 })
 
+test_that("an entry of a class whose family is open names every listed one", {
+
+  local_family_package()
+
+  any_output <- new_output_family(
+    function(result, ...) text_output(result, ...),
+    "any_output",
+    families = TRUE
+  )
+
+  head <- get_registry_entry("blockr.core-head_block")
+  head$block_class$output <- any_output
+
+  # The renderers and the board options of the families that core and
+  # famprobe list, as the available packages list them
+  expect_identical(
+    chr_xtr(entry_renderers(head), "id"),
+    c("blockr.core-table_output", "blockr.core-text_output",
+      "blockr.core-plot_output", "famprobe-probe_output")
+  )
+  expect_identical(
+    json(registry_entry_reply(head)$output_options),
+    "[\"n_rows\",\"dark_mode\"]"
+  )
+
+  # Or of those that the app read as it started
+  listed <- list(text_output = text_output)
+
+  expect_identical(
+    chr_xtr(entry_renderers(head, listed), "id"),
+    "blockr.core-text_output"
+  )
+  expect_identical(
+    json(registry_entry_reply(head, families = listed)$output_options),
+    "[]"
+  )
+})
+
 test_that("the renderer the deployment names for a family is in the entry", {
 
   local_mocked_bindings(

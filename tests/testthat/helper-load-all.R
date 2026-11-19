@@ -13,10 +13,6 @@
 # Gives the package's source directory.
 local_load_all_package <- function(frame = parent.frame(), registers = FALSE) {
 
-  testthat::skip_if_not_installed("pkgload")
-
-  pkg <- file.path(withr::local_tempdir(.local_envir = frame), "regprobe")
-
   files <- list(
     DESCRIPTION = c(
       "Package: regprobe",
@@ -73,10 +69,23 @@ local_load_all_package <- function(frame = parent.frame(), registers = FALSE) {
     )
   }
 
+  load_all_files("regprobe", files, frame)
+}
+
+# Loads the package `name` with `pkgload::load_all()`, from its files `files`,
+# as `write_package_files()` takes them, in a temporary directory, until
+# `frame` ends.
+# Gives the package's source directory.
+load_all_files <- function(name, files, frame) {
+
+  testthat::skip_if_not_installed("pkgload")
+
+  pkg <- file.path(withr::local_tempdir(.local_envir = frame), name)
+
   write_package_files(pkg, files)
 
   pkgload::load_all(pkg, attach = FALSE, helpers = FALSE, quiet = TRUE)
-  withr::defer(pkgload::unload("regprobe", quiet = TRUE), envir = frame)
+  withr::defer(pkgload::unload(name, quiet = TRUE), envir = frame)
 
   invisible(normalizePath(pkg))
 }
@@ -92,4 +101,50 @@ write_package_files <- function(dir, files) {
   }
 
   invisible(dir)
+}
+
+# Loads the package famprobe with `pkgload::load_all()`, from a temporary
+# directory, until `frame` ends.
+# The package defines the output family probe_output, which reads the board
+# option dark_mode and whose outputs its own renderer draws, and binds it
+# under the name probe_alias too.
+# It lists probe_output in the `families` of the `._BLOCKR_MODULES_` that it
+# exports.
+# Gives the package's source directory.
+local_family_package <- function(frame = parent.frame()) {
+
+  files <- list(
+    DESCRIPTION = c(
+      "Package: famprobe",
+      "Title: Probes How Core Reads the Output Families of a Package",
+      "Version: 0.0.1",
+      "Description: Defines one output family for the tests of blockr.core.",
+      "License: MIT",
+      "Encoding: UTF-8",
+      "Imports: blockr.core"
+    ),
+    NAMESPACE = c("export(._BLOCKR_MODULES_)", "export(probe_output)"),
+    `R/listing.R` = "._BLOCKR_MODULES_ <- list(families = \"probe_output\")",
+    `R/probe.R` = c(
+      "probe_output <- blockr.core::new_output_family(",
+      "  function(result, ...) {",
+      "    blockr.core::new_block_output(",
+      "      list(text = format(result)),",
+      "      \"probe_output\"",
+      "    )",
+      "  },",
+      "  \"probe_output\",",
+      "  options = blockr.core::new_dark_mode_option,",
+      "  renderer = blockr.core::new_renderer(",
+      "    \"probe_output\",",
+      "    blockr.core::js_module(\"js/probe-output.js\")",
+      "  )",
+      ")",
+      "",
+      "probe_alias <- probe_output"
+    ),
+    `inst/js/probe-output.js` = "export default {};"
+  )
+
+  load_all_files("famprobe", files, frame)
 }

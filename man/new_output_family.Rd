@@ -22,7 +22,8 @@ reads, or that the renderers of its outputs read, a function such as
 makes, made by \code{\link[=new_renderer]{new_renderer()}}}
 
 \item{families}{The families that \code{fun} hands its results to, a family or
-a list of them}
+a list of them, or \code{TRUE} for every family that the available packages
+list}
 }
 \value{
 The function \code{fun}, of class \code{class}, \code{output_family} and
@@ -76,6 +77,22 @@ A family may do both, and an output of a class that neither the family nor
 a family that it names draws is an error.
 A family that is a generic stays one, since S3 registers its methods and
 dispatches on the result as it does for any generic.
+
+A family that takes results of any class, as a code block's family does, is
+open.
+An open family gives \code{families = TRUE}, and hands its results to every
+family that the available packages list in the \code{families} of their
+\code{._BLOCKR_MODULES_} (see \code{\link[=read_blocks_yml]{read_blocks_yml()}}).
+S3 lets any package add a method to an open family, such as
+\code{code_output.sf()}, which hands a result to that package's \code{map_output}.
+That package then lists \code{map_output}.
+R reads the families that the packages list as \code{\link[=serve]{serve()}} builds the app, as
+it reads their board options.
+The entry of a block class whose family is open names the board options and
+the renderer of every listed family.
+So each output request of such a block carries the board options of every
+listed family, and the client loads every listed renderer before the
+block's first output.
 }
 \examples{
 class(table_output)
@@ -92,5 +109,20 @@ coef_output <- new_output_family(
 
 fit <- stats::lm(Sepal.Length ~ Sepal.Width, datasets::iris)
 coef_output(fit, options = list(n_rows = 5L))$total
+
+# An open family, which hands a data frame to table_output and any other
+# result to text_output, both of which core lists
+any_output <- new_output_family(
+  function(result, ...) {
+    if (is.data.frame(result)) {
+      return(table_output(result, ...))
+    }
+    text_output(result, ...)
+  },
+  "any_output",
+  families = TRUE
+)
+
+class(any_output(month.name[1:3]))
 
 }
