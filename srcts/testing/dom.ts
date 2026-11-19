@@ -17,6 +17,10 @@
 //   where a browser reads none, and React Aria's NumberField empties them on
 //   the number input that it checks a number with.
 //   So setting one of them to "" removes the attribute.
+//   This is happy-dom's bug #2484
+//   (https://github.com/capricorn86/happy-dom/issues/2484), which its PR
+//   #2516 fixes, and this part goes once a release of happy-dom holds the
+//   fix.
 // Outside happy-dom, neither changes what the DOM does.
 
 for (const name of ["clientWidth", "clientHeight"]) {
