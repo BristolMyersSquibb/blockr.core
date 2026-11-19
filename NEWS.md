@@ -649,6 +649,12 @@
   The page loads the parts of React Aria that core draws with in core's vendor file, and the types of `@blockr/core` name React Aria as a dependency.
   The `comboBox()` of `controls()` takes `items`, `selectionMode`, `ordered` and `renderEmptyState`, in place of `select()` and `checklist()`, which are gone, as are `Choice` and `asChoices()`.
   Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).
+* The `selection` of `CoreApi` holds the board objects that the user selected, such as `[{ block: "a" }, { link: "ab" }]`.
+  Whatever selects sets it, as the DAG will as the user selects nodes, links and stacks, while core's basic frontend selects nothing.
+  Its `get()` gives the board objects selected, its `set()` selects those given in place of them, and its `subscribe()` calls back whenever they change.
+  Core holds the selection outside the board, as it holds focus, so that nothing saves or undoes it, and nothing is selected as a board opens.
+  The call `set()` refuses a block, a link or a stack that the board does not hold, a board option whose value the board does not hold, and a plugin that the app does not run.
+  A board object given twice is selected once, and one that leaves the board leaves the selection (#740).
 
 # blockr.core 0.1.4
 

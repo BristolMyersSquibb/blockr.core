@@ -3,7 +3,8 @@
 // storage whose controls a frontend draws, mounting a plugin's UI where a
 // frontend places it, and what a frontend offers other plugins, the
 // notifications they raise, which block has focus, which blocks and plugins
-// are on screen, and showing a block or a plugin.
+// are on screen, and showing a block or a plugin, and the board objects that
+// the user selected.
 
 import { describe, expect, test } from "vitest";
 // The modules of core's own plugin classes, which the build bundles on their
@@ -21,7 +22,7 @@ import { classModule, listedModules, pluginUi } from "../testing/plugins.ts";
 import { logged } from "../testing/logged.ts";
 import { withOptions, withoutPlugins, withPlugins } from "../testing/store.ts";
 import type { GivenPlugin } from "../testing/store.ts";
-import type { CoreApi, Notification, Raised } from "../types/core-api.ts";
+import type { BoardObject, CoreApi, Notification, Raised } from "../types/core-api.ts";
 
 // The classes of core's own plugins, which the app of the fixture hello runs.
 const BASIC = "blockr.core-basic_frontend_plugin";
@@ -668,6 +669,109 @@ describe("what a frontend offers other plugins", () => {
     await before.show({ block: "b" });
     expect(asked).toEqual([{ block: "b" }]);
     expect(s.core.focus.get()).toBeNull();
+    s.stop();
+  });
+});
+
+describe("the board objects that the user selected", () => {
+  test("holds the board objects that a plugin selects, a copy of each once in the order given, nothing as a board opens, and nothing as the next board opens", async () => {
+    const s = await stubCore();
+    const { core } = s;
+    const heard: (readonly BoardObject[])[] = [];
+    core.selection.subscribe((objects) => heard.push(objects));
+    const unheard: (readonly BoardObject[])[] = [];
+    const off = core.selection.subscribe((objects) => unheard.push(objects));
+    off();
+    expect(core.selection.get()).toEqual([]);
+
+    // The Edit board plugin keeps no state, which the board would hold, and
+    // is selected as a plugin that the app runs.
+    const given: { block: string }[] = [{ block: "a" }];
+    core.selection.set([...given, { link: "ab" }, { stack: "s1" }, { option: "n_rows" }, { plugin: EDIT }]);
+    const first = core.selection.get();
+    expect(first).toEqual([{ block: "a" }, { link: "ab" }, { stack: "s1" }, { option: "n_rows" }, { plugin: EDIT }]);
+    expect(Object.isFrozen(first)).toBe(true);
+    expect(first.every((object) => Object.isFrozen(object))).toBe(true);
+    // Core keeps a copy, which the plugin's objects do not change, and the
+    // same array while the plugin selects the same board objects, in
+    // whatever order and however often.
+    for (const object of given) object.block = "b";
+    core.selection.set([{ plugin: EDIT }, { option: "n_rows" }, { stack: "s1" }, { link: "ab" }, { block: "a" }, { block: "a" }]);
+    expect(core.selection.get()).toBe(first);
+    expect(first[0]).toEqual({ block: "a" });
+
+    core.selection.set([{ block: "c" }, { link: "bc" }, { block: "c" }]);
+    expect(core.selection.get()).toEqual([{ block: "c" }, { link: "bc" }]);
+    core.selection.set([]);
+    expect(core.selection.get()).toEqual([]);
+    expect(heard).toEqual([first, [{ block: "c" }, { link: "bc" }], []]);
+    expect(unheard).toEqual([]);
+
+    core.selection.set([{ block: "a" }]);
+    const next = await reopen(s);
+    expect(next.selection.get()).toEqual([]);
+    s.stop();
+  });
+
+  test("refuses what is no array of board objects, and a board object that the board does not hold, keeping what it selected", async () => {
+    const s = await stubbed([], {}, { options: [zoom] });
+    const { core } = s;
+    core.selection.set([{ block: "a" }]);
+    const selected = core.selection.get();
+    const heard: (readonly BoardObject[])[] = [];
+    core.selection.subscribe((objects) => heard.push(objects));
+
+    for (const given of [null, { block: "a" }, [null], ["a"], [{}], [{ block: 1 }], [{ block: "" }], [{ block: "a", link: "ab" }], [{ node: "a" }]]) {
+      expect(() => {
+        core.selection.set(given as never);
+      }).toThrow(`A selection is an array of board objects, as [{ block: "a" }, { link: "ab" }], not ${JSON.stringify(given)}.`);
+    }
+    const lacking: [BoardObject, string][] = [
+      [{ block: "nowhere" }, 'The board holds no block "nowhere" to select.'],
+      [{ link: "nowhere" }, 'The board holds no link "nowhere" to select.'],
+      [{ stack: "nowhere" }, 'The board holds no stack "nowhere" to select.'],
+      // A board option that a package defines, but whose value the board
+      // lacks.
+      [{ option: "zoom" }, 'The board holds no board option "zoom" to select.'],
+      [{ plugin: "blockr.test-nowhere_plugin" }, 'The app runs no plugin "blockr.test-nowhere_plugin" to select.'],
+    ];
+    for (const [object, why] of lacking) {
+      expect(() => {
+        core.selection.set([{ block: "b" }, object]);
+      }).toThrow(why);
+    }
+    expect(core.selection.get()).toBe(selected);
+    expect(heard).toEqual([]);
+    s.stop();
+  });
+
+  test("drops each board object that leaves the board from the selection, at once for a change that removes several", async () => {
+    const s = await stubCore();
+    const { core } = s;
+    const heard: (readonly BoardObject[])[] = [];
+    core.selection.subscribe((objects) => heard.push(objects));
+    core.selection.set([{ block: "a" }, { link: "ab" }, { link: "bc" }, { stack: "s1" }, { option: "n_rows" }, { plugin: EDIT }]);
+    heard.length = 0;
+
+    // A change that removes no selected board object leaves the selection.
+    core.store.apply({ name: "Renamed" });
+    expect(heard).toEqual([]);
+
+    // Removing a block removes the links into and out of it, as ab.
+    core.store.apply({ blocks: { rm: ["a"] } });
+    core.store.apply({ stacks: { rm: ["s1"] } });
+    core.store.apply({ options: { unset: ["n_rows"] } });
+    expect(heard).toEqual([
+      [{ link: "bc" }, { stack: "s1" }, { option: "n_rows" }, { plugin: EDIT }],
+      [{ link: "bc" }, { option: "n_rows" }, { plugin: EDIT }],
+      [{ link: "bc" }, { plugin: EDIT }],
+    ]);
+    expect(core.selection.get()).toEqual([{ link: "bc" }, { plugin: EDIT }]);
+    // An undo brings the block back onto the board, but not into the
+    // selection.
+    core.store.undo();
+    core.store.undo();
+    expect(core.selection.get()).toEqual([{ link: "bc" }, { plugin: EDIT }]);
     s.stop();
   });
 });

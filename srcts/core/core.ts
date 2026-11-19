@@ -21,6 +21,9 @@
 // which the frontend sets, and show(), through which a plugin has the frontend
 // show a block or a plugin
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#showing-a-block-or-a-plugin).
+// Beside them, it holds the board objects that the user selected, which
+// whatever selects sets, as the DAG does
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
 // What they hold is the page's, outside the board, and ends with the board. Where an onChange() throws, core
 // raises a notification that holds until its next call returns, and so do
 // those that the call raises through its `notify`.
@@ -41,10 +44,20 @@ import type { Scheduler } from "../scheduler/index.ts";
 import { asRandId, mintId } from "../store/index.ts";
 import type { Origin, Store } from "../store/index.ts";
 import type { BlockId, Board, OptionId, PluginClassId } from "../types/board.ts";
-import type { CoreApi, Notification, Notifier, OnScreen, OutputEvents, Raised } from "../types/core-api.ts";
+import type { BoardObject, CoreApi, Notification, Notifier, OnScreen, OutputEvents, Raised } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { createLog, log } from "../log/index.ts";
-import { asError, coreNotification, errorMessage, givenNotifier, isPackageName, jsonEqual, own, sourceModule } from "../util/index.ts";
+import {
+  asError,
+  coreNotification,
+  errorMessage,
+  givenNotifier,
+  isBoardObject,
+  isPackageName,
+  jsonEqual,
+  own,
+  sourceModule,
+} from "../util/index.ts";
 import type { Refused } from "../util/index.ts";
 import type { BlockrOptions } from "./blockr-options.ts";
 import type { Holder } from "./notifications.ts";
@@ -196,6 +209,7 @@ export function createCore(parts: CoreParts): Core {
   });
 
   const focus = createFocus(store, parts.signal);
+  const selection = createSelection(store, plugins, parts.signal);
   const edits = refusing(store, commands, refused);
 
   const api: CoreApi = {
@@ -233,6 +247,7 @@ export function createCore(parts: CoreParts): Core {
       return createLog(given);
     },
     focus,
+    selection,
     onScreen: createOnScreen(parts.signal),
     show(object) {
       if (parts.signal?.aborted === true) return Promise.resolve();
@@ -518,4 +533,97 @@ function createFocus(store: Store, signal: AbortSignal | undefined): CoreApi["fo
       };
     },
   };
+}
+
+// What the selection holds where nothing is selected.
+const NOTHING_SELECTED: readonly BoardObject[] = Object.freeze([]);
+
+// The board objects that the user selected, which start with none as the
+// board opens and lose each one that leaves the board, until the board ends.
+function createSelection(
+  store: Store,
+  plugins: Pick<RunningPlugins, "appPlugins">,
+  signal: AbortSignal | undefined,
+): CoreApi["selection"] {
+  let selected = NOTHING_SELECTED;
+  const listeners = new Set<(objects: readonly BoardObject[]) => void>();
+
+  // Whether the board holds the board object, as set() counts it: a board
+  // option where the board holds its value, and a plugin where the app runs
+  // it. No change removes a plugin from the open board, so a selected plugin
+  // stays selected until a plugin sets the selection again.
+  function holds(object: BoardObject, board: Board): boolean {
+    if ("block" in object) return Object.hasOwn(board.blocks, object.block);
+    if ("link" in object) return Object.hasOwn(board.links, object.link);
+    if ("stack" in object) return Object.hasOwn(board.stacks, object.stack);
+    if ("option" in object) return Object.hasOwn(board.options, object.option);
+    return Object.hasOwn(plugins.appPlugins(), object.plugin);
+  }
+
+  const offStore = store.subscribe((_change, board) => {
+    const kept = selected.filter((object) => holds(object, board));
+    if (kept.length === selected.length) return;
+    selected = Object.freeze(kept);
+    announceTo(listeners, selected);
+  });
+  signal?.addEventListener(
+    "abort",
+    () => {
+      offStore();
+      listeners.clear();
+    },
+    { once: true },
+  );
+
+  return {
+    get: () => selected,
+    set(objects) {
+      const given = selectionGiven(objects);
+      const lacking = given.find((object) => !store.hasBoard() || !holds(object, store.board()));
+      if (lacking !== undefined) throw new Error(unheld(lacking));
+      if (sameIds(selected.map(objectKey), given.map(objectKey))) return;
+      selected = given;
+      announceTo(listeners, selected);
+    },
+    subscribe(fn) {
+      const wrapped = (objects: readonly BoardObject[]): void => {
+        fn(objects);
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    },
+  };
+}
+
+// The board objects that a plugin gives selection.set(), copied, in the order
+// given and each once, so that they change only as a plugin sets them again.
+// It throws for anything else, as a plugin in plain JS may give.
+function selectionGiven(given: unknown): readonly BoardObject[] {
+  if (!Array.isArray(given) || !given.every(isBoardObject)) {
+    throw new TypeError(`A selection is an array of board objects, as [{ block: "a" }, { link: "ab" }], not ${JSON.stringify(given)}.`);
+  }
+  const copies = new Map<string, BoardObject>();
+  for (const object of given) {
+    const copy = Object.freeze({ ...object });
+    const key = objectKey(copy);
+    if (!copies.has(key)) copies.set(key, copy);
+  }
+  return Object.freeze([...copies.values()]);
+}
+
+// The key of a board object, by which the selection tells one board object
+// from another.
+function objectKey(object: BoardObject): string {
+  return JSON.stringify(object);
+}
+
+// Why set() refuses a board object that the board does not hold.
+function unheld(object: BoardObject): string {
+  if ("block" in object) return `The board holds no block ${JSON.stringify(object.block)} to select.`;
+  if ("link" in object) return `The board holds no link ${JSON.stringify(object.link)} to select.`;
+  if ("stack" in object) return `The board holds no stack ${JSON.stringify(object.stack)} to select.`;
+  if ("option" in object) return `The board holds no board option ${JSON.stringify(object.option)} to select.`;
+  return `The app runs no plugin ${JSON.stringify(object.plugin)} to select.`;
 }

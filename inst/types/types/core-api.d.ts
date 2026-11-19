@@ -33,6 +33,11 @@ export interface CoreApi {
         set(block: BlockId | null): void;
         subscribe(fn: (block: BlockId | null) => void): () => void;
     };
+    readonly selection: {
+        get(): readonly BoardObject[];
+        set(objects: readonly BoardObject[]): void;
+        subscribe(fn: (objects: readonly BoardObject[]) => void): () => void;
+    };
     readonly onScreen: OnScreen;
     show(object: {
         readonly block: BlockId;
