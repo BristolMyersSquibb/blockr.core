@@ -3,7 +3,6 @@ import type { CoreApi } from "../../types/core-api.ts";
 import type { Watched } from "./demand.ts";
 export declare const api = 1;
 declare const _default: {
-    options: string[];
     frontend: {
         render: typeof render;
         show: typeof show;

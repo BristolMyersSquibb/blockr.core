@@ -40,19 +40,30 @@ const INFO: OutputInfo = {
 };
 
 // The reply to hello, with a board that holds no board option, so that the
-// renderers bring theirs.
+// mounts bring theirs.
 const bare: HelloReply = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } };
+
+// The reply bare, whose block classes' entries name the board options given
+// for their outputs, as R names those that the output family of a class
+// holds.
+function outputsRead(ids: readonly string[]): HelloReply {
+  return {
+    ...bare,
+    block_registry: Object.fromEntries(
+      Object.entries(bare.block_registry).map(([id, entry]) => [id, { ...entry, output_options: [...ids] }]),
+    ),
+  };
+}
 
 // A board option that a renderer of table outputs may name besides n_rows.
 const zoom: Option = { id: "zoom", label: "Zoom", category: "View options", schema: { type: "number" }, default: 1, ui: noUi };
 
 // A renderer that keeps each host it is mounted with, and each output that
 // its host held as it announced one.
-function renderer(named: readonly string[] = ["n_rows"]) {
+function renderer() {
   const mounts: { host: OutputHost; el: HTMLElement; signal: AbortSignal; seen: Json[] }[] = [];
   let cleanups = 0;
   const mod: OutputModule = {
-    options: named,
     render({ el, host, signal }) {
       const mount = { host, el, signal, seen: [host.output()] };
       mounts.push(mount);
@@ -264,9 +275,9 @@ afterEach(() => {
 });
 
 describe("asking", () => {
-  test("loads the renderer that the entry names and adds its board options before it asks R", async () => {
-    const table = renderer(["n_rows", "zoom"]);
-    const s = await setup({ [TABLE.module]: table.exports });
+  test("loads the renderer that the entry names and adds the board options of the class's outputs before it asks R", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports }, { reply: outputsRead(["n_rows", "zoom"]) });
     const el = await ready(s);
 
     expect(s.imported).toEqual([TABLE.module]);
@@ -289,7 +300,7 @@ describe("asking", () => {
 
     expect(table.mounts).toHaveLength(1);
     expect(table.host().output()).toMatchObject({ renderer: TABLE, total: 150 });
-    expect(table.host().options()).toEqual({ n_rows: 50, zoom: 1 });
+    expect([table.host().option("n_rows"), table.host().option("zoom")]).toEqual([50, 1]);
     expect(table.host().params()).toEqual({});
     expect(table.host().loading()).toBe(false);
     expect(el.textContent).toContain('"total":150');
@@ -571,30 +582,6 @@ describe("asking", () => {
     await tick();
     expect(s.raised).toEqual([]);
   });
-
-  test("raises that the renderer cannot draw where a board option that it names does not go onto the board, beside the board option's own notification, which says why", async () => {
-    const reported = logged();
-    const table = renderer(["n_rows", "broken"]);
-    const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
-    const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
-    await ready(s);
-    reported.restore();
-    const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
-    expect(s.raised).toEqual([
-      {
-        severity: "error",
-        message: why,
-        source: { kind: "core", code: "board_option_failed", module: { object: { option: "broken" } } },
-        about: { option: "broken" },
-      },
-      {
-        severity: "error",
-        message: `Without the board option "broken", the renderer "${TABLE.id}" cannot draw.`,
-        source: { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" } },
-        about: { block: "b" },
-      },
-    ]);
-  });
 });
 
 describe("what core keeps", () => {
@@ -659,7 +646,7 @@ describe("what core keeps", () => {
 
 describe("board options", () => {
   test("that the class's outputs read go onto the board and with every output request, beside the renderer's", async () => {
-    const text = renderer([]);
+    const text = renderer();
     const themed: HelloReply = {
       ...bare,
       block_registry: Object.fromEntries(
@@ -684,7 +671,7 @@ describe("board options", () => {
 
   test("that the class's outputs read and that do not go onto the board leave the output unasked, with why", async () => {
     const reported = logged();
-    const text = renderer([]);
+    const text = renderer();
     const lacking: HelloReply = {
       ...bare,
       block_registry: Object.fromEntries(
@@ -709,29 +696,30 @@ describe("board options", () => {
 
   test("whose default fails leave the element empty, and core asks R for no output", async () => {
     const reported = logged();
-    const table = renderer(["n_rows", "broken"]);
+    const table = renderer();
     const broken: Option = { ...zoom, id: "broken", default: () => Promise.reject(new Error("No value today.")) };
-    const s = await setup({ [TABLE.module]: table.exports }, { options: [broken] });
+    const s = await setup({ [TABLE.module]: table.exports }, { reply: outputsRead(["n_rows", "broken"]), options: [broken] });
     const el = await ready(s);
     reported.restore();
 
-    const why = `The default of the board option "broken", which the renderer "${TABLE.id}" requires, failed: No value today.`;
+    const cls = String(s.store.board().blocks.b?.registry_id);
+    const why = `The default of the board option "broken", which the outputs of block class "${cls}" requires, failed: No value today.`;
     expect(el.textContent).toBe("");
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(outputs(s.r)).toHaveLength(0);
     expect(table.mounts).toHaveLength(0);
   });
 
-  test("that the renderer names and that do not go onto the board again reach it through error(), and raise that it cannot draw, until the board holds a value", async () => {
+  test("that do not go onto the board again reach the renderer through error(), until the board holds a value", async () => {
     const reported = logged();
-    const table = renderer(["n_rows", "once"]);
+    const table = renderer();
     let calls = 0;
     const once: Option = {
       ...zoom,
       id: "once",
       default: () => (++calls === 1 ? Promise.resolve(1) : Promise.reject(new Error("No value any more."))),
     };
-    const s = await setup({ [TABLE.module]: table.exports }, { options: [once] });
+    const s = await setup({ [TABLE.module]: table.exports }, { reply: outputsRead(["n_rows", "once"]), options: [once] });
     await ready(s);
     expect(lastOutput(s.r).options).toEqual({ n_rows: 50, once: 1 });
     replyTable(s.r, lastOutput(s.r));
@@ -743,19 +731,15 @@ describe("board options", () => {
     s.store.apply({ options: { unset: ["once"] } });
     await tick();
     reported.restore();
-    const why = `The default of the board option "once", which the renderer "${TABLE.id}" requires, failed: No value any more.`;
-    const lacking = `Without the board option "once", the renderer "${TABLE.id}" cannot draw.`;
-    expect(table.host().error()).toEqual({ kind: "core", code: "module_failed", message: lacking });
+    const cls = String(s.store.board().blocks.b?.registry_id);
+    const why = `The default of the board option "once", which the outputs of block class "${cls}" requires, failed: No value any more.`;
+    const lacking = `Without the board option "once", the outputs of block class "${cls}" cannot draw.`;
+    expect(table.host().error()).toEqual({ kind: "core", code: "board_option_failed", message: lacking });
     expect(table.host().output()).toMatchObject({ total: 150 });
     expect(outputs(s.r)).toHaveLength(1);
     expect(reported.errors().map((line) => line.message)).toEqual([why]);
     expect(s.raised.map((n) => [n.source, n.about, n.message])).toEqual([
       [{ kind: "core", code: "board_option_failed", module: { object: { option: "once" } } }, { option: "once" }, why],
-      [
-        { kind: "core", code: "module_failed", module: { object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" } },
-        { block: "b" },
-        lacking,
-      ],
     ]);
 
     // Once the board holds a value, core asks again, and the next output
@@ -770,7 +754,22 @@ describe("board options", () => {
     expect(s.raised.map((n) => n.about)).toEqual([{ option: "once" }]);
   });
 
-  test("that the renderer names come onto the board again once a delta removes them, while it draws", async () => {
+  test("that the output family does not name, a misspelled one among them, the renderer cannot read, which throws naming the class, the renderer and the board option", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+
+    const cls = String(s.store.board().blocks.b?.registry_id);
+    const unnamed = (id: string): string =>
+      `The output family of block class "${cls}" names no board option "${id}" in R, so the renderer "${TABLE.id}" cannot read it.`;
+    expect(table.host().option("n_rows")).toBe(50);
+    expect(() => table.host().option("zoom")).toThrow(unnamed("zoom"));
+    expect(() => table.host().option("n_row")).toThrow(unnamed("n_row"));
+  });
+
+  test("come onto the board again once a delta removes them, while the output is mounted", async () => {
     const table = renderer();
     const s = await setup({ [TABLE.module]: table.exports });
     s.store.apply({ options: { set: { n_rows: 25 } } });
@@ -787,9 +786,9 @@ describe("board options", () => {
 });
 
 describe("the renderer", () => {
-  test("that an output names in place of the entry's draws it, with the board options it names", async () => {
+  test("that an output names in place of the entry's draws it, with the board options of the class's outputs", async () => {
     const table = renderer();
-    const preview = renderer(["zoom"]);
+    const preview = renderer();
     const s = await setup({ [TABLE.module]: table.exports, [PREVIEW.module]: preview.exports });
     await ready(s);
     replyTable(s.r, lastOutput(s.r), 150, PREVIEW);
@@ -797,15 +796,15 @@ describe("the renderer", () => {
 
     expect(table.mounts).toHaveLength(0);
     expect(preview.mounts).toHaveLength(1);
-    expect(s.store.board().options).toMatchObject({ zoom: 1 });
-    // The output was asked without zoom, so core asks again with it, beside
-    // the board options of the class's outputs.
-    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, zoom: 1 });
+    expect(preview.host().option("n_rows")).toBe(50);
+    // Every renderer reads the board options of the class's outputs, which
+    // the output was asked with, so core asks nothing more.
+    expect(outputs(s.r)).toHaveLength(1);
   });
 
-  test("that the entry names, one for each family, all load before the first output, which goes with all their board options", async () => {
-    const table = renderer(["n_rows"]);
-    const preview = renderer(["zoom"]);
+  test("that the entry names, one for each family, all load before the first output", async () => {
+    const table = renderer();
+    const preview = renderer();
     const both: HelloReply = {
       ...bare,
       block_registry: Object.fromEntries(
@@ -814,19 +813,18 @@ describe("the renderer", () => {
     };
     const s = await setup({ [TABLE.module]: table.exports, [PREVIEW.module]: preview.exports }, { reply: both });
     await ready(s);
-    expect(lastOutput(s.r).options).toEqual({ n_rows: 50, zoom: 1 });
+    expect(s.imported).toEqual([TABLE.module, PREVIEW.module]);
+    expect(lastOutput(s.r).options).toEqual({ n_rows: 50 });
 
     replyTable(s.r, lastOutput(s.r), 150, PREVIEW);
     await tick();
     expect(preview.mounts).toHaveLength(1);
     expect(table.mounts).toHaveLength(0);
-    // The output was asked with what the renderer that draws it reads, so
-    // nothing more is asked.
     expect(outputs(s.r)).toHaveLength(1);
   });
 
   test("is learned from the first output where the entry names none, which goes with the board options of the class's outputs", async () => {
-    const text = renderer([]);
+    const text = renderer();
     const plain: HelloReply = {
       ...bare,
       board: { ...bare.board, board: { ...bare.board.board, options: { show_conditions: { value: ["error"], version: 1 } } } },

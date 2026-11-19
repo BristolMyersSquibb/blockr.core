@@ -10,6 +10,9 @@
 \alias{plugin_state}
 \alias{plugin_version}
 \alias{plugin_version.plugin}
+\alias{plugin_options}
+\alias{plugin_options.plugin}
+\alias{plugin_options.basic_frontend_plugin}
 \alias{frontend_args}
 \alias{frontend_args.frontend_plugin}
 \alias{complete_plugin}
@@ -34,6 +37,12 @@ plugin_state(x)
 plugin_version(x, ...)
 
 \method{plugin_version}{plugin}(x, ...)
+
+plugin_options(x, ...)
+
+\method{plugin_options}{plugin}(x, ...)
+
+\method{plugin_options}{basic_frontend_plugin}(x, ...)
 
 frontend_args(x, ...)
 
@@ -72,7 +81,8 @@ The constructors \code{new_plugin()}, \code{new_basic_frontend_plugin()},
 object, and \code{is_plugin()} a scalar logical.
 Of the getters, \code{plugin_class_id()} returns the id of the plugin's class in
 full, a string, and \code{plugin_state()} the state, a list by name.
-The generic \code{plugin_version()} returns a whole number, and
+The generic \code{plugin_version()} returns a whole number, \code{plugin_options()}
+a board option constructor, a list of them or \code{NULL}, and
 \code{available_plugins()} a data frame with a row for each plugin class.
 The generic \code{frontend_args()} returns what the frontend reads of the
 arguments, a list by name, and \code{complete_plugin()} the plugin with its state
@@ -143,6 +153,15 @@ the state of a plugin that a JSON board holds at an older version.
 R calls the method on the plugin that the class's constructor makes, called
 without args, and sends the version of the class of each of the app's
 plugins in its reply to \code{hello}.
+A plugin class names the board options that its plugin reads through its
+method of \code{plugin_options()}, by their constructors, as a request names
+those that it reads (see \code{\link[=new_block_request]{new_block_request()}}).
+The method returns a constructor, such as \code{new_dark_mode_option}, or a list
+of them, and core's method for \code{plugin} names none.
+R calls it on the same plugin, and sends the IDs of the board options in
+its reply to \code{hello}.
+The client puts them on the board before it starts the plugin or draws its
+UI, as core's basic frontend gets \code{show_conditions} and \code{dark_mode}.
 A plugin class that needs R gives its requests through its method of
 \code{\link[=plugin_requests]{plugin_requests()}}, which R calls on such a plugin too.
 
@@ -195,6 +214,12 @@ new_dag_plugin <- function(positions = list()) {
 }
 
 plugin_version.dag_plugin <- function(x, ...) 2L
+
+# In a package whose frontend, of the class grid_plugin, reads the board
+# option compact, which the package defines, and core's dark_mode
+plugin_options.grid_plugin <- function(x, ...) {
+  list(new_compact_option, blockr.core::new_dark_mode_option)
+}
 
 # In a package whose frontend, of the class grid_plugin, shows a title that
 # the app script gives, as in serve(board, title = "Trials")

@@ -64,6 +64,15 @@
 #' R calls the method on the plugin that the class's constructor makes, called
 #' without args, and sends the version of the class of each of the app's
 #' plugins in its reply to `hello`.
+#' A plugin class names the board options that its plugin reads through its
+#' method of `plugin_options()`, by their constructors, as a request names
+#' those that it reads (see [new_block_request()]).
+#' The method returns a constructor, such as `new_dark_mode_option`, or a list
+#' of them, and core's method for `plugin` names none.
+#' R calls it on the same plugin, and sends the IDs of the board options in
+#' its reply to `hello`.
+#' The client puts them on the board before it starts the plugin or draws its
+#' UI, as core's basic frontend gets `show_conditions` and `dark_mode`.
 #' A plugin class that needs R gives its requests through its method of
 #' [plugin_requests()], which R calls on such a plugin too.
 #'
@@ -131,6 +140,12 @@
 #'
 #' plugin_version.dag_plugin <- function(x, ...) 2L
 #'
+#' # In a package whose frontend, of the class grid_plugin, reads the board
+#' # option compact, which the package defines, and core's dark_mode
+#' plugin_options.grid_plugin <- function(x, ...) {
+#'   list(new_compact_option, blockr.core::new_dark_mode_option)
+#' }
+#'
 #' # In a package whose frontend, of the class grid_plugin, shows a title that
 #' # the app script gives, as in serve(board, title = "Trials")
 #' frontend_args.grid_plugin <- function(x, ..., title = "Grid") {
@@ -162,7 +177,8 @@
 #' object, and `is_plugin()` a scalar logical.
 #' Of the getters, `plugin_class_id()` returns the id of the plugin's class in
 #' full, a string, and `plugin_state()` the state, a list by name.
-#' The generic `plugin_version()` returns a whole number, and
+#' The generic `plugin_version()` returns a whole number, `plugin_options()`
+#' a board option constructor, a list of them or `NULL`, and
 #' `available_plugins()` a data frame with a row for each plugin class.
 #' The generic `frontend_args()` returns what the frontend reads of the
 #' arguments, a list by name, and `complete_plugin()` the plugin with its state
@@ -304,6 +320,24 @@ plugin_version <- function(x, ...) {
 #' @export
 plugin_version.plugin <- function(x, ...) {
   1L
+}
+
+#' @rdname new_plugin
+#' @export
+plugin_options <- function(x, ...) {
+  UseMethod("plugin_options")
+}
+
+#' @rdname new_plugin
+#' @export
+plugin_options.plugin <- function(x, ...) {
+  NULL
+}
+
+#' @rdname new_plugin
+#' @export
+plugin_options.basic_frontend_plugin <- function(x, ...) {
+  list(new_show_conditions_option, new_dark_mode_option)
 }
 
 #' @rdname new_plugin
@@ -529,14 +563,32 @@ checked_plugin_requests <- function(x) {
   reqs
 }
 
+# The IDs of the board options that the class of the plugin `x` names through
+# its method of `plugin_options()`, by their constructors.
+checked_plugin_options <- function(x) {
+  option_ctor_ids(
+    as_option_ctors(
+      plugin_options(x),
+      paste0(
+        "The method of `plugin_options()` for plugin class ",
+        "{plugin_class_id(x)} returns no board option constructor, nor a ",
+        "list of them."
+      ),
+      "plugin_options_invalid"
+    )
+  )
+}
+
 # The app's plugins, which run on every board that the app opens, from the
 # rows that `serve()` takes in `plugins`, by the ID of each plugin's class, in
-# the order of the rows: each with its class's name, version, module and
-# requests, which R answers the plugin's requests with.
-# R gets the version and the requests from the class's methods of
-# `plugin_version()` and `plugin_requests()`, called on the plugin that the
-# class's constructor makes, and stops the app where the version is no whole
-# number from 1 or the requests are no list of functions by name.
+# the order of the rows: each with its class's name, version, the IDs of the
+# board options that its plugin reads, its module and its requests, which R
+# answers the plugin's requests with.
+# R gets the version, the board options and the requests from the class's
+# methods of `plugin_version()`, `plugin_options()` and `plugin_requests()`,
+# called on the plugin that the class's constructor makes, and stops the app
+# where the version is no whole number from 1, the board options are given by
+# no constructors or the requests are no list of functions by name.
 # R reads the rows and refuses them where they name a class that no available
 # package lists, or a class twice. It tells a frontend and a storage plugin by
 # the R class of the plugin that the class's constructor makes.
@@ -616,6 +668,7 @@ app_plugins <- function(rows, available = available_plugin_classes()) {
       list(
         name = available[[id]][["name"]],
         version = checked_plugin_version(plugins[[id]]),
+        options = checked_plugin_options(plugins[[id]]),
         module = available[[id]][["module"]],
         requests = checked_plugin_requests(plugins[[id]])
       )

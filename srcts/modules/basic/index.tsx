@@ -48,7 +48,6 @@ import { createToasts } from "./toasts.ts";
 export const api = 1;
 
 export default {
-  options: ["show_conditions", "dark_mode"],
   frontend: { render, show },
 } satisfies Omit<PluginClass, "id">;
 

@@ -573,23 +573,27 @@ proto_served <- function() {
 # The app's plugins of a core app whose script names none, as the reply to
 # `hello` gives them: core's basic frontend, its storage plugin and its Edit
 # board plugin, each under the id of its class, with its class's name and
-# version and where R serves the module of its class.
+# version, the board options that it reads and where R serves the module of
+# its class.
 proto_core_plugins <- function() {
   obj(
     `blockr.core-basic_frontend_plugin` = obj(
       name = "Basic frontend",
       version = 1L,
+      options = I(c("show_conditions", "dark_mode")),
       module = proto_js("basic.js", "0f3d8e21"),
       css = proto_js("basic.css", "6a9b2c4e")
     ),
     `blockr.core-file_storage_plugin` = obj(
       name = "File storage",
       version = 1L,
+      options = I(character()),
       module = proto_js("file-storage.js", "8e1f0b2d")
     ),
     `blockr.core-edit_board_plugin` = obj(
       name = "Edit board",
       version = 1L,
+      options = I(character()),
       module = proto_js("edit-board.js", "5c1e7a39")
     )
   )
@@ -706,6 +710,7 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(package = "datasets"),
+      options = I(character()),
       requests = obj(
         datasets = proto_request(state_args = "package")
       ),
@@ -749,6 +754,7 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(n = 6L, direction = "head"),
+      options = I(character()),
       requests = obj(n_max = proto_request("data")),
       output_options = I("n_rows"),
       renderers = I(list(proto_renderer("table")))
@@ -787,6 +793,7 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(all_x = FALSE, all_y = FALSE),
+      options = I(character()),
       requests = obj(shared = proto_request(c("x", "y"))),
       output_options = I("n_rows"),
       renderers = I(list(proto_renderer("table")))
@@ -817,6 +824,7 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(subset = "", select = ""),
+      options = I(character()),
       requests = obj(),
       output_options = I("n_rows"),
       renderers = I(list(proto_renderer("table")))
@@ -839,6 +847,7 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(),
+      options = I(character()),
       requests = obj(),
       output_options = I("n_rows"),
       renderers = I(list(proto_renderer("table")))
@@ -864,6 +873,7 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(),
+      options = I(character()),
       requests = obj(columns = proto_request("data")),
       output_options = I(character()),
       renderers = I(list(proto_renderer("plot")))
@@ -884,6 +894,7 @@ proto_registry <- function(...) {
         additionalProperties = FALSE
       ),
       state = obj(),
+      options = I(character()),
       requests = obj(upload = proto_request(action = TRUE, file = TRUE)),
       output_options = I(character()),
       renderers = I(list(proto_renderer("text")))
