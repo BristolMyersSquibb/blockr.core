@@ -250,7 +250,8 @@
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
-  Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a block through `CoreApi`, as core's own frontend and cards do (#673).
+  Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a board object through `CoreApi`, as core's own frontend and cards do.
+  The hook `useNotified()` takes the board object as `{ block: id }` or `{ plugin: id }`, or null for every notification (#673, #710).
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
   Beside the preset, the build package exports the plugin `vendorCheck`, which fails a build that puts code from `node_modules` into one of a package's own files, so that the libraries a package bundles go into its vendor file instead.
   The package also ships the SDK, the binding and the controls as ES modules of their own, and the preset leaves a module's imports of them and of React imports.
@@ -601,14 +602,16 @@
   A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
   In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
   Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it (#539).
-* Core's basic frontend shows each notification that concerns no block as a toast, whatever its severity and whoever raised it, in place of its list above the board.
+* Core's basic frontend shows each notification that concerns neither a block nor a plugin that it shows in a section as a toast, whatever its severity and whoever raised it, in place of its list above the board.
+  Each plugin's section shows the notifications about the plugin, of the severities that `show_conditions` names, as pills on its title beside the plugin's name, whether the section is open or collapsed, as a card's pills count those about its block.
+  Each pill opens the messages of its notifications below the title, and starts closed, since the plugin shows them in its UI.
   The toasts sit in the window's bottom right corner.
   Each names what it concerns, such as a board option or a plugin, and the package that its source names.
   A message's toast fades after five seconds, but not while the pointer rests on it or the keyboard's focus is in it.
   A warning's or an error's toast stays until the user closes it.
   A toast goes as soon as core withdraws its notification, and one that faded or that the user closed does not come back while its notification holds.
   While a dialog of the frontend is open, the toasts show inside it, so that the user can still close them.
-  The toast of `page_reload_needed` offers to reload the page (#549).
+  The toast of `page_reload_needed` offers to reload the page (#549, #710).
 * A storage plugin tells the user why one of its buttons failed, through a notification of its own, since it alone knows its backend and when the failure is over.
   Its `controls()` gets the id of its class beside `core` for that.
   Core's file storage plugin raises a file that Open cannot read as an error of the code `board_open_failed`.

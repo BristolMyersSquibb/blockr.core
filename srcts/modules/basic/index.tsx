@@ -15,12 +15,14 @@
 // Its render() takes four steps:
 // 1. It demands every block, and the blocks in view higher still, from the
 //    board, so that the scheduler evaluates first what the page first shows.
-// 2. It shows as a toast each notification of the board that concerns no
-//    block, whoever raised it, such as the one in which core names what the
-//    store dropped as the board opened (./toasts.ts). Each block's card shows
-//    those about the block. The frontend raises none of its own: core tells
-//    the user why the store or the command registry refused one of its edits,
-//    and a storage plugin why one of its buttons failed.
+// 2. It shows as a toast each notification of the board that concerns neither
+//    a block nor a plugin that it shows in a section, whoever raised it, such
+//    as the one in which core names what the store dropped as the board
+//    opened (./toasts.ts). Each block's card shows those about the block, and
+//    each plugin's section those about the plugin (./plugins.tsx). The
+//    frontend raises none of its own: core tells the user why the store or
+//    the command registry refused one of its edits, and a storage plugin why
+//    one of its buttons failed.
 // 3. It draws the board that the store holds, and then demands the blocks in
 //    view as the page lays out their cards.
 // 4. It binds undo, redo and the buttons among the storage controls to their
@@ -41,7 +43,8 @@ import type { CoreApi } from "../../types/core-api.ts";
 import { BasicBoard } from "./board.tsx";
 import type { FrontEnd } from "./context.ts";
 import { demandShown } from "./demand.ts";
-import type { InView, Watched } from "./demand.ts";
+import type { Watched } from "./demand.ts";
+import { createSections, hasSection } from "./plugins.tsx";
 import { bindShortcuts } from "./shortcuts.ts";
 import { createToasts } from "./toasts.ts";
 
@@ -51,15 +54,15 @@ export default {
   frontend: { render, show },
 } satisfies Omit<PluginClass, "id">;
 
-// What is in view on each element that the frontend draws in, which show()
-// finds the cards and the sections by.
-const drawn = new WeakMap<HTMLElement, InView>();
+// What the frontend draws from on each element that it draws in, whose view
+// show() finds the cards and the sections by, and whose sections it opens.
+const drawn = new WeakMap<HTMLElement, FrontEnd>();
 
 function render({ el, core }: { el: HTMLElement; core: CoreApi; plugin: PluginClassId; signal: AbortSignal }): () => void {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
-  const toasts = createToasts(core.notifications);
-  const front: FrontEnd = { core, toasts, inView: shown };
+  const toasts = createToasts(core.notifications, (plugin) => hasSection(core, plugin));
+  const front: FrontEnd = { core, toasts, inView: shown, sections: createSections() };
   const root = createRoot(el);
   flushSync(() => {
     root.render(<BasicBoard front={front} />);
@@ -67,9 +70,9 @@ function render({ el, core }: { el: HTMLElement; core: CoreApi; plugin: PluginCl
   shown.measure();
 
   const unbind = bindShortcuts(doc, core);
-  drawn.set(el, shown);
+  drawn.set(el, front);
   return () => {
-    if (drawn.get(el) === shown) drawn.delete(el);
+    if (drawn.get(el) === front) drawn.delete(el);
     unbind();
     toasts.stop();
     shown.release();
@@ -78,15 +81,22 @@ function render({ el, core }: { el: HTMLElement; core: CoreApi; plugin: PluginCl
 }
 
 function show({ object, el }: { object: Watched; el: HTMLElement }): void {
-  const target = drawn.get(el)?.element(object);
-  if (target === undefined) return;
-  // Every collapsed group or section that holds it opens, which the browser
-  // lays out before it scrolls.
+  const front = drawn.get(el);
+  const target = front?.inView.element(object);
+  if (front === undefined || target === undefined) return;
+  // A collapsed section of the plugin opens, as does every collapsed group
+  // that holds the block's card, which the browser lays out before it
+  // scrolls.
+  if ("plugin" in object) {
+    flushSync(() => {
+      front.sections.collapse(object.plugin, false);
+    });
+  }
   for (let node = target.parentElement; node !== null && node !== el; node = node.parentElement) {
     if (node.localName === "details" && !node.hasAttribute("open")) node.setAttribute("open", "");
   }
   // A plugin's section scrolls into view whole, with its name, and a block's
   // card alone, rather than the group of its stack.
-  const into = "plugin" in object ? (target.closest("details") ?? target) : target;
+  const into = "plugin" in object ? (target.closest("section") ?? target) : target;
   into.scrollIntoView({ block: "nearest", inline: "nearest" });
 }

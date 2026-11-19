@@ -7,11 +7,13 @@
 // same element.
 // Both follow the block's status and the notifications about it through the
 // hooks of core's React SDK.
-// The basic frontend's toasts mark a notification's severity as the cards do.
+// The basic frontend's toasts mark a notification's severity as the cards do,
+// and its plugins' sections draw the notifications about a plugin in the same
+// pills and banners.
 // The bundles of core's runtime and of the basic frontend each hold a copy of
 // it, as each holds one of srcts/util.
 
-export { Banners, Footer, MARKS, Pills, SeverityIcon, useFooter } from "./footer.tsx";
+export { Banners, Footer, MARKS, Pills, SeverityIcon, useFooter, usePills } from "./footer.tsx";
 export type { FooterProps } from "./footer.tsx";
 export { Mounted } from "./mounted.tsx";
 export { useSized } from "./status.ts";

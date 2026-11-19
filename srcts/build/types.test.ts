@@ -454,7 +454,7 @@ import type { ReactElement } from "react";
 export function StatusBadge({ core, block }: { core: CoreApi; block: BlockId }): ReactElement {
   const board = useBoard(core);
   const status = useStatus(core, block);
-  const errors = useNotified(core, block).filter((notification) => notification.severity === "error");
+  const errors = useNotified(core, { block }).filter((notification) => notification.severity === "error");
   return (
     <span title={board.name} data-errors={errors.length}>
       {status?.status ?? "unevaluated"}
