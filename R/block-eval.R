@@ -370,11 +370,19 @@ print.block_evaluation <- function(x, ...) {
 # phase of the evaluation inside it, `expr`, `inputs`, `block_eval` and
 # `result_summary`, which is active while the phase runs and is marked failed
 # where the phase fails the block (see `start_message_span()`).
+# While the phase runs, cli writes without colors.
+# So what the phase raises and prints holds none of the ANSI escapes
+# that a UI would show as text.
+# In place of a color, cli then writes a plain mark,
+# such as quotes around a file name.
 run_phase <- function(phase, expr) {
 
   span <- if (traced_answer() && phase %in% traced_phases()) {
     otel::start_local_active_span(phase)
   }
+
+  colors <- options(cli.num_colors = 1L)
+  on.exit(options(colors), add = TRUE)
 
   conditions <- fastmap::fastqueue()
 
@@ -480,11 +488,14 @@ condition_record <- function(cnd, phase) {
   )
 }
 
-# The message of a condition, without the line break that ends it.
+# The message of a condition, without the line break that ends it,
+# and without ANSI escapes, which a UI would show as text.
+# A message holds them where cli styled it with its colors on,
+# outside a phase (see `run_phase()`), or where a package wrote them itself.
 # A message that is not valid UTF-8 is matched byte by byte,
 # as `sub()` refuses it otherwise, and its reply makes it valid.
 condition_text <- function(cnd) {
-  message <- conditionMessage(cnd)
+  message <- cli::ansi_strip(conditionMessage(cnd))
   sub("\n$", "", message, useBytes = !all(validUTF8(message)))
 }
 

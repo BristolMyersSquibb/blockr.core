@@ -723,6 +723,10 @@
   Where no notification is given, the list draws nothing.
   Core's theme gains the variables of the fills and the edges, named after the design tokens of blockr.ui: `--bc-color-bg-danger`, `--bc-color-bg-warning`, `--bc-color-border-danger-subtle` and `--bc-color-border-warning-subtle`.
   Their defaults mix the theme's danger or warning border: at 10% for a fill, as the tint of a card's mark does, and at 35% for the danger edge and 45% for the warning edge, as blockr.ui mixes its subtle borders (#788).
+* R sends the message of each condition in a reply, and the reason of an invalid or a waiting block, as plain text, without the ANSI escapes that cli adds where its colors are on.
+  While R evaluates blocks, makes outputs and answers requests, cli writes without colors, and puts plain marks in their place, such as quotes around a file name.
+  It also strips any escape that a message still holds.
+  So no UI needs to remove escapes before it shows a message (#788).
 
 # blockr.core 0.1.4
 
