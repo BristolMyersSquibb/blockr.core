@@ -440,12 +440,14 @@ function Rows({ host, max, outdated }: { host: OptionHost<number>; max?: number;
 // the range and the step of the board option's field, as the field says it.
 const said = (text: string, max?: number): string | null => numberSaid(text, { min: 1, max, step: 1 });
 
-function Conditions({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
+// A select of several strings, as the UI of a package's board option may draw
+// one, which submits the picks in the order of its items.
+function Severities({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
   return (
     <ComboBox
       bound={useValue(host)}
       selectionMode="multiple"
-      label="Message types to display"
+      label="Severities"
       defaultItems={ids(["message", "warning", "error"])}
       ordered
       outdated={outdated}
@@ -610,9 +612,9 @@ describe("the inputs of a board option's UI", () => {
   });
 
   test("submit the picked severities in the order of the choices", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
-    const { el } = draw(<Conditions host={host} />);
-    const field = labelled(el, "Message types to display");
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error"] });
+    const { el } = draw(<Severities host={host} />);
+    const field = labelled(el, "Severities");
 
     await step(() => {
       field.click();
@@ -629,9 +631,9 @@ describe("the inputs of a board option's UI", () => {
   });
 
   test("show a string that the items lack as missing, whose chip the user removes", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
-    const { el } = draw(<Conditions host={host} />);
-    const field = labelled(el, "Message types to display");
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error", "debug"] });
+    const { el } = draw(<Severities host={host} />);
+    const field = labelled(el, "Severities");
 
     expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
     await removeChip(field, step, "debug (not available)");
@@ -642,14 +644,14 @@ describe("the inputs of a board option's UI", () => {
   });
 
   test("keep outdated items on screen, and mark no string that they lack until they are current", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
-    const { el, redraw } = draw(<Conditions host={host} outdated />);
-    const field = labelled(el, "Message types to display");
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error", "debug"] });
+    const { el, redraw } = draw(<Severities host={host} outdated />);
+    const field = labelled(el, "Severities");
 
     expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug"], null]);
     expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
 
-    redraw(<Conditions host={host} />);
+    redraw(<Severities host={host} />);
     expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
     expect(host.submitted).toEqual([]);
   });

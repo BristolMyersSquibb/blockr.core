@@ -396,17 +396,17 @@ describe("the controls of a board option's UI", () => {
   });
 
   test("submit the picks of several in the order of the items where ordered", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error"] });
     const ui = controls(host, abort.signal);
-    ui.comboBox("show_conditions", {
-      label: "Message types to display",
+    ui.comboBox("severities", {
+      label: "Severities",
       selectionMode: "multiple",
       items: ids(["message", "warning", "error"]),
       ordered: true,
     });
     document.body.append(ui.el);
 
-    await picked(labelled(ui.el, "Message types to display"), settled, "message");
+    await picked(labelled(ui.el, "Severities"), settled, "message");
 
     expect(host.submitted).toEqual([["message", "error"]]);
   });
