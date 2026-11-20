@@ -197,7 +197,23 @@ test_that("R reports the conditions an evaluation raises with their phases", {
   hold_result(session, "a", 2L)
 
   expect_fixture_replies(session, "evaluate-warning")
-  expect_fixture_replies(session, "evaluate-error")
+
+  # The fixture holds the class simpleError for the column that is not found,
+  # as R 4.6 and earlier give it.
+  # R-devel gives that error the class objectNotFoundError.
+  not_found <- tryCatch(
+    eval(quote(Sepal.Widht > 4), datasets::iris),
+    error = identity
+  )
+
+  expect_fixture_replies(
+    session,
+    "evaluate-error",
+    r = function(x) {
+      x[[1L]][[1L]][["conditions"]][[1L]][["class"]] <- class(not_found)
+      x
+    }
+  )
 })
 
 test_that("R binds a variadic block's inputs in link order", {
