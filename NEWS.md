@@ -423,9 +423,11 @@
   A block class names those that its UI module reads itself in the `options` of `new_block_class()`, and a plugin class through its method of the new generic `plugin_options()`.
   A renderer names none, since the output family names the board options of its outputs, those that its renderers read included.
   R names their IDs in its reply to `hello`, and core puts them on the board before the module draws, so that no module names a board option in JS.
+  As `serve()` builds the app, it checks that an available package lists each board option that the app's block classes, requests, output families and plugin classes read.
+  Where none lists one, the app stops, and the error names the board option and what reads it.
   A module reads their values through its host, with `host.context().option(id)` for a block's UI module and `host.option(id)` for a renderer.
   For any other ID, a misspelled one included, `option()` throws an error that names the component and the ID.
-  So a block class's UI module no longer repeats the board options that its requests read, and core no longer checks that it does (#704).
+  So a block class's UI module no longer repeats the board options that its requests read, and core no longer checks that it does (#704, #771).
 * The `bbquote()` function throws an error for a call to `.()` or `..()` that holds anything but a single name, such as `.(n + 1L)` or data.table's `.(total = sum(value))`, `.(n = .N)` or `.(x, y)`.
   Until now, base `bquote()` evaluated the first argument of such a call, so that `.(total = sum(value))` failed with `could not find function "sum"` and `.(n = .N)` silently became `.(.N)`.
   A class that builds data.table code returns a call or a string instead (#496).
