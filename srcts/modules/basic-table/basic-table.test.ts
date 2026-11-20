@@ -95,7 +95,7 @@ const NAME = ".bc\\:font-medium";
 function arrow(th: Element): "up" | "down" | null {
   const svg = th.querySelector("svg");
   if (svg === null) return null;
-  return svg.parentElement?.classList.contains("bc:rotate-180") === true ? "down" : "up";
+  return svg.classList.contains("bc:rotate-180") ? "down" : "up";
 }
 
 // Text with its runs of white space as one space, as it reads on the page.
@@ -130,9 +130,11 @@ describe("drawing a page", () => {
     // The heading of a column of numbers lines up at its right edge too, with
     // the arrow of its sort before it.
     expect(table.header("Sepal.Length").querySelector(NAME)?.parentElement?.className).toContain("bc:items-end");
-    expect(table.header("Sepal.Length").querySelector('[role="presentation"]')?.className).toContain("bc:flex-row-reverse");
+    expect(table.header("Sepal.Length").className).toContain("bc:text-end");
+    expect(table.header("Sepal.Length").querySelector("span")?.className).toContain("bc:flex-row-reverse");
     expect(table.header("Species").querySelector(NAME)?.parentElement?.className).not.toContain("bc:items-end");
-    expect(table.header("Species").querySelector('[role="presentation"]')?.className).not.toContain("bc:flex-row-reverse");
+    expect(table.header("Species").className).not.toContain("bc:text-end");
+    expect(table.header("Species").querySelector("span")?.className).not.toContain("bc:flex-row-reverse");
   });
 
   test("shows cells of every kind as R sends them, a missing value as NA, and keeps names that repeat", async () => {

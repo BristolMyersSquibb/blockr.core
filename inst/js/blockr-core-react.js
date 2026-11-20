@@ -250,7 +250,7 @@ var Boundary = class extends Component {
 };
 
 // srcts/inputs/button.tsx
-import { Button as AriaButton, composeRenderProps } from "./vendor-b69523ae.js";
+import { Button as AriaButton, composeRenderProps } from "./vendor-cf3ef04a.js";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -279,7 +279,7 @@ function Button({ variant = "primary", className, ...props }) {
 }
 
 // srcts/inputs/checkbox.tsx
-import { CheckboxButton, CheckboxField } from "./vendor-b69523ae.js";
+import { CheckboxButton, CheckboxField } from "./vendor-cf3ef04a.js";
 
 // srcts/inputs/combobox.tsx
 import { useContext, useRef as useRef2, useState as useState3 } from "react";
@@ -305,7 +305,7 @@ import {
   TagList,
   Text,
   Virtualizer
-} from "./vendor-b69523ae.js";
+} from "./vendor-cf3ef04a.js";
 
 // srcts/inputs/inputs.tsx
 import { useState as useState2 } from "react";
@@ -702,7 +702,7 @@ import {
   NumberField as AriaNumberField,
   NumberFieldStateContext,
   Text as Text2
-} from "./vendor-b69523ae.js";
+} from "./vendor-cf3ef04a.js";
 import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs3 } from "react/jsx-runtime";
 function NumberField({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
@@ -833,7 +833,7 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/textfield.tsx
-import { composeRenderProps as composeRenderProps4, FieldError as FieldError3, Input as Input3, Label as Label3, Text as Text3, TextArea, TextField as AriaTextField } from "./vendor-b69523ae.js";
+import { composeRenderProps as composeRenderProps4, FieldError as FieldError3, Input as Input3, Label as Label3, Text as Text3, TextArea, TextField as AriaTextField } from "./vendor-cf3ef04a.js";
 import { Fragment as Fragment4, jsx as jsx7, jsxs as jsxs4 } from "react/jsx-runtime";
 function TextField({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx7(Drawn3, { ...props }) : /* @__PURE__ */ jsx7(BoundText, { ...props, bound });
@@ -878,10 +878,10 @@ function Drawn3({ label, description, errorMessage: errorMessage2, placeholder, 
 }
 
 // srcts/inputs/index.ts
-import { Text as Text4 } from "./vendor-b69523ae.js";
+import { Text as Text4 } from "./vendor-cf3ef04a.js";
 
 // srcts/overlays/dialog.tsx
-import { composeRenderProps as composeRenderProps5, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-b69523ae.js";
+import { composeRenderProps as composeRenderProps5, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-cf3ef04a.js";
 import { jsx as jsx8 } from "react/jsx-runtime";
 function Modal({ className, ...props }) {
   return /* @__PURE__ */ jsx8(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx8("div", { className: CENTER, children: /* @__PURE__ */ jsx8(AriaModal, { ...props, className: composeRenderProps5(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
@@ -904,10 +904,10 @@ import {
   MenuItem as AriaMenuItem,
   MenuSection as AriaMenuSection,
   MenuTrigger as AriaMenuTrigger
-} from "./vendor-b69523ae.js";
+} from "./vendor-cf3ef04a.js";
 
 // srcts/overlays/popover.tsx
-import { composeRenderProps as composeRenderProps6, Popover as AriaPopover } from "./vendor-b69523ae.js";
+import { composeRenderProps as composeRenderProps6, Popover as AriaPopover } from "./vendor-cf3ef04a.js";
 import { jsx as jsx9 } from "react/jsx-runtime";
 function Popover2({ className, offset = 4, ...props }) {
   return /* @__PURE__ */ jsx9(AriaPopover, { ...props, offset, className: composeRenderProps6(className, (given) => `${POPOVER} ${given ?? ""}`) });
@@ -962,10 +962,10 @@ var HEADING2 = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibol
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 
 // srcts/overlays/index.ts
-import { DialogTrigger, Heading, Keyboard } from "./vendor-b69523ae.js";
+import { DialogTrigger, Heading, Keyboard } from "./vendor-cf3ef04a.js";
 
 // srcts/dnd/dnd.tsx
-import { composeRenderProps as composeRenderProps8, DropIndicator as AriaDropIndicator, useDragAndDrop as useAriaDragAndDrop } from "./vendor-b69523ae.js";
+import { composeRenderProps as composeRenderProps8, DropIndicator as AriaDropIndicator, useDragAndDrop as useAriaDragAndDrop } from "./vendor-cf3ef04a.js";
 import { jsx as jsx11, jsxs as jsxs6 } from "react/jsx-runtime";
 function useDragAndDrop(options) {
   return useAriaDragAndDrop({ renderDropIndicator: (target) => /* @__PURE__ */ jsx11(DropIndicator, { target }), ...options });
@@ -995,7 +995,7 @@ import {
   GridListHeader as AriaGridListHeader,
   GridListItem as AriaGridListItem,
   GridListSection
-} from "./vendor-b69523ae.js";
+} from "./vendor-cf3ef04a.js";
 import { Fragment as Fragment6, jsx as jsx12, jsxs as jsxs7 } from "react/jsx-runtime";
 function GridList(props) {
   return /* @__PURE__ */ jsx12(AriaGridList, { ...props, className: composeRenderProps9(props.className, (given) => `${LIST2} ${given ?? ""}`) });
@@ -1011,43 +1011,44 @@ function GridListItem({ children, ...props }) {
 function GridListHeader({ className, ...props }) {
   return /* @__PURE__ */ jsx12(AriaGridListHeader, { ...props, className: `${HEADER} ${className ?? ""}` });
 }
-var LIST2 = "bc:relative bc:box-border bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default bc:outline-none bc:data-[orientation=horizontal]:flex bc:data-[orientation=horizontal]:flex-row bc:data-[orientation=horizontal]:flex-nowrap bc:data-empty:flex bc:data-empty:items-center bc:data-empty:justify-center bc:data-empty:p-2 bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
-var ITEM2 = "bc:relative bc:flex bc:cursor-default bc:select-none bc:items-center bc:gap-2 bc:border-transparent bc:px-2 bc:py-1 bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:z-20 bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-disabled:z-10 bc:[[data-orientation=vertical]_&]:border-t bc:[[data-orientation=vertical]_&]:border-t-border-default/40 bc:[[data-orientation=vertical]_&]:first:border-t-0 bc:[[data-orientation=vertical]_&]:first:rounded-t-lg bc:[[data-orientation=vertical]_&]:last:rounded-b-lg bc:[[data-orientation=horizontal]_&]:shrink-0 bc:[[data-orientation=horizontal]_&]:border-l bc:[[data-orientation=horizontal]_&]:border-l-border-default/40 bc:[[data-orientation=horizontal]_&]:first:border-l-0 bc:[[data-orientation=horizontal]_&]:first:rounded-s-lg bc:[[data-orientation=horizontal]_&]:last:rounded-e-lg";
-var HEADER = "bc:relative bc:z-10 bc:-mt-px bc:border-y bc:border-border-default bc:bg-bg-subtle bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted";
+var LIST2 = "bc:grid bc:content-start bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none bc:data-[orientation=horizontal]:flex bc:data-[orientation=horizontal]:flex-row bc:data-[orientation=horizontal]:flex-nowrap bc:data-empty:px-2 bc:data-empty:py-0.5 bc:data-empty:text-sm bc:data-empty:text-text-muted bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var ITEM2 = "bc:flex bc:shrink-0 bc:cursor-pointer bc:select-none bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-0.5 bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
+var HEADER = "bc:block bc:px-2 bc:pt-1 bc:text-xs bc:font-semibold bc:text-text-muted";
 
 // srcts/table/table.tsx
 import {
   Cell as AriaCell,
   Collection as Collection3,
   Column as AriaColumn,
-  ColumnResizer,
   composeRenderProps as composeRenderProps10,
-  Group as Group3,
-  ResizableTableContainer,
   Row as AriaRow,
   Table as AriaTable,
   TableBody as AriaTableBody,
   TableHeader as AriaTableHeader,
   useTableOptions
-} from "./vendor-b69523ae.js";
+} from "./vendor-cf3ef04a.js";
 import { jsx as jsx13, jsxs as jsxs8 } from "react/jsx-runtime";
 function Table({ className, ...props }) {
-  return /* @__PURE__ */ jsx13(ResizableTableContainer, { onScroll: props.onScroll, className: `${BOX2} ${className ?? ""}`, children: /* @__PURE__ */ jsx13(AriaTable, { ...props, className: TABLE }) });
+  return /* @__PURE__ */ jsx13("div", { onScroll: props.onScroll, className: `${BOX2} ${className ?? ""}`, children: /* @__PURE__ */ jsx13(AriaTable, { ...props, className: TABLE }) });
 }
 function Column({ align = "start", ...props }) {
-  return /* @__PURE__ */ jsx13(AriaColumn, { ...props, className: composeRenderProps10(props.className, (given) => `${COLUMN} ${given ?? ""}`), children: composeRenderProps10(props.children, (children, { allowsSorting, sortDirection }) => /* @__PURE__ */ jsxs8("div", { className: "bc:flex bc:items-center", children: [
-    /* @__PURE__ */ jsxs8(Group3, { role: "presentation", tabIndex: -1, className: `${HEADING3} ${align === "end" ? "bc:flex-row-reverse bc:text-end" : ""}`, children: [
-      /* @__PURE__ */ jsx13("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate", children }),
-      allowsSorting && /* @__PURE__ */ jsx13("span", { className: `bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center ${sortDirection === "descending" ? "bc:rotate-180" : ""}`, children: sortDirection === void 0 ? null : /* @__PURE__ */ jsx13(Arrow, {}) })
-    ] }),
-    props.width === void 0 && /* @__PURE__ */ jsx13(ColumnResizer, { className: RESIZER })
-  ] })) });
+  return /* @__PURE__ */ jsx13(
+    AriaColumn,
+    {
+      ...props,
+      className: composeRenderProps10(props.className, (given) => `${COLUMN} ${align === "end" ? "bc:text-end" : "bc:text-start"} ${given ?? ""}`),
+      children: composeRenderProps10(props.children, (children, { sortDirection }) => /* @__PURE__ */ jsxs8("span", { className: `${HEADING3} ${align === "end" ? "bc:flex-row-reverse" : ""}`, children: [
+        children,
+        sortDirection === void 0 ? null : /* @__PURE__ */ jsx13(Arrow, { down: sortDirection === "descending" })
+      ] }))
+    }
+  );
 }
 function TableHeader({ columns, children, ...props }) {
   const { selectionBehavior, selectionMode, allowsDragging } = useTableOptions();
-  return /* @__PURE__ */ jsxs8(AriaTableHeader, { ...props, className: composeRenderProps10(props.className, (given) => `${HEADER2} ${given ?? ""}`), children: [
-    allowsDragging && /* @__PURE__ */ jsx13(AriaColumn, { width: 28, minWidth: 28, className: PART }),
-    selectionBehavior === "toggle" && /* @__PURE__ */ jsx13(AriaColumn, { width: 36, minWidth: 36, className: PART, children: selectionMode === "multiple" && /* @__PURE__ */ jsx13(SelectionCheckbox, {}) }),
+  return /* @__PURE__ */ jsxs8(AriaTableHeader, { ...props, children: [
+    allowsDragging && /* @__PURE__ */ jsx13(AriaColumn, { className: PART }),
+    selectionBehavior === "toggle" && /* @__PURE__ */ jsx13(AriaColumn, { className: PART, children: selectionMode === "multiple" && /* @__PURE__ */ jsx13(SelectionCheckbox, {}) }),
     /* @__PURE__ */ jsx13(Collection3, { items: columns, children })
   ] });
 }
@@ -1057,20 +1058,20 @@ function TableBody(props) {
 function Row({ id, columns, children, ...props }) {
   const { selectionBehavior, allowsDragging } = useTableOptions();
   return /* @__PURE__ */ jsxs8(AriaRow, { id, ...props, className: composeRenderProps10(props.className, (given) => `${ROW2} ${given ?? ""}`), children: [
-    allowsDragging && /* @__PURE__ */ jsx13(Cell, { children: /* @__PURE__ */ jsx13(DragButton, {}) }),
-    selectionBehavior === "toggle" && /* @__PURE__ */ jsx13(Cell, { children: /* @__PURE__ */ jsx13(SelectionCheckbox, {}) }),
+    allowsDragging && /* @__PURE__ */ jsx13(Cell, { className: "bc:w-px", children: /* @__PURE__ */ jsx13(DragButton, {}) }),
+    selectionBehavior === "toggle" && /* @__PURE__ */ jsx13(Cell, { className: "bc:w-px", children: /* @__PURE__ */ jsx13(SelectionCheckbox, {}) }),
     /* @__PURE__ */ jsx13(Collection3, { items: columns, children })
   ] });
 }
 function Cell(props) {
   return /* @__PURE__ */ jsx13(AriaCell, { ...props, className: composeRenderProps10(props.className, (given) => `${CELL} ${given ?? ""}`) });
 }
-function Arrow() {
+function Arrow({ down }) {
   return /* @__PURE__ */ jsx13(
     "svg",
     {
-      width: "14",
-      height: "14",
+      width: "12",
+      height: "12",
       viewBox: "0 0 16 16",
       fill: "none",
       stroke: "currentColor",
@@ -1078,21 +1079,19 @@ function Arrow() {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      className: "bc:text-text-muted bc:forced-colors:text-[ButtonText]",
+      className: `bc:mb-0.5 bc:shrink-0 bc:forced-colors:text-[ButtonText] ${down ? "bc:rotate-180" : ""}`,
       children: /* @__PURE__ */ jsx13("path", { d: "M8 13V3M4 7l4-4 4 4" })
     }
   );
 }
-var BOX2 = "bc:relative bc:box-border bc:w-full bc:scroll-pt-[2.281rem] bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default";
-var TABLE = "bc:box-border bc:border-separate bc:border-spacing-0 bc:has-[>[data-empty]]:h-full";
-var COLUMN = "bc:relative bc:box-border bc:h-1 bc:cursor-default bc:text-start bc:align-bottom bc:text-sm bc:font-semibold bc:text-text-default bc:outline-none bc:hover:z-20 bc:focus-within:z-20 bc:data-allows-sorting:cursor-pointer";
-var HEADING3 = "bc:box-border bc:flex bc:min-h-5 bc:min-w-0 bc:flex-1 bc:items-center bc:gap-1 bc:overflow-hidden bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
-var RESIZER = "bc:absolute bc:top-1/2 bc:-right-2 bc:z-10 bc:box-content bc:h-5 bc:w-px bc:-translate-y-1/2 bc:cursor-col-resize bc:rounded-xs bc:bg-border-default bc:bg-clip-content bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-resizing:w-0.5 bc:data-resizing:bg-bg-accent bc:data-resizing:pl-[7px] bc:forced-colors:bg-[ButtonBorder] bc:forced-colors:data-resizing:bg-[Highlight]";
-var HEADER2 = "bc:sticky bc:top-0 bc:z-10 bc:rounded-t-lg bc:bg-bg-raised bc:forced-colors:bg-[Canvas] bc:[&>tr>th]:border-b bc:[&>tr>th]:border-border-default";
-var PART = "bc:box-border bc:px-2 bc:py-1 bc:text-start";
+var BOX2 = "bc:min-w-0 bc:overflow-auto bc:font-sans bc:text-text-default";
+var TABLE = "bc:w-full bc:border-collapse bc:text-left bc:text-sm";
+var COLUMN = "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom bc:font-semibold bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-allows-sorting:cursor-pointer";
+var HEADING3 = "bc:flex bc:items-end bc:gap-1";
+var PART = "bc:w-px bc:border-b bc:border-border-default bc:px-2 bc:py-1";
 var BODY = "bc:data-empty:text-center bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted";
-var ROW2 = "bc:group/row bc:relative bc:cursor-default bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-selection-mode:select-none bc:last:rounded-b-lg";
-var CELL = "bc:box-border bc:truncate bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:group-last/row:border-b-0 bc:group-last/row:first:rounded-bl-lg bc:group-last/row:last:rounded-br-lg";
+var ROW2 = "bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-selection-mode:select-none";
+var CELL = "bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 
 // srcts/tree/navigation-tree.tsx
 import { createContext, useContext as useContext3 } from "react";
@@ -1105,7 +1104,7 @@ import {
   NavigationTreeItem as AriaNavigationTreeItem,
   NavigationTreeItemContent as AriaNavigationTreeItemContent,
   NavigationTreeSection as AriaNavigationTreeSection
-} from "./vendor-b69523ae.js";
+} from "./vendor-cf3ef04a.js";
 
 // srcts/tree/tree.tsx
 import {
@@ -1114,7 +1113,7 @@ import {
   Tree as AriaTree,
   TreeItem as AriaTreeItem,
   TreeItemContent
-} from "./vendor-b69523ae.js";
+} from "./vendor-cf3ef04a.js";
 import { jsx as jsx14, jsxs as jsxs9 } from "react/jsx-runtime";
 function Tree(props) {
   return /* @__PURE__ */ jsx14(AriaTree, { ...props, className: composeRenderProps11(props.className, (given) => `${TREE} ${given ?? ""}`) });
@@ -1149,8 +1148,8 @@ function Chevron3({ expanded }) {
     }
   );
 }
-var TREE = "bc:relative bc:box-border bc:max-w-full bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
-var ITEM3 = "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:border-t bc:border-transparent bc:px-2 bc:py-0.5 bc:font-sans bc:text-sm bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:first:rounded-t-lg bc:first:border-t-0 bc:last:rounded-b-lg bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:z-20 bc:data-selected:bg-bg-accent/10 bc:data-disabled:z-10 bc:data-disabled:opacity-50";
+var TREE = "bc:grid bc:content-start bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var ITEM3 = "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:rounded bc:px-1 bc:font-sans bc:text-sm bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50";
 var INDENT = "bc:w-[calc((var(--tree-item-level)_-_1)_*_var(--bc-spacing)_*_3)] bc:shrink-0";
 var EXPAND = "bc:flex bc:size-6 bc:shrink-0 bc:cursor-default bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:outline-none bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:opacity-50";
 
@@ -1185,7 +1184,7 @@ function NavigationTreeItemLink({ render, children, ...props }) {
     children
   ] }) });
 }
-var TREE2 = "bc:relative bc:box-border bc:flex bc:max-w-full bc:flex-col bc:gap-0.5 bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:font-sans bc:text-text-default bc:outline-none";
+var TREE2 = "bc:flex bc:flex-col bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none";
 var ITEM4 = "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:rounded-md bc:font-sans bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:opacity-50";
 var LINK = "bc:relative bc:flex bc:min-w-0 bc:flex-1 bc:cursor-pointer bc:items-center bc:gap-2 bc:px-2 bc:py-1.5 bc:text-sm bc:text-current bc:no-underline bc:outline-none bc:group-[:not([data-href])]:cursor-default bc:data-disabled:cursor-default";
 var MARK = "bc:absolute bc:start-0.5 bc:top-1/2 bc:h-[1lh] bc:w-0.5 bc:-translate-y-1/2 bc:rounded-full bc:forced-color-adjust-none bc:group-data-href:data-[indicator=hover]:bg-border-default bc:data-[indicator=current]:bg-bg-accent bc:data-[indicator=ancestor]:size-1 bc:data-[indicator=ancestor]:bg-border-default bc:forced-colors:data-indicator:bg-[Highlight]";

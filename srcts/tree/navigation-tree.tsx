@@ -8,6 +8,8 @@
 // The tree also takes the starter kit's `renderLink`, and the link takes the
 // props of React Aria's Link.
 // It is a tree of links, such as to the pages of an app.
+// It draws no frame, so that it adds no frame inside the panel or the popover
+// that holds it.
 // It marks the item of the current page.
 // An item holds its content and the items below it.
 // The content holds the item's link.
@@ -112,8 +114,7 @@ export function NavigationTreeItemLink({ render, children, ...props }: Navigatio
 }
 
 // The classes of the tree and its parts.
-const TREE =
-  "bc:relative bc:box-border bc:flex bc:max-w-full bc:flex-col bc:gap-0.5 bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:font-sans bc:text-text-default bc:outline-none";
+const TREE = "bc:flex bc:flex-col bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none";
 // The item draws the outline of the focus across the whole row, since its
 // link takes the focus.
 const ITEM =

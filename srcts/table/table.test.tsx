@@ -75,7 +75,7 @@ function header(el: ParentNode, name: string): HTMLElement {
 function arrow(th: Element): "up" | "down" | null {
   const svg = th.querySelector("svg");
   if (svg === null) return null;
-  return svg.parentElement?.classList.contains("bc:rotate-180") === true ? "down" : "up";
+  return svg.classList.contains("bc:rotate-180") ? "down" : "up";
 }
 
 describe("sorting", () => {
@@ -128,17 +128,21 @@ test("lines the heading of a column that aligns at its end up at its right edge,
     </Table>,
   );
 
-  const heading = (name: string): string | undefined => header(el, name).querySelector('[role="presentation"]')?.className;
+  expect(header(el, "Count").className).toContain("bc:text-end");
+  expect(header(el, "Name").className).toContain("bc:text-start");
+  // The column of numbers turns its heading round, so that the arrow comes
+  // before the name.
+  const heading = (name: string): string | undefined => header(el, name).querySelector("span")?.className;
   expect(heading("Count")).toContain("bc:flex-row-reverse");
   expect(heading("Name")).not.toContain("bc:flex-row-reverse");
   expect(arrow(header(el, "Count"))).toBe("up");
 });
 
-test("draws a bar that resizes each column without a width", () => {
+test("draws no frame, and no bar that resizes a column, since the board would not keep the widths", () => {
   const { el } = draw(<Animals />);
 
-  const resizable = [...el.querySelectorAll('[role="columnheader"]')].map((th) => th.querySelector("[data-resizable-direction]") !== null);
-  expect(resizable).toEqual([true, true, false]);
+  expect(el.querySelector("[data-resizable-direction]")).toBeNull();
+  expect(el.querySelector("table")?.parentElement?.className).not.toContain("bc:border");
 });
 
 describe("selecting rows", () => {

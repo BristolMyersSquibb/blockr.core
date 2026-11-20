@@ -3,9 +3,11 @@
 // in core's theme, after the GridList of React Aria's Tailwind starter kit
 // (https://github.com/adobe/react-spectrum/blob/react-aria-components%401.22.1/starters/tailwind/src/GridList.tsx).
 // Each takes the props of its part of React Aria.
-// A grid list shows its items one below the other, inside a border of its
-// own.
-// Where its `orientation` is "horizontal", it shows them side by side.
+// A grid list shows its items one below the other, as core's lists of
+// entries looked before React Aria drew them.
+// It draws no frame, so that it adds no frame inside the card or the panel
+// that holds it.
+// Where its `orientation` is "horizontal", it shows its items side by side.
 // Where it has no item, it shows what `renderEmptyState` gives.
 // The user moves the focus through its items by the arrow keys.
 // A press or Enter runs the item's `onAction`, or the list's.
@@ -54,16 +56,15 @@ export function GridListHeader({ className, ...props }: HTMLAttributes<HTMLEleme
 }
 
 // The classes of the list and its parts.
-// A list without items centres what it says instead.
+// A list without items says why in muted text, where an item would stand.
 const LIST =
-  "bc:relative bc:box-border bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default bc:outline-none bc:data-[orientation=horizontal]:flex bc:data-[orientation=horizontal]:flex-row bc:data-[orientation=horizontal]:flex-nowrap bc:data-empty:flex bc:data-empty:items-center bc:data-empty:justify-center bc:data-empty:p-2 bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
-// A line divides each item from the one before it: across the list where the
-// list is vertical, and down the list where it is horizontal.
-// An item that the user selects shows in a tint of the accent colour.
+  "bc:grid bc:content-start bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none bc:data-[orientation=horizontal]:flex bc:data-[orientation=horizontal]:flex-row bc:data-[orientation=horizontal]:flex-nowrap bc:data-empty:px-2 bc:data-empty:py-0.5 bc:data-empty:text-sm bc:data-empty:text-text-muted bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+// The item under the pointer shows on a background, and an item that the
+// user selects in a tint of the accent colour.
 // A press on an item selects it, runs its action or moves the focus to it, so
 // the item's text cannot be selected.
 const ITEM =
-  "bc:relative bc:flex bc:cursor-default bc:select-none bc:items-center bc:gap-2 bc:border-transparent bc:px-2 bc:py-1 bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:z-20 bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-disabled:z-10 bc:[[data-orientation=vertical]_&]:border-t bc:[[data-orientation=vertical]_&]:border-t-border-default/40 bc:[[data-orientation=vertical]_&]:first:border-t-0 bc:[[data-orientation=vertical]_&]:first:rounded-t-lg bc:[[data-orientation=vertical]_&]:last:rounded-b-lg bc:[[data-orientation=horizontal]_&]:shrink-0 bc:[[data-orientation=horizontal]_&]:border-l bc:[[data-orientation=horizontal]_&]:border-l-border-default/40 bc:[[data-orientation=horizontal]_&]:first:border-l-0 bc:[[data-orientation=horizontal]_&]:first:rounded-s-lg bc:[[data-orientation=horizontal]_&]:last:rounded-e-lg";
-// The header of a section lies across the line above its first item.
-const HEADER =
-  "bc:relative bc:z-10 bc:-mt-px bc:border-y bc:border-border-default bc:bg-bg-subtle bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted";
+  "bc:flex bc:shrink-0 bc:cursor-pointer bc:select-none bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-0.5 bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
+// The header of a section, in the muted heading of a section of the SDK's
+// menu.
+const HEADER = "bc:block bc:px-2 bc:pt-1 bc:text-xs bc:font-semibold bc:text-text-muted";

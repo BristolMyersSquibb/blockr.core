@@ -3,14 +3,18 @@
 // theme, after the Table of React Aria's Tailwind starter kit
 // (https://github.com/adobe/react-spectrum/blob/react-aria-components%401.22.1/starters/tailwind/src/Table.tsx).
 // Each takes the props of its part of React Aria.
-// The table scrolls inside a border of its own.
-// Its header stays in view as the rows scroll.
-// The user resizes a column that has no `width` by the bar at its right edge.
-// The pointer drags the bar, and the arrow keys move it, through React Aria's
-// ResizableTableContainer and ColumnResizer.
+// It looks as core's tables looked before React Aria drew them.
+// The table scrolls in a box that draws no frame, so that a table adds no
+// frame inside the card or the panel that holds it.
+// A line divides the header from the rows, and a fainter line divides each
+// row from the next.
+// Each column is as wide as its widest value, and the box scrolls sideways
+// where the columns are wider than the box.
+// The user resizes no column, since the board would not keep the widths.
 // A column that `allowsSorting` sorts the table as the user presses its
 // header.
-// While the table is sorted by the column, the column shows an arrow.
+// While the table is sorted by the column, the column shows an arrow after
+// its heading.
 // The arrow points up for a sort from the smallest value, and down for one
 // from the largest.
 // A column takes `align` too, as the Column of React Spectrum's TableView does
@@ -31,10 +35,7 @@ import {
   Cell as AriaCell,
   Collection,
   Column as AriaColumn,
-  ColumnResizer,
   composeRenderProps,
-  Group,
-  ResizableTableContainer,
   Row as AriaRow,
   Table as AriaTable,
   TableBody as AriaTableBody,
@@ -60,9 +61,9 @@ export interface TableProps extends Omit<AriaTableProps, "className"> {
 
 export function Table({ className, ...props }: TableProps): ReactElement {
   return (
-    <ResizableTableContainer onScroll={props.onScroll} className={`${BOX} ${className ?? ""}`}>
+    <div onScroll={props.onScroll} className={`${BOX} ${className ?? ""}`}>
       <AriaTable {...props} className={TABLE} />
-    </ResizableTableContainer>
+    </div>
   );
 }
 
@@ -72,19 +73,15 @@ export interface ColumnProps extends AriaColumnProps {
 
 export function Column({ align = "start", ...props }: ColumnProps): ReactElement {
   return (
-    <AriaColumn {...props} className={composeRenderProps(props.className, (given) => `${COLUMN} ${given ?? ""}`)}>
-      {composeRenderProps(props.children, (children, { allowsSorting, sortDirection }) => (
-        <div className="bc:flex bc:items-center">
-          <Group role="presentation" tabIndex={-1} className={`${HEADING} ${align === "end" ? "bc:flex-row-reverse bc:text-end" : ""}`}>
-            <span className="bc:min-w-0 bc:flex-1 bc:truncate">{children}</span>
-            {allowsSorting && (
-              <span className={`bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center ${sortDirection === "descending" ? "bc:rotate-180" : ""}`}>
-                {sortDirection === undefined ? null : <Arrow />}
-              </span>
-            )}
-          </Group>
-          {props.width === undefined && <ColumnResizer className={RESIZER} />}
-        </div>
+    <AriaColumn
+      {...props}
+      className={composeRenderProps(props.className, (given) => `${COLUMN} ${align === "end" ? "bc:text-end" : "bc:text-start"} ${given ?? ""}`)}
+    >
+      {composeRenderProps(props.children, (children, { sortDirection }) => (
+        <span className={`${HEADING} ${align === "end" ? "bc:flex-row-reverse" : ""}`}>
+          {children}
+          {sortDirection === undefined ? null : <Arrow down={sortDirection === "descending"} />}
+        </span>
       ))}
     </AriaColumn>
   );
@@ -93,15 +90,11 @@ export function Column({ align = "start", ...props }: ColumnProps): ReactElement
 export function TableHeader<T extends object>({ columns, children, ...props }: TableHeaderProps<T>): ReactElement {
   const { selectionBehavior, selectionMode, allowsDragging } = useTableOptions();
   return (
-    <AriaTableHeader {...props} className={composeRenderProps(props.className, (given) => `${HEADER} ${given ?? ""}`)}>
+    <AriaTableHeader {...props}>
       {/* The columns of the buttons that drag a row and of the checkboxes
           that select one. */}
-      {allowsDragging && <AriaColumn width={28} minWidth={28} className={PART} />}
-      {selectionBehavior === "toggle" && (
-        <AriaColumn width={36} minWidth={36} className={PART}>
-          {selectionMode === "multiple" && <SelectionCheckbox />}
-        </AriaColumn>
-      )}
+      {allowsDragging && <AriaColumn className={PART} />}
+      {selectionBehavior === "toggle" && <AriaColumn className={PART}>{selectionMode === "multiple" && <SelectionCheckbox />}</AriaColumn>}
       <Collection items={columns}>{children}</Collection>
     </AriaTableHeader>
   );
@@ -116,12 +109,12 @@ export function Row<T extends object>({ id, columns, children, ...props }: RowPr
   return (
     <AriaRow id={id} {...props} className={composeRenderProps(props.className, (given) => `${ROW} ${given ?? ""}`)}>
       {allowsDragging && (
-        <Cell>
+        <Cell className="bc:w-px">
           <DragButton />
         </Cell>
       )}
       {selectionBehavior === "toggle" && (
-        <Cell>
+        <Cell className="bc:w-px">
           <SelectionCheckbox />
         </Cell>
       )}
@@ -134,13 +127,13 @@ export function Cell(props: CellProps): ReactElement {
   return <AriaCell {...props} className={composeRenderProps(props.className, (given) => `${CELL} ${given ?? ""}`)} />;
 }
 
-// The arrow of the column that the table is sorted by.
-// It points up, and its box turns it to point down.
-function Arrow(): ReactElement {
+// The arrow of the column that the table is sorted by, which points up, or
+// down where `down`.
+function Arrow({ down }: { down: boolean }): ReactElement {
   return (
     <svg
-      width="14"
-      height="14"
+      width="12"
+      height="12"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -148,7 +141,7 @@ function Arrow(): ReactElement {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className="bc:text-text-muted bc:forced-colors:text-[ButtonText]"
+      className={`bc:mb-0.5 bc:shrink-0 bc:forced-colors:text-[ButtonText] ${down ? "bc:rotate-180" : ""}`}
     >
       <path d="M8 13V3M4 7l4-4 4 4" />
     </svg>
@@ -156,37 +149,22 @@ function Arrow(): ReactElement {
 }
 
 // The classes of the table and its parts.
-// The box scrolls the table.
-// Where the focus scrolls a row into view, the box leaves room above the row
-// for the header, which stays in view.
-const BOX =
-  "bc:relative bc:box-border bc:w-full bc:scroll-pt-[2.281rem] bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default";
-const TABLE = "bc:box-border bc:border-separate bc:border-spacing-0 bc:has-[>[data-empty]]:h-full";
-// A column's header holds its heading and the bar that resizes the column.
-// The bar straddles the header's right edge, so it takes no width from the
-// heading.
-// It overlaps the header of the next column, and lies above that header while
-// the pointer or the focus is on the bar.
-// So the heading is as wide as the column's cells, and the heading of a
-// column that aligns at its end sits above them.
+const BOX = "bc:min-w-0 bc:overflow-auto bc:font-sans bc:text-text-default";
+const TABLE = "bc:w-full bc:border-collapse bc:text-left bc:text-sm";
+// A column's header holds its heading, at the bottom, and the arrow of its
+// sort.
 const COLUMN =
-  "bc:relative bc:box-border bc:h-1 bc:cursor-default bc:text-start bc:align-bottom bc:text-sm bc:font-semibold bc:text-text-default bc:outline-none bc:hover:z-20 bc:focus-within:z-20 bc:data-allows-sorting:cursor-pointer";
-const HEADING =
-  "bc:box-border bc:flex bc:min-h-5 bc:min-w-0 bc:flex-1 bc:items-center bc:gap-1 bc:overflow-hidden bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
-const RESIZER =
-  "bc:absolute bc:top-1/2 bc:-right-2 bc:z-10 bc:box-content bc:h-5 bc:w-px bc:-translate-y-1/2 bc:cursor-col-resize bc:rounded-xs bc:bg-border-default bc:bg-clip-content bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-resizing:w-0.5 bc:data-resizing:bg-bg-accent bc:data-resizing:pl-[7px] bc:forced-colors:bg-[ButtonBorder] bc:forced-colors:data-resizing:bg-[Highlight]";
-// The header covers the rows that scroll below it.
-// A line divides the header from the rows.
-// The table draws that line below each cell of the header, since a table with
-// separate borders draws no border of the header itself.
-const HEADER =
-  "bc:sticky bc:top-0 bc:z-10 bc:rounded-t-lg bc:bg-bg-raised bc:forced-colors:bg-[Canvas] bc:[&>tr>th]:border-b bc:[&>tr>th]:border-border-default";
-// The columns of a row's button and checkbox.
-const PART = "bc:box-border bc:px-2 bc:py-1 bc:text-start";
+  "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom bc:font-semibold bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-allows-sorting:cursor-pointer";
+// The heading is a box of its own, rather than a line of text, which would
+// add the space below a line to the header's height.
+// Turned round, it starts at the right edge.
+const HEADING = "bc:flex bc:items-end bc:gap-1";
+// The columns of a row's button and checkbox, as narrow as these.
+const PART = "bc:w-px bc:border-b bc:border-border-default bc:px-2 bc:py-1";
 const BODY = "bc:data-empty:text-center bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted";
 // A row that the user selects shows in a tint of the accent colour.
 // Where a press selects a row, the row's text cannot be selected.
 const ROW =
-  "bc:group/row bc:relative bc:cursor-default bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-selection-mode:select-none bc:last:rounded-b-lg";
+  "bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-selection-mode:select-none";
 const CELL =
-  "bc:box-border bc:truncate bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:group-last/row:border-b-0 bc:group-last/row:first:rounded-bl-lg bc:group-last/row:last:rounded-br-lg";
+  "bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";

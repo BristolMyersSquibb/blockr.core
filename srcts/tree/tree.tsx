@@ -4,6 +4,8 @@
 // (https://github.com/adobe/react-spectrum/blob/react-aria-components%401.22.1/starters/tailwind/src/Tree.tsx).
 // Each takes the props of its part of React Aria.
 // An item also takes the starter kit's `title`, the text that the item shows.
+// The tree draws no frame, so that it adds no frame inside the card, the
+// panel or the popover that holds it.
 // An item holds the items below it as its children.
 // It shows them while it is expanded, each indented by its level.
 // An item with items below it starts with a button that expands it and
@@ -85,12 +87,13 @@ export function Chevron({ expanded }: { expanded: boolean }): ReactElement {
 
 // The classes of the tree and its parts.
 const TREE =
-  "bc:relative bc:box-border bc:max-w-full bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
-// An item that the user selects shows in a tint of the accent colour.
+  "bc:grid bc:content-start bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+// The item under the pointer shows on a background, and an item that the
+// user selects in a tint of the accent colour.
 // A press on an item selects it or moves the focus to it, so the item's text
 // cannot be selected.
 const ITEM =
-  "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:border-t bc:border-transparent bc:px-2 bc:py-0.5 bc:font-sans bc:text-sm bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:first:rounded-t-lg bc:first:border-t-0 bc:last:rounded-b-lg bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:z-20 bc:data-selected:bg-bg-accent/10 bc:data-disabled:z-10 bc:data-disabled:opacity-50";
+  "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:rounded bc:px-1 bc:font-sans bc:text-sm bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50";
 // The space that indents an item by its level, which React Aria sets in
 // --tree-item-level, from 1 at the top.
 const INDENT = "bc:w-[calc((var(--tree-item-level)_-_1)_*_var(--bc-spacing)_*_3)] bc:shrink-0";
