@@ -14,9 +14,9 @@
 //   with a divider between two categories.
 // - Each row with its icon before its label, and its detail as meta text at
 //   its end, which assistive technology reads with the label.
-// - The rows that remove in the theme's danger colour under the pointer and as
-//   the keyboard's row, and plain at rest, as the design system draws a row
-//   that destroys something.
+// - The rows that remove in the theme's danger colour, on its danger
+//   background, under the pointer and as the keyboard's row, and plain at
+//   rest, as the design system draws a row that destroys something.
 // A level shows its title at its top, its filter below the title, its text
 // rows below the filter, and then its items and multis, those under a
 // heading in a group under it, and each multi as a group of its choices, which
@@ -302,7 +302,7 @@ function Item({ row, onPick }: { row: ItemRow; onPick: () => void }): ReactEleme
       textValue={label}
       {...(detail === undefined ? {} : { "aria-label": `${label}, ${detail}` })}
       onAction={onPick}
-      className={removes ? "bc:group" : undefined}
+      className={removes ? REMOVES : undefined}
     >
       <span
         className={`bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${
@@ -375,3 +375,8 @@ const NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-mu
 const FILTER =
   "bc:box-border bc:w-full bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-text-default bc:outline-none";
 const DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border-default";
+// A row that removes, on the theme's danger background under the pointer and
+// as the keyboard's row. The background takes the place of the grey one that
+// the SDK's item gives itself for both, so it is marked important, which
+// leaves it no rule of the same weight to lose to.
+const REMOVES = "bc:group bc:data-hovered:bg-bg-danger! bc:data-focused:bg-bg-danger!";

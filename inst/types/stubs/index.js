@@ -9142,7 +9142,7 @@ function Item({ row, onPick }) {
       textValue: label,
       ...detail === void 0 ? {} : { "aria-label": `${label}, ${detail}` },
       onAction: onPick,
-      className: removes ? "bc:group" : void 0,
+      className: removes ? REMOVES : void 0,
       children: [
         /* @__PURE__ */ jsxs6(
           "span",
@@ -9199,6 +9199,7 @@ function isFilter(target2) {
 var NOTE2 = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";
 var FILTER = "bc:box-border bc:w-full bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-text-default bc:outline-none";
 var DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border-default";
+var REMOVES = "bc:group bc:data-hovered:bg-bg-danger! bc:data-focused:bg-bg-danger!";
 
 // srcts/core/plugins.ts
 var NONE = Object.freeze({});

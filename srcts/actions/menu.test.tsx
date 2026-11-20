@@ -127,7 +127,10 @@ describe("core's menu", () => {
     const remove = row(menu, "Remove block");
     expect(remove.querySelector('svg[data-icon="trash"]')?.closest("[aria-hidden=true]")).not.toBeNull();
     expect(remove.querySelector(".bc\\:group-data-focused\\:text-text-danger")).not.toBeNull();
+    expect(remove.classList.contains("bc:data-focused:bg-bg-danger!")).toBe(true);
+    expect(remove.classList.contains("bc:data-hovered:bg-bg-danger!")).toBe(true);
     expect(row(menu, "Rename").querySelector(".bc\\:group-data-focused\\:text-text-danger")).toBeNull();
+    expect(row(menu, "Rename").classList.contains("bc:data-focused:bg-bg-danger!")).toBe(false);
     // The popover hangs from the box of the anchor.
     const anchor = [...document.querySelectorAll<HTMLElement>("div[aria-hidden=true]")].find((el) => el.style.position === "fixed");
     expect([anchor?.style.left, anchor?.style.top]).toEqual(["10px", "20px"]);

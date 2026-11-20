@@ -126,6 +126,16 @@
   }
 
   :root, :host {
+    --bc-color-bg-danger: var(--bc-color-red-500);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-bg-danger: color-mix(in oklab, var(--bc-color-red-500) 10%, transparent);
+    }
+  }
+
+  :root, :host {
     --bc-color-bg-raised: Canvas;
     --bc-color-status-unevaluated: #6b7280;
     --bc-color-status-stale: #6b7280;
@@ -1296,7 +1306,19 @@
   outline-color: var(--bc-color-border-accent);
 }
 
-.bc\:data-focused\:bg-bg-subtle[data-focused], .bc\:data-hovered\:bg-bg-subtle[data-hovered] {
+.bc\:data-focused\:bg-bg-danger\![data-focused] {
+  background-color: var(--bc-color-bg-danger) !important;
+}
+
+.bc\:data-focused\:bg-bg-subtle[data-focused] {
+  background-color: var(--bc-color-bg-subtle);
+}
+
+.bc\:data-hovered\:bg-bg-danger\![data-hovered] {
+  background-color: var(--bc-color-bg-danger) !important;
+}
+
+.bc\:data-hovered\:bg-bg-subtle[data-hovered] {
   background-color: var(--bc-color-bg-subtle);
 }
 
