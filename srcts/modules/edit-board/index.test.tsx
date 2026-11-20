@@ -113,20 +113,26 @@ function rows(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): string[] {
   return [...section(el, title).querySelectorAll("tbody tr")].map((tr) => tr.getAttribute("aria-label") ?? "");
 }
 
+// What a banner of the plugin says of why the store or the command registry
+// refused an edit: the sentence that names the edit, then each reason.
+function said(alert: Element): string[] {
+  return [...alert.querySelectorAll("p, li")].map((line) => line.textContent);
+}
+
 // What the plugin says in `el` of why the store or the command registry
-// refused an edit, in order.
-function refusals(el: ParentNode): string[] {
-  return [...el.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent);
+// refused an edit, banner by banner, in order.
+function refusals(el: ParentNode): string[][] {
+  return [...el.querySelectorAll('[role="alert"]')].map(said);
 }
 
 // What the plugin says below the section's table of why the store or the
 // command registry refused an edit that the user made in the table's rows.
-function belowTable(el: HTMLElement): string[] {
-  const said: string[] = [];
+function belowTable(el: HTMLElement): string[][] {
+  const banners: string[][] = [];
   for (let next = find(el, "table").nextElementSibling; next?.getAttribute("role") === "alert"; next = next.nextElementSibling) {
-    said.push(next.textContent);
+    banners.push(said(next));
   }
-  return said;
+  return banners;
 }
 
 // The lines below a field, its description and its error, which React Aria
@@ -670,7 +676,7 @@ describe("each edit", () => {
     expect(core.store.canUndo()).toBe(false);
   });
 
-  test("that the command registry or the store refuses, the plugin says why below the form that made it, in the colour of an error, until the user submits the form again, and core raises no notification of it", async () => {
+  test("that the command registry or the store refuses, the plugin says why below the form that made it, in a banner in the colour of an error under a sentence that names the edit, until the user submits the form again, and core raises no notification of it", async () => {
     const { el, core, board, notes } = await mounted();
     const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
     await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
@@ -682,10 +688,8 @@ describe("each edit", () => {
     await click(button(add(), "Add link"));
 
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
-    expect(refusals(add())).toEqual([
-      'The command "blockr.core-add_link" refused to run\n- Every input of the block "b" takes a link already.',
-    ]);
-    expect(find(add(), '[role="alert"]').className).toContain("bc:text-text-danger");
+    expect(refusals(add())).toEqual([["Could not add the link.", 'Every input of the block "b" takes a link already.']]);
+    expect(find(add(), '[role="alert"]').className).toContain("bc:border-border-danger");
     // It shows below the form's button.
     expect(find(add(), '[role="alert"]').previousElementSibling?.contains(button(add(), "Add link"))).toBe(true);
     expect(held(core)).toEqual([]);
@@ -708,8 +712,16 @@ describe("each edit", () => {
 
     await click(button(blocks, "Remove the block Head"));
     expect(belowTable(blocks)).toEqual([
-      expect.stringMatching(/^Could not remove the block "Head"\.\nThe store rejected the delta\n- The board lock refuses to remove block "b"\.\n/),
+      [
+        'Could not remove the block "Head".',
+        'The board lock refuses to remove block "b".',
+        'The board lock refuses to remove links "ab", "bc" and "be".',
+        'The board lock refuses to change stack "s1".',
+      ],
     ]);
+    // The board lock refuses each part of the removal, so the reasons show as
+    // a list.
+    expect(find(blocks, "table").nextElementSibling?.querySelectorAll("ul > li")).toHaveLength(3);
 
     // The next edit in the table takes the place of the last.
     await click(button(blocks, "Rename the block Iris"));
@@ -718,16 +730,14 @@ describe("each edit", () => {
       type(name, "Sources");
       press(name, "Enter");
     });
-    expect(belowTable(blocks)).toEqual(['Could not rename the block "Iris".\nThe store rejected the delta\n- The board lock refuses to rename block "a".']);
+    expect(belowTable(blocks)).toEqual([['Could not rename the block "Iris".', 'The board lock refuses to rename block "a".']]);
 
     // The tables do not show the ids of links and stacks, which the store's
     // reason names, so the sentence before it names the link or the stack.
     await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
-    expect(belowTable(section(el, "Links"))).toEqual([
-      'Could not remove the link from "Iris" to "Head".\nThe store rejected the delta\n- The board lock refuses to remove link "ab".',
-    ]);
+    expect(belowTable(section(el, "Links"))).toEqual([['Could not remove the link from "Iris" to "Head".', 'The board lock refuses to remove link "ab".']]);
     await click(button(stacks, "Remove the stack Input"));
-    expect(belowTable(stacks)).toEqual(['Could not remove the stack "Input".\nThe store rejected the delta\n- The board lock refuses to remove stack "s1".']);
+    expect(belowTable(stacks)).toEqual([['Could not remove the stack "Input".', 'The board lock refuses to remove stack "s1".']]);
     // Opening the form that changes a stack is the user's next edit in the
     // table, and the reason goes.
     await click(button(stacks, "Edit the stack Input"));
@@ -747,11 +757,11 @@ describe("each edit", () => {
 
     await chosen(addBlock(), "Block class", "dataset", "dataset block");
     await click(button(addBlock(), "Add block"));
-    expect(refusals(addBlock())).toEqual([expect.stringMatching(/^The store rejected the delta\n- The board lock refuses to add block "[a-z_]+"\.$/)]);
+    expect(refusals(addBlock())).toEqual([["Could not add the block.", expect.stringMatching(/^The board lock refuses to add block "[a-z_]+"\.$/)]]);
     expect(labelled(addBlock(), "Block class").value).toBe("dataset block");
 
     await click(button(form(stacks, "Add stack"), "Add stack"));
-    expect(refusals(form(stacks, "Add stack"))).toEqual([expect.stringMatching(/^The store rejected the delta\n- The board lock refuses to add stack "[a-z_]+"\.$/)]);
+    expect(refusals(form(stacks, "Add stack"))).toEqual([["Could not add the stack.", expect.stringMatching(/^The board lock refuses to add stack "[a-z_]+"\.$/)]]);
 
     expect(board()).toEqual(before);
     expect(held(core)).toEqual([]);
@@ -766,7 +776,7 @@ describe("each edit", () => {
     await click(button(links, "Edit the link from Iris to Head"));
     await chosen(form(links, "Change link"), "To", "Bind");
     await click(button(form(links, "Change link"), "Save"));
-    expect(belowTable(links)).toEqual([expect.stringMatching(/^Could not change the link from "Iris" to "Head"\.\nThe store rejected the delta\n- /)]);
+    expect(belowTable(links)).toEqual([['Could not change the link from "Iris" to "Head".', 'The board lock refuses to change link "ab".']]);
     expect(refusals(form(links, "Change link"))).toEqual([]);
     expect(labelled(form(links, "Change link"), "To").value).toBe("Bind");
 
@@ -775,7 +785,7 @@ describe("each edit", () => {
       type(labelled(form(stacks, "Change stack"), "Name"), "Sources");
     });
     await click(button(form(stacks, "Change stack"), "Save"));
-    expect(belowTable(stacks)).toEqual(['Could not change the stack "Input".\nThe store rejected the delta\n- The board lock refuses to change stack "s1".']);
+    expect(belowTable(stacks)).toEqual([['Could not change the stack "Input".', 'The board lock refuses to change stack "s1".']]);
     expect(refusals(form(stacks, "Change stack"))).toEqual([]);
     expect(labelled(form(stacks, "Change stack"), "Name").value).toBe("Sources");
 

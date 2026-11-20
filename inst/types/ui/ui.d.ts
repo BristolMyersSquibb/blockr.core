@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import type { Refused } from "./edits.ts";
 export declare const classes: {
     readonly button: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50";
     readonly primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50";
@@ -22,5 +23,5 @@ export declare const identifier: {
     readonly autoCorrect: "off";
 };
 export declare function Refusal({ refusal }: {
-    refusal: string | null;
+    refusal: Refused | null;
 }): ReactElement | null;

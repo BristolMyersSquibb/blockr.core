@@ -175,7 +175,7 @@ function StackRow({
             className={classes.quiet}
             aria-label={`Remove the stack ${stack.name}`}
             onClick={() => {
-              void edits.run("blockr.core-remove_stack", { id }, `Could not remove the stack "${stack.name}".`);
+              void edits.run(`Could not remove the stack "${stack.name}".`, "blockr.core-remove_stack", { id });
             }}
           >
             Remove
@@ -277,7 +277,7 @@ function StackForm({
     let ran: boolean;
     if (editing === undefined) {
       const args: Record<string, Json> = { blocks: kept, color, name: trimmed === "" ? fallbackName : trimmed };
-      ran = await edits.run("blockr.core-add_stack", args);
+      ran = await edits.run("Could not add the stack.", "blockr.core-add_stack", args);
     } else {
       const { id, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
@@ -285,10 +285,11 @@ function StackForm({
         ...(sameBlocks(kept, stack.blocks) ? {} : { blocks: kept }),
         ...(color === stack.color ? {} : { color }),
       };
-      // The stack as its row named it, for the table's reason.
-      const which = `Could not change the stack "${stack.name}".`;
-      ran = !renamed || (await edits.run("blockr.core-rename_stack", { id, name: trimmed }, which));
-      if (ran && Object.keys(changed).length > 0) ran = await edits.run("blockr.core-change_stack", { id, ...changed }, which);
+      // The sentence that names the edit, which names the stack as its row
+      // did.
+      const title = `Could not change the stack "${stack.name}".`;
+      ran = !renamed || (await edits.run(title, "blockr.core-rename_stack", { id, name: trimmed }));
+      if (ran && Object.keys(changed).length > 0) ran = await edits.run(title, "blockr.core-change_stack", { id, ...changed });
     }
     setBusy(false);
     if (!ran) return;

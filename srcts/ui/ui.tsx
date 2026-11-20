@@ -1,7 +1,7 @@
 // The pieces that core's basic frontend and its Edit board plugin draw with:
 // the classes of their buttons, lists and surfaces, an inline field that
 // renames, what the text fields of their forms take where they hold an
-// identifier, and the line that says why an edit was refused.
+// identifier, and the banner that says why an edit was refused.
 // They are styled with Tailwind CSS under core's prefix. Their colours, fonts
 // and radii come from the variables of core's theme. Core's stylesheet leaves
 // out Tailwind's reset of the page, and a browser passes its font and colour
@@ -9,8 +9,10 @@
 
 import { useRef, useState } from "react";
 import type { ReactElement } from "react";
+import { MARKS, SeverityIcon } from "../card/index.ts";
 import { TextField } from "../react/index.ts";
-import { buttons, styles } from "../styles/index.ts";
+import { buttons } from "../styles/index.ts";
+import type { Refused } from "./edits.ts";
 
 export const classes = {
   button: buttons.secondary,
@@ -85,13 +87,36 @@ export function NameField({
 export const identifier = { spellCheck: "false", autoCapitalize: "none", autoCorrect: "off" } as const;
 
 // Says why the store or the command registry refused the last edit of a
-// control, close to the control, in the colour of an error, as the inputs of
-// core's React SDK say why their host refused what they submitted. A screen
-// reader reads it out as it shows. It draws nothing where the edit ran.
-export function Refusal({ refusal }: { refusal: string | null }): ReactElement | null {
-  return refusal === null ? null : (
-    <p role="alert" className={styles.alert}>
-      {refusal}
-    </p>
+// control, close to the control, in a banner that marks an error as a card's
+// banners do: the sentence that names the edit, and below it the reason, or a
+// list of the reasons where there are several. A screen reader reads it out
+// as it shows. It draws nothing where the edit ran.
+export function Refusal({ refusal }: { refusal: Refused | null }): ReactElement | null {
+  if (refusal === null) return null;
+  const mark = MARKS.error;
+  const { title, reasons } = refusal;
+  return (
+    <div
+      role="alert"
+      className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`}
+    >
+      <span className={`bc:mt-0.5 ${mark.text}`}>
+        <SeverityIcon severity="error" />
+      </span>
+      <div className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-1 bc:text-sm bc:break-words">
+        <p className={`bc:m-0 bc:font-semibold ${mark.text}`}>{title}</p>
+        {reasons.length === 1 ? (
+          <p className="bc:m-0 bc:whitespace-pre-wrap">{reasons[0]}</p>
+        ) : (
+          <ul className="bc:m-0 bc:list-disc bc:pl-5">
+            {reasons.map((reason, i) => (
+              <li key={i} className="bc:whitespace-pre-wrap">
+                {reason}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }

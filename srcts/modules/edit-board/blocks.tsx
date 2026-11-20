@@ -93,7 +93,7 @@ function BlockRow({ edits, id, block, className }: { edits: Edits; id: BlockId; 
             name={block.name}
             fill
             onSubmit={(name) => {
-              void edits.run("blockr.core-rename_block", { id, name }, `Could not rename the block "${block.name}".`);
+              void edits.run(`Could not rename the block "${block.name}".`, "blockr.core-rename_block", { id, name });
             }}
             onDone={() => {
               setRenaming(false);
@@ -123,7 +123,7 @@ function BlockRow({ edits, id, block, className }: { edits: Edits; id: BlockId; 
             className={classes.quiet}
             aria-label={`Remove the block ${block.name}`}
             onClick={() => {
-              void edits.run("blockr.core-remove_block", { id }, `Could not remove the block "${block.name}".`);
+              void edits.run(`Could not remove the block "${block.name}".`, "blockr.core-remove_block", { id });
             }}
           >
             Remove

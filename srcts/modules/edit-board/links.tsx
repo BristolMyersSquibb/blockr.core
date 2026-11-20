@@ -190,8 +190,8 @@ function LinkRow({
             className={classes.quiet}
             aria-label={`Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
             onClick={() => {
-              const which = `Could not remove the link from "${blockName(board, link.from)}" to "${blockName(board, link.to)}".`;
-              void edits.run("blockr.core-remove_link", { id }, which);
+              const title = `Could not remove the link from "${blockName(board, link.from)}" to "${blockName(board, link.to)}".`;
+              void edits.run(title, "blockr.core-remove_link", { id });
             }}
           >
             Remove
@@ -320,16 +320,19 @@ function LinkForm({
     const linkInput = variadic ? name.trim() : chosen;
     const args: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
     setBusy(true);
-    // The link as its row named it, for the table's reason.
-    const which =
-      editing === undefined ? undefined : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
+    // The sentence that names the edit, which names the link as its row did
+    // where the form changes one.
+    const title =
+      editing === undefined
+        ? "Could not add the link."
+        : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
     let ran =
       editing === undefined
-        ? await edits.run("blockr.core-add_link", args)
-        : await edits.run("blockr.core-change_link", { id: editing.id, ...args }, which);
+        ? await edits.run(title, "blockr.core-add_link", args)
+        : await edits.run(title, "blockr.core-change_link", { id: editing.id, ...args });
     if (ran && editing !== undefined && among !== undefined && position !== undefined && position !== among.place) {
       const before = placeAmong(core.store.board(), editing.id, target).others[position - 1];
-      ran = await edits.run("blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) }, which);
+      ran = await edits.run(title, "blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) });
     }
     setBusy(false);
     if (!ran) return;

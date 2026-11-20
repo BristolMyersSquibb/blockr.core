@@ -131,8 +131,9 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
       ...(link.kind === "name" ? filled("input", inputName) : {}),
     };
     setBusy(true);
+    const title = "Could not add the block.";
     const ran =
-      mode.kind === "add" ? await edits.run("blockr.core-add_block", args) : await edits.run(addAndLink(core, mode, args, into));
+      mode.kind === "add" ? await edits.run(title, "blockr.core-add_block", args) : await edits.run(title, addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(undefined);

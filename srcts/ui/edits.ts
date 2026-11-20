@@ -44,22 +44,27 @@ export function runCommand(core: Pick<CoreApi, "commands">, target: string | rea
 // the last of them, which the control shows close to itself.
 export interface Edits {
   // Why the last edit that run() made was refused, or null where it ran. It
-  // is the reason with which the command registry rejected the edit, after
-  // the sentence `which` where run() was given one. It holds until the next
-  // edit that run() makes, or until clear().
-  readonly refusal: string | null;
+  // holds until the next edit that run() makes, or until clear().
+  readonly refusal: Refused | null;
   // Runs the command with the args, or the commands of the list in order, as
   // runCommand() does, and resolves whether it ran.
-  // A control that shows the reason away from where the user made the edit,
-  // as a table does below itself for an edit in its rows, gives the sentence
-  // `which`, such as `Could not remove the block "Head".`. The reason names
-  // the objects by their ids, which the table may not show.
-  run(id: string, args?: Json, which?: string): Promise<boolean>;
-  run(list: readonly Listed[], which?: string): Promise<boolean>;
+  // The title is the sentence that names the edit, such as `Could not remove
+  // the block "Head".`, which heads the reasons where the edit is refused.
+  // The reasons name the board's objects by their ids, which a table may not
+  // show.
+  run(title: string, id: string, args?: Json): Promise<boolean>;
+  run(title: string, list: readonly Listed[]): Promise<boolean>;
   // Takes the refusal down where the user's next edit there does not reach
   // run(): where a form's own checks stop it, or where the user opens the
   // form that changes a row of the table.
   clear(): void;
+}
+
+// Why the store or the command registry refused an edit: the sentence that
+// names the edit, and each reason in a sentence of its own.
+export interface Refused {
+  readonly title: string;
+  readonly reasons: readonly string[];
 }
 
 // The edits of one control, which run() runs with a notifier that takes the
@@ -70,13 +75,10 @@ export interface Edits {
 // refusal to core, such as the form for a block in a dialog of core's basic
 // frontend.
 export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
-  const [refusal, setRefusal] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<Refused | null>(null);
   return useMemo(() => {
     const opts = { notifier: () => undefined };
-    // The second argument is the args for a command, and `which` for a list.
-    function run(target: string | readonly Listed[], second?: Json, third?: string): Promise<boolean> {
-      const args = typeof target === "string" ? second : undefined;
-      const which = typeof target === "string" ? third : typeof second === "string" ? second : undefined;
+    function run(title: string, target: string | readonly Listed[], args?: Json): Promise<boolean> {
       if (!shows) return typeof target === "string" ? runCommand(core, target, args) : runCommand(core, target);
       setRefusal(null);
       const running =
@@ -84,7 +86,7 @@ export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
       return running.then(
         () => true,
         (error: unknown) => {
-          setRefusal(which === undefined ? errorMessage(error) : `${which}\n${errorMessage(error)}`);
+          setRefusal({ title, reasons: reasons(error) });
           return false;
         },
       );
@@ -97,4 +99,20 @@ export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
       },
     };
   }, [core, shows, refusal]);
+}
+
+// Each reason why the command registry or the store refused an edit: the
+// failures of the CommandError or the StoreError that the edit rejects with,
+// without the line that heads its message, which names the command or the
+// delta rather than the edit, or else what the error says.
+// It reads the failures off the error, since the bundle of a plugin holds its
+// own copy of core's sources, whose classes are not those of the runtime that
+// threw.
+function reasons(error: unknown): readonly string[] {
+  const failures = error instanceof Error && "failures" in error ? error.failures : undefined;
+  return isSentences(failures) ? failures : [errorMessage(error)];
+}
+
+function isSentences(x: unknown): x is readonly string[] {
+  return Array.isArray(x) && x.length > 0 && x.every((item) => typeof item === "string");
 }
