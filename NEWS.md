@@ -713,6 +713,18 @@
   Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
+* Core's React SDK offers React Aria's table, trees and grid list, in core's theme, after those of React Aria's Tailwind starter kit: [`Table`](https://react-aria.adobe.com/Table), with `TableHeader`, `Column`, `TableBody`, `Row` and `Cell`, [`Tree`](https://react-aria.adobe.com/Tree) and `TreeItem`, the starter kit's [`NavigationTree`](https://react-aria.adobe.com/NavigationTree), with `NavigationTreeItem`, `NavigationTreeItemContent`, `NavigationTreeItemLink`, `NavigationTreeSection` and `NavigationTreeHeader`, and [`GridList`](https://react-aria.adobe.com/GridList), with `GridListItem`, `GridListSection` and `GridListHeader`.
+  Each takes the props of its part of React Aria, and none of them binds a value.
+  The user resizes a column of a table that has no `width`, by the bar at its right edge.
+  A column takes `align` as well, whose `"end"` lines the column's heading up at its right edge, above a column of numbers.
+  A row of a table, a grid list or a tree starts with a checkbox where the user selects rows, and with a button that drags it where its rows drag.
+  The SDK also offers React Aria's `useDragAndDrop` and its `DropIndicator`, which shows where a dragged row would land.
+  The hook draws that indicator unless its caller's `renderDropIndicator` draws another, since React Aria's own has no style.
+  Core's table renderer draws a table output with the `Table` of the SDK, and sorts and pages it as before.
+  Its columns now take an equal share of the table's width, and cut off a value that is wider, where each column grew to fit its widest value before.
+  The file browser block lists a directory with the `GridList` of the SDK, which the user moves through by the arrow keys and opens an entry of by Enter.
+  It says that a directory is empty only where the list holds no entry, so a directory below the root that holds none shows `..` alone.
+  Compressed with `gzip`, core's vendor file grows from 171 KB to 233 KB, of which drag and drop takes 28 KB (#757).
 
 # blockr.core 0.1.4
 

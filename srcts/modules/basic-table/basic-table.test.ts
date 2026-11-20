@@ -63,7 +63,7 @@ async function mounted(i: number, options: StubOutputHostOptions & { waiting?: b
     return found;
   };
   const header = (name: string): HTMLTableCellElement => {
-    const found = [...el.querySelectorAll("th")].find((th) => th.querySelector("span span")?.textContent === name);
+    const found = [...el.querySelectorAll("th")].find((th) => th.querySelector(NAME)?.textContent === name);
     if (found === undefined) throw new Error(`No column is named "${name}".`);
     return found;
   };
@@ -86,6 +86,16 @@ async function mounted(i: number, options: StubOutputHostOptions & { waiting?: b
     paged: () => [...el.querySelectorAll("button")].some((node) => node.textContent === "Previous"),
     alert: () => el.querySelector<HTMLElement>('[role="alert"]'),
   };
+}
+
+// The name of a column, in its header.
+const NAME = ".bc\\:font-medium";
+
+// The way the arrow of a column's header points, or null where it shows none.
+function arrow(th: Element): "up" | "down" | null {
+  const svg = th.querySelector("svg");
+  if (svg === null) return null;
+  return svg.parentElement?.classList.contains("bc:rotate-180") === true ? "down" : "up";
 }
 
 // Text with its runs of white space as one space, as it reads on the page.
@@ -117,14 +127,18 @@ describe("drawing a page", () => {
     const cells = table.el.querySelectorAll("tbody tr:first-child td");
     expect(cells[0]?.className).toContain("bc:text-right");
     expect(cells[4]?.className).not.toContain("bc:text-right");
-    expect(table.header("Sepal.Length").querySelector("button")?.className).toContain("bc:justify-end");
-    expect(table.header("Species").querySelector("button")?.className).not.toContain("bc:justify-end");
+    // The heading of a column of numbers lines up at its right edge too, with
+    // the arrow of its sort before it.
+    expect(table.header("Sepal.Length").querySelector(NAME)?.parentElement?.className).toContain("bc:items-end");
+    expect(table.header("Sepal.Length").querySelector('[role="presentation"]')?.className).toContain("bc:flex-row-reverse");
+    expect(table.header("Species").querySelector(NAME)?.parentElement?.className).not.toContain("bc:items-end");
+    expect(table.header("Species").querySelector('[role="presentation"]')?.className).not.toContain("bc:flex-row-reverse");
   });
 
   test("shows cells of every kind as R sends them, a missing value as NA, and keeps names that repeat", async () => {
     const table = await mounted(2);
 
-    expect(table.texts("th span span:first-child")).toEqual([
+    expect(table.texts(`th ${NAME}`)).toEqual([
       "number",
       "count",
       "flag",
@@ -226,27 +240,28 @@ describe("sorting", () => {
     const table = await mounted(0, { waiting: true });
     const species = table.header("Species");
     expect(species.getAttribute("aria-sort")).toBe("none");
+    expect(arrow(species)).toBeNull();
 
     await step(() => {
-      species.querySelector("button")?.click();
+      species.click();
     });
     await step(() => {
       table.host.setOutput(sampleOutput(0), null, { sort: { column: "Species" } });
     });
     expect(species.getAttribute("aria-sort")).toBe("ascending");
-    expect(species.textContent).toContain("↑");
+    expect(arrow(species)).toBe("up");
 
     await step(() => {
-      species.querySelector("button")?.click();
+      species.click();
     });
     await step(() => {
       table.host.setOutput(sampleOutput(0), null, { sort: { column: "Species", desc: true } });
     });
     expect(species.getAttribute("aria-sort")).toBe("descending");
-    expect(species.textContent).toContain("↓");
+    expect(arrow(species)).toBe("down");
 
     await step(() => {
-      species.querySelector("button")?.click();
+      species.click();
     });
 
     expect(table.asks).toEqual([{ sort: { column: "Species" } }, { sort: { column: "Species", desc: true } }, {}]);

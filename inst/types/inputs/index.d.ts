@@ -1,5 +1,6 @@
 export { Button } from "./button.tsx";
 export type { ButtonProps } from "./button.tsx";
+export { SelectionCheckbox } from "./checkbox.tsx";
 export { Checkbox, Field, Stack } from "./inputs.tsx";
 export { ComboBox, ComboBoxItem, ComboBoxSection } from "./combobox.tsx";
 export type { ComboBoxProps, ComboBoxSectionProps } from "./combobox.tsx";

@@ -3,18 +3,21 @@
 // blockr option `renderers`
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#renderers).
 // It draws the page of rows that the output holds under the table's columns,
-// and pages and sorts through the output's parameters, which it sets through
-// its host, so that R makes the page asked for. It reads no board option:
+// in the Table of core's React SDK, and pages and sorts through the output's
+// parameters, which it sets through its host, so that R makes the page asked
+// for. It reads no board option:
 // the output holds the page and the page size, by which it draws its pager,
 // while the table family reads n_rows, by which R pages the table. What it
 // computes is in ./table.ts, and this file only draws. The table takes its colours from the
 // element it draws in, so that it suits a light and a dark frontend alike.
+// It draws only the rows of the page, which are all that R sends.
+// So it needs no Virtualizer of React Aria's.
 
 import { useEffect, useRef } from "react";
 import type { ReactElement } from "react";
-import { outputRenderer } from "../../react/index.ts";
+import type { SortDescriptor } from "../../aria/index.ts";
+import { Cell, Column, outputRenderer, Row, Table as SdkTable, TableBody, TableHeader } from "../../react/index.ts";
 import type { OutputProps } from "../../react/index.ts";
-import type { Json } from "../../types/json.ts";
 import type { TableColumn, TableOutput, TableParams } from "../../types/outputs.ts";
 import {
   cellText,
@@ -55,37 +58,45 @@ function Table({ output, params, error, host }: OutputProps<TableOutput, TablePa
     host.setParams(paramsFor(1, again.sort, params));
   }, [host, error, params]);
 
+  // React Aria names the column that the user pressed by its id.
+  // The id holds the column's place, since a name may repeat.
+  // R sorts by the first column of a name.
+  // So a press on a later column of that name asks for the sort from the
+  // smallest value again.
+  const sortBy = (next: SortDescriptor): void => {
+    const j = Number(String(next.column).slice("column ".length));
+    const column = output.columns[j];
+    if (column !== undefined) ask(1, nextSort(j === sorted ? params.sort : undefined, column.name));
+  };
+
   return (
     <div className="bc:flex bc:min-h-0 bc:flex-col bc:gap-2">
-      <div className="bc:min-h-0 bc:overflow-auto">
-        <table className="bc:w-full bc:border-collapse bc:text-left bc:text-sm">
-          <thead>
-            <tr>
-              {/* Columns and rows go by place, since a name may repeat and a
-                  page holds other rows as it turns. */}
-              {output.columns.map((column, j) => (
-                <Header
-                  key={j}
-                  column={column}
-                  sort={j === sorted ? params.sort : undefined}
-                  onSort={(sort) => {
-                    ask(1, sort);
-                  }}
-                />
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {output.rows.map((row, i) => (
-              <tr key={i}>
-                {output.columns.map((column, j) => (
-                  <Cell key={j} column={column} value={row[j] ?? null} />
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SdkTable aria-label="Table" className="bc:min-h-0" sortDescriptor={descriptor(sorted, params.sort)} onSortChange={sortBy}>
+        <TableHeader>
+          {/* Columns and rows go by place, since a name may repeat and a
+              page holds other rows as it turns. React Aria keeps the
+              columns and the rows in one collection, so their ids differ. */}
+          {output.columns.map((column, j) => (
+            <Column key={j} id={columnId(j)} textValue={column.name} align={isNumber(column) ? "end" : "start"} allowsSorting isRowHeader={j === 0}>
+              <Heading column={column} />
+            </Column>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {output.rows.map((row, i) => (
+            <Row key={i} id={`row ${String(i)}`}>
+              {output.columns.map((column, j) => {
+                const text = cellText(row[j] ?? null);
+                return (
+                  <Cell key={j} textValue={text ?? "NA"} className={isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}>
+                    {text ?? <span className="bc:italic bc:text-text-muted">NA</span>}
+                  </Cell>
+                );
+              })}
+            </Row>
+          ))}
+        </TableBody>
+      </SdkTable>
       <Pager
         table={output}
         page={page}
@@ -97,36 +108,24 @@ function Table({ output, params, error, host }: OutputProps<TableOutput, TablePa
   );
 }
 
-// A column's name and class, as a button that sorts by it.
-function Header(props: { column: TableColumn; sort: Sort | undefined; onSort: (sort: Sort | undefined) => void }): ReactElement {
-  const { column, sort, onSort } = props;
-  const number = isNumber(column);
-  const order = sort === undefined ? "none" : sort.desc === true ? "descending" : "ascending";
-  return (
-    <th scope="col" aria-sort={order} className="bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom">
-      <button
-        type="button"
-        className={`bc:flex bc:w-full bc:cursor-pointer bc:items-end bc:gap-1 bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:[font:inherit] ${number ? "bc:justify-end bc:text-right" : "bc:text-left"}`}
-        onClick={() => {
-          onSort(nextSort(sort, column.name));
-        }}
-      >
-        <span className={`bc:flex bc:flex-col ${number ? "bc:items-end" : ""}`}>
-          <span className="bc:font-medium">{column.name}</span>
-          <span className="bc:text-xs bc:font-normal bc:text-text-muted">{column.class}</span>
-        </span>
-        <span aria-hidden="true">{order === "none" ? "" : order === "descending" ? "↓" : "↑"}</span>
-      </button>
-    </th>
-  );
+// The id of the column at a place.
+function columnId(j: number): string {
+  return `column ${String(j)}`;
 }
 
-function Cell({ column, value }: { column: TableColumn; value: Json }): ReactElement {
-  const text = cellText(value);
+// The sort that React Aria shows, on the column that the table is sorted by.
+function descriptor(sorted: number, sort: Sort | undefined): SortDescriptor | undefined {
+  if (sort === undefined || sorted < 0) return undefined;
+  return { column: columnId(sorted), direction: sort.desc === true ? "descending" : "ascending" };
+}
+
+// A column's name and class, which line up on the right above numbers.
+function Heading({ column }: { column: TableColumn }): ReactElement {
   return (
-    <td className={`bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`}>
-      {text ?? <span className="bc:italic bc:text-text-muted">NA</span>}
-    </td>
+    <span className={`bc:flex bc:flex-col ${isNumber(column) ? "bc:items-end" : ""}`}>
+      <span className="bc:max-w-full bc:truncate bc:font-medium">{column.name}</span>
+      <span className="bc:max-w-full bc:truncate bc:text-xs bc:font-normal bc:text-text-muted">{column.class}</span>
+    </span>
   );
 }
 

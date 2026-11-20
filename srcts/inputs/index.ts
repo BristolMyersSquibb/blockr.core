@@ -6,9 +6,12 @@
 // with its items and React Aria's Text, which holds an item's description,
 // the checkbox, and the button, React Aria's Button, which the SDK's menus and
 // dialogs open from.
+// It also holds the checkbox that selects a row of the SDK's Table, GridList
+// or Tree, which the SDK does not offer of its own.
 
 export { Button } from "./button.tsx";
 export type { ButtonProps } from "./button.tsx";
+export { SelectionCheckbox } from "./checkbox.tsx";
 export { Checkbox, Field, Stack } from "./inputs.tsx";
 export { ComboBox, ComboBoxItem, ComboBoxSection } from "./combobox.tsx";
 export type { ComboBoxProps, ComboBoxSectionProps } from "./combobox.tsx";

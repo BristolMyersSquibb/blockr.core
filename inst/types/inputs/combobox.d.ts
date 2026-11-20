@@ -20,4 +20,5 @@ export interface ComboBoxSectionProps<T> extends ListBoxSectionProps<T> {
     readonly items?: Iterable<T>;
 }
 export declare function ComboBoxSection<T extends object>({ title, items, children, ...props }: ComboBoxSectionProps<T>): ReactElement;
+export declare function Tick(): ReactElement;
 export {};

@@ -510,8 +510,9 @@ function Chevron(): ReactElement {
   );
 }
 
-// The design system's tick of a pick of several.
-function Tick(): ReactElement {
+// The design system's tick of a pick of several, which the checkbox that
+// selects a row draws too (./checkbox.tsx).
+export function Tick(): ReactElement {
   return (
     <svg
       width="14"

@@ -186,19 +186,30 @@ function strings(value) {
 // srcts/aria/index.ts
 import {
   Button,
+  Cell,
+  CheckboxButton,
+  CheckboxField,
   Collection,
+  Column,
+  ColumnResizer,
   ComboBox,
   ComboBoxStateContext,
   composeRenderProps,
   Dialog,
   DialogTrigger,
+  DropIndicator,
   FieldError,
+  GridList,
+  GridListHeader,
+  GridListItem,
+  GridListSection,
   Group,
   Header,
   Heading,
   Input,
   Keyboard,
   Label,
+  Link,
   ListBox,
   ListBoxItem,
   ListBoxSection,
@@ -209,16 +220,31 @@ import {
   MenuTrigger,
   Modal,
   ModalOverlay,
+  NavigationTree,
+  NavigationTreeHeader,
+  NavigationTreeItem,
+  NavigationTreeItemContent,
+  NavigationTreeSection,
   NumberField,
   NumberFieldStateContext,
   Popover,
+  ResizableTableContainer,
+  Row,
+  Table,
+  TableBody,
+  TableHeader,
   Tag,
   TagGroup,
   TagList,
   Text,
   TextArea,
   TextField,
+  Tree,
+  TreeItem,
+  TreeItemContent,
+  useDragAndDrop,
   useFilter,
+  useTableOptions,
   Virtualizer
 } from "react-aria-components";
 
@@ -239,6 +265,9 @@ var styles = {
 
 // srcts/inputs/button.tsx
 import { jsx } from "react/jsx-runtime";
+
+// srcts/inputs/combobox.tsx
+import { useContext, useRef, useState as useState2 } from "react";
 
 // srcts/inputs/inputs.tsx
 import { useState } from "react";
@@ -279,7 +308,6 @@ function useTyped(bound) {
 }
 
 // srcts/inputs/combobox.tsx
-import { useContext, useRef, useState as useState2 } from "react";
 import { Fragment as Fragment2, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 function ComboBox2(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -597,12 +625,15 @@ var LISTBOX = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg
 var ROW = "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
+// srcts/inputs/checkbox.tsx
+import { jsx as jsx4 } from "react/jsx-runtime";
+
 // srcts/inputs/numberfield.tsx
 import { useContext as useContext2, useEffect, useRef as useRef2, useState as useState3 } from "react";
-import { Fragment as Fragment3, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
-  return bound === void 0 ? /* @__PURE__ */ jsx4(Drawn2, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx4(BoundNumber, { ...props, maxValue: largest, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx5(Drawn2, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx5(BoundNumber, { ...props, maxValue: largest, bound });
 }
 function BoundNumber({
   bound,
@@ -624,7 +655,7 @@ function BoundNumber({
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
   return /* @__PURE__ */ jsxs3(Fragment3, { children: [
-    /* @__PURE__ */ jsx4(
+    /* @__PURE__ */ jsx5(
       Drawn2,
       {
         ...props,
@@ -657,7 +688,7 @@ function BoundNumber({
           setKept((now) => now?.typing === true ? null : now);
           onBlur?.(event);
         },
-        watch: /* @__PURE__ */ jsx4(
+        watch: /* @__PURE__ */ jsx5(
           Watch,
           {
             keystrokes,
@@ -669,7 +700,7 @@ function BoundNumber({
         )
       }
     ),
-    /* @__PURE__ */ jsx4(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx5(Refusal, { error: bound.error })
   ] });
 }
 function Watch({ keystrokes, onType }) {
@@ -693,21 +724,21 @@ function inRange(value, min, max, step) {
 }
 function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, watch, className, onInput, ...props }) {
   return /* @__PURE__ */ jsxs3(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx4(Label, { className: styles.label, children: label }),
+    label === void 0 ? null : /* @__PURE__ */ jsx5(Label, { className: styles.label, children: label }),
     /* @__PURE__ */ jsxs3(Group, { className: FIELD2, children: [
-      /* @__PURE__ */ jsx4(Input, { placeholder, onInput, className: INPUT2 }),
+      /* @__PURE__ */ jsx5(Input, { placeholder, onInput, className: INPUT2 }),
       /* @__PURE__ */ jsxs3("div", { className: STEPPERS, children: [
-        /* @__PURE__ */ jsx4(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx4(Chevron2, { up: true }) }),
-        /* @__PURE__ */ jsx4(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx4(Chevron2, { up: false }) })
+        /* @__PURE__ */ jsx5(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx5(Chevron2, { up: true }) }),
+        /* @__PURE__ */ jsx5(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx5(Chevron2, { up: false }) })
       ] })
     ] }),
-    /* @__PURE__ */ jsx4(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx4(FieldError, { className: styles.alert, children: errorMessage2 }),
+    /* @__PURE__ */ jsx5(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx5(FieldError, { className: styles.alert, children: errorMessage2 }),
     watch
   ] });
 }
 function Chevron2({ up }) {
-  return /* @__PURE__ */ jsx4(
+  return /* @__PURE__ */ jsx5(
     "svg",
     {
       width: "10",
@@ -719,7 +750,7 @@ function Chevron2({ up }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx4("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
+      children: /* @__PURE__ */ jsx5("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
     }
   );
 }
@@ -729,15 +760,15 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/textfield.tsx
-import { Fragment as Fragment4, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
 function TextField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx5(Drawn3, { ...props }) : /* @__PURE__ */ jsx5(BoundText, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx6(Drawn3, { ...props }) : /* @__PURE__ */ jsx6(BoundText, { ...props, bound });
 }
 function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
   const [text, typed] = useTyped(bound);
   const lines = props.lines ?? 1;
   return /* @__PURE__ */ jsxs4(Fragment4, { children: [
-    /* @__PURE__ */ jsx5(
+    /* @__PURE__ */ jsx6(
       Drawn3,
       {
         ...props,
@@ -760,20 +791,20 @@ function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx5(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx6(Refusal, { error: bound.error })
   ] });
 }
 function Drawn3({ label, description, errorMessage: errorMessage2, placeholder, lines = 1, className, ...props }) {
   return /* @__PURE__ */ jsxs4(TextField, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx5(Label, { className: styles.label, children: label }),
-    lines > 1 ? /* @__PURE__ */ jsx5(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx5(Input, { placeholder, className: styles.box }),
-    /* @__PURE__ */ jsx5(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx5(FieldError, { className: styles.alert, children: errorMessage2 })
+    label === void 0 ? null : /* @__PURE__ */ jsx6(Label, { className: styles.label, children: label }),
+    lines > 1 ? /* @__PURE__ */ jsx6(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx6(Input, { placeholder, className: styles.box }),
+    /* @__PURE__ */ jsx6(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx6(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 
 // srcts/controls/controls.tsx
-import { Fragment as Fragment6, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 function controls(host, signal) {
   const el = document.createElement("div");
   el.className = styles.stack;
@@ -785,12 +816,12 @@ function controls(host, signal) {
   let ended = false;
   const redraw = () => {
     if (ended) return;
-    const drawn = entries.map((entry) => /* @__PURE__ */ jsx6(Fragment5, { children: entry.draw() }, entry.id));
+    const drawn = entries.map((entry) => /* @__PURE__ */ jsx7(Fragment5, { children: entry.draw() }, entry.id));
     flushSync(() => {
       root.render(
         /* @__PURE__ */ jsxs5(Fragment6, { children: [
           drawn,
-          error === null ? null : /* @__PURE__ */ jsx6("p", { role: "alert", className: styles.alert, children: error })
+          error === null ? null : /* @__PURE__ */ jsx7("p", { role: "alert", className: styles.alert, children: error })
         ] })
       );
     });
@@ -800,7 +831,7 @@ function controls(host, signal) {
     redraw();
   }
   function add(node) {
-    put(() => /* @__PURE__ */ jsx6(Slot, { node }));
+    put(() => /* @__PURE__ */ jsx7(Slot, { node }));
   }
   function input(key, draw) {
     let value;
@@ -863,12 +894,12 @@ function controls(host, signal) {
     return request;
   }
   function text(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx6(TextField2, { bound, spellCheck: "false", ...options }));
+    input(key, (bound) => /* @__PURE__ */ jsx7(TextField2, { bound, spellCheck: "false", ...options }));
   }
   function number(key, options) {
     let maxValue = options.maxValue;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx6(NumberField2, { bound, ...options, maxValue, outdated }));
+    input(key, (bound) => /* @__PURE__ */ jsx7(NumberField2, { bound, ...options, maxValue, outdated }));
     return {
       setMaxValue(next) {
         maxValue = next;
@@ -883,7 +914,7 @@ function controls(host, signal) {
   function comboBox(key, options) {
     let items = options.items;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx6(
+    input(key, (bound) => /* @__PURE__ */ jsx7(
       ComboBox2,
       {
         bound,
@@ -895,7 +926,7 @@ function controls(host, signal) {
         isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,
-        children: (item) => /* @__PURE__ */ jsx6(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
+        children: (item) => /* @__PURE__ */ jsx7(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
       }
     ));
     return {
@@ -910,7 +941,7 @@ function controls(host, signal) {
     };
   }
   function checkbox(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx6(Checkbox, { bound, label: options.label }));
+    input(key, (bound) => /* @__PURE__ */ jsx7(Checkbox, { bound, label: options.label }));
   }
   function cleanup() {
     if (ended) return;
@@ -927,7 +958,7 @@ function Slot({ node }) {
   useLayoutEffect(() => {
     ref.current?.replaceChildren(node);
   }, [node]);
-  return /* @__PURE__ */ jsx6("div", { ref, className: "bc:contents" });
+  return /* @__PURE__ */ jsx7("div", { ref, className: "bc:contents" });
 }
 export {
   PAUSE,

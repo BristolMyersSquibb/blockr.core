@@ -378,19 +378,30 @@ var Boundary = class extends Component {
 // srcts/aria/index.ts
 import {
   Button,
+  Cell,
+  CheckboxButton,
+  CheckboxField,
   Collection,
+  Column,
+  ColumnResizer,
   ComboBox,
   ComboBoxStateContext,
   composeRenderProps,
   Dialog,
   DialogTrigger,
+  DropIndicator,
   FieldError,
+  GridList,
+  GridListHeader,
+  GridListItem,
+  GridListSection,
   Group,
   Header,
   Heading,
   Input,
   Keyboard,
   Label,
+  Link,
   ListBox,
   ListBoxItem,
   ListBoxSection,
@@ -401,16 +412,31 @@ import {
   MenuTrigger,
   Modal,
   ModalOverlay,
+  NavigationTree,
+  NavigationTreeHeader,
+  NavigationTreeItem,
+  NavigationTreeItemContent,
+  NavigationTreeSection,
   NumberField,
   NumberFieldStateContext,
   Popover,
+  ResizableTableContainer,
+  Row,
+  Table,
+  TableBody,
+  TableHeader,
   Tag,
   TagGroup,
   TagList,
   Text,
   TextArea,
   TextField,
+  Tree,
+  TreeItem,
+  TreeItemContent,
+  useDragAndDrop,
   useFilter,
+  useTableOptions,
   Virtualizer
 } from "react-aria-components";
 
@@ -439,6 +465,9 @@ import { jsx as jsx2 } from "react/jsx-runtime";
 function Button2({ variant = "primary", className, ...props }) {
   return /* @__PURE__ */ jsx2(Button, { ...props, className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`) });
 }
+
+// srcts/inputs/combobox.tsx
+import { useContext, useRef as useRef2, useState as useState3 } from "react";
 
 // srcts/inputs/inputs.tsx
 import { useState as useState2 } from "react";
@@ -488,7 +517,6 @@ function useTyped(bound) {
 }
 
 // srcts/inputs/combobox.tsx
-import { useContext, useRef as useRef2, useState as useState3 } from "react";
 import { Fragment as Fragment2, jsx as jsx4, jsxs as jsxs2 } from "react/jsx-runtime";
 function ComboBox2(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -813,12 +841,23 @@ var HEADING = "bc:box-border bc:h-[28px] bc:bg-bg-raised bc:px-2.5 bc:pt-2 bc:pb
 var ROW = "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2.5 bc:text-sm bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-focus-visible:outline bc:data-focus-visible:outline-1 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:[&_[slot=description]]:min-w-0 bc:[&_[slot=description]]:flex-1 bc:[&_[slot=description]]:truncate bc:[&_[slot=description]]:text-[13px] bc:[&_[slot=description]]:text-text-muted";
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
+// srcts/inputs/checkbox.tsx
+import { jsx as jsx5 } from "react/jsx-runtime";
+function SelectionCheckbox() {
+  return /* @__PURE__ */ jsx5(CheckboxField, { slot: "selection", className: "bc:flex", children: /* @__PURE__ */ jsx5(CheckboxButton, { className: BUTTON, children: ({ isSelected, isIndeterminate }) => /* @__PURE__ */ jsx5("span", { className: BOX, children: isIndeterminate ? /* @__PURE__ */ jsx5(Dash, {}) : isSelected ? /* @__PURE__ */ jsx5(Tick, {}) : null }) }) });
+}
+function Dash() {
+  return /* @__PURE__ */ jsx5("svg", { width: "14", height: "14", viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx5("path", { d: "M4 8h8" }) });
+}
+var BUTTON = "bc:group bc:flex bc:cursor-default bc:items-center bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:[-webkit-tap-highlight-color:transparent] bc:data-disabled:opacity-50";
+var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-default bc:text-text-on-accent bc:outline-offset-2 bc:group-data-focus-visible:outline-2 bc:group-data-focus-visible:outline-border-accent bc:group-data-selected:border-bg-accent bc:group-data-selected:bg-bg-accent bc:group-data-indeterminate:border-bg-accent bc:group-data-indeterminate:bg-bg-accent bc:forced-colors:group-data-selected:bg-[Highlight]";
+
 // srcts/inputs/numberfield.tsx
 import { useContext as useContext2, useEffect, useRef as useRef3, useState as useState4 } from "react";
-import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs3 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
-  return bound === void 0 ? /* @__PURE__ */ jsx5(Drawn2, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx5(BoundNumber, { ...props, maxValue: largest, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx6(Drawn2, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx6(BoundNumber, { ...props, maxValue: largest, bound });
 }
 function BoundNumber({
   bound,
@@ -840,7 +879,7 @@ function BoundNumber({
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
   return /* @__PURE__ */ jsxs3(Fragment3, { children: [
-    /* @__PURE__ */ jsx5(
+    /* @__PURE__ */ jsx6(
       Drawn2,
       {
         ...props,
@@ -873,7 +912,7 @@ function BoundNumber({
           setKept((now) => now?.typing === true ? null : now);
           onBlur?.(event);
         },
-        watch: /* @__PURE__ */ jsx5(
+        watch: /* @__PURE__ */ jsx6(
           Watch,
           {
             keystrokes,
@@ -885,7 +924,7 @@ function BoundNumber({
         )
       }
     ),
-    /* @__PURE__ */ jsx5(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx6(Refusal, { error: bound.error })
   ] });
 }
 function Watch({ keystrokes, onType }) {
@@ -909,21 +948,21 @@ function inRange(value, min, max, step) {
 }
 function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, watch, className, onInput, ...props }) {
   return /* @__PURE__ */ jsxs3(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx5(Label, { className: styles.label, children: label }),
+    label === void 0 ? null : /* @__PURE__ */ jsx6(Label, { className: styles.label, children: label }),
     /* @__PURE__ */ jsxs3(Group, { className: FIELD2, children: [
-      /* @__PURE__ */ jsx5(Input, { placeholder, onInput, className: INPUT2 }),
+      /* @__PURE__ */ jsx6(Input, { placeholder, onInput, className: INPUT2 }),
       /* @__PURE__ */ jsxs3("div", { className: STEPPERS, children: [
-        /* @__PURE__ */ jsx5(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx5(Chevron2, { up: true }) }),
-        /* @__PURE__ */ jsx5(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx5(Chevron2, { up: false }) })
+        /* @__PURE__ */ jsx6(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx6(Chevron2, { up: true }) }),
+        /* @__PURE__ */ jsx6(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx6(Chevron2, { up: false }) })
       ] })
     ] }),
-    /* @__PURE__ */ jsx5(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx5(FieldError, { className: styles.alert, children: errorMessage2 }),
+    /* @__PURE__ */ jsx6(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx6(FieldError, { className: styles.alert, children: errorMessage2 }),
     watch
   ] });
 }
 function Chevron2({ up }) {
-  return /* @__PURE__ */ jsx5(
+  return /* @__PURE__ */ jsx6(
     "svg",
     {
       width: "10",
@@ -935,7 +974,7 @@ function Chevron2({ up }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx5("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
+      children: /* @__PURE__ */ jsx6("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
     }
   );
 }
@@ -945,15 +984,15 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/textfield.tsx
-import { Fragment as Fragment4, jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx7, jsxs as jsxs4 } from "react/jsx-runtime";
 function TextField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx6(Drawn3, { ...props }) : /* @__PURE__ */ jsx6(BoundText, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx7(Drawn3, { ...props }) : /* @__PURE__ */ jsx7(BoundText, { ...props, bound });
 }
 function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
   const [text, typed] = useTyped(bound);
   const lines = props.lines ?? 1;
   return /* @__PURE__ */ jsxs4(Fragment4, { children: [
-    /* @__PURE__ */ jsx6(
+    /* @__PURE__ */ jsx7(
       Drawn3,
       {
         ...props,
@@ -976,25 +1015,25 @@ function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx6(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
   ] });
 }
 function Drawn3({ label, description, errorMessage: errorMessage2, placeholder, lines = 1, className, ...props }) {
   return /* @__PURE__ */ jsxs4(TextField, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx6(Label, { className: styles.label, children: label }),
-    lines > 1 ? /* @__PURE__ */ jsx6(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx6(Input, { placeholder, className: styles.box }),
-    /* @__PURE__ */ jsx6(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx6(FieldError, { className: styles.alert, children: errorMessage2 })
+    label === void 0 ? null : /* @__PURE__ */ jsx7(Label, { className: styles.label, children: label }),
+    lines > 1 ? /* @__PURE__ */ jsx7(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx7(Input, { placeholder, className: styles.box }),
+    /* @__PURE__ */ jsx7(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx7(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 
 // srcts/overlays/dialog.tsx
-import { jsx as jsx7 } from "react/jsx-runtime";
+import { jsx as jsx8 } from "react/jsx-runtime";
 function Modal2({ className, ...props }) {
-  return /* @__PURE__ */ jsx7(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx7("div", { className: CENTER, children: /* @__PURE__ */ jsx7(Modal, { ...props, className: composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
+  return /* @__PURE__ */ jsx8(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx8("div", { className: CENTER, children: /* @__PURE__ */ jsx8(Modal, { ...props, className: composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
 }
 function Dialog2({ className, ...props }) {
-  return /* @__PURE__ */ jsx7(Dialog, { ...props, className: `${DIALOG} ${className ?? ""}` });
+  return /* @__PURE__ */ jsx8(Dialog, { ...props, className: `${DIALOG} ${className ?? ""}` });
 }
 var OVERLAY = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
 var CENTER = "bc:sticky bc:top-0 bc:left-0 bc:box-border bc:flex bc:h-(--visual-viewport-height) bc:w-full bc:items-center bc:justify-center bc:p-4";
@@ -1005,39 +1044,39 @@ var DIALOG = "bc:relative bc:box-border bc:max-h-[inherit] bc:p-4 bc:outline-non
 import { Children } from "react";
 
 // srcts/overlays/popover.tsx
-import { jsx as jsx8 } from "react/jsx-runtime";
+import { jsx as jsx9 } from "react/jsx-runtime";
 function Popover2({ className, offset = 4, ...props }) {
-  return /* @__PURE__ */ jsx8(Popover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx9(Popover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
 }
 var POPOVER = "bc:overflow-auto bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-lg bc:outline-none bc:dark:text-gray-100";
 
 // srcts/overlays/menu.tsx
-import { Fragment as Fragment5, jsx as jsx9, jsxs as jsxs5 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx10, jsxs as jsxs5 } from "react/jsx-runtime";
 function MenuTrigger2({ placement, children, ...props }) {
   const [trigger, menu] = Children.toArray(children);
   return /* @__PURE__ */ jsxs5(MenuTrigger, { ...props, children: [
     trigger,
-    /* @__PURE__ */ jsx9(Popover2, { placement, className: "bc:min-w-44", children: menu })
+    /* @__PURE__ */ jsx10(Popover2, { placement, className: "bc:min-w-44", children: menu })
   ] });
 }
 function Menu2({ className, ...props }) {
-  return /* @__PURE__ */ jsx9(Menu, { ...props, className: composeRenderProps(className, (given) => `${MENU} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx10(Menu, { ...props, className: composeRenderProps(className, (given) => `${MENU} ${given ?? ""}`) });
 }
 function MenuItem2(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
-  return /* @__PURE__ */ jsx9(MenuItem, { ...props, textValue, className: composeRenderProps(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps(props.children, (children, { selectionMode, isSelected }) => /* @__PURE__ */ jsxs5(Fragment5, { children: [
-    selectionMode === "none" ? null : /* @__PURE__ */ jsx9("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx9(Tick2, {}) : null }),
-    /* @__PURE__ */ jsx9("span", { className: CONTENT, children })
+  return /* @__PURE__ */ jsx10(MenuItem, { ...props, textValue, className: composeRenderProps(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps(props.children, (children, { selectionMode, isSelected }) => /* @__PURE__ */ jsxs5(Fragment5, { children: [
+    selectionMode === "none" ? null : /* @__PURE__ */ jsx10("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx10(Tick2, {}) : null }),
+    /* @__PURE__ */ jsx10("span", { className: CONTENT, children })
   ] })) });
 }
 function MenuSection2({ title, items, children, ...props }) {
   return /* @__PURE__ */ jsxs5(MenuSection, { ...props, children: [
-    title === void 0 ? null : /* @__PURE__ */ jsx9(Header, { className: HEADING2, children: title }),
-    /* @__PURE__ */ jsx9(Collection, { items, children })
+    title === void 0 ? null : /* @__PURE__ */ jsx10(Header, { className: HEADING2, children: title }),
+    /* @__PURE__ */ jsx10(Collection, { items, children })
   ] });
 }
 function Tick2() {
-  return /* @__PURE__ */ jsx9(
+  return /* @__PURE__ */ jsx10(
     "svg",
     {
       width: "14",
@@ -1049,7 +1088,7 @@ function Tick2() {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx9("path", { d: "M3.5 8.5l3 3 6-7" })
+      children: /* @__PURE__ */ jsx10("path", { d: "M3.5 8.5l3 3 6-7" })
     }
   );
 }
@@ -1057,15 +1096,210 @@ var MENU = "bc:grid bc:max-h-[inherit] bc:gap-0.5 bc:overflow-auto bc:p-1 bc:out
 var ITEM = "bc:box-border bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var HEADING2 = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
+
+// srcts/dnd/dnd.tsx
+import { jsx as jsx11, jsxs as jsxs6 } from "react/jsx-runtime";
+function useDragAndDrop2(options) {
+  return useDragAndDrop({ renderDropIndicator: (target) => /* @__PURE__ */ jsx11(DropIndicator2, { target }), ...options });
+}
+function DropIndicator2(props) {
+  return /* @__PURE__ */ jsx11(DropIndicator, { ...props, className: composeRenderProps(props.className, (given) => `${INDICATOR} ${given ?? ""}`) });
+}
+function DragButton() {
+  return /* @__PURE__ */ jsx11(Button2, { slot: "drag", variant: "quiet", children: /* @__PURE__ */ jsx11(Grip, {}) });
+}
+function Grip() {
+  return /* @__PURE__ */ jsxs6("svg", { width: "12", height: "12", viewBox: "0 0 12 12", fill: "currentColor", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx11("circle", { cx: "4", cy: "2.5", r: "1" }),
+    /* @__PURE__ */ jsx11("circle", { cx: "8", cy: "2.5", r: "1" }),
+    /* @__PURE__ */ jsx11("circle", { cx: "4", cy: "6", r: "1" }),
+    /* @__PURE__ */ jsx11("circle", { cx: "8", cy: "6", r: "1" }),
+    /* @__PURE__ */ jsx11("circle", { cx: "4", cy: "9.5", r: "1" }),
+    /* @__PURE__ */ jsx11("circle", { cx: "8", cy: "9.5", r: "1" })
+  ] });
+}
+var INDICATOR = "bc:outline-none bc:data-drop-target:outline-1 bc:data-drop-target:outline-bg-accent bc:forced-colors:data-drop-target:outline-[Highlight]";
+
+// srcts/gridlist/gridlist.tsx
+import { Fragment as Fragment6, jsx as jsx12, jsxs as jsxs7 } from "react/jsx-runtime";
+function GridList2(props) {
+  return /* @__PURE__ */ jsx12(GridList, { ...props, className: composeRenderProps(props.className, (given) => `${LIST2} ${given ?? ""}`) });
+}
+function GridListItem2({ children, ...props }) {
+  const textValue = props.textValue ?? (typeof children === "string" ? children : void 0);
+  return /* @__PURE__ */ jsx12(GridListItem, { ...props, textValue, className: composeRenderProps(props.className, (given) => `${ITEM2} ${given ?? ""}`), children: composeRenderProps(children, (children2, { selectionMode, selectionBehavior, allowsDragging }) => /* @__PURE__ */ jsxs7(Fragment6, { children: [
+    allowsDragging && /* @__PURE__ */ jsx12(DragButton, {}),
+    selectionMode !== "none" && selectionBehavior === "toggle" && /* @__PURE__ */ jsx12(SelectionCheckbox, {}),
+    children2
+  ] })) });
+}
+function GridListHeader2({ className, ...props }) {
+  return /* @__PURE__ */ jsx12(GridListHeader, { ...props, className: `${HEADER} ${className ?? ""}` });
+}
+var LIST2 = "bc:relative bc:box-border bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default bc:outline-none bc:data-[orientation=horizontal]:flex bc:data-[orientation=horizontal]:flex-row bc:data-[orientation=horizontal]:flex-nowrap bc:data-empty:flex bc:data-empty:items-center bc:data-empty:justify-center bc:data-empty:p-2 bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var ITEM2 = "bc:relative bc:flex bc:cursor-default bc:select-none bc:items-center bc:gap-2 bc:border-transparent bc:px-2 bc:py-1 bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:z-20 bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-disabled:z-10 bc:[[data-orientation=vertical]_&]:border-t bc:[[data-orientation=vertical]_&]:border-t-border-default/40 bc:[[data-orientation=vertical]_&]:first:border-t-0 bc:[[data-orientation=vertical]_&]:first:rounded-t-lg bc:[[data-orientation=vertical]_&]:last:rounded-b-lg bc:[[data-orientation=horizontal]_&]:shrink-0 bc:[[data-orientation=horizontal]_&]:border-l bc:[[data-orientation=horizontal]_&]:border-l-border-default/40 bc:[[data-orientation=horizontal]_&]:first:border-l-0 bc:[[data-orientation=horizontal]_&]:first:rounded-s-lg bc:[[data-orientation=horizontal]_&]:last:rounded-e-lg";
+var HEADER = "bc:relative bc:z-10 bc:-mt-px bc:border-y bc:border-border-default bc:bg-bg-subtle bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted";
+
+// srcts/table/table.tsx
+import { jsx as jsx13, jsxs as jsxs8 } from "react/jsx-runtime";
+function Table2({ className, ...props }) {
+  return /* @__PURE__ */ jsx13(ResizableTableContainer, { onScroll: props.onScroll, className: `${BOX2} ${className ?? ""}`, children: /* @__PURE__ */ jsx13(Table, { ...props, className: TABLE }) });
+}
+function Column2({ align = "start", ...props }) {
+  return /* @__PURE__ */ jsx13(Column, { ...props, className: composeRenderProps(props.className, (given) => `${COLUMN} ${given ?? ""}`), children: composeRenderProps(props.children, (children, { allowsSorting, sortDirection }) => /* @__PURE__ */ jsxs8("div", { className: "bc:flex bc:items-center", children: [
+    /* @__PURE__ */ jsxs8(Group, { role: "presentation", tabIndex: -1, className: `${HEADING3} ${align === "end" ? "bc:flex-row-reverse bc:text-end" : ""}`, children: [
+      /* @__PURE__ */ jsx13("span", { className: "bc:min-w-0 bc:flex-1 bc:truncate", children }),
+      allowsSorting && /* @__PURE__ */ jsx13("span", { className: `bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center ${sortDirection === "descending" ? "bc:rotate-180" : ""}`, children: sortDirection === void 0 ? null : /* @__PURE__ */ jsx13(Arrow, {}) })
+    ] }),
+    props.width === void 0 && /* @__PURE__ */ jsx13(ColumnResizer, { className: RESIZER })
+  ] })) });
+}
+function TableHeader2({ columns, children, ...props }) {
+  const { selectionBehavior, selectionMode, allowsDragging } = useTableOptions();
+  return /* @__PURE__ */ jsxs8(TableHeader, { ...props, className: composeRenderProps(props.className, (given) => `${HEADER2} ${given ?? ""}`), children: [
+    allowsDragging && /* @__PURE__ */ jsx13(Column, { width: 28, minWidth: 28, className: PART }),
+    selectionBehavior === "toggle" && /* @__PURE__ */ jsx13(Column, { width: 36, minWidth: 36, className: PART, children: selectionMode === "multiple" && /* @__PURE__ */ jsx13(SelectionCheckbox, {}) }),
+    /* @__PURE__ */ jsx13(Collection, { items: columns, children })
+  ] });
+}
+function TableBody2(props) {
+  return /* @__PURE__ */ jsx13(TableBody, { ...props, className: composeRenderProps(props.className, (given) => `${BODY} ${given ?? ""}`) });
+}
+function Row2({ id, columns, children, ...props }) {
+  const { selectionBehavior, allowsDragging } = useTableOptions();
+  return /* @__PURE__ */ jsxs8(Row, { id, ...props, className: composeRenderProps(props.className, (given) => `${ROW2} ${given ?? ""}`), children: [
+    allowsDragging && /* @__PURE__ */ jsx13(Cell2, { children: /* @__PURE__ */ jsx13(DragButton, {}) }),
+    selectionBehavior === "toggle" && /* @__PURE__ */ jsx13(Cell2, { children: /* @__PURE__ */ jsx13(SelectionCheckbox, {}) }),
+    /* @__PURE__ */ jsx13(Collection, { items: columns, children })
+  ] });
+}
+function Cell2(props) {
+  return /* @__PURE__ */ jsx13(Cell, { ...props, className: composeRenderProps(props.className, (given) => `${CELL} ${given ?? ""}`) });
+}
+function Arrow() {
+  return /* @__PURE__ */ jsx13(
+    "svg",
+    {
+      width: "14",
+      height: "14",
+      viewBox: "0 0 16 16",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.5",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      className: "bc:text-text-muted bc:forced-colors:text-[ButtonText]",
+      children: /* @__PURE__ */ jsx13("path", { d: "M8 13V3M4 7l4-4 4 4" })
+    }
+  );
+}
+var BOX2 = "bc:relative bc:box-border bc:w-full bc:scroll-pt-[2.281rem] bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default";
+var TABLE = "bc:box-border bc:border-separate bc:border-spacing-0 bc:has-[>[data-empty]]:h-full";
+var COLUMN = "bc:relative bc:box-border bc:h-1 bc:cursor-default bc:text-start bc:align-bottom bc:text-sm bc:font-semibold bc:text-text-default bc:outline-none bc:hover:z-20 bc:focus-within:z-20 bc:data-allows-sorting:cursor-pointer";
+var HEADING3 = "bc:box-border bc:flex bc:min-h-5 bc:min-w-0 bc:flex-1 bc:items-center bc:gap-1 bc:overflow-hidden bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var RESIZER = "bc:absolute bc:top-1/2 bc:-right-2 bc:z-10 bc:box-content bc:h-5 bc:w-px bc:-translate-y-1/2 bc:cursor-col-resize bc:rounded-xs bc:bg-border-default bc:bg-clip-content bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-resizing:w-0.5 bc:data-resizing:bg-bg-accent bc:data-resizing:pl-[7px] bc:forced-colors:bg-[ButtonBorder] bc:forced-colors:data-resizing:bg-[Highlight]";
+var HEADER2 = "bc:sticky bc:top-0 bc:z-10 bc:rounded-t-lg bc:bg-bg-raised bc:forced-colors:bg-[Canvas] bc:[&>tr>th]:border-b bc:[&>tr>th]:border-border-default";
+var PART = "bc:box-border bc:px-2 bc:py-1 bc:text-start";
+var BODY = "bc:data-empty:text-center bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted";
+var ROW2 = "bc:group/row bc:relative bc:cursor-default bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-selection-mode:select-none bc:last:rounded-b-lg";
+var CELL = "bc:box-border bc:truncate bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:group-last/row:border-b-0 bc:group-last/row:first:rounded-bl-lg bc:group-last/row:last:rounded-br-lg";
+
+// srcts/tree/navigation-tree.tsx
+import { createContext, useContext as useContext3 } from "react";
+
+// srcts/tree/tree.tsx
+import { jsx as jsx14, jsxs as jsxs9 } from "react/jsx-runtime";
+function Tree2(props) {
+  return /* @__PURE__ */ jsx14(Tree, { ...props, className: composeRenderProps(props.className, (given) => `${TREE} ${given ?? ""}`) });
+}
+function TreeItem2({ title, children, ...props }) {
+  return /* @__PURE__ */ jsxs9(TreeItem, { textValue: title, ...props, className: composeRenderProps(props.className, (given) => `${ITEM3} ${given ?? ""}`), children: [
+    /* @__PURE__ */ jsx14(TreeItemContent, { children: ({ selectionMode, selectionBehavior, hasChildItems, isExpanded, allowsDragging }) => /* @__PURE__ */ jsxs9("div", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-1", children: [
+      allowsDragging && /* @__PURE__ */ jsx14(DragButton, {}),
+      selectionMode !== "none" && selectionBehavior === "toggle" && /* @__PURE__ */ jsx14(SelectionCheckbox, {}),
+      /* @__PURE__ */ jsx14("div", { className: INDENT }),
+      hasChildItems ? /* @__PURE__ */ jsx14(Button, { slot: "chevron", className: EXPAND, children: /* @__PURE__ */ jsx14(Chevron3, { expanded: isExpanded }) }) : /* @__PURE__ */ jsx14("div", { className: "bc:size-6 bc:shrink-0" }),
+      /* @__PURE__ */ jsx14("span", { className: "bc:min-w-0 bc:truncate", children: title })
+    ] }) }),
+    children
+  ] });
+}
+function Chevron3({ expanded }) {
+  return /* @__PURE__ */ jsx14(
+    "svg",
+    {
+      width: "14",
+      height: "14",
+      viewBox: "0 0 16 16",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.5",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      className: `bc:text-text-muted bc:transition-transform bc:motion-reduce:transition-none ${expanded ? "bc:rotate-90" : ""}`,
+      children: /* @__PURE__ */ jsx14("path", { d: "M6 3.5 10.5 8 6 12.5" })
+    }
+  );
+}
+var TREE = "bc:relative bc:box-border bc:max-w-full bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:font-sans bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var ITEM3 = "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:border-t bc:border-transparent bc:px-2 bc:py-0.5 bc:font-sans bc:text-sm bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:first:rounded-t-lg bc:first:border-t-0 bc:last:rounded-b-lg bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:z-20 bc:data-selected:bg-bg-accent/10 bc:data-disabled:z-10 bc:data-disabled:opacity-50";
+var INDENT = "bc:w-[calc((var(--tree-item-level)_-_1)_*_var(--bc-spacing)_*_3)] bc:shrink-0";
+var EXPAND = "bc:flex bc:size-6 bc:shrink-0 bc:cursor-default bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:outline-none bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:opacity-50";
+
+// srcts/tree/navigation-tree.tsx
+import { Fragment as Fragment7, jsx as jsx15, jsxs as jsxs10 } from "react/jsx-runtime";
+var IndicatorContext = createContext(void 0);
+var RenderLinkContext = createContext(void 0);
+function NavigationTree2({ renderLink, ...props }) {
+  return /* @__PURE__ */ jsx15(RenderLinkContext.Provider, { value: renderLink, children: /* @__PURE__ */ jsx15(NavigationTree, { ...props, className: composeRenderProps(props.className, (given) => `${TREE2} ${given ?? ""}`) }) });
+}
+function NavigationTreeItem2(props) {
+  return /* @__PURE__ */ jsx15(NavigationTreeItem, { ...props, className: composeRenderProps(props.className, (given) => `${ITEM4} ${given ?? ""}`) });
+}
+function NavigationTreeItemContent2({ children }) {
+  return /* @__PURE__ */ jsx15(NavigationTreeItemContent, { children: ({ level, hasChildItems, isExpanded, isCurrent, isCurrentAncestor }) => /* @__PURE__ */ jsxs10(Fragment7, { children: [
+    level > 1 && /* @__PURE__ */ jsx15("div", { className: "bc:shrink-0", style: { width: `calc((${String(level)} - 1) * var(--bc-spacing) * 4)` } }),
+    /* @__PURE__ */ jsx15(IndicatorContext.Provider, { value: isCurrent ? "current" : isCurrentAncestor && !isExpanded ? "ancestor" : void 0, children }),
+    /* @__PURE__ */ jsx15(Button, { slot: "chevron", isDisabled: !hasChildItems, className: `${EXPAND2} ${hasChildItems ? "" : "bc:invisible"}`, children: /* @__PURE__ */ jsx15(Chevron3, { expanded: isExpanded }) })
+  ] }) });
+}
+function NavigationTreeSection2(props) {
+  return /* @__PURE__ */ jsx15(NavigationTreeSection, { ...props, className: "bc:not-first:mt-4" });
+}
+function NavigationTreeHeader2(props) {
+  return /* @__PURE__ */ jsx15(NavigationTreeHeader, { ...props, className: "bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted" });
+}
+function NavigationTreeItemLink({ render, children, ...props }) {
+  const indicator = useContext3(IndicatorContext);
+  const given = useContext3(RenderLinkContext);
+  return /* @__PURE__ */ jsx15(Link, { render: render ?? given, ...props, className: LINK, children: ({ isHovered }) => /* @__PURE__ */ jsxs10(Fragment7, { children: [
+    /* @__PURE__ */ jsx15("span", { "aria-hidden": "true", "data-indicator": indicator ?? (isHovered ? "hover" : void 0), className: MARK }),
+    children
+  ] }) });
+}
+var TREE2 = "bc:relative bc:box-border bc:flex bc:max-w-full bc:flex-col bc:gap-0.5 bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:font-sans bc:text-text-default bc:outline-none";
+var ITEM4 = "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:rounded-md bc:font-sans bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:opacity-50";
+var LINK = "bc:relative bc:flex bc:min-w-0 bc:flex-1 bc:cursor-pointer bc:items-center bc:gap-2 bc:px-2 bc:py-1.5 bc:text-sm bc:text-current bc:no-underline bc:outline-none bc:group-[:not([data-href])]:cursor-default bc:data-disabled:cursor-default";
+var MARK = "bc:absolute bc:start-0.5 bc:top-1/2 bc:h-[1lh] bc:w-0.5 bc:-translate-y-1/2 bc:rounded-full bc:forced-color-adjust-none bc:group-data-href:data-[indicator=hover]:bg-border-default bc:data-[indicator=current]:bg-bg-accent bc:data-[indicator=ancestor]:size-1 bc:data-[indicator=ancestor]:bg-border-default bc:forced-colors:data-indicator:bg-[Highlight]";
+var EXPAND2 = "bc:flex bc:size-6 bc:shrink-0 bc:cursor-default bc:items-center bc:justify-center bc:rounded-md bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 export {
   Button2 as Button,
+  Cell2 as Cell,
   Checkbox,
+  Column2 as Column,
   ComboBox2 as ComboBox,
   ComboBoxItem,
   ComboBoxSection,
   Dialog2 as Dialog,
   DialogTrigger,
+  DropIndicator2 as DropIndicator,
   Field,
+  GridList2 as GridList,
+  GridListHeader2 as GridListHeader,
+  GridListItem2 as GridListItem,
+  GridListSection,
   Heading,
   Keyboard,
   Menu2 as Menu,
@@ -1073,14 +1307,27 @@ export {
   MenuSection2 as MenuSection,
   MenuTrigger2 as MenuTrigger,
   Modal2 as Modal,
+  NavigationTree2 as NavigationTree,
+  NavigationTreeHeader2 as NavigationTreeHeader,
+  NavigationTreeItem2 as NavigationTreeItem,
+  NavigationTreeItemContent2 as NavigationTreeItemContent,
+  NavigationTreeItemLink,
+  NavigationTreeSection2 as NavigationTreeSection,
   NumberField2 as NumberField,
   Popover2 as Popover,
+  Row2 as Row,
   Stack,
+  Table2 as Table,
+  TableBody2 as TableBody,
+  TableHeader2 as TableHeader,
   Text,
   TextField2 as TextField,
+  Tree2 as Tree,
+  TreeItem2 as TreeItem,
   outputRenderer,
   reactModule,
   useBoard,
+  useDragAndDrop2 as useDragAndDrop,
   useNotified,
   useOutput,
   useRequest,

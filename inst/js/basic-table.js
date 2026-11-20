@@ -1,6 +1,6 @@
 // srcts/modules/basic-table/index.tsx
 import { useEffect, useRef } from "react";
-import { outputRenderer } from "@blockr/core/react";
+import { Cell, Column, outputRenderer, Row, Table as SdkTable, TableBody, TableHeader } from "@blockr/core/react";
 
 // srcts/modules/basic-table/table.ts
 var NUMBERS = /* @__PURE__ */ new Set(["numeric", "integer"]);
@@ -83,21 +83,19 @@ function Table({ output, params, error, host }) {
     tried.current = again.tried;
     host.setParams(paramsFor(1, again.sort, params));
   }, [host, error, params]);
+  const sortBy = (next) => {
+    const j = Number(String(next.column).slice("column ".length));
+    const column = output.columns[j];
+    if (column !== void 0) ask(1, nextSort(j === sorted ? params.sort : void 0, column.name));
+  };
   return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:min-h-0 bc:flex-col bc:gap-2", children: [
-    /* @__PURE__ */ jsx("div", { className: "bc:min-h-0 bc:overflow-auto", children: /* @__PURE__ */ jsxs("table", { className: "bc:w-full bc:border-collapse bc:text-left bc:text-sm", children: [
-      /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsx("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ jsx(
-        Header,
-        {
-          column,
-          sort: j === sorted ? params.sort : void 0,
-          onSort: (sort) => {
-            ask(1, sort);
-          }
-        },
-        j
-      )) }) }),
-      /* @__PURE__ */ jsx("tbody", { children: output.rows.map((row, i) => /* @__PURE__ */ jsx("tr", { children: output.columns.map((column, j) => /* @__PURE__ */ jsx(Cell, { column, value: row[j] ?? null }, j)) }, i)) })
-    ] }) }),
+    /* @__PURE__ */ jsxs(SdkTable, { "aria-label": "Table", className: "bc:min-h-0", sortDescriptor: descriptor(sorted, params.sort), onSortChange: sortBy, children: [
+      /* @__PURE__ */ jsx(TableHeader, { children: output.columns.map((column, j) => /* @__PURE__ */ jsx(Column, { id: columnId(j), textValue: column.name, align: isNumber(column) ? "end" : "start", allowsSorting: true, isRowHeader: j === 0, children: /* @__PURE__ */ jsx(Heading, { column }) }, j)) }),
+      /* @__PURE__ */ jsx(TableBody, { children: output.rows.map((row, i) => /* @__PURE__ */ jsx(Row, { id: `row ${String(i)}`, children: output.columns.map((column, j) => {
+        const text = cellText(row[j] ?? null);
+        return /* @__PURE__ */ jsx(Cell, { textValue: text ?? "NA", className: isNumber(column) ? "bc:text-right bc:tabular-nums" : "", children: text ?? /* @__PURE__ */ jsx("span", { className: "bc:italic bc:text-text-muted", children: "NA" }) }, j);
+      }) }, i)) })
+    ] }),
     /* @__PURE__ */ jsx(
       Pager,
       {
@@ -110,31 +108,18 @@ function Table({ output, params, error, host }) {
     )
   ] });
 }
-function Header(props) {
-  const { column, sort, onSort } = props;
-  const number = isNumber(column);
-  const order = sort === void 0 ? "none" : sort.desc === true ? "descending" : "ascending";
-  return /* @__PURE__ */ jsx("th", { scope: "col", "aria-sort": order, className: "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom", children: /* @__PURE__ */ jsxs(
-    "button",
-    {
-      type: "button",
-      className: `bc:flex bc:w-full bc:cursor-pointer bc:items-end bc:gap-1 bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:[font:inherit] ${number ? "bc:justify-end bc:text-right" : "bc:text-left"}`,
-      onClick: () => {
-        onSort(nextSort(sort, column.name));
-      },
-      children: [
-        /* @__PURE__ */ jsxs("span", { className: `bc:flex bc:flex-col ${number ? "bc:items-end" : ""}`, children: [
-          /* @__PURE__ */ jsx("span", { className: "bc:font-medium", children: column.name }),
-          /* @__PURE__ */ jsx("span", { className: "bc:text-xs bc:font-normal bc:text-text-muted", children: column.class })
-        ] }),
-        /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: order === "none" ? "" : order === "descending" ? "\u2193" : "\u2191" })
-      ]
-    }
-  ) });
+function columnId(j) {
+  return `column ${String(j)}`;
 }
-function Cell({ column, value }) {
-  const text = cellText(value);
-  return /* @__PURE__ */ jsx("td", { className: `bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap ${isNumber(column) ? "bc:text-right bc:tabular-nums" : ""}`, children: text ?? /* @__PURE__ */ jsx("span", { className: "bc:italic bc:text-text-muted", children: "NA" }) });
+function descriptor(sorted, sort) {
+  if (sort === void 0 || sorted < 0) return void 0;
+  return { column: columnId(sorted), direction: sort.desc === true ? "descending" : "ascending" };
+}
+function Heading({ column }) {
+  return /* @__PURE__ */ jsxs("span", { className: `bc:flex bc:flex-col ${isNumber(column) ? "bc:items-end" : ""}`, children: [
+    /* @__PURE__ */ jsx("span", { className: "bc:max-w-full bc:truncate bc:font-medium", children: column.name }),
+    /* @__PURE__ */ jsx("span", { className: "bc:max-w-full bc:truncate bc:text-xs bc:font-normal bc:text-text-muted", children: column.class })
+  ] });
 }
 function Pager({ table, page, onPage }) {
   return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted", children: [

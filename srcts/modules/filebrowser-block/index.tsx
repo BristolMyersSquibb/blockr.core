@@ -1,7 +1,9 @@
 // The UI of the file browser block: it lists a directory of one of the
-// block's volumes through the request list_dir, opens a directory the user
-// clicks, and submits the path of a file the user clicks as the state arg
-// file_path.
+// block's volumes through the request list_dir, in a GridList of core's React
+// SDK, opens a directory the user clicks, and submits the path of a file the
+// user clicks as the state arg file_path.
+// The user moves through the list by the arrow keys too, and opens an entry by
+// Enter, as React Aria's GridList has it.
 // Which volume and which directory in it the browser shows is the module's
 // own.
 // It starts at the directory of the block's file, where the file lies in a
@@ -13,7 +15,7 @@
 
 import { Fragment, useState } from "react";
 import type { ReactElement } from "react";
-import { ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
+import { ComboBox, ComboBoxItem, GridList, GridListItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -37,11 +39,19 @@ interface Place {
   readonly dirs: readonly string[];
 }
 
-// The classes of the buttons that name a directory or a file,
-// those in the list stretching across it.
+// An entry of the list: the directory above, a directory or a file, with its
+// id, the text that the list shows, whether it is the block's file, and what
+// opening it does.
+interface Entry {
+  readonly id: string;
+  readonly text: string;
+  readonly current: boolean;
+  readonly open: () => void;
+}
+
+// The classes of the buttons that name a directory above the list.
 const link =
   "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
-const entry = `${link} bc:justify-self-stretch`;
 
 function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useValue(host, "volumes").value;
@@ -74,6 +84,40 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
     setPlace(next);
   };
+
+  const entries: Entry[] = [
+    ...(dirs.length > 0
+      ? [
+          {
+            id: "up",
+            text: "..",
+            current: false,
+            open: () => {
+              go({ volume, dirs: dirs.slice(0, -1) });
+            },
+          },
+        ]
+      : []),
+    ...listing.dirs.map((dir) => ({
+      id: `dir ${dir}`,
+      text: `${dir}/`,
+      current: false,
+      open: () => {
+        go({ volume, dirs: [...dirs, dir] });
+      },
+    })),
+    ...listing.files.map((name) => {
+      const at = root === undefined ? undefined : join(root, [...dirs, name]);
+      return {
+        id: `file ${name}`,
+        text: name,
+        current: at !== undefined && at === held,
+        open: () => {
+          if (at !== undefined) void file.commit(at);
+        },
+      };
+    }),
+  ];
 
   const names = Object.keys(volumes);
   return (
@@ -112,45 +156,23 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
           </Fragment>
         ))}
       </nav>
-      <ul className="bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0">
-        {loading ? (
-          <Note text="Loading…" />
-        ) : (
-          <>
-            {dirs.length > 0 && (
-              <Entry
-                text=".."
-                onClick={() => {
-                  go({ volume, dirs: dirs.slice(0, -1) });
-                }}
-              />
-            )}
-            {listing.dirs.map((dir) => (
-              <Entry
-                key={`dir ${dir}`}
-                text={`${dir}/`}
-                onClick={() => {
-                  go({ volume, dirs: [...dirs, dir] });
-                }}
-              />
-            ))}
-            {listing.files.map((name) => {
-              const at = root === undefined ? undefined : join(root, [...dirs, name]);
-              return (
-                <Entry
-                  key={`file ${name}`}
-                  text={name}
-                  current={at !== undefined && at === held}
-                  onClick={() => {
-                    if (at !== undefined) void file.commit(at);
-                  }}
-                />
-              );
-            })}
-            {!failed && listing.dirs.length + listing.files.length === 0 && <Note text="This directory is empty." />}
-          </>
+      {/* While R lists a place, the list holds no entry and says that it is
+          loading. Where the listing fails, it says nothing. */}
+      <GridList
+        aria-label="Files"
+        items={loading ? [] : entries}
+        onAction={(key) => {
+          entries.find((entry) => entry.id === key)?.open();
+        }}
+        renderEmptyState={() => (loading ? "Loading…" : failed ? null : "This directory is empty.")}
+        className="bc:max-h-64"
+      >
+        {(entry) => (
+          <GridListItem id={entry.id} textValue={entry.text} data-current={entry.current || undefined} className="bc:data-current:font-semibold">
+            {entry.text}
+          </GridListItem>
         )}
-      </ul>
+      </GridList>
       {/* Before a file is chosen, the block's status says what is missing. */}
       {held !== undefined && <p className={styles.hint}>{`Chosen: ${held}`}</p>}
       {file.error !== null && (
@@ -159,24 +181,6 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
         </p>
       )}
     </Stack>
-  );
-}
-
-function Entry({ text, current = false, onClick }: { text: string; current?: boolean; onClick: () => void }): ReactElement {
-  return (
-    <li className="bc:grid">
-      <button type="button" className={entry} aria-current={current ? "true" : undefined} onClick={onClick}>
-        {text}
-      </button>
-    </li>
-  );
-}
-
-function Note({ text }: { text: string }): ReactElement {
-  return (
-    <li className="bc:grid">
-      <p className={styles.hint}>{text}</p>
-    </li>
   );
 }
 

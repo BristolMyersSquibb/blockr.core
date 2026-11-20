@@ -5,10 +5,11 @@
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost } from "../../stubs/index.ts";
-import { find, texts } from "../../testing/inputs.ts";
+import { find, pressAndRelease, texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
+import { rowOf, rows, rowTexts } from "../../testing/rows.ts";
 import { labelled, picked } from "../../testing/select.ts";
 import * as browser from "./index.tsx";
 import type { State } from "./state.ts";
@@ -31,10 +32,11 @@ async function mounted(state: State) {
   const host = stubBlockHost<State>(fixture, { state });
   const view = await mountOnPage(browser, host);
   await settle();
-  const entries = (): string[] => texts(view.el, "li button");
+  const entries = (): string[] => rowTexts(view.el);
+  // Clicks an entry of the list, or a directory above it.
   const click = (text: string): void => {
-    const found = [...view.el.querySelectorAll("button")].find((button) => button.textContent === text);
-    if (found === undefined) throw new Error(`Found no button ${text}.`);
+    const found = [...view.el.querySelectorAll<HTMLElement>('button, [role="row"][data-key]')].find((node) => node.textContent === text);
+    if (found === undefined) throw new Error(`Found no button or row ${text}.`);
     found.click();
   };
   return { host, view, entries, click };
@@ -45,7 +47,7 @@ test("starts at the directory of the block's file, and marks the file", async ()
 
   expect(host.requested).toEqual([{ name: "list_dir", args: { volume: "here", path: "data" } }]);
   expect(entries()).toEqual(["..", "sales.csv"]);
-  expect(find(view.el, 'li [aria-current="true"]').textContent).toBe("sales.csv");
+  expect(find(view.el, '[role="row"][data-current]').textContent).toBe("sales.csv");
   expect(view.el.textContent).toContain("Chosen: ./data/sales.csv");
   expect(host.submitted).toEqual([]);
 });
@@ -87,11 +89,56 @@ test("opens the directory the user clicks, and submits the path of the file the 
   expect(host.submitted).toEqual([sales]);
 });
 
+test("moves through the entries by the arrow keys, and opens the one the user presses Enter on", async () => {
+  const { host, view, entries } = await mounted({ volumes });
+
+  await step(() => {
+    rowOf(view.el, "data/").focus();
+  });
+  await step(() => {
+    pressAndRelease(rowOf(view.el, "data/"), "ArrowDown");
+  });
+  expect(document.activeElement).toBe(rowOf(view.el, "notes.txt"));
+  await step(() => {
+    pressAndRelease(rowOf(view.el, "notes.txt"), "ArrowUp");
+  });
+  await step(() => {
+    pressAndRelease(rowOf(view.el, "data/"), "Enter");
+  });
+  await settle();
+
+  expect(host.requested.at(-1)).toEqual({ name: "list_dir", args: { volume: "here", path: "data" } });
+  expect(entries()).toEqual(["..", "sales.csv"]);
+  await step(() => {
+    pressAndRelease(rowOf(view.el, "sales.csv"), "Enter");
+  });
+  expect(host.submitted).toEqual([sales]);
+});
+
+test("says that a directory is empty where it holds no entry, and shows the directory above alone in one below the root", async () => {
+  // R lists every directory as empty.
+  const empty = async (state: State) => {
+    const host = stubBlockHost<State>(fixture, { state });
+    host.request = () => Promise.resolve({ dirs: [], files: [] }) as never;
+    const view = await mountOnPage(browser, host);
+    await settle();
+    return view.el;
+  };
+
+  const root = await empty({ volumes });
+  expect(rowTexts(root)).toEqual([]);
+  expect(find(root, '[role="grid"]').textContent).toBe("This directory is empty.");
+
+  const below = await empty(sales);
+  expect(rowTexts(below)).toEqual([".."]);
+  expect(below.textContent).not.toContain("This directory is empty.");
+});
+
 test("says that it is loading while R lists a place, and lists the place once R answers", async () => {
   const host = stubBlockHost<State>(fixture, { state: { volumes } });
   const release = holdRequests(host);
   const view = await mountOnPage(browser, host);
-  const entries = (): string[] => texts(view.el, "li button");
+  const entries = (): string[] => rowTexts(view.el);
   expect([entries(), view.el.textContent.includes("Loading…")]).toEqual([[], true]);
 
   release();
@@ -99,7 +146,7 @@ test("says that it is loading while R lists a place, and lists the place once R 
   expect([entries(), view.el.textContent.includes("Loading…")]).toEqual([["data/", "notes.txt"], false]);
 
   await step(() => {
-    find(view.el, "li button").click();
+    rows(view.el)[0]?.click();
   });
   expect([entries(), view.el.textContent.includes("Loading…")]).toEqual([[], true]);
 

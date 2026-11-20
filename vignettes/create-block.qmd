@@ -594,6 +594,10 @@ The SDK holds these:
   Given `value` and `onChange` in place of `bound`, it picks for its caller instead, as in the UI of a plugin.
 - The button `Button`, and the overlays: `Modal`, `Dialog`, `DialogTrigger` and `Heading`, `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with `Keyboard` for an item's shortcut, and `Popover`, which are React Aria's in core's theme.
   React Aria draws each overlay in a portal at the end of the page's body, and opens a menu or a dialog of a trigger from its `Button`.
+- The table `Table`, with `TableHeader`, `Column`, `TableBody`, `Row` and `Cell`, the tree `Tree`, with `TreeItem`, the tree of links `NavigationTree`, with its parts, and the grid list `GridList`, with `GridListItem`, `GridListSection` and `GridListHeader`, which are React Aria's in core's theme.
+  None of them binds a value.
+  A UI hands each its rows, and acts on what the user does to them through the props of React Aria, such as `onAction` and `onSelectionChange`.
+  The hook `useDragAndDrop` lets the user drag their rows, and `DropIndicator` shows where a dragged row would land.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
 - For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a board object through `CoreApi`.
   A plugin's UI reads those about the plugin itself with `useNotified(core, { plugin })`, given the id of its class.

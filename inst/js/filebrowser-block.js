@@ -1,6 +1,6 @@
 // srcts/modules/filebrowser-block/index.tsx
 import { Fragment, useState } from "react";
-import { ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, GridList, GridListItem, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -37,10 +37,9 @@ function jsonEqual(a, b) {
 }
 
 // srcts/modules/filebrowser-block/index.tsx
-import { Fragment as Fragment2, jsx, jsxs } from "react/jsx-runtime";
+import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
-var entry = `${link} bc:justify-self-stretch`;
 function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
   const volumes = asVolumes(shared);
@@ -61,6 +60,37 @@ function FileBrowserBlock({ host }) {
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
     setPlace(next);
   };
+  const entries = [
+    ...dirs.length > 0 ? [
+      {
+        id: "up",
+        text: "..",
+        current: false,
+        open: () => {
+          go({ volume, dirs: dirs.slice(0, -1) });
+        }
+      }
+    ] : [],
+    ...listing2.dirs.map((dir) => ({
+      id: `dir ${dir}`,
+      text: `${dir}/`,
+      current: false,
+      open: () => {
+        go({ volume, dirs: [...dirs, dir] });
+      }
+    })),
+    ...listing2.files.map((name) => {
+      const at = root === void 0 ? void 0 : join(root, [...dirs, name]);
+      return {
+        id: `file ${name}`,
+        text: name,
+        current: at !== void 0 && at === held,
+        open: () => {
+          if (at !== void 0) void file.commit(at);
+        }
+      };
+    })
+  ];
   const names = Object.keys(volumes);
   return /* @__PURE__ */ jsxs(Stack, { children: [
     names.length > 1 && /* @__PURE__ */ jsx(
@@ -91,51 +121,22 @@ function FileBrowserBlock({ host }) {
         }
       )
     ] }, i)) }),
-    /* @__PURE__ */ jsx("ul", { className: "bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0", children: loading ? /* @__PURE__ */ jsx(Note, { text: "Loading\u2026" }) : /* @__PURE__ */ jsxs(Fragment2, { children: [
-      dirs.length > 0 && /* @__PURE__ */ jsx(
-        Entry,
-        {
-          text: "..",
-          onClick: () => {
-            go({ volume, dirs: dirs.slice(0, -1) });
-          }
-        }
-      ),
-      listing2.dirs.map((dir) => /* @__PURE__ */ jsx(
-        Entry,
-        {
-          text: `${dir}/`,
-          onClick: () => {
-            go({ volume, dirs: [...dirs, dir] });
-          }
+    /* @__PURE__ */ jsx(
+      GridList,
+      {
+        "aria-label": "Files",
+        items: loading ? [] : entries,
+        onAction: (key) => {
+          entries.find((entry) => entry.id === key)?.open();
         },
-        `dir ${dir}`
-      )),
-      listing2.files.map((name) => {
-        const at = root === void 0 ? void 0 : join(root, [...dirs, name]);
-        return /* @__PURE__ */ jsx(
-          Entry,
-          {
-            text: name,
-            current: at !== void 0 && at === held,
-            onClick: () => {
-              if (at !== void 0) void file.commit(at);
-            }
-          },
-          `file ${name}`
-        );
-      }),
-      !failed && listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ jsx(Note, { text: "This directory is empty." })
-    ] }) }),
+        renderEmptyState: () => loading ? "Loading\u2026" : failed ? null : "This directory is empty.",
+        className: "bc:max-h-64",
+        children: (entry) => /* @__PURE__ */ jsx(GridListItem, { id: entry.id, textValue: entry.text, "data-current": entry.current || void 0, className: "bc:data-current:font-semibold", children: entry.text })
+      }
+    ),
     held !== void 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: `Chosen: ${held}` }),
     file.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: file.error })
   ] });
-}
-function Entry({ text, current = false, onClick }) {
-  return /* @__PURE__ */ jsx("li", { className: "bc:grid", children: /* @__PURE__ */ jsx("button", { type: "button", className: entry, "aria-current": current ? "true" : void 0, onClick, children: text }) });
-}
-function Note({ text }) {
-  return /* @__PURE__ */ jsx("li", { className: "bc:grid", children: /* @__PURE__ */ jsx("p", { className: styles.hint, children: text }) });
 }
 var filebrowser_block_default = reactModule(FileBrowserBlock);
 function locate(file, roots) {
