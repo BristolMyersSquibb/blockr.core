@@ -430,8 +430,8 @@
   height: calc(var(--bc-spacing) * 7);
 }
 
-.bc\:h-96 {
-  height: calc(var(--bc-spacing) * 96);
+.bc\:h-104 {
+  height: calc(var(--bc-spacing) * 104);
 }
 
 .bc\:h-\[1lh\] {

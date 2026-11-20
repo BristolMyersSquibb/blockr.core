@@ -9320,7 +9320,7 @@ function AloneCard({ core, id: id2 }) {
         /* @__PURE__ */ jsxs2(
           "div",
           {
-            className: `bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            className: `bc:min-w-0 ${sized ? "bc:flex bc:h-104 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
               /* @__PURE__ */ jsx3(
                 Mounted,
