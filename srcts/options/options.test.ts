@@ -15,9 +15,9 @@ import nRowsModule, * as nRowsExports from "../modules/n-rows-option/index.ts";
 // eslint-disable-next-line no-restricted-imports
 import showConditionsModule, * as showConditionsExports from "../modules/show-conditions-option/index.ts";
 import { stubOptionHost } from "../stubs/index.ts";
-import { type } from "../testing/inputs.ts";
+import { toggle, toggleButton, toggles, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
-import { chipLabels, labelled, listed, picked } from "../testing/select.ts";
+import { labelled } from "../testing/select.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { coreOptions, darkMode, nRows, optionSchemas, setTheme, showConditions } from "./index.ts";
@@ -222,23 +222,32 @@ describe("the UIs of core's board options", () => {
     expect(host.submitted).toEqual([25]);
   });
 
-  test("show_conditions is a select of the severities that submits the picks in their order", async () => {
+  test("show_conditions is a checkbox for each severity, which submits the severities checked in their order", async () => {
     const { el, host } = await mounted("show_conditions", showConditions, ["error"]);
-    const field = labelled(el, "Message types to display");
-    expect(chipLabels(field)).toEqual(["error"]);
-    expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
+    const checked = (): string[] => ["message", "warning", "error"].filter((severity) => labelled(el, severity).checked);
+    expect(checked()).toEqual(["error"]);
 
-    await picked(field, step, "message");
+    await step(() => {
+      toggle(labelled(el, "message"));
+    });
 
     expect(host.submitted).toEqual([["message", "error"]]);
+    expect(checked()).toEqual(["message", "error"]);
   });
 
-  test("dark_mode is a select of light and dark that submits the user's choice", async () => {
+  test("dark_mode is a toggle button of light and of dark, which submits the user's choice and keeps one picked", async () => {
     const { el, host } = await mounted("dark_mode", darkMode, "light");
-    const field = labelled(el, "Light/dark mode");
-    expect(field.value).toBe("Light");
+    expect(toggles(el, "Light/dark mode")).toEqual([
+      { label: "Light", picked: true },
+      { label: "Dark", picked: false },
+    ]);
 
-    await picked(field, step, "Dark");
+    await step(() => {
+      toggleButton(el, "Light/dark mode", "Dark").click();
+    });
+    await step(() => {
+      toggleButton(el, "Light/dark mode", "Dark").click();
+    });
 
     expect(host.submitted).toEqual(["dark"]);
   });

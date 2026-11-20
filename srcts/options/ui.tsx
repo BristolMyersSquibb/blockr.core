@@ -4,7 +4,7 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 
 import type { ReactElement } from "react";
-import { ComboBox, ComboBoxItem, NumberField } from "../inputs/index.ts";
+import { Checkbox, CheckboxGroup, NumberField, ToggleButton, ToggleButtonGroup } from "../inputs/index.ts";
 import { reactModule, useValue } from "../react/index.ts";
 import type { ModuleProps } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
@@ -18,34 +18,41 @@ export function numberUi(label: string, min: number): OptionModule<number> {
   return reactModule(NumberUi);
 }
 
-// A select of several of the strings given, such as the severities of
-// show_conditions, which submits the picks in the order of the strings.
-export function multiSelectUi(label: string, values: readonly string[]): OptionModule<string[]> {
-  const items = values.map((id) => ({ id }));
-  function MultiSelectUi({ host }: ModuleProps<OptionHost<string[]>>): ReactElement {
+// A checkbox for each of the strings given, such as the severities of
+// show_conditions, which submits the strings checked in the order of the
+// strings.
+export function checkboxGroupUi(label: string, values: readonly string[]): OptionModule<string[]> {
+  function CheckboxGroupUi({ host }: ModuleProps<OptionHost<string[]>>): ReactElement {
     return (
-      <ComboBox bound={useValue(host)} selectionMode="multiple" label={label} defaultItems={items} ordered>
-        {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
-      </ComboBox>
+      <CheckboxGroup bound={useValue(host)} label={label} ordered>
+        {values.map((value) => (
+          <Checkbox key={value} value={value}>
+            {value}
+          </Checkbox>
+        ))}
+      </CheckboxGroup>
     );
   }
-  return reactModule(MultiSelectUi);
+  return reactModule(CheckboxGroupUi);
 }
 
-// A select of one of the items, each a value by its id and how it reads by
-// its name, such as light or dark for dark_mode, which a board option always
-// holds one of.
-export function selectUi<V extends Json = string>(
+// A toggle button for each of the items, each a value by its id and how it
+// reads by its name, such as light or dark for dark_mode, of which a board
+// option always holds one.
+export function toggleButtonGroupUi<V extends Json = string>(
   label: string,
-  placeholder: string,
   items: readonly { readonly id: string; readonly name: string }[],
 ): OptionModule<V> {
-  function SelectUi({ host }: ModuleProps<OptionHost<V>>): ReactElement {
+  function ToggleButtonGroupUi({ host }: ModuleProps<OptionHost<V>>): ReactElement {
     return (
-      <ComboBox bound={useValue(host)} label={label} placeholder={placeholder} defaultItems={items} isRequired>
-        {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
-      </ComboBox>
+      <ToggleButtonGroup bound={useValue(host)} label={label} disallowEmptySelection>
+        {items.map((item) => (
+          <ToggleButton key={item.id} id={item.id}>
+            {item.name}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
     );
   }
-  return reactModule(SelectUi);
+  return reactModule(ToggleButtonGroupUi);
 }

@@ -11,12 +11,12 @@ import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import type { HelloReply } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
-import { find, picking, press, texts, type } from "../../testing/inputs.ts";
+import { find, picking, press, texts, toggleButton, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
 import { logged } from "../../testing/logged.ts";
 import { inert, itemDescribed, menuGroup, menuItem, menuItems, openDialog, openMenu } from "../../testing/overlays.ts";
-import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
+import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked, selectButton } from "../../testing/select.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
 import type { Board, JsonBoard, PluginClassId } from "../../types/board.ts";
@@ -525,7 +525,7 @@ describe("a card", () => {
 
     await menu(el, "Iris", "Add block after");
     await chosen(dialog(), "Block class", "merge", "merge block");
-    await picked(labelled(dialog(), "Input of the new merge block"), step, "y");
+    await picked(selectButton(dialog(), "Input of the new merge block"), step, "y");
     await step(() => {
       type(labelled(dialog(), "ID"), "joined");
     });
@@ -610,7 +610,7 @@ describe("a card's block before", () => {
     await act(() => core.commands.run("blockr.core-remove_link", { id: "bc" }));
 
     await menu(el, "Merge", "Add block before");
-    const input = labelled(dialog(), 'Input of "Merge"');
+    const input = selectButton(dialog(), 'Input of "Merge"');
     expect(await listed(input, step)).toEqual(["x", "y"]);
     await picked(input, step, "y");
     await chosen(dialog(), "Block class", "dataset", "dataset block");
@@ -716,7 +716,7 @@ describe("the toolbar", () => {
     expect(dialog().textContent).toContain("Preview rows");
     expect(dialog().textContent).toContain("Message types to display");
 
-    await picked(labelled(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
+    await click(toggleButton(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode", "Dark"));
     expect(board().options.dark_mode).toBe("dark");
     expect(document.documentElement.getAttribute("data-bc-theme")).toBe("dark");
   });
@@ -1657,7 +1657,7 @@ describe("a locked board", () => {
 
     await click(button(el, "Options"));
     await settled();
-    await picked(labelled(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
+    await click(toggleButton(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode", "Dark"));
     expect(board().options.dark_mode).toBe("dark");
   });
 
