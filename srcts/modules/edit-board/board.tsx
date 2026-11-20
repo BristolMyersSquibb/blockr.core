@@ -10,6 +10,13 @@
 // board's name or its board options, which the frontend draws.
 // It follows the board through the store, so the next edit reads the board as
 // the last one left it, a block that the user just added among it.
+// Where the store or the command registry refuses an edit, the plugin says why
+// close to the control that made it, in a banner in the colour of an error,
+// under a sentence that names the edit, until the user's next edit there:
+// below the buttons of a form that adds to the board, and below a table for an
+// edit in its rows, from a row's buttons or from the form that changes the
+// row. Each edit takes the notification of its refusal, so that core raises
+// none (../../ui/edits.ts).
 // Under the board lock, the store refuses every edit that the plugin makes,
 // so the plugin draws no control there, as it reads from core.lock.board. It
 // then lists only the board's links and stacks, since a frontend draws the

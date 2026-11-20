@@ -15,8 +15,9 @@ export interface PickerProps {
     readonly mode: AddMode;
     readonly onAdded?: () => void;
     readonly autofocus?: boolean;
+    readonly showsRefusal?: boolean;
 }
-export declare function BlockPicker({ core, mode, onAdded, autofocus }: PickerProps): ReactElement;
+export declare function BlockPicker({ core, mode, onAdded, autofocus, showsRefusal }: PickerProps): ReactElement;
 export declare function namesInto(board: Pick<Board, "links">, to: BlockId, except?: string): readonly string[];
 export declare function inputNameError(value: string, taken: readonly string[]): string | undefined;
 export declare function isVariadic(free: readonly string[]): boolean;

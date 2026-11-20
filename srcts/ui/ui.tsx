@@ -1,7 +1,7 @@
 // The pieces that core's basic frontend and its Edit board plugin draw with:
 // the classes of their buttons, lists and surfaces, an inline field that
-// renames, and what the text fields of their forms take where they hold an
-// identifier.
+// renames, what the text fields of their forms take where they hold an
+// identifier, and the banner that says why an edit was refused.
 // They are styled with Tailwind CSS under core's prefix. Their colours, fonts
 // and radii come from the variables of core's theme. Core's stylesheet leaves
 // out Tailwind's reset of the page, and a browser passes its font and colour
@@ -9,8 +9,10 @@
 
 import { useRef, useState } from "react";
 import type { ReactElement } from "react";
+import { MARKS, SeverityIcon } from "../card/index.ts";
 import { TextField } from "../react/index.ts";
 import { buttons } from "../styles/index.ts";
+import type { Refused } from "./edits.ts";
 
 export const classes = {
   button: buttons.secondary,
@@ -31,16 +33,20 @@ export const classes = {
 // leaving the field submits what it holds, unless it is empty or unchanged,
 // and Escape gives up.
 // It has the focus as it is drawn, with the name selected.
+// It is at least 10rem wide, or with `fill` as wide as its container, as the
+// cell of a table that it must not spill out of.
 export function NameField({
   label,
   name,
   onSubmit,
   onDone,
+  fill = false,
 }: {
   label: string;
   name: string;
   onSubmit: (name: string) => void;
   onDone: () => void;
+  fill?: boolean;
 }): ReactElement {
   const [text, setText] = useState(name);
   const done = useRef(false);
@@ -59,7 +65,7 @@ export function NameField({
       value={text}
       autoFocus
       spellCheck="false"
-      className="bc:min-w-40"
+      className={fill ? "bc:w-full" : "bc:min-w-40"}
       onChange={setText}
       onFocus={(event) => {
         event.target.select();
@@ -79,3 +85,38 @@ export function NameField({
 // What a text field of the forms takes where it holds an identifier rather
 // than prose, which the browser then neither corrects nor capitalizes.
 export const identifier = { spellCheck: "false", autoCapitalize: "none", autoCorrect: "off" } as const;
+
+// Says why the store or the command registry refused the last edit of a
+// control, close to the control, in a banner that marks an error as a card's
+// banners do: the sentence that names the edit, and below it the reason, or a
+// list of the reasons where there are several. A screen reader reads it out
+// as it shows. It draws nothing where the edit ran.
+export function Refusal({ refusal }: { refusal: Refused | null }): ReactElement | null {
+  if (refusal === null) return null;
+  const mark = MARKS.error;
+  const { title, reasons } = refusal;
+  return (
+    <div
+      role="alert"
+      className={`bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`}
+    >
+      <span className={`bc:mt-0.5 ${mark.text}`}>
+        <SeverityIcon severity="error" />
+      </span>
+      <div className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-1 bc:text-sm bc:break-words">
+        <p className={`bc:m-0 bc:font-semibold ${mark.text}`}>{title}</p>
+        {reasons.length === 1 ? (
+          <p className="bc:m-0 bc:whitespace-pre-wrap">{reasons[0]}</p>
+        ) : (
+          <ul className="bc:m-0 bc:list-disc bc:pl-5">
+            {reasons.map((reason, i) => (
+              <li key={i} className="bc:whitespace-pre-wrap">
+                {reason}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}

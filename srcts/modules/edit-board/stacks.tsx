@@ -16,6 +16,10 @@
 // A new stack starts with a name and a colour that no other stack has, such
 // as "Stack 2" and the first colour of a palette that no stack uses, which
 // the user may change or, for the colour, leave out.
+// Where the store or the command registry refuses an edit, the form that adds
+// a stack says why below its buttons. Where it refuses an edit in the table, a
+// removal or the save of a row's form, the table says so below itself, naming
+// the stack, until the user's next edit in the table.
 // Under the board lock, it lists the stacks alone.
 
 import { useId, useState } from "react";
@@ -25,7 +29,8 @@ import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, Pager, runCommand, TableSearch, useSearch, useTableView } from "../../ui/index.ts";
+import { classes, Pager, Refusal, TableSearch, useEdits, useSearch, useTableView } from "../../ui/index.ts";
+import type { Edits } from "../../ui/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
 import { blockItem, blockName, blockRow, blockTexts } from "./links.tsx";
 import type { BlockItem } from "./links.tsx";
@@ -52,6 +57,9 @@ function suggestedName(stacks: readonly Stack[]): string {
 export function StacksSection({ core, board, locked }: { core: CoreApi; board: Board; locked: boolean }): ReactElement {
   const stacks = Object.entries(board.stacks);
   const view = useTableView(stacks, ([id, stack]) => [stack.name, id, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
+  // The edits of the table's rows, which say why one was refused below the
+  // table.
+  const edits = useEdits(core);
 
   return (
     <Section title="Stacks" count={stacks.length}>
@@ -88,11 +96,12 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
                 </thead>
                 <tbody>
                   {view.rows.map(([id, stack]) => (
-                    <StackRow key={id} core={core} board={board} id={id} stack={stack} locked={locked} />
+                    <StackRow key={id} core={core} edits={edits} board={board} id={id} stack={stack} locked={locked} />
                   ))}
                 </tbody>
               </table>
             )}
+            <Refusal refusal={edits.refusal} />
             <Pager label="Pages of stacks" view={view} />
           </>
         )}
@@ -103,12 +112,14 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
 
 function StackRow({
   core,
+  edits,
   board,
   id,
   stack,
   locked,
 }: {
   core: CoreApi;
+  edits: Edits;
   board: Board;
   id: StackId;
   stack: Stack;
@@ -123,6 +134,7 @@ function StackRow({
             core={core}
             board={board}
             editing={{ id, stack }}
+            tableEdits={edits}
             submitLabel="Save"
             onDone={close}
           />
@@ -148,7 +160,13 @@ function StackRow({
             className={classes.quiet}
             aria-label={`Edit the stack ${stack.name}`}
             ref={button}
-            onClick={open}
+            onClick={() => {
+              // Opening the form is the user's next edit in the table, so the
+              // table's refusal goes. The form says why its own edits are
+              // refused.
+              edits.clear();
+              open();
+            }}
           >
             Edit
           </button>
@@ -157,7 +175,7 @@ function StackRow({
             className={classes.quiet}
             aria-label={`Remove the stack ${stack.name}`}
             onClick={() => {
-              void runCommand(core, "blockr.core-remove_stack", { id });
+              void edits.run(`Could not remove the stack "${stack.name}".`, "blockr.core-remove_stack", { id });
             }}
           >
             Remove
@@ -200,16 +218,22 @@ function Swatch({ color }: { color: string | null }): ReactElement {
 }
 
 // The form that adds a stack, or that changes the stack given.
+// The form that adds a stack says why the store or the command registry
+// refused it below its buttons. The form that changes a stack runs its edits
+// through `tableEdits`, the edits of the table whose row it takes, and the
+// table says why below itself.
 function StackForm({
   core,
   board,
   editing,
+  tableEdits,
   submitLabel,
   onDone,
 }: {
   core: CoreApi;
   board: Board;
   editing?: { readonly id: StackId; readonly stack: Stack };
+  tableEdits?: Edits;
   submitLabel: string;
   onDone?: () => void;
 }): ReactElement {
@@ -219,6 +243,8 @@ function StackForm({
   const [color, setColor] = useState<string | null>(editing === undefined ? suggestedColor(stacks) : editing.stack.color);
   const [blocks, setBlocks] = useState<readonly BlockId[]>(editing?.stack.blocks ?? []);
   const [busy, setBusy] = useState(false);
+  const ownEdits = useEdits(core);
+  const edits = tableEdits ?? ownEdits;
   const fallbackName = editing === undefined ? suggestedName(stacks) : editing.stack.name;
 
   // The stack that holds each block, but the one that the form changes.
@@ -251,7 +277,7 @@ function StackForm({
     let ran: boolean;
     if (editing === undefined) {
       const args: Record<string, Json> = { blocks: kept, color, name: trimmed === "" ? fallbackName : trimmed };
-      ran = await runCommand(core, "blockr.core-add_stack", args);
+      ran = await edits.run("Could not add the stack.", "blockr.core-add_stack", args);
     } else {
       const { id, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
@@ -259,8 +285,11 @@ function StackForm({
         ...(sameBlocks(kept, stack.blocks) ? {} : { blocks: kept }),
         ...(color === stack.color ? {} : { color }),
       };
-      ran = !renamed || (await runCommand(core, "blockr.core-rename_stack", { id, name: trimmed }));
-      if (ran && Object.keys(changed).length > 0) ran = await runCommand(core, "blockr.core-change_stack", { id, ...changed });
+      // The sentence that names the edit, which names the stack as its row
+      // did.
+      const title = `Could not change the stack "${stack.name}".`;
+      ran = !renamed || (await edits.run(title, "blockr.core-rename_stack", { id, name: trimmed }));
+      if (ran && Object.keys(changed).length > 0) ran = await edits.run(title, "blockr.core-change_stack", { id, ...changed });
     }
     setBusy(false);
     if (!ran) return;
@@ -329,6 +358,7 @@ function StackForm({
           </button>
         )}
       </div>
+      {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
     </form>
   );
 }
