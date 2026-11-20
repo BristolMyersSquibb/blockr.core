@@ -415,7 +415,8 @@ function Drawn({
   ...props
 }) {
   const multiple = props.selectionMode === "multiple";
-  const editable = props.isDisabled !== true && props.isReadOnly !== true;
+  const isDisabled = props.isDisabled === true;
+  const editable = !isDisabled && props.isReadOnly !== true;
   const given = props.items ?? props.defaultItems;
   const unknown = given === void 0 && typeof children === "function";
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
@@ -437,6 +438,7 @@ function Drawn({
             placeholder,
             multiple,
             marking,
+            isDisabled,
             editable,
             clearable: props.isRequired !== true && editable,
             onClear,
@@ -466,6 +468,7 @@ function Field2({
   placeholder,
   multiple,
   marking,
+  isDisabled,
   editable,
   clearable,
   onClear,
@@ -483,24 +486,21 @@ function Field2({
   const remove = (gone) => {
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
+  const chips = keys.map((key) => ({ key, text: known2.get(key) ?? String(key), gone: marking && !known2.has(key) }));
+  const picks = label === void 0 ? "Picks" : `Picks of ${label}`;
   return /* @__PURE__ */ jsxs2(Group, { isInvalid: invalid, className: FIELD, children: [
     /* @__PURE__ */ jsxs2("div", { className: VALUES, children: [
-      keys.length === 0 ? null : /* @__PURE__ */ jsx4(
-        TagGroup,
-        {
-          "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`,
-          onRemove: editable ? remove : void 0,
-          className: "bc:flex bc:min-w-0 bc:max-w-full",
-          children: /* @__PURE__ */ jsx4(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key) => {
-            const text = known2.get(key) ?? String(key);
-            const gone = marking && !known2.has(key);
-            return /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-              /* @__PURE__ */ jsx4("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
-              editable ? /* @__PURE__ */ jsx4(Button2, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx4(Cross, {}) }) : null
-            ] }, key);
-          }) })
-        }
-      ),
+      keys.length === 0 ? null : isDisabled ? (
+        // The chips of a disabled select take no focus, as its text field
+        // takes none.
+        // React Aria's TagGroup keeps a tab stop on its list even where
+        // every tag is disabled, so a disabled select draws its chips as
+        // a plain list.
+        /* @__PURE__ */ jsx4("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx4("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx4("span", { className: "bc:truncate", children: gone ? missing(text) : text }) }, key)) })
+      ) : /* @__PURE__ */ jsx4(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx4(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
+        /* @__PURE__ */ jsx4("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+        editable ? /* @__PURE__ */ jsx4(Button2, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx4(Cross, {}) }) : null
+      ] }, key)) }) }),
       /* @__PURE__ */ jsx4(
         Input,
         {

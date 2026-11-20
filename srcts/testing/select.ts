@@ -134,8 +134,10 @@ export async function cleared(field: HTMLElement, act: Act): Promise<void> {
   });
 }
 
+// The chips of a select of several: the rows of React Aria's TagGroup, or the
+// items of the plain list that a disabled select draws.
 function chips(field: HTMLElement): Element[] {
-  return [...(field.closest('[role="group"]')?.querySelectorAll('[role="row"]') ?? [])];
+  return [...(field.closest('[role="group"]')?.querySelectorAll('[role="row"], [role="listitem"]') ?? [])];
 }
 
 // The element of the id given in the tree that holds `node`, whether on the

@@ -662,6 +662,7 @@
   A button at the field's right, before the one that opens the list, clears the pick, or every pick, but where the select `isRequired`.
   Where the select is disabled or read-only, its field changes no pick.
   Its chips then show no button and remove nothing on a key, Backspace removes nothing, no button clears, and a press in the field opens no list.
+  The chips of a disabled select take no focus either, as its text field takes none.
   A bound select of one leaves its state arg unset so, through the new `unset()` of the binding of `bind()` and of `Bound` in the SDK, as a new block leaves an arg without a default.
   For that, a block host's `submit()` leaves a state arg that its change gives as `undefined` unset, through the `unset` of `set_block`.
   React Aria draws the list as wide as the field, in a portal at the end of the page's body.

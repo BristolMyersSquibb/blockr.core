@@ -397,6 +397,25 @@ describe("a select of several items", () => {
     expect(await removed({ isDisabled: true })).toEqual([[], []]);
     expect(await removed({ isReadOnly: true })).toEqual([[], []]);
   });
+
+  test("keeps Tab off its chips where it is disabled, as off its text field, but not where it is read-only", async () => {
+    const { el } = await draw(
+      <>
+        <Held label="Disabled" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana"]} seen={[]} isDisabled />
+        <Held label="Read-only" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana"]} seen={[]} isReadOnly />
+      </>,
+    );
+    // The roles of the elements of a field that Tab stops on by their
+    // tabindex, as React Aria puts its chips, their list and its text field in
+    // the order.
+    const stops = (label: string): string[] =>
+      [...(labelled(el, label).closest('[role="group"]')?.querySelectorAll<HTMLElement>("[tabindex]") ?? [])]
+        .filter((node) => node.tabIndex >= 0)
+        .map((node) => node.getAttribute("role") ?? node.tagName.toLowerCase());
+
+    expect([chipLabels(labelled(el, "Disabled")), labelled(el, "Disabled").disabled, stops("Disabled")]).toEqual([["Apple", "Banana"], true, []]);
+    expect(stops("Read-only")).toEqual(["grid", "row", "row", "combobox"]);
+  });
 });
 
 type Basket = Readonly<{ fruit?: string; fruits: readonly string[] }>;

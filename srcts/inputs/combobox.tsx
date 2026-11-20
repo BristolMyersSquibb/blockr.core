@@ -27,6 +27,8 @@
 // React Aria's ComboBox changes none then.
 // Its chips show no button and remove nothing on a key, Backspace removes
 // nothing, no button clears, and a press in the field opens no list.
+// The chips of a disabled select take no focus either, as its text field
+// takes none.
 // The list hangs below the field, or above it where the window has no room
 // below, as wide as the field.
 // React Aria draws it in a portal at the end of the page's body, above a modal
@@ -256,7 +258,8 @@ function Drawn({
   ...props
 }: DrawnProps): ReactElement {
   const multiple = props.selectionMode === "multiple";
-  const editable = props.isDisabled !== true && props.isReadOnly !== true;
+  const isDisabled = props.isDisabled === true;
+  const editable = !isDisabled && props.isReadOnly !== true;
   const given = props.items ?? props.defaultItems;
   // Whether it has no items yet, as its children draw an item with none given.
   const unknown = given === undefined && typeof children === "function";
@@ -276,6 +279,7 @@ function Drawn({
         placeholder={placeholder}
         multiple={multiple}
         marking={marking}
+        isDisabled={isDisabled}
         editable={editable}
         clearable={props.isRequired !== true && editable}
         onClear={onClear}
@@ -330,6 +334,7 @@ function Field({
   placeholder,
   multiple,
   marking,
+  isDisabled,
   editable,
   clearable,
   onClear,
@@ -338,6 +343,7 @@ function Field({
   readonly placeholder: string | undefined;
   readonly multiple: boolean;
   readonly marking: boolean;
+  readonly isDisabled: boolean;
   // Whether the field changes the pick, as not where the select is disabled
   // or read-only.
   readonly editable: boolean;
@@ -358,30 +364,39 @@ function Field({
   const remove = (gone: ReadonlySet<Key>): void => {
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
+  // The chip of each pick: its key, its text, and whether it shows the pick
+  // as missing.
+  const chips = keys.map((key) => ({ key, text: known.get(key) ?? String(key), gone: marking && !known.has(key) }));
+  const picks = label === undefined ? "Picks" : `Picks of ${label}`;
   return (
     <Group isInvalid={invalid} className={FIELD}>
       <div className={VALUES}>
-        {keys.length === 0 ? null : (
-          <TagGroup
-            aria-label={label === undefined ? "Picks" : `Picks of ${label}`}
-            onRemove={editable ? remove : undefined}
-            className="bc:flex bc:min-w-0 bc:max-w-full"
-          >
+        {keys.length === 0 ? null : isDisabled ? (
+          // The chips of a disabled select take no focus, as its text field
+          // takes none.
+          // React Aria's TagGroup keeps a tab stop on its list even where
+          // every tag is disabled, so a disabled select draws its chips as
+          // a plain list.
+          <div role="list" aria-label={picks} className="bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1">
+            {chips.map(({ key, text, gone }) => (
+              <div key={key} role="listitem" data-missing={gone || undefined} className={CHIP}>
+                <span className="bc:truncate">{gone ? missing(text) : text}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <TagGroup aria-label={picks} onRemove={editable ? remove : undefined} className="bc:flex bc:min-w-0 bc:max-w-full">
             <TagList className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1">
-              {keys.map((key) => {
-                const text = known.get(key) ?? String(key);
-                const gone = marking && !known.has(key);
-                return (
-                  <Tag key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
-                    <span className="bc:truncate">{gone ? missing(text) : text}</span>
-                    {editable ? (
-                      <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
-                        <Cross />
-                      </Button>
-                    ) : null}
-                  </Tag>
-                );
-              })}
+              {chips.map(({ key, text, gone }) => (
+                <Tag key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
+                  <span className="bc:truncate">{gone ? missing(text) : text}</span>
+                  {editable ? (
+                    <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
+                      <Cross />
+                    </Button>
+                  ) : null}
+                </Tag>
+              ))}
             </TagList>
           </TagGroup>
         )}
