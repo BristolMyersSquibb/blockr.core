@@ -27,14 +27,22 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+// The breadcrumbs of the path above the list, each with its text and whether
+// it is the current directory, as React Aria marks it.
+function crumbs(el: HTMLElement): (string | null)[][] {
+  return [...el.querySelectorAll('nav [role="link"]')].map((link) => [link.textContent, link.getAttribute("aria-current")]);
+}
+
 async function mounted(state: State) {
   const host = stubBlockHost<State>(fixture, { state });
   const view = await mountOnPage(browser, host);
   await settle();
   const entries = (): string[] => texts(view.el, "li button");
+  // Clicks the button of an entry of the list, or the breadcrumb of a
+  // directory of the path above it, by its text.
   const click = (text: string): void => {
-    const found = [...view.el.querySelectorAll("button")].find((button) => button.textContent === text);
-    if (found === undefined) throw new Error(`Found no button ${text}.`);
+    const found = [...view.el.querySelectorAll<HTMLElement>('button, nav [role="link"]')].find((el) => el.textContent === text);
+    if (found === undefined) throw new Error(`Found no button or breadcrumb ${text}.`);
     found.click();
   };
   return { host, view, entries, click };
@@ -116,13 +124,16 @@ test("goes up a directory, and back to one the path above the list names", async
   });
   await settle();
   expect(entries()).toEqual(["data/", "notes.txt"]);
-  expect(texts(view.el, "nav button")).toEqual(["here"]);
+  expect(crumbs(view.el)).toEqual([["here", "page"]]);
 
   await step(() => {
     click("data/");
   });
   await settle();
-  expect(texts(view.el, "nav button")).toEqual(["here", "data"]);
+  expect(crumbs(view.el)).toEqual([
+    ["here", null],
+    ["data", "page"],
+  ]);
 
   await step(() => {
     click("here");

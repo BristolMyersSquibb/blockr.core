@@ -8,17 +8,18 @@
 // Adding a block on its own and editing links and stacks are the Edit board
 // plugin's, which the page shows as it shows any plugin.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import { createPortal } from "react-dom";
 import { MARKS, SeverityIcon } from "../../card/index.ts";
 import { freeInputs } from "../../commands/index.ts";
 import { BlockPicker } from "../../picker/index.ts";
 import type { AddMode } from "../../picker/index.ts";
 import type { Condition } from "../../protocol/index.ts";
-import { useBoard } from "../../react/index.ts";
+import { Button, Text, Toast, ToastContent, ToastRegion, useBoard } from "../../react/index.ts";
+import type { QueuedToast } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
+import type { Notification } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import { classes } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
@@ -28,8 +29,7 @@ import type { FrontEnd } from "./context.ts";
 import { layoutItems } from "./layout.ts";
 import { OptionsDialog } from "./options.tsx";
 import { Plugins } from "./plugins.tsx";
-import { concerned, isReload, sourcePackage, useShownIn, useToasts } from "./toasts.ts";
-import type { Toast } from "./toasts.ts";
+import { concerned, isReload, sourcePackage } from "./toasts.ts";
 import { Toolbar } from "./toolbar.tsx";
 import { Dialog } from "./ui.tsx";
 
@@ -94,7 +94,7 @@ function Page(): ReactElement {
             const stack = board.stacks[item.stack];
             if (stack === undefined) return null;
             return (
-              <StackGroup key={`stack-${item.stack}`} stack={stack}>
+              <StackGroup key={`stack-${item.stack}`} id={item.stack} stack={stack}>
                 {item.blocks.length === 0 ? <p className={styles.hint}>The stack holds no blocks.</p> : item.blocks.map(card)}
               </StackGroup>
             );
@@ -122,108 +122,67 @@ function AddBlockDialog({ mode, onClose }: { mode: AddMode; onClose: () => void 
   );
 }
 
-// The toasts that show, one above the other in the window's bottom right
-// corner, the latest lowest. While a dialog is open, they show inside it.
-// The column scrolls where the toasts outgrow the window. Its padding keeps
-// their shadows from being cut off there, and it lets clicks through between
-// the toasts, so that the board below takes them. Core's stylesheet leaves
-// out Tailwind's reset, so the column counts its padding into its width
-// itself.
-function Toasts(): ReactElement | null {
+// The toasts, in the SDK's ToastRegion, which draws them one above the other
+// in the window's bottom right corner, the latest lowest (./toasts.ts).
+function Toasts(): ReactElement {
   const { core, toasts } = useFrontEnd();
-  const list = useToasts(toasts);
-  const inside = useShownIn(toasts);
   const board = useBoard(core);
-  if (list.length === 0) return null;
-  const shown = (
-    <section
-      aria-label="Notifications"
-      className="bc:pointer-events-none bc:fixed bc:right-2 bc:bottom-2 bc:z-50 bc:m-0 bc:box-border bc:grid bc:max-h-[calc(100dvh-1rem)] bc:w-[21rem] bc:max-w-[calc(100vw-1rem)] bc:gap-2 bc:overflow-y-auto bc:p-2 bc:font-sans"
-    >
-      {list.map((toast) => (
-        <ToastItem key={toast.notification.id} toast={toast} title={concerned(toast.notification.about, core, board)} />
-      ))}
-    </section>
+  return (
+    <ToastRegion queue={toasts.queue}>
+      {({ toast }) => <ToastItem toast={toast} title={concerned(toast.content.about, core, board)} />}
+    </ToastRegion>
   );
-  return inside === null ? shown : createPortal(shown, inside);
 }
 
-// A toast, in the colour of its notification's severity: what it concerns,
-// with the package that its source names, its message, and a button that
-// closes it. Where core asks for the page to be reloaded, it also offers
-// to reload it.
-// A toast that moves between the page and a dialog is drawn anew, and the
-// browser may send its old element no blur and no pointerleave as it goes. So
-// the toast lets go of what kept it from fading once its element goes.
-function ToastItem({ toast, title }: { toast: Toast; title: string }): ReactElement {
-  const { toasts } = useFrontEnd();
-  const { notification, fading } = toast;
-  const { id, severity } = notification;
+// A toast, the SDK's Toast, marked in the colour of its notification's
+// severity at its left: what it concerns, with the package that its source
+// names, its message, and a button that closes it. Where core asks for the
+// page to be reloaded, it also offers to reload it.
+function ToastItem({ toast, title }: { toast: QueuedToast<Notification>; title: string }): ReactElement {
+  const notification = toast.content;
+  const { severity } = notification;
   const mark = MARKS[severity];
   const pkg = sourcePackage(notification);
-  useEffect(
-    () => () => {
-      toasts.release(id, "pointer");
-      toasts.release(id, "focus");
-    },
-    [toasts, id],
-  );
   return (
-    <div
-      role={severity === "message" ? "status" : "alert"}
-      data-severity={severity}
-      onPointerEnter={() => {
-        toasts.keep(id, "pointer");
-      }}
-      onPointerLeave={() => {
-        toasts.release(id, "pointer");
-      }}
-      onFocus={() => {
-        toasts.keep(id, "focus");
-      }}
-      onBlur={(event) => {
-        if (!(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) {
-          toasts.release(id, "focus");
-        }
-      }}
-      className={`${classes.surface} bc:pointer-events-auto bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 bc:shadow-lg bc:transition-opacity bc:duration-300 bc:motion-reduce:transition-none ${mark.border} ${fading ? "bc:opacity-0" : ""}`}
-    >
+    <Toast toast={toast} data-severity={severity} className={`bc:border-l-4 ${LEFT[severity]}`}>
       <span className={`bc:mt-0.5 ${mark.text}`}>
         <SeverityIcon severity={severity} />
       </span>
-      <div className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-1">
-        <p className="bc:m-0 bc:text-xs bc:font-semibold">
+      <ToastContent role={severity === "message" ? "status" : undefined} className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-1">
+        <Text slot="title" elementType="p" className="bc:m-0 bc:text-xs bc:font-semibold">
           {title}
           {pkg === undefined ? null : <span className="bc:font-normal bc:text-text-muted"> · {pkg}</span>}
-        </p>
-        <p className="bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap">{notification.message}</p>
+        </Text>
+        <Text slot="description" elementType="p" className="bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap">
+          {notification.message}
+        </Text>
         {isReload(notification) ? (
           <div>
-            <button
-              type="button"
-              className={classes.button}
-              onClick={() => {
+            <Button
+              variant="secondary"
+              onPress={() => {
                 location.reload();
               }}
             >
               Reload
-            </button>
+            </Button>
           </div>
         ) : null}
-      </div>
-      <button
-        type="button"
-        aria-label="Close"
-        className={classes.quiet}
-        onClick={() => {
-          toasts.close(id);
-        }}
-      >
+      </ToastContent>
+      <Button slot="close" variant="quiet">
         <span aria-hidden="true">×</span>
-      </button>
-    </div>
+      </Button>
+    </Toast>
   );
 }
+
+// The colour of the mark at a toast's left, for each severity, as a card's
+// pills mark it (../../card/index.ts).
+const LEFT: Readonly<Record<Notification["severity"], string>> = {
+  error: "bc:border-l-border-danger",
+  warning: "bc:border-l-amber-500",
+  message: "bc:border-l-border-accent",
+};
 
 // The severities that the board option show_conditions names. Core's basic
 // frontend requires the board option, so the board that it draws holds a value

@@ -17,9 +17,15 @@
 //
 // The field of several shows each pick as a chip, whose button removes it,
 // as Backspace in the empty field removes the last one.
+// The chips wrap onto more lines, but each cuts its own text off where the
+// field is too narrow for it. A chip whose text is cut off shows it whole in
+// a tooltip of the SDK, as the pointer rests on the chip, and at once as the
+// chip takes the focus from the keyboard.
 // A button at the field's right, before the one that opens the list, clears
 // the pick, or every pick, where there is one, but where the select
-// `isRequired`.
+// `isRequired`. It says so in a tooltip as the pointer rests on it, and
+// takes no place in the order of the keyboard's focus, as the button that
+// opens the list takes none, since the keyboard clears the field itself.
 // Bound, a select of one unsets its state arg so, as a block's new select of
 // an arg without a default starts.
 // A press in the field opens the list, as typing into it does.
@@ -33,7 +39,8 @@
 // below, as wide as the field.
 // React Aria draws it in a portal at the end of the page's body, above a modal
 // of the SDK that holds the select, as every overlay of the SDK sits in such a
-// portal (../overlays/index.ts).
+// portal, at the z-index of the overlays of core's theme
+// (../overlays/index.ts).
 // The list draws its rows through React Aria's Virtualizer, which puts on the
 // page only the rows in view, however many items the select holds.
 // The list says "Loading…" while it has no items yet, or while its items are
@@ -64,9 +71,10 @@
 // A chip that the user removes while the list is closed it submits at once.
 // It says below itself why the host refused what it submitted.
 
-import { useContext, useRef, useState } from "react";
+import { useContext, useEffect, useEffectEvent, useRef, useState } from "react";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { strings } from "../binding/index.ts";
+import { Focusable, OVERLAY_Z_INDEX, Tooltip, TooltipTrigger } from "../overlays/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import {
@@ -89,6 +97,7 @@ import {
   TagGroup,
   TagList,
   Text,
+  TooltipTriggerStateContext,
   Virtualizer,
 } from "../aria/index.ts";
 import type {
@@ -291,7 +300,7 @@ function Drawn({
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
-      <Popover offset={4} className={LIST}>
+      <Popover offset={4} className={LIST} style={{ zIndex: OVERLAY_Z_INDEX }}>
         <Virtualizer layout={ListLayout} layoutOptions={LAYOUT}>
           <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
             {children}
@@ -379,9 +388,7 @@ function Field({
           // a plain list.
           <div role="list" aria-label={picks} className="bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1">
             {chips.map(({ key, text, gone }) => (
-              <div key={key} role="listitem" data-missing={gone || undefined} className={CHIP}>
-                <span className="bc:truncate">{gone ? missing(text) : text}</span>
-              </div>
+              <PlainChip key={key} text={gone ? missing(text) : text} gone={gone} />
             ))}
           </div>
         ) : (
@@ -389,12 +396,16 @@ function Field({
             <TagList className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1">
               {chips.map(({ key, text, gone }) => (
                 <Tag key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
-                  <span className="bc:truncate">{gone ? missing(text) : text}</span>
-                  {editable ? (
-                    <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
-                      <Cross />
-                    </Button>
-                  ) : null}
+                  {({ isFocusVisible }) => (
+                    <>
+                      <ChipText text={gone ? missing(text) : text} focused={isFocusVisible} />
+                      {editable ? (
+                        <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
+                          <Cross />
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
                 </Tag>
               ))}
             </TagList>
@@ -421,28 +432,100 @@ function Field({
       {clearable && (keys.length > 0 || one !== null) ? (
         // A button of the field's own, not React Aria's, which the select
         // would take for its own and open the list with. It keeps the focus
-        // in the text field, as a press in the list does.
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-label={label === undefined ? "Clear" : `Clear ${label}`}
-          title={multiple ? "Clear every pick" : "Clear the pick"}
-          className={CLEAR}
-          onMouseDown={(event) => {
-            event.preventDefault();
-          }}
-          onClick={() => {
-            if (onClear !== undefined) onClear();
-            else state?.setValue(multiple ? [] : null);
-          }}
-        >
-          <Cross />
-        </button>
+        // in the text field, as a press in the list does. React Aria's
+        // Focusable makes it the trigger of its tooltip.
+        <TooltipTrigger>
+          <Focusable>
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={label === undefined ? "Clear" : `Clear ${label}`}
+              className={CLEAR}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => {
+                if (onClear !== undefined) onClear();
+                else state?.setValue(multiple ? [] : null);
+              }}
+            >
+              <Cross />
+            </button>
+          </Focusable>
+          <Tooltip>{multiple ? "Clear every pick" : "Clear the pick"}</Tooltip>
+        </TooltipTrigger>
       ) : null}
       <Button className={OPENER}>
         <Chevron />
       </Button>
     </Group>
+  );
+}
+
+// A chip of a disabled select, which takes no focus.
+function PlainChip({ text, gone }: { text: string; gone: boolean }): ReactElement {
+  return (
+    <div role="listitem" data-missing={gone || undefined} className={CHIP}>
+      <ChipText text={text} focused={false} />
+    </div>
+  );
+}
+
+// The text of a chip, which the chip cuts off where it is too narrow for it.
+// It then shows the text whole in a tooltip while the pointer rests on the
+// text, and while the chip has the focus from the keyboard, as `focused`
+// says.
+// The text follows the pointer itself, since React Aria counts a chip as
+// hovered only where the select's chips can be picked or act.
+// The tooltip opens and closes as the state of a TooltipTrigger has it, with
+// React Aria's delays: after the pointer rests a while, at once while another
+// tooltip shows, and at once on the focus.
+// The chip's own name holds the text whole for assistive technology, so the
+// tooltip names nothing to it.
+function ChipText({ text, focused }: { text: string; focused: boolean }): ReactElement {
+  return (
+    <TooltipTrigger>
+      <CutText text={text} focused={focused} />
+    </TooltipTrigger>
+  );
+}
+
+// The tooltip closes at once as the chip loses the focus, and after React
+// Aria's delay as the pointer leaves it.
+function CutText({ text, focused }: { text: string; focused: boolean }): ReactElement {
+  const tip = useContext(TooltipTriggerStateContext);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [pointed, setPointed] = useState(false);
+  const shown = useRef({ pointed: false, focused: false });
+  const follow = useEffectEvent((now: { pointed: boolean; focused: boolean }) => {
+    const before = shown.current;
+    shown.current = now;
+    const el = ref.current;
+    const cut = el !== null && el.scrollWidth > el.clientWidth;
+    if (tip === null) return;
+    if (cut && now.focused) tip.open(true);
+    else if (cut && now.pointed) tip.open();
+    else if (before.pointed || before.focused) tip.close(before.focused);
+  });
+  useEffect(() => {
+    follow({ pointed, focused });
+  }, [pointed, focused]);
+  return (
+    <>
+      <span
+        ref={ref}
+        className="bc:truncate"
+        onPointerEnter={(event) => {
+          if (event.pointerType !== "touch") setPointed(true);
+        }}
+        onPointerLeave={() => {
+          setPointed(false);
+        }}
+      >
+        {text}
+      </span>
+      <Tooltip triggerRef={ref}>{text}</Tooltip>
+    </>
   );
 }
 

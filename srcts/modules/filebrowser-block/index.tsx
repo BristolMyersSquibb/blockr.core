@@ -11,9 +11,9 @@
 // R's error reply, so that the frontend says where it shows, and the module
 // lists nothing.
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import type { ReactElement } from "react";
-import { ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
+import { Breadcrumb, Breadcrumbs, ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -37,11 +37,10 @@ interface Place {
   readonly dirs: readonly string[];
 }
 
-// The classes of the buttons that name a directory or a file,
-// those in the list stretching across it.
-const link =
-  "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
-const entry = `${link} bc:justify-self-stretch`;
+// The classes of the buttons that name a directory or a file in the list,
+// which stretch across it, the block's file in bold.
+const entry =
+  "bc:cursor-pointer bc:justify-self-stretch bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 
 function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useValue(host, "volumes").value;
@@ -91,26 +90,18 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
           {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
         </ComboBox>
       )}
-      <nav aria-label="Directory" className="bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm">
-        {[volume ?? "", ...dirs].map((name, i) => (
-          <Fragment key={i}>
-            {i > 0 && (
-              <span className="bc:text-text-muted" aria-hidden="true">
-                /
-              </span>
-            )}
-            <button
-              type="button"
-              className={link}
-              aria-current={i === dirs.length ? "true" : undefined}
-              onClick={() => {
-                go({ volume, dirs: dirs.slice(0, i) });
-              }}
-            >
+      <nav aria-label="Directory">
+        <Breadcrumbs
+          onAction={(key) => {
+            go({ volume, dirs: dirs.slice(0, Number(key)) });
+          }}
+        >
+          {[volume ?? "", ...dirs].map((name, i) => (
+            <Breadcrumb key={i} id={i}>
               {name}
-            </button>
-          </Fragment>
-        ))}
+            </Breadcrumb>
+          ))}
+        </Breadcrumbs>
       </nav>
       <ul className="bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0">
         {loading ? (

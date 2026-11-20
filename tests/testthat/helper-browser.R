@@ -642,15 +642,16 @@ window.e2e = {
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
     );
   },
-  // Collapses or expands the group of the stack of the name given.
+  // Collapses or expands the group of the stack of the name given, by the
+  // button of its header.
   async toggle(name, within) {
-    const summary = await e2e.until(
+    const header = await e2e.until(
       () => [...within.querySelectorAll('section')]
         .find((s) => s.getAttribute('aria-label') === name)
-        ?.querySelector('summary'),
+        ?.querySelector('h3 > button'),
       'stack ' + name
     );
-    summary.click();
+    header.click();
   },
 };
 "

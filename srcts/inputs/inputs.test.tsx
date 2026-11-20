@@ -15,7 +15,7 @@ import { step } from "../testing/react.ts";
 import { chipLabels, labelled, listed, optionFromLabel, optionLabels, removeChip } from "../testing/select.ts";
 import { holdRequests } from "../testing/requests.ts";
 import type { BlockHost, OptionHost } from "../types/hosts.ts";
-import { Checkbox, ComboBox, ComboBoxItem, NumberField, Stack, TextField } from "./index.ts";
+import { Button, Checkbox, ComboBox, ComboBoxItem, NumberField, Stack, TextField } from "./index.ts";
 
 type Form = Readonly<{ n: number; direction: string; label: string; by?: readonly string[]; keep: boolean }>;
 
@@ -600,6 +600,25 @@ describe("the inputs of a board option's UI", () => {
     });
 
     expect(host.submitted).toEqual(["dark"]);
+  });
+});
+
+describe("the button", () => {
+  test("takes one of core's looks, and names its shortcut to assistive technology, which React Aria's Button passes on to no element", () => {
+    const { el } = draw(
+      <>
+        <Button variant="secondary" aria-keyshortcuts="Control+S Meta+S">
+          Save
+        </Button>
+        <Button variant="destructive">Remove</Button>
+      </>,
+    );
+    const [save, remove] = [...el.querySelectorAll("button")];
+
+    expect(save?.getAttribute("aria-keyshortcuts")).toBe("Control+S Meta+S");
+    expect(save?.className).toContain("bc:border-border-default");
+    expect(remove?.hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(remove?.className).toContain("bc:bg-red-700");
   });
 });
 

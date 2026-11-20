@@ -41,13 +41,13 @@
 // has no menu, and it mounts the UI only of a block that the board lock leaves
 // open, as the store's locked() says.
 
-import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { Banners, Footer, Mounted, Pills, useFooter, useSized } from "../../card/index.ts";
 import type { Condition } from "../../protocol/index.ts";
-import { useNotified, useStatus } from "../../react/index.ts";
+import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "../../react/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
-import type { Block, BlockId, Stack } from "../../types/board.ts";
+import type { Block, BlockId, Stack, StackId } from "../../types/board.ts";
 import type { AddMode } from "../../picker/index.ts";
 import { classes, NameField, runCommand } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
@@ -180,10 +180,15 @@ export const BlockCard = memo(function BlockCard({
 });
 
 // A stack's group, drawn in the stack's colour, or in the colour of a border
-// where the stack has none. The user collapses and expands it by its name, as
-// a plugin's section, and it starts open. A collapsed group hides the cards of
-// its blocks and leaves them mounted.
-export function StackGroup({ stack, children }: { stack: Stack; children: ReactNode }): ReactElement {
+// where the stack has none. It is a Disclosure of the SDK, which the user
+// collapses and expands by the stack's name, as a plugin's section, and it
+// starts open. A collapsed group hides the cards of its blocks and leaves
+// them mounted. The cards hide with the panel rather than only from sight,
+// as the panel of the SDK hides what it holds, so that the browser counts
+// them off screen.
+export function StackGroup({ id, stack, children }: { id: StackId; stack: Stack; children: ReactNode }): ReactElement {
+  const { groups } = useFrontEnd();
+  const collapsed = useSyncExternalStore(groups.subscribe, () => groups.collapsed(id));
   const color = stack.color ?? undefined;
   return (
     <section
@@ -191,10 +196,19 @@ export function StackGroup({ stack, children }: { stack: Stack; children: ReactN
       className="bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3"
       style={color === undefined ? undefined : { borderColor: color }}
     >
-      <details open>
-        <summary className={`${classes.heading} bc:cursor-pointer`}>{stack.name}</summary>
-        <div className="bc:mt-3 bc:grid bc:gap-3">{children}</div>
-      </details>
+      <Disclosure
+        isExpanded={!collapsed}
+        onExpandedChange={(expanded) => {
+          groups.collapse(id, !expanded);
+        }}
+      >
+        <DisclosureHeader>{stack.name}</DisclosureHeader>
+        <DisclosurePanel>
+          <div hidden={collapsed}>
+            <div className="bc:grid bc:gap-3 bc:pt-3">{children}</div>
+          </div>
+        </DisclosurePanel>
+      </Disclosure>
     </section>
   );
 }

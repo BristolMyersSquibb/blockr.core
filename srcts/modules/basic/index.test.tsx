@@ -15,7 +15,7 @@ import { find, picking, press, texts, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
 import { step } from "../../testing/react.ts";
 import { logged } from "../../testing/logged.ts";
-import { inert, itemDescribed, menuGroup, menuItem, menuItems, openDialog, openMenu } from "../../testing/overlays.ts";
+import { inert, itemDescribed, menuItem, menuItems, openDialog, openMenu, tipOnFocus } from "../../testing/overlays.ts";
 import { labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
 import { withoutPlugins, withPlugins } from "../../testing/store.ts";
 import type { GivenPlugin } from "../../testing/store.ts";
@@ -161,10 +161,17 @@ function toolbar(el: HTMLElement): HTMLElement {
   return find(el, '[role="toolbar"]');
 }
 
-// The toasts that the page shows, inside the dialog that is open or not.
-const toastsIn = (el: ParentNode): HTMLElement[] => [
-  ...el.querySelectorAll<HTMLElement>('section[aria-label="Notifications"] > [data-severity]'),
-];
+// The toasts that the page of the element shows, top to bottom, in the
+// region of the SDK's toasts at the end of the page's body, which holds the
+// latest first and lays it out lowest.
+function toastsIn(el: ParentNode): HTMLElement[] {
+  const doc = el instanceof Document ? el : (el.ownerDocument ?? document);
+  return [...doc.querySelectorAll<HTMLElement>('[role="region"] [role="alertdialog"][data-severity]')].reverse();
+}
+
+// The role of what a toast says, which a screen reader reads out: "status"
+// or "alert".
+const said = (toast: HTMLElement): string | null => find(toast, '[aria-atomic="true"]').getAttribute("role");
 
 // The severity, the first line and the message of each toast that the page
 // shows, in order.
@@ -193,7 +200,8 @@ function section(el: HTMLElement, name: string): HTMLElement {
 }
 
 // The button of a section's title, which holds the plugin's name and
-// collapses and expands the section.
+// collapses and expands the section, or that of a stack's group, which holds
+// the stack's name.
 const titled = (section: HTMLElement): HTMLButtonElement => find(section, "h3 > button", HTMLButtonElement);
 
 // The element of a section that holds its plugin's UI, which the section's
@@ -210,6 +218,15 @@ function bodyOf(section: HTMLElement): HTMLElement {
 function isOpen(section: HTMLElement): boolean {
   const open = titled(section).getAttribute("aria-expanded") === "true";
   expect(bodyOf(section).hidden).toBe(!open);
+  return open;
+}
+
+// Whether the group of a stack is open, as the button of its name says, which
+// the test checks against whether the group shows the cards of its blocks.
+function groupOpen(group: HTMLElement): boolean {
+  const open = titled(group).getAttribute("aria-expanded") === "true";
+  expect(bodyOf(group).hidden).toBe(!open);
+  expect([...group.querySelectorAll("article")].every((card) => card.closest("[hidden]") === null)).toBe(open);
   return open;
 }
 
@@ -266,20 +283,19 @@ describe("the page", () => {
   test("collapses a stack as the user clicks its name, which hides the cards of its blocks and leaves them mounted", async () => {
     const { el, core, settled } = await drawn();
     const stack = find(el, 'section[aria-label="Input"]');
-    const group = find(stack, "details", HTMLDetailsElement);
-    expect(group.open).toBe(true);
+    expect(groupOpen(stack)).toBe(true);
 
-    await click(find(stack, "summary"));
+    await click(titled(stack));
     await act(() => core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
     await settled();
     expect(core.store.board().name).toBe("Sepals");
     // It stays collapsed as the board changes, and its blocks' UIs stay.
-    expect(group.open).toBe(false);
+    expect(groupOpen(stack)).toBe(false);
     expect(texts(stack, "article h3")).toEqual(["Iris", "Head"]);
     expect(card(el, "Head").textContent).toContain("UI of b");
 
-    await click(find(stack, "summary"));
-    expect(group.open).toBe(true);
+    await click(titled(stack));
+    expect(groupOpen(stack)).toBe(true);
   });
 
   test("demands every block, so that R evaluates each, and mounts each block's UI and output", async () => {
@@ -831,7 +847,10 @@ function storagePlugin(controls: (args: { core: CoreApi; plugin: PluginClassId }
 }
 
 // The text of each part of the toolbar, in order.
-const parts = (el: HTMLElement): string[] => [...toolbar(el).children].map((part) => part.textContent.trim());
+// The text of each part of the toolbar, but for the separators between its
+// groups.
+const parts = (el: HTMLElement): string[] =>
+  [...toolbar(el).children].filter((part) => part.getAttribute("role") !== "separator").map((part) => part.textContent.trim());
 
 // The runs of storage buttons, by their ids, and what records the run of one.
 function running() {
@@ -846,7 +865,7 @@ function running() {
 }
 
 describe("the storage controls", () => {
-  test("show at the end of the toolbar in the plugin's order, each kind in its own look", async () => {
+  test("show at the end of the toolbar in the plugin's order, after a separator, each kind in its own look", async () => {
     const { ran } = running();
     const storage = storagePlugin(() => [
       { kind: "status", id: "user", text: "NS", tooltip: "Signed in as Nina" },
@@ -854,27 +873,52 @@ describe("the storage controls", () => {
       { kind: "menu", id: "versions", label: "Versions", items: [] },
       { kind: "status", id: "saved", text: "Saved" },
       { kind: "button", id: "share", label: "Share", disabled: true, run: ran("share") },
+      { kind: "button", id: "lock", label: "Lock", tooltip: "Locked by Ann", disabled: true, run: ran("lock") },
     ]);
     const { el } = await drawn(storage.options);
 
-    expect(parts(el)).toEqual(["Options", "Undo", "Redo", "NS", "Save", "Versions▾", "Saved", "Share"]);
-    // A button looks like the toolbar's own, and is greyed out while it is
-    // disabled.
+    // The toolbar's three groups, the board options, undo and redo, and the
+    // storage controls, each come after a separator but the first.
+    expect([...toolbar(el).children].map((part) => (part.getAttribute("role") === "separator" ? "|" : part.textContent.trim()))).toEqual([
+      "Options",
+      "|",
+      "Undo",
+      "Redo",
+      "|",
+      "NS",
+      "Save",
+      "Versions▾",
+      "Saved",
+      "Share",
+      "Lock",
+      "Locked by Ann",
+    ]);
+    // A button looks like the toolbar's own, names its shortcut, and shows
+    // its tooltip as the keyboard's focus moves to it.
     const save = button(toolbar(el), "Save");
     expect(save.className).toBe(button(toolbar(el), "Options").className);
-    expect(save.title).toBe("Save to Connect");
     expect(save.getAttribute("aria-keyshortcuts")).toBe("Control+S Meta+S");
+    expect(await tipOnFocus(save)).toBe("Save to Connect");
+    expect(save.getAttribute("aria-describedby")).toBe(find(document, '[role="tooltip"]').id);
+    // A disabled button is greyed out, and shows its tooltip as text after
+    // it, which describes it.
     expect(button(toolbar(el), "Share").disabled).toBe(true);
-    // A menu is a button that opens it, and a status is text.
+    const lock = button(toolbar(el), "Lock");
+    expect(lock.disabled).toBe(true);
+    expect(document.getElementById(lock.getAttribute("aria-describedby") ?? "")?.textContent).toBe("Locked by Ann");
+    // A menu is a button that opens it, and a status is text, which shows
+    // its tooltip as the focus moves to it.
     expect(find(toolbar(el), "button[aria-haspopup]").getAttribute("aria-expanded")).toBe("false");
-    const statuses = [...toolbar(el).querySelectorAll('[role="status"]')];
-    expect(statuses.map((status) => [status.tagName, status.textContent, status.getAttribute("title")])).toEqual([
-      ["SPAN", "NS", "Signed in as Nina"],
-      ["SPAN", "Saved", null],
+    const statuses = [...toolbar(el).querySelectorAll<HTMLElement>('[role="status"]')];
+    expect(statuses.map((status) => [status.tagName, status.textContent])).toEqual([
+      ["SPAN", "NS"],
+      ["SPAN", "Saved"],
     ]);
+    expect(await tipOnFocus(find(statuses[0] ?? el, '[role="button"]'))).toBe("Signed in as Nina");
+    expect(statuses[1]?.querySelector('[role="button"]')).toBeNull();
   });
 
-  test("open a menu of what it holds, a menu inside it as a group under its label, each item with its tooltip below it and its shortcut at its right, and close it as one of its buttons runs", async () => {
+  test("open a menu of what it holds, a menu inside it beside its row, each item with its tooltip below it and its shortcut at its right, and close it as one of its buttons runs", async () => {
     const { runs, ran } = running();
     const storage = storagePlugin(() => [
       {
@@ -903,18 +947,22 @@ describe("the storage controls", () => {
     // A status is an item that the user cannot pick. An item's tooltip shows
     // as its description, and a button's shortcut at its right, as the page
     // names it off a Mac, and React Aria names both to assistive technology.
-    expect(menuItems(shown)).toEqual(["Restore", "Version 3", "Version 1"]);
+    // A menu inside it is an item, which opens it beside its row.
+    expect(menuItems(shown)).toEqual(["Restore", "Version 3", "Older"]);
     expect(menuItem(shown, "Version 3").getAttribute("aria-disabled")).toBe("true");
     expect(itemDescribed(menuItem(shown, "Version 3"))).toEqual(["Saved at noon"]);
     expect(find(menuItem(shown, "Restore"), "kbd").textContent).toBe("Ctrl+Shift+K");
     expect(itemDescribed(menuItem(shown, "Restore"))).toEqual(["Ctrl+Shift+K"]);
-    const older = menuGroup(shown, "Older");
+    expect(menuItem(shown, "Older").getAttribute("aria-haspopup")).toBe("menu");
+    await click(menuItem(shown, "Older"));
+    const older = openMenu("Older");
     expect(menuItems(older)).toEqual(["Version 1"]);
     expect(itemDescribed(menuItem(older, "Version 1"))).toEqual(["Saved in May"]);
 
     await click(menuItem(older, "Version 1"));
     expect(runs).toEqual(["v1"]);
     expect(list()).toBeNull();
+    expect(document.querySelector('[role="menu"]')).toBeNull();
 
     // It closes on Escape too, which React Aria hears where the focus is, in
     // the menu.
@@ -1067,7 +1115,7 @@ describe("the storage controls", () => {
       });
       const warning = find(toolbar(page.el), '[role="alert"]');
       expect(warning.textContent).toBe("Storage failed");
-      expect(warning.title).toBe("The storage controls failed: No session.");
+      expect(await tipOnFocus(find(warning, '[role="button"]'))).toBe("The storage controls failed: No session.");
       expect(parts(page.el)).toEqual(["Options", "Undo", "Redo", "Storage failed"]);
       // It draws again with the same failure, which the page has heard of.
       await act(() => page.core.commands.run("blockr.core-rename_board", { name: "Sepals" }));
@@ -1177,7 +1225,7 @@ describe("a plugin", () => {
     ]);
     const list = find(edit, 'ul[aria-label="Conditions"]');
     expect(list.previousElementSibling?.contains(titled(edit))).toBe(true);
-    expect(list.nextElementSibling).toBe(bodyOf(edit));
+    expect(list.parentElement?.nextElementSibling).toBe(bodyOf(edit));
 
     // A collapsed section keeps its pills, which still open their messages
     // and leave the section collapsed.
@@ -1262,9 +1310,12 @@ describe("which block has focus", () => {
 describe("what is on screen", () => {
   test("is the blocks whose cards and the plugins whose sections show in the viewport, as the page lays them out", async () => {
     // The page lays out the card of Head and the UI of the Edit board plugin
-    // in view, and nothing else.
+    // in view, and nothing else. The UI's element is the one that the panel
+    // of the plugin's section holds.
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
-      const shown = this.matches('article[aria-label="Head"]') || this.parentElement?.matches('section[aria-label="Edit board"]') === true;
+      const shown =
+        this.matches('article[aria-label="Head"]') ||
+        this.parentElement?.matches('section[aria-label="Edit board"] [role="group"][aria-labelledby]') === true;
       const [width, height] = shown ? [400, 100] : [0, 0];
       return { top: 0, bottom: height, left: 0, right: width, width, height, x: 0, y: 0, toJSON: () => ({}) };
     });
@@ -1281,18 +1332,17 @@ describe("showing a block or a plugin", () => {
       scrolled.push(this);
     });
     const stack = find(el, 'section[aria-label="Input"]');
-    const group = find(stack, "details", HTMLDetailsElement);
-    await click(find(stack, "summary"));
+    await click(titled(stack));
     const edit = section(el, "Edit board");
     await click(titled(edit));
-    expect([group.open, isOpen(edit)]).toEqual([false, false]);
+    expect([groupOpen(stack), isOpen(edit)]).toEqual([false, false]);
     const actions = find(card(el, "Merge"), 'button[aria-label="Actions of Merge"]');
     await step(() => {
       actions.focus();
     });
 
     await act(() => core.show({ block: "b" }));
-    expect(group.open).toBe(true);
+    expect(groupOpen(stack)).toBe(true);
     expect(scrolled).toEqual([card(el, "Head")]);
     expect(core.focus.get()).toBe("b");
     expect(document.activeElement).toBe(actions);
@@ -1344,7 +1394,7 @@ describe("what the user learns", () => {
         ].join("\n"),
       ],
     ]);
-    expect(toastsIn(page.el)[0]?.getAttribute("role")).toBe("alert");
+    expect(said(toastsIn(page.el)[0] ?? page.el)).toBe("alert");
 
     // A board that opens later starts core and the frontend again, which shows
     // only the toast of what that board dropped.
@@ -1385,8 +1435,8 @@ describe("what the user learns", () => {
       ["warning", 'Plugin "File storage" · blockr.core', "The token expires soon."],
       ["message", "Board · blockr.core", "Shown on the board."],
     ]);
-    expect(toast(el, "Saved to Connect.").getAttribute("role")).toBe("status");
-    expect(toast(el, "The token expires soon.").getAttribute("role")).toBe("alert");
+    expect(said(toast(el, "Saved to Connect."))).toBe("status");
+    expect(said(toast(el, "The token expires soon."))).toBe("alert");
     const head = card(el, "Head");
     expect(pills(head)).toEqual(["error", "1 warning"]);
     expect(banners(head)).toEqual([["error", "Not shared."]]);
@@ -1402,27 +1452,33 @@ describe("what the user learns", () => {
     expect(core.notifications.get().some((n) => n.message === "Saved to Connect.")).toBe(true);
   });
 
-  test("shows its toasts inside the dialog that is open, the rest of the page being inert, and in the page once the dialog closes", async () => {
+  test("leaves its toasts within reach while a dialog is open, outside the dialog, though the rest of the page is inert", async () => {
     const { el, core, settled } = await drawn();
     await step(() => {
       core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared." });
     });
-    expect(toastsIn(el).map((t) => t.closest('[role="dialog"]'))).toEqual([null]);
 
     await click(button(el, "Options"));
     await settled();
     await step(() => {
       core.notifications.notify(FILE_STORAGE, { severity: "warning", code: "token_expiring", message: "The token expires soon." });
     });
-    // The toasts come after what the dialog holds.
-    expect(toasts(dialog()).map(([, , message]) => message)).toEqual(["Not shared.", "The token expires soon."]);
-    expect(dialog().lastElementChild?.contains(toast(dialog(), "Not shared."))).toBe(true);
-    await click(find(toast(dialog(), "Not shared."), 'button[aria-label="Close"]'));
+    // The toasts stay in their region, outside the dialog, which the modal
+    // leaves out of what it makes inert.
+    expect(toasts(el).map(([, , message]) => message)).toEqual(["Not shared.", "The token expires soon."]);
+    expect(toastsIn(el).map((t) => [t.closest('[role="dialog"]'), inert(t)])).toEqual([
+      [null, false],
+      [null, false],
+    ]);
+    expect(inert(find(el, "h1"))).toBe(true);
+    // The user closes a toast, and the dialog stays open.
+    await click(find(toast(el, "Not shared."), 'button[aria-label="Close"]'));
+    expect(toasts(el).map(([, , message]) => message)).toEqual(["The token expires soon."]);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
 
     await click(button(dialog(), "Close"));
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(toasts(el).map(([, , message]) => message)).toEqual(["The token expires soon."]);
-    expect(toastsIn(el).map((t) => t.closest('[role="dialog"]'))).toEqual([null]);
   });
 
   test("is why the store or the command registry refused an edit, an error of the code board_edit_failed that core raises about the board, whatever block the edit names, which shows again as the same refusal comes again", async () => {
@@ -1464,7 +1520,7 @@ describe("what the user learns", () => {
     expect(pills(card(el, "Head"))).toEqual([]);
   });
 
-  test("fades from a message's toast after five seconds, but not while the pointer rests on it or the keyboard's focus is in it", async () => {
+  test("fades from a message's toast after five seconds, but not while the pointer rests on the toasts or the keyboard's focus is in them", async () => {
     const { el, core } = await drawn();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {
@@ -1472,25 +1528,32 @@ describe("what the user learns", () => {
         core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved." });
         core.notifications.notify(FILE_STORAGE, { severity: "error", code: "share_failed", message: "Not shared." });
       });
+      // The message's toast fades in its last moments, and the error's does
+      // not fade.
+      expect(toastsIn(el).map((t) => t.className.includes("bc:toast-fade"))).toEqual([true, false]);
+
+      // The pointer rests on the error's toast, which keeps the message's
+      // toast too, as does the focus in the message's toast.
       const saved = toast(el, "Saved.");
+      const shared = toast(el, "Not shared.");
       await step(() => {
-        saved.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+        shared.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
         vi.advanceTimersByTime(60_000);
       });
       await step(() => {
         find(saved, 'button[aria-label="Close"]').focus();
-        saved.dispatchEvent(new PointerEvent("pointerout", { bubbles: true }));
+        shared.dispatchEvent(new PointerEvent("pointerout", { bubbles: true, pointerType: "mouse" }));
         vi.advanceTimersByTime(60_000);
       });
       expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved.", "Not shared."]);
 
       await step(() => {
         find(saved, 'button[aria-label="Close"]').blur();
-        vi.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(4000);
       });
-      expect(toast(el, "Saved.").className).toContain("bc:opacity-0");
+      expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved.", "Not shared."]);
       await step(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
       expect(toasts(el).map(([, , message]) => message)).toEqual(["Not shared."]);
     } finally {
@@ -1498,7 +1561,7 @@ describe("what the user learns", () => {
     }
   });
 
-  test("fades from a message's toast that moves out of a dialog as it closes, though the pointer rested on it there", async () => {
+  test("fades from a message's toast while a dialog is open", async () => {
     const { el, core, settled } = await drawn();
     await click(button(el, "Options"));
     await settled();
@@ -1507,21 +1570,12 @@ describe("what the user learns", () => {
       await step(() => {
         core.notifications.notify(FILE_STORAGE, { severity: "message", code: "saved", message: "Saved." });
       });
-      await step(() => {
-        toast(dialog(), "Saved.").dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
-        vi.advanceTimersByTime(60_000);
-      });
-      expect(toasts(dialog()).map(([, , message]) => message)).toEqual(["Saved."]);
-
-      await step(() => {
-        button(dialog(), "Close").click();
-      });
-      expect(document.querySelector('[role="dialog"]')).toBeNull();
       expect(toasts(el).map(([, , message]) => message)).toEqual(["Saved."]);
       await step(() => {
-        vi.advanceTimersByTime(5300);
+        vi.advanceTimersByTime(5000);
       });
       expect(toasts(el)).toEqual([]);
+      expect(document.querySelector('[role="dialog"]')).not.toBeNull();
     } finally {
       vi.useRealTimers();
     }

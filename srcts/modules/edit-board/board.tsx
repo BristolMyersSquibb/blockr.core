@@ -5,7 +5,8 @@
 // holds, with the controls that change and remove each. A table shows a page
 // of rows at a time, which a search narrows, so that it stays usable on a
 // board of many blocks.
-// Each section collapses by its heading, which counts what the board holds.
+// Each section is a Disclosure of the SDK, which starts open and collapses by
+// its header, which counts what the board holds.
 // It draws nothing of a block's state, which the block's UI sets, nor the
 // board's name or its board options, which the frontend draws.
 // It follows the board through the store, so the next edit reads the board as
@@ -24,7 +25,7 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useBoard } from "../../react/index.ts";
+import { Disclosure, DisclosureHeader, DisclosurePanel, useBoard } from "../../react/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { BlocksSection } from "./blocks.tsx";
 import { LinksSection } from "./links.tsx";
@@ -43,19 +44,21 @@ export function EditBoard({ core }: { core: CoreApi }): ReactElement {
 }
 
 // One of the plugin's sections, a region named by its title, which the user
-// collapses by its heading, which counts what the board holds of it.
+// collapses by its header, which counts what the board holds of it.
 export function Section({ title, count, children }: { title: string; count: number; children: ReactNode }): ReactElement {
   return (
     <section aria-label={title} className="bc:rounded-md bc:border bc:border-border-default">
-      <details open className="bc:group">
-        <summary className="bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:px-3 bc:py-2 bc:font-sans bc:text-sm bc:font-semibold">
-          <h3 className="bc:m-0 bc:text-sm bc:font-semibold">{title}</h3>
+      <Disclosure defaultExpanded>
+        <DisclosureHeader className="bc:text-sm bc:font-semibold bc:[&>button]:gap-2 bc:[&>button]:px-3 bc:[&>button]:py-2">
+          {title}
           <span className="bc:rounded-full bc:border bc:border-border-default bc:px-1.5 bc:text-xs bc:font-normal bc:text-text-muted">
             {count}
           </span>
-        </summary>
-        <div className="bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3">{children}</div>
-      </details>
+        </DisclosureHeader>
+        <DisclosurePanel>
+          <div className="bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3">{children}</div>
+        </DisclosurePanel>
+      </Disclosure>
     </section>
   );
 }

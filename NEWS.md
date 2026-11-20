@@ -713,6 +713,24 @@
   Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
+* Core's React SDK offers the rest of the overlays and the layout of React Aria's Tailwind starter kit, in core's theme, after the starter kit's files.
+  The overlays are the tooltip, `Tooltip` and `TooltipTrigger`, with React Aria's `Focusable`, which makes an element that a UI draws itself the trigger, the dialog that asks, `AlertDialog`, the sheet, `Sheet`, the menu's `SubmenuTrigger`, and the toasts, `ToastQueue`, `ToastRegion`, `Toast` and `ToastContent`.
+  The layout is the disclosure, `Disclosure`, `DisclosureGroup`, `DisclosureHeader` and `DisclosurePanel`, the tabs, `Tabs`, `TabList`, `Tab` and `TabPanel`, the toolbar, `Toolbar` and `Separator`, the breadcrumbs, `Breadcrumbs` and `Breadcrumb`, the `Link`, the `Meter` and the `ProgressBar`.
+  Each takes the props of its part of React Aria, and those that the starter kit adds, such as a meter's `label`.
+  The `Button` takes the look `"destructive"` too, in the danger color, and `aria-keyshortcuts`, which React Aria's `Button` passes on to no element (#756).
+* Every overlay of core's React SDK, the list of the select included, stacks at the `z-index` of a new variable of core's theme, `--bc-z-index-overlay`, which is 1100 and which a frontend may set, and the toasts of the SDK one above.
+  So a modal opens above the dock's bar, its options sidebar and its toasts, and so does the list of a select in it.
+  The modal took a `z-index` of 50 until now, and a popover the 100000 that React Aria writes on it (#756).
+* Core's basic frontend draws with the new components of the SDK.
+  Its toolbar is a `Toolbar`, with a `Separator` between the board options, undo and redo, and the storage controls.
+  A storage menu inside another opens beside its row, where the menu showed it as a group of its items.
+  The tooltips of a storage control, of the warning that the storage controls failed, and of the button of the select that clears are tooltips of the SDK, which the keyboard reaches too, in place of `title` attributes.
+  A disabled storage button shows its tooltip as text after it, since React Aria shows no tooltip for a disabled control.
+  A chip of the select of several whose text it cuts off shows the text whole in a tooltip.
+  The groups of the stacks, the sections of the plugins and those of the Edit board plugin are disclosures, and the file browser block's directory is breadcrumbs (#756).
+* The toasts of core's basic frontend are those of the SDK.
+  A modal leaves them within reach, so they no longer move into a dialog that is open, and F6 moves the focus to them.
+  While the pointer rests on the toasts or the focus is in them, every message's toast waits, where only the toast under the pointer or the focus waited until now (#756).
 
 # blockr.core 0.1.4
 

@@ -4,14 +4,15 @@
 // state arg, on the stub of a block's host.
 // The rest, such as the keys and the filter, is React Aria's.
 
-import { useState } from "react";
+import { act, useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { useValue } from "../react/index.ts";
 import { stubBlockHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { press, type } from "../testing/inputs.ts";
+import { pointTo, shownTip, tipOnFocus } from "../testing/overlays.ts";
 import { step } from "../testing/react.ts";
 import {
   chipFromLabel,
@@ -44,7 +45,17 @@ const fruits: readonly Fruit[] = [
 
 const row = (fruit: Fruit): ReactElement => <ComboBoxItem id={fruit.id}>{fruit.name}</ComboBoxItem>;
 
+// What unmounts each component that a test drew and left on the page, which
+// runs as the test ends, so that no tooltip that it left open closes as one
+// of a later test opens.
+const drawn = new Set<() => void>();
+
 afterEach(() => {
+  act(() => {
+    for (const unmount of drawn) unmount();
+  });
+  drawn.clear();
+  vi.useRealTimers();
   document.body.replaceChildren();
 });
 
@@ -53,6 +64,11 @@ async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () 
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
+  const end = (): void => {
+    drawn.delete(end);
+    root.unmount();
+  };
+  drawn.add(end);
   await step(() => {
     root.render(node);
   });
@@ -60,7 +76,7 @@ async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () 
     el,
     unmount: () =>
       step(() => {
-        root.unmount();
+        end();
       }),
   };
 }
@@ -396,6 +412,71 @@ describe("a select of several items", () => {
     ]);
     expect(await removed({ isDisabled: true })).toEqual([[], []]);
     expect(await removed({ isReadOnly: true })).toEqual([[], []]);
+  });
+
+  test("says what its button at the right of its field clears in a tooltip, as the pointer rests on the button, which takes no place in the order of the focus", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { el } = await draw(
+      <>
+        <Held label="Fruits" selectionMode="multiple" defaultItems={fruits} start={["apple"]} seen={[]} />
+        <Held label="Fruit" defaultItems={fruits} start="apple" seen={[]} />
+      </>,
+    );
+    const several = clearButton(labelled(el, "Fruits"));
+    const one = clearButton(labelled(el, "Fruit"));
+
+    expect([several?.tabIndex, one?.tabIndex]).toEqual([-1, -1]);
+    await step(() => {
+      if (several !== null) pointTo(several);
+      vi.advanceTimersByTime(1500);
+    });
+    expect(shownTip()).toBe("Clear every pick");
+    await step(() => {
+      several?.dispatchEvent(new PointerEvent("pointerout", { bubbles: true, pointerType: "mouse" }));
+      if (one !== null) pointTo(one);
+      vi.advanceTimersByTime(1500);
+    });
+    expect(shownTip()).toBe("Clear the pick");
+  });
+
+  test("shows the text of a chip that it cuts off whole in a tooltip, as the pointer rests on the text or the keyboard's focus moves to the chip, and none for a chip whose text fits", async () => {
+    const { el } = await draw(
+      <Held label="Fruits" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana"]} seen={[]} isReadOnly />,
+    );
+    const field = labelled(el, "Fruits");
+    // The chip of Banana is too narrow for its text, and that of Apple fits.
+    const text = (label: string): HTMLElement => {
+      const found = chipFromLabel(field, label).querySelector<HTMLElement>("span");
+      if (found === null) throw new Error(`Found no text of the chip ${label}.`);
+      return found;
+    };
+    for (const [label, wide] of [
+      ["Apple", 40],
+      ["Banana", 120],
+    ] as const) {
+      Object.defineProperty(text(label), "scrollWidth", { configurable: true, value: wide });
+      Object.defineProperty(text(label), "clientWidth", { configurable: true, value: 60 });
+    }
+
+    expect(await tipOnFocus(chipFromLabel(field, "Apple"))).toBeNull();
+    expect(await tipOnFocus(chipFromLabel(field, "Banana"))).toBe("Banana");
+    await step(() => {
+      chipFromLabel(field, "Banana").blur();
+    });
+    expect(shownTip()).toBeNull();
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await step(() => {
+      pointTo(text("Apple"));
+      vi.advanceTimersByTime(1500);
+    });
+    expect(shownTip()).toBeNull();
+    await step(() => {
+      text("Apple").dispatchEvent(new PointerEvent("pointerout", { bubbles: true, pointerType: "mouse" }));
+      pointTo(text("Banana"));
+      vi.advanceTimersByTime(1500);
+    });
+    expect(shownTip()).toBe("Banana");
   });
 
   test("keeps Tab off its chips where it is disabled, as off its text field, but not where it is read-only", async () => {

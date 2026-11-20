@@ -454,6 +454,21 @@ test("draws what floats over the board on the page's background, which the dark 
   expect(css.replace(theme, "")).not.toContain("--bc-color-bg-raised:");
 });
 
+test("stacks the overlays at a z-index of its theme, which a frontend sets, through the utility bc:z-overlay, and the toasts one above", async () => {
+  await write({ "test.css": `@import "${core}";\n@source inline("bc:z-overlay bc:z-[calc(var(--bc-z-index-overlay)+1)]");\n` });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  expect(css).toMatch(/^\.bc\\:z-overlay \{\n {2}z-index: var\(--bc-z-index-overlay\);/m);
+  expect(css).toMatch(/\{\n {2}z-index: calc\(var\(--bc-z-index-overlay\) \+ 1\);/);
+  // The variable sits in the theme's layer, so that a frontend that sets it
+  // outside a layer wins over it.
+  const start = css.indexOf("@layer theme {");
+  const theme = css.slice(start, css.indexOf("\n}\n", start));
+  expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-z-index-overlay: 1100;/);
+  expect(css.replace(theme, "")).not.toContain("--bc-z-index-overlay:");
+});
+
 test("holds a color for each status of a block, lighter under the dark theme, and for each category of block classes, though no utility uses those", async () => {
   await write({ "test.css": `@import "${core}";\n` });
 

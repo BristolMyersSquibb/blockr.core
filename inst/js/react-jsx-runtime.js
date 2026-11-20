@@ -1,4 +1,4 @@
 // react/jsx-runtime, as an ES module, from the one copy of React that blockr.core ships.
-import { entry1 as m } from "./vendor-b25170e7.js";
+import { entry1 as m } from "./vendor-ce8fc324.js";
 export default m.default;
 export const { Fragment, jsx, jsxs } = m;

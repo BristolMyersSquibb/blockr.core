@@ -2,8 +2,8 @@ import type { ReactElement } from "react";
 import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Plugin, Severity } from "../../types/core-api.ts";
 export interface Sections {
-    readonly collapsed: (plugin: PluginClassId) => boolean;
-    readonly collapse: (plugin: PluginClassId, collapsed: boolean) => void;
+    readonly collapsed: (id: string) => boolean;
+    readonly collapse: (id: string, collapsed: boolean) => void;
     readonly subscribe: (fn: () => void) => () => void;
 }
 export declare function createSections(): Sections;

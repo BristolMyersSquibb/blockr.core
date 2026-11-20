@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import type { Condition } from "../../protocol/index.ts";
-import type { Block, BlockId, Stack } from "../../types/board.ts";
+import type { Block, BlockId, Stack, StackId } from "../../types/board.ts";
 import type { AddMode } from "../../picker/index.ts";
 type Severity = Condition["severity"];
 export interface CardProps {
@@ -11,7 +11,8 @@ export interface CardProps {
     readonly add: (mode: AddMode) => void;
 }
 export declare const BlockCard: import("react").MemoExoticComponent<({ id, block, severities, prependable, add, }: CardProps) => ReactElement>;
-export declare function StackGroup({ stack, children }: {
+export declare function StackGroup({ id, stack, children }: {
+    id: StackId;
     stack: Stack;
     children: ReactNode;
 }): ReactElement;

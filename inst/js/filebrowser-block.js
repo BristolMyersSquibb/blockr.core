@@ -1,6 +1,6 @@
 // srcts/modules/filebrowser-block/index.tsx
-import { Fragment, useState } from "react";
-import { ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
+import { useState } from "react";
+import { Breadcrumb, Breadcrumbs, ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -37,10 +37,9 @@ function jsonEqual(a, b) {
 }
 
 // srcts/modules/filebrowser-block/index.tsx
-import { Fragment as Fragment2, jsx, jsxs } from "react/jsx-runtime";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
-var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
-var entry = `${link} bc:justify-self-stretch`;
+var entry = "bc:cursor-pointer bc:justify-self-stretch bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
   const volumes = asVolumes(shared);
@@ -76,22 +75,16 @@ function FileBrowserBlock({ host }) {
         children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.id })
       }
     ),
-    /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsxs(Fragment, { children: [
-      i > 0 && /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          type: "button",
-          className: link,
-          "aria-current": i === dirs.length ? "true" : void 0,
-          onClick: () => {
-            go({ volume, dirs: dirs.slice(0, i) });
-          },
-          children: name
-        }
-      )
-    ] }, i)) }),
-    /* @__PURE__ */ jsx("ul", { className: "bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0", children: loading ? /* @__PURE__ */ jsx(Note, { text: "Loading\u2026" }) : /* @__PURE__ */ jsxs(Fragment2, { children: [
+    /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", children: /* @__PURE__ */ jsx(
+      Breadcrumbs,
+      {
+        onAction: (key) => {
+          go({ volume, dirs: dirs.slice(0, Number(key)) });
+        },
+        children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsx(Breadcrumb, { id: i, children: name }, i))
+      }
+    ) }),
+    /* @__PURE__ */ jsx("ul", { className: "bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0", children: loading ? /* @__PURE__ */ jsx(Note, { text: "Loading\u2026" }) : /* @__PURE__ */ jsxs(Fragment, { children: [
       dirs.length > 0 && /* @__PURE__ */ jsx(
         Entry,
         {

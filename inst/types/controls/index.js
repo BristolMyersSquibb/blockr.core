@@ -1,5 +1,5 @@
 // srcts/controls/controls.tsx
-import { Fragment as Fragment5, useLayoutEffect, useRef as useRef3 } from "react";
+import { Fragment as Fragment7, useLayoutEffect, useRef as useRef3 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
@@ -185,6 +185,8 @@ function strings(value) {
 
 // srcts/aria/index.ts
 import {
+  Breadcrumb,
+  Breadcrumbs,
   Button,
   Collection,
   ComboBox,
@@ -192,13 +194,19 @@ import {
   composeRenderProps,
   Dialog,
   DialogTrigger,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureStateContext,
   FieldError,
+  Focusable,
   Group,
   Header,
   Heading,
   Input,
   Keyboard,
   Label,
+  Link,
   ListBox,
   ListBoxItem,
   ListBoxSection,
@@ -207,17 +215,39 @@ import {
   MenuItem,
   MenuSection,
   MenuTrigger,
+  Meter,
   Modal,
   ModalOverlay,
   NumberField,
   NumberFieldStateContext,
+  OverlayArrow,
   Popover,
+  ProgressBar,
+  SelectionIndicator,
+  Separator,
+  Sheet,
+  SheetBackdrop,
+  SheetContent,
+  SheetOverlay,
+  SubmenuTrigger,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
   Tag,
   TagGroup,
   TagList,
   Text,
   TextArea,
   TextField,
+  Toolbar,
+  Tooltip,
+  TooltipTrigger,
+  TooltipTriggerStateContext,
+  UNSTABLE_Toast,
+  UNSTABLE_ToastContent,
+  UNSTABLE_ToastQueue,
+  UNSTABLE_ToastRegion,
   useFilter,
   Virtualizer
 } from "react-aria-components";
@@ -279,17 +309,63 @@ function useTyped(bound) {
 }
 
 // srcts/inputs/combobox.tsx
-import { useContext, useRef, useState as useState2 } from "react";
+import { useContext, useEffect, useEffectEvent, useRef, useState as useState2 } from "react";
+
+// srcts/overlays/dialog.tsx
 import { Fragment as Fragment2, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+
+// srcts/overlays/menu.tsx
+import { Children } from "react";
+
+// srcts/overlays/stacking.ts
+var OVERLAY_Z_INDEX = "var(--bc-z-index-overlay)";
+function overlayStyle(style) {
+  return composeRenderProps(style, (given) => ({ ...given, zIndex: OVERLAY_Z_INDEX }));
+}
+
+// srcts/overlays/popover.tsx
+import { jsx as jsx4 } from "react/jsx-runtime";
+
+// srcts/overlays/menu.tsx
+import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
+
+// srcts/overlays/sheet.tsx
+import { jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
+
+// srcts/overlays/toast.tsx
+import { jsx as jsx7 } from "react/jsx-runtime";
+
+// srcts/overlays/tooltip.tsx
+import { jsx as jsx8, jsxs as jsxs5 } from "react/jsx-runtime";
+function Tooltip2({ children, className, style, offset = 8, ...props }) {
+  return /* @__PURE__ */ jsxs5(
+    Tooltip,
+    {
+      ...props,
+      offset,
+      style: overlayStyle(style),
+      className: composeRenderProps(className, (given) => `${TOOLTIP} ${given ?? ""}`),
+      children: [
+        /* @__PURE__ */ jsx8(OverlayArrow, { children: /* @__PURE__ */ jsx8("svg", { width: 8, height: 8, viewBox: "0 0 8 8", className: ARROW, "aria-hidden": "true", children: /* @__PURE__ */ jsx8("path", { d: "M0 0 L4 4 L8 0" }) }) }),
+        children
+      ]
+    }
+  );
+}
+var TOOLTIP = "bc:group bc:box-border bc:max-w-xs bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-gray-900 bc:shadow-md bc:outline-none bc:will-change-transform bc:dark:text-gray-100";
+var ARROW = "bc:block bc:fill-bg-raised bc:stroke-border-default bc:forced-colors:fill-[Canvas] bc:forced-colors:stroke-[ButtonBorder] bc:group-data-[placement=bottom]:rotate-180 bc:group-data-[placement=left]:-rotate-90 bc:group-data-[placement=right]:rotate-90";
+
+// srcts/inputs/combobox.tsx
+import { Fragment as Fragment4, jsx as jsx9, jsxs as jsxs6 } from "react/jsx-runtime";
 function ComboBox2(props) {
   const { bound, ordered = false, ...rest } = props;
-  if (bound === void 0) return /* @__PURE__ */ jsx3(Drawn, { ...rest });
-  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx3(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx3(BoundOne, { ...rest, bound });
+  if (bound === void 0) return /* @__PURE__ */ jsx9(Drawn, { ...rest });
+  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx9(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx9(BoundOne, { ...rest, bound });
 }
 function BoundOne({ bound, outdated = false, ...props }) {
   const current = typeof bound.value === "string" ? bound.value : null;
-  return /* @__PURE__ */ jsxs2(Fragment2, { children: [
-    /* @__PURE__ */ jsx3(
+  return /* @__PURE__ */ jsxs6(Fragment4, { children: [
+    /* @__PURE__ */ jsx9(
       Drawn,
       {
         ...props,
@@ -305,7 +381,7 @@ function BoundOne({ bound, outdated = false, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx9(Refusal, { error: bound.error })
   ] });
 }
 function BoundSeveral({
@@ -327,8 +403,8 @@ function BoundSeveral({
     const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
     void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
   };
-  return /* @__PURE__ */ jsxs2(Fragment2, { children: [
-    /* @__PURE__ */ jsx3(
+  return /* @__PURE__ */ jsxs6(Fragment4, { children: [
+    /* @__PURE__ */ jsx9(
       Drawn,
       {
         ...props,
@@ -360,7 +436,7 @@ function BoundSeveral({
         }
       }
     ),
-    /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx9(Refusal, { error: bound.error })
   ] });
 }
 function known(props) {
@@ -397,7 +473,7 @@ function Drawn({
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
   const empty = none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const value = useSameValue(props.value);
-  return /* @__PURE__ */ jsxs2(
+  return /* @__PURE__ */ jsxs6(
     ComboBox,
     {
       ...props,
@@ -406,8 +482,8 @@ function Drawn({
       allowsEmptyCollection,
       className: composeRenderProps(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx3(Label, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsx3(
+        label === void 0 ? null : /* @__PURE__ */ jsx9(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsx9(
           Field,
           {
             placeholder,
@@ -420,9 +496,9 @@ function Drawn({
             label
           }
         ),
-        /* @__PURE__ */ jsx3(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-        /* @__PURE__ */ jsx3(FieldError, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx3(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx3(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx3(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx3("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx9(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+        /* @__PURE__ */ jsx9(FieldError, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx9(Popover, { offset: 4, className: LIST, style: { zIndex: OVERLAY_Z_INDEX }, children: /* @__PURE__ */ jsx9(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx9(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx9("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
       ]
     }
   );
@@ -463,20 +539,20 @@ function Field({
   };
   const chips = keys.map((key) => ({ key, text: known2.get(key) ?? String(key), gone: marking && !known2.has(key) }));
   const picks = label === void 0 ? "Picks" : `Picks of ${label}`;
-  return /* @__PURE__ */ jsxs2(Group, { isInvalid: invalid, className: FIELD, children: [
-    /* @__PURE__ */ jsxs2("div", { className: VALUES, children: [
+  return /* @__PURE__ */ jsxs6(Group, { isInvalid: invalid, className: FIELD, children: [
+    /* @__PURE__ */ jsxs6("div", { className: VALUES, children: [
       keys.length === 0 ? null : isDisabled ? (
         // The chips of a disabled select take no focus, as its text field
         // takes none.
         // React Aria's TagGroup keeps a tab stop on its list even where
         // every tag is disabled, so a disabled select draws its chips as
         // a plain list.
-        /* @__PURE__ */ jsx3("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx3("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx3("span", { className: "bc:truncate", children: gone ? missing(text) : text }) }, key)) })
-      ) : /* @__PURE__ */ jsx3(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx3(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-        /* @__PURE__ */ jsx3("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
-        editable ? /* @__PURE__ */ jsx3(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx3(Cross, {}) }) : null
-      ] }, key)) }) }),
-      /* @__PURE__ */ jsx3(
+        /* @__PURE__ */ jsx9("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx9(PlainChip, { text: gone ? missing(text) : text, gone }, key)) })
+      ) : /* @__PURE__ */ jsx9(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx9(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx9(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: ({ isFocusVisible }) => /* @__PURE__ */ jsxs6(Fragment4, { children: [
+        /* @__PURE__ */ jsx9(ChipText, { text: gone ? missing(text) : text, focused: isFocusVisible }),
+        editable ? /* @__PURE__ */ jsx9(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx9(Cross, {}) }) : null
+      ] }) }, key)) }) }),
+      /* @__PURE__ */ jsx9(
         Input,
         {
           value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item?.textValue ?? "",
@@ -497,34 +573,79 @@ function Field({
     clearable && (keys.length > 0 || one !== null) ? (
       // A button of the field's own, not React Aria's, which the select
       // would take for its own and open the list with. It keeps the focus
-      // in the text field, as a press in the list does.
-      /* @__PURE__ */ jsx3(
-        "button",
-        {
-          type: "button",
-          tabIndex: -1,
-          "aria-label": label === void 0 ? "Clear" : `Clear ${label}`,
-          title: multiple ? "Clear every pick" : "Clear the pick",
-          className: CLEAR,
-          onMouseDown: (event) => {
-            event.preventDefault();
-          },
-          onClick: () => {
-            if (onClear !== void 0) onClear();
-            else state?.setValue(multiple ? [] : null);
-          },
-          children: /* @__PURE__ */ jsx3(Cross, {})
-        }
-      )
+      // in the text field, as a press in the list does. React Aria's
+      // Focusable makes it the trigger of its tooltip.
+      /* @__PURE__ */ jsxs6(TooltipTrigger, { children: [
+        /* @__PURE__ */ jsx9(Focusable, { children: /* @__PURE__ */ jsx9(
+          "button",
+          {
+            type: "button",
+            tabIndex: -1,
+            "aria-label": label === void 0 ? "Clear" : `Clear ${label}`,
+            className: CLEAR,
+            onMouseDown: (event) => {
+              event.preventDefault();
+            },
+            onClick: () => {
+              if (onClear !== void 0) onClear();
+              else state?.setValue(multiple ? [] : null);
+            },
+            children: /* @__PURE__ */ jsx9(Cross, {})
+          }
+        ) }),
+        /* @__PURE__ */ jsx9(Tooltip2, { children: multiple ? "Clear every pick" : "Clear the pick" })
+      ] })
     ) : null,
-    /* @__PURE__ */ jsx3(Button, { className: OPENER, children: /* @__PURE__ */ jsx3(Chevron, {}) })
+    /* @__PURE__ */ jsx9(Button, { className: OPENER, children: /* @__PURE__ */ jsx9(Chevron, {}) })
+  ] });
+}
+function PlainChip({ text, gone }) {
+  return /* @__PURE__ */ jsx9("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx9(ChipText, { text, focused: false }) });
+}
+function ChipText({ text, focused }) {
+  return /* @__PURE__ */ jsx9(TooltipTrigger, { children: /* @__PURE__ */ jsx9(CutText, { text, focused }) });
+}
+function CutText({ text, focused }) {
+  const tip = useContext(TooltipTriggerStateContext);
+  const ref = useRef(null);
+  const [pointed, setPointed] = useState2(false);
+  const shown = useRef({ pointed: false, focused: false });
+  const follow2 = useEffectEvent((now) => {
+    const before = shown.current;
+    shown.current = now;
+    const el = ref.current;
+    const cut = el !== null && el.scrollWidth > el.clientWidth;
+    if (tip === null) return;
+    if (cut && now.focused) tip.open(true);
+    else if (cut && now.pointed) tip.open();
+    else if (before.pointed || before.focused) tip.close(before.focused);
+  });
+  useEffect(() => {
+    follow2({ pointed, focused });
+  }, [pointed, focused]);
+  return /* @__PURE__ */ jsxs6(Fragment4, { children: [
+    /* @__PURE__ */ jsx9(
+      "span",
+      {
+        ref,
+        className: "bc:truncate",
+        onPointerEnter: (event) => {
+          if (event.pointerType !== "touch") setPointed(true);
+        },
+        onPointerLeave: () => {
+          setPointed(false);
+        },
+        children: text
+      }
+    ),
+    /* @__PURE__ */ jsx9(Tooltip2, { triggerRef: ref, children: text })
   ] });
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
-  return /* @__PURE__ */ jsx3(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs2(Fragment2, { children: [
-    selectionMode === "multiple" ? /* @__PURE__ */ jsx3("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx3(Tick, {}) : null }) : null,
-    /* @__PURE__ */ jsx3(
+  return /* @__PURE__ */ jsx9(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs6(Fragment4, { children: [
+    selectionMode === "multiple" ? /* @__PURE__ */ jsx9("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx9(Tick, {}) : null }) : null,
+    /* @__PURE__ */ jsx9(
       "span",
       {
         className: `bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2 bc:truncate ${selectionMode === "single" && isSelected ? "bc:font-semibold" : ""}`,
@@ -534,7 +655,7 @@ function ComboBoxItem(props) {
   ] })) });
 }
 function Chevron() {
-  return /* @__PURE__ */ jsx3(
+  return /* @__PURE__ */ jsx9(
     "svg",
     {
       width: "12",
@@ -547,12 +668,12 @@ function Chevron() {
       strokeLinejoin: "round",
       "aria-hidden": "true",
       className: "bc:shrink-0 bc:text-text-muted bc:transition-transform bc:group-data-open:rotate-180",
-      children: /* @__PURE__ */ jsx3("polyline", { points: "3 4.5 6 7.5 9 4.5" })
+      children: /* @__PURE__ */ jsx9("polyline", { points: "3 4.5 6 7.5 9 4.5" })
     }
   );
 }
 function Tick() {
-  return /* @__PURE__ */ jsx3(
+  return /* @__PURE__ */ jsx9(
     "svg",
     {
       width: "14",
@@ -564,12 +685,12 @@ function Tick() {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx3("path", { d: "M3.5 8.5l3 3 6-7" })
+      children: /* @__PURE__ */ jsx9("path", { d: "M3.5 8.5l3 3 6-7" })
     }
   );
 }
 function Cross() {
-  return /* @__PURE__ */ jsx3(
+  return /* @__PURE__ */ jsx9(
     "svg",
     {
       width: "10",
@@ -580,7 +701,7 @@ function Cross() {
       strokeWidth: "1.4",
       strokeLinecap: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx3("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" })
+      children: /* @__PURE__ */ jsx9("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" })
     }
   );
 }
@@ -598,11 +719,11 @@ var ROW = "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center b
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/numberfield.tsx
-import { useContext as useContext2, useEffect, useRef as useRef2, useState as useState3 } from "react";
-import { Fragment as Fragment3, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import { useContext as useContext2, useEffect as useEffect2, useRef as useRef2, useState as useState3 } from "react";
+import { Fragment as Fragment5, jsx as jsx10, jsxs as jsxs7 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
-  return bound === void 0 ? /* @__PURE__ */ jsx4(Drawn2, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx4(BoundNumber, { ...props, maxValue: largest, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx10(Drawn2, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx10(BoundNumber, { ...props, maxValue: largest, bound });
 }
 function BoundNumber({
   bound,
@@ -623,8 +744,8 @@ function BoundNumber({
     if (kept !== null && (!kept.typing || !Object.is(held, typed))) setKept(null);
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
-  return /* @__PURE__ */ jsxs3(Fragment3, { children: [
-    /* @__PURE__ */ jsx4(
+  return /* @__PURE__ */ jsxs7(Fragment5, { children: [
+    /* @__PURE__ */ jsx10(
       Drawn2,
       {
         ...props,
@@ -657,7 +778,7 @@ function BoundNumber({
           setKept((now) => now?.typing === true ? null : now);
           onBlur?.(event);
         },
-        watch: /* @__PURE__ */ jsx4(
+        watch: /* @__PURE__ */ jsx10(
           Watch,
           {
             keystrokes,
@@ -669,14 +790,14 @@ function BoundNumber({
         )
       }
     ),
-    /* @__PURE__ */ jsx4(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx10(Refusal, { error: bound.error })
   ] });
 }
 function Watch({ keystrokes, onType }) {
   const state = useContext2(NumberFieldStateContext);
   const value = state?.numberValue ?? NaN;
   const heard = useRef2(0);
-  useEffect(() => {
+  useEffect2(() => {
     if (keystrokes === heard.current) return;
     heard.current = keystrokes;
     onType(value);
@@ -692,22 +813,22 @@ function inRange(value, min, max, step) {
   return Math.abs(steps - Math.round(steps)) < 1e-9;
 }
 function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, watch, className, onInput, ...props }) {
-  return /* @__PURE__ */ jsxs3(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx4(Label, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs3(Group, { className: FIELD2, children: [
-      /* @__PURE__ */ jsx4(Input, { placeholder, onInput, className: INPUT2 }),
-      /* @__PURE__ */ jsxs3("div", { className: STEPPERS, children: [
-        /* @__PURE__ */ jsx4(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx4(Chevron2, { up: true }) }),
-        /* @__PURE__ */ jsx4(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx4(Chevron2, { up: false }) })
+  return /* @__PURE__ */ jsxs7(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx10(Label, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs7(Group, { className: FIELD2, children: [
+      /* @__PURE__ */ jsx10(Input, { placeholder, onInput, className: INPUT2 }),
+      /* @__PURE__ */ jsxs7("div", { className: STEPPERS, children: [
+        /* @__PURE__ */ jsx10(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx10(Chevron2, { up: true }) }),
+        /* @__PURE__ */ jsx10(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx10(Chevron2, { up: false }) })
       ] })
     ] }),
-    /* @__PURE__ */ jsx4(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx4(FieldError, { className: styles.alert, children: errorMessage2 }),
+    /* @__PURE__ */ jsx10(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx10(FieldError, { className: styles.alert, children: errorMessage2 }),
     watch
   ] });
 }
 function Chevron2({ up }) {
-  return /* @__PURE__ */ jsx4(
+  return /* @__PURE__ */ jsx10(
     "svg",
     {
       width: "10",
@@ -719,7 +840,7 @@ function Chevron2({ up }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx4("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
+      children: /* @__PURE__ */ jsx10("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
     }
   );
 }
@@ -729,15 +850,15 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/textfield.tsx
-import { Fragment as Fragment4, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
 function TextField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx5(Drawn3, { ...props }) : /* @__PURE__ */ jsx5(BoundText, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx11(Drawn3, { ...props }) : /* @__PURE__ */ jsx11(BoundText, { ...props, bound });
 }
 function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
   const [text, typed] = useTyped(bound);
   const lines = props.lines ?? 1;
-  return /* @__PURE__ */ jsxs4(Fragment4, { children: [
-    /* @__PURE__ */ jsx5(
+  return /* @__PURE__ */ jsxs8(Fragment6, { children: [
+    /* @__PURE__ */ jsx11(
       Drawn3,
       {
         ...props,
@@ -760,20 +881,20 @@ function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx5(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx11(Refusal, { error: bound.error })
   ] });
 }
 function Drawn3({ label, description, errorMessage: errorMessage2, placeholder, lines = 1, className, ...props }) {
-  return /* @__PURE__ */ jsxs4(TextField, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx5(Label, { className: styles.label, children: label }),
-    lines > 1 ? /* @__PURE__ */ jsx5(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx5(Input, { placeholder, className: styles.box }),
-    /* @__PURE__ */ jsx5(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx5(FieldError, { className: styles.alert, children: errorMessage2 })
+  return /* @__PURE__ */ jsxs8(TextField, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx11(Label, { className: styles.label, children: label }),
+    lines > 1 ? /* @__PURE__ */ jsx11(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx11(Input, { placeholder, className: styles.box }),
+    /* @__PURE__ */ jsx11(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx11(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 
 // srcts/controls/controls.tsx
-import { Fragment as Fragment6, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
 function controls(host, signal) {
   const el = document.createElement("div");
   el.className = styles.stack;
@@ -785,12 +906,12 @@ function controls(host, signal) {
   let ended = false;
   const redraw = () => {
     if (ended) return;
-    const drawn = entries.map((entry) => /* @__PURE__ */ jsx6(Fragment5, { children: entry.draw() }, entry.id));
+    const drawn = entries.map((entry) => /* @__PURE__ */ jsx12(Fragment7, { children: entry.draw() }, entry.id));
     flushSync(() => {
       root.render(
-        /* @__PURE__ */ jsxs5(Fragment6, { children: [
+        /* @__PURE__ */ jsxs9(Fragment8, { children: [
           drawn,
-          error === null ? null : /* @__PURE__ */ jsx6("p", { role: "alert", className: styles.alert, children: error })
+          error === null ? null : /* @__PURE__ */ jsx12("p", { role: "alert", className: styles.alert, children: error })
         ] })
       );
     });
@@ -800,7 +921,7 @@ function controls(host, signal) {
     redraw();
   }
   function add(node) {
-    put(() => /* @__PURE__ */ jsx6(Slot, { node }));
+    put(() => /* @__PURE__ */ jsx12(Slot, { node }));
   }
   function input(key, draw) {
     let value;
@@ -863,12 +984,12 @@ function controls(host, signal) {
     return request;
   }
   function text(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx6(TextField2, { bound, spellCheck: "false", ...options }));
+    input(key, (bound) => /* @__PURE__ */ jsx12(TextField2, { bound, spellCheck: "false", ...options }));
   }
   function number(key, options) {
     let maxValue = options.maxValue;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx6(NumberField2, { bound, ...options, maxValue, outdated }));
+    input(key, (bound) => /* @__PURE__ */ jsx12(NumberField2, { bound, ...options, maxValue, outdated }));
     return {
       setMaxValue(next) {
         maxValue = next;
@@ -883,7 +1004,7 @@ function controls(host, signal) {
   function comboBox(key, options) {
     let items = options.items;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx6(
+    input(key, (bound) => /* @__PURE__ */ jsx12(
       ComboBox2,
       {
         bound,
@@ -895,7 +1016,7 @@ function controls(host, signal) {
         isRequired: options.isRequired,
         renderEmptyState: options.renderEmptyState,
         outdated,
-        children: (item) => /* @__PURE__ */ jsx6(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
+        children: (item) => /* @__PURE__ */ jsx12(ComboBoxItem, { id: item.id, children: item.name ?? item.id })
       }
     ));
     return {
@@ -910,7 +1031,7 @@ function controls(host, signal) {
     };
   }
   function checkbox(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx6(Checkbox, { bound, label: options.label }));
+    input(key, (bound) => /* @__PURE__ */ jsx12(Checkbox, { bound, label: options.label }));
   }
   function cleanup() {
     if (ended) return;
@@ -927,7 +1048,7 @@ function Slot({ node }) {
   useLayoutEffect(() => {
     ref.current?.replaceChildren(node);
   }, [node]);
-  return /* @__PURE__ */ jsx6("div", { ref, className: "bc:contents" });
+  return /* @__PURE__ */ jsx12("div", { ref, className: "bc:contents" });
 }
 export {
   PAUSE,
