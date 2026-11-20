@@ -415,6 +415,8 @@ function Drawn({
   ...props
 }) {
   const multiple = props.selectionMode === "multiple";
+  const isDisabled = props.isDisabled === true;
+  const editable = !isDisabled && props.isReadOnly !== true;
   const given = props.items ?? props.defaultItems;
   const unknown = given === void 0 && typeof children === "function";
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
@@ -436,7 +438,9 @@ function Drawn({
             placeholder,
             multiple,
             marking,
-            clearable: props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true,
+            isDisabled,
+            editable,
+            clearable: props.isRequired !== true && editable,
             onClear,
             label
           }
@@ -464,6 +468,8 @@ function Field2({
   placeholder,
   multiple,
   marking,
+  isDisabled,
+  editable,
   clearable,
   onClear,
   label
@@ -480,16 +486,21 @@ function Field2({
   const remove = (gone) => {
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
+  const chips = keys.map((key) => ({ key, text: known2.get(key) ?? String(key), gone: marking && !known2.has(key) }));
+  const picks = label === void 0 ? "Picks" : `Picks of ${label}`;
   return /* @__PURE__ */ jsxs2(Group, { isInvalid: invalid, className: FIELD, children: [
     /* @__PURE__ */ jsxs2("div", { className: VALUES, children: [
-      keys.length === 0 ? null : /* @__PURE__ */ jsx4(TagGroup, { "aria-label": label === void 0 ? "Picks" : `Picks of ${label}`, onRemove: remove, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx4(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: keys.map((key) => {
-        const text = known2.get(key) ?? String(key);
-        const gone = marking && !known2.has(key);
-        return /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-          /* @__PURE__ */ jsx4("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
-          /* @__PURE__ */ jsx4(Button2, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx4(Cross, {}) })
-        ] }, key);
-      }) }) }),
+      keys.length === 0 ? null : isDisabled ? (
+        // The chips of a disabled select take no focus, as its text field
+        // takes none.
+        // React Aria's TagGroup keeps a tab stop on its list even where
+        // every tag is disabled, so a disabled select draws its chips as
+        // a plain list.
+        /* @__PURE__ */ jsx4("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx4("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx4("span", { className: "bc:truncate", children: gone ? missing(text) : text }) }, key)) })
+      ) : /* @__PURE__ */ jsx4(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx4(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsxs2(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
+        /* @__PURE__ */ jsx4("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+        editable ? /* @__PURE__ */ jsx4(Button2, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx4(Cross, {}) }) : null
+      ] }, key)) }) }),
       /* @__PURE__ */ jsx4(
         Input,
         {
@@ -498,11 +509,11 @@ function Field2({
           "aria-invalid": invalid || void 0,
           className: INPUT,
           onClick: () => {
-            if (state !== null && !state.isOpen) state.open(null, "manual");
+            if (editable && state !== null && !state.isOpen) state.open(null, "manual");
           },
           onKeyDown: (event) => {
             if (event.key === "Escape" && state?.isOpen === true) event.preventDefault();
-            if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
+            if (!editable || event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
             state?.setValue(keys.slice(0, -1));
           }
         }
@@ -609,7 +620,7 @@ var VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1
 var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
 var CLEAR = "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
-var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
+var CHIP = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-1.5 bc:pl-1.5 bc:data-allows-removing:pr-0.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 var CHIP_REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
 var LAYOUT = { rowHeight: 32, headingHeight: 28, padding: 4 };
 var LIST = "bc:box-border bc:w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";

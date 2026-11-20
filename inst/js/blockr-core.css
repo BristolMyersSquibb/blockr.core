@@ -901,6 +901,10 @@
   padding-right: calc(var(--bc-spacing) * .5);
 }
 
+.bc\:pr-1\.5 {
+  padding-right: calc(var(--bc-spacing) * 1.5);
+}
+
 .bc\:pb-1 {
   padding-bottom: var(--bc-spacing);
 }
@@ -1219,6 +1223,10 @@
 
 .bc\:aria-invalid\:accent-border-danger[aria-invalid="true"] {
   accent-color: var(--bc-color-border-danger);
+}
+
+.bc\:data-allows-removing\:pr-0\.5[data-allows-removing] {
+  padding-right: calc(var(--bc-spacing) * .5);
 }
 
 .bc\:data-disabled\:cursor-default[data-disabled] {
