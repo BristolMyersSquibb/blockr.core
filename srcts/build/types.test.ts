@@ -463,7 +463,7 @@ function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
   return (
     <Stack>
       <NumberField bound={useValue(host, "n")} label="Rows" minValue={1} step={1} />
-      <Checkbox bound={tail} label="From the end" />
+      <Checkbox bound={tail}>From the end</Checkbox>
     </Stack>
   );
 }

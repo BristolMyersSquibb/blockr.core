@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { TextField } from "../react/index.ts";
+import { SearchField } from "../react/index.ts";
 import { classes } from "./ui.tsx";
 
 // How many rows a table shows on a page.
@@ -52,11 +52,14 @@ export function useTableView<T>(rows: readonly T[], text: (row: T) => string, si
   };
 }
 
-// The search over a table's rows, the SDK's TextField.
+// The search over a table's rows, the SDK's SearchField, in a search
+// landmark.
+// Its button clears the search, and so does Escape, which goes on to the
+// elements around the field where the search is empty already.
 export function TableSearch({ label, view }: { label: string; view: TableView<unknown> }): ReactElement {
   return (
     <search>
-      <TextField label={label} type="search" spellCheck="false" autoComplete="off" value={view.query} onChange={view.setQuery} />
+      <SearchField label={label} spellCheck="false" autoComplete="off" value={view.query} onChange={view.setQuery} />
     </search>
   );
 }

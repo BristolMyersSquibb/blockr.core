@@ -5,11 +5,11 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { PAUSE } from "../../binding/index.ts";
 import { READY, stubBlockHost } from "../../stubs/index.ts";
-import { fieldError, numberSaid, press, type } from "../../testing/inputs.ts";
+import { fieldError, numberSaid, press, toggleButton, toggles, type } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle, unmount, wait } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
-import { labelled, picked } from "../../testing/select.ts";
+import { labelled } from "../../testing/select.ts";
 import * as head from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -38,13 +38,14 @@ async function mounted(state: State = six) {
   const host = stubBlockHost<State>(fixture, { state });
   const view = await mountOnPage(head, host);
   const n = labelled(view.el, "Number of rows");
-  const direction = labelled(view.el, "Direction");
+  // The end that the toggle buttons of the direction show as picked.
+  const direction = (): string | undefined => toggles(view.el, "Direction").find((end) => end.picked)?.label;
   return { host, view, n, direction };
 }
 
 test("shows the state, and takes the rows of its input as the most the field takes", async () => {
   const { host, n, direction } = await mounted();
-  expect([n.value, direction.value]).toEqual(["6", "Head"]);
+  expect([n.value, direction()]).toEqual(["6", "Head"]);
 
   await settle();
   expect(host.requested).toEqual([{ name: "n_max", args: {} }]);
@@ -67,7 +68,7 @@ test("takes a state it did not make, in the elements it drew", async () => {
   });
 
   expect(labelled(view.el, "Number of rows")).toBe(n);
-  expect([n.value, direction.value]).toEqual(["10", "Tail"]);
+  expect([n.value, direction()]).toEqual(["10", "Tail"]);
   expect(host.submitted).toEqual([]);
 });
 
@@ -156,12 +157,22 @@ test("goes back to the state as the user leaves a number above the rows, which c
   expect(host.submitted).toEqual([]);
 });
 
-test("submits the direction as the user picks it", async () => {
-  const { host, direction } = await mounted(tenHead);
+test("submits the direction as the user picks it, and keeps one picked", async () => {
+  const { host, view, direction } = await mounted(tenHead);
+  const tail = toggleButton(view.el, "Direction", "Tail");
 
-  await picked(direction, step, "Tail");
-
+  await step(() => {
+    tail.click();
+  });
   expect(host.submitted).toEqual([tenTail]);
+  expect(direction()).toBe("Tail");
+  expect(toggleButton(view.el, "Direction", "Tail")).toBe(tail);
+
+  await step(() => {
+    tail.click();
+  });
+  expect(host.submitted).toEqual([tenTail]);
+  expect(direction()).toBe("Tail");
 });
 
 test("leaves the field the user is typing in as the state changes, and submits on top of the state as it is then", async () => {
@@ -173,7 +184,7 @@ test("leaves the field the user is typing in as the state changes, and submits o
   await step(() => {
     host.setState(tenTail);
   });
-  expect([n.value, direction.value]).toEqual(["20", "Tail"]);
+  expect([n.value, direction()]).toEqual(["20", "Tail"]);
 
   await wait(PAUSE);
   expect(host.submitted).toEqual([twentyTail]);
