@@ -809,7 +809,7 @@ function failSpan(span, error) {
 
 // srcts/trace/steps.ts
 import { context as context2, trace as trace2 } from "@opentelemetry/api";
-function steps(name2, start2 = performance.now(), parent = context2.active()) {
+function steps(name2, start3 = performance.now(), parent = context2.active()) {
   const taken = [];
   let recorded = false;
   return {
@@ -833,7 +833,7 @@ function steps(name2, start2 = performance.now(), parent = context2.active()) {
       recorded = true;
       const end = performance.now();
       const write2 = () => {
-        const whole = tracer().startSpan(name2, { startTime: start2 }, parent);
+        const whole = tracer().startSpan(name2, { startTime: start3 }, parent);
         const inside = trace2.setSpan(parent, whole);
         for (const step2 of taken) {
           const span = tracer().startSpan(step2.name, { startTime: step2.start }, inside);
@@ -2253,7 +2253,7 @@ function createAnswers(scheduler, signal5) {
       if (!current2(request)) kept.delete(key2);
     }
   }
-  function start2(ask, key2) {
+  function start3(ask, key2) {
     const controller = new AbortController();
     const progress = /* @__PURE__ */ new Set();
     const done = scheduler.request(ask.request, {
@@ -2322,7 +2322,7 @@ function createAnswers(scheduler, signal5) {
       const key2 = ask.share === "once" ? void 0 : requestKey(ask.request);
       const answer2 = key2 === void 0 ? void 0 : kept.get(key2)?.answer;
       if (answer2 !== void 0) return Promise.resolve(answer2);
-      const flight = (key2 === void 0 ? void 0 : flights.get(key2)) ?? start2(ask, key2);
+      const flight = (key2 === void 0 ? void 0 : flights.get(key2)) ?? start3(ask, key2);
       return join(flight, key2, signal6, progress);
     },
     size: () => kept.size
@@ -5776,11 +5776,11 @@ function fit(delta, board) {
     ...Object.keys(board.blocks).filter((id2) => !(blocks.rm ?? []).includes(id2)),
     ...Object.keys(blocks.add ?? {})
   ]);
-  const holds = (id2) => kept.has(id2);
+  const holds2 = (id2) => kept.has(id2);
   const links = collection2(
     board.links,
     delta.links,
-    (link) => (link.from === void 0 || holds(link.from)) && (link.to === void 0 || holds(link.to))
+    (link) => (link.from === void 0 || holds2(link.from)) && (link.to === void 0 || holds2(link.to))
   );
   const held3 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
@@ -5791,7 +5791,7 @@ function fit(delta, board) {
     })
   );
   const stacks = collection2(board.stacks, delta.stacks);
-  const placed2 = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds) };
+  const placed2 = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds2) };
   return prune({
     blocks,
     links: { ...links, ...Object.keys(before).length === 0 ? {} : { before } },
@@ -6223,10 +6223,10 @@ function createStore(options = {}) {
       }
     }
   }
-  function run(start2, deltas, how, refused2) {
+  function run(start3, deltas, how, refused2) {
     const applied = [];
     const inverses = [];
-    let current3 = start2;
+    let current3 = start3;
     for (const [i, given] of deltas.entries()) {
       const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
       const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
@@ -6294,10 +6294,10 @@ function createStore(options = {}) {
   }
   function runOnBoard(deltas) {
     const refused2 = "The store rejected the delta";
-    const start2 = current2(refused2);
+    const start3 = current2(refused2);
     const failures = named3(deltas);
     if (failures.length > 0) throw new StoreError(refused2, failures);
-    return { start: start2, ...run(start2, deltas, {}, refused2) };
+    return { start: start3, ...run(start3, deltas, {}, refused2) };
   }
   function apply(delta, origin = "user", opts = {}) {
     guard2();
@@ -6306,9 +6306,9 @@ function createStore(options = {}) {
     const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
     busy = true;
     try {
-      const { start: start2, applied, inverses } = runOnBoard(deltas);
+      const { start: start3, applied, inverses } = runOnBoard(deltas);
       if (applied.length === 0) return false;
-      number(applied, applied.at(-1)?.board ?? start2);
+      number(applied, applied.at(-1)?.board ?? start3);
       const undoStep = inverses.length > 0;
       if (undoStep) {
         history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
@@ -6327,8 +6327,8 @@ function createStore(options = {}) {
     const was = busy;
     busy = true;
     try {
-      const { start: start2, applied } = runOnBoard(deltas);
-      return applied.at(-1)?.board ?? start2;
+      const { start: start3, applied } = runOnBoard(deltas);
+      return applied.at(-1)?.board ?? start3;
     } finally {
       busy = was;
     }
@@ -6342,14 +6342,14 @@ function createStore(options = {}) {
     busy = true;
     try {
       const refused2 = back ? "The store refused to undo the step" : "The store refused to redo the step";
-      const start2 = current2(refused2);
+      const start3 = current2(refused2);
       const { applied, inverses } = run(
-        start2,
+        start3,
         step2.inverses.map(({ delta }) => delta),
         { fit: true, places: step2.inverses.map(({ places }) => places) },
         refused2
       );
-      number(applied, applied.at(-1)?.board ?? start2);
+      number(applied, applied.at(-1)?.board ?? start3);
       const kept = { origin: step2.origin, inverses };
       history.value = back ? { undo: [...undo.slice(0, at), ...undo.slice(at + 1)], redo: [...redo, kept] } : { undo: [...undo, kept], redo: redo.slice(0, -1) };
       const asking = origin ?? "user";
@@ -7183,13 +7183,13 @@ function createCommands(store, options = {}) {
     while (again) {
       again = false;
       built = [];
-      let start2;
+      let start3;
       try {
-        start2 = current2(first.item.command.id);
+        start3 = current2(first.item.command.id);
       } catch (error) {
         throw inList(0, first.item.command.id, error);
       }
-      let board = start2;
+      let board = start3;
       for (const [index, { item, args }] of checked4.entries()) {
         const { command: command2 } = item;
         try {
@@ -7197,7 +7197,7 @@ function createCommands(store, options = {}) {
           if (command2.prepare !== void 0 && !inputs.has(index)) {
             inputs.set(index, await within(() => prepare(item, board, args)));
             if (ended()) throw refusal(command2.id, [DROPPED]);
-            if (store.board() !== start2) {
+            if (store.board() !== start3) {
               again = true;
               break;
             }
@@ -7690,7 +7690,7 @@ function runPlugins(deps) {
     return { frontend: drawn3, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
   }
   let started = false;
-  async function start2() {
+  async function start3() {
     if (started) return;
     started = true;
     const starting = Object.keys(appPlugins()).flatMap((id2) => {
@@ -7788,7 +7788,7 @@ function runPlugins(deps) {
     })();
     return end;
   }
-  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start: start2 };
+  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start: start3 };
 }
 
 // srcts/core/requests.ts
@@ -8205,7 +8205,7 @@ var NOTHING_SELECTED = Object.freeze([]);
 function createSelection(store, plugins, signal5) {
   let selected = NOTHING_SELECTED;
   const listeners = /* @__PURE__ */ new Set();
-  function holds(object2, board) {
+  function holds2(object2, board) {
     if ("block" in object2) return Object.hasOwn(board.blocks, object2.block);
     if ("link" in object2) return Object.hasOwn(board.links, object2.link);
     if ("stack" in object2) return Object.hasOwn(board.stacks, object2.stack);
@@ -8213,7 +8213,7 @@ function createSelection(store, plugins, signal5) {
     return Object.hasOwn(plugins.appPlugins(), object2.plugin);
   }
   const offStore = store.subscribe((_change, board) => {
-    const kept = selected.filter((object2) => holds(object2, board));
+    const kept = selected.filter((object2) => holds2(object2, board));
     if (kept.length === selected.length) return;
     selected = Object.freeze(kept);
     announceTo(listeners, selected);
@@ -8230,7 +8230,7 @@ function createSelection(store, plugins, signal5) {
     get: () => selected,
     set(objects) {
       const given = selectionGiven(objects);
-      const lacking = given.find((object2) => !store.hasBoard() || !holds(object2, store.board()));
+      const lacking = given.find((object2) => !store.hasBoard() || !holds2(object2, store.board()));
       if (lacking !== void 0) throw new Error(unheld(lacking));
       if (sameIds(selected.map(objectKey), given.map(objectKey))) return;
       selected = given;
@@ -9469,9 +9469,10 @@ import { useCallback as useCallback2, useLayoutEffect as useLayoutEffect2, useMe
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
-function bind(host, key2, show2, options = {}) {
+function bind(host, key2, next, last, given) {
+  const [change, show2, options] = typeof key2 === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
   const source = createSource(host);
-  source.check(key2);
+  const held3 = source.value(key2, change);
   const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
   let shown2;
   let typed;
@@ -9479,15 +9480,34 @@ function bind(host, key2, show2, options = {}) {
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
-    const value2 = source.get(key2);
+    const value2 = held3.get();
     if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
     shown2 = { value: value2 };
     show2(value2);
   };
+  let unbuilt;
+  const unbuild = (error) => {
+    host.log.error(asError(error));
+    unbuilt?.();
+    unbuilt = options.notifier === void 0 ? host.notify({
+      severity: "error",
+      code: "change_failed",
+      message: `The control failed to build the change it submits: ${errorMessage(error)}`
+    }) : void 0;
+  };
   const submit = async (value2) => {
-    if (jsonEqual(source.get(key2), value2)) return true;
+    let submitted;
     try {
-      await (value2 === void 0 ? source.unset(key2, submitting) : source.submit(key2, value2, submitting));
+      submitted = held3.submit(value2, submitting);
+    } catch (error) {
+      unbuild(error);
+      options.settled?.(error);
+      return false;
+    }
+    unbuilt?.();
+    unbuilt = void 0;
+    try {
+      if (submitted !== null) await submitted;
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -9511,7 +9531,7 @@ function bind(host, key2, show2, options = {}) {
   });
   display(true);
   return {
-    get: () => source.get(key2),
+    get: () => held3.get(),
     async commit(value2) {
       const took = await submit(value2);
       if (!took) display(true);
@@ -9542,24 +9562,24 @@ function bind(host, key2, show2, options = {}) {
 }
 function createSource(host) {
   if ("option" in host) {
-    const check2 = (key2) => {
-      if (key2 !== host.option) {
-        throw new Error(`The host of the board option "${host.option}" holds no value "${key2}".`);
-      }
-    };
     return {
-      check: check2,
-      get(key2) {
-        check2(key2);
-        return host.value();
-      },
-      submit(key2, value2, opts) {
-        check2(key2);
-        return host.submit(value2, opts);
-      },
-      unset(key2) {
-        check2(key2);
-        return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+      value(key2) {
+        if (typeof key2 === "function") {
+          throw new TypeError(`The value of the board option "${host.option}" is bound by its id, not through functions.`);
+        }
+        if (key2 !== host.option) {
+          throw new Error(`The host of the board option "${host.option}" holds no value "${key2}".`);
+        }
+        return {
+          get: () => host.value(),
+          submit(value2, opts) {
+            if (jsonEqual(host.value(), value2)) return null;
+            if (value2 === void 0) {
+              return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+            }
+            return host.submit(value2, opts);
+          }
+        };
       },
       onValues: (fn) => host.on("value", fn),
       onContext: () => () => void 0,
@@ -9568,44 +9588,65 @@ function createSource(host) {
     };
   }
   return {
-    check: () => void 0,
-    get: (key2) => own(host.state(), key2),
-    submit: (key2, value2, opts) => host.submit({ [key2]: value2 }, opts),
-    unset: (key2, opts) => host.submit({ [key2]: void 0 }, opts),
+    value(key2, change) {
+      const read = typeof key2 === "function" ? key2 : (state2) => own(state2, key2);
+      const build = typeof key2 === "function" ? change : (value2) => ({ [key2]: value2 });
+      if (typeof build !== "function") {
+        throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
+      }
+      return {
+        get: () => read(host.state()),
+        submit(value2, opts) {
+          const state2 = host.state();
+          const next = build(value2, state2);
+          return holds(state2, next) ? null : host.submit(next, opts);
+        }
+      };
+    },
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input2) => ({ input: input2.input, revision: input2.revision })),
     request: (name2, args, opts) => host.request(name2, args, opts)
   };
 }
+function holds(state2, change) {
+  return Object.entries(change).every(([arg, value2]) => jsonEqual(own(state2, arg), value2));
+}
 function strings(value2) {
   return Array.isArray(value2) ? value2.filter((x) => typeof x === "string") : [];
 }
 
 // srcts/react/hooks.ts
-function useValue(host, key2) {
-  const name2 = key2 ?? ("option" in host ? host.option : "");
-  const [value2, setValue] = useState3(() => held2(host, name2));
+function useValue(host, key2, change) {
+  const read = typeof key2 === "function" ? key2 : null;
+  const name2 = typeof key2 === "function" ? null : key2 ?? ("option" in host ? host.option : "");
+  const given = read === null || change === void 0 ? null : { read, change };
+  const [value2, setValue] = useState3(() => held2(host, name2, { current: given }));
   const [error, setError] = useState3(null);
   const binding = useRef2(null);
+  const functions = useRef2(given);
   useLayoutEffect2(() => {
-    const bound = bind(host, name2, setValue, {
-      settled: (refused2) => {
-        setError(refused2 === null ? null : errorMessage(refused2));
-      },
-      notifier: () => void 0
-    });
-    binding.current = bound;
+    binding.current = start2(host, name2, functions, setValue, setError);
     return () => {
+      const bound = binding.current;
       binding.current = null;
-      bound.release();
+      bound?.release();
     };
   }, [host, name2]);
+  useLayoutEffect2(() => {
+    if (read === null || change === void 0) return;
+    const last = functions.current;
+    if (last !== null && last.read === read && last.change === change) return;
+    const moved = last === null || !readAlike(last.read, read, host.state());
+    if (moved) binding.current?.release();
+    functions.current = { read, change };
+    if (moved) binding.current = start2(host, name2, functions, setValue, setError);
+  }, [read, change, host, name2]);
   return useMemo(
     () => ({
       value: value2,
       error,
-      get: () => binding.current?.get() ?? held2(host, name2),
+      get: () => binding.current?.get() ?? held2(host, name2, functions),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
       unset: () => binding.current?.unset() ?? Promise.resolve(false),
       type: (next) => {
@@ -9618,8 +9659,32 @@ function useValue(host, key2) {
     [value2, error, host, name2]
   );
 }
-function held2(host, key2) {
-  return "option" in host ? host.value() : own(host.state(), key2);
+function start2(host, name2, functions, show2, refused2) {
+  const options = {
+    settled: (error) => {
+      refused2(error === null ? null : errorMessage(error));
+    },
+    notifier: () => void 0
+  };
+  if (name2 !== null) return bind(host, name2, show2, options);
+  return bind(
+    host,
+    (state2) => functions.current?.read(state2),
+    (value2, state2) => functions.current?.change(value2, state2) ?? {},
+    show2,
+    options
+  );
+}
+function held2(host, name2, functions) {
+  if ("option" in host) return host.value();
+  return name2 === null ? functions.current?.read(host.state()) : own(host.state(), name2);
+}
+function readAlike(a, b, state2) {
+  try {
+    return jsonEqual(a(state2), b(state2));
+  } catch {
+    return false;
+  }
 }
 function useBoard(core) {
   const subscribe = useCallback2(
