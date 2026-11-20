@@ -7,13 +7,16 @@
 // "secondary", with a border, and "quiet", with none.
 // The menus and dialogs of the SDK open from it, since React Aria opens them
 // only from a button of its own, of the one copy of React Aria on the page.
+// The button also takes a ref, which holds the button's element.
+// React hands a ref to a component as one of its props, so the ref reaches
+// React Aria's Button with the other props.
 
-import type { ReactElement } from "react";
+import type { ReactElement, RefAttributes } from "react";
 import { Button as AriaButton, composeRenderProps } from "../aria/index.ts";
 import type { ButtonProps as AriaButtonProps } from "../aria/index.ts";
 import { buttons } from "../styles/index.ts";
 
-export interface ButtonProps extends AriaButtonProps {
+export interface ButtonProps extends AriaButtonProps, RefAttributes<HTMLButtonElement> {
   readonly variant?: keyof typeof buttons;
 }
 
