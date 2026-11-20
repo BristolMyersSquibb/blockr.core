@@ -102,8 +102,10 @@ announced_body <- function(x) {
 
 # Has a session of the evaluator receive the client's message of a fixture,
 # changed by `client` as the transport changes it, such as for a body.
-# Then checks that R sends the messages that the fixture holds.
-expect_fixture_replies <- function(session, name, client = identity) {
+# Then checks that R sends the messages that the fixture holds, changed by `r`
+# where they depend on the version of R.
+expect_fixture_replies <- function(session, name, client = identity,
+                                   r = identity) {
 
   fixture <- protocol_fixture(name)
 
@@ -113,7 +115,7 @@ expect_fixture_replies <- function(session, name, client = identity) {
 
   testthat::expect_identical(
     sent_json(session),
-    read_json_strictly(fixture)$r,
+    r(read_json_strictly(fixture)$r),
     label = paste("what R sends for", name),
     expected.label = "the fixture's"
   )
