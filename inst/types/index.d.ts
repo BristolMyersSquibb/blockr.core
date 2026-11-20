@@ -7,7 +7,7 @@ export type { BlockContext, BlockHost, BlockModule, HostRequestOpts, OptionHost,
 export type { BlockRegistry, BoardObject, CoreApi, CoreCode, CoreFailure, CoreSource, EvaluatePhase, FrontendModule, ModuleSource, Notification, NotificationSource, OutputEvents, Plugin, PluginModule, Raised, RequestOpts, RRequest, RSource, Severity, SourceModule, } from "./types/core-api.ts";
 export type { Change, Delta, Dropped, Migration, Option, Options, Origin, Patch, PluginClass, Plugins, Storage, StorageControl, Store, StoreError, } from "./store/index.ts";
 export type { Command, CommandContext, CommandError, Commands } from "./commands/index.ts";
-export type { BoardAction, CommandCall, Target } from "./actions/index.ts";
+export type { BoardAction, CommandCall, QuickLevel, QuickRow, Target } from "./actions/index.ts";
 export type { BlockStatus, Demand, Scheduler, Status } from "./scheduler/index.ts";
 export type { Condition, Lock, OutputInfo, Phase } from "./protocol/index.ts";
 export type { ModuleError, RequestError } from "./mount/index.ts";

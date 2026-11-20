@@ -222,6 +222,7 @@ function strings(value) {
 
 // srcts/aria/index.ts
 import {
+  Autocomplete,
   Button,
   Collection,
   ComboBox,
@@ -249,6 +250,7 @@ import {
   NumberField,
   NumberFieldStateContext,
   Popover,
+  Separator,
   Tag,
   TagGroup,
   TagList,
