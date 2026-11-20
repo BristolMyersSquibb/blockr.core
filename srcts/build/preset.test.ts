@@ -171,6 +171,15 @@ test("refuses an entry point of React that the import map does not name", async 
   ).rejects.toThrow("A module imports react-dom/server, which the page's import map does not name.");
 });
 
+test("leaves a package's module importing the SDK's colours, which the import map names, and refuses an entry point of the SDK that it does not name", async () => {
+  const code = await readFile(await bundle(`import { ColorSwatch } from "@blockr/core/react/colors";\n\nexport const swatch = ColorSwatch;\n`), "utf8");
+  expect(importedPackages(code)).toEqual(["@blockr/core/react/colors"]);
+
+  await expect(bundle(`import { Widget } from "@blockr/core/react/widgets";\n\nexport const widget = Widget;\n`)).rejects.toThrow(
+    "A module imports @blockr/core/react/widgets, which the page's import map does not name.",
+  );
+});
+
 // The preset refuses each import before esbuild resolves it.
 // So the scoped packages fail alike, though npm does not install them with
 // this version of React Aria.
@@ -178,7 +187,7 @@ test.each(["react-aria-components", "react-aria-components/Button", "react-aria"
   "refuses an import of React Aria, %s, naming the React SDK",
   async (name) => {
     await expect(bundle(`import * as aria from "${name}";\n\nexport default aria;\n`)).rejects.toThrow(
-      `A module imports ${name}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, so that the page runs one copy of React Aria.`,
+      `A module imports ${name}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, and its colours from @blockr/core/react/colors, so that the page runs one copy of React Aria.`,
     );
   },
 );

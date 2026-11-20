@@ -376,43 +376,28 @@ var Boundary = class extends Component {
 };
 
 // srcts/aria/index.ts
-import {
-  Button,
-  Collection,
-  ComboBox,
-  ComboBoxStateContext,
-  composeRenderProps,
-  Dialog,
-  DialogTrigger,
-  FieldError,
-  Group,
-  Header,
-  Heading,
-  Input,
-  Keyboard,
-  Label,
-  ListBox,
-  ListBoxItem,
-  ListBoxSection,
-  ListLayout,
-  Menu,
-  MenuItem,
-  MenuSection,
-  MenuTrigger,
-  Modal,
-  ModalOverlay,
-  NumberField,
-  NumberFieldStateContext,
-  Popover,
-  Tag,
-  TagGroup,
-  TagList,
-  Text,
-  TextArea,
-  TextField,
-  useFilter,
-  Virtualizer
-} from "react-aria-components";
+import { Button } from "react-aria-components/Button";
+import { Collection } from "react-aria-components/Collection";
+import { ComboBox, ComboBoxStateContext, useFilter } from "react-aria-components/ComboBox";
+import { composeRenderProps } from "react-aria-components/composeRenderProps";
+import { Dialog, DialogTrigger } from "react-aria-components/Dialog";
+import { FieldError } from "react-aria-components/FieldError";
+import { Group } from "react-aria-components/Group";
+import { Header } from "react-aria-components/Header";
+import { Heading } from "react-aria-components/Heading";
+import { Input } from "react-aria-components/Input";
+import { Keyboard } from "react-aria-components/Keyboard";
+import { Label } from "react-aria-components/Label";
+import { ListBox, ListBoxItem, ListBoxSection } from "react-aria-components/ListBox";
+import { Menu, MenuItem, MenuSection, MenuTrigger } from "react-aria-components/Menu";
+import { Modal, ModalOverlay } from "react-aria-components/Modal";
+import { NumberField, NumberFieldStateContext } from "react-aria-components/NumberField";
+import { Popover } from "react-aria-components/Popover";
+import { Tag, TagGroup, TagList } from "react-aria-components/TagGroup";
+import { Text } from "react-aria-components/Text";
+import { TextArea } from "react-aria-components/TextArea";
+import { TextField } from "react-aria-components/TextField";
+import { ListLayout, Virtualizer } from "react-aria-components/Virtualizer";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -452,7 +437,7 @@ function Field({ label, children }) {
     children
   ] });
 }
-function Checkbox({ bound, label }) {
+function Checkbox({ bound, label, isSelected = false, onChange }) {
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
       /* @__PURE__ */ jsx3(
@@ -460,15 +445,16 @@ function Checkbox({ bound, label }) {
         {
           type: "checkbox",
           className: styles.checkbox,
-          checked: bound.value === true,
+          checked: bound === void 0 ? isSelected : bound.value === true,
           onChange: (event) => {
-            void bound.commit(event.target.checked);
+            if (bound !== void 0) void bound.commit(event.target.checked);
+            onChange?.(event.target.checked);
           }
         }
       ),
       label
     ] }),
-    /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
+    bound === void 0 ? null : /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
   ] });
 }
 function missing(value) {

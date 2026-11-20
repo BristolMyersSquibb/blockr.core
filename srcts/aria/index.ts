@@ -6,58 +6,47 @@
 // So the page runs one copy of React Aria, which holds the parts named here
 // alone, since the whole of React Aria is several times the size of React.
 // A part that core starts to draw with goes here.
+// The parts of colours, which the page loads only once a module imports them,
+// go into ../aria-colors instead.
+//
+// Each part comes from the entry point of its component, such as
+// react-aria-components/Button, rather than from react-aria-components itself.
+// The build bundles this file together with the parts of colours, and esbuild
+// splits the code that both share off into a third file, which the page loads
+// up front.
+// The entry point of react-aria-components imports every component, so an
+// import of it here would put the colours into that third file too.
 
-export {
-  Button,
-  Collection,
-  ComboBox,
-  ComboBoxStateContext,
-  composeRenderProps,
-  Dialog,
-  DialogTrigger,
-  FieldError,
-  Group,
-  Header,
-  Heading,
-  Input,
-  Keyboard,
-  Label,
-  ListBox,
-  ListBoxItem,
-  ListBoxSection,
-  ListLayout,
-  Menu,
-  MenuItem,
-  MenuSection,
-  MenuTrigger,
-  Modal,
-  ModalOverlay,
-  NumberField,
-  NumberFieldStateContext,
-  Popover,
-  Tag,
-  TagGroup,
-  TagList,
-  Text,
-  TextArea,
-  TextField,
-  useFilter,
-  Virtualizer,
-} from "react-aria-components";
-export type {
-  ButtonProps,
-  ComboBoxProps,
-  DialogProps,
-  Key,
-  ListBoxItemProps,
-  ListBoxSectionProps,
-  MenuItemProps,
-  MenuProps,
-  MenuSectionProps,
-  MenuTriggerProps,
-  ModalOverlayProps,
-  NumberFieldProps,
-  PopoverProps,
-  TextFieldProps,
-  ValidationResult,
-} from "react-aria-components";
+export { Button } from "react-aria-components/Button";
+export { Collection } from "react-aria-components/Collection";
+export { ComboBox, ComboBoxStateContext, useFilter } from "react-aria-components/ComboBox";
+export { composeRenderProps } from "react-aria-components/composeRenderProps";
+export { Dialog, DialogTrigger } from "react-aria-components/Dialog";
+export { FieldError } from "react-aria-components/FieldError";
+export { Group } from "react-aria-components/Group";
+export { Header } from "react-aria-components/Header";
+export { Heading } from "react-aria-components/Heading";
+export { Input } from "react-aria-components/Input";
+export { Keyboard } from "react-aria-components/Keyboard";
+export { Label } from "react-aria-components/Label";
+export { ListBox, ListBoxItem, ListBoxSection } from "react-aria-components/ListBox";
+export { Menu, MenuItem, MenuSection, MenuTrigger } from "react-aria-components/Menu";
+export { Modal, ModalOverlay } from "react-aria-components/Modal";
+export { NumberField, NumberFieldStateContext } from "react-aria-components/NumberField";
+export { Popover } from "react-aria-components/Popover";
+export { Tag, TagGroup, TagList } from "react-aria-components/TagGroup";
+export { Text } from "react-aria-components/Text";
+export { TextArea } from "react-aria-components/TextArea";
+export { TextField } from "react-aria-components/TextField";
+export { ListLayout, Virtualizer } from "react-aria-components/Virtualizer";
+export type { ButtonProps } from "react-aria-components/Button";
+export type { Key } from "react-aria-components/Collection";
+export type { ComboBoxProps } from "react-aria-components/ComboBox";
+export type { DialogProps } from "react-aria-components/Dialog";
+export type { ValidationResult } from "react-aria-components/FieldError";
+export type { ListBoxItemProps, ListBoxSectionProps } from "react-aria-components/ListBox";
+export type { MenuItemProps, MenuProps, MenuSectionProps, MenuTriggerProps } from "react-aria-components/Menu";
+export type { ModalOverlayProps } from "react-aria-components/Modal";
+export type { NumberFieldProps } from "react-aria-components/NumberField";
+export type { PopoverProps } from "react-aria-components/Popover";
+export type { TextFieldProps } from "react-aria-components/TextField";

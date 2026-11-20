@@ -5,6 +5,7 @@
     "react-dom": "react-dom.js",
     "react-dom/client": "react-dom-client.js",
     "@blockr/core/react": "blockr-core-react.js",
+    "@blockr/core/react/colors": "blockr-core-react-colors.js",
     "@blockr/core/binding": "blockr-core-binding.js",
     "@blockr/core/controls": "blockr-core-controls.js",
     "@blockr/core/otel": "blockr-core-otel.js",

@@ -3,7 +3,7 @@ import { flushSync as flushSync3 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef3, useState as useState11 } from "react";
+import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef3, useState as useState12 } from "react";
 import { useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/modules/edit-board/blocks.tsx
@@ -19,6 +19,9 @@ function own(record, key) {
 }
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+function asError(error) {
+  return error instanceof Error ? error : new Error(String(error));
 }
 function packageFromId(id2) {
   const at = id2.indexOf("-");
@@ -297,7 +300,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-b25170e7.js";
+import { useFilter } from "./vendor-P3O6DBKR.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2("");
@@ -1215,13 +1218,58 @@ function blockName(board, block) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { useId as useId2, useState as useState10 } from "react";
-import { ComboBox as ComboBox3, ComboBoxSection as ComboBoxSection2, TextField as TextField5 } from "@blockr/core/react";
+import { useState as useState11 } from "react";
+import { Checkbox, ComboBox as ComboBox3, ComboBoxSection as ComboBoxSection2, TextField as TextField5 } from "@blockr/core/react";
+
+// srcts/modules/edit-board/colors.ts
+import { useEffect, useState as useState10 } from "react";
+var loading;
+var loaded = null;
+function load() {
+  loading ??= import("@blockr/core/react/colors").then(
+    (module) => {
+      loaded = module;
+      return module;
+    },
+    (error) => {
+      loading = void 0;
+      throw error;
+    }
+  );
+  return loading;
+}
+function useColors(core) {
+  const [colors, setColors] = useState10(loaded);
+  useEffect(() => {
+    if (colors !== null) return;
+    let mounted = true;
+    load().then(
+      (module) => {
+        if (mounted) setColors(module);
+      },
+      (error) => {
+        core.log("blockr.core").error(asError(error));
+      }
+    );
+    return () => {
+      mounted = false;
+    };
+  }, [colors, core]);
+  return colors;
+}
+
+// srcts/modules/edit-board/stacks.tsx
 import { Fragment as Fragment4, jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
   return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
+}
+function stackColor(color2) {
+  return typeof color2 === "string" ? color2 : color2.toString("hex");
+}
+function sameColor(a, b) {
+  return a === null || b === null ? a === b : a.toLowerCase() === b.toLowerCase();
 }
 function suggestedName(stacks) {
   const names = new Set(stacks.map((stack) => stack.name));
@@ -1233,8 +1281,9 @@ function StacksSection({ core, board, locked: locked2 }) {
   const stacks = Object.entries(board.stacks);
   const view = useTableView(stacks, ([id2, stack]) => [stack.name, id2, ...stack.blocks.map((block) => blockName(board, block))].join(" "));
   const edits = useEdits(core);
+  const colors = useColors(core);
   return /* @__PURE__ */ jsxs7(Section, { title: "Stacks", count: stacks.length, children: [
-    locked2 ? null : /* @__PURE__ */ jsx8(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx8(StackForm, { core, board, submitLabel: "Add stack" }) }),
+    locked2 ? null : /* @__PURE__ */ jsx8(Part, { title: "Add a stack", children: /* @__PURE__ */ jsx8(StackForm, { core, board, colors, submitLabel: "Add stack" }) }),
     /* @__PURE__ */ jsx8(Part, { title: "Stacks on the board", children: stacks.length === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "The board has no stacks yet." }) : /* @__PURE__ */ jsxs7(Fragment4, { children: [
       /* @__PURE__ */ jsx8(TableSearch, { label: "Search stacks", view }),
       view.found === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "No stack matches the search." }) : /* @__PURE__ */ jsxs7("table", { className: table.table, children: [
@@ -1244,7 +1293,7 @@ function StacksSection({ core, board, locked: locked2 }) {
           /* @__PURE__ */ jsx8("th", { scope: "col", className: table.head, children: "Blocks" }),
           locked2 ? null : /* @__PURE__ */ jsx8("th", { scope: "col", className: `${table.head} bc:w-24`, children: /* @__PURE__ */ jsx8("span", { className: "bc:sr-only", children: "Actions" }) })
         ] }) }),
-        /* @__PURE__ */ jsx8("tbody", { children: view.rows.map(([id2, stack]) => /* @__PURE__ */ jsx8(StackRow, { core, edits, board, id: id2, stack, locked: locked2 }, id2)) })
+        /* @__PURE__ */ jsx8("tbody", { children: view.rows.map(([id2, stack]) => /* @__PURE__ */ jsx8(StackRow, { core, edits, board, colors, id: id2, stack, locked: locked2 }, id2)) })
       ] }),
       /* @__PURE__ */ jsx8(Refusal, { refusal: edits.refusal }),
       /* @__PURE__ */ jsx8(Pager, { label: "Pages of stacks", view })
@@ -1255,6 +1304,7 @@ function StackRow({
   core,
   edits,
   board,
+  colors,
   id: id2,
   stack,
   locked: locked2
@@ -1266,6 +1316,7 @@ function StackRow({
       {
         core,
         board,
+        colors,
         editing: { id: id2, stack },
         tableEdits: edits,
         submitLabel: "Save",
@@ -1275,7 +1326,7 @@ function StackRow({
   }
   return /* @__PURE__ */ jsxs7("tr", { "aria-label": stack.name, className: table.row, children: [
     /* @__PURE__ */ jsx8("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsxs7("span", { className: "bc:flex bc:items-center bc:gap-1.5", children: [
-      /* @__PURE__ */ jsx8(Swatch, { color: stack.color }),
+      /* @__PURE__ */ jsx8(Swatch, { colors, color: stack.color }),
       /* @__PURE__ */ jsx8("span", { className: "bc:font-medium", children: stack.name })
     ] }) }),
     /* @__PURE__ */ jsx8("td", { className: `${table.cell} bc:break-words`, children: /* @__PURE__ */ jsx8(StackBlocks, { board, blocks: stack.blocks }) }),
@@ -1326,19 +1377,15 @@ function StackBlocks({ board, blocks }) {
     ] }) : null
   ] });
 }
-function Swatch({ color: color2 }) {
-  return /* @__PURE__ */ jsx8(
-    "span",
-    {
-      "aria-hidden": "true",
-      className: "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default",
-      style: color2 === null ? void 0 : { backgroundColor: color2 }
-    }
-  );
+function Swatch({ colors, color: color2 }) {
+  if (colors !== null && color2 !== null) return /* @__PURE__ */ jsx8(colors.ColorSwatch, { color: color2, className: SWATCH });
+  return /* @__PURE__ */ jsx8("span", { "aria-hidden": "true", className: SWATCH, style: color2 === null ? void 0 : { backgroundColor: color2 } });
 }
+var SWATCH = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
 function StackForm({
   core,
   board,
+  colors,
   editing,
   tableEdits,
   submitLabel,
@@ -1346,10 +1393,10 @@ function StackForm({
 }) {
   const registry = core.blockRegistry();
   const stacks = Object.values(board.stacks);
-  const [name2, setName] = useState10(editing?.stack.name ?? "");
-  const [color2, setColor] = useState10(editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
-  const [blocks, setBlocks] = useState10(editing?.stack.blocks ?? []);
-  const [busy, setBusy] = useState10(false);
+  const [name2, setName] = useState11(editing?.stack.name ?? "");
+  const [color2, setColor] = useState11(editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
+  const [blocks, setBlocks] = useState11(editing?.stack.blocks ?? []);
+  const [busy, setBusy] = useState11(false);
   const ownEdits = useEdits(core);
   const edits = tableEdits ?? ownEdits;
   const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
@@ -1373,17 +1420,18 @@ function StackForm({
     event.preventDefault();
     if (busy) return;
     const trimmed = name2.trim();
+    const hex = color2 === null ? null : stackColor(color2);
     setBusy(true);
     let ran;
     if (editing === void 0) {
-      const args = { blocks: kept, color: color2, name: trimmed === "" ? fallbackName : trimmed };
+      const args = { blocks: kept, color: hex, name: trimmed === "" ? fallbackName : trimmed };
       ran = await edits.run("Could not add the stack.", "blockr.core-add_stack", args);
     } else {
       const { id: id2, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
       const changed = {
         ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
-        ...color2 === stack.color ? {} : { color: color2 }
+        ...sameColor(hex, stack.color) ? {} : { color: hex }
       };
       const title = `Could not change the stack "${stack.name}".`;
       ran = !renamed || await edits.run(title, "blockr.core-rename_stack", { id: id2, name: trimmed });
@@ -1423,7 +1471,7 @@ function StackForm({
               onChange: setName
             }
           ),
-          /* @__PURE__ */ jsx8(ColorField, { color: color2, onChange: setColor })
+          /* @__PURE__ */ jsx8(StackColor, { colors, color: color2, onChange: setColor })
         ] }),
         /* @__PURE__ */ jsx8(
           ComboBox3,
@@ -1460,39 +1508,42 @@ function StackForm({
     }
   );
 }
-function ColorField({ color: color2, onChange }) {
-  const id2 = useId2();
-  const [last, setLast] = useState10(color2 ?? PALETTE[0]);
+function StackColor({
+  colors,
+  color: color2,
+  onChange
+}) {
+  const [last, setLast] = useState11(color2 ?? PALETTE[0]);
+  const shown = color2 ?? last;
   return /* @__PURE__ */ jsxs7("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx8("legend", { className: styles.legend, children: "Colour" }),
-    /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
-      /* @__PURE__ */ jsxs7("label", { className: styles.check, children: [
-        /* @__PURE__ */ jsx8(
-          "input",
-          {
-            type: "checkbox",
-            className: styles.checkbox,
-            checked: color2 !== null,
-            onChange: (event) => {
-              onChange(event.target.checked ? last : null);
-            }
-          }
-        ),
-        "A colour of its own"
-      ] }),
+    /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1", children: [
       /* @__PURE__ */ jsx8(
-        "input",
+        Checkbox,
         {
-          id: id2,
-          type: "color",
-          "aria-label": "The stack's colour",
-          disabled: color2 === null,
-          value: color2 ?? last,
-          className: "bc:h-7 bc:w-10 bc:cursor-pointer bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:p-0.5 bc:disabled:cursor-default bc:disabled:opacity-50",
-          onChange: (event) => {
-            setLast(event.target.value);
-            onChange(event.target.value);
+          label: "A colour of its own",
+          isSelected: color2 !== null,
+          onChange: (selected) => {
+            onChange(selected ? last : null);
           }
+        }
+      ),
+      colors === null ? /* @__PURE__ */ jsx8(Swatch, { colors: null, color: stackColor(shown) }) : /* @__PURE__ */ jsxs7(
+        colors.ColorPicker,
+        {
+          label: stackColor(shown).toUpperCase(),
+          value: shown,
+          isDisabled: color2 === null,
+          onChange: (picked) => {
+            setLast(picked);
+            onChange(picked);
+          },
+          children: [
+            /* @__PURE__ */ jsx8(colors.ColorArea, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
+            /* @__PURE__ */ jsx8(colors.ColorSlider, { colorSpace: "hsb", channel: "hue" }),
+            /* @__PURE__ */ jsx8(colors.ColorField, { label: "Hex" }),
+            /* @__PURE__ */ jsx8(colors.ColorSwatchPicker, { "aria-label": "Palette", className: "bc:max-w-36", children: PALETTE.map((hex) => /* @__PURE__ */ jsx8(colors.ColorSwatchPickerItem, { color: hex }, hex)) })
+          ]
         }
       )
     ] })
@@ -1535,7 +1586,7 @@ var table = {
   cell: "bc:px-1 bc:py-1.5"
 };
 function useRowEditing() {
-  const [editing, setEditing] = useState11(false);
+  const [editing, setEditing] = useState12(false);
   const closed = useRef3(false);
   const button = useRef3(null);
   useLayoutEffect2(() => {

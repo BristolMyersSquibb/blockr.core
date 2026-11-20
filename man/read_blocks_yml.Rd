@@ -109,7 +109,7 @@ the URL, so that no browser runs a changed file from its cache.
 It serves the other files in the module's directory as well, each at its
 path, so that a module or its stylesheet can import a file beside it.
 Such a file has no hash in its URL, so the package names it with a hash of
-its content, as blockr.core names the bundle that holds React
+its content, as blockr.core names its vendor files, such as
 \verb{vendor-<hash>.js}.
 It serves nothing else of the package.
 

@@ -713,6 +713,23 @@
   Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
+* Core's React SDK offers React Aria's colors, in core's theme, after React Aria's Tailwind starter kit, as `@blockr/core/react/colors`: a field and a picker, `ColorField` and `ColorPicker`, the swatches, `ColorSwatch` and `ColorSwatchPicker` with `ColorSwatchPickerItem`, and the parts of a picker, `ColorArea`, `ColorSlider`, `ColorWheel` and `ColorThumb`.
+  Each takes the props of its part of React Aria and those that the starter kit adds, such as `label`.
+  The picker takes `isDisabled` too, which disables its button.
+  Given `bound`, each input binds a color as a string of hex: `"#RRGGBB"`, as React Aria's `color.toString("hex")` writes it, or `"#RRGGBBAA"` where the color is not opaque.
+  A bound field submits as the user leaves it or presses Enter, and keeps the alpha of the color that it showed.
+  A bound area, slider or wheel submits as the user lets go, and a bound swatch picker as the user picks a swatch.
+  A bound picker submits as the user ends a change in one of its parts.
+  The page loads the colors only once a module first imports them: core's code for them from `blockr-core-react-colors.js`, which the import map names, and React Aria's from a vendor file of their own, `vendor-colors-<hash>.js`.
+  The code that the colors share with the parts of React Aria that core draws with, such as React and React Aria's contexts, moves out of core's vendor file into `vendor-shared-<hash>.js`, which both vendor files import, so that the page still runs one copy of each.
+  The page loads that file up front, as it loads the vendor file.
+  The build preset leaves an import of `@blockr/core/react/colors` an import, and fails a build that imports an entry point of the SDK that the import map does not name.
+  The types of `@blockr/core` export the colors as `@blockr/core/react/colors`.
+  The `Checkbox` of the SDK takes `isSelected` and `onChange` for its caller where it is not bound.
+  The stack form of the Edit board plugin draws a stack's color with a `ColorPicker` beside that `Checkbox`, in place of the browser's color input.
+  The picker's popover holds the palette's colors as swatches below the starter kit's parts.
+  The stacks' table draws each stack's color as a `ColorSwatch`, which a screen reader names by its color.
+  The stacks import the colors as they first show (#759).
 
 # blockr.core 0.1.4
 

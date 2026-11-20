@@ -32,21 +32,32 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-export function Checkbox({ bound, label }: { bound: Bound; label: string }): ReactElement {
+// A checkbox, which binds a boolean given `bound`, and otherwise checks for
+// its caller, through `isSelected` and `onChange`, as React Aria's Checkbox
+// names them.
+export interface CheckboxProps {
+  readonly label: string;
+  readonly bound?: Bound;
+  readonly isSelected?: boolean;
+  readonly onChange?: (isSelected: boolean) => void;
+}
+
+export function Checkbox({ bound, label, isSelected = false, onChange }: CheckboxProps): ReactElement {
   return (
     <>
       <label className={styles.check}>
         <input
           type="checkbox"
           className={styles.checkbox}
-          checked={bound.value === true}
+          checked={bound === undefined ? isSelected : bound.value === true}
           onChange={(event) => {
-            void bound.commit(event.target.checked);
+            if (bound !== undefined) void bound.commit(event.target.checked);
+            onChange?.(event.target.checked);
           }}
         />
         {label}
       </label>
-      <Refusal error={bound.error} />
+      {bound === undefined ? null : <Refusal error={bound.error} />}
     </>
   );
 }

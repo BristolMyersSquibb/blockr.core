@@ -4,10 +4,11 @@
 // - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js.
 // - A module, srcts/modules/<name>/index.ts or index.tsx, is bundled into
 //   <name>.js on its own, by the build preset of ./preset.ts.
-// - Core's React SDK, srcts/react, its binding, srcts/binding, and its
-//   controls, srcts/controls, are bundled into files of their own,
-//   blockr-core-react.js, blockr-core-binding.js and blockr-core-controls.js,
-//   and so is its OpenTelemetry module, srcts/otel, into blockr-core-otel.js.
+// - Core's React SDK, srcts/react, its colours, srcts/colors, its binding,
+//   srcts/binding, and its controls, srcts/controls, are bundled into files of
+//   their own, blockr-core-react.js, blockr-core-react-colors.js,
+//   blockr-core-binding.js and blockr-core-controls.js, and so is its
+//   OpenTelemetry module, srcts/otel, into blockr-core-otel.js.
 // - The parts of OpenTelemetry's SDK that the OpenTelemetry module uses, which
 //   srcts/otel/sdk.ts names, are bundled, minified, into a file of their own,
 //   opentelemetry-<hash>.js, which the module imports by that name, so that
@@ -30,6 +31,15 @@
 //   The runtime, the modules and the SDK, the binding, the controls and the
 //   OpenTelemetry module import the other packages from that file by its name,
 //   and React Aria where they import srcts/aria/index.ts.
+// - The parts of React Aria that a page loads only once a module imports
+//   them, the colours, which srcts/aria-colors/index.ts names, are bundled,
+//   minified, into a vendor file of their own, vendor-colors-<hash>.js, which
+//   the SDK's colours import by its name.
+//   It is bundled with the vendor file, and esbuild puts the code that the
+//   two share, such as React and the contexts of React Aria, into one more
+//   file, vendor-shared-<hash>.js, which both import.
+//   So the page still runs one copy of React and of React Aria, and loads the
+//   vendor file and the shared file up front.
 //   So blockr-core.js holds core's own code alone, and the page runs one copy
 //   of each package.
 //   The vendor check of ./vendor-check.ts, which core ships to packages beside
@@ -44,7 +54,7 @@
 //   well, so that a page loads the module only where it imports it.
 // - What each file imports up front, the static imports of ./preload.ts, goes
 //   into preload.json, React's entry points included, which import the vendor
-//   file.
+//   file, and the vendor files, which import the shared file.
 //   R names those files in the page's head, so that the browser fetches them at
 //   once, rather than each once the file that imports it has loaded.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
@@ -79,6 +89,8 @@
 //   The controls, srcts/controls/index.ts, go there as the SDK does,
 //   as `@blockr/core/controls`, for a package that writes its modules without
 //   React.
+//   The SDK's colours, srcts/colors/index.ts, go there too, as
+//   `@blockr/core/react/colors`.
 // - The licenses of what the files in inst/js, inst/types and inst/ids hold
 //   from other projects go into LICENSES in each of these directories.
 //   Each has a line for each package from node_modules, with its version, its
@@ -105,7 +117,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import tailwindcss from "@tailwindcss/postcss";
 import * as esbuild from "esbuild";
@@ -180,9 +192,9 @@ function reactNames(): Record<string, string[]> {
 // the page's import map, those that `input` names external.
 // It returns what the file holds from other projects too, as
 // licensedSources() gives it.
-// The name holds a hash of the content, as vendor-3f2a9c1d.js, so that no
-// browser runs an old copy from its cache, since what imports the file imports
-// it by that name.
+// The name holds a hash of the content, as opentelemetry-3f2a9c1d.js, so that
+// no browser runs an old copy from its cache, since what imports the file
+// imports it by that name.
 // A file that the import map names, which R serves at a URL that holds a hash
 // of the content, is named as given instead.
 async function vendored(
@@ -260,45 +272,138 @@ function ariaFile(src: string): string {
   return join(src, "aria", "index.ts");
 }
 
+// The parts of React Aria that a page loads only once a module imports them,
+// each by its name, as "colors", whose file in srcts names them, as
+// srcts/aria-colors/index.ts, and which the build bundles into a vendor file of
+// its own, as vendor-colors-<hash>.js.
+const ON_DEMAND = ["colors"] as const;
+
+function partFile(src: string, part: string): string {
+  return join(src, `aria-${part}`, "index.ts");
+}
+
+// The vendor files, as vendorBundle() writes them: the vendor file, the file
+// of each part of React Aria that loads on demand, by the part's name, and
+// every file that it writes, the files of the code that they share included.
+// Beside them, the files that each file imports up front, as preload.json
+// lists them, and what each holds from other projects, by its path.
+interface Vendor {
+  readonly file: string;
+  readonly parts: ReadonlyMap<string, string>;
+  readonly files: readonly string[];
+  readonly imports: Readonly<Record<string, readonly string[]>>;
+  readonly sources: ReadonlyMap<string, string[]>;
+}
+
+// The namespace of the entry points of vendorBundle(), which it writes itself.
+const ENTRY = "blockr-vendor";
+
 // Bundles React, ReactDOM and the packages that VENDOR_IMPORTS names into one
-// minified file in `out`, as vendor-3f2a9c1d.js, with the parts of React Aria
-// that srcts/aria/index.ts names, where srcts holds it, and returns its name
-// and what it holds from other projects.
+// minified file in `out`, as vendor-3F2A9C1D.js, with the parts of React Aria
+// that srcts/aria/index.ts names, where srcts holds it.
 // The file exports each of React's entry points as a namespace of its own,
 // entry0 for `react` and so on, which React's ES modules read.
 // It exports the names of the other packages as they are, which core's code
 // imports, and the names that srcts/aria/index.ts exports.
-async function vendorBundle(out: string, src: string): Promise<{ file: string; sources: string[] }> {
+// Each part of React Aria that ON_DEMAND names, and srcts holds, it bundles
+// into a file of its own beside it, as vendor-colors-7B1E04CA.js, which
+// exports the names that the part's file exports.
+// It bundles them together, splitting off the code that they share, such as
+// React and the contexts of React Aria, into one more file, as
+// vendor-shared-5D0C8A2F.js, which they import, so that the page runs one copy
+// of each.
+// Each name holds a hash of the file's content, and of those that it imports,
+// so that no browser runs an old copy from its cache.
+async function vendorBundle(out: string, src: string): Promise<Vendor> {
   const aria = ariaFile(src);
-  return vendored(out, "vendor", {
-    stdin: {
-      contents: [
+  const parts = ON_DEMAND.filter((part) => existsSync(partFile(src, part)));
+  const entries = new Map([
+    [
+      "vendor",
+      [
         ...REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`),
         ...VENDOR_IMPORTS.map((name) => `export * from ${JSON.stringify(name)};`),
         ...(existsSync(aria) ? [`export * from ${JSON.stringify(aria)};`] : []),
       ].join("\n"),
-      resolveDir: repo,
-      loader: "js",
-    },
+    ],
+    ...parts.map((part) => [`vendor-${part}`, `export * from ${JSON.stringify(partFile(src, part))};`] as const),
+  ]);
+  const result = await esbuild.build({
+    absWorkingDir: repo,
+    entryPoints: [...entries.keys()].map((name) => ({ in: `${ENTRY}:${name}`, out: name })),
+    plugins: [
+      {
+        name: "blockr.core-vendor-entries",
+        setup(build) {
+          build.onResolve({ filter: new RegExp(`^${ENTRY}:`) }, (args) => ({ path: args.path.slice(ENTRY.length + 1), namespace: ENTRY }));
+          build.onLoad({ filter: /.*/, namespace: ENTRY }, (args) => ({ contents: entries.get(args.path) ?? "", resolveDir: repo, loader: "js" }));
+        },
+      },
+    ],
     nodePaths: [join(repo, "node_modules")],
+    bundle: true,
+    splitting: true,
+    write: false,
+    metafile: true,
+    outdir: out,
+    entryNames: "[name]-[hash]",
+    chunkNames: "vendor-shared-[hash]",
+    format: "esm",
+    platform: "browser",
+    target: preset.target,
+    define: preset.define,
+    minify: true,
+    legalComments: "inline",
+    logLevel: "warning",
   });
+  if (result.warnings.length > 0) {
+    throw new Error("esbuild warned, as printed above");
+  }
+
+  for (const file of result.outputFiles) await writeFile(file.path, file.contents);
+  const outputs = Object.entries(result.metafile.outputs).map(([path, output]) => ({ file: basename(path), output }));
+  const entry = (name: string): string => {
+    const found = outputs.find(({ output }) => output.entryPoint === `${ENTRY}:${name}`)?.file;
+    if (found === undefined) throw new Error(`esbuild wrote no file of ${name}.`);
+    return found;
+  };
+  return {
+    file: entry("vendor"),
+    parts: new Map(parts.map((part) => [part, entry(`vendor-${part}`)])),
+    files: outputs.map(({ file }) => file),
+    // The files that each file imports up front, which are the files of the
+    // code that it shares with the others.
+    imports: Object.fromEntries(
+      outputs.flatMap(({ file, output }) => {
+        const imported = output.imports.flatMap((entry) => (entry.kind === "import-statement" ? [`./${basename(entry.path)}`] : []));
+        return imported.length === 0 ? [] : [[file, [...new Set(imported)]]];
+      }),
+    ),
+    sources: licensedSources(result.metafile, repo),
+  };
 }
 
 // Leaves each import of a package that VENDOR_IMPORTS names an import of the
-// vendor file, `file`, by its name beside the file that imports it, and so
-// each import of srcts/aria/index.ts, in `src`.
+// vendor file, by its name beside the file that imports it, and so each
+// import of srcts/aria/index.ts, in `src`.
+// Each import of the file of a part of React Aria that loads on demand, such
+// as srcts/aria-colors/index.ts, it leaves an import of the part's vendor
+// file.
 // The packages have no side effects, as their package.json files say.
 // So a file that imports none of their names, as from code of core's that it
 // bundles, keeps no import of the vendor file.
-function vendorImports(file: string, src: string): esbuild.Plugin {
+function vendorImports(vendor: Vendor, src: string): esbuild.Plugin {
   const names: readonly string[] = VENDOR_IMPORTS;
-  const aria = ariaFile(src);
-  const vendor = { path: `./${file}`, external: true, sideEffects: false };
+  const files = new Map([[ariaFile(src), vendor.file], ...[...vendor.parts].map(([part, file]) => [partFile(src, part), file] as const)]);
+  const imported = (file: string) => ({ path: `./${file}`, external: true, sideEffects: false });
   return {
     name: "blockr.core-vendor-imports",
     setup(build) {
-      build.onResolve({ filter: /^[^./]/ }, (args) => (names.includes(args.path) ? vendor : undefined));
-      build.onResolve({ filter: /^\.\.?\// }, (args) => (resolve(args.resolveDir, args.path) === aria ? vendor : undefined));
+      build.onResolve({ filter: /^[^./]/ }, (args) => (names.includes(args.path) ? imported(vendor.file) : undefined));
+      build.onResolve({ filter: /^\.\.?\// }, (args) => {
+        const file = files.get(resolve(args.resolveDir, args.path));
+        return file === undefined ? undefined : imported(file);
+      });
     },
   };
 }
@@ -332,14 +437,15 @@ async function reactModules(out: string, bundle: string): Promise<string[]> {
 // runtime imports by its name too.
 const LIBRARIES = [
   ["@blockr/core/react", "react"],
+  ["@blockr/core/react/colors", "colors"],
   ["@blockr/core/binding", "binding"],
   ["@blockr/core/controls", "controls"],
   ["@blockr/core/otel", "otel"],
 ] as const;
 
-// Maps the imports in core's sources of core's React SDK, its binding and its
-// controls, from their sources in srcts, to their names in the import map,
-// which the preset leaves imports.
+// Maps the imports in core's sources of core's React SDK, its colours, its
+// binding and its controls, from their sources in srcts, to their names in
+// the import map, which the preset leaves imports.
 // The SDK holds the inputs and the overlays, so an import of srcts/inputs or
 // srcts/overlays is one of the SDK.
 // The build of a library bundles the library's own sources, which `own` names.
@@ -429,7 +535,7 @@ export async function build(root: string): Promise<string[]> {
     metafile: true,
   } satisfies esbuild.BuildOptions;
   const vendor = await vendorBundle(out, src);
-  const plugins = (own?: Import) => [vendorImports(vendor.file, src), sourceImports(src, own), ...preset.plugins, vendorCheck];
+  const plugins = (own?: Import) => [vendorImports(vendor, src), sourceImports(src, own), ...preset.plugins, vendorCheck];
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
   const otel = await otelSdk(src, out);
   const sdk = otel?.file;
@@ -468,8 +574,8 @@ export async function build(root: string): Promise<string[]> {
   // What each file holds from other projects, by the file's path.
   const bundled = new Map(results.flatMap((result) => [...licensedSources(result.metafile, root)]));
   const react = await reactModules(out, vendor.file);
-  written.push(...[vendor.file, ...react].map((file) => relative(root, join(out, file))));
-  bundled.set(join(out, vendor.file), vendor.sources);
+  written.push(...[...vendor.files, ...react].map((file) => relative(root, join(out, file))));
+  for (const [file, sources] of vendor.sources) bundled.set(file, sources);
   if (otel !== undefined) {
     written.push(relative(root, join(out, otel.file)));
     bundled.set(join(out, otel.file), otel.sources);
@@ -494,12 +600,14 @@ export async function build(root: string): Promise<string[]> {
   written.push(relative(root, map));
 
   // What each file imports up front, and React's entry points, which the build
-  // writes itself, the vendor file, as the bundle of OpenTelemetry's SDK
-  // imports its API.
+  // writes itself, the vendor file, as the vendor files import the file of
+  // the code that they share, and the bundle of OpenTelemetry's SDK imports its
+  // API.
   const preload = join(out, "preload.json");
   const imported: Record<string, readonly string[]> = {
     ...staticImports(results.map((result) => result.metafile)),
     ...Object.fromEntries(react.map((file) => [file, [`./${vendor.file}`]])),
+    ...vendor.imports,
     ...(otel === undefined || otel.imports.length === 0 ? {} : { [otel.file]: otel.imports }),
   };
   await writeJson(preload, Object.fromEntries(Object.entries(imported).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
@@ -839,8 +947,9 @@ function packageVersion(name: string): string {
 
 // The package that inst/types is: the types modules are written against, as
 // `@blockr/core`, the stubs of the hosts, as `@blockr/core/stubs`, and core's
-// React SDK, its binding and the build preset, as `@blockr/core/react`,
-// `@blockr/core/binding` and `@blockr/core/build`.
+// React SDK, its colours, its binding and the build preset, as
+// `@blockr/core/react`, `@blockr/core/react/colors`, `@blockr/core/binding`
+// and `@blockr/core/build`.
 // Its bundles leave React an import, so it names the React that core's
 // runtime bundles, at that version, as its peer.
 // So npm installs that React with `@blockr/core` where a package has none, and
@@ -865,21 +974,24 @@ function packageVersion(name: string): string {
 // and a package may depend on other versions of the two packages.
 // Then npm puts core's versions in the node_modules of `@blockr/core`.
 // The SDK draws its inputs with React Aria, whose parts srcts/aria/index.ts
-// names, from react-aria-components, which the bundles leave an import too.
+// names, and its colours with the parts that srcts/aria-colors/index.ts
+// names, from the entry points of react-aria-components, which the bundles
+// leave imports too.
 // The package names it as its dependency, at the version that core's vendor
-// file bundles, since core's declarations name its types, while a package
+// files bundle, since core's declarations name its types, while a package
 // draws with React Aria only through the components of the SDK.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
   description:
-    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, the React SDK, its binding and the build preset that they may be built with, and the controls they may draw with, as the R package blockr.core ships them.",
+    "The types that the modules of blockr.core's client are written against, a stub of each host for their tests, the React SDK, its colours, its binding and the build preset that they may be built with, and the controls they may draw with, as the R package blockr.core ships them.",
   type: "module",
   exports: {
     ".": { types: "./index.d.ts" },
     "./binding": { types: "./binding/index.d.ts", default: "./binding/index.js" },
     "./build": { types: "./build/index.d.ts", default: "./build/index.js" },
     "./react": { types: "./react/index.d.ts", default: "./react/index.js" },
+    "./react/colors": { types: "./colors/index.d.ts", default: "./colors/index.js" },
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
     "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
@@ -896,10 +1008,12 @@ export const TYPES_PACKAGE = {
 };
 
 // The modules of srcts that the types package bundles,
-// each as the export of its name.
-const BUNDLED = ["stubs", "binding", "react", "build", "controls"];
+// each as the export of its name, but the colours, which it exports as
+// `./react/colors`.
+const BUNDLED = ["stubs", "binding", "react", "colors", "build", "controls"];
 
-// Leaves each import of a package that `names` holds an import.
+// Leaves each import of a package that `names` holds an import, and of each of
+// its entry points, as react-aria-components/Button.
 // The packages have no side effects, as their package.json files say.
 // So a bundle that holds some of core's code, but uses no name of the
 // package that the code imports, keeps no import of it.
@@ -910,7 +1024,9 @@ function dependencyImports(names: readonly string[]): esbuild.Plugin {
     name: "blockr.core-dependency-imports",
     setup(build) {
       build.onResolve({ filter: /^[^./]/ }, (args) =>
-        names.includes(args.path) ? { path: args.path, external: true, sideEffects: false } : undefined,
+        names.some((name) => args.path === name || args.path.startsWith(`${name}/`))
+          ? { path: args.path, external: true, sideEffects: false }
+          : undefined,
       );
     },
   };

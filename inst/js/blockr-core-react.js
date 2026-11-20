@@ -205,7 +205,7 @@ var Boundary = class extends Component {
 };
 
 // srcts/inputs/button.tsx
-import { Button as AriaButton, composeRenderProps } from "./vendor-b25170e7.js";
+import { Button as AriaButton, composeRenderProps } from "./vendor-P3O6DBKR.js";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -245,7 +245,7 @@ function Field({ label, children }) {
     children
   ] });
 }
-function Checkbox({ bound, label }) {
+function Checkbox({ bound, label, isSelected = false, onChange }) {
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsxs("label", { className: styles.check, children: [
       /* @__PURE__ */ jsx3(
@@ -253,15 +253,16 @@ function Checkbox({ bound, label }) {
         {
           type: "checkbox",
           className: styles.checkbox,
-          checked: bound.value === true,
+          checked: bound === void 0 ? isSelected : bound.value === true,
           onChange: (event) => {
-            void bound.commit(event.target.checked);
+            if (bound !== void 0) void bound.commit(event.target.checked);
+            onChange?.(event.target.checked);
           }
         }
       ),
       label
     ] }),
-    /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
+    bound === void 0 ? null : /* @__PURE__ */ jsx3(Refusal, { error: bound.error })
   ] });
 }
 function missing(value) {
@@ -304,7 +305,7 @@ import {
   TagList,
   Text,
   Virtualizer
-} from "./vendor-b25170e7.js";
+} from "./vendor-P3O6DBKR.js";
 import { Fragment as Fragment2, jsx as jsx4, jsxs as jsxs2 } from "react/jsx-runtime";
 function ComboBox(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -641,7 +642,7 @@ import {
   NumberField as AriaNumberField,
   NumberFieldStateContext,
   Text as Text2
-} from "./vendor-b25170e7.js";
+} from "./vendor-P3O6DBKR.js";
 import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
 function NumberField({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
@@ -772,7 +773,7 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/textfield.tsx
-import { composeRenderProps as composeRenderProps4, FieldError as FieldError3, Input as Input3, Label as Label3, Text as Text3, TextArea, TextField as AriaTextField } from "./vendor-b25170e7.js";
+import { composeRenderProps as composeRenderProps4, FieldError as FieldError3, Input as Input3, Label as Label3, Text as Text3, TextArea, TextField as AriaTextField } from "./vendor-P3O6DBKR.js";
 import { Fragment as Fragment4, jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
 function TextField({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx6(Drawn3, { ...props }) : /* @__PURE__ */ jsx6(BoundText, { ...props, bound });
@@ -817,10 +818,10 @@ function Drawn3({ label, description, errorMessage: errorMessage2, placeholder, 
 }
 
 // srcts/inputs/index.ts
-import { Text as Text4 } from "./vendor-b25170e7.js";
+import { Text as Text4 } from "./vendor-P3O6DBKR.js";
 
 // srcts/overlays/dialog.tsx
-import { composeRenderProps as composeRenderProps5, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-b25170e7.js";
+import { composeRenderProps as composeRenderProps5, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-P3O6DBKR.js";
 import { jsx as jsx7 } from "react/jsx-runtime";
 function Modal({ className, ...props }) {
   return /* @__PURE__ */ jsx7(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx7("div", { className: CENTER, children: /* @__PURE__ */ jsx7(AriaModal, { ...props, className: composeRenderProps5(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
@@ -843,10 +844,10 @@ import {
   MenuItem as AriaMenuItem,
   MenuSection as AriaMenuSection,
   MenuTrigger as AriaMenuTrigger
-} from "./vendor-b25170e7.js";
+} from "./vendor-P3O6DBKR.js";
 
 // srcts/overlays/popover.tsx
-import { composeRenderProps as composeRenderProps6, Popover as AriaPopover } from "./vendor-b25170e7.js";
+import { composeRenderProps as composeRenderProps6, Popover as AriaPopover } from "./vendor-P3O6DBKR.js";
 import { jsx as jsx8 } from "react/jsx-runtime";
 function Popover2({ className, offset = 4, ...props }) {
   return /* @__PURE__ */ jsx8(AriaPopover, { ...props, offset, className: composeRenderProps6(className, (given) => `${POPOVER} ${given ?? ""}`) });
@@ -901,7 +902,7 @@ var HEADING2 = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibol
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 
 // srcts/overlays/index.ts
-import { DialogTrigger, Heading, Keyboard } from "./vendor-b25170e7.js";
+import { DialogTrigger, Heading, Keyboard } from "./vendor-P3O6DBKR.js";
 export {
   Button,
   Checkbox,

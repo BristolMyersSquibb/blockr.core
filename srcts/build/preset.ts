@@ -3,12 +3,12 @@
 // bundles its modules alike
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#react).
 // It holds esbuild's options for a module: an ES module for the browser, whose
-// imports of React, of core's React SDK, its binding and its controls, and of
-// OpenTelemetry's API stay imports, which the page that R serves resolves
-// through its import map.
+// imports of React, of core's React SDK, its colours, its binding and its
+// controls, and of OpenTelemetry's API stay imports, which the page that R
+// serves resolves through its import map.
 // So the module's bundle holds none of them.
 // It fails a build that imports React Aria, whose components a module draws
-// from the React SDK.
+// from the React SDK, its colours included.
 // A package's build adds its entry points and where they go, as in
 // `esbuild.build({ ...preset, entryPoints: ["srcts/head-block.tsx"], outdir: "inst/js" })`.
 // To the builds of its own files, it adds the vendor check of
@@ -40,7 +40,8 @@ const REACT_ARIA = /^(react-aria-components|react-aria|react-stately|@react-(ari
 // Leaves each import in a module that the page's import map names an import,
 // so that every module imports the one copy of each that blockr.core ships.
 // An entry point of React that the map does not name fails the build, rather
-// than bundling a second copy of React.
+// than bundling a second copy of React, and so does an entry point of the SDK
+// that the map does not name, such as a part of the SDK that this core lacks.
 // OpenTelemetry's API has no side effects, as its package says, so a module
 // that imports none of its names, as from code of core's that it bundles,
 // keeps no import of it.
@@ -49,7 +50,7 @@ const REACT_ARIA = /^(react-aria-components|react-aria|react-stately|@react-(ari
 const imports: Plugin = {
   name: "blockr.core-imports",
   setup(build) {
-    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
+    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react(\/[^/]+)?|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
       if (!(IMPORTS as readonly string[]).includes(args.path)) {
         return {
           errors: [
@@ -64,7 +65,7 @@ const imports: Plugin = {
     build.onResolve({ filter: REACT_ARIA }, (args) => ({
       errors: [
         {
-          text: `A module imports ${args.path}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, so that the page runs one copy of React Aria.`,
+          text: `A module imports ${args.path}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, and its colours from @blockr/core/react/colors, so that the page runs one copy of React Aria.`,
         },
       ],
     }));

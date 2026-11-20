@@ -4,6 +4,7 @@ var OTEL_API = "@opentelemetry/api";
 var IMPORTS = [
   ...REACT_ENTRIES,
   "@blockr/core/react",
+  "@blockr/core/react/colors",
   "@blockr/core/binding",
   "@blockr/core/controls",
   "@blockr/core/otel",
@@ -15,7 +16,7 @@ var REACT_ARIA = /^(react-aria-components|react-aria|react-stately|@react-(aria|
 var imports = {
   name: "blockr.core-imports",
   setup(build) {
-    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
+    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react(\/[^/]+)?|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
       if (!IMPORTS.includes(args.path)) {
         return {
           errors: [
@@ -30,7 +31,7 @@ var imports = {
     build.onResolve({ filter: REACT_ARIA }, (args) => ({
       errors: [
         {
-          text: `A module imports ${args.path}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, so that the page runs one copy of React Aria.`
+          text: `A module imports ${args.path}, which is part of React Aria. A package draws React Aria's components from @blockr/core/react, and its colours from @blockr/core/react/colors, so that the page runs one copy of React Aria.`
         }
       ]
     }));
