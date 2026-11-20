@@ -713,6 +713,26 @@
   Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
+* Core's React SDK offers the rest of the form inputs of React Aria's Tailwind starter kit, each in core's theme, after its file in the starter kit, with the props of its part of React Aria and those that the starter kit adds.
+  These are the checkbox group `CheckboxGroup`, the radios `RadioGroup` and `Radio`, the switch `Switch`, the toggle buttons `ToggleButton` and `ToggleButtonGroup`, the slider `Slider`, the select `Select`, which has no field to type into, with `SelectItem` and `SelectSection`, the search field `SearchField`, the tags `TagGroup` and `Tag`, the field of tokens `TokenField` with `Token`, the list box `ListBox` with `ListBoxItem`, the form `Form`, the button inside a field `FieldButton`, the drop zone `DropZone` and the command palette `CommandPalette`.
+  The SDK also offers React Aria's `FileTrigger`, `Autocomplete` and `useFilter()`, which draw nothing of their own, for a caller to compose with the others, as an `Autocomplete` with a `SearchField` narrows a `ListBox` or a `Menu`.
+  The `Checkbox` of the SDK is React Aria's too, and takes its label as its children, in place of `label`.
+  Given `bound`, the checkbox, the switch and the toggle button edit a boolean, the radio group a string and the checkbox group an array of strings, each of which they submit at once.
+  A toggle button group edits a string, or an array of strings where its `selectionMode` is `"multiple"`, which it submits at once too.
+  A group of one leaves its state arg unset as the user unpicks its pick, unless it sets `disallowEmptySelection`.
+  The `Select` submits as the `ComboBox` does: one pick at once, and several once, as its list closes.
+  The groups of several and the `Select` build what they submit from the value that the host holds then, and keep the order of their items where `ordered`.
+  The `Slider` edits a number, or an array of numbers where it has several thumbs, which it submits as the user lets go of a thumb, and never a number that it pulled into its range or onto its step.
+  The `SearchField` submits as the `TextField` does, and at once as the user clears it, by its button or by Escape.
+  A value that an input lacks, a pick that none of its items holds, or a number outside the slider's range or off its step, shows as missing, with the input marked invalid, but not while the input is `outdated`.
+  A group shows such a pick as an item of its own, picked, before its items, and the `Select` as a row of its own at the top of its list, which the user unpicks to drop the value.
+  The slider shows such a number beside its label, with its thumb at the nearest end.
+  The `checkbox()` of `controls()` draws with the `Checkbox` of the SDK.
+  The head block picks its direction, and the board option `dark_mode` its theme, with a `ToggleButtonGroup`, and the board option `show_conditions` its severities with a `CheckboxGroup`.
+  The merge block picks its join, the file browser its volume, and the picker and the Edit board's links their input and their position with a `Select`.
+  The search of the Edit board's tables is a `SearchField`, whose button clears it, as Escape does, and the upload block takes a file that the user drops on it, in a `DropZone` around a `FileTrigger` with a `Button`.
+  The forms of the picker and of the Edit board's links and stacks are React Aria's `Form`, and the button that clears the pick of a `ComboBox` is a `FieldButton`.
+  Compressed, core's vendor file grows from 174.9 KB to 219.2 KB (#755).
 
 # blockr.core 0.1.4
 

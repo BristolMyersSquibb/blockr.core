@@ -166,7 +166,7 @@ function controls(host, signal) {
     };
   }
   function checkbox(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx(inputs.Checkbox, { bound, label: options.label }));
+    input(key, (bound) => /* @__PURE__ */ jsx(inputs.Checkbox, { bound, children: options.label }));
   }
   function cleanup() {
     if (ended) return;

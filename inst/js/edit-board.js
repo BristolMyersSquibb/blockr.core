@@ -228,7 +228,7 @@ function defaultBlockName(registryId2) {
 }
 
 // srcts/picker/picker.tsx
-import { ComboBox, ComboBoxItem, ComboBoxSection, Text, TextField as TextField3, useBoard } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField as TextField2, useBoard } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -297,7 +297,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-b25170e7.js";
+import { useFilter } from "./vendor-dcccc9ef.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2("");
@@ -313,7 +313,7 @@ function useSearch(all, texts, none = "No options") {
 
 // srcts/ui/table.tsx
 import { useState as useState6 } from "react";
-import { TextField as TextField2 } from "@blockr/core/react";
+import { SearchField } from "@blockr/core/react";
 
 // srcts/ui/ui.tsx
 import { useRef as useRef2, useState as useState5 } from "react";
@@ -477,7 +477,7 @@ function useTableView(rows, text, size = PAGE_SIZE) {
   };
 }
 function TableSearch({ label, view }) {
-  return /* @__PURE__ */ jsx4("search", { children: /* @__PURE__ */ jsx4(TextField2, { label, type: "search", spellCheck: "false", autoComplete: "off", value: view.query, onChange: view.setQuery }) });
+  return /* @__PURE__ */ jsx4("search", { children: /* @__PURE__ */ jsx4(SearchField, { label, spellCheck: "false", autoComplete: "off", value: view.query, onChange: view.setQuery }) });
 }
 function Pager({ label, view }) {
   const { page, pages, found, first, rows } = view;
@@ -588,11 +588,10 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
     onAdded?.();
   }
   return /* @__PURE__ */ jsxs4(
-    "form",
+    Form,
     {
       "aria-label": "Add block",
-      noValidate: true,
-      className: "bc:grid bc:gap-3",
+      validationBehavior: "aria",
       onSubmit: (event) => {
         void submit(event);
       },
@@ -622,20 +621,20 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
           }
         ),
         link.kind === "pick" ? /* @__PURE__ */ jsx5(
-          ComboBox,
+          Select,
           {
             label: link.label,
             isRequired: true,
-            defaultItems: link.inputs.map((input3) => ({ id: input3 })),
+            items: link.inputs.map((input3) => ({ id: input3 })),
             value: chosen ?? null,
             onChange: (key) => {
               if (key !== null) setInput(String(key));
             },
-            children: (item) => /* @__PURE__ */ jsx5(ComboBoxItem, { id: item.id, children: item.id })
+            children: (item) => /* @__PURE__ */ jsx5(SelectItem, { id: item.id, children: item.id })
           }
         ) : null,
         link.kind === "name" ? /* @__PURE__ */ jsx5(
-          TextField3,
+          TextField2,
           {
             label: link.label,
             value: inputName,
@@ -655,7 +654,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
         link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx5("p", { className: styles.alert, children: link.why }) : null,
         /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx5(
-            TextField3,
+            TextField2,
             {
               label: "ID",
               value: id2,
@@ -674,7 +673,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
             }
           ),
           /* @__PURE__ */ jsx5(
-            TextField3,
+            TextField2,
             {
               label: "Name",
               value: name2,
@@ -854,7 +853,7 @@ function BlockRow({ edits, id: id2, block, className }) {
 // srcts/modules/edit-board/links.tsx
 import { useState as useState9 } from "react";
 import { flushSync as flushSync2 } from "react-dom";
-import { ComboBox as ComboBox2, ComboBoxItem as ComboBoxItem2, Text as Text2, TextField as TextField4 } from "@blockr/core/react";
+import { ComboBox as ComboBox2, ComboBoxItem as ComboBoxItem2, Form as Form2, Select as Select2, SelectItem as SelectItem2, Text as Text2, TextField as TextField3 } from "@blockr/core/react";
 import { Fragment as Fragment3, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 function LinksSection({ core, board, locked: locked2 }) {
   const links = Object.entries(board.links);
@@ -1046,123 +1045,132 @@ function LinkForm({
     }
     onDone?.();
   }
-  return /* @__PURE__ */ jsxs6(
-    "form",
-    {
-      "aria-label": editing === void 0 ? "Add link" : "Change link",
-      noValidate: true,
-      className: "bc:grid bc:gap-3",
-      onSubmit: (event) => {
-        void submit(event);
-      },
-      onKeyDown: (event) => {
-        if (event.key === "Escape" && editing !== void 0 && !event.defaultPrevented) onDone?.();
-      },
-      children: [
-        /* @__PURE__ */ jsxs6("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx7(
-            ComboBox2,
-            {
-              label: "From",
-              ...fromSearch,
-              value: source ?? null,
-              placeholder: "Search blocks",
-              isInvalid: errors.from !== void 0,
-              errorMessage: errors.from,
-              onChange: (key) => {
-                setFrom(key === null ? void 0 : String(key));
-                setErrors((now) => without2(now, "from"));
-              },
-              children: blockRow
-            }
-          ),
-          /* @__PURE__ */ jsx7(
-            ComboBox2,
-            {
-              label: "To",
-              ...toSearch,
-              value: target2 ?? null,
-              placeholder: "Search blocks",
-              isInvalid: errors.to !== void 0,
-              errorMessage: errors.to,
-              description: toOptions.length === 0 ? "No block takes a link from this block." : void 0,
-              onChange: (key) => {
-                setTo(key === null ? void 0 : String(key));
-                setInput(void 0);
-                setPlace(void 0);
-                setErrors((now) => without2(without2(now, "to"), "input"));
-              },
-              children: blockRow
-            }
-          )
-        ] }),
-        target2 === void 0 ? null : variadic ? /* @__PURE__ */ jsxs6("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx7(
-            TextField4,
-            {
-              label: "Input name",
-              value: name2,
-              description: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
-              errorMessage: errors.input,
-              isInvalid: errors.input !== void 0,
-              autoComplete: "off",
-              ...identifier,
-              onChange: (value2) => {
-                setName(value2);
-                setErrors((now) => without2(now, "input"));
-              },
-              onBlur: () => {
-                setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name2, taken)) }));
-              }
-            }
-          ),
-          among === void 0 ? null : /* @__PURE__ */ jsx7(
-            ComboBox2,
-            {
-              label: "Position",
-              isRequired: true,
-              defaultItems: Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) })),
-              value: position === void 0 ? null : String(position),
-              isDisabled: among.others.length === 0,
-              onChange: (key) => {
-                if (key !== null) setPlace(Number(key));
-              },
-              children: (item) => /* @__PURE__ */ jsx7(ComboBoxItem2, { id: item.id, children: item.id })
-            }
-          )
-        ] }) : /* @__PURE__ */ jsx7(
-          ComboBox2,
+  return (
+    // React Aria's Form takes no handler of keys, so the box around it
+    // hears Escape, which closes the form of a row.
+    /* @__PURE__ */ jsx7(
+      "div",
+      {
+        className: "bc:contents",
+        onKeyDown: (event) => {
+          if (event.key === "Escape" && editing !== void 0 && !event.defaultPrevented) onDone?.();
+        },
+        children: /* @__PURE__ */ jsxs6(
+          Form2,
           {
-            label: "Input",
-            isRequired: true,
-            defaultItems: offered.map((id2) => ({ id: id2 })),
-            value: chosen ?? null,
-            isDisabled: offered.length < 2,
-            description: hint,
-            onChange: (key) => {
-              if (key !== null) setInput(String(key));
+            "aria-label": editing === void 0 ? "Add link" : "Change link",
+            validationBehavior: "aria",
+            onSubmit: (event) => {
+              void submit(event);
             },
-            children: (item) => /* @__PURE__ */ jsx7(ComboBoxItem2, { id: item.id, children: item.id })
+            children: [
+              /* @__PURE__ */ jsxs6("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+                /* @__PURE__ */ jsx7(
+                  ComboBox2,
+                  {
+                    label: "From",
+                    ...fromSearch,
+                    value: source ?? null,
+                    placeholder: "Search blocks",
+                    isInvalid: errors.from !== void 0,
+                    errorMessage: errors.from,
+                    onChange: (key) => {
+                      setFrom(key === null ? void 0 : String(key));
+                      setErrors((now) => without2(now, "from"));
+                    },
+                    children: blockRow
+                  }
+                ),
+                /* @__PURE__ */ jsx7(
+                  ComboBox2,
+                  {
+                    label: "To",
+                    ...toSearch,
+                    value: target2 ?? null,
+                    placeholder: "Search blocks",
+                    isInvalid: errors.to !== void 0,
+                    errorMessage: errors.to,
+                    description: toOptions.length === 0 ? "No block takes a link from this block." : void 0,
+                    onChange: (key) => {
+                      setTo(key === null ? void 0 : String(key));
+                      setInput(void 0);
+                      setPlace(void 0);
+                      setErrors((now) => without2(without2(now, "to"), "input"));
+                    },
+                    children: blockRow
+                  }
+                )
+              ] }),
+              target2 === void 0 ? null : variadic ? /* @__PURE__ */ jsxs6("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+                /* @__PURE__ */ jsx7(
+                  TextField3,
+                  {
+                    label: "Input name",
+                    value: name2,
+                    description: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
+                    errorMessage: errors.input,
+                    isInvalid: errors.input !== void 0,
+                    autoComplete: "off",
+                    ...identifier,
+                    onChange: (value2) => {
+                      setName(value2);
+                      setErrors((now) => without2(now, "input"));
+                    },
+                    onBlur: () => {
+                      setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name2, taken)) }));
+                    }
+                  }
+                ),
+                among === void 0 ? null : /* @__PURE__ */ jsx7(
+                  Select2,
+                  {
+                    label: "Position",
+                    isRequired: true,
+                    items: Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) })),
+                    value: position === void 0 ? null : String(position),
+                    isDisabled: among.others.length === 0,
+                    onChange: (key) => {
+                      if (key !== null) setPlace(Number(key));
+                    },
+                    children: (item) => /* @__PURE__ */ jsx7(SelectItem2, { id: item.id, children: item.id })
+                  }
+                )
+              ] }) : /* @__PURE__ */ jsx7(
+                Select2,
+                {
+                  label: "Input",
+                  isRequired: true,
+                  items: offered.map((id2) => ({ id: id2 })),
+                  value: chosen ?? null,
+                  isDisabled: offered.length < 2,
+                  description: hint,
+                  onChange: (key) => {
+                    if (key !== null) setInput(String(key));
+                  },
+                  children: (item) => /* @__PURE__ */ jsx7(SelectItem2, { id: item.id, children: item.id })
+                }
+              ),
+              editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx7("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
+              /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:gap-2", children: [
+                /* @__PURE__ */ jsx7("button", { type: "submit", className: classes.primary, disabled: busy, children: submitLabel }),
+                editing === void 0 ? null : /* @__PURE__ */ jsx7(
+                  "button",
+                  {
+                    type: "button",
+                    className: classes.button,
+                    onClick: () => {
+                      onDone?.();
+                    },
+                    children: "Cancel"
+                  }
+                )
+              ] }),
+              tableEdits === void 0 ? /* @__PURE__ */ jsx7(Refusal, { refusal: ownEdits.refusal }) : null
+            ]
           }
-        ),
-        editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx7("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
-        /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:gap-2", children: [
-          /* @__PURE__ */ jsx7("button", { type: "submit", className: classes.primary, disabled: busy, children: submitLabel }),
-          editing === void 0 ? null : /* @__PURE__ */ jsx7(
-            "button",
-            {
-              type: "button",
-              className: classes.button,
-              onClick: () => {
-                onDone?.();
-              },
-              children: "Cancel"
-            }
-          )
-        ] }),
-        tableEdits === void 0 ? /* @__PURE__ */ jsx7(Refusal, { refusal: ownEdits.refusal }) : null
-      ]
-    }
+        )
+      }
+    )
   );
 }
 function blockItem(board, registry, id2) {
@@ -1216,7 +1224,7 @@ function blockName(board, block) {
 
 // srcts/modules/edit-board/stacks.tsx
 import { useId as useId2, useState as useState10 } from "react";
-import { ComboBox as ComboBox3, ComboBoxSection as ComboBoxSection2, TextField as TextField5 } from "@blockr/core/react";
+import { ComboBox as ComboBox3, ComboBoxSection as ComboBoxSection2, Form as Form3, TextField as TextField4 } from "@blockr/core/react";
 import { Fragment as Fragment4, jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
@@ -1398,66 +1406,75 @@ function StackForm({
     }
     onDone?.();
   }
-  return /* @__PURE__ */ jsxs7(
-    "form",
-    {
-      "aria-label": editing === void 0 ? "Add stack" : "Change stack",
-      noValidate: true,
-      className: "bc:grid bc:gap-3",
-      onSubmit: (event) => {
-        void submit(event);
-      },
-      onKeyDown: (event) => {
-        if (event.key === "Escape" && editing !== void 0 && !event.defaultPrevented) onDone?.();
-      },
-      children: [
-        /* @__PURE__ */ jsxs7("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx8(
-            TextField5,
-            {
-              label: "Name",
-              value: name2,
-              placeholder: fallbackName,
-              description: editing === void 0 ? `Optional. "${fallbackName}" where left empty.` : void 0,
-              autoComplete: "off",
-              onChange: setName
-            }
-          ),
-          /* @__PURE__ */ jsx8(ColorField, { color: color2, onChange: setColor })
-        ] }),
-        /* @__PURE__ */ jsx8(
-          ComboBox3,
+  return (
+    // React Aria's Form takes no handler of keys, so the box around it
+    // hears Escape, which closes the form of a row.
+    /* @__PURE__ */ jsx8(
+      "div",
+      {
+        className: "bc:contents",
+        onKeyDown: (event) => {
+          if (event.key === "Escape" && editing !== void 0 && !event.defaultPrevented) onDone?.();
+        },
+        children: /* @__PURE__ */ jsxs7(
+          Form3,
           {
-            selectionMode: "multiple",
-            label: "Blocks",
-            ...search,
-            items: sections,
-            value: kept,
-            placeholder: "No blocks",
-            description: "A block sits in one stack at most.",
-            onChange: (keys) => {
-              setBlocks(keys.map(String));
+            "aria-label": editing === void 0 ? "Add stack" : "Change stack",
+            validationBehavior: "aria",
+            onSubmit: (event) => {
+              void submit(event);
             },
-            children: (section) => /* @__PURE__ */ jsx8(ComboBoxSection2, { id: section.id, title: section.title, items: section.items, children: blockRow })
+            children: [
+              /* @__PURE__ */ jsxs7("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+                /* @__PURE__ */ jsx8(
+                  TextField4,
+                  {
+                    label: "Name",
+                    value: name2,
+                    placeholder: fallbackName,
+                    description: editing === void 0 ? `Optional. "${fallbackName}" where left empty.` : void 0,
+                    autoComplete: "off",
+                    onChange: setName
+                  }
+                ),
+                /* @__PURE__ */ jsx8(ColorField, { color: color2, onChange: setColor })
+              ] }),
+              /* @__PURE__ */ jsx8(
+                ComboBox3,
+                {
+                  selectionMode: "multiple",
+                  label: "Blocks",
+                  ...search,
+                  items: sections,
+                  value: kept,
+                  placeholder: "No blocks",
+                  description: "A block sits in one stack at most.",
+                  onChange: (keys) => {
+                    setBlocks(keys.map(String));
+                  },
+                  children: (section) => /* @__PURE__ */ jsx8(ComboBoxSection2, { id: section.id, title: section.title, items: section.items, children: blockRow })
+                }
+              ),
+              /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:gap-2", children: [
+                /* @__PURE__ */ jsx8("button", { type: "submit", className: classes.primary, disabled: busy, children: submitLabel }),
+                editing === void 0 ? null : /* @__PURE__ */ jsx8(
+                  "button",
+                  {
+                    type: "button",
+                    className: classes.button,
+                    onClick: () => {
+                      onDone?.();
+                    },
+                    children: "Cancel"
+                  }
+                )
+              ] }),
+              tableEdits === void 0 ? /* @__PURE__ */ jsx8(Refusal, { refusal: ownEdits.refusal }) : null
+            ]
           }
-        ),
-        /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:gap-2", children: [
-          /* @__PURE__ */ jsx8("button", { type: "submit", className: classes.primary, disabled: busy, children: submitLabel }),
-          editing === void 0 ? null : /* @__PURE__ */ jsx8(
-            "button",
-            {
-              type: "button",
-              className: classes.button,
-              onClick: () => {
-                onDone?.();
-              },
-              children: "Cancel"
-            }
-          )
-        ] }),
-        tableEdits === void 0 ? /* @__PURE__ */ jsx8(Refusal, { refusal: ownEdits.refusal }) : null
-      ]
-    }
+        )
+      }
+    )
   );
 }
 function ColorField({ color: color2, onChange }) {
