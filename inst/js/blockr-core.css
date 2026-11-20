@@ -116,22 +116,22 @@
     --bc-color-border-danger: var(--bc-color-red-500);
     --bc-color-border-accent: var(--bc-color-blue-500);
     --bc-color-bg-accent: var(--bc-color-blue-600);
+    --bc-color-bg-danger: var(--bc-color-border-danger);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-bg-danger: color-mix(in oklab, var(--bc-color-border-danger) 10%, transparent);
+    }
+  }
+
+  :root, :host {
     --bc-color-bg-subtle: currentColor;
   }
 
   @supports (color: color-mix(in lab, red, red)) {
     :root, :host {
       --bc-color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
-    }
-  }
-
-  :root, :host {
-    --bc-color-bg-danger: var(--bc-color-red-500);
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    :root, :host {
-      --bc-color-bg-danger: color-mix(in oklab, var(--bc-color-red-500) 10%, transparent);
     }
   }
 
