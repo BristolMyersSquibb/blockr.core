@@ -726,8 +726,10 @@
   The SDK also offers React Aria's `useDragAndDrop` and its `DropIndicator`, which shows where a dragged row would land.
   The hook draws that indicator unless its caller's `renderDropIndicator` draws another, since React Aria's own has no style.
   Core's table renderer draws a table output with the `Table` of the SDK, and looks, sorts and pages as before.
-  The file browser block lists a directory with the `GridList` of the SDK, which the user moves through by the arrow keys and opens an entry of by Enter.
-  It says that a directory is empty only where the list holds no entry, so a directory below the root that holds none shows `..` alone.
+  The file browser block draws as file dialogs do, in one frame: a bar with a button that goes up a directory and the path down to the directory, above a `Table` of the SDK.
+  The table lists the directory's entries, the directories first, each with its icon, the size of a file and the time it changed last, and it highlights the block's file.
+  The user moves through the entries by the arrow keys and opens one by Enter, while the row `..` is gone.
+  The request `list_dir` answers each entry with its name and the time it changed last, in UTC, and each file with its size in bytes, where it answered with names alone.
   Compressed with `gzip`, core's vendor file grows from 171 KB to 227 KB, of which drag and drop takes 28 KB (#757).
 
 # blockr.core 0.1.4

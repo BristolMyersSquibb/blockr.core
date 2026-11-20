@@ -344,6 +344,10 @@
   margin-top: calc(var(--bc-spacing) * 3);
 }
 
+.bc\:-mb-px {
+  margin-bottom: -1px;
+}
+
 .bc\:mb-0\.5 {
   margin-bottom: calc(var(--bc-spacing) * .5);
 }
@@ -508,6 +512,10 @@
 
 .bc\:w-28 {
   width: calc(var(--bc-spacing) * 28);
+}
+
+.bc\:w-36 {
+  width: calc(var(--bc-spacing) * 36);
 }
 
 .bc\:w-\[21rem\] {
@@ -804,8 +812,14 @@
   }
 }
 
-.bc\:bg-bg-accent {
+.bc\:bg-bg-accent, .bc\:bg-bg-accent\/10 {
   background-color: var(--bc-color-bg-accent);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .bc\:bg-bg-accent\/10 {
+    background-color: color-mix(in oklab, var(--bc-color-bg-accent) 10%, transparent);
+  }
 }
 
 .bc\:bg-bg-raised {
@@ -1354,11 +1368,6 @@
 
 .bc\:data-allows-sorting\:cursor-pointer[data-allows-sorting] {
   cursor: pointer;
-}
-
-.bc\:data-current\:font-semibold[data-current] {
-  --tw-font-weight: var(--bc-font-weight-semibold);
-  font-weight: var(--bc-font-weight-semibold);
 }
 
 .bc\:data-disabled\:cursor-default[data-disabled] {
