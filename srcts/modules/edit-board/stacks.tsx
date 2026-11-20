@@ -389,7 +389,7 @@ function ColorField({ color, onChange }: { color: string | null; onChange: (colo
           aria-label="The stack's colour"
           disabled={color === null}
           value={color ?? last}
-          className="bc:h-7 bc:w-10 bc:cursor-pointer bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:p-0.5 bc:disabled:cursor-default bc:disabled:opacity-50"
+          className="bc:h-7 bc:w-10 bc:cursor-pointer bc:rounded bc:border bc:border-border-field bc:bg-transparent bc:p-0.5 bc:disabled:cursor-default bc:disabled:opacity-50"
           onChange={(event) => {
             setLast(event.target.value);
             onChange(event.target.value);

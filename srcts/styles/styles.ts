@@ -3,7 +3,7 @@
 // They are Tailwind CSS utilities under core's prefix,
 // which core's stylesheet holds.
 // An input takes its colors from the variables of core's theme,
-// such as --bc-color-border-default,
+// such as --bc-color-border-field,
 // so that it suits a light and a dark theme alike,
 // and its face from the theme's sans, --bc-font-sans,
 // while the radii and the sizes come from Tailwind's theme.
@@ -17,7 +17,7 @@ export const styles = {
   stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
   field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
   label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
   check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
   checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
   fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",

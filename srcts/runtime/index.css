@@ -17,9 +17,11 @@
  *   blue, so that core suits a light and a dark frontend alike, and a
  *   frontend or a UI kit sets them to restyle core.
  *   Two take blockr.ui's colors instead: border-default and bg-raised.
- *   The dock takes its look from blockr.ui, so core's menus, dialogs and
- *   fields draw in the dock's colors.
- *   These two and the danger and the warning texts take other values under
+ *   The dock takes its look from blockr.ui, so core's menus and dialogs draw
+ *   in the dock's colors.
+ *   A field draws its border in border-field, a gray of the theme that stands
+ *   out more than border-default.
+ *   These three and the danger and the warning texts take other values under
  *   the dark theme.
  * - The theme also holds a color for each status of a block and for each
  *   category of block classes, for every plugin that draws them.
@@ -80,6 +82,7 @@
   --color-text-success: var(--bc-color-green-600);
   --color-text-on-accent: var(--bc-color-white);
   --color-border-default: #e5e7eb;
+  --color-border-field: var(--bc-color-gray-400);
   --color-border-danger: var(--bc-color-red-500);
   --color-border-warning: var(--bc-color-amber-500);
   --color-border-accent: var(--bc-color-blue-500);
@@ -92,8 +95,8 @@
  * What floats over the board, such as a menu or a dialog, covers what lies
  * below it, so its background, bg-raised, is opaque.
  * Its defaults are the values of blockr.ui's design tokens.
- * So are those of border-default, which outlines a menu and core's cards and
- * fields.
+ * So are those of border-default, which outlines a menu, a dialog and core's
+ * cards.
  * A menu that opens over a card of the dock then draws as blockr.ui's own
  * menus do.
  * Under the dark theme, both take the values that blockr.ui gives them there.
@@ -107,6 +110,28 @@
   :root[data-bc-theme="dark"] {
     --bc-color-bg-raised: #1e242e;
     --bc-color-border-default: #232932;
+  }
+}
+
+/*
+ * A field, such as a text field, a number field or a select, draws its border
+ * in border-field.
+ * Its defaults are gray-400, and gray-600 under the dark theme.
+ * The border marks where the field is, and an empty field shows nothing else.
+ * In border-default, the border reaches 1.1:1 to 1.3:1 on the surfaces where
+ * core's fields sit: a card, a panel or a dialog, of the dock or of core's
+ * basic frontend.
+ * In border-field, it reaches 2.35:1 to 2.6:1 there under the light theme,
+ * and 2.06:1 to 2.48:1 under the dark theme.
+ * That is below the 3:1 that WCAG 2.2 asks of what marks a control
+ * (https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html).
+ * A border at 3:1, such as #818998 under the light theme and gray-500 under
+ * the dark theme, frames a field more heavily than core's look calls for.
+ * The rule sits in the theme's layer, as that of bg-raised does.
+ */
+@layer theme {
+  :root[data-bc-theme="dark"] {
+    --bc-color-border-field: var(--bc-color-gray-600);
   }
 }
 

@@ -458,6 +458,24 @@ test("draws what floats over the board, and the border of core's UIs, in blockr.
   expect(css.replace(theme, "")).not.toMatch(/--bc-color-(bg-raised|border-default):/);
 });
 
+test("draws the border of a field in a gray of the theme, another under the dark theme, as a variable of its theme", async () => {
+  await write({ "test.css": `@import "${core}";\n@source inline("bc:border-border-field");\n` });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  expect(css).toMatch(/^\.bc\\:border-border-field(, [^{]+)? \{\n {2}border-color: var\(--bc-color-border-field\);/m);
+  // Its defaults are gray-400 and, under the dark theme, gray-600, which the
+  // stylesheet then holds too. They sit in the theme's layer, so that a
+  // frontend that sets the variable outside a layer wins over them.
+  const start = css.indexOf("@layer theme {");
+  const theme = css.slice(start, css.indexOf("\n}\n", start));
+  expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-border-field: var\(--bc-color-gray-400\);/);
+  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-border-field: var\(--bc-color-gray-600\);/);
+  expect(theme).toMatch(/--bc-color-gray-400: oklch\(/);
+  expect(theme).toMatch(/--bc-color-gray-600: oklch\(/);
+  expect(css.replace(theme, "")).not.toMatch(/--bc-color-border-field:/);
+});
+
 test("holds a color for each status of a block, lighter under the dark theme, and for each category of block classes, though no utility uses those", async () => {
   await write({ "test.css": `@import "${core}";\n` });
 
