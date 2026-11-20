@@ -5,12 +5,14 @@
 // history.
 // It also holds how each runs an edit, and the Edit board plugin's banner that
 // says why one was refused, which marks an error as a card's banners do.
-// They draw their text fields with the SDK's TextField.
+// They draw their text fields with the SDK's TextField, and the search of a
+// table with its SearchField.
 // The bundles of the basic frontend and of the Edit board plugin each hold a
 // copy of it, as each holds one of srcts/util and srcts/card.
 // Both follow the board itself through useBoard() of core's React SDK, and
 // draw their selects with the SDK's ComboBox, those that find their items by
-// more than their names through useSearch().
+// more than their names through useSearch(), and a pick of a few values with
+// its Select.
 
 export { runCommand, useEdits } from "./edits.ts";
 export type { Edits, Refused } from "./edits.ts";

@@ -26,7 +26,7 @@ var optionSchemas = {
 };
 
 // srcts/options/ui.tsx
-import { ComboBox, ComboBoxItem, NumberField } from "@blockr/core/react";
+import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/core/react";
 import { reactModule, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 function numberUi(label, min) {
@@ -35,11 +35,11 @@ function numberUi(label, min) {
   }
   return reactModule(NumberUi);
 }
-function selectUi(label, placeholder, items) {
-  function SelectUi({ host }) {
-    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), label, placeholder, defaultItems: items, isRequired: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.name }) });
+function toggleButtonGroupUi(label, items) {
+  function ToggleButtonGroupUi({ host }) {
+    return /* @__PURE__ */ jsx(ToggleButtonGroup, { bound: useValue(host), label, disallowEmptySelection: true, children: items.map((item) => /* @__PURE__ */ jsx(ToggleButton, { id: item.id, children: item.name }, item.id)) });
   }
-  return reactModule(SelectUi);
+  return reactModule(ToggleButtonGroupUi);
 }
 
 // srcts/options/options.ts
@@ -66,7 +66,7 @@ var darkMode = {
     if (typeof logical === "boolean") return logical ? "dark" : "light";
     return checked("dark_mode", takesTheme, value);
   },
-  ui: selectUi("Light/dark mode", "Choose a mode", [
+  ui: toggleButtonGroupUi("Light/dark mode", [
     { id: "light", name: "Light" },
     { id: "dark", name: "Dark" }
   ]),

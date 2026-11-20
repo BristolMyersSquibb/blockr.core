@@ -17,9 +17,10 @@
 //
 // The field of several shows each pick as a chip, whose button removes it,
 // as Backspace in the empty field removes the last one.
-// A button at the field's right, before the one that opens the list, clears
-// the pick, or every pick, where there is one, but where the select
+// A FieldButton at the field's right, before the button that opens the list,
+// clears the pick, or every pick, where there is one, but where the select
 // `isRequired`.
+// It is outside the order of Tab, and keeps the focus in the field.
 // Bound, a select of one unsets its state arg so, as a block's new select of
 // an arg without a default starts.
 // A press in the field opens the list, as typing into it does.
@@ -46,12 +47,13 @@
 // block's state, as the SDK's other inputs do (./inputs.tsx): one string, or
 // an array of strings where it picks several, by the ids of its items.
 // It shows a value that its items lack, such as a column that the data no
-// longer has, as missing, and marks itself invalid.
+// longer has, by its id, as it shows every value, marks itself invalid, draws
+// the value's chip in the colour of danger, and says below itself which values
+// are not available, as "Not available: wt" (./inputs.tsx).
 // While it has no items yet, as `items` and `defaultItems` are undefined while
-// its children draw an item, it shows a value as it is.
+// its children draw an item, it marks no value.
 // While it is `outdated`, as while the request that gives its items asks
-// again, the items may be for older data.
-// It then shows a value that they lack as it is too.
+// again, the items may be for older data, so it marks none either.
 // So its items must hold every value it takes, not a part of them.
 // One pick it submits as the user picks it.
 // Several it submits once, as the list closes, built from the value that the
@@ -65,7 +67,7 @@
 // It says below itself why the host refused what it submitted.
 
 import { useContext, useRef, useState } from "react";
-import type { KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { ContextType, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { strings } from "../binding/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
@@ -98,7 +100,10 @@ import type {
   ListBoxSectionProps,
   ValidationResult,
 } from "../aria/index.ts";
-import { missing, Refusal } from "./inputs.tsx";
+import { FieldButton } from "./button.tsx";
+import { Chevron, Cross, Tick } from "./icons.tsx";
+import { NotAvailable, Refusal } from "./inputs.tsx";
+import { inOrder, merged } from "./items.ts";
 
 type Mode = "single" | "multiple";
 
@@ -130,8 +135,7 @@ export function ComboBox<T extends object, M extends Mode = "single">(props: Com
 }
 
 // What the select draws with, of either mode, whether it marks a value that
-// its items lack as missing, and whether its field may offer to clear the
-// pick.
+// its items lack, and whether its field may offer to clear the pick.
 type DrawnProps = Omit<ComboBoxProps<object, Mode>, "bound" | "ordered"> & {
   readonly marking?: boolean;
   // What clears the pick in place of the select's own clearing, as where a
@@ -179,11 +183,8 @@ function BoundSeveral({
   // user picked since the list opened, after those the value holds, without
   // those the user removed.
   const submit = (next: readonly string[], opened: readonly string[]): void => {
-    const added = next.filter((value) => !opened.includes(value));
-    const removed = opened.filter((value) => !next.includes(value));
-    if (added.length === 0 && removed.length === 0) return;
-    const now = strings(bound.get());
-    const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
+    const value = merged(strings(bound.get()), opened, next);
+    if (value === null) return;
     void bound.commit(ordered && items !== undefined ? inOrder(value, ids(items)) : value);
   };
 
@@ -237,11 +238,6 @@ function ids(items: Iterable<object>): string[] {
   });
 }
 
-// The values in the order of the ids, those that the ids lack after them.
-function inOrder(values: readonly string[], order: readonly string[]): string[] {
-  return [...order.filter((id) => values.includes(id)), ...values.filter((value) => !order.includes(value))];
-}
-
 // The label, the field, the description, the error message and the list.
 function Drawn({
   label,
@@ -291,6 +287,7 @@ function Drawn({
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
+      <Lacking multiple={multiple} marking={marking} />
       <Popover offset={4} className={LIST}>
         <Virtualizer layout={ListLayout} layoutOptions={LAYOUT}>
           <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
@@ -307,7 +304,8 @@ function Drawn({
 // React Aria takes a new array of picks for a change of the value, and then
 // empties the field, so that a caller that builds the picks afresh as it draws
 // would empty the field as the user types into it.
-function useSameValue<V>(value: V): V {
+// The Select takes its picks so too (./select.tsx).
+export function useSameValue<V>(value: V): V {
   const [drawn, setDrawn] = useState(value);
   const same = drawn === value || (Array.isArray(drawn) && Array.isArray(value) && sameKeys(drawn, value));
   if (!same) setDrawn(value);
@@ -324,8 +322,10 @@ function hasChildren(children: ReactNode): boolean {
 
 // The field: the chips of the picks of several, the text field, which takes
 // the filter, and the button that opens and closes the list.
-// It shows a pick of one that the items lack in place of the placeholder, as
-// missing where `marking`, and marks itself invalid.
+// It shows a pick that the items lack by its id, as the text of its chip, or
+// as the text of the field of one.
+// Where `marking`, it marks itself invalid while it holds such a pick, and
+// draws the pick's chip in the colour of danger.
 // The text field of one shows the pick's text while the user is not in it,
 // as React draws the pick, where React Aria would set it a step later, from
 // an effect, so that the controls show a state as the host announces it, with
@@ -351,21 +351,14 @@ function Field({
   readonly onClear: (() => void) | undefined;
   readonly label: string | undefined;
 }): ReactElement {
-  const state = useContext(ComboBoxStateContext);
-  const value = state?.value ?? null;
-  const keys = multiple && Array.isArray(value) ? (value as readonly Key[]) : [];
-  const one = !multiple && value !== null && !Array.isArray(value) ? (value as Key) : null;
-  // The item of the pick of one, where the items hold it.
-  const item = state?.selectedItems[0] ?? null;
-  const lackedOne = one !== null && item === null;
-  const known = new Map((state?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
-  const lacked = keys.some((key) => !known.has(key));
-  const invalid = marking && (lackedOne || lacked);
+  const { state, keys, one, known, lacked } = usePicks(multiple);
+  // The text of the pick of one, where the items hold it.
+  const item = one === null ? undefined : known.get(one);
+  const invalid = marking && lacked.length > 0;
   const remove = (gone: ReadonlySet<Key>): void => {
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
-  // The chip of each pick: its key, its text, and whether it shows the pick
-  // as missing.
+  // The chip of each pick: its key, its text, and whether the items lack it.
   const chips = keys.map((key) => ({ key, text: known.get(key) ?? String(key), gone: marking && !known.has(key) }));
   const picks = label === undefined ? "Picks" : `Picks of ${label}`;
   return (
@@ -380,7 +373,7 @@ function Field({
           <div role="list" aria-label={picks} className="bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1">
             {chips.map(({ key, text, gone }) => (
               <div key={key} role="listitem" data-missing={gone || undefined} className={CHIP}>
-                <span className="bc:truncate">{gone ? missing(text) : text}</span>
+                <span className="bc:truncate">{text}</span>
               </div>
             ))}
           </div>
@@ -389,7 +382,7 @@ function Field({
             <TagList className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1">
               {chips.map(({ key, text, gone }) => (
                 <Tag key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
-                  <span className="bc:truncate">{gone ? missing(text) : text}</span>
+                  <span className="bc:truncate">{text}</span>
                   {editable ? (
                     <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
                       <Cross />
@@ -401,8 +394,8 @@ function Field({
           </TagGroup>
         )}
         <Input
-          value={multiple || state === null || state.isFocused || state.isOpen ? undefined : (item?.textValue ?? "")}
-          placeholder={lackedOne ? (marking ? missing(String(one)) : String(one)) : keys.length > 0 ? undefined : placeholder}
+          value={multiple || state === null || state.isFocused || state.isOpen ? undefined : (item ?? (one === null ? "" : String(one)))}
+          placeholder={one !== null && item === undefined ? String(one) : keys.length > 0 ? undefined : placeholder}
           aria-invalid={invalid || undefined}
           className={INPUT}
           onClick={() => {
@@ -419,31 +412,58 @@ function Field({
         />
       </div>
       {clearable && (keys.length > 0 || one !== null) ? (
-        // A button of the field's own, not React Aria's, which the select
-        // would take for its own and open the list with. It keeps the focus
-        // in the text field, as a press in the list does.
-        <button
-          type="button"
-          tabIndex={-1}
+        // A FieldButton whose slot is null, which React Aria's ComboBox then
+        // leaves alone, rather than take it for the button that opens the
+        // list. It is outside the order of Tab, and keeps the focus in the
+        // text field, as a press in the list does.
+        // React Aria's Button takes no title, so the cross carries it.
+        <FieldButton
+          slot={null}
+          excludeFromTabOrder
+          preventFocusOnPress
           aria-label={label === undefined ? "Clear" : `Clear ${label}`}
-          title={multiple ? "Clear every pick" : "Clear the pick"}
-          className={CLEAR}
-          onMouseDown={(event) => {
-            event.preventDefault();
-          }}
-          onClick={() => {
+          onPress={() => {
             if (onClear !== undefined) onClear();
             else state?.setValue(multiple ? [] : null);
           }}
         >
-          <Cross />
-        </button>
+          <span title={multiple ? "Clear every pick" : "Clear the pick"} className="bc:flex bc:size-full bc:items-center bc:justify-center">
+            <Cross />
+          </span>
+        </FieldButton>
       ) : null}
       <Button className={OPENER}>
         <Chevron />
       </Button>
     </Group>
   );
+}
+
+// The picks that the select holds, as React Aria's state of the ComboBox has
+// them: the keys of several, or the key of one, the text of each pick that
+// the items hold, and the picks that they lack.
+function usePicks(multiple: boolean): {
+  readonly state: ContextType<typeof ComboBoxStateContext>;
+  readonly keys: readonly Key[];
+  readonly one: Key | null;
+  readonly known: ReadonlyMap<Key, string>;
+  readonly lacked: readonly Key[];
+} {
+  const state = useContext(ComboBoxStateContext);
+  const value = state?.value ?? null;
+  const keys = multiple && Array.isArray(value) ? (value as readonly Key[]) : [];
+  const one = !multiple && value !== null && !Array.isArray(value) ? (value as Key) : null;
+  const known = new Map((state?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
+  const lacked = (one === null ? keys : [one]).filter((key) => !known.has(key));
+  return { state, keys, one, known, lacked };
+}
+
+// What the select says below itself, where `marking`, of the picks that its
+// items lack. The user removes such a pick by its chip, or picks another in
+// place of a pick of one.
+function Lacking({ multiple, marking }: { readonly multiple: boolean; readonly marking: boolean }): ReactElement | null {
+  const { lacked } = usePicks(multiple);
+  return marking ? <NotAvailable values={lacked.map(String)} /> : null;
 }
 
 // A row of the list: the item, after a tick where the select picks several,
@@ -489,64 +509,6 @@ export function ComboBoxSection<T extends object>({ title, items, children, ...p
   );
 }
 
-// The one chevron of the design system, which turns up while the list is
-// open.
-function Chevron(): ReactElement {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="bc:shrink-0 bc:text-text-muted bc:transition-transform bc:group-data-open:rotate-180"
-    >
-      <polyline points="3 4.5 6 7.5 9 4.5" />
-    </svg>
-  );
-}
-
-// The design system's tick of a pick of several.
-function Tick(): ReactElement {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3.5 8.5l3 3 6-7" />
-    </svg>
-  );
-}
-
-// The cross of a chip's button.
-function Cross(): ReactElement {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M2.5 2.5l5 5M7.5 2.5l-5 5" />
-    </svg>
-  );
-}
-
 // The classes of the field and its parts, of the list and of its parts.
 // The field is a box like core's other inputs, which holds the chips, the text
 // field and the button, and draws the outline of the focus while the focus is
@@ -558,8 +520,6 @@ const FIELD =
 const VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
 const INPUT =
   "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
-const CLEAR =
-  "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 const OPENER =
   "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
 // A chip of a pick that the items lack shows in the colour of danger, as the

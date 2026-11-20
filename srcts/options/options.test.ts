@@ -13,9 +13,9 @@ import darkModeModule, * as darkModeExports from "../modules/dark-mode-option/in
 // eslint-disable-next-line no-restricted-imports
 import nRowsModule, * as nRowsExports from "../modules/n-rows-option/index.ts";
 import { stubOptionHost } from "../stubs/index.ts";
-import { type } from "../testing/inputs.ts";
+import { toggleButton, toggles, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
-import { labelled, picked } from "../testing/select.ts";
+import { labelled } from "../testing/select.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { coreOptions, darkMode, nRows, optionSchemas, setTheme } from "./index.ts";
@@ -211,12 +211,19 @@ describe("the UIs of core's board options", () => {
     expect(host.submitted).toEqual([25]);
   });
 
-  test("dark_mode is a select of light and dark that submits the user's choice", async () => {
+  test("dark_mode is a toggle button of light and of dark, which submits the user's choice and keeps one picked", async () => {
     const { el, host } = await mounted("dark_mode", darkMode, "light");
-    const field = labelled(el, "Light/dark mode");
-    expect(field.value).toBe("Light");
+    expect(toggles(el, "Light/dark mode")).toEqual([
+      { label: "Light", picked: true },
+      { label: "Dark", picked: false },
+    ]);
 
-    await picked(field, step, "Dark");
+    await step(() => {
+      toggleButton(el, "Light/dark mode", "Dark").click();
+    });
+    await step(() => {
+      toggleButton(el, "Light/dark mode", "Dark").click();
+    });
 
     expect(host.submitted).toEqual(["dark"]);
   });
