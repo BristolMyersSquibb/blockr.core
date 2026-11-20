@@ -6,3 +6,5 @@ export { Button, Checkbox, ComboBox, ComboBoxItem, ComboBoxSection, Field, Numbe
 export type { ButtonProps, ComboBoxProps, ComboBoxSectionProps, NumberFieldProps, TextFieldProps } from "../inputs/index.ts";
 export { Dialog, DialogTrigger, Heading, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Modal, Popover } from "../overlays/index.ts";
 export type { MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
+export { NotificationList } from "./notifications.tsx";
+export type { NotificationListProps } from "./notifications.tsx";

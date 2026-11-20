@@ -713,6 +713,16 @@
   Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
+* Core's React SDK offers `NotificationList`, in which a UI shows the notifications that `useNotified()` gives it, in the message style of the design system of blockr.ui.
+  The list holds an item for each notification, in the order given.
+  Each item holds the notification's severity in `data-severity` and its message as text.
+  An error draws the theme's danger text on a danger fill, with a subtle danger edge, and a warning draws the same in the warning colors.
+  A message draws on the theme's neutral fill, with its neutral border.
+  Each item takes a font size of 13 pixels and a corner radius of 6 pixels.
+  The caller names the list in `aria-label`, as "Errors", and places it.
+  Where no notification is given, the list draws nothing.
+  Core's theme gains the variables of the fills and the edges, named after the design tokens of blockr.ui: `--bc-color-bg-danger`, `--bc-color-bg-warning`, `--bc-color-border-danger-subtle` and `--bc-color-border-warning-subtle`.
+  Their defaults mix the theme's danger or warning border: at 10% for a fill, as the tint of a card's mark does, and at 35% for the danger edge and 45% for the warning edge, as blockr.ui mixes its subtle borders (#788).
 
 # blockr.core 0.1.4
 

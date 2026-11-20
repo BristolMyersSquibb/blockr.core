@@ -6,6 +6,8 @@
 // which every UI draws with, bound or not, the button, and the overlays: the
 // modal and the dialog, the menu and the popover.
 // The inputs, the button and the overlays are React Aria's, in core's theme.
+// It also holds the list in which a UI shows notifications, as useNotified()
+// gives them, in the message style of blockr.ui's design system.
 
 export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } from "./hooks.ts";
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
@@ -26,3 +28,5 @@ export {
 export type { ButtonProps, ComboBoxProps, ComboBoxSectionProps, NumberFieldProps, TextFieldProps } from "../inputs/index.ts";
 export { Dialog, DialogTrigger, Heading, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Modal, Popover } from "../overlays/index.ts";
 export type { MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
+export { NotificationList } from "./notifications.tsx";
+export type { NotificationListProps } from "./notifications.tsx";

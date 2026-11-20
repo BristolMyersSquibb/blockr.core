@@ -902,6 +902,19 @@ var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc
 
 // srcts/overlays/index.ts
 import { DialogTrigger, Heading, Keyboard } from "./vendor-b25170e7.js";
+
+// srcts/react/notifications.tsx
+import { jsx as jsx10 } from "react/jsx-runtime";
+function NotificationList({ notifications, "aria-label": label }) {
+  if (notifications.length === 0) return null;
+  return /* @__PURE__ */ jsx10("ul", { "aria-label": label, className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: notifications.map(({ id, severity, message }) => /* @__PURE__ */ jsx10("li", { "data-severity": severity, className: `${ITEM2} ${SETS[severity]}`, children: message }, id)) });
+}
+var ITEM2 = "bc:rounded-md bc:border bc:px-3 bc:py-2 bc:font-sans bc:text-[0.8125rem] bc:leading-normal bc:whitespace-pre-wrap bc:wrap-anywhere";
+var SETS = {
+  error: "bc:border-border-danger-subtle bc:bg-bg-danger bc:text-text-danger",
+  warning: "bc:border-border-warning-subtle bc:bg-bg-warning bc:text-text-warning",
+  message: "bc:border-border-default bc:bg-bg-subtle bc:text-text-default"
+};
 export {
   Button,
   Checkbox,
@@ -918,6 +931,7 @@ export {
   MenuSection,
   MenuTrigger,
   Modal,
+  NotificationList,
   NumberField,
   Popover2 as Popover,
   Stack,

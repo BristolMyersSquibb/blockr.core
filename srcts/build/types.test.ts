@@ -424,6 +424,8 @@ test("a package's module mounts on the stubs that core ships, which answer from 
 // that bundles them with its build preset, as a package writes them.
 // A plugin's component follows the board, a block's status and the
 // notifications about the block through the SDK, as the DAG's nodes do.
+// Another shows the block's errors in the SDK's list of notifications, as the
+// dock's card does.
 const sdkFiles = {
   "src/text-renderer.tsx": `import type { TextOutput } from "@blockr/core";
 import { outputRenderer } from "@blockr/core/react";
@@ -460,6 +462,15 @@ export function StatusBadge({ core, block }: { core: CoreApi; block: BlockId }):
       {status?.status ?? "unevaluated"}
     </span>
   );
+}
+`,
+  "src/block-errors.tsx": `import type { BlockId, CoreApi } from "@blockr/core";
+import { NotificationList, useNotified } from "@blockr/core/react";
+import type { ReactElement } from "react";
+
+export function BlockErrors({ core, block }: { core: CoreApi; block: BlockId }): ReactElement {
+  const errors = useNotified(core, { block }).filter((notification) => notification.severity === "error");
+  return <NotificationList notifications={errors} aria-label="Errors" />;
 }
 `,
   "src/head-plain.ts": `import type { BlockModule } from "@blockr/core";

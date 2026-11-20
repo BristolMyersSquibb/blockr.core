@@ -1057,6 +1057,19 @@ var MENU = "bc:grid bc:max-h-[inherit] bc:gap-0.5 bc:overflow-auto bc:p-1 bc:out
 var ITEM = "bc:box-border bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-1 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focused:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var HEADING2 = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
+
+// srcts/react/notifications.tsx
+import { jsx as jsx10 } from "react/jsx-runtime";
+function NotificationList({ notifications, "aria-label": label }) {
+  if (notifications.length === 0) return null;
+  return /* @__PURE__ */ jsx10("ul", { "aria-label": label, className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: notifications.map(({ id, severity, message }) => /* @__PURE__ */ jsx10("li", { "data-severity": severity, className: `${ITEM2} ${SETS[severity]}`, children: message }, id)) });
+}
+var ITEM2 = "bc:rounded-md bc:border bc:px-3 bc:py-2 bc:font-sans bc:text-[0.8125rem] bc:leading-normal bc:whitespace-pre-wrap bc:wrap-anywhere";
+var SETS = {
+  error: "bc:border-border-danger-subtle bc:bg-bg-danger bc:text-text-danger",
+  warning: "bc:border-border-warning-subtle bc:bg-bg-warning bc:text-text-warning",
+  message: "bc:border-border-default bc:bg-bg-subtle bc:text-text-default"
+};
 export {
   Button2 as Button,
   Checkbox,
@@ -1073,6 +1086,7 @@ export {
   MenuSection2 as MenuSection,
   MenuTrigger2 as MenuTrigger,
   Modal2 as Modal,
+  NotificationList,
   NumberField2 as NumberField,
   Popover2 as Popover,
   Stack,
