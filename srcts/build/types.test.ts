@@ -163,12 +163,13 @@ test("what a package's tests load imports no package but those that `@blockr/cor
     "@preact/signals-core": await installedVersion("@preact/signals-core"),
     "@cfworker/json-schema": await installedVersion("@cfworker/json-schema"),
     "react-aria-components": await installedVersion("react-aria-components"),
+    "@internationalized/date": await installedVersion("@internationalized/date"),
   });
 
   // The stubs draw core's UIs, the board options' among them, with React.
   expect(await importedPackages("stubs")).toContain("react");
   const named = { ...manifest.peerDependencies, ...manifest.dependencies };
-  for (const name of ["stubs", "react", "binding", "controls"]) {
+  for (const name of ["stubs", "react", "dates", "binding", "controls"]) {
     expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(named, pkg))).toEqual([]);
   }
 });
@@ -185,7 +186,7 @@ async function bundledFiles(name: string): Promise<string[]> {
 // So its files hold core's own code alone, as the Conventions of State in JS
 // ask (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#conventions).
 test("what core ships for a package's tests and build holds core's own code alone", async () => {
-  for (const name of ["stubs", "react", "binding", "controls", "build"]) {
+  for (const name of ["stubs", "react", "dates", "binding", "controls", "build"]) {
     const files = await bundledFiles(name);
     // The bundle notes the path of each file above its code, such as
     // srcts/stubs/core.ts.

@@ -165,6 +165,27 @@ test("React's entry points, as core ships them, read one React", async () => {
   view.unmount();
 });
 
+test("leaves a package's module importing the dates of the React SDK, which the import map names", async () => {
+  const code = await readFile(
+    await bundle(`import { DatePicker } from "@blockr/core/react/dates";
+
+export const api = 1;
+
+export const picker = <DatePicker label="From" />;
+`),
+    "utf8",
+  );
+
+  expect(importedPackages(code)).toEqual(["@blockr/core/react/dates", "react/jsx-runtime"]);
+  expect(importedPackages(code).every((name) => (IMPORTS as readonly string[]).includes(name))).toBe(true);
+});
+
+test("refuses an entry point of the React SDK that the import map does not name", async () => {
+  await expect(bundle(`import * as colours from "@blockr/core/react/colours";\n\nexport default colours;\n`)).rejects.toThrow(
+    "A module imports @blockr/core/react/colours, which the page's import map does not name.",
+  );
+});
+
 test("refuses an entry point of React that the import map does not name", async () => {
   await expect(
     bundle(`import { renderToString } from "react-dom/server";\n\nexport const html = renderToString(null);\n`),

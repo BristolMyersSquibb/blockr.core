@@ -714,6 +714,19 @@
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
 
+* Core's React SDK offers React Aria's dates and times in core's theme, after those of React Aria's Tailwind starter kit: the date field `DateField`, the time field `TimeField`, the date picker `DatePicker`, the date range picker `DateRangePicker`, the calendar `Calendar` and the range calendar `RangeCalendar`.
+  They come from an entry point of their own, `@blockr/core/react/dates`, which the page's import map names and the build preset leaves an import.
+  The page loads them, and the parts of React Aria that they draw with, only once a module first imports them, from a file of their own, `vendor-dates-<hash>.js`, of 44 KB gzipped.
+  That file shares the rest of React Aria with the vendor file through a chunk, `chunk-<hash>.js`, which holds the vendor file's code, so that the page runs one copy of React Aria.
+  Each takes the props of its part of React Aria, the fields and the pickers take the `label`, `description` and `errorMessage` that the starter kit adds, and an input takes `bound` too.
+  A bound input holds a date as `"2026-11-19"`, which R reads with `as.Date()`, and a date with a time, where its `granularity` takes one, as `"2026-11-19 14:30:00"`, which R reads with `as.POSIXct()`.
+  It holds a time as `"14:30:00"`, and a range as `{ "start": …, "end": … }` of two such dates, which R reads as a named list.
+  The string holds no time zone, so a block reads it in the time zone that it chooses, such as that of its data.
+  A field submits what the user typed as the user leaves it or presses Enter, a picker or a calendar submits a pick at once, and each submits only a value in its range.
+  A bound input shows a value that does not read so as missing, and marks itself invalid, as `"2026-11-19T14:30:00"`, which R's `as.POSIXct()` reads as midnight.
+  The SDK exports `Refusal` and `missing()`, which its dates draw with, as its other inputs do.
+  The vendor file takes each part of React Aria from the part's own entry point, such as `react-aria-components/Button`, and esbuild gives each file of code from other projects in `inst/js` the hash in its name, as `vendor-JF4OGNM7.js` (#758).
+
 # blockr.core 0.1.4
 
 * Restoring a board no longer requires each object to come back with exactly

@@ -19,7 +19,7 @@
 # The browser reads the URL of such a file off the import, so the URL holds no
 # hash.
 # A package names the file with a hash of its content instead, as core's build
-# names the bundle that holds React `vendor-<hash>.js`.
+# names its vendor file `vendor-<hash>.js`.
 # A changed file then has a new name, and the module that imports it changes
 # with it.
 # So R copies the other files only when it copies the module or the stylesheet

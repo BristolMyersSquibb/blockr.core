@@ -75,7 +75,7 @@ test("writes each of React's entry points as an ES module, exporting what the en
   const written = await build(root);
 
   const out = join(root, "inst/js");
-  const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
+  const vendor = (await readdir(out)).filter((file) => /^vendor-[A-Z2-7]{8}\.js$/.test(file));
   expect(vendor).toHaveLength(1);
   expect(written).toEqual(
     ["LICENSES", "blockr-core.js", "import-map.json", "preload.json", ...vendor, ...REACT_ENTRIES.map(importFile)]
@@ -117,7 +117,7 @@ test("bundles the packages that core's code imports beside React into the vendor
   const written = await build(root);
 
   const out = join(root, "inst/js");
-  const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
+  const vendor = (await readdir(out)).filter((file) => /^vendor-[A-Z2-7]{8}\.js$/.test(file));
   expect(vendor).toHaveLength(1);
   const file = vendor[0] ?? "";
   expect(written).toContain(`inst/js/${file}`);
@@ -153,6 +153,69 @@ test("bundles the packages that core's code imports beside React into the vendor
   expect(await read("import-map.json")).not.toContain(file);
 });
 
+test("bundles the parts of React Aria for dates into a file of their own, which shares the vendor file's code through a chunk, so that the page runs one copy of React Aria", async () => {
+  await write({
+    "srcts/aria/index.ts": 'export { Button } from "react-aria-components/Button";\n',
+    "srcts/dates/aria.ts": 'export { DateField } from "react-aria-components/DateField";\nexport { parseDate } from "@internationalized/date";\n',
+    "srcts/runtime/index.ts": 'import { Button } from "../aria/index.ts";\nexport const button = Button;\n',
+    "srcts/dates/index.ts":
+      'import { Button } from "../aria/index.ts";\nimport { DateField, parseDate } from "./aria.ts";\nexport const parts = () => [Button, DateField, parseDate("2026-11-19")];\n',
+  });
+
+  const written = await build(root);
+
+  const out = join(root, "inst/js");
+  const files = await readdir(out);
+  const one = (pattern: RegExp): string => {
+    const found = files.filter((file) => pattern.test(file));
+    expect(found).toHaveLength(1);
+    return found[0] ?? "";
+  };
+  const vendor = one(/^vendor-[A-Z2-7]{8}\.js$/);
+  const dates = one(/^vendor-dates-[A-Z2-7]{8}\.js$/);
+  const chunk = one(/^chunk-[A-Z2-7]{8}\.js$/);
+  for (const file of [vendor, dates, chunk]) expect(written).toContain(`inst/js/${file}`);
+  const read = (name: string) => readFile(join(out, name), "utf8");
+  // The chunk holds the vendor file's code: React, React Aria's Button, and
+  // the code of React Aria that the Button and the date field share, such as
+  // the error of a missing slot.
+  const shared = await read(chunk);
+  expect(shared).toContain("@license React");
+  expect(shared).toContain("react-aria-Button");
+  expect(shared).toContain("A slot prop is required.");
+  // The file of the dates holds the date field and the dates alone, and imports
+  // the rest from the chunk.
+  const parts = await read(dates);
+  expect(parts).toContain("react-aria-DateField");
+  for (const text of ["@license React", "react-aria-Button", "A slot prop is required."]) {
+    expect(parts).not.toContain(text);
+  }
+  expect(parts).toContain(`"./${chunk}"`);
+  // The vendor file exports the chunk's code under the names that core's code
+  // imports, and holds none of that code.
+  expect(await read(vendor)).toContain(`"./${chunk}"`);
+  expect(await read(vendor)).not.toContain("react-aria-Button");
+  // Core's dates import the parts of dates from their file, and the Button
+  // from the vendor file, while the runtime imports nothing of the dates.
+  const library = await read("blockr-core-react-dates.js");
+  expect(library).toContain(`from "./${dates}"`);
+  expect(library).toContain(`from "./${vendor}"`);
+  expect(library).not.toContain("react-aria-DateField");
+  expect(await read("blockr-core.js")).toContain(`from "./${vendor}"`);
+  expect(await read("blockr-core.js")).not.toContain(dates);
+  // Both files list the chunk as what they import up front, so that R names it
+  // in the page's head, beside each.
+  const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
+  expect(preload[vendor]).toEqual([`./${chunk}`]);
+  expect(preload[dates]).toEqual([`./${chunk}`]);
+  expect(preload["blockr-core-react-dates.js"]).toEqual(expect.arrayContaining([`./${vendor}`, `./${dates}`]));
+  // LICENSES names each package beside the files that hold its code.
+  const licenses = await read("LICENSES");
+  expect(licenses).toContain(`react ${await version("react")}, in ${chunk}\n`);
+  expect(licenses).toContain(`@internationalized/date ${await version("@internationalized/date")}, in ${dates}\n`);
+  expect(licenses).toContain(`react-aria-components ${await version("react-aria-components")}, in ${chunk} and ${dates}\n`);
+});
+
 test("fails where one of core's files would bundle a package from node_modules that the vendor file does not hold, through the vendor check", async () => {
   await write({
     "node_modules/@acme/pad/package.json": '{ "name": "@acme/pad", "type": "module", "main": "index.js" }\n',
@@ -165,19 +228,21 @@ test("fails where one of core's files would bundle a package from node_modules t
   );
 });
 
-test("builds the SDK, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
+test("builds the SDK, its dates, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
   const imports = (up: string) =>
     [
       `import { sdk } from "${up}/react/index.ts";`,
       `import { input } from "${up}/inputs/index.ts";`,
+      `import { dates } from "${up}/dates/index.ts";`,
       `import { binding } from "${up}/binding/index.ts";`,
       `import { controls } from "${up}/controls/index.ts";`,
-      "export const all = [sdk, input, binding, controls];",
+      "export const all = [sdk, input, dates, binding, controls];",
       "",
     ].join("\n");
   await write({
     "srcts/react/index.ts": 'import { binding } from "../binding/index.ts";\nexport const sdk = "the sdk " + binding;\nexport { input } from "../inputs/index.ts";\n',
     "srcts/inputs/index.ts": "export const input = 'the input';\n",
+    "srcts/dates/index.ts": 'import { input } from "../inputs/index.ts";\nexport const dates = "the dates " + input;\n',
     "srcts/binding/index.ts": "export const binding = 'the binding';\n",
     "srcts/controls/index.ts": 'import { input } from "../inputs/index.ts";\nexport const controls = "the controls " + input;\n',
     "srcts/otel/index.ts": "export const otel = 'the otel module';\n",
@@ -190,10 +255,10 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   const read = (file: string) => readFile(join(root, "inst/js", file), "utf8");
   for (const file of ["blockr-core.js", "head-block.js"]) {
     const code = await read(file);
-    for (const text of ["the sdk", "the input", "the binding", "the controls"]) {
+    for (const text of ["the sdk", "the input", "the dates", "the binding", "the controls"]) {
       expect(code).not.toContain(text);
     }
-    for (const name of ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls"]) {
+    for (const name of ["@blockr/core/react", "@blockr/core/react/dates", "@blockr/core/binding", "@blockr/core/controls"]) {
       expect(code).toContain(`from "${name}"`);
     }
   }
@@ -201,9 +266,12 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   expect(await read("blockr-core-react.js")).toContain("the input");
   expect(await read("blockr-core-react.js")).toContain('from "@blockr/core/binding"');
   expect(await read("blockr-core-binding.js")).toContain("the binding");
-  // The controls take the inputs from the SDK.
+  // The controls and the dates take the inputs from the SDK.
   expect(await read("blockr-core-controls.js")).toContain('from "@blockr/core/react"');
   expect(await read("blockr-core-controls.js")).not.toContain("the input");
+  expect(await read("blockr-core-react-dates.js")).toContain("the dates");
+  expect(await read("blockr-core-react-dates.js")).toContain('from "@blockr/core/react"');
+  expect(await read("blockr-core-react-dates.js")).not.toContain("the input");
   // The runtime imports the OpenTelemetry module by its name, as it loads it,
   // which the build bundles on its own.
   expect(await read("blockr-core.js")).toContain('import("@blockr/core/otel")');
@@ -226,12 +294,13 @@ test("builds the SDK, the binding, the controls and the OpenTelemetry module on 
   // file beside it by its path. The runtime's import of the OpenTelemetry
   // module is left out, which the runtime imports only as it loads it, and
   // each of React's entry points imports the vendor file.
-  const vendor = (await readdir(join(root, "inst/js"))).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
+  const vendor = (await readdir(join(root, "inst/js"))).find((file) => /^vendor-[A-Z2-7]{8}\.js$/.test(file));
   const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
   expect([...(preload["blockr-core.js"] ?? [])].sort()).toEqual(
-    ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls", OTEL_API, "react"].sort(),
+    ["@blockr/core/react", "@blockr/core/react/dates", "@blockr/core/binding", "@blockr/core/controls", OTEL_API, "react"].sort(),
   );
   expect(preload["blockr-core-react.js"]).toEqual(["@blockr/core/binding"]);
+  expect(preload["blockr-core-react-dates.js"]).toEqual(["@blockr/core/react"]);
   for (const name of REACT_ENTRIES) expect(preload[importFile(name)]).toEqual([`./${vendor ?? ""}`]);
   expect(Object.keys(preload)).toEqual(Object.keys(preload).sort());
 });
@@ -247,7 +316,7 @@ test("bundles the parts of OpenTelemetry's SDK that the OpenTelemetry module use
   const written = await build(root);
 
   const out = join(root, "inst/js");
-  const sdk = (await readdir(out)).filter((file) => /^opentelemetry-[0-9a-f]{8}\.js$/.test(file));
+  const sdk = (await readdir(out)).filter((file) => /^opentelemetry-[A-Z2-7]{8}\.js$/.test(file));
   expect(sdk).toHaveLength(1);
   expect(written).toContain(`inst/js/${sdk[0] ?? ""}`);
   const vendored = await readFile(join(out, sdk[0] ?? ""), "utf8");
@@ -288,7 +357,7 @@ test("writes the licenses of the code from other projects in its files into LICE
 
   const out = join(root, "inst/js");
   expect(written).toContain("inst/js/LICENSES");
-  const vendor = (await readdir(out)).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file)) ?? "";
+  const vendor = (await readdir(out)).find((file) => /^vendor-[A-Z2-7]{8}\.js$/.test(file)) ?? "";
   const text = await readFile(join(out, "LICENSES"), "utf8");
   // React's three packages share their license, whose text follows their lines.
   const react = await readFile(join(repo, "node_modules/react/LICENSE"), "utf8");

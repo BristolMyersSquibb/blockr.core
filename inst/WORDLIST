@@ -60,6 +60,7 @@ frontend's
 getter
 getters
 ggplot
+gzipped
 instantiation
 io
 jsonlite

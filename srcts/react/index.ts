@@ -6,6 +6,10 @@
 // which every UI draws with, bound or not, the button, and the overlays: the
 // modal and the dialog, the menu and the popover.
 // The inputs, the button and the overlays are React Aria's, in core's theme.
+// It holds the line below an input that says why the host refused what it
+// submitted, and how an input shows a value of the state that it cannot show,
+// which the SDK's dates, in a file of their own, draw with as its inputs do
+// (../dates/index.ts).
 
 export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } from "./hooks.ts";
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
@@ -18,7 +22,9 @@ export {
   ComboBoxItem,
   ComboBoxSection,
   Field,
+  missing,
   NumberField,
+  Refusal,
   Stack,
   Text,
   TextField,

@@ -5,7 +5,7 @@
 
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
 import { afterEach, beforeEach, expect, test } from "vitest";
@@ -62,4 +62,26 @@ test("lists what each file of a package's build imports up front, by its name or
   expect(Object.keys(listed)).toEqual(["dock.css", "dock.js"]);
   expect(listed["dock.css"]).toEqual(["./vendor-5e6f7a8b.css"]);
   expect([...(listed["dock.js"] ?? [])].sort()).toEqual(["./vendor-1a2b3c4d.js", "@blockr/core/react", "react"]);
+});
+
+test("lists the chunk that esbuild splits off the code that several files of a build share, as a file beside each of them", async () => {
+  await mkdir(join(root, "srcts"), { recursive: true });
+  await writeFile(join(root, "srcts/shared.ts"), "export const shared = () => 'shared';\n");
+  await writeFile(join(root, "srcts/a.ts"), 'import { shared } from "./shared.ts";\nexport const a = shared();\n');
+  await writeFile(join(root, "srcts/b.ts"), 'import { shared } from "./shared.ts";\nexport const b = shared();\n');
+
+  const { metafile } = await esbuild.build({
+    ...preset,
+    absWorkingDir: root,
+    outdir: join(root, "inst/js"),
+    entryPoints: ["srcts/a.ts", "srcts/b.ts"],
+    splitting: true,
+    chunkNames: "chunk-[hash]",
+    metafile: true,
+    logLevel: "silent",
+  });
+
+  const chunks = Object.keys(metafile.outputs).map((path) => basename(path)).filter((file) => file.startsWith("chunk-"));
+  expect(chunks).toHaveLength(1);
+  expect(staticImports([metafile])).toEqual({ "a.js": [`./${chunks[0] ?? ""}`], "b.js": [`./${chunks[0] ?? ""}`] });
 });

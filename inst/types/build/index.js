@@ -4,6 +4,7 @@ var OTEL_API = "@opentelemetry/api";
 var IMPORTS = [
   ...REACT_ENTRIES,
   "@blockr/core/react",
+  "@blockr/core/react/dates",
   "@blockr/core/binding",
   "@blockr/core/controls",
   "@blockr/core/otel",
@@ -15,7 +16,7 @@ var REACT_ARIA = /^(react-aria-components|react-aria|react-stately|@react-(aria|
 var imports = {
   name: "blockr.core-imports",
   setup(build) {
-    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
+    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react(\/.*)?|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
       if (!IMPORTS.includes(args.path)) {
         return {
           errors: [
@@ -54,12 +55,15 @@ function staticImports(metafiles) {
   for (const metafile of metafiles) {
     for (const [path, output] of Object.entries(metafile?.outputs ?? {})) {
       const imports2 = output.imports.flatMap(
-        (entry) => entry.external === true && (entry.kind === "import-statement" || entry.kind === "import-rule") ? [entry.path] : []
+        (entry) => entry.kind !== "import-statement" && entry.kind !== "import-rule" ? [] : entry.external === true ? [entry.path] : [`./${fileName(entry.path)}`]
       );
-      if (imports2.length > 0) files.push([path.slice(path.lastIndexOf("/") + 1), [...new Set(imports2)]]);
+      if (imports2.length > 0) files.push([fileName(path), [...new Set(imports2)]]);
     }
   }
   return Object.fromEntries(files.sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+}
+function fileName(path) {
+  return path.slice(path.lastIndexOf("/") + 1);
 }
 
 // srcts/build/vendor-check.ts

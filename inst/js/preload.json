@@ -19,7 +19,7 @@
     "react",
     "react/jsx-runtime",
     "@blockr/core/react",
-    "./vendor-b25170e7.js"
+    "./vendor-WDKFFI2H.js"
   ],
   "blockr-core-controls.js": [
     "react",
@@ -31,7 +31,14 @@
   ],
   "blockr-core-otel.js": [
     "@opentelemetry/api",
-    "./opentelemetry-4144b137.js"
+    "./opentelemetry-DICPNHNT.js"
+  ],
+  "blockr-core-react-dates.js": [
+    "./vendor-WDKFFI2H.js",
+    "./vendor-dates-CAREHF26.js",
+    "@blockr/core/react",
+    "react",
+    "react/jsx-runtime"
   ],
   "blockr-core-react.js": [
     "react",
@@ -39,11 +46,11 @@
     "react-dom",
     "react-dom/client",
     "react/jsx-runtime",
-    "./vendor-b25170e7.js"
+    "./vendor-WDKFFI2H.js"
   ],
   "blockr-core.js": [
     "@opentelemetry/api",
-    "./vendor-b25170e7.js",
+    "./vendor-WDKFFI2H.js",
     "react",
     "react-dom",
     "react-dom/client",
@@ -68,7 +75,7 @@
     "react-dom/client",
     "react",
     "@blockr/core/react",
-    "./vendor-b25170e7.js",
+    "./vendor-WDKFFI2H.js",
     "react/jsx-runtime"
   ],
   "filebrowser-block.js": [
@@ -93,42 +100,20 @@
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
-  "opentelemetry-4144b137.js": [
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
-    "@opentelemetry/api",
+  "opentelemetry-DICPNHNT.js": [
     "@opentelemetry/api"
   ],
   "react-dom-client.js": [
-    "./vendor-b25170e7.js"
+    "./vendor-WDKFFI2H.js"
   ],
   "react-dom.js": [
-    "./vendor-b25170e7.js"
+    "./vendor-WDKFFI2H.js"
   ],
   "react-jsx-runtime.js": [
-    "./vendor-b25170e7.js"
+    "./vendor-WDKFFI2H.js"
   ],
   "react.js": [
-    "./vendor-b25170e7.js"
+    "./vendor-WDKFFI2H.js"
   ],
   "scatter-block.js": [
     "@blockr/core/binding",
@@ -148,5 +133,11 @@
     "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
+  ],
+  "vendor-WDKFFI2H.js": [
+    "./chunk-A46SQDJO.js"
+  ],
+  "vendor-dates-CAREHF26.js": [
+    "./chunk-A46SQDJO.js"
   ]
 }
