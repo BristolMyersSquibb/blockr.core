@@ -617,12 +617,14 @@ The SDK holds these:
   A plugin's UI reads those about the plugin itself with `useNotified(core, { plugin })`, given the id of its class.
 
 A `ComboBox` whose items a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
-Once they are known, the select shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.
+Once they are known, the select shows a value that they lack, such as a column that the data no longer has, as it is, marks itself invalid, and says below itself which values are not available, as "Not available: wt".
+It submits nothing of its own, so that the state stays as the user left it.
 The last answer is for older data while the request asks again, as after the block's inputs changed, and after an ask failed.
 The module then sets `outdated` on the select, which keeps the items on screen but marks no value that they lack.
 A `NumberField` whose `maxValue` a request gives takes `outdated` too, as in the head block above, and then marks no number above it.
-The `Select` and the groups show a value that their items lack in the same way, the `Select` as a row of its own at the top of its list, and a group as an item of its own, before its items, each picked, which the user unpicks to drop the value.
-A `Slider` shows a number outside its range, or off its step, as missing beside its label, with the thumb at the nearest end.
+The `Select` and the groups show a value that their items lack in the same way, but draw no item for it.
+So in a `Select` or a group of several, the line below holds a button, Remove, which drops the values that the items lack, while the user drops such a value from one of one by picking an item.
+A `Slider` shows a number outside its range, or off its step, as it is beside its label, with the thumb at the nearest end, and says below itself that the number is not available.
 Each takes `outdated` too.
 
 An input that sets several state args, or edits part of one, binds through two functions in place of the state arg's name.

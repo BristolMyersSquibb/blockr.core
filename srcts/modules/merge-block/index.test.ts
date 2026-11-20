@@ -8,7 +8,7 @@ import { texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
-import { chipLabels, labelled, listed, listNote, picked, selectButton, selectShows } from "../../testing/select.ts";
+import { chipLabels, labelled, listed, listNote, notAvailable, picked, selectButton, selectShows } from "../../testing/select.ts";
 import * as merge from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -125,12 +125,12 @@ test("says below the select why the host refused the join the user picked, and s
 test("shows a column it joins by that the inputs do not share, as missing once R says which they share", async () => {
   const unanswered = await mounted({ by: ["rate"], all_x: false, all_y: false }, []);
   await settle();
-  expect([chipLabels(unanswered.by), unanswered.by.getAttribute("aria-invalid")]).toEqual([["rate"], null]);
+  expect([chipLabels(unanswered.by), unanswered.by.getAttribute("aria-invalid"), notAvailable(unanswered.view.el)]).toEqual([["rate"], null, []]);
   expect(await listed(unanswered.by, step)).toEqual([]);
 
-  const { by } = await mounted({ by: ["rate"], all_x: false, all_y: false });
+  const { view, by } = await mounted({ by: ["rate"], all_x: false, all_y: false });
   await settle();
-  expect([chipLabels(by), by.getAttribute("aria-invalid")]).toEqual([["rate (not available)"], "true"]);
+  expect([chipLabels(by), by.getAttribute("aria-invalid"), notAvailable(view.el)]).toEqual([["rate"], "true", ["Not available: rate"]]);
   expect(await listed(by, step)).toEqual(["Time", "demand"]);
 });
 
@@ -139,16 +139,16 @@ test("keeps every column the inputs shared while R says again which they share, 
   const release = holdRequests(host);
   const view = await mountOnPage(merge, host);
   const by = labelled(view.el, "By columns");
-  const shown = async () => [await listed(by, step), chipLabels(by), by.getAttribute("aria-invalid")];
+  const shown = async () => [await listed(by, step), chipLabels(by), by.getAttribute("aria-invalid"), notAvailable(view.el)];
   release();
   await settle();
-  const marked = [["Time", "demand"], ["rate (not available)"], "true"];
+  const marked = [["Time", "demand"], ["rate"], "true", ["Not available: rate"]];
   expect(await shown()).toEqual(marked);
 
   await step(() => {
     host.setContext({ inputs: [{ input: "x", revision: 2 }] });
   });
-  expect(await shown()).toEqual([["Time", "demand"], ["rate"], null]);
+  expect(await shown()).toEqual([["Time", "demand"], ["rate"], null, []]);
 
   release();
   await settle();

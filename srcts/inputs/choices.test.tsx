@@ -14,7 +14,7 @@ import { stubBlockHost } from "../stubs/index.ts";
 import type { StubBlockHost } from "../stubs/index.ts";
 import { texts, toggleButton, toggles } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
-import { labelled } from "../testing/select.ts";
+import { labelled, notAvailable } from "../testing/select.ts";
 import type { BlockHost } from "../types/hosts.ts";
 import { Checkbox, CheckboxGroup, Radio, RadioGroup, Switch, ToggleButton, ToggleButtonGroup } from "./index.ts";
 
@@ -217,19 +217,20 @@ describe("a bound group", () => {
     expect(sorted.submitted).toEqual([picks({ marks: ["dot", "star"] })]);
   });
 
-  test("shows a value that none of its items holds as an item of its own, picked and marked as missing, and marks itself invalid, but not while outdated", async () => {
+  test("draws no item for a value that none of its items holds, marks itself invalid and says below itself that it is not available, but not while outdated", async () => {
     const state = picks({ end: "middle", levels: ["error", "debug"], side: "up", marks: ["dot", "cross"] });
     const shown = async (outdated: boolean) => {
       const { el, unmount } = await draw(<Picker host={host(state)} outdated={outdated} />);
-      // The groups that mark themselves invalid, by their roles.
-      const invalid = [...el.querySelectorAll("[role][data-invalid]")].map((node) => node.getAttribute("role"));
       const seen = {
         end: boxes(el, "End"),
         levels: boxes(el, "Levels"),
         side: toggles(el, "Side"),
         marks: toggles(el, "Marks"),
-        missing: [...el.querySelectorAll("[data-missing]")].map((node) => node.textContent.trim()),
-        invalid,
+        // The groups that mark themselves invalid, by their roles.
+        invalid: [...el.querySelectorAll("[role][data-invalid]")].map((node) => node.getAttribute("role")),
+        lines: notAvailable(el),
+        // The buttons that drop the values that a group of several lacks.
+        removes: [...el.querySelectorAll("button")].flatMap((button) => (button.textContent === "Remove" ? [button.getAttribute("aria-label")] : [])),
       };
       await unmount();
       return seen;
@@ -237,57 +238,73 @@ describe("a bound group", () => {
 
     expect(await shown(false)).toEqual({
       end: [
-        { label: "middle (not available)", picked: true },
         { label: "Head", picked: false },
         { label: "Tail", picked: false },
       ],
       levels: [
-        { label: "debug (not available)", picked: true },
         { label: "message", picked: false },
         { label: "warning", picked: false },
         { label: "error", picked: true },
       ],
       side: [
-        { label: "up (not available)", picked: true },
         { label: "Left", picked: false },
         { label: "Right", picked: false },
       ],
       marks: [
-        { label: "cross (not available)", picked: true },
         { label: "Dot", picked: true },
         { label: "Ring", picked: false },
         { label: "Star", picked: false },
       ],
-      missing: ["middle (not available)", "debug (not available)", "up (not available)", "cross (not available)"],
       invalid: ["radiogroup", "group", "radiogroup", "toolbar"],
+      lines: ["Not available: middle", "Not available: debug", "Not available: up", "Not available: cross"],
+      removes: ["Remove debug", "Remove cross"],
     });
     const outdated = await shown(true);
-    expect([outdated.end[0], outdated.levels[0], outdated.side[0], outdated.marks[0], outdated.missing]).toEqual([
-      { label: "middle", picked: true },
-      { label: "debug", picked: true },
-      { label: "up", picked: true },
-      { label: "cross", picked: true },
-      [],
-    ]);
-    expect(outdated.invalid).toEqual([]);
+    expect([outdated.invalid, outdated.lines, outdated.removes]).toEqual([[], [], []]);
+    expect([outdated.levels.length, outdated.marks.length]).toEqual([3, 3]);
   });
 
-  test("drops a value that its items lack as the user unpicks it, or picks another in its place", async () => {
-    const stub = host(picks({ end: "middle", levels: ["error", "debug"] }), picks({ end: "head", levels: ["error", "debug"] }), picks({ end: "head", levels: ["error"] }));
+  test("keeps a value that its items lack as the user picks another item of a group of several, and drops it by Remove", async () => {
+    const start = picks({ levels: ["error", "debug"], marks: ["dot", "cross"] });
+    const stub = host(
+      start,
+      picks({ levels: ["error", "debug", "message"], marks: ["dot", "cross"] }),
+      picks({ levels: ["error", "message"], marks: ["dot", "cross"] }),
+      picks({ levels: ["error", "message"], marks: ["dot"] }),
+    );
+    const { el } = await draw(<Picker host={stub} />);
+
+    await click(labelled(el, "message"));
+    expect(notAvailable(el)).toEqual(["Not available: debug", "Not available: cross"]);
+    await click(find(el, "Remove", "Remove debug"));
+    await click(find(el, "Remove", "Remove cross"));
+
+    expect(stub.submitted).toEqual([
+      picks({ levels: ["error", "debug", "message"], marks: ["dot", "cross"] }),
+      picks({ levels: ["error", "message"], marks: ["dot", "cross"] }),
+      picks({ levels: ["error", "message"], marks: ["dot"] }),
+    ]);
+    expect([notAvailable(el), el.querySelectorAll("[role][data-invalid]").length]).toEqual([[], 0]);
+  });
+
+  test("drops a value that its items lack from a group of one as the user picks an item", async () => {
+    const stub = host(picks({ end: "middle", side: "up" }), picks({ end: "head", side: "up" }), picks({ end: "head", side: "left" }));
     const { el } = await draw(<Picker host={stub} />);
 
     await click(labelled(el, "Head"));
-    await click(labelled(el, "debug (not available)"));
+    await click(toggleButton(el, "Side", "Left"));
 
-    expect(stub.submitted).toEqual([picks({ end: "head", levels: ["error", "debug"] }), picks({ end: "head", levels: ["error"] })]);
-    expect(boxes(el, "End").map((end) => end.label)).toEqual(["Head", "Tail"]);
-    expect(boxes(el, "Levels").map((level) => level.label)).toEqual(["message", "warning", "error"]);
+    expect(stub.submitted).toEqual([picks({ end: "head", side: "up" }), picks({ end: "head", side: "left" })]);
+    expect(notAvailable(el)).toEqual([]);
   });
 });
 
-// The toggle button of the text given, outside a group.
-function find(el: HTMLElement, text: string): HTMLButtonElement {
-  const found = [...el.querySelectorAll("button")].find((button) => button.textContent === text);
+// The button of the text given, and of the accessible name given where it has
+// one, as a toggle button outside a group or the button that drops a value.
+function find(el: HTMLElement, text: string, name?: string): HTMLButtonElement {
+  const found = [...el.querySelectorAll("button")].find(
+    (button) => button.textContent === text && (name === undefined || button.getAttribute("aria-label") === name),
+  );
   if (found === undefined) throw new Error(`Found no button ${text}.`);
   return found;
 }

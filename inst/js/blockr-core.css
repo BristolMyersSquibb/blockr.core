@@ -1570,10 +1570,6 @@
   color: var(--bc-color-text-danger);
 }
 
-.bc\:data-placeholder\:text-text-muted[data-placeholder] {
-  color: var(--bc-color-text-muted);
-}
-
 .bc\:data-pressed\:bg-bg-subtle[data-pressed] {
   background-color: var(--bc-color-bg-subtle);
 }
@@ -1587,14 +1583,6 @@
 }
 
 .bc\:data-selected\:text-text-on-accent[data-selected] {
-  color: var(--bc-color-text-on-accent);
-}
-
-.bc\:data-selected\:data-missing\:bg-border-danger[data-selected][data-missing] {
-  background-color: var(--bc-color-border-danger);
-}
-
-.bc\:data-selected\:data-missing\:text-text-on-accent[data-selected][data-missing] {
   color: var(--bc-color-text-on-accent);
 }
 
@@ -1652,10 +1640,6 @@
 
 .bc\:dark\:text-gray-100:where([data-bc-theme="dark"], [data-bc-theme="dark"] *) {
   color: var(--bc-color-gray-100);
-}
-
-.bc\:\[\&_\[data-missing\]\]\:text-text-danger [data-missing] {
-  color: var(--bc-color-text-danger);
 }
 
 .bc\:\[\&_\[slot\=description\]\]\:min-w-0 [slot="description"] {

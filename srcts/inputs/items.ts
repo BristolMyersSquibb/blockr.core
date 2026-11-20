@@ -4,8 +4,8 @@
 // group's pick itself.
 // Each item of the SDK tells the group that holds it its value as it mounts,
 // and takes it back as it unmounts, so that a bound group finds a value that
-// none of its items holds, which it then shows as missing, as the select does
-// (./combobox.tsx).
+// none of its items holds, which it then names below itself, as the select
+// does (./combobox.tsx).
 // A group knows its items once they have told it theirs, before the browser
 // paints, and until then marks nothing as missing.
 // It knows them in the order of the page, in which an `ordered` group submits
@@ -99,4 +99,10 @@ export function merged(now: readonly string[], before: readonly string[], picks:
 // The values that the items lack, in the order of the values.
 export function lacking(values: readonly string[], known: readonly string[] | null): string[] {
   return known === null ? [] : values.filter((value) => !known.includes(value));
+}
+
+// The values that the items hold, as an input of several submits them where
+// the user removes those that the items lack.
+export function held(values: readonly string[], known: readonly string[] | null): string[] {
+  return known === null ? [...values] : values.filter((value) => known.includes(value));
 }

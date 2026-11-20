@@ -15,6 +15,7 @@ import { stubBlockHost } from "../stubs/index.ts";
 import type { StubBlockHost } from "../stubs/index.ts";
 import { press, texts } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
+import { notAvailable } from "../testing/select.ts";
 import type { BlockHost } from "../types/hosts.ts";
 import { Slider } from "./index.ts";
 
@@ -131,26 +132,37 @@ describe("a bound slider", () => {
     expect(texts(el, '[role="alert"]')[0]).toContain("which the fixture does not list");
   });
 
-  test("shows a number outside its range, or off its step, as missing, with the thumb at the nearest end, and marks itself invalid, but not while outdated", async () => {
+  test("shows a number outside its range, or off its step, as it is, with the thumb at the nearest end, marks itself invalid and says below itself that the number is not available, but not while outdated", async () => {
     const state: Range = { size: 150, span: [2, 12] };
     const shown = async (outdated: boolean) => {
       const { el, unmount } = await draw(<Bound host={host(state)} outdated={outdated} />);
-      const seen = [slider(el, "Size"), slider(el, "Span")].map(({ shows, thumbs, invalid }) => ({ shows, thumbs, invalid }));
+      const seen = [[slider(el, "Size"), slider(el, "Span")].map(({ shows, thumbs, invalid }) => ({ shows, thumbs, invalid })), notAvailable(el)];
       await unmount();
       return seen;
     };
 
     expect(await shown(false)).toEqual([
-      { shows: "150 (not available)", thumbs: [100], invalid: true },
-      { shows: "2–12 (not available)", thumbs: [2, 10], invalid: true },
+      [
+        { shows: "150", thumbs: [100], invalid: true },
+        { shows: "2–12", thumbs: [2, 10], invalid: true },
+      ],
+      ["Not available: 150", "Not available: 12"],
     ]);
     expect(await shown(true)).toEqual([
-      { shows: "150", thumbs: [100], invalid: false },
-      { shows: "2–12", thumbs: [2, 10], invalid: false },
+      [
+        { shows: "150", thumbs: [100], invalid: false },
+        { shows: "2–12", thumbs: [2, 10], invalid: false },
+      ],
+      [],
     ]);
 
     const { el } = await draw(<Bound host={host({ size: 22 })} />);
-    expect([slider(el, "Size").shows, slider(el, "Size").thumbs, slider(el, "Size").invalid]).toEqual(["22 (not available)", [20], true]);
+    expect([slider(el, "Size").shows, slider(el, "Size").thumbs, slider(el, "Size").invalid, notAvailable(el)]).toEqual([
+      "22",
+      [20],
+      true,
+      ["Not available: 22"],
+    ]);
   });
 
   test("submits no number that it pulled into its range, as where the user steps a thumb against its end, but one that the user moves it to", async () => {
@@ -160,11 +172,21 @@ describe("a bound slider", () => {
     await stepped(slider(el, "Size").thumb(), "ArrowRight");
     await stepped(slider(el, "Size").thumb(), "End");
     expect(stub.submitted).toEqual([]);
-    expect(slider(el, "Size").shows).toBe("150 (not available)");
+    expect(slider(el, "Size").shows).toBe("150");
 
     await stepped(slider(el, "Size").thumb(), "ArrowLeft");
     expect(stub.submitted).toEqual([{ size: 95 }]);
-    expect([slider(el, "Size").shows, slider(el, "Size").invalid]).toEqual(["95", false]);
+    expect([slider(el, "Size").shows, slider(el, "Size").invalid, notAvailable(el)]).toEqual(["95", false, []]);
+  });
+
+  test("submits the number of a thumb that the user did not move as the value holds it, rather than as the slider pulled it in", async () => {
+    const stub = host({ span: [2, 12] }, { span: [3, 12] });
+    const { el } = await draw(<Bound host={stub} />);
+
+    await stepped(slider(el, "Span").thumb(0), "ArrowRight");
+
+    expect(stub.submitted).toEqual([{ span: [3, 12] }]);
+    expect([slider(el, "Span").shows, notAvailable(el)]).toEqual(["3–12", ["Not available: 12"]]);
   });
 
   test("shows nothing at the right of its label while the state arg is unset, and submits the number that the user moves to", async () => {

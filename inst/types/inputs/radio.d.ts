@@ -14,4 +14,4 @@ export interface RadioProps extends Omit<RadioFieldProps, "children"> {
     readonly children?: ReactNode;
     readonly description?: string;
 }
-export declare function Radio(props: RadioProps): ReactElement;
+export declare function Radio({ children, description, className, ...props }: RadioProps): ReactElement;

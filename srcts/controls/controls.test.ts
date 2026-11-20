@@ -7,7 +7,7 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture } from "../stubs/index.ts";
 import { press, texts, toggle, type } from "../testing/inputs.ts";
 import { holdRequests } from "../testing/requests.ts";
-import { chipLabels, labelled, listed, picked } from "../testing/select.ts";
+import { chipLabels, labelled, listed, notAvailable, picked } from "../testing/select.ts";
 import type { Json } from "../types/json.ts";
 import { controls, PAUSE, strings } from "./index.ts";
 
@@ -90,25 +90,24 @@ describe("the controls of a block's UI", () => {
 
     by.setItems(ids(["a", "b"]));
 
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["c (not available)"], "true"]);
-    expect(texts(ui.el, "label > span, p, label[for]")).toEqual(["Label", "A line of the module's own", "By columns"]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(ui.el)]).toEqual([["c"], "true", ["Not available: c"]]);
+    expect(texts(ui.el, "label > span, p, label[for]")).toEqual(["Label", "A line of the module's own", "By columns", "Not available: c"]);
   });
 
-  test("show a value as it is until a select's items are given, and as missing where they lack it", async () => {
+  test("show a value as it is, and once a select's items are given, mark it and say below the select that it is not available where they lack it", async () => {
     const host = stubBlockHost<Form>(fixture, { state: form({ direction: "middle" }) });
     const ui = controls(host, abort.signal);
     const direction = ui.comboBox("direction", { label: "Direction", placeholder: "Choose an end" });
     const field = labelled(ui.el, "Direction");
-    // The field shows a pick that the items lack in place of its placeholder.
-    const shown = async () => [field.value || field.placeholder, await listed(field, settled), field.getAttribute("aria-invalid")];
-    expect(await shown()).toEqual(["middle", [], null]);
+    const shown = async () => [field.value || field.placeholder, await listed(field, settled), field.getAttribute("aria-invalid"), notAvailable(ui.el)];
+    expect(await shown()).toEqual(["middle", [], null, []]);
 
     direction.setItems([
       { id: "head", name: "Head" },
       { id: "tail", name: "Tail" },
     ]);
 
-    expect(await shown()).toEqual(["middle (not available)", ["Head", "Tail"], "true"]);
+    expect(await shown()).toEqual(["middle", ["Head", "Tail"], "true", ["Not available: middle"]]);
     expect(host.submitted).toEqual([]);
   });
 
@@ -139,16 +138,17 @@ describe("the controls of a block's UI", () => {
       chipLabels(several),
       several.getAttribute("aria-invalid"),
       await listed(several, settled),
+      notAvailable(ui.el),
     ];
-    expect(await shown()).toEqual(["middle", null, ["c"], null, []]);
+    expect(await shown()).toEqual(["middle", null, ["c"], null, [], []]);
 
     release();
     await settled();
-    const marked = ["middle (not available)", "true", ["c (not available)"], "true", ["head", "tail"]];
+    const marked = ["middle", "true", ["c"], "true", ["head", "tail"], ["Not available: middle", "Not available: c"]];
     expect(await shown()).toEqual(marked);
 
     host.setContext({ inputs: [{ input: "data", revision: 2 }] });
-    expect(await shown()).toEqual(["middle", null, ["c"], null, ["head", "tail"]]);
+    expect(await shown()).toEqual(["middle", null, ["c"], null, ["head", "tail"], []]);
 
     release();
     await settled();

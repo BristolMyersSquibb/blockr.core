@@ -729,15 +729,16 @@
   The groups of several and the `Select` build what they submit from the value that the host holds then, and keep the order of their items where `ordered`.
   The `Slider` edits a number, or an array of numbers where it has several thumbs, which it submits as the user lets go of a thumb, and never a number that it pulled into its range or onto its step.
   The `SearchField` submits as the `TextField` does, and at once as the user clears it, by its button or by Escape.
-  A value that an input lacks, a pick that none of its items holds, or a number outside the slider's range or off its step, shows as missing, with the input marked invalid, but not while the input is `outdated`.
-  A group shows such a pick as an item of its own, picked, before its items, and the `Select` as a row of its own at the top of its list, which the user unpicks to drop the value.
-  The slider shows such a number beside its label, with its thumb at the nearest end.
+  An input shows a value that it lacks, a pick that none of its items holds or a number outside the slider's range or off its step, as it is, marks itself invalid, and says below itself which values are not available, as "Not available: wt", but not while it is `outdated`.
+  So the `ComboBox` no longer writes "(not available)" into the text of such a value.
+  A group and the `Select` draw no item for such a value, so the line of a group or a `Select` of several holds a button, Remove, which drops the values that its items lack, while the user drops it from one of one by picking an item.
+  The slider shows such a number beside its label, with its thumb at the nearest end, and submits the number of a thumb that the user did not move as the value holds it.
   The `checkbox()` of `controls()` draws with the `Checkbox` of the SDK.
   The head block picks its direction, and the board option `dark_mode` its theme, with a `ToggleButtonGroup`, and the board option `show_conditions` its severities with a `CheckboxGroup`.
   The merge block picks its join, the file browser its volume, and the picker and the Edit board's links their input and their position with a `Select`.
   The search of the Edit board's tables is a `SearchField`, whose button clears it, as Escape does, and the upload block takes a file that the user drops on it, in a `DropZone` around a `FileTrigger` with a `Button`.
   The forms of the picker and of the Edit board's links and stacks are React Aria's `Form`, and the button that clears the pick of a `ComboBox` is a `FieldButton`.
-  Compressed, core's vendor file grows from 174.9 KB to 219.2 KB (#755).
+  Compressed, core's vendor file grows from 174.9 KB to 219.2 KB (#755, #781).
 
 # blockr.core 0.1.4
 

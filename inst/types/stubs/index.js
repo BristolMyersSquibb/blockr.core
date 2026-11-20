@@ -881,7 +881,7 @@ function createClient(transport, options) {
   let stopped;
   let shared = /* @__PURE__ */ new Set();
   const waiting2 = /* @__PURE__ */ new Map();
-  let held3 = [];
+  let held4 = [];
   const sending = /* @__PURE__ */ new Set();
   let ends = 0;
   function mint() {
@@ -933,9 +933,9 @@ function createClient(transport, options) {
     quietly(transport.send([{ kind: "cancel", request: call.id }], /* @__PURE__ */ new Map()));
   }
   function abort(entry, call) {
-    const index = held3.indexOf(entry);
+    const index = held4.indexOf(entry);
     if (index >= 0) {
-      held3.splice(index, 1);
+      held4.splice(index, 1);
       call.settle(cancelled(call.id));
     } else if (call.sent) {
       cancel(call);
@@ -949,7 +949,7 @@ function createClient(transport, options) {
     } else if (state2 === "ready") {
       dispatch([entry]);
     } else {
-      held3.push(entry);
+      held4.push(entry);
     }
   }
   function end() {
@@ -967,8 +967,8 @@ function createClient(transport, options) {
       `R speaks version ${theirs} of the wire protocol, where the client speaks ${ours}, so the client sends R nothing.`
     );
     end();
-    const lost = held3;
-    held3 = [];
+    const lost = held4;
+    held4 = [];
     for (const { call } of lost) {
       call?.settle({ error: stopped });
     }
@@ -993,8 +993,8 @@ function createClient(transport, options) {
             const theirs = new Set(reply.capabilities);
             shared = new Set(named3.capabilities.filter((c) => theirs.has(c)));
             state2 = "ready";
-            const outbound = held3;
-            held3 = [];
+            const outbound = held4;
+            held4 = [];
             dispatch(outbound);
           } else {
             stop(reply.protocol, named3.protocol);
@@ -1089,8 +1089,8 @@ function createClient(transport, options) {
     hello() {
       if (stopped !== void 0) return;
       const runs = state2 !== "none";
-      const lost = held3;
-      held3 = [];
+      const lost = held4;
+      held4 = [];
       end();
       for (const { call } of lost) {
         call?.settle({ error: new SessionEndedError(call.id) });
@@ -1830,9 +1830,9 @@ function createScheduler(options) {
     update(left(oneTimes.value, gone));
     client.forget(revised.gone);
   });
-  const lacking2 = action((missing2) => {
+  const lacking2 = action((missing) => {
     const lost = /* @__PURE__ */ new Set();
-    for (const { block, revision: at } of missing2) {
+    for (const { block, revision: at } of missing) {
       if (revisions.value.get(block) === at && statuses.value.get(block)?.status === "ready") {
         lost.add(block);
       }
@@ -2981,7 +2981,7 @@ function mountOutput(deps, el, block) {
   const ready = /* @__PURE__ */ new Map();
   const preparing = /* @__PURE__ */ new Map();
   let info = measure.info(el);
-  let held3;
+  let held4;
   let asking;
   let error = null;
   let drawing;
@@ -3053,9 +3053,9 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     const want = wanted();
     if (want !== void 0) {
-      if (held3 !== void 0 && fits2(held3.asked, want.asked, want.ids)) {
+      if (held4 !== void 0 && fits2(held4.asked, want.asked, want.ids)) {
         stopAsking();
-      } else if (shelf.last !== void 0 && shelf.last !== held3 && fits2(shelf.last.asked, want.asked, want.ids)) {
+      } else if (shelf.last !== void 0 && shelf.last !== held4 && fits2(shelf.last.asked, want.asked, want.ids)) {
         stopAsking();
         take(shelf.last);
       } else {
@@ -3179,7 +3179,7 @@ function mountOutput(deps, el, block) {
     deps.raise(coreNotification("module_failed", "error", errorMessage(failure), { module: rendererModule(by2) }));
   }
   function take(next) {
-    held3 = next;
+    held4 = next;
     error = null;
     const named4 = next.output.renderer;
     expect(named4);
@@ -3187,7 +3187,7 @@ function mountOutput(deps, el, block) {
     if (drawing === void 0) {
       prepare(named4).then(
         (prepared) => {
-          if (ended() || drawing !== void 0 || held3?.output.renderer.id !== prepared.renderer.id) return;
+          if (ended() || drawing !== void 0 || held4?.output.renderer.id !== prepared.renderer.id) return;
           mountRenderer(prepared);
         },
         (failure) => {
@@ -3276,8 +3276,8 @@ function mountOutput(deps, el, block) {
           );
           return true;
         }
-        if (status.status === "ready" && held3?.asked.revision === status.revision) {
-          resolve(held3);
+        if (status.status === "ready" && held4?.asked.revision === status.revision) {
+          resolve(held4);
           return true;
         }
         return false;
@@ -3353,18 +3353,18 @@ function mountOutput(deps, el, block) {
     const module = rendererModule(prepared.renderer);
     return {
       block,
-      output: () => held3?.output ?? null,
-      body: () => held3?.body ?? null,
-      params: () => held3?.asked.params ?? EMPTY,
+      output: () => held4?.output ?? null,
+      body: () => held4?.body ?? null,
+      params: () => held4?.asked.params ?? EMPTY,
       option(id2) {
         let memo2 = named4;
-        if (memo2 === void 0 || memo2.for !== held3) {
+        if (memo2 === void 0 || memo2.for !== held4) {
           const read = optionReader(
-            optionsFor(held3?.asked),
+            optionsFor(held4?.asked),
             outputOptions,
             (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
           );
-          memo2 = { for: held3, read };
+          memo2 = { for: held4, read };
           named4 = memo2;
         }
         return memo2.read(id2);
@@ -3454,8 +3454,8 @@ function mountOutput(deps, el, block) {
   });
   function lackOutputOptions() {
     if (ended()) return;
-    const missing2 = outputOptions.filter((id2) => !Object.hasOwn(store.board().options, id2));
-    failed3(coreFailure("board_option_failed", withoutOptions(by, missing2)));
+    const missing = outputOptions.filter((id2) => !Object.hasOwn(store.board().options, id2));
+    failed3(coreFailure("board_option_failed", withoutOptions(by, missing)));
   }
   function end() {
     if (ended()) return;
@@ -3673,8 +3673,8 @@ function createMounts(options) {
       raise(coreNotification("module_failed", "error", errorMessage(error), { module }));
     }
     function lacking2(ids3) {
-      const missing2 = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
-      raise(coreNotification("module_failed", "error", withoutOptions(by, missing2), { module }));
+      const missing = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      raise(coreNotification("module_failed", "error", withoutOptions(by, missing), { module }));
     }
     return end;
   }
@@ -5708,17 +5708,17 @@ function misplaced(id2, patches2) {
   return failures;
 }
 function merge(delta, given, patches2, board) {
-  const held3 = delta.patches ?? [];
+  const held4 = delta.patches ?? [];
   const fixed2 = (given.patches ?? []).map(({ path }) => segmentsFromPath(path) ?? []);
   const added = [];
   for (const patch2 of patches2) {
     const segments = segmentsFromPath(patch2.path) ?? [];
-    if ([...held3, ...added].some((other) => same(other, patch2))) continue;
+    if ([...held4, ...added].some((other) => same(other, patch2))) continue;
     if (fixed2.some((other) => overlap(other, segments, board))) continue;
     added.push(patch2);
   }
   if (added.length === 0) return delta;
-  return { ...delta, patches: [...held3, ...added] };
+  return { ...delta, patches: [...held4, ...added] };
 }
 function same(a, b) {
   return a.op === b.op && a.path === b.path && jsonEqual(a.value, b.value);
@@ -5727,8 +5727,8 @@ function same(a, b) {
 // srcts/store/lock.ts
 function fixes(board, block, boardLock) {
   if (!boardLock) return false;
-  const held3 = board === void 0 ? void 0 : own(board.blocks, block);
-  return held3?.locked !== false;
+  const held4 = board === void 0 ? void 0 : own(board.blocks, block);
+  return held4?.locked !== false;
 }
 function lockFailures(before, inverse) {
   const failures = [];
@@ -5782,11 +5782,11 @@ function fit(delta, board) {
     delta.links,
     (link) => (link.from === void 0 || holds2(link.from)) && (link.to === void 0 || holds2(link.to))
   );
-  const held3 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
+  const held4 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
     Object.entries(delta.links?.before ?? {}).flatMap(([id2, named3]) => {
       if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named3]];
-      if (!held3(id2)) return [];
+      if (!held4(id2)) return [];
       return [[id2, named3 !== null && Object.hasOwn(board.links, named3) ? named3 : null]];
     })
   );
@@ -5861,8 +5861,8 @@ function pluginsWithDefaults(kept, app, registeredClass) {
   for (const id2 of Object.keys(app)) {
     const state2 = registeredClass(id2)?.state;
     if (state2 === void 0) continue;
-    const held3 = own(kept, id2);
-    plugins[id2] = held3 === void 0 ? frozenCopy(state2.default) : held3;
+    const held4 = own(kept, id2);
+    plugins[id2] = held4 === void 0 ? frozenCopy(state2.default) : held4;
   }
   return plugins;
 }
@@ -6030,12 +6030,12 @@ function migratedValue(what, fn) {
 function openJsonBoard(json, reply, registrations) {
   const registeredClass = (id2) => registrations.plugin(id2)?.def;
   const read = unversioned(json.board);
-  const held3 = keptPlugins(read.plugins, reply.plugins, registeredClass);
+  const held4 = keptPlugins(read.plugins, reply.plugins, registeredClass);
   const plugins = droppedPlugins(read.plugins, reply.plugins, registeredClass).map((id2) => ({
     plugin: id2,
     package: packageFromId(id2)
   }));
-  const migrated2 = migrate({ ...read, plugins: held3 }, json.board, reply, registrations);
+  const migrated2 = migrate({ ...read, plugins: held4 }, json.board, reply, registrations);
   const gone = Object.entries(migrated2.blocks).filter(([, block]) => own(reply.block_registry, block.registry_id) === void 0).map(([id2]) => id2);
   const blocks = gone.map((id2) => {
     const registryId2 = migrated2.blocks[id2]?.registry_id ?? "";
@@ -7759,8 +7759,8 @@ function runPlugins(deps) {
       deps.raise(coreNotification("module_failed", "error", message, { module: sourceModule({ plugin }, packageFromId(plugin)) }));
     }
     function lacking2(ids3) {
-      const missing2 = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
-      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing2));
+      const missing = ids3.filter((id2) => !Object.hasOwn(store.board().options, id2));
+      cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
     }
     void (async () => {
       const named3 = optionsOf(plugin);
@@ -8434,7 +8434,7 @@ var nothing = () => void 0;
 function createNotifications(store, options = {}) {
   const { signal: signal5 } = options;
   const plugins = options.plugins ?? {};
-  const held3 = /* @__PURE__ */ new Map();
+  const held4 = /* @__PURE__ */ new Map();
   const raised = /* @__PURE__ */ new Map();
   const again = /* @__PURE__ */ new Map();
   const replacing = /* @__PURE__ */ new Map();
@@ -8445,7 +8445,7 @@ function createNotifications(store, options = {}) {
   let ended = false;
   const stops = [];
   function publish() {
-    all = Object.freeze([...held3.values()]);
+    all = Object.freeze([...held4.values()]);
     announceTo(listeners, all);
   }
   function present(object2) {
@@ -8474,9 +8474,9 @@ function createNotifications(store, options = {}) {
     for (const object2 of gone) left2.add(object2);
     const goes = (object2) => object2 !== void 0 && gone.has(key(object2));
     let moved = false;
-    for (const [id2, notification] of held3) {
+    for (const [id2, notification] of held4) {
       if (!goes(notification.about) && !goes(notification.source.module?.object)) continue;
-      held3.delete(id2);
+      held4.delete(id2);
       raised.delete(id2);
       moved = true;
     }
@@ -8490,8 +8490,8 @@ function createNotifications(store, options = {}) {
     if (ended) return;
     ended = true;
     for (const stop of stops) stop();
-    const had = held3.size > 0;
-    held3.clear();
+    const had = held4.size > 0;
+    held4.clear();
     raised.clear();
     again.clear();
     replacing.clear();
@@ -8504,12 +8504,12 @@ function createNotifications(store, options = {}) {
   function replace(what, object2, next) {
     let moved = false;
     for (const id2 of replacing.get(what)?.ids ?? []) {
-      if (!next.has(id2) && held3.delete(id2)) moved = true;
+      if (!next.has(id2) && held4.delete(id2)) moved = true;
     }
     for (const [id2, notification] of next) {
-      const had = held3.get(id2);
+      const had = held4.get(id2);
       if (had !== void 0 && jsonEqual(had, notification)) continue;
-      held3.set(id2, notification);
+      held4.set(id2, notification);
       moved = true;
     }
     if (next.size === 0) replacing.delete(what);
@@ -8566,15 +8566,15 @@ function createNotifications(store, options = {}) {
     const tokens = raised.get(id2) ?? /* @__PURE__ */ new Set();
     tokens.add(token);
     raised.set(id2, tokens);
-    if (!held3.has(id2)) {
-      held3.set(id2, frozen(id2, given));
+    if (!held4.has(id2)) {
+      held4.set(id2, frozen(id2, given));
       publish();
     }
     return () => {
       const holding = raised.get(id2);
       if (holding?.delete(token) !== true || holding.size > 0) return;
       raised.delete(id2);
-      if (held3.delete(id2)) publish();
+      if (held4.delete(id2)) publish();
     };
   };
   const raiseAgain = (given, notifier) => {
@@ -8600,7 +8600,7 @@ function createNotifications(store, options = {}) {
       return nothing;
     }
     const id2 = `module-${String(++count)}`;
-    held3.set(
+    held4.set(
       id2,
       frozen(id2, {
         severity: given.severity,
@@ -8614,7 +8614,7 @@ function createNotifications(store, options = {}) {
     return () => {
       if (withdrawn) return;
       withdrawn = true;
-      if (held3.delete(id2)) publish();
+      if (held4.delete(id2)) publish();
     };
   };
   return {
@@ -9215,8 +9215,8 @@ function helloError(reply) {
   return void 0;
 }
 function noFrontend(reply, core) {
-  const missing2 = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
-  const why = missing2.length === 0 ? "none of the app's plugins is a frontend" : `core registered no class of the app's ${missing2.length === 1 ? "plugin" : "plugins"} ${quoted(missing2)}`;
+  const missing = Object.keys(reply.plugins).filter((id2) => !Object.hasOwn(core.plugins.appPlugins(), id2));
+  const why = missing.length === 0 ? "none of the app's plugins is a frontend" : `core registered no class of the app's ${missing.length === 1 ? "plugin" : "plugins"} ${quoted(missing)}`;
   return `The app runs no frontend that draws the board, since ${why}.`;
 }
 function changedPackages(loaded, reply) {
@@ -9258,7 +9258,7 @@ import { flushSync as flushSync3 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback8, useEffect as useEffect3, useMemo as useMemo5, useState as useState17 } from "react";
+import { useCallback as useCallback8, useEffect as useEffect3, useMemo as useMemo6, useState as useState17 } from "react";
 import { createPortal } from "react-dom";
 
 // srcts/card/footer.tsx
@@ -9461,7 +9461,7 @@ function useSized(status) {
 }
 
 // srcts/picker/picker.tsx
-import { useMemo as useMemo4, useState as useState14 } from "react";
+import { useMemo as useMemo5, useState as useState14 } from "react";
 import { flushSync as flushSync2 } from "react-dom";
 
 // srcts/react/hooks.ts
@@ -9472,7 +9472,7 @@ var PAUSE = 500;
 function bind(host, key2, next, last, given) {
   const [change, show2, options] = typeof key2 === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
   const source = createSource(host);
-  const held3 = source.value(key2, change);
+  const held4 = source.value(key2, change);
   const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
   let shown2;
   let typed;
@@ -9480,7 +9480,7 @@ function bind(host, key2, next, last, given) {
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
-    const value2 = held3.get();
+    const value2 = held4.get();
     if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
     shown2 = { value: value2 };
     show2(value2);
@@ -9498,7 +9498,7 @@ function bind(host, key2, next, last, given) {
   const submit = async (value2) => {
     let submitted;
     try {
-      submitted = held3.submit(value2, submitting);
+      submitted = held4.submit(value2, submitting);
     } catch (error) {
       unbuild(error);
       options.settled?.(error);
@@ -9531,7 +9531,7 @@ function bind(host, key2, next, last, given) {
   });
   display(true);
   return {
-    get: () => held3.get(),
+    get: () => held4.get(),
     async commit(value2) {
       const took = await submit(value2);
       if (!took) display(true);
@@ -9801,6 +9801,7 @@ import {
   TokenField,
   TokenInput,
   useFilter,
+  useLocale,
   Virtualizer
 } from "react-aria-components";
 
@@ -9917,8 +9918,16 @@ function Magnifier() {
 // srcts/inputs/inputs.tsx
 import { useState as useState4 } from "react";
 import { jsx as jsx6, jsxs as jsxs3 } from "react/jsx-runtime";
-function missing(value2) {
-  return `${value2} (not available)`;
+function NotAvailable({
+  values: values2,
+  onRemove
+}) {
+  if (values2.length === 0) return null;
+  const named3 = values2.join(", ");
+  return /* @__PURE__ */ jsxs3("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-2", children: [
+    /* @__PURE__ */ jsx6("p", { role: "alert", className: styles.alert, children: `Not available: ${named3}` }),
+    onRemove === void 0 ? null : /* @__PURE__ */ jsx6(Button2, { variant: "quiet", "aria-label": `Remove ${named3}`, onPress: onRemove, children: "Remove" })
+  ] });
 }
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx6("p", { role: "alert", className: styles.alert, children: error });
@@ -9992,6 +10001,9 @@ function merged(now, before, picks) {
 function lacking(values2, known2) {
   return known2 === null ? [] : values2.filter((value2) => !known2.includes(value2));
 }
+function held3(values2, known2) {
+  return known2 === null ? [...values2] : values2.filter((value2) => known2.includes(value2));
+}
 
 // srcts/inputs/checkbox.tsx
 import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs4 } from "react/jsx-runtime";
@@ -10014,21 +10026,14 @@ function BoundCheckbox({ bound, onChange, ...props }) {
     /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
   ] });
 }
-function DrawnCheckbox({ children, description, errorMessage: errorMessage2, gone = false, className, ...props }) {
+function DrawnCheckbox({ children, description, errorMessage: errorMessage2, className, ...props }) {
   const ref = useRef4(null);
   useItem(props.value, ref);
   return /* @__PURE__ */ jsxs4(CheckboxField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
-    /* @__PURE__ */ jsx7(
-      CheckboxButton,
-      {
-        "data-missing": gone || void 0,
-        className: composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`),
-        children: composeRenderProps(children, (children2, { isSelected, isIndeterminate }) => /* @__PURE__ */ jsxs4(Fragment2, { children: [
-          /* @__PURE__ */ jsx7("span", { className: BOX, children: isIndeterminate ? /* @__PURE__ */ jsx7(Dash, {}) : isSelected ? /* @__PURE__ */ jsx7(Tick, { size: 12 }) : null }),
-          children2
-        ] }))
-      }
-    ),
+    /* @__PURE__ */ jsx7(CheckboxButton, { className: composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`), children: composeRenderProps(children, (children2, { isSelected, isIndeterminate }) => /* @__PURE__ */ jsxs4(Fragment2, { children: [
+      /* @__PURE__ */ jsx7("span", { className: BOX, children: isIndeterminate ? /* @__PURE__ */ jsx7(Dash, {}) : isSelected ? /* @__PURE__ */ jsx7(Tick, { size: 12 }) : null }),
+      children2
+    ] })) }),
     /* @__PURE__ */ jsx7(Text, { slot: "description", className: `${styles.hint} bc:ml-6 bc:empty:hidden`, children: description }),
     /* @__PURE__ */ jsx7(FieldError, { className: `${styles.alert} bc:ml-6`, children: errorMessage2 })
   ] });
@@ -10045,27 +10050,33 @@ function BoundGroup({
   ...props
 }) {
   const { known: known2, items } = useItems();
-  const held3 = strings(bound.value);
-  const gone = lacking(held3, known2);
+  const shown2 = strings(bound.value);
+  const gone = lacking(shown2, known2);
   const marking = !outdated && gone.length > 0;
   return /* @__PURE__ */ jsxs4(Fragment2, { children: [
-    /* @__PURE__ */ jsxs4(
+    /* @__PURE__ */ jsx7(
       DrawnGroup,
       {
         ...props,
-        value: [...held3],
+        value: [...shown2],
         isInvalid: props.isInvalid === true || marking,
         onChange: (picks) => {
-          const value2 = merged(strings(bound.get()), held3, picks);
+          const value2 = merged(strings(bound.get()), shown2, picks);
           if (value2 !== null) void bound.commit(ordered && known2 !== null ? inOrder(value2, known2) : value2);
           onChange?.(picks);
         },
-        children: [
-          /* @__PURE__ */ jsx7(ItemsContext.Provider, { value: null, children: gone.map((value2) => /* @__PURE__ */ jsx7(DrawnCheckbox, { value: value2, gone: !outdated, children: outdated ? value2 : missing(value2) }, value2)) }),
-          /* @__PURE__ */ jsx7(ItemsContext.Provider, { value: items, children })
-        ]
+        children: /* @__PURE__ */ jsx7(ItemsContext.Provider, { value: items, children })
       }
     ),
+    marking ? /* @__PURE__ */ jsx7(
+      NotAvailable,
+      {
+        values: gone,
+        onRemove: () => {
+          void bound.commit(held3(strings(bound.get()), known2));
+        }
+      }
+    ) : null,
     /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
   ] });
 }
@@ -10077,7 +10088,7 @@ function DrawnGroup({ label, description, errorMessage: errorMessage2, children,
     /* @__PURE__ */ jsx7(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
-var CHECK = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:data-missing:text-text-danger";
+var CHECK = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";
 
 // srcts/inputs/combobox.tsx
@@ -10118,7 +10129,7 @@ function BoundSeveral({
   ...props
 }) {
   const items = props.items ?? props.defaultItems;
-  const held3 = strings(bound.value);
+  const held4 = strings(bound.value);
   const [picks, setPicks] = useState6(null);
   const pending = useRef5(null);
   const submit = (next, opened) => {
@@ -10134,10 +10145,10 @@ function BoundSeveral({
         selectionMode: "multiple",
         outdated,
         marking: !outdated && known(props),
-        value: picks ?? held3,
+        value: picks ?? held4,
         onOpenChange: (isOpen, trigger) => {
           if (isOpen) {
-            pending.current ??= { picks: held3, opened: held3 };
+            pending.current ??= { picks: held4, opened: held4 };
             setPicks(pending.current.picks);
           } else {
             const left2 = pending.current;
@@ -10151,7 +10162,7 @@ function BoundSeveral({
           if (!Array.isArray(keys)) return;
           const next = keys.map(String);
           if (pending.current === null) {
-            submit(next, held3);
+            submit(next, held4);
             return;
           }
           pending.current = { ...pending.current, picks: next };
@@ -10218,6 +10229,7 @@ function Drawn({
         ),
         /* @__PURE__ */ jsx8(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx8(FieldError, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx8(Lacking, { multiple, marking }),
         /* @__PURE__ */ jsx8(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx8(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx8(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx8("p", { className: NOTE, children: empty2 }), className: LISTBOX, children }) }) })
       ]
     }
@@ -10245,15 +10257,9 @@ function Field({
   onClear,
   label
 }) {
-  const state2 = useContext2(ComboBoxStateContext);
-  const value2 = state2?.value ?? null;
-  const keys = multiple && Array.isArray(value2) ? value2 : [];
-  const one2 = !multiple && value2 !== null && !Array.isArray(value2) ? value2 : null;
-  const item = state2?.selectedItems[0] ?? null;
-  const lackedOne = one2 !== null && item === null;
-  const known2 = new Map((state2?.selectedItems ?? []).map((item2) => [item2.key, item2.textValue]));
-  const lacked = keys.some((key2) => !known2.has(key2));
-  const invalid = marking && (lackedOne || lacked);
+  const { state: state2, keys, one: one2, known: known2, lacked } = usePicks(multiple);
+  const item = one2 === null ? void 0 : known2.get(one2);
+  const invalid = marking && lacked.length > 0;
   const remove2 = (gone) => {
     state2?.setValue(keys.filter((key2) => !gone.has(key2)));
   };
@@ -10267,16 +10273,16 @@ function Field({
         // React Aria's TagGroup keeps a tab stop on its list even where
         // every tag is disabled, so a disabled select draws its chips as
         // a plain list.
-        /* @__PURE__ */ jsx8("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key: key2, text, gone }) => /* @__PURE__ */ jsx8("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx8("span", { className: "bc:truncate", children: gone ? missing(text) : text }) }, key2)) })
+        /* @__PURE__ */ jsx8("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key: key2, text, gone }) => /* @__PURE__ */ jsx8("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx8("span", { className: "bc:truncate", children: text }) }, key2)) })
       ) : /* @__PURE__ */ jsx8(TagGroup, { "aria-label": picks, onRemove: editable2 ? remove2 : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx8(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key: key2, text, gone }) => /* @__PURE__ */ jsxs5(Tag, { id: key2, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-        /* @__PURE__ */ jsx8("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+        /* @__PURE__ */ jsx8("span", { className: "bc:truncate", children: text }),
         editable2 ? /* @__PURE__ */ jsx8(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx8(Cross, {}) }) : null
       ] }, key2)) }) }),
       /* @__PURE__ */ jsx8(
         Input,
         {
-          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item?.textValue ?? "",
-          placeholder: lackedOne ? marking ? missing(String(one2)) : String(one2) : keys.length > 0 ? void 0 : placeholder,
+          value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item ?? (one2 === null ? "" : String(one2)),
+          placeholder: one2 !== null && item === void 0 ? String(one2) : keys.length > 0 ? void 0 : placeholder,
           "aria-invalid": invalid || void 0,
           className: INPUT,
           onClick: () => {
@@ -10313,6 +10319,19 @@ function Field({
     ) : null,
     /* @__PURE__ */ jsx8(Button, { className: OPENER, children: /* @__PURE__ */ jsx8(Chevron, {}) })
   ] });
+}
+function usePicks(multiple) {
+  const state2 = useContext2(ComboBoxStateContext);
+  const value2 = state2?.value ?? null;
+  const keys = multiple && Array.isArray(value2) ? value2 : [];
+  const one2 = !multiple && value2 !== null && !Array.isArray(value2) ? value2 : null;
+  const known2 = new Map((state2?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
+  const lacked = (one2 === null ? keys : [one2]).filter((key2) => !known2.has(key2));
+  return { state: state2, keys, one: one2, known: known2, lacked };
+}
+function Lacking({ multiple, marking }) {
+  const { lacked } = usePicks(multiple);
+  return marking ? /* @__PURE__ */ jsx8(NotAvailable, { values: lacked.map(String) }) : null;
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
@@ -10374,14 +10393,14 @@ function BoundNumber({
   validationBehavior = "aria",
   ...props
 }) {
-  const held3 = typeof bound.value === "number" ? bound.value : NaN;
+  const held4 = typeof bound.value === "number" ? bound.value : NaN;
   const [kept, setKept] = useState7(null);
   const [typed, setTyped] = useState7(NaN);
   const [keystrokes, setKeystrokes] = useState7(0);
-  const [seen, setSeen] = useState7(held3);
-  if (!Object.is(seen, held3)) {
-    setSeen(held3);
-    if (kept !== null && (!kept.typing || !Object.is(held3, typed))) setKept(null);
+  const [seen, setSeen] = useState7(held4);
+  if (!Object.is(seen, held4)) {
+    setSeen(held4);
+    if (kept !== null && (!kept.typing || !Object.is(held4, typed))) setKept(null);
   }
   const fits2 = (value2) => inRange(value2, props.minValue, props.maxValue, props.step);
   return /* @__PURE__ */ jsxs6(Fragment4, { children: [
@@ -10391,9 +10410,9 @@ function BoundNumber({
         ...props,
         commitBehavior,
         validationBehavior,
-        value: kept?.value ?? held3,
+        value: kept?.value ?? held4,
         onInput: (event) => {
-          setKept((now) => now?.typing === true ? now : { value: now?.value ?? held3, typing: true });
+          setKept((now) => now?.typing === true ? now : { value: now?.value ?? held4, typing: true });
           setKeystrokes((n) => n + 1);
           onInput?.(event);
         },
@@ -10405,7 +10424,7 @@ function BoundNumber({
           } else if (kept?.typing === true) {
             bound.type(value2);
             bound.flush();
-            setKept(Object.is(value2, held3) ? null : { value: value2, typing: false });
+            setKept(Object.is(value2, held4) ? null : { value: value2, typing: false });
           } else {
             setKept({ value: value2, typing: false });
             void bound.commit(value2).then((took) => {
@@ -10545,7 +10564,7 @@ var FIELD3 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:j
 var INPUT3 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:[&::-webkit-search-cancel-button]:hidden";
 
 // srcts/inputs/select.tsx
-import { useContext as useContext4, useLayoutEffect as useLayoutEffect4, useRef as useRef8, useState as useState8 } from "react";
+import { useContext as useContext4, useLayoutEffect as useLayoutEffect4, useMemo as useMemo3, useRef as useRef8, useState as useState8 } from "react";
 import { Fragment as Fragment7, jsx as jsx15, jsxs as jsxs9 } from "react/jsx-runtime";
 function Select2(props) {
   const { bound, outdated = false, ordered = false, ...rest } = props;
@@ -10554,11 +10573,6 @@ function Select2(props) {
 }
 function SelectItem(props) {
   return /* @__PURE__ */ jsx15(ComboBoxItem, { ...props });
-}
-var GONE = "\0gone\0";
-function valueOf(key2) {
-  const id2 = String(key2);
-  return id2.startsWith(GONE) ? id2.slice(GONE.length) : id2;
 }
 function BoundSelect({
   bound,
@@ -10569,16 +10583,15 @@ function BoundSelect({
   ...props
 }) {
   const several = props.selectionMode === "multiple";
-  const held3 = several ? strings(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
+  const values2 = several ? strings(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
   const [known2, setKnown] = useState8(null);
   const unknown2 = props.items === void 0 && typeof props.children === "function";
   const ids3 = unknown2 ? null : known2;
   const [picks, setPicks] = useState8(null);
   const pending = useRef8(null);
-  const shown2 = picks ?? held3;
-  const lacked = ids3 === null ? held3 : held3.filter((value2) => !ids3.includes(value2));
-  const marking = !outdated && ids3 !== null && lacked.length > 0;
-  const keyOf = (value2) => lacked.includes(value2) ? `${GONE}${value2}` : value2;
+  const shown2 = picks ?? values2;
+  const asIs = ids3 === null ? values2 : values2.filter((value2) => !ids3.includes(value2));
+  const marking = !outdated && ids3 !== null && asIs.length > 0;
   const submit = (next, opened) => {
     const value2 = merged(strings(bound.get()), opened, next);
     if (value2 === null) return;
@@ -10587,11 +10600,20 @@ function BoundSelect({
   const common = {
     ...props,
     isInvalid: props.isInvalid === true || marking,
-    gone: lacked.map((value2) => ({ key: `${GONE}${value2}`, text: marking ? missing(value2) : value2, marked: marking })),
+    asIs,
     onKnown: (next) => {
       setKnown((last) => last !== null && sameIds2(last, next) ? last : next);
     }
   };
+  const line = marking ? /* @__PURE__ */ jsx15(
+    NotAvailable,
+    {
+      values: asIs,
+      onRemove: several ? () => {
+        void bound.commit(held3(strings(bound.get()), ids3));
+      } : void 0
+    }
+  ) : null;
   if (!several) {
     return /* @__PURE__ */ jsxs9(Fragment7, { children: [
       /* @__PURE__ */ jsx15(
@@ -10599,14 +10621,15 @@ function BoundSelect({
         {
           ...common,
           selectionMode: "single",
-          value: held3[0] === void 0 ? null : keyOf(held3[0]),
+          value: values2[0] ?? null,
           onChange: (key2) => {
-            if (key2 !== null && !Array.isArray(key2)) void bound.commit(valueOf(key2));
+            if (key2 !== null && !Array.isArray(key2)) void bound.commit(String(key2));
             onChange?.(key2);
           },
           onOpenChange
         }
       ),
+      line,
       /* @__PURE__ */ jsx15(Refusal, { error: bound.error })
     ] });
   }
@@ -10616,10 +10639,10 @@ function BoundSelect({
       {
         ...common,
         selectionMode: "multiple",
-        value: shown2.map(keyOf),
+        value: [...shown2],
         onOpenChange: (isOpen) => {
           if (isOpen) {
-            pending.current ??= { picks: held3, opened: held3 };
+            pending.current ??= { picks: values2, opened: values2 };
             setPicks(pending.current.picks);
           } else {
             const left2 = pending.current;
@@ -10631,9 +10654,9 @@ function BoundSelect({
         },
         onChange: (keys) => {
           if (Array.isArray(keys)) {
-            const next = keys.map(valueOf);
+            const next = keys.map(String);
             if (pending.current === null) {
-              submit(next, held3);
+              submit(next, values2);
             } else {
               pending.current = { ...pending.current, picks: next };
               setPicks(next);
@@ -10643,14 +10666,17 @@ function BoundSelect({
         }
       }
     ),
+    line,
     /* @__PURE__ */ jsx15(Refusal, { error: bound.error })
   ] });
 }
 function sameIds2(a, b) {
   return a.length === b.length && a.every((id2, i) => id2 === b[i]);
 }
-function Drawn4({ label, description, errorMessage: errorMessage2, items, children, gone = [], onKnown, className, ...props }) {
+function Drawn4({ label, description, errorMessage: errorMessage2, items, children, asIs = [], onKnown, className, ...props }) {
   const value2 = useSameValue(props.value);
+  const { locale } = useLocale();
+  const list = useMemo3(() => new Intl.ListFormat(locale), [locale]);
   return /* @__PURE__ */ jsxs9(
     Select,
     {
@@ -10660,15 +10686,12 @@ function Drawn4({ label, description, errorMessage: errorMessage2, items, childr
       children: [
         label === void 0 ? null : /* @__PURE__ */ jsx15(Label, { className: styles.label, children: label }),
         /* @__PURE__ */ jsxs9(Button, { className: TRIGGER, children: [
-          /* @__PURE__ */ jsx15(SelectValue, { className: VALUE, children: ({ selectedText, defaultChildren, isPlaceholder }) => isPlaceholder ? defaultChildren : selectedText || defaultChildren }),
+          /* @__PURE__ */ jsx15(SelectValue, { className: ({ isPlaceholder }) => isPlaceholder && asIs.length === 0 ? `${VALUE} ${PLACEHOLDER}` : VALUE, children: ({ state: state2, selectedText, defaultChildren, isPlaceholder }) => asIs.length > 0 ? list.format([...state2.selectedItems.map((item) => item.textValue), ...asIs]) : isPlaceholder ? defaultChildren : selectedText || defaultChildren }),
           /* @__PURE__ */ jsx15(Chevron, {})
         ] }),
         /* @__PURE__ */ jsx15(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx15(FieldError, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx15(Popover, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsxs9(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx15("p", { className: NOTE2, children: "No options" }), className: LISTBOX2, children: [
-          gone.map(({ key: key2, text, marked }) => /* @__PURE__ */ jsx15(SelectItem, { id: key2, textValue: text, "data-missing": marked || void 0, children: text }, key2)),
-          items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx15(Collection, { items, children })
-        ] }) }),
+        /* @__PURE__ */ jsx15(Popover, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx15(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx15("p", { className: NOTE2, children: "No options" }), className: LISTBOX2, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx15(Collection, { items, children }) }) }),
         onKnown === void 0 ? null : /* @__PURE__ */ jsx15(Known, { onKnown })
       ]
     }
@@ -10680,16 +10703,17 @@ function Known({ onKnown }) {
     if (state2 === null) return;
     const { collection: collection3 } = state2;
     const ids3 = [...collection3.getKeys()].flatMap(
-      (key2) => collection3.getItem(key2)?.type === "item" && !String(key2).startsWith(GONE) ? [String(key2)] : []
+      (key2) => collection3.getItem(key2)?.type === "item" ? [String(key2)] : []
     );
     onKnown(ids3);
   });
   return null;
 }
 var TRIGGER = "bc:flex bc:min-h-[30px] bc:w-full bc:min-w-0 bc:cursor-pointer bc:items-center bc:gap-2 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-1 bc:pr-1.5 bc:pl-2 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
-var VALUE = "bc:min-w-0 bc:flex-1 bc:truncate bc:data-placeholder:text-text-muted bc:group-data-invalid:text-text-danger";
+var VALUE = "bc:min-w-0 bc:flex-1 bc:truncate bc:group-data-invalid:text-text-danger";
+var PLACEHOLDER = "bc:text-text-muted";
 var LIST2 = "bc:box-border bc:min-w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
-var LISTBOX2 = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none bc:[&_[data-missing]]:text-text-danger";
+var LISTBOX2 = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none";
 var NOTE2 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/slider.tsx
@@ -10769,7 +10793,7 @@ function ToggleButton2({ bound, onChange, ...props }) {
   ] });
 }
 var InGroup = createContext3(false);
-function DrawnButton({ gone = false, className, ...props }) {
+function DrawnButton({ className, ...props }) {
   const ref = useRef10(null);
   const inGroup = useContext7(InGroup);
   useItem(props.id === void 0 ? void 0 : String(props.id), ref);
@@ -10778,7 +10802,6 @@ function DrawnButton({ gone = false, className, ...props }) {
     {
       ...props,
       ref,
-      "data-missing": gone || void 0,
       className: composeRenderProps(className, (given) => `${TOGGLE} ${inGroup ? "" : ALONE} ${given ?? ""}`)
     }
   );
@@ -10796,19 +10819,20 @@ function BoundGroup2({
 }) {
   const { known: known2, items } = useItems();
   const several = props.selectionMode === "multiple";
-  const held3 = several ? strings(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
-  const gone = lacking(held3, known2);
+  const shown2 = several ? strings(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
+  const gone = lacking(shown2, known2);
+  const marking = !outdated && gone.length > 0;
   return /* @__PURE__ */ jsxs14(Fragment12, { children: [
-    /* @__PURE__ */ jsxs14(
+    /* @__PURE__ */ jsx20(
       DrawnGroup2,
       {
         ...props,
-        selectedKeys: held3,
-        invalid: !outdated && gone.length > 0,
+        selectedKeys: shown2,
+        invalid: marking,
         onSelectionChange: (keys) => {
           const picks = [...keys].map(String);
           if (several) {
-            const value2 = merged(strings(bound.get()), held3, picks);
+            const value2 = merged(strings(bound.get()), shown2, picks);
             if (value2 !== null) void bound.commit(ordered && known2 !== null ? inOrder(value2, known2) : value2);
           } else {
             const [pick2] = picks;
@@ -10816,12 +10840,18 @@ function BoundGroup2({
           }
           onSelectionChange?.(keys);
         },
-        children: [
-          /* @__PURE__ */ jsx20(ItemsContext.Provider, { value: null, children: gone.map((value2) => /* @__PURE__ */ jsx20(DrawnButton, { id: value2, gone: !outdated, children: outdated ? value2 : missing(value2) }, value2)) }),
-          /* @__PURE__ */ jsx20(ItemsContext.Provider, { value: items, children })
-        ]
+        children: /* @__PURE__ */ jsx20(ItemsContext.Provider, { value: items, children })
       }
     ),
+    marking ? /* @__PURE__ */ jsx20(
+      NotAvailable,
+      {
+        values: gone,
+        onRemove: several ? () => {
+          void bound.commit(held3(strings(bound.get()), known2));
+        } : void 0
+      }
+    ) : null,
     /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
@@ -10848,7 +10878,7 @@ function DrawnGroup2({ label, description, invalid = false, children, className,
   ] });
 }
 var GROUP = "bc:flex bc:w-fit bc:max-w-full bc:flex-wrap bc:gap-0.5 bc:rounded-md bc:border bc:border-border-default bc:p-0.5 bc:font-sans bc:data-[orientation=vertical]:flex-col bc:data-invalid:border-border-danger";
-var TOGGLE = "bc:inline-flex bc:min-h-6 bc:cursor-pointer bc:items-center bc:justify-center bc:gap-1 bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-selected:bg-bg-accent bc:data-selected:text-text-on-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:data-missing:text-text-danger bc:data-selected:data-missing:bg-border-danger bc:data-selected:data-missing:text-text-on-accent";
+var TOGGLE = "bc:inline-flex bc:min-h-6 bc:cursor-pointer bc:items-center bc:justify-center bc:gap-1 bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-selected:bg-bg-accent bc:data-selected:text-text-on-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var ALONE = "bc:rounded-md bc:border bc:border-solid bc:border-border-default bc:data-selected:border-border-accent";
 
 // srcts/inputs/tokenfield.tsx
@@ -10911,7 +10941,7 @@ var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc
 import { jsx as jsx25, jsxs as jsxs17 } from "react/jsx-runtime";
 
 // srcts/ui/edits.ts
-import { useMemo as useMemo3, useState as useState10 } from "react";
+import { useMemo as useMemo4, useState as useState10 } from "react";
 function runCommand(core, target2, args) {
   const running2 = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
   return running2.then(
@@ -10921,7 +10951,7 @@ function runCommand(core, target2, args) {
 }
 function useEdits(core, shows = true) {
   const [refusal2, setRefusal] = useState10(null);
-  return useMemo3(() => {
+  return useMemo4(() => {
     const opts = { notifier: () => void 0 };
     function run(title, target2, args) {
       if (!shows) return typeof target2 === "string" ? runCommand(core, target2, args) : runCommand(core, target2);
@@ -11143,11 +11173,11 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
   const [name2, setName] = useState14("");
   const [errors, setErrors] = useState14({});
   const [busy, setBusy] = useState14(false);
-  const entries2 = useMemo4(
+  const entries2 = useMemo5(
     () => Object.values(registry).filter((entry2) => mode.kind !== "after" || entry2.inputs.length > 0),
     [registry, mode.kind]
   );
-  const options = useMemo4(() => entries2.map(classItem).sort(byGroupAndName), [entries2]);
+  const options = useMemo5(() => entries2.map(classItem).sort(byGroupAndName), [entries2]);
   const search = useSearch(
     options,
     (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
@@ -12220,9 +12250,9 @@ function BasicBoard({ front }) {
 function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
-  const items = useMemo5(() => layoutItems(board), [board]);
+  const items = useMemo6(() => layoutItems(board), [board]);
   const shown2 = board.options.show_conditions;
-  const severities = useMemo5(() => asSeverities(shown2), [shown2]);
+  const severities = useMemo6(() => asSeverities(shown2), [shown2]);
   const [dialog, setDialog] = useState17(null);
   const add = useCallback8((mode) => {
     setDialog({ kind: "add", mode });
@@ -12708,9 +12738,9 @@ function LinkForm({
   const edits = tableEdits ?? ownEdits;
   const others = withoutLink(board, except);
   const graph = createGraph(others);
-  const held3 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
-  const source = held3(from) ? from : void 0;
-  const target2 = held3(to) ? to : void 0;
+  const held4 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
+  const source = held4(from) ? from : void 0;
+  const target2 = held4(to) ? to : void 0;
   const upstream = source === void 0 ? /* @__PURE__ */ new Set() : graph.withUpstream([source]);
   const downstream = target2 === void 0 ? /* @__PURE__ */ new Set() : graph.withDownstream([target2]);
   const fromOptions = Object.entries(board.blocks).filter(([id2]) => !downstream.has(id2)).map(([id2]) => blockItem(board, registry, id2));
@@ -14531,12 +14561,12 @@ function fixtureR(hello, options) {
         return [reply];
       }
       case "output": {
-        const held3 = results.get(request.block);
-        if (held3?.revision !== request.revision) {
+        const held4 = results.get(request.block);
+        if (held4?.revision !== request.revision) {
           return [{ id: id2, status: "missing", missing: [{ block: request.block, revision: request.revision }] }];
         }
         const given = options.output?.(request);
-        const made = given ?? sample(held3.registry_id);
+        const made = given ?? sample(held4.registry_id);
         if (made === void 0) return [failed2(id2, "output", `The fixtures hold no output of block "${request.block}".`)];
         const reply = { id: id2, status: "ok", output: made.output, conditions: [...given?.conditions ?? []] };
         return made.body === void 0 ? [reply] : [{ ...reply, body: { type: made.body.type } }, made.body];

@@ -14,9 +14,10 @@
 // from a block's state, as the SDK's other inputs do (./inputs.tsx), by the
 // values of its radios.
 // It submits the user's pick at once.
-// It shows a value that none of its radios holds as a radio of its own,
-// before them, picked and marked as missing, and marks itself invalid, but not
-// while it is `outdated`, as the select does (./combobox.tsx).
+// Where none of its radios holds its value, it picks no radio, marks itself
+// invalid and says below itself that the value is not available, as the
+// select does (./combobox.tsx), but not while it is `outdated`.
+// The user drops the value by picking a radio.
 // It says below itself why the host refused what it submitted.
 
 import { useRef } from "react";
@@ -25,7 +26,7 @@ import { composeRenderProps, FieldError, Label, RadioButton, RadioField, RadioGr
 import type { RadioFieldProps, RadioGroupProps as AriaRadioGroupProps, ValidationResult } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
-import { missing, Refusal } from "./inputs.tsx";
+import { NotAvailable, Refusal } from "./inputs.tsx";
 import { ItemsContext, lacking, useItem, useItems } from "./items.ts";
 
 export interface RadioGroupProps extends Omit<AriaRadioGroupProps, "children"> {
@@ -55,8 +56,8 @@ function BoundGroup({
 }: DrawnGroupProps & { readonly bound: Bound; readonly outdated: boolean }): ReactElement {
   const { known, items } = useItems();
   const held = typeof bound.value === "string" ? bound.value : null;
-  const [gone] = lacking(held === null ? [] : [held], known);
-  const marking = !outdated && gone !== undefined;
+  const gone = lacking(held === null ? [] : [held], known);
+  const marking = !outdated && gone.length > 0;
   return (
     <>
       <DrawnGroup
@@ -68,17 +69,9 @@ function BoundGroup({
           onChange?.(value);
         }}
       >
-        {/* A value that the radios lack shows as a radio of its own, which
-            tells the group no value. */}
-        <ItemsContext.Provider value={null}>
-          {gone === undefined ? null : (
-            <DrawnRadio value={gone} gone={!outdated}>
-              {outdated ? gone : missing(gone)}
-            </DrawnRadio>
-          )}
-        </ItemsContext.Provider>
         <ItemsContext.Provider value={items}>{children}</ItemsContext.Provider>
       </DrawnGroup>
+      {marking ? <NotAvailable values={gone} /> : null}
       <Refusal error={bound.error} />
     </>
   );
@@ -107,21 +100,14 @@ export interface RadioProps extends Omit<RadioFieldProps, "children"> {
   readonly description?: string;
 }
 
-export function Radio(props: RadioProps): ReactElement {
-  return <DrawnRadio {...props} />;
-}
-
 // The circle and the label, and the description, of a radio that tells its
-// group its value, or that shows a value the radios lack.
-function DrawnRadio({ children, description, gone = false, className, ...props }: RadioProps & { readonly gone?: boolean }): ReactElement {
+// group its value.
+export function Radio({ children, description, className, ...props }: RadioProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   useItem(props.value, ref);
   return (
     <RadioField {...props} ref={ref} className="bc:grid bc:gap-1 bc:font-sans bc:text-text-default">
-      <RadioButton
-        data-missing={gone || undefined}
-        className={composeRenderProps(className, (given) => `bc:group ${RADIO} ${given ?? ""}`)}
-      >
+      <RadioButton className={composeRenderProps(className, (given) => `bc:group ${RADIO} ${given ?? ""}`)}>
         <span className={CIRCLE} />
         {children}
       </RadioButton>
@@ -134,9 +120,8 @@ function DrawnRadio({ children, description, gone = false, className, ...props }
 
 // The classes of the radio and of its circle, whose border thickens in the
 // accent colour where the radio is picked, and takes the colour of danger
-// where the group is invalid, as where it shows a value that the radios lack,
-// whose label takes that colour too.
+// where the group is invalid, as where it holds a value that the radios lack.
 const RADIO =
-  "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:data-missing:text-text-danger";
+  "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 const CIRCLE =
   "bc:box-border bc:size-4 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:transition-[border-width] bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-[5px] bc:group-data-selected:border-bg-accent bc:group-data-invalid:border-border-danger";

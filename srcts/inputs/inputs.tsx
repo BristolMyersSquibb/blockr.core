@@ -4,7 +4,7 @@
 // that two state args make,
 // so that each meets the contract of a block's UI as its binding does
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
-// how an input shows a value that it lacks, the line below an input that says
+// the line below an input that names the values it lacks, the line that says
 // why the host refused what it submitted, and what the user typed into a
 // field until its binding submits it.
 // Here too are the stack of a UI's inputs and the field, a label that holds
@@ -16,6 +16,7 @@
 import { useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { styles } from "../styles/index.ts";
+import { Button } from "./button.tsx";
 import type { Bound } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
 
@@ -34,10 +35,33 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-// How an input shows a value that it lacks, such as a pick that none of its
-// items holds or a number outside a slider's range.
-export function missing(value: string): string {
-  return `${value} (not available)`;
+// Says below an input which of its values it lacks, such as picks that none
+// of its items holds or a number outside a slider's range, by their ids or
+// as numbers, as "Not available: wt", since no item gives them a text.
+// The input shows such a value as it is wherever it shows its value, and
+// marks itself invalid.
+// Where no item shows such a value, as in a group of several or a Select of
+// several, the line offers a button, Remove, through which the user drops
+// them, `onRemove`.
+export function NotAvailable({
+  values,
+  onRemove,
+}: {
+  readonly values: readonly string[];
+  readonly onRemove?: () => void;
+}): ReactElement | null {
+  if (values.length === 0) return null;
+  const named = values.join(", ");
+  return (
+    <div className="bc:flex bc:flex-wrap bc:items-center bc:gap-x-2">
+      <p role="alert" className={styles.alert}>{`Not available: ${named}`}</p>
+      {onRemove === undefined ? null : (
+        <Button variant="quiet" aria-label={`Remove ${named}`} onPress={onRemove}>
+          Remove
+        </Button>
+      )}
+    </div>
+  );
 }
 
 // Says why the host refused what an input submitted.

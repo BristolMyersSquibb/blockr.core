@@ -24,17 +24,19 @@
 // once, as the list closes, built from the value that the host holds then, in
 // the order the user picked them, after those the value holds, or where
 // `ordered`, in the order of its items.
-// It shows a value that its items lack as a row of its own, before them,
-// picked and marked as missing, which the user unpicks, or picks another in
-// place of, to drop the value.
-// Its button then shows the value as missing too, and the select marks itself
-// invalid.
-// While it is `outdated`, and while it has no items yet, as `items` is
-// undefined while its children draw an item, it shows such a value as it is,
-// as the ComboBox does.
+// Its button shows a value that its items lack, such as a column that the data
+// no longer has, by its id, after the picks that the items hold.
+// The select then marks itself invalid and says below itself which values are
+// not available, as the ComboBox does, but not while it is `outdated`, or
+// while it has no items yet, as `items` is undefined while its children draw
+// an item.
+// Its list holds no row for such a value.
+// So the user drops it from a select of one by picking an item, and from a
+// select of several by the button that the line below holds, Remove, which
+// submits the value without them.
 // It says below itself why the host refused what it submitted.
 
-import { useContext, useLayoutEffect, useRef, useState } from "react";
+import { useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { strings } from "../binding/index.ts";
 import {
@@ -49,6 +51,7 @@ import {
   SelectStateContext,
   SelectValue,
   Text,
+  useLocale,
 } from "../aria/index.ts";
 import type { Key, ListBoxItemProps, SelectProps as AriaSelectProps, ValidationResult } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
@@ -56,8 +59,8 @@ import { styles } from "../styles/index.ts";
 import { ComboBoxItem, ComboBoxSection, useSameValue } from "./combobox.tsx";
 import type { ComboBoxSectionProps } from "./combobox.tsx";
 import { Chevron } from "./icons.tsx";
-import { missing, Refusal } from "./inputs.tsx";
-import { inOrder, merged } from "./items.ts";
+import { NotAvailable, Refusal } from "./inputs.tsx";
+import { held, inOrder, merged } from "./items.ts";
 
 type Mode = "single" | "multiple";
 
@@ -93,22 +96,11 @@ export function SelectSection<T extends object>(props: SelectSectionProps<T>): R
 }
 
 type DrawnProps = Omit<SelectProps<object, Mode>, "bound" | "outdated" | "ordered"> & {
-  // The rows of the values that the items lack, each by its key, before the
-  // items, and whether each shows its value as missing, and what reads the
-  // ids of the items.
-  readonly gone?: readonly { readonly key: string; readonly text: string; readonly marked: boolean }[];
+  // The values that the button shows by their ids, after the picks that the
+  // items hold, and what reads the ids of the items.
+  readonly asIs?: readonly string[];
   readonly onKnown?: (ids: readonly string[]) => void;
 };
-
-// The key of the row of a value that the items lack, which no item's id
-// takes, so that the row never stands in for an item that has the value as
-// its id once it comes.
-const GONE = "\u0000gone\u0000";
-
-function valueOf(key: Key): string {
-  const id = String(key);
-  return id.startsWith(GONE) ? id.slice(GONE.length) : id;
-}
 
 function BoundSelect({
   bound,
@@ -119,7 +111,7 @@ function BoundSelect({
   ...props
 }: DrawnProps & { readonly bound: Bound; readonly outdated: boolean; readonly ordered: boolean }): ReactElement {
   const several = props.selectionMode === "multiple";
-  const held = several ? strings(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
+  const values = several ? strings(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
   // The ids of the items, as React Aria holds them, null until it has, and
   // while the items are unknown, as while the select's children draw an item
   // with none given.
@@ -130,14 +122,11 @@ function BoundSelect({
   // which the list submits as it closes, and which events read as they come.
   const [picks, setPicks] = useState<readonly string[] | null>(null);
   const pending = useRef<{ readonly picks: readonly string[]; readonly opened: readonly string[] } | null>(null);
-  const shown = picks ?? held;
-  // The values that have a row of their own: those that the items lack, and
-  // every value until the items are known, which shows as it is.
-  // The rows stay while the list is open, whether the user unpicks them or
-  // not.
-  const lacked = ids === null ? held : held.filter((value) => !ids.includes(value));
-  const marking = !outdated && ids !== null && lacked.length > 0;
-  const keyOf = (value: string): string => (lacked.includes(value) ? `${GONE}${value}` : value);
+  const shown = picks ?? values;
+  // The values that the button shows by their ids: those that the items lack,
+  // and every value until the items are known.
+  const asIs = ids === null ? values : values.filter((value) => !ids.includes(value));
+  const marking = !outdated && ids !== null && asIs.length > 0;
 
   const submit = (next: readonly string[], opened: readonly string[]): void => {
     const value = merged(strings(bound.get()), opened, next);
@@ -148,11 +137,23 @@ function BoundSelect({
   const common = {
     ...props,
     isInvalid: props.isInvalid === true || marking,
-    gone: lacked.map((value) => ({ key: `${GONE}${value}`, text: marking ? missing(value) : value, marked: marking })),
+    asIs,
     onKnown: (next: readonly string[]) => {
       setKnown((last) => (last !== null && sameIds(last, next) ? last : next));
     },
   };
+  const line = marking ? (
+    <NotAvailable
+      values={asIs}
+      onRemove={
+        several
+          ? () => {
+              void bound.commit(held(strings(bound.get()), ids));
+            }
+          : undefined
+      }
+    />
+  ) : null;
 
   if (!several) {
     return (
@@ -160,13 +161,14 @@ function BoundSelect({
         <Drawn
           {...common}
           selectionMode="single"
-          value={held[0] === undefined ? null : keyOf(held[0])}
+          value={values[0] ?? null}
           onChange={(key) => {
-            if (key !== null && !Array.isArray(key)) void bound.commit(valueOf(key));
+            if (key !== null && !Array.isArray(key)) void bound.commit(String(key));
             onChange?.(key);
           }}
           onOpenChange={onOpenChange}
         />
+        {line}
         <Refusal error={bound.error} />
       </>
     );
@@ -176,10 +178,10 @@ function BoundSelect({
       <Drawn
         {...common}
         selectionMode="multiple"
-        value={shown.map(keyOf)}
+        value={[...shown]}
         onOpenChange={(isOpen) => {
           if (isOpen) {
-            pending.current ??= { picks: held, opened: held };
+            pending.current ??= { picks: values, opened: values };
             setPicks(pending.current.picks);
           } else {
             const left = pending.current;
@@ -191,9 +193,9 @@ function BoundSelect({
         }}
         onChange={(keys) => {
           if (Array.isArray(keys)) {
-            const next = (keys as readonly Key[]).map(valueOf);
+            const next = (keys as readonly Key[]).map(String);
             if (pending.current === null) {
-              submit(next, held);
+              submit(next, values);
             } else {
               pending.current = { ...pending.current, picks: next };
               setPicks(next);
@@ -202,6 +204,7 @@ function BoundSelect({
           onChange?.(keys);
         }}
       />
+      {line}
       <Refusal error={bound.error} />
     </>
   );
@@ -212,8 +215,10 @@ function sameIds(a: readonly string[], b: readonly string[]): boolean {
 }
 
 // The label, the button, the description, the error message and the list.
-function Drawn({ label, description, errorMessage, items, children, gone = [], onKnown, className, ...props }: DrawnProps): ReactElement {
+function Drawn({ label, description, errorMessage, items, children, asIs = [], onKnown, className, ...props }: DrawnProps): ReactElement {
   const value = useSameValue(props.value);
+  const { locale } = useLocale();
+  const list = useMemo(() => new Intl.ListFormat(locale), [locale]);
   return (
     <AriaSelect
       {...props}
@@ -222,8 +227,16 @@ function Drawn({ label, description, errorMessage, items, children, gone = [], o
     >
       {label === undefined ? null : <Label className={styles.label}>{label}</Label>}
       <Button className={TRIGGER}>
-        <SelectValue className={VALUE}>
-          {({ selectedText, defaultChildren, isPlaceholder }) => (isPlaceholder ? defaultChildren : selectedText || defaultChildren)}
+        {/* React Aria shows the picks that the items hold, and the values
+            that they lack follow by their ids. */}
+        <SelectValue className={({ isPlaceholder }) => (isPlaceholder && asIs.length === 0 ? `${VALUE} ${PLACEHOLDER}` : VALUE)}>
+          {({ state, selectedText, defaultChildren, isPlaceholder }) =>
+            asIs.length > 0
+              ? list.format([...state.selectedItems.map((item) => item.textValue), ...asIs])
+              : isPlaceholder
+                ? defaultChildren
+                : selectedText || defaultChildren
+          }
         </SelectValue>
         <Chevron />
       </Button>
@@ -235,11 +248,6 @@ function Drawn({ label, description, errorMessage, items, children, gone = [], o
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
       <Popover offset={4} className={LIST}>
         <ListBox renderEmptyState={() => <p className={NOTE}>No options</p>} className={LISTBOX}>
-          {gone.map(({ key, text, marked }) => (
-            <SelectItem key={key} id={key} textValue={text} data-missing={marked || undefined}>
-              {text}
-            </SelectItem>
-          ))}
           {items === undefined ? (typeof children === "function" ? null : children) : <Collection items={items}>{children}</Collection>}
         </ListBox>
       </Popover>
@@ -249,8 +257,7 @@ function Drawn({ label, description, errorMessage, items, children, gone = [], o
 }
 
 // Hands `onKnown` the ids of the items in the select's collection, in their
-// order, without the rows of values that the items lack, each time the select
-// has drawn.
+// order, each time the select has drawn.
 // React Aria draws the select's children a second time, hidden, as it builds
 // the collection, where no state of the select is there to read, and that
 // draw hands nothing.
@@ -260,7 +267,7 @@ function Known({ onKnown }: { onKnown: (ids: readonly string[]) => void }): null
     if (state === null) return;
     const { collection } = state;
     const ids = [...collection.getKeys()].flatMap((key) =>
-      collection.getItem(key)?.type === "item" && !String(key).startsWith(GONE) ? [String(key)] : [],
+      collection.getItem(key)?.type === "item" ? [String(key)] : [],
     );
     onKnown(ids);
   });
@@ -270,14 +277,14 @@ function Known({ onKnown }: { onKnown: (ids: readonly string[]) => void }): null
 // The classes of the button, of the pick it shows and of the list.
 // The button is a box like core's other inputs, which shows the pick and the
 // chevron, and takes the colour of danger where the select is invalid, as
-// where it shows a value that its items lack.
-// A row of such a value takes that colour too.
+// where it holds a value that its items lack.
+// The placeholder takes the muted colour.
 const TRIGGER =
   "bc:flex bc:min-h-[30px] bc:w-full bc:min-w-0 bc:cursor-pointer bc:items-center bc:gap-2 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-1 bc:pr-1.5 bc:pl-2 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
-const VALUE =
-  "bc:min-w-0 bc:flex-1 bc:truncate bc:data-placeholder:text-text-muted bc:group-data-invalid:text-text-danger";
+const VALUE = "bc:min-w-0 bc:flex-1 bc:truncate bc:group-data-invalid:text-text-danger";
+const PLACEHOLDER = "bc:text-text-muted";
 const LIST =
   "bc:box-border bc:min-w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
 const LISTBOX =
-  "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none bc:[&_[data-missing]]:text-text-danger";
+  "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-lg bc:border bc:border-border-default bc:p-1 bc:outline-none";
 const NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";

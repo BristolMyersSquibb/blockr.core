@@ -11,3 +11,4 @@ export declare function useItem(value: string | undefined, ref: RefObject<Elemen
 export declare function inOrder(values: readonly string[], order: readonly string[]): string[];
 export declare function merged(now: readonly string[], before: readonly string[], picks: readonly string[]): string[] | null;
 export declare function lacking(values: readonly string[], known: readonly string[] | null): string[];
+export declare function held(values: readonly string[], known: readonly string[] | null): string[];

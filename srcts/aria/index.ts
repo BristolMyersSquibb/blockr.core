@@ -69,6 +69,7 @@ export {
   TokenField,
   TokenInput,
   useFilter,
+  useLocale,
   Virtualizer,
 } from "react-aria-components";
 export type {

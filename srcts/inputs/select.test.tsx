@@ -13,7 +13,7 @@ import { stubBlockHost } from "../stubs/index.ts";
 import type { StubBlockHost } from "../stubs/index.ts";
 import { press, texts } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
-import { listed, listFromField, optionFromLabel, optionLabels, picked, pickedLabels, selectButton, selectShows } from "../testing/select.ts";
+import { listed, notAvailable, optionFromLabel, picked, pickedLabels, selectButton, selectShows } from "../testing/select.ts";
 import type { BlockHost } from "../types/hosts.ts";
 import { Select, SelectItem, SelectSection, Text } from "./index.ts";
 
@@ -203,7 +203,7 @@ describe("a bound select", () => {
     expect(stub.submitted).toEqual([{ fruits: ["apple", "cherry"] }]);
   });
 
-  test("shows a value that its items lack as a picked row of its own, before them, and on its button, as missing, and marks itself invalid, but not while outdated", async () => {
+  test("shows a value that its items lack by its id on its button, after the picks that the items hold, marks itself invalid and says below itself that it is not available, but not while outdated", async () => {
     const state: Basket = { fruit: "durian", fruits: ["apple", "durian"] };
     const shown = async (outdated: boolean) => {
       const { el, unmount } = await draw(<Bound host={host(state)} outdated={outdated} />);
@@ -213,31 +213,29 @@ describe("a bound select", () => {
         invalid: [one, several].map((button) => button.closest("[data-invalid]") !== null),
         one: await listed(one, step),
         several: await listed(several, step),
+        lines: notAvailable(el),
+        // The button that drops the values that a select of several lacks.
+        removes: [...el.querySelectorAll("button")].flatMap((button) => (button.textContent === "Remove" ? [button.getAttribute("aria-label")] : [])),
       };
-      await step(() => {
-        several.click();
-      });
-      const marked = [pickedLabels(several), [...(listFromField(several)?.querySelectorAll("[data-missing]") ?? [])].map((row) => row.textContent.trim())];
-      await step(() => {
-        press(several.ownerDocument.activeElement as HTMLElement, "Escape");
-      });
       await unmount();
-      return { ...seen, marked };
+      return seen;
     };
 
     expect(await shown(false)).toEqual({
-      shows: ["durian (not available)", "Apple and durian (not available)"],
+      shows: ["durian", "Apple and durian"],
       invalid: [true, true],
-      one: ["durian (not available)", "Apple", "Banana", "Cherry"],
-      several: ["durian (not available)", "Apple", "Banana", "Cherry"],
-      marked: [["durian (not available)", "Apple"], ["durian (not available)"]],
+      one: ["Apple", "Banana", "Cherry"],
+      several: ["Apple", "Banana", "Cherry"],
+      lines: ["Not available: durian", "Not available: durian"],
+      removes: ["Remove durian"],
     });
     expect(await shown(true)).toEqual({
       shows: ["durian", "Apple and durian"],
       invalid: [false, false],
-      one: ["durian", "Apple", "Banana", "Cherry"],
-      several: ["durian", "Apple", "Banana", "Cherry"],
-      marked: [["durian", "Apple"], []],
+      one: ["Apple", "Banana", "Cherry"],
+      several: ["Apple", "Banana", "Cherry"],
+      lines: [],
+      removes: [],
     });
   });
 
@@ -248,27 +246,27 @@ describe("a bound select", () => {
     expect([selectShows(one), one.closest("[data-invalid]")]).toEqual(["durian", null]);
   });
 
-  test("drops a value that its items lack as the user unpicks its row, or picks another in place of it", async () => {
+  test("drops a value that its items lack as the user picks an item of a select of one, or presses Remove below a select of several", async () => {
     const stub = host({ fruit: "durian", fruits: ["apple", "durian"] }, { fruit: "banana", fruits: ["apple", "durian"] }, { fruit: "banana", fruits: ["apple"] });
     const { el } = await draw(<Bound host={stub} />);
     const [one, several] = [selectButton(el, "Fruit"), selectButton(el, "Fruits")];
 
     await picked(one, step, "Banana");
-    await picked(several, step, "durian (not available)");
+    await act(async () => {
+      [...el.querySelectorAll("button")].find((button) => button.getAttribute("aria-label") === "Remove durian")?.click();
+      await Promise.resolve();
+    });
 
     expect(stub.submitted).toEqual([
       { fruit: "banana", fruits: ["apple", "durian"] },
       { fruit: "banana", fruits: ["apple"] },
     ]);
-    expect([selectShows(one), selectShows(several), one.closest("[data-invalid]"), several.closest("[data-invalid]")]).toEqual([
+    expect([selectShows(one), selectShows(several), one.closest("[data-invalid]"), several.closest("[data-invalid]"), notAvailable(el)]).toEqual([
       "Banana",
       "Apple",
       null,
       null,
+      [],
     ]);
-    await step(() => {
-      several.click();
-    });
-    expect(optionLabels(several)).toEqual(["Apple", "Banana", "Cherry"]);
   });
 });

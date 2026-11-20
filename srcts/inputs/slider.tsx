@@ -20,13 +20,17 @@
 // It submits only a number that the user gave it, so never one that it
 // pulled into its range or onto its step, as where the user lets go of a
 // thumb without moving it.
+// So where the user moves one thumb of several, it submits the numbers of the
+// others as the value holds them.
 // React Aria draws a thumb only within the range, and on the step, so a
 // thumb of a number outside them sits at the end, or on the step, nearest to
 // it.
-// The slider then shows the number at the right of the label as missing, as
-// the select shows a value that its items lack (./combobox.tsx), and marks
-// itself invalid, but not while it is `outdated`, as while the request that
-// gives its maxValue asks again.
+// The slider then shows the number at the right of the label as it is, marks
+// itself invalid, and says below itself that the number is not available, as
+// the select says of a value that its items lack (./combobox.tsx), but not
+// while it is `outdated`, as while the request that gives its maxValue asks
+// again.
+// The user drops such a number by moving its thumb.
 // It says below itself why the host refused what it submitted.
 
 import { useContext, useLayoutEffect, useRef, useState } from "react";
@@ -40,13 +44,14 @@ import {
   SliderStateContext,
   SliderThumb,
   SliderTrack,
+  useLocale,
 } from "../aria/index.ts";
 import type { SliderProps as AriaSliderProps } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { Json } from "../types/json.ts";
 import { jsonEqual } from "../util/index.ts";
-import { missing, Refusal } from "./inputs.tsx";
+import { NotAvailable, Refusal } from "./inputs.tsx";
 import { inRange } from "./numberfield.tsx";
 
 type Value = number | number[];
@@ -70,8 +75,9 @@ export function Slider<T extends Value = Value>({ bound, outdated = false, ...pr
 }
 
 type DrawnProps = Omit<SliderProps, "bound" | "outdated"> & {
-  // What the output says in place of React Aria's numbers, as of a number
-  // that the slider lacks, and whether it marks the slider invalid.
+  // What the output says in place of React Aria's numbers, as where the
+  // slider holds a number that it lacks, and whether it marks the slider
+  // invalid.
   readonly said?: (format: (value: number) => string) => string;
   readonly invalid?: boolean;
   // What reads the numbers that React Aria shows, inside the slider.
@@ -102,21 +108,23 @@ function BoundSlider({
 
   const min = props.minValue ?? 0;
   const fits = (value: number): boolean => inRange(value, min, props.maxValue ?? 100, props.step ?? 1);
-  const lacked = moving === null && held.some((value) => !fits(value));
+  const lacked = moving === null ? held.filter((value) => !fits(value)) : [];
+  const marking = !outdated && lacked.length > 0;
   const drawn = moving ?? (held.length > 0 ? held : [min]);
   const value = several ? [...drawn] : (drawn[0] ?? min);
+  const { locale } = useLocale();
 
   return (
     <>
       <Drawn
         {...props}
         value={value}
-        invalid={lacked && !outdated}
+        invalid={marking}
         said={
           moving === null && held.length === 0
             ? () => ""
-            : lacked
-              ? (format) => held.map((x) => (fits(x) || outdated ? format(x) : missing(format(x)))).join(held.length === 2 ? "–" : ", ")
+            : lacked.length > 0
+              ? (formatted) => held.map(formatted).join(held.length === 2 ? "–" : ", ")
               : undefined
         }
         onChange={(next) => {
@@ -131,8 +139,11 @@ function BoundSlider({
           if (jsonEqual(ended, began)) {
             setMoving(null);
           } else {
+            // A thumb that the user did not move keeps the number that the
+            // value holds, as one that the slider pulled in.
+            const given = ended.map((x, i) => (Object.is(x, began[i]) ? (held[i] ?? x) : x));
             setMoving(ended);
-            void bound.commit(several ? ended : (ended[0] ?? min)).then((took) => {
+            void bound.commit(several ? given : (given[0] ?? min)).then((took) => {
               if (!took) setMoving(null);
             });
           }
@@ -146,6 +157,7 @@ function BoundSlider({
           />
         }
       />
+      {marking ? <NotAvailable values={lacked.map((x) => new Intl.NumberFormat(locale, props.formatOptions).format(x))} /> : null}
       <Refusal error={bound.error} />
     </>
   );

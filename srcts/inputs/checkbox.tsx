@@ -22,10 +22,10 @@
 // A group submits its picks in the order the user picked them, after those
 // the value holds, or where `ordered`, in the order of its checkboxes, as for
 // severities.
-// A group shows a value that none of its checkboxes holds as a checkbox of its
-// own, before them, checked and marked as missing, which the user clears to
-// drop the value, and marks itself invalid, but not while it is `outdated`,
-// as the select does (./combobox.tsx).
+// A group draws no checkbox for a value that none of its checkboxes holds.
+// It marks itself invalid and says below itself which values are not
+// available, as the select does (./combobox.tsx), beside a button, Remove,
+// which submits the value without them, but not while it is `outdated`.
 // Each says below itself why the host refused what it submitted.
 
 import { useRef } from "react";
@@ -44,8 +44,8 @@ import type { CheckboxFieldProps, CheckboxGroupProps as AriaCheckboxGroupProps, 
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import { Dash, Tick } from "./icons.tsx";
-import { missing, Refusal } from "./inputs.tsx";
-import { inOrder, ItemsContext, lacking, merged, useItem, useItems } from "./items.ts";
+import { NotAvailable, Refusal } from "./inputs.tsx";
+import { held, inOrder, ItemsContext, lacking, merged, useItem, useItems } from "./items.ts";
 
 export interface CheckboxProps extends Omit<CheckboxFieldProps, "children"> {
   // Its label.
@@ -61,10 +61,7 @@ export function Checkbox({ bound, ...props }: CheckboxProps): ReactElement {
   return bound === undefined ? <DrawnCheckbox {...props} /> : <BoundCheckbox {...props} bound={bound} />;
 }
 
-type DrawnCheckboxProps = Omit<CheckboxProps, "bound"> & {
-  // Whether it shows a value that the items of its group lack.
-  readonly gone?: boolean;
-};
+type DrawnCheckboxProps = Omit<CheckboxProps, "bound">;
 
 function BoundCheckbox({ bound, onChange, ...props }: DrawnCheckboxProps & { readonly bound: Bound }): ReactElement {
   return (
@@ -84,15 +81,12 @@ function BoundCheckbox({ bound, onChange, ...props }: DrawnCheckboxProps & { rea
 
 // The box and the label, the description and the error message.
 // Inside a group, the checkbox tells the group its value.
-function DrawnCheckbox({ children, description, errorMessage, gone = false, className, ...props }: DrawnCheckboxProps): ReactElement {
+function DrawnCheckbox({ children, description, errorMessage, className, ...props }: DrawnCheckboxProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   useItem(props.value, ref);
   return (
     <CheckboxField {...props} ref={ref} className="bc:grid bc:gap-1 bc:font-sans bc:text-text-default">
-      <CheckboxButton
-        data-missing={gone || undefined}
-        className={composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`)}
-      >
+      <CheckboxButton className={composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`)}>
         {composeRenderProps(children, (children, { isSelected, isIndeterminate }) => (
           <>
             <span className={BOX}>{isIndeterminate ? <Dash /> : isSelected ? <Tick size={12} /> : null}</span>
@@ -142,32 +136,31 @@ function BoundGroup({
   ...props
 }: DrawnGroupProps & { readonly bound: Bound; readonly outdated: boolean; readonly ordered: boolean }): ReactElement {
   const { known, items } = useItems();
-  const held = strings(bound.value);
-  const gone = lacking(held, known);
+  const shown = strings(bound.value);
+  const gone = lacking(shown, known);
   const marking = !outdated && gone.length > 0;
   return (
     <>
       <DrawnGroup
         {...props}
-        value={[...held]}
+        value={[...shown]}
         isInvalid={props.isInvalid === true || marking}
         onChange={(picks) => {
-          const value = merged(strings(bound.get()), held, picks);
+          const value = merged(strings(bound.get()), shown, picks);
           if (value !== null) void bound.commit(ordered && known !== null ? inOrder(value, known) : value);
           onChange?.(picks);
         }}
       >
-        {/* A value that the checkboxes lack shows as a checkbox of its own,
-            which tells the group no value. */}
-        <ItemsContext.Provider value={null}>
-          {gone.map((value) => (
-            <DrawnCheckbox key={value} value={value} gone={!outdated}>
-              {outdated ? value : missing(value)}
-            </DrawnCheckbox>
-          ))}
-        </ItemsContext.Provider>
         <ItemsContext.Provider value={items}>{children}</ItemsContext.Provider>
       </DrawnGroup>
+      {marking ? (
+        <NotAvailable
+          values={gone}
+          onRemove={() => {
+            void bound.commit(held(strings(bound.get()), known));
+          }}
+        />
+      ) : null}
       <Refusal error={bound.error} />
     </>
   );
@@ -189,13 +182,13 @@ function DrawnGroup({ label, description, errorMessage, children, className, ...
 
 // The classes of the checkbox and of its box.
 // The box takes the accent colour where the checkbox is checked, and the
-// colour of danger where it is invalid, as where it shows a value that the
-// items of its group lack, whose label takes that colour too.
+// colour of danger where it is invalid, as where its group holds a value that
+// none of its checkboxes holds.
 // The box takes the colour on the accent, for its tick or its dash, only
 // where it is checked or neither, since its border is the text's colour
 // mixed with transparency otherwise, which the colour on the accent, white,
 // would make invisible on a light page.
 const CHECK =
-  "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:data-missing:text-text-danger";
+  "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 const BOX =
   "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";

@@ -187,3 +187,9 @@ function optionLabel(option: Element): string {
   const label = id === null ? null : byId(option, id.split(" ")[0] ?? "");
   return (label ?? option).textContent.trim();
 }
+
+// What the lines below the inputs in `el` say of the values that their items
+// lack, as "Not available: wt", in their order.
+export function notAvailable(el: ParentNode): string[] {
+  return [...el.querySelectorAll('[role="alert"]')].map((line) => line.textContent.trim()).filter((text) => text.startsWith("Not available"));
+}

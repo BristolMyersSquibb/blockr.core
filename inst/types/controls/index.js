@@ -33,7 +33,7 @@ var PAUSE = 500;
 function bind(host, key, next, last, given) {
   const [change, show, options] = typeof key === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
   const source = createSource(host);
-  const held = source.value(key, change);
+  const held2 = source.value(key, change);
   const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
   let shown;
   let typed;
@@ -41,7 +41,7 @@ function bind(host, key, next, last, given) {
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
-    const value = held.get();
+    const value = held2.get();
     if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
     shown = { value };
     show(value);
@@ -59,7 +59,7 @@ function bind(host, key, next, last, given) {
   const submit = async (value) => {
     let submitted;
     try {
-      submitted = held.submit(value, submitting);
+      submitted = held2.submit(value, submitting);
     } catch (error) {
       unbuild(error);
       options.settled?.(error);
@@ -92,7 +92,7 @@ function bind(host, key, next, last, given) {
   });
   display(true);
   return {
-    get: () => held.get(),
+    get: () => held2.get(),
     async commit(value) {
       const took = await submit(value);
       if (!took) display(true);
@@ -283,6 +283,7 @@ import {
   TokenField,
   TokenInput,
   useFilter,
+  useLocale,
   Virtualizer
 } from "react-aria-components";
 
@@ -300,9 +301,17 @@ var styles = {
   hint: "bc:m-0 bc:text-sm bc:text-text-muted",
   alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
 };
+var buttons = {
+  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
+  secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
+};
 
 // srcts/inputs/button.tsx
 import { jsx } from "react/jsx-runtime";
+function Button2({ variant = "primary", className, ...props }) {
+  return /* @__PURE__ */ jsx(Button, { ...props, className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`) });
+}
 function FieldButton({ className, ...props }) {
   return /* @__PURE__ */ jsx(Button, { ...props, className: composeRenderProps(className, (given) => `${FIELD_BUTTON} ${given ?? ""}`) });
 }
@@ -371,8 +380,16 @@ function Cross() {
 // srcts/inputs/inputs.tsx
 import { useState } from "react";
 import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
-function missing(value) {
-  return `${value} (not available)`;
+function NotAvailable({
+  values,
+  onRemove
+}) {
+  if (values.length === 0) return null;
+  const named = values.join(", ");
+  return /* @__PURE__ */ jsxs2("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-2", children: [
+    /* @__PURE__ */ jsx3("p", { role: "alert", className: styles.alert, children: `Not available: ${named}` }),
+    onRemove === void 0 ? null : /* @__PURE__ */ jsx3(Button2, { variant: "quiet", "aria-label": `Remove ${named}`, onPress: onRemove, children: "Remove" })
+  ] });
 }
 function Refusal({ error }) {
   return error === null ? null : /* @__PURE__ */ jsx3("p", { role: "alert", className: styles.alert, children: error });
@@ -428,26 +445,19 @@ function BoundCheckbox({ bound, onChange, ...props }) {
     /* @__PURE__ */ jsx4(Refusal, { error: bound.error })
   ] });
 }
-function DrawnCheckbox({ children, description, errorMessage: errorMessage2, gone = false, className, ...props }) {
+function DrawnCheckbox({ children, description, errorMessage: errorMessage2, className, ...props }) {
   const ref = useRef2(null);
   useItem(props.value, ref);
   return /* @__PURE__ */ jsxs3(CheckboxField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
-    /* @__PURE__ */ jsx4(
-      CheckboxButton,
-      {
-        "data-missing": gone || void 0,
-        className: composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`),
-        children: composeRenderProps(children, (children2, { isSelected, isIndeterminate }) => /* @__PURE__ */ jsxs3(Fragment, { children: [
-          /* @__PURE__ */ jsx4("span", { className: BOX, children: isIndeterminate ? /* @__PURE__ */ jsx4(Dash, {}) : isSelected ? /* @__PURE__ */ jsx4(Tick, { size: 12 }) : null }),
-          children2
-        ] }))
-      }
-    ),
+    /* @__PURE__ */ jsx4(CheckboxButton, { className: composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`), children: composeRenderProps(children, (children2, { isSelected, isIndeterminate }) => /* @__PURE__ */ jsxs3(Fragment, { children: [
+      /* @__PURE__ */ jsx4("span", { className: BOX, children: isIndeterminate ? /* @__PURE__ */ jsx4(Dash, {}) : isSelected ? /* @__PURE__ */ jsx4(Tick, { size: 12 }) : null }),
+      children2
+    ] })) }),
     /* @__PURE__ */ jsx4(Text, { slot: "description", className: `${styles.hint} bc:ml-6 bc:empty:hidden`, children: description }),
     /* @__PURE__ */ jsx4(FieldError, { className: `${styles.alert} bc:ml-6`, children: errorMessage2 })
   ] });
 }
-var CHECK = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:data-missing:text-text-danger";
+var CHECK = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";
 
 // srcts/inputs/combobox.tsx
@@ -488,7 +498,7 @@ function BoundSeveral({
   ...props
 }) {
   const items = props.items ?? props.defaultItems;
-  const held = strings(bound.value);
+  const held2 = strings(bound.value);
   const [picks, setPicks] = useState3(null);
   const pending = useRef3(null);
   const submit = (next, opened) => {
@@ -504,10 +514,10 @@ function BoundSeveral({
         selectionMode: "multiple",
         outdated,
         marking: !outdated && known(props),
-        value: picks ?? held,
+        value: picks ?? held2,
         onOpenChange: (isOpen, trigger) => {
           if (isOpen) {
-            pending.current ??= { picks: held, opened: held };
+            pending.current ??= { picks: held2, opened: held2 };
             setPicks(pending.current.picks);
           } else {
             const left = pending.current;
@@ -521,7 +531,7 @@ function BoundSeveral({
           if (!Array.isArray(keys)) return;
           const next = keys.map(String);
           if (pending.current === null) {
-            submit(next, held);
+            submit(next, held2);
             return;
           }
           pending.current = { ...pending.current, picks: next };
@@ -588,6 +598,7 @@ function Drawn({
         ),
         /* @__PURE__ */ jsx5(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx5(FieldError, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx5(Lacking, { multiple, marking }),
         /* @__PURE__ */ jsx5(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx5(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx5(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx5("p", { className: NOTE, children: empty }), className: LISTBOX, children }) }) })
       ]
     }
@@ -615,15 +626,9 @@ function Field({
   onClear,
   label
 }) {
-  const state = useContext2(ComboBoxStateContext);
-  const value = state?.value ?? null;
-  const keys = multiple && Array.isArray(value) ? value : [];
-  const one = !multiple && value !== null && !Array.isArray(value) ? value : null;
-  const item = state?.selectedItems[0] ?? null;
-  const lackedOne = one !== null && item === null;
-  const known2 = new Map((state?.selectedItems ?? []).map((item2) => [item2.key, item2.textValue]));
-  const lacked = keys.some((key) => !known2.has(key));
-  const invalid = marking && (lackedOne || lacked);
+  const { state, keys, one, known: known2, lacked } = usePicks(multiple);
+  const item = one === null ? void 0 : known2.get(one);
+  const invalid = marking && lacked.length > 0;
   const remove = (gone) => {
     state?.setValue(keys.filter((key) => !gone.has(key)));
   };
@@ -637,16 +642,16 @@ function Field({
         // React Aria's TagGroup keeps a tab stop on its list even where
         // every tag is disabled, so a disabled select draws its chips as
         // a plain list.
-        /* @__PURE__ */ jsx5("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx5("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx5("span", { className: "bc:truncate", children: gone ? missing(text) : text }) }, key)) })
+        /* @__PURE__ */ jsx5("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx5("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx5("span", { className: "bc:truncate", children: text }) }, key)) })
       ) : /* @__PURE__ */ jsx5(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx5(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsxs4(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-        /* @__PURE__ */ jsx5("span", { className: "bc:truncate", children: gone ? missing(text) : text }),
+        /* @__PURE__ */ jsx5("span", { className: "bc:truncate", children: text }),
         editable ? /* @__PURE__ */ jsx5(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx5(Cross, {}) }) : null
       ] }, key)) }) }),
       /* @__PURE__ */ jsx5(
         Input,
         {
-          value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item?.textValue ?? "",
-          placeholder: lackedOne ? marking ? missing(String(one)) : String(one) : keys.length > 0 ? void 0 : placeholder,
+          value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item ?? (one === null ? "" : String(one)),
+          placeholder: one !== null && item === void 0 ? String(one) : keys.length > 0 ? void 0 : placeholder,
           "aria-invalid": invalid || void 0,
           className: INPUT,
           onClick: () => {
@@ -683,6 +688,19 @@ function Field({
     ) : null,
     /* @__PURE__ */ jsx5(Button, { className: OPENER, children: /* @__PURE__ */ jsx5(Chevron, {}) })
   ] });
+}
+function usePicks(multiple) {
+  const state = useContext2(ComboBoxStateContext);
+  const value = state?.value ?? null;
+  const keys = multiple && Array.isArray(value) ? value : [];
+  const one = !multiple && value !== null && !Array.isArray(value) ? value : null;
+  const known2 = new Map((state?.selectedItems ?? []).map((item) => [item.key, item.textValue]));
+  const lacked = (one === null ? keys : [one]).filter((key) => !known2.has(key));
+  return { state, keys, one, known: known2, lacked };
+}
+function Lacking({ multiple, marking }) {
+  const { lacked } = usePicks(multiple);
+  return marking ? /* @__PURE__ */ jsx5(NotAvailable, { values: lacked.map(String) }) : null;
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
@@ -734,14 +752,14 @@ function BoundNumber({
   validationBehavior = "aria",
   ...props
 }) {
-  const held = typeof bound.value === "number" ? bound.value : NaN;
+  const held2 = typeof bound.value === "number" ? bound.value : NaN;
   const [kept, setKept] = useState4(null);
   const [typed, setTyped] = useState4(NaN);
   const [keystrokes, setKeystrokes] = useState4(0);
-  const [seen, setSeen] = useState4(held);
-  if (!Object.is(seen, held)) {
-    setSeen(held);
-    if (kept !== null && (!kept.typing || !Object.is(held, typed))) setKept(null);
+  const [seen, setSeen] = useState4(held2);
+  if (!Object.is(seen, held2)) {
+    setSeen(held2);
+    if (kept !== null && (!kept.typing || !Object.is(held2, typed))) setKept(null);
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
   return /* @__PURE__ */ jsxs5(Fragment3, { children: [
@@ -751,9 +769,9 @@ function BoundNumber({
         ...props,
         commitBehavior,
         validationBehavior,
-        value: kept?.value ?? held,
+        value: kept?.value ?? held2,
         onInput: (event) => {
-          setKept((now) => now?.typing === true ? now : { value: now?.value ?? held, typing: true });
+          setKept((now) => now?.typing === true ? now : { value: now?.value ?? held2, typing: true });
           setKeystrokes((n) => n + 1);
           onInput?.(event);
         },
@@ -765,7 +783,7 @@ function BoundNumber({
           } else if (kept?.typing === true) {
             bound.type(value);
             bound.flush();
-            setKept(Object.is(value, held) ? null : { value, typing: false });
+            setKept(Object.is(value, held2) ? null : { value, typing: false });
           } else {
             setKept({ value, typing: false });
             void bound.commit(value).then((took) => {
@@ -857,7 +875,7 @@ import { Fragment as Fragment4, jsx as jsx10, jsxs as jsxs6 } from "react/jsx-ru
 import { Fragment as Fragment5, jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
 
 // srcts/inputs/select.tsx
-import { useContext as useContext4, useLayoutEffect as useLayoutEffect2, useRef as useRef6, useState as useState5 } from "react";
+import { useContext as useContext4, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef6, useState as useState5 } from "react";
 import { Fragment as Fragment6, jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
 
 // srcts/inputs/slider.tsx
