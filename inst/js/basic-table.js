@@ -122,7 +122,7 @@ function Heading({ column }) {
   ] });
 }
 function Pager({ table, page, onPage }) {
-  return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:px-2 bc:text-xs bc:text-text-muted", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2 bc:pt-1 bc:text-xs bc:text-text-muted", children: [
     /* @__PURE__ */ jsx("span", { children: rowsText(table, page) }),
     (page.page > 1 || page.more) && /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
       /* @__PURE__ */ jsx(
