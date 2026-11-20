@@ -8,6 +8,7 @@
 // A part that core starts to draw with goes here.
 
 export {
+  Autocomplete,
   Button,
   Collection,
   ComboBox,
@@ -35,6 +36,7 @@ export {
   NumberField,
   NumberFieldStateContext,
   Popover,
+  Separator,
   Tag,
   TagGroup,
   TagList,

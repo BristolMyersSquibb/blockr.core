@@ -1,8 +1,8 @@
-// Core's board actions that ask the user nothing, on the board of the fixture
-// hello through the CoreApi for tests: which targets they apply to, under the
-// board lock too, Copy block ID with the clipboard API, the document's copy
-// command and neither, and those that remove a block, a link, a stack and what
-// a selection holds.
+// Core's board actions, on the board of the fixture hello through the CoreApi
+// for tests: which targets they apply to, under the board lock too, Rename
+// through its quick action, Copy block ID with the clipboard API, the
+// document's copy command and neither, and those that remove a block, a link,
+// a stack and what a selection holds.
 
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { HELLO, stubCore } from "../stubs/index.ts";
@@ -10,11 +10,15 @@ import { held, notificationCode } from "../testing/notifications.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { BoardAction, Target } from "./actions.ts";
 
+const RENAME = "blockr.core-rename_action";
 const COPY = "blockr.core-copy_block_id_action";
 const REMOVE_BLOCK = "blockr.core-remove_block_action";
 const REMOVE_LINK = "blockr.core-remove_link_action";
 const REMOVE_STACK = "blockr.core-remove_stack_action";
 const REMOVE_SELECTED = "blockr.core-remove_selected_action";
+
+// The element that the user triggers from, which a trigger() needs.
+const el = document.body;
 
 // Each board action's id, label and category, as a menu shows them.
 function rows(actions: readonly BoardAction[]): [string, string, string][] {
@@ -54,24 +58,34 @@ function refusingClipboard(): void {
 }
 
 describe("core's board actions", () => {
-  test("are Copy block ID and Remove block on a block, Remove link on a link, Remove stack on a stack and Remove on a selection, in the order of their table", async () => {
+  test("are Rename, Copy block ID and Remove block on a block, Remove link on a link, Rename and Remove stack on a stack and Remove on a selection, in the order of their table", async () => {
     const s = await stubCore();
     const on = (target: Target) => s.core.boardActions.on(target);
 
     expect(rows(on({ block: "b" }))).toEqual([
+      [RENAME, "Rename", "edit"],
       [COPY, "Copy block ID", "clipboard"],
       [REMOVE_BLOCK, "Remove block", "remove"],
     ]);
     expect(rows(on({ link: "ab" }))).toEqual([[REMOVE_LINK, "Remove link", "remove"]]);
-    expect(rows(on({ stack: "s1" }))).toEqual([[REMOVE_STACK, "Remove stack", "remove"]]);
+    expect(rows(on({ stack: "s1" }))).toEqual([
+      [RENAME, "Rename", "edit"],
+      [REMOVE_STACK, "Remove stack", "remove"],
+    ]);
     expect(rows(on({ selection: [{ block: "b" }, { link: "ab" }] }))).toEqual([[REMOVE_SELECTED, "Remove", "remove"]]);
     expect(on({ board: true })).toEqual([]);
     expect(on({ option: "n_rows" })).toEqual([]);
     expect(on({ plugin: "blockr.core-edit_board_plugin" })).toEqual([]);
 
     // Copy block ID's row shows the block's id.
-    const [copy] = on({ block: "b" });
+    const copy = on({ block: "b" }).find(({ id }) => id === COPY);
     expect(copy?.detail?.(s.core.store.board(), { block: "b" })).toBe("b");
+    // Those that remove carry the bin, and the others no icon.
+    const icons = (target: Target) => on(target).map(({ icon }) => icon?.includes("<svg") ?? false);
+    expect(icons({ block: "b" })).toEqual([false, false, true]);
+    expect(icons({ link: "ab" })).toEqual([true]);
+    expect(icons({ stack: "s1" })).toEqual([false, true]);
+    expect(icons({ selection: [{ block: "b" }] })).toEqual([true]);
     s.stop();
   });
 
@@ -97,9 +111,56 @@ describe("core's board actions", () => {
     expect(on({ stack: "s1" })).toEqual([]);
     expect(on({ selection: [{ block: "b" }] })).toEqual([]);
 
-    await s.core.boardActions.trigger(REMOVE_BLOCK, { block: "b" });
-    await s.core.boardActions.trigger(REMOVE_SELECTED, { selection: [{ block: "b" }, { link: "ab" }] });
+    await s.core.boardActions.trigger(REMOVE_BLOCK, { block: "b" }, { el });
+    await s.core.boardActions.trigger(REMOVE_SELECTED, { selection: [{ block: "b" }, { link: "ab" }] }, { el });
     expect(s.core.store.board()).toBe(board);
+    s.stop();
+  });
+});
+
+describe("Rename", () => {
+  test("renames a block or a stack through its quick action, a text row that holds the name, in one step of the user", async () => {
+    const s = await stubCore();
+    const board = s.core.store.board();
+
+    const menu = s.menu({ block: "b" });
+    await menu.pick("Rename");
+    expect(menu.level()).toEqual({ label: "Rename", back: true, loading: false, rows: [{ kind: "text", label: "Name", value: "Head" }] });
+    menu.type("  First rows  ", "Name");
+    await menu.pick("Name");
+
+    expect(menu.closed()).toBe(true);
+    expect(s.core.store.board().blocks.b?.name).toBe("First rows");
+    s.core.store.undo();
+    expect(s.core.store.board()).toEqual(board);
+
+    // Through trigger(), the quick action is the menu's first level, so that
+    // Escape would close the menu there.
+    const renamed = s.core.boardActions.trigger(RENAME, { stack: "s1" }, { el });
+    const stack = s.menu();
+    expect(stack?.level()).toMatchObject({ back: false, rows: [{ kind: "text", label: "Name", value: "Input" }] });
+    stack?.type("Sources", "Name");
+    await stack?.pick("Name");
+    await renamed;
+    expect(s.core.store.board().stacks.s1?.name).toBe("Sources");
+    s.stop();
+  });
+
+  test("refuses an empty name in place, and runs nothing for the name as it was", async () => {
+    const s = await stubCore();
+    const menu = s.menu({ stack: "s1" });
+    await menu.pick("Rename");
+
+    menu.type("   ", "Name");
+    await menu.pick("Name");
+    expect(menu.level()?.rows).toEqual([{ kind: "text", label: "Name", value: "   ", refusal: "A name cannot be empty." }]);
+    expect(menu.closed()).toBe(false);
+
+    menu.type("Input ", "Name");
+    expect(menu.level()?.rows).toEqual([{ kind: "text", label: "Name", value: "Input " }]);
+    await menu.pick("Name");
+    expect(menu.closed()).toBe(true);
+    expect(s.core.store.canUndo()).toBe(false);
     s.stop();
   });
 });
@@ -108,7 +169,7 @@ describe("Copy block ID", () => {
   test("puts the block's id on the clipboard", async () => {
     const s = await stubCore();
 
-    await s.core.boardActions.trigger(COPY, { block: "b" });
+    await s.core.boardActions.trigger(COPY, { block: "b" }, { el });
 
     expect(await navigator.clipboard.readText()).toBe("b");
     expect(held(s.core, (n) => n.source.kind === "core")).toEqual([]);
@@ -120,7 +181,7 @@ describe("Copy block ID", () => {
     refusingClipboard();
     const copied = copyCommand(true);
 
-    await s.core.boardActions.trigger(COPY, { block: "c" });
+    await s.core.boardActions.trigger(COPY, { block: "c" }, { el });
 
     expect(copied).toEqual(["copy c"]);
     // The field that it copied from is gone again.
@@ -137,7 +198,7 @@ describe("Copy block ID", () => {
     });
     const copied = copyCommand(true);
 
-    await s.core.boardActions.trigger(COPY, { block: "d" });
+    await s.core.boardActions.trigger(COPY, { block: "d" }, { el });
 
     expect(copied).toEqual(["copy d"]);
     s.stop();
@@ -148,7 +209,7 @@ describe("Copy block ID", () => {
     refusingClipboard();
     copyCommand(false);
 
-    await expect(s.core.boardActions.trigger(COPY, { block: "b" })).resolves.toBeUndefined();
+    await expect(s.core.boardActions.trigger(COPY, { block: "b" }, { el })).resolves.toBeUndefined();
 
     expect(held(s.core, (n) => notificationCode(n) === "copy_failed")).toEqual([
       {
@@ -167,17 +228,17 @@ describe("the board actions that remove", () => {
     const s = await stubCore();
     const board = s.core.store.board();
 
-    await s.core.boardActions.trigger(REMOVE_BLOCK, { block: "b" });
+    await s.core.boardActions.trigger(REMOVE_BLOCK, { block: "b" }, { el });
     expect(objects(s.core)).toEqual({ blocks: ["a", "c", "d", "e", "f"], links: ["ac", "ad", "de", "keen_finch"], stacks: ["s1"] });
     expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a"]);
     s.core.store.undo();
     expect(s.core.store.board()).toEqual(board);
 
-    await s.core.boardActions.trigger(REMOVE_LINK, { link: "ab" });
+    await s.core.boardActions.trigger(REMOVE_LINK, { link: "ab" }, { el });
     expect(objects(s.core).links).toEqual(["ac", "bc", "ad", "be", "de", "keen_finch"]);
     s.core.store.undo();
 
-    await s.core.boardActions.trigger(REMOVE_STACK, { stack: "s1" });
+    await s.core.boardActions.trigger(REMOVE_STACK, { stack: "s1" }, { el });
     expect(objects(s.core).stacks).toEqual([]);
     expect(objects(s.core).blocks).toEqual(Object.keys(board.blocks));
     s.core.store.undo();
@@ -190,7 +251,7 @@ describe("the board actions that remove", () => {
     const board = s.core.store.board();
     s.core.selection.set([{ link: "ab" }, { block: "b" }, { link: "ad" }, { stack: "s1" }, { option: "n_rows" }]);
 
-    await s.core.boardActions.trigger(REMOVE_SELECTED, { selection: s.core.selection.get() });
+    await s.core.boardActions.trigger(REMOVE_SELECTED, { selection: s.core.selection.get() }, { el });
 
     expect(objects(s.core)).toEqual({ blocks: ["a", "c", "d", "e", "f"], links: ["ac", "de", "keen_finch"], stacks: [] });
     expect(Object.hasOwn(s.core.store.board().options, "n_rows")).toBe(true);

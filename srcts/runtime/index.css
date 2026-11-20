@@ -67,6 +67,13 @@
  * The shade that blockr.ui takes, amber-700, reaches 4.26:1 on the tint.
  * Under the dark theme, both take lighter values, in the rule that gives the
  * statuses theirs.
+ *
+ * The fill bg-danger mixes the danger border at 10%.
+ * By default, that is the tint of a card's mark, so the danger text reaches
+ * 4.5:1 on the fill too.
+ * Core's menu fills a row that removes with it under the pointer and as the
+ * keyboard's row, as the design system fills a destructive row with
+ * blockr.ui's --blockr-color-bg-danger.
  */
 @theme {
   --color-text-default: currentColor;
@@ -80,6 +87,7 @@
   --color-border-warning: var(--bc-color-amber-500);
   --color-border-accent: var(--bc-color-blue-500);
   --color-bg-accent: var(--bc-color-blue-600);
+  --color-bg-danger: color-mix(in oklab, var(--bc-color-border-danger) 10%, transparent);
   --color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
   --color-bg-raised: Canvas;
 }
