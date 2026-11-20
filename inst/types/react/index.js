@@ -442,6 +442,7 @@ var Boundary = class extends Component {
 
 // srcts/aria/index.ts
 import {
+  Autocomplete,
   Button,
   Cell,
   CheckboxButton,
@@ -485,6 +486,7 @@ import {
   NumberFieldStateContext,
   Popover,
   Row,
+  Separator,
   Table,
   TableBody,
   TableHeader,

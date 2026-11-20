@@ -109,8 +109,8 @@
 // (../trace/settings.ts). The span of a later opening goes under the span that
 // was active as the store's open() was called.
 
-import { createBoardActions } from "../actions/index.ts";
-import type { BoardActions } from "../actions/index.ts";
+import { createBoardActions, showMenu } from "../actions/index.ts";
+import type { BoardActions, ShowMenu } from "../actions/index.ts";
 import { createCommands } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { createLoader, ModuleError, moduleExports } from "../mount/index.ts";
@@ -197,6 +197,9 @@ export interface StartOptions {
   // draws, but the card that `frontEnds` gives.
   readonly alone?: boolean;
   readonly measure?: Measure;
+  // Draws each menu of board actions that CoreApi opens, core's menu unless
+  // given, as the CoreApi for tests drives each menu without drawing it.
+  readonly showMenu?: ShowMenu;
   // Shows why core cannot start, or why it stopped, as where R speaks another
   // major of the protocol in the first session or a later one, or cannot give
   // a blockr option that core reads as it starts, or gives one that the
@@ -516,6 +519,7 @@ export function start(options: StartOptions): Started {
       },
       commands,
       boardActions,
+      showMenu: options.showMenu ?? showMenu,
       scheduler,
       loader,
       blockrOptions,

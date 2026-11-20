@@ -1,3 +1,4 @@
+import type { ShowMenu } from "../actions/index.ts";
 import type { LoaderOptions, Measure } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import type { PluginClassId } from "../types/board.ts";
@@ -28,6 +29,7 @@ export interface StartOptions {
     readonly frontEnds?: FrontEnds;
     readonly alone?: boolean;
     readonly measure?: Measure;
+    readonly showMenu?: ShowMenu;
     readonly fail?: (error: Error) => void;
     readonly otel?: () => Promise<OtelModule>;
 }

@@ -8,6 +8,7 @@
 // A part that core starts to draw with goes here.
 
 export {
+  Autocomplete,
   Button,
   Cell,
   CheckboxButton,
@@ -51,6 +52,7 @@ export {
   NumberFieldStateContext,
   Popover,
   Row,
+  Separator,
   Table,
   TableBody,
   TableHeader,
