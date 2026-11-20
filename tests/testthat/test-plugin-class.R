@@ -287,7 +287,7 @@ test_that("the app holds the board options that each plugin's class reads", {
   # reads none
   expect_identical(
     plugins[["blockr.core-basic_frontend_plugin"]]$options,
-    c("show_conditions", "dark_mode")
+    "dark_mode"
   )
   expect_identical(plugins[["blockr.test-notes_plugin"]]$options, character())
   expect_null(plugin_options(new_file_storage_plugin()))

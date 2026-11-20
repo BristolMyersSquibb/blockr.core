@@ -580,7 +580,7 @@ proto_core_plugins <- function() {
     `blockr.core-basic_frontend_plugin` = obj(
       name = "Basic frontend",
       version = 1L,
-      options = I(c("show_conditions", "dark_mode")),
+      options = I("dark_mode"),
       module = proto_js("basic.js", "0f3d8e21"),
       css = proto_js("basic.css", "6a9b2c4e")
     ),
@@ -610,7 +610,6 @@ proto_core_options <- function() {
 
   obj(
     n_rows = option("n-rows-option.js", "2b9c7e14"),
-    show_conditions = option("show-conditions-option.js", "6f3a8d05"),
     dark_mode = option("dark-mode-option.js", "a47e2c19")
   )
 }
@@ -1018,10 +1017,7 @@ proto_board <- function() {
         keen_finch = proto_link("a", "f", "data")
       ),
       stacks = obj(s1 = proto_stack("Input", c("a", "b"))),
-      options = obj(
-        n_rows = proto_option(50L),
-        show_conditions = proto_option(I(c("warning", "error")))
-      ),
+      options = obj(n_rows = proto_option(50L)),
       plugins = obj()
     )
   )
@@ -1049,10 +1045,7 @@ proto_locked_board <- function() {
       ),
       links = obj(ab = proto_link("a", "b", "data")),
       stacks = obj(),
-      options = obj(
-        n_rows = proto_option(50L),
-        show_conditions = proto_option(I(c("warning", "error")))
-      ),
+      options = obj(n_rows = proto_option(50L)),
       plugins = obj()
     )
   )
@@ -1079,10 +1072,7 @@ proto_served_file <- function() {
       ),
       links = obj(ab = proto_link("a", "b", "data")),
       stacks = obj(),
-      options = obj(
-        n_rows = proto_option(50L),
-        show_conditions = proto_option(I(c("warning", "error")))
-      ),
+      options = obj(n_rows = proto_option(50L)),
       plugins = obj()
     )
   )

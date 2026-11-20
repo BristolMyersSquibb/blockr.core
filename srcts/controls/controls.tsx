@@ -90,7 +90,7 @@ export interface ComboBoxOptions {
   // Whether it picks one string, or an array of strings.
   readonly selectionMode?: "single" | "multiple";
   // Where it picks several, whether it submits them in the order of the
-  // items, as for severities, rather than in the order the user picked them.
+  // items, rather than in the order the user picked them.
   readonly ordered?: boolean;
   // Whether it always holds a pick, so that its field offers no button that
   // clears it.

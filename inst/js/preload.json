@@ -135,10 +135,6 @@
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
-  "show-conditions-option.js": [
-    "@blockr/core/react",
-    "react/jsx-runtime"
-  ],
   "subset-block.js": [
     "@blockr/core/react",
     "react/jsx-runtime"

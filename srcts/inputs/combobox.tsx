@@ -52,7 +52,7 @@
 // host holds then, so that it keeps a string that the assistant added in the
 // meantime.
 // It submits them in the order the user picked them, after those the value
-// holds, or where `ordered`, in the order of its items, as for severities.
+// holds, or where `ordered`, in the order of its items.
 // Where the select goes while its list is open, as where its module
 // unmounts, the picks go with it, as though the user never made them.
 // A chip that the user removes while the list is closed it submits at once.
