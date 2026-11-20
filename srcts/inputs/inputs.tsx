@@ -1,5 +1,7 @@
 // The inputs that core's UIs draw with React, each showing and editing one
-// value that `useValue()` binds, a block's state arg or a board option's value,
+// value that `useValue()` binds: a block's state arg, a board option's value,
+// or a value that a function reads from a block's state, as the join that two
+// state args make,
 // so that each meets the contract of a block's UI as its binding does
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 // Each submits a pick at once and says below itself why the host refused what

@@ -3,8 +3,8 @@
 // its id, with the `frontend` that draws the page, as Drawing the board has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
 // An app runs it unless another of its plugins is a frontend, and it draws
-// every board that the app opens. Its class requires the severities of the
-// notifications that its cards show and the theme that it draws in.
+// every board that the app opens. Its class requires the theme that it draws
+// in.
 // It does what today's frontend does wherever core's commands and store do
 // the work, so it only draws. It works on the board through CoreApi alone,
 // and shows each plugin whose class has a `ui` beside the board, reading no

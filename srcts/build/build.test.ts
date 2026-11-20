@@ -662,7 +662,7 @@ test("writes the schemas of core's board options beside their modules", async ()
     "srcts/options/schemas.ts": [
       "export const optionSchemas = {",
       '  n_rows: { type: "integer", minimum: 0 },',
-      '  show_conditions: { type: "array", items: { enum: ["error"] } },',
+      '  dark_mode: { enum: ["light", "dark"] },',
       "};",
       "",
     ].join("\n"),
@@ -670,19 +670,13 @@ test("writes the schemas of core's board options beside their modules", async ()
 
   // Each in a file of its own, beside the board option's module, which core
   // names by the board option's id
-  expect(await schemas(root)).toEqual([
-    "inst/js/n-rows-option.schema.json",
-    "inst/js/show-conditions-option.schema.json",
-  ]);
+  expect(await schemas(root)).toEqual(["inst/js/dark-mode-option.schema.json", "inst/js/n-rows-option.schema.json"]);
 
   const read = async (name: string) =>
     JSON.parse(await readFile(join(root, "inst", "js", name), "utf8")) as unknown;
 
   expect(await read("n-rows-option.schema.json")).toEqual({ type: "integer", minimum: 0 });
-  expect(await read("show-conditions-option.schema.json")).toEqual({
-    type: "array",
-    items: { enum: ["error"] },
-  });
+  expect(await read("dark-mode-option.schema.json")).toEqual({ enum: ["light", "dark"] });
 });
 
 test("writes the words that ids are made of, one word a line, for R, with the license of their word lists", async () => {

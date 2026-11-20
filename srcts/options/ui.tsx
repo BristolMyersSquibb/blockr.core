@@ -18,20 +18,6 @@ export function numberUi(label: string, min: number): OptionModule<number> {
   return reactModule(NumberUi);
 }
 
-// A select of several of the strings given, such as the severities of
-// show_conditions, which submits the picks in the order of the strings.
-export function multiSelectUi(label: string, values: readonly string[]): OptionModule<string[]> {
-  const items = values.map((id) => ({ id }));
-  function MultiSelectUi({ host }: ModuleProps<OptionHost<string[]>>): ReactElement {
-    return (
-      <ComboBox bound={useValue(host)} selectionMode="multiple" label={label} defaultItems={items} ordered>
-        {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
-      </ComboBox>
-    );
-  }
-  return reactModule(MultiSelectUi);
-}
-
 // A select of one of the items, each a value by its id and how it reads by
 // its name, such as light or dark for dark_mode, which a board option always
 // holds one of.

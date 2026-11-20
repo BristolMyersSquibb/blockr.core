@@ -809,7 +809,7 @@ function failSpan(span, error) {
 
 // srcts/trace/steps.ts
 import { context as context2, trace as trace2 } from "@opentelemetry/api";
-function steps(name2, start2 = performance.now(), parent = context2.active()) {
+function steps(name2, start3 = performance.now(), parent = context2.active()) {
   const taken = [];
   let recorded = false;
   return {
@@ -833,7 +833,7 @@ function steps(name2, start2 = performance.now(), parent = context2.active()) {
       recorded = true;
       const end = performance.now();
       const write2 = () => {
-        const whole = tracer().startSpan(name2, { startTime: start2 }, parent);
+        const whole = tracer().startSpan(name2, { startTime: start3 }, parent);
         const inside = trace2.setSpan(parent, whole);
         for (const step2 of taken) {
           const span = tracer().startSpan(step2.name, { startTime: step2.start }, inside);
@@ -2253,7 +2253,7 @@ function createAnswers(scheduler, signal5) {
       if (!current2(request)) kept.delete(key2);
     }
   }
-  function start2(ask, key2) {
+  function start3(ask, key2) {
     const controller = new AbortController();
     const progress = /* @__PURE__ */ new Set();
     const done = scheduler.request(ask.request, {
@@ -2322,7 +2322,7 @@ function createAnswers(scheduler, signal5) {
       const key2 = ask.share === "once" ? void 0 : requestKey(ask.request);
       const answer2 = key2 === void 0 ? void 0 : kept.get(key2)?.answer;
       if (answer2 !== void 0) return Promise.resolve(answer2);
-      const flight = (key2 === void 0 ? void 0 : flights.get(key2)) ?? start2(ask, key2);
+      const flight = (key2 === void 0 ? void 0 : flights.get(key2)) ?? start3(ask, key2);
       return join(flight, key2, signal6, progress);
     },
     size: () => kept.size
@@ -5776,11 +5776,11 @@ function fit(delta, board) {
     ...Object.keys(board.blocks).filter((id2) => !(blocks.rm ?? []).includes(id2)),
     ...Object.keys(blocks.add ?? {})
   ]);
-  const holds = (id2) => kept.has(id2);
+  const holds2 = (id2) => kept.has(id2);
   const links = collection2(
     board.links,
     delta.links,
-    (link) => (link.from === void 0 || holds(link.from)) && (link.to === void 0 || holds(link.to))
+    (link) => (link.from === void 0 || holds2(link.from)) && (link.to === void 0 || holds2(link.to))
   );
   const held3 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
@@ -5791,7 +5791,7 @@ function fit(delta, board) {
     })
   );
   const stacks = collection2(board.stacks, delta.stacks);
-  const placed2 = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds) };
+  const placed2 = (stack) => stack.blocks === void 0 ? stack : { ...stack, blocks: stack.blocks.filter(holds2) };
   return prune({
     blocks,
     links: { ...links, ...Object.keys(before).length === 0 ? {} : { before } },
@@ -6223,10 +6223,10 @@ function createStore(options = {}) {
       }
     }
   }
-  function run(start2, deltas, how, refused2) {
+  function run(start3, deltas, how, refused2) {
     const applied = [];
     const inverses = [];
-    let current3 = start2;
+    let current3 = start3;
     for (const [i, given] of deltas.entries()) {
       const prefix = deltas.length > 1 ? `Delta ${String(i + 1)}: ` : "";
       const fail = (failures2) => new StoreError(refused2, failures2.map((failure) => prefix + failure));
@@ -6294,10 +6294,10 @@ function createStore(options = {}) {
   }
   function runOnBoard(deltas) {
     const refused2 = "The store rejected the delta";
-    const start2 = current2(refused2);
+    const start3 = current2(refused2);
     const failures = named3(deltas);
     if (failures.length > 0) throw new StoreError(refused2, failures);
-    return { start: start2, ...run(start2, deltas, {}, refused2) };
+    return { start: start3, ...run(start3, deltas, {}, refused2) };
   }
   function apply(delta, origin = "user", opts = {}) {
     guard2();
@@ -6306,9 +6306,9 @@ function createStore(options = {}) {
     const deltas = opts.undo === false ? given.map((each) => ({ ...each, undo: false })) : given;
     busy = true;
     try {
-      const { start: start2, applied, inverses } = runOnBoard(deltas);
+      const { start: start3, applied, inverses } = runOnBoard(deltas);
       if (applied.length === 0) return false;
-      number(applied, applied.at(-1)?.board ?? start2);
+      number(applied, applied.at(-1)?.board ?? start3);
       const undoStep = inverses.length > 0;
       if (undoStep) {
         history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
@@ -6327,8 +6327,8 @@ function createStore(options = {}) {
     const was = busy;
     busy = true;
     try {
-      const { start: start2, applied } = runOnBoard(deltas);
-      return applied.at(-1)?.board ?? start2;
+      const { start: start3, applied } = runOnBoard(deltas);
+      return applied.at(-1)?.board ?? start3;
     } finally {
       busy = was;
     }
@@ -6342,14 +6342,14 @@ function createStore(options = {}) {
     busy = true;
     try {
       const refused2 = back ? "The store refused to undo the step" : "The store refused to redo the step";
-      const start2 = current2(refused2);
+      const start3 = current2(refused2);
       const { applied, inverses } = run(
-        start2,
+        start3,
         step2.inverses.map(({ delta }) => delta),
         { fit: true, places: step2.inverses.map(({ places }) => places) },
         refused2
       );
-      number(applied, applied.at(-1)?.board ?? start2);
+      number(applied, applied.at(-1)?.board ?? start3);
       const kept = { origin: step2.origin, inverses };
       history.value = back ? { undo: [...undo.slice(0, at), ...undo.slice(at + 1)], redo: [...redo, kept] } : { undo: [...undo, kept], redo: redo.slice(0, -1) };
       const asking = origin ?? "user";
@@ -7183,13 +7183,13 @@ function createCommands(store, options = {}) {
     while (again) {
       again = false;
       built = [];
-      let start2;
+      let start3;
       try {
-        start2 = current2(first.item.command.id);
+        start3 = current2(first.item.command.id);
       } catch (error) {
         throw inList(0, first.item.command.id, error);
       }
-      let board = start2;
+      let board = start3;
       for (const [index, { item, args }] of checked4.entries()) {
         const { command: command2 } = item;
         try {
@@ -7197,7 +7197,7 @@ function createCommands(store, options = {}) {
           if (command2.prepare !== void 0 && !inputs.has(index)) {
             inputs.set(index, await within(() => prepare(item, board, args)));
             if (ended()) throw refusal(command2.id, [DROPPED]);
-            if (store.board() !== start2) {
+            if (store.board() !== start3) {
               again = true;
               break;
             }
@@ -7690,7 +7690,7 @@ function runPlugins(deps) {
     return { frontend: drawn3, plugin: id2, added: added.get(id2) ?? NOTHING_FAILED };
   }
   let started = false;
-  async function start2() {
+  async function start3() {
     if (started) return;
     started = true;
     const starting = Object.keys(appPlugins()).flatMap((id2) => {
@@ -7788,7 +7788,7 @@ function runPlugins(deps) {
     })();
     return end;
   }
-  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start: start2 };
+  return { appPlugins, pluginClass, storage, mountPlugin, frontend, start: start3 };
 }
 
 // srcts/core/requests.ts
@@ -8205,7 +8205,7 @@ var NOTHING_SELECTED = Object.freeze([]);
 function createSelection(store, plugins, signal5) {
   let selected = NOTHING_SELECTED;
   const listeners = /* @__PURE__ */ new Set();
-  function holds(object2, board) {
+  function holds2(object2, board) {
     if ("block" in object2) return Object.hasOwn(board.blocks, object2.block);
     if ("link" in object2) return Object.hasOwn(board.links, object2.link);
     if ("stack" in object2) return Object.hasOwn(board.stacks, object2.stack);
@@ -8213,7 +8213,7 @@ function createSelection(store, plugins, signal5) {
     return Object.hasOwn(plugins.appPlugins(), object2.plugin);
   }
   const offStore = store.subscribe((_change, board) => {
-    const kept = selected.filter((object2) => holds(object2, board));
+    const kept = selected.filter((object2) => holds2(object2, board));
     if (kept.length === selected.length) return;
     selected = Object.freeze(kept);
     announceTo(listeners, selected);
@@ -8230,7 +8230,7 @@ function createSelection(store, plugins, signal5) {
     get: () => selected,
     set(objects) {
       const given = selectionGiven(objects);
-      const lacking = given.find((object2) => !store.hasBoard() || !holds(object2, store.board()));
+      const lacking = given.find((object2) => !store.hasBoard() || !holds2(object2, store.board()));
       if (lacking !== void 0) throw new Error(unheld(lacking));
       if (sameIds(selected.map(objectKey), given.map(objectKey))) return;
       selected = given;
@@ -9265,14 +9265,14 @@ import { createPortal } from "react-dom";
 import { useCallback, useId, useState } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
-function useFooter(status, notifications, severities = SEVERITIES2) {
+function useFooter(status, notifications) {
   const shown2 = useShown(status);
   const opened = useOpened(OPEN_AT_START);
-  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, severities, ...opened };
+  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
 }
-function usePills(notifications, severities = SEVERITIES2) {
+function usePills(notifications) {
   const opened = useOpened(NONE_OPEN);
-  return { status: void 0, shown: void 0, settled: true, notifications, severities, ...opened };
+  return { status: void 0, shown: void 0, settled: true, notifications, ...opened };
 }
 function useOpened(atStart) {
   const [open, setOpen] = useState(atStart);
@@ -9302,14 +9302,13 @@ function Pills({
   shown: shown2,
   settled: settled2,
   notifications,
-  severities,
   open,
   toggle,
   panel,
   className = "bc:justify-center bc:px-5"
 }) {
   const pills = SEVERITIES2.flatMap((severity) => {
-    const n = counted(shown2, notifications, severities, severity);
+    const n = counted(shown2, notifications, severity);
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
@@ -9343,9 +9342,9 @@ function Pills({
     }
   );
 }
-function Banners({ shown: shown2, notifications, severities, open, panel }) {
+function Banners({ shown: shown2, notifications, open, panel }) {
   const listed = notifications.filter(
-    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
+    (notification) => open.has(notification.severity)
   );
   const reason = shown2?.reason ?? null;
   if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
@@ -9355,8 +9354,8 @@ function Banners({ shown: shown2, notifications, severities, open, panel }) {
 function isSettled(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
-function counted(status, notifications, severities, severity) {
-  const n = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+function counted(status, notifications, severity) {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
   return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 var MARKS = {
@@ -9469,9 +9468,10 @@ import { useCallback as useCallback2, useLayoutEffect as useLayoutEffect2, useMe
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
-function bind(host, key2, show2, options = {}) {
+function bind(host, key2, next, last, given) {
+  const [change, show2, options] = typeof key2 === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
   const source = createSource(host);
-  source.check(key2);
+  const held3 = source.value(key2, change);
   const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
   let shown2;
   let typed;
@@ -9479,15 +9479,34 @@ function bind(host, key2, show2, options = {}) {
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
-    const value2 = source.get(key2);
+    const value2 = held3.get();
     if (!again && shown2 !== void 0 && jsonEqual(shown2.value, value2)) return;
     shown2 = { value: value2 };
     show2(value2);
   };
+  let unbuilt;
+  const unbuild = (error) => {
+    host.log.error(asError(error));
+    unbuilt?.();
+    unbuilt = options.notifier === void 0 ? host.notify({
+      severity: "error",
+      code: "change_failed",
+      message: `The control failed to build the change it submits: ${errorMessage(error)}`
+    }) : void 0;
+  };
   const submit = async (value2) => {
-    if (jsonEqual(source.get(key2), value2)) return true;
+    let submitted;
     try {
-      await (value2 === void 0 ? source.unset(key2, submitting) : source.submit(key2, value2, submitting));
+      submitted = held3.submit(value2, submitting);
+    } catch (error) {
+      unbuild(error);
+      options.settled?.(error);
+      return false;
+    }
+    unbuilt?.();
+    unbuilt = void 0;
+    try {
+      if (submitted !== null) await submitted;
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -9511,7 +9530,7 @@ function bind(host, key2, show2, options = {}) {
   });
   display(true);
   return {
-    get: () => source.get(key2),
+    get: () => held3.get(),
     async commit(value2) {
       const took = await submit(value2);
       if (!took) display(true);
@@ -9542,24 +9561,24 @@ function bind(host, key2, show2, options = {}) {
 }
 function createSource(host) {
   if ("option" in host) {
-    const check2 = (key2) => {
-      if (key2 !== host.option) {
-        throw new Error(`The host of the board option "${host.option}" holds no value "${key2}".`);
-      }
-    };
     return {
-      check: check2,
-      get(key2) {
-        check2(key2);
-        return host.value();
-      },
-      submit(key2, value2, opts) {
-        check2(key2);
-        return host.submit(value2, opts);
-      },
-      unset(key2) {
-        check2(key2);
-        return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+      value(key2) {
+        if (typeof key2 === "function") {
+          throw new TypeError(`The value of the board option "${host.option}" is bound by its id, not through functions.`);
+        }
+        if (key2 !== host.option) {
+          throw new Error(`The host of the board option "${host.option}" holds no value "${key2}".`);
+        }
+        return {
+          get: () => host.value(),
+          submit(value2, opts) {
+            if (jsonEqual(host.value(), value2)) return null;
+            if (value2 === void 0) {
+              return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+            }
+            return host.submit(value2, opts);
+          }
+        };
       },
       onValues: (fn) => host.on("value", fn),
       onContext: () => () => void 0,
@@ -9568,44 +9587,65 @@ function createSource(host) {
     };
   }
   return {
-    check: () => void 0,
-    get: (key2) => own(host.state(), key2),
-    submit: (key2, value2, opts) => host.submit({ [key2]: value2 }, opts),
-    unset: (key2, opts) => host.submit({ [key2]: void 0 }, opts),
+    value(key2, change) {
+      const read = typeof key2 === "function" ? key2 : (state2) => own(state2, key2);
+      const build = typeof key2 === "function" ? change : (value2) => ({ [key2]: value2 });
+      if (typeof build !== "function") {
+        throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
+      }
+      return {
+        get: () => read(host.state()),
+        submit(value2, opts) {
+          const state2 = host.state();
+          const next = build(value2, state2);
+          return holds(state2, next) ? null : host.submit(next, opts);
+        }
+      };
+    },
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input2) => ({ input: input2.input, revision: input2.revision })),
     request: (name2, args, opts) => host.request(name2, args, opts)
   };
 }
+function holds(state2, change) {
+  return Object.entries(change).every(([arg, value2]) => jsonEqual(own(state2, arg), value2));
+}
 function strings(value2) {
   return Array.isArray(value2) ? value2.filter((x) => typeof x === "string") : [];
 }
 
 // srcts/react/hooks.ts
-function useValue(host, key2) {
-  const name2 = key2 ?? ("option" in host ? host.option : "");
-  const [value2, setValue] = useState3(() => held2(host, name2));
+function useValue(host, key2, change) {
+  const read = typeof key2 === "function" ? key2 : null;
+  const name2 = typeof key2 === "function" ? null : key2 ?? ("option" in host ? host.option : "");
+  const given = read === null || change === void 0 ? null : { read, change };
+  const [value2, setValue] = useState3(() => held2(host, name2, { current: given }));
   const [error, setError] = useState3(null);
   const binding = useRef2(null);
+  const functions = useRef2(given);
   useLayoutEffect2(() => {
-    const bound = bind(host, name2, setValue, {
-      settled: (refused2) => {
-        setError(refused2 === null ? null : errorMessage(refused2));
-      },
-      notifier: () => void 0
-    });
-    binding.current = bound;
+    binding.current = start2(host, name2, functions, setValue, setError);
     return () => {
+      const bound = binding.current;
       binding.current = null;
-      bound.release();
+      bound?.release();
     };
   }, [host, name2]);
+  useLayoutEffect2(() => {
+    if (read === null || change === void 0) return;
+    const last = functions.current;
+    if (last !== null && last.read === read && last.change === change) return;
+    const moved = last === null || !readAlike(last.read, read, host.state());
+    if (moved) binding.current?.release();
+    functions.current = { read, change };
+    if (moved) binding.current = start2(host, name2, functions, setValue, setError);
+  }, [read, change, host, name2]);
   return useMemo(
     () => ({
       value: value2,
       error,
-      get: () => binding.current?.get() ?? held2(host, name2),
+      get: () => binding.current?.get() ?? held2(host, name2, functions),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
       unset: () => binding.current?.unset() ?? Promise.resolve(false),
       type: (next) => {
@@ -9618,8 +9658,32 @@ function useValue(host, key2) {
     [value2, error, host, name2]
   );
 }
-function held2(host, key2) {
-  return "option" in host ? host.value() : own(host.state(), key2);
+function start2(host, name2, functions, show2, refused2) {
+  const options = {
+    settled: (error) => {
+      refused2(error === null ? null : errorMessage(error));
+    },
+    notifier: () => void 0
+  };
+  if (name2 !== null) return bind(host, name2, show2, options);
+  return bind(
+    host,
+    (state2) => functions.current?.read(state2),
+    (value2, state2) => functions.current?.change(value2, state2) ?? {},
+    show2,
+    options
+  );
+}
+function held2(host, name2, functions) {
+  if ("option" in host) return host.value();
+  return name2 === null ? functions.current?.read(host.state()) : own(host.state(), name2);
+}
+function readAlike(a, b, state2) {
+  try {
+    return jsonEqual(a(state2), b(state2));
+  } catch {
+    return false;
+  }
 }
 function useBoard(core) {
   const subscribe = useCallback2(
@@ -10862,18 +10926,12 @@ function Menu3({ label, items }) {
 
 // srcts/modules/basic/card.tsx
 import { jsx as jsx17, jsxs as jsxs11 } from "react/jsx-runtime";
-var BlockCard = memo(function BlockCard2({
-  id: id2,
-  block,
-  severities,
-  prependable,
-  add
-}) {
+var BlockCard = memo(function BlockCard2({ id: id2, block, prependable, add }) {
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
   const notified = useNotified(core, { block: id2 });
-  const footer = useFooter(status, notified, severities);
+  const footer = useFooter(status, notified);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState12(false);
   const ref = useRef7(null);
@@ -11103,7 +11161,7 @@ function hasSection(core, plugin) {
 function placed(core) {
   return Object.entries(core.plugins.appPlugins()).filter(([id2]) => hasSection(core, id2));
 }
-function Plugins({ severities }) {
+function Plugins() {
   const { core } = useFrontEnd();
   const shown2 = placed(core);
   if (shown2.length === 0) return null;
@@ -11112,18 +11170,14 @@ function Plugins({ severities }) {
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx19(PluginSection, { id: id2, plugin, severities }, id2))
+      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx19(PluginSection, { id: id2, plugin }, id2))
     }
   );
 }
-function PluginSection({
-  id: id2,
-  plugin,
-  severities
-}) {
+function PluginSection({ id: id2, plugin }) {
   const { core, inView: inView2, sections } = useFrontEnd();
   const notified = useNotified(core, { plugin: id2 });
-  const pills = usePills(notified, severities);
+  const pills = usePills(notified);
   const collapsed = useSyncExternalStore3(sections.subscribe, () => sections.collapsed(id2));
   const body = useId2();
   const ref = useRef8(null);
@@ -11646,8 +11700,6 @@ function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
   const items = useMemo4(() => layoutItems(board), [board]);
-  const shown2 = board.options.show_conditions;
-  const severities = useMemo4(() => asSeverities(shown2), [shown2]);
   const [dialog, setDialog] = useState14(null);
   const add = useCallback7((mode) => {
     setDialog({ kind: "add", mode });
@@ -11663,7 +11715,6 @@ function Page() {
       {
         id: id2,
         block,
-        severities,
         prependable: (freeInputs(board, core.blockRegistry(), id2)?.length ?? 0) > 0,
         add
       },
@@ -11681,7 +11732,7 @@ function Page() {
       }
     ),
     /* @__PURE__ */ jsxs15("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
-      /* @__PURE__ */ jsx21(Plugins, { severities }),
+      /* @__PURE__ */ jsx21(Plugins, {}),
       /* @__PURE__ */ jsxs15("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
         items.length === 0 ? /* @__PURE__ */ jsx21("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item) => {
@@ -11791,15 +11842,6 @@ function ToastItem({ toast, title }) {
       ]
     }
   );
-}
-function asSeverities(value2) {
-  if (Array.isArray(value2) && value2.every(isSeverity)) return value2;
-  throw new TypeError(
-    `The board option show_conditions is ${JSON.stringify(value2)}, where the board takes an array of "message", "warning" and "error".`
-  );
-}
-function isSeverity(value2) {
-  return value2 === "error" || value2 === "warning" || value2 === "message";
 }
 
 // srcts/modules/basic/demand.ts
@@ -12810,12 +12852,6 @@ var optionSchemas = {
     minimum: 1,
     description: "How many rows of a table a block's output shows"
   },
-  show_conditions: {
-    type: "array",
-    items: { enum: ["message", "warning", "error"] },
-    uniqueItems: true,
-    description: "The severities of a block's conditions that the board shows"
-  },
   dark_mode: {
     enum: ["light", "dark"],
     description: "Whether the board shows in its light or its dark theme"
@@ -12829,13 +12865,6 @@ function numberUi(label, min) {
     return /* @__PURE__ */ jsx28(NumberField2, { bound: useValue(host), label, minValue: min, step: 1 });
   }
   return reactModule(NumberUi);
-}
-function multiSelectUi(label, values2) {
-  const items = values2.map((id2) => ({ id: id2 }));
-  function MultiSelectUi({ host }) {
-    return /* @__PURE__ */ jsx28(ComboBox2, { bound: useValue(host), selectionMode: "multiple", label, defaultItems: items, ordered: true, children: (item) => /* @__PURE__ */ jsx28(ComboBoxItem, { id: item.id, children: item.id }) });
-  }
-  return reactModule(MultiSelectUi);
 }
 function selectUi(label, placeholder, items) {
   function SelectUi({ host }) {
@@ -12856,20 +12885,6 @@ var nRows = {
     return checked3("n_rows", takesRows, value2, typeof value2 === "string" ? asNumber(value2) : value2);
   },
   ui: numberUi("Preview rows", optionSchemas.n_rows.minimum)
-};
-var SEVERITIES3 = ["message", "warning", "error"];
-var showConditions = {
-  label: "Message types to display",
-  category: "Board options",
-  schema: optionSchemas.show_conditions,
-  // R writes a blockr option of one severity as a string, as an environment
-  // variable gives it.
-  default: async (core) => {
-    const value2 = await core.blockrOption("show_conditions");
-    if (value2 === void 0) return ["warning", "error"];
-    return checked3("show_conditions", takesSeverities, value2, typeof value2 === "string" ? [value2] : value2);
-  },
-  ui: multiSelectUi("Message types to display", SEVERITIES3)
 };
 var darkMode = {
   label: "Light/dark mode",
@@ -12892,7 +12907,6 @@ var darkMode = {
 };
 var coreOptions = {
   n_rows: nRows,
-  show_conditions: showConditions,
   dark_mode: darkMode
 };
 function setTheme(theme) {
@@ -12908,12 +12922,6 @@ function checked3(id2, takes, sent2, value2 = sent2) {
 function takesRows(value2) {
   return typeof value2 === "number" && Number.isInteger(value2) && value2 >= optionSchemas.n_rows.minimum;
 }
-function takesSeverities(value2) {
-  const allowed = optionSchemas.show_conditions.items.enum;
-  if (!Array.isArray(value2)) return false;
-  const given = value2;
-  return given.every((x) => allowed.includes(x)) && new Set(given).size === given.length;
-}
 function takesTheme(value2) {
   const allowed = optionSchemas.dark_mode.enum;
   return allowed.includes(value2);
@@ -12921,7 +12929,7 @@ function takesTheme(value2) {
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, show_conditions and dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -13244,7 +13252,7 @@ var hello_default = {
           "blockr.core-basic_frontend_plugin": {
             name: "Basic frontend",
             version: 1,
-            options: ["show_conditions", "dark_mode"],
+            options: ["dark_mode"],
             module: "blockr.core/basic.js?v=0f3d8e21",
             css: "blockr.core/basic.css?v=6a9b2c4e"
           },
@@ -13266,11 +13274,6 @@ var hello_default = {
           n_rows: {
             package: "blockr.core",
             module: "blockr.core/n-rows-option.js?v=2b9c7e14",
-            version: 1
-          },
-          show_conditions: {
-            package: "blockr.core",
-            module: "blockr.core/show-conditions-option.js?v=6f3a8d05",
             version: 1
           },
           dark_mode: {
@@ -13345,11 +13348,7 @@ var hello_default = {
             },
             stacks: { s1: { name: "Input", blocks: ["a", "b"], color: null } },
             options: {
-              n_rows: { value: 50, version: 1 },
-              show_conditions: {
-                value: ["warning", "error"],
-                version: 1
-              }
+              n_rows: { value: 50, version: 1 }
             },
             plugins: {}
           }

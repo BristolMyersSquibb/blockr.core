@@ -295,8 +295,8 @@ describe("the page", () => {
 });
 
 describe("a card", () => {
-  test("shows its block's status in its header, its summary in its footer, and below its output a pill for each severity that show_conditions names, which opens its banners", async () => {
-    const { el, core } = await drawn({
+  test("shows its block's status in its header, its summary in its footer, and below its output a pill for each severity of the notifications about the block, which opens its banners", async () => {
+    const { el } = await drawn({
       evaluate: (request) =>
         request.block === "b"
           ? {
@@ -319,28 +319,26 @@ describe("a card", () => {
     expect(box?.lastElementChild).toBe(footer);
     expect(box?.nextElementSibling).toBe(find(head, '[aria-label="Status"]'));
     expect(summary(head)).toBe("<data.frame> [6 × 5]");
-    // The board holds show_conditions at warnings and errors, so no pill
-    // shows for the message.
-    expect(pills(head)).toEqual(["1 warning"]);
+    // The banners of the warnings and of the messages start closed.
+    expect(pills(head)).toEqual(["1 warning", "1 message"]);
     expect(banners(head)).toEqual([]);
 
     await click(button(head, "1 warning"));
     expect(banners(card(el, "Head"))).toEqual([["warning", "Few rows"]]);
 
-    // The banners of a severity go with its pill, as show_conditions leaves
-    // the severity out.
-    await step(() => {
-      core.store.apply({ options: { set: { show_conditions: ["message"] } } });
-    });
-    expect(pills(card(el, "Head"))).toEqual(["1 message"]);
-    expect(banners(card(el, "Head"))).toEqual([]);
-
+    // The open banners show in the order their notifications came, and each
+    // pill closes its own.
     await click(button(card(el, "Head"), "1 message"));
+    expect(banners(card(el, "Head"))).toEqual([
+      ["warning", "Few rows"],
+      ["message", "Took the head"],
+    ]);
+    await click(button(card(el, "Head"), "1 warning"));
     expect(banners(card(el, "Head"))).toEqual([["message", "Took the head"]]);
   });
 
-  test("counts why an invalid block does not run among its messages, whatever show_conditions names", async () => {
-    const { el, core } = await drawn({
+  test("counts why an invalid block does not run among its messages", async () => {
+    const { el } = await drawn({
       evaluate: (request) =>
         request.block === "c"
           ? { status: "invalid", reason: "Choose at least one column to join by." }
@@ -350,18 +348,10 @@ describe("a card", () => {
     const merge = card(el, "Merge");
     expect(badge(merge)).toBe("invalid");
     expect(summary(merge)).toBeNull();
-    // The board holds show_conditions at warnings and errors, and the pill of
-    // the messages counts the reason all the same.
     expect(pills(merge)).toEqual(["1 message"]);
     expect(banners(merge)).toEqual([]);
 
     await click(button(merge, "1 message"));
-    expect(banners(card(el, "Merge"))).toEqual([["message", "Choose at least one column to join by."]]);
-
-    await step(() => {
-      core.store.apply({ options: { set: { show_conditions: ["error"] } } });
-    });
-    expect(pills(card(el, "Merge"))).toEqual(["1 message"]);
     expect(banners(card(el, "Merge"))).toEqual([["message", "Choose at least one column to join by."]]);
   });
 
@@ -399,7 +389,7 @@ describe("a card", () => {
     expect(banners(head)).toEqual([["error", "No rows"]]);
 
     // The blocks downstream of a failed block wait on it, and the pills of
-    // their messages say why, whatever show_conditions names.
+    // their messages say why.
     expect(core.scheduler.status("c")?.status).toBe("waiting");
     const why = core.scheduler.status("c")?.reason;
     expect(why).toMatch(/^This block is waiting for/);
@@ -407,14 +397,6 @@ describe("a card", () => {
     expect(pills(card(el, "Merge"))).toEqual(["1 message"]);
     await click(button(card(el, "Merge"), "1 message"));
     expect(banners(card(el, "Merge"))).toEqual([["message", why]]);
-
-    // Where show_conditions leaves out the errors, no pill shows for the
-    // error, and no banner.
-    await step(() => {
-      core.store.apply({ options: { set: { show_conditions: ["warning"] } } });
-    });
-    expect(pills(card(el, "Head"))).toEqual([]);
-    expect(banners(card(el, "Head"))).toEqual([]);
   });
 
   test("leaves no room for an output, and draws no footer, until its block first reads ready, so that a block that fails at once shows its pills alone, as one that waits does", async () => {
@@ -709,12 +691,11 @@ describe("the toolbar", () => {
 
     await click(button(el, "Options"));
     await settled();
-    // The board holds n_rows, which the table renderer names, and
-    // show_conditions and dark_mode, which core's basic frontend requires.
-    expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows", "show_conditions"]);
-    expect(texts(dialog(), "h3")).toEqual(["Table options", "Board options", "Theme options"]);
+    // The board holds n_rows, which the table renderer names, and dark_mode,
+    // which core's basic frontend requires.
+    expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows"]);
+    expect(texts(dialog(), "h3")).toEqual(["Table options", "Theme options"]);
     expect(dialog().textContent).toContain("Preview rows");
-    expect(dialog().textContent).toContain("Message types to display");
 
     await picked(labelled(find(dialog(), 'section[aria-label="Theme options"]'), "Light/dark mode"), step, "Dark");
     expect(board().options.dark_mode).toBe("dark");
@@ -1145,7 +1126,7 @@ describe("a plugin", () => {
     expect(ui.renders).toHaveLength(2);
   });
 
-  test("shows the notifications about it, whoever raised them, as pills on its section's title for the severities that show_conditions names, each of which opens their messages below the title, closed at first, whether the section is open or collapsed", async () => {
+  test("shows the notifications about it, whoever raised them, as pills on its section's title for every severity, each of which opens their messages below the title, closed at first, whether the section is open or collapsed", async () => {
     const { el, core } = await drawn();
     const edit = section(el, "Edit board");
     let withdraw: () => void = () => undefined;
@@ -1161,10 +1142,9 @@ describe("a plugin", () => {
       core.notifications.notify(EDIT_BOARD, { severity: "message", code: "class_picked", message: "Picked a class." });
     });
 
-    // The board holds show_conditions at warnings and errors, so no pill
-    // shows for the message. Each pill starts closed, and no notification
-    // about the plugin shows as a toast.
-    expect(pills(edit)).toEqual(["error", "2 warnings"]);
+    // Each pill starts closed, and no notification about the plugin shows as a
+    // toast.
+    expect(pills(edit)).toEqual(["error", "2 warnings", "1 message"]);
     expect(banners(edit)).toEqual([]);
     expect(toasts(el)).toEqual([]);
 
@@ -1184,21 +1164,16 @@ describe("a plugin", () => {
     await click(titled(edit));
     await click(button(edit, "error"));
     expect(isOpen(edit)).toBe(false);
-    expect(pills(edit)).toEqual(["error", "2 warnings"]);
+    expect(pills(edit)).toEqual(["error", "2 warnings", "1 message"]);
     expect(banners(edit)).toEqual([
       ["warning", "The registry holds 900 classes."],
       ["error", "The table cannot draw."],
       ["warning", "Edits are unsaved."],
     ]);
 
-    // A pill goes with its notifications, and shows for each severity that
-    // show_conditions comes to name.
+    // A pill goes with its notifications.
     await step(() => {
       withdraw();
-    });
-    expect(pills(edit)).toEqual(["2 warnings"]);
-    await step(() => {
-      core.store.apply({ options: { set: { show_conditions: ["message", "warning"] } } });
     });
     expect(pills(edit)).toEqual(["2 warnings", "1 message"]);
     expect(toasts(el)).toEqual([]);

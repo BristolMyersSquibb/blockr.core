@@ -273,8 +273,7 @@ board_fixture_values <- function() {
         "vector of length one, as an array, and its all_x as a value, while",
         "it writes the state of the letters blocks bare. The stack of one",
         "block keeps its blocks an array, by the schema of a JSON board, and",
-        "the value of show_conditions is an array, by the schema that core",
-        "ships beside its runtime, recorded with the version of its shape, as",
+        "the value of n_rows is recorded with the version of its shape, as",
         "each board option's value is. The stack has a color, a hex color",
         "that frontends draw it in. The block b holds a locked of false,",
         "which leaves it open under the board lock, while the blocks a and c",
@@ -296,10 +295,7 @@ board_fixture_values <- function() {
           bc = new_link("b", "c", "y")
         ),
         stacks = stacks(s1 = new_stack("a", "Input", color = "#66c2a5")),
-        options = c(
-          new_n_rows_option(25L),
-          new_show_conditions_option("error")
-        ),
+        options = new_n_rows_option(25L),
         id = "curious_otter",
         name = "Sales review"
       )

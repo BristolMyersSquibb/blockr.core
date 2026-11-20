@@ -97,7 +97,7 @@
   R finds the available packages by that export, from the `Meta/nsInfo.rds` of each installed package, which it reads without loading the package, and among the loaded packages, those that `pkgload::load_all()` loaded included, and loads each as it reads its object.
   A plugin class's module has the class without its id as its default export, as a board option's module has the board option, and the schema of a class's state or of a board option's value sits beside the module.
   A board option's `default` that is a function gets `CoreApi`, as `n_rows` reads its blockr option through it.
-  Core lists its basic frontend, its storage plugin and its Edit board plugin, its board options `n_rows`, `show_conditions` and `dark_mode`, its inputs for modules written without React, which it offers as `blockr.core-controls`, and its output families `table_output`, `text_output` and `plot_output`.
+  Core lists its basic frontend, its storage plugin and its Edit board plugin, its board options `n_rows` and `dark_mode`, its inputs for modules written without React, which it offers as `blockr.core-controls`, and its output families `table_output`, `text_output` and `plot_output`.
   R reads the output families that the available packages list as `serve()` builds the app, and two packages that list a family of one class stop the app.
   The startup modules go, with `register_startup_module()`, `register_module()` and the order of packages by their NAMESPACE (#424, #504, #560, #712).
 * A renderer, which `new_renderer()` makes, is a module that draws the
@@ -231,7 +231,7 @@
   A block's status in the client holds the reason beside its summary.
   The scheduler writes the reason of a block that an input or a block upstream keeps waiting, in place of a condition.
   A one-time evaluation with parameters runs a block that R says waits, and the block takes its reply.
-  A card counts the reason in the pill of the messages, whatever `show_conditions` names, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596).
+  A card counts the reason in the pill of the messages, and draws its pills on a line below the output's box rather than on the line of the footer inside it (#596).
 * R's `ok` reply to a request or an output carries `conditions`, as its reply to an evaluation does: every message and warning that the request's function or the output's coercion raised.
   R logs each of them.
   Core raises a notification for each condition of an `ok` reply to a request or an output (#601, #606).
@@ -252,6 +252,10 @@
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
+  Given two functions in place of a state arg's name, `useValue()`, `bind()` and the controls of `controls()` bind the value that the first reads from the block's state, such as the join that two state args make, or one condition of a list.
+  As the binding submits, after the pause for typing too, the second builds the change of the state from the value and from the state as the host holds it then.
+  So an input sets several state args in one submit, or edits part of a state arg and keeps an edit made in the meantime, such as a condition that the assistant added.
+  Such an input says below itself why the host refused a submit, and submits nothing that the state holds already (#772).
   Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a board object through `CoreApi`, as core's own frontend and cards do.
   The hook `useNotified()` takes the board object as `{ block: id }` or `{ plugin: id }`, or null for every notification (#673, #710).
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
@@ -271,7 +275,7 @@
   The danger and the warning texts of the theme reach the contrast that WCAG's level AA asks of text, 4.5:1, under either theme, on a card and on the tint of a card's mark too.
   Under the light theme, they take Tailwind's red-700 and amber-800, and under the dark theme the colors that blockr.ui gives them there, as the statuses do.
   A card marks a message in blue-700 under the light theme, for the same reason (#677).
-  The client defines core's board options `n_rows`, `show_conditions` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
+  The client defines core's board options `n_rows` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   The board option `dark_mode` switches the page's theme in `data-bc-theme`, an attribute of core's own on the page's root element, rather than in Bootstrap's `data-bs-theme` (#589).
   A package that styles the dark theme keys off the same attribute.
   The board option `n_rows` takes one row at least.
@@ -280,6 +284,7 @@
   The most rows that the head block's number input takes come from the request `n_max`, and the merge block's columns to join by from the request `shared`, while the modules of the static, fixed and row-bind blocks draw nothing.
   The merge block offers its join in one select, "Join type", of an inner, a left, a right and a full join, in place of a checkbox for each of `all_x` and `all_y`.
   A pick sets both state args in one submit, so that it is one edit and one undo step (#693).
+  The select binds both state args through `useValue()`, and says below itself why the host refused a join (#772).
   Each module ships the JSON Schema of its block's state beside it, which the build writes from the module's type of the state.
   R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
   Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.
@@ -330,14 +335,14 @@
   It is written in React on core's React SDK and styled with Tailwind CSS under core's prefix.
   Its toolbar sets the board options that the board holds, renames the board, and saves the board or opens another.
   It draws each stack as a group of its blocks' cards.
-  A card shows its block's name, class and status, the block's UI and output with the summary of the block's result below it, and the conditions of the severities that the board option `show_conditions` names.
+  A card shows its block's name, class and status, the block's UI and output with the summary of the block's result below it, and the block's conditions, whatever their severity.
   A card's menu renames or removes its block, or adds a block before or after it.
   The output of a block that is not ready is grayed out, where the page cleared it until now.
   Undo and redo are bound to Mod+Z, and Mod+Shift+Z or Mod+Y, with Mod either Ctrl or Cmd.
   The frontend tells the user which edit the store refused.
   The frontend demands every block above the default evaluation priority, and the blocks in view higher still, where the page parked the blocks of collapsed stacks until now.
   On a locked board, it draws no control for what the lock fixes.
-  It requires the board options `show_conditions` and `dark_mode`, so that a board that it draws gets them as it opens.
+  It requires the board option `dark_mode`, so that a board that it draws gets it as it opens.
   The page's color scheme follows the theme that `dark_mode` switches the page to, so that the browser draws the page's background, form controls and scroll bars in that theme too.
   Where no blockr option sets `n_rows`, a table output's page holds 10 rows, where it held 50 (#441, #565).
 * A board has no class of its own, and plugins take the place of board classes as core's way to extend a board as a whole, beside block classes.
@@ -376,7 +381,7 @@
 * The frontend is a plugin: core draws every board with the app's frontend, the plugin whose class has `frontend`, such as core's basic frontend, whose class, `blockr.core-basic_frontend_plugin`, core registers as it starts, and the page shows why where the app runs none.
   Core calls a frontend's `render()` with the page's element, `CoreApi`, the ID of the frontend's class and a signal, as it calls the `render()` of a plugin's UI module, which a frontend places with the `mountPlugin()` of `CoreApi`.
   Once the frontend's `render()` has returned, core calls the `start` of each plugin's class, in the order of the app's plugins, and as the next board opens it aborts the plugin's signal and runs the cleanup that `start` returned.
-  As a board opens, core adds to it the board options that the classes of the app's plugins name through their methods of `plugin_options()`, core's basic frontend's among them, each with its default where the board lacks it, so that the store no longer writes `show_conditions` and `dark_mode` into every board.
+  As a board opens, core adds to it the board options that the classes of the app's plugins name through their methods of `plugin_options()`, core's basic frontend's among them, each with its default where the board lacks it, so that the store no longer writes `dark_mode` into every board.
   Where such a board option does not go onto the board, nothing that requires it draws or runs: the element of the frontend or of the plugin's UI shows why, and core calls no `start` of the plugin and reports why.
   The `plugins` of `CoreApi` gain `appPlugins()`, the app's plugins whose classes are registered, by the IDs of their classes, each with its class's name, `pluginClass()`, the class of one of them, and `storage()`, the storage of the app's storage plugin, or `undefined` where the app runs none.
   Beside them, `CoreApi` gains `notifications`, which hold the notifications of the board, and `focus`, the block that has focus, which goes back to none where that block leaves the board.
@@ -439,7 +444,7 @@
   A read fails where R replies `error` to the request, with R's message, as for a blockr option whose R option and environment variable disagree.
   R writes every value that the client asks for as yyjsonr writes it, whatever its class, and replies `error`, naming the blockr option, where yyjsonr cannot write the value, as for a function.
   The client's `CoreApi.blockrOption()` takes no fallback: it gives the value as R sent it, or `undefined` where nothing sets the blockr option, and the code that reads the blockr option converts and checks the value, and takes a fallback of its own only where nothing sets it.
-  Core's code reads a string, as an environment variable gives, as the number or the logical that it holds, and fails on an `evaluation_queue` that is then no whole number of 0 or more nor -1, a `background_evaluation_delay` that is no number of 0 or more nor -1, a `gate_visibility` that is neither `TRUE` nor `FALSE`, a `rand_id` that names no shape, and a value of `n_rows`, `show_conditions` or `dark_mode` that the board option's schema refuses.
+  Core's code reads a string, as an environment variable gives, as the number or the logical that it holds, and fails on an `evaluation_queue` that is then no whole number of 0 or more nor -1, a `background_evaluation_delay` that is no number of 0 or more nor -1, a `gate_visibility` that is neither `TRUE` nor `FALSE`, a `rand_id` that names no shape, and a value of `n_rows` or `dark_mode` that the board option's schema refuses.
   Where core reads the blockr option as it starts, core does not start, and the page shows why (#510).
 * The blockr options `evaluation_queue` and `background_evaluation_delay` take -1 in place of `Inf`, for no limit and for no evaluation in the background, since JSON holds no infinite number and R writes `Inf` as `null`, which they refuse (#510).
 * The blockr options `attach_default_packages`, `log_time` and `log_mem` read a string, as an environment variable gives, as `as.logical()` reads it.
@@ -481,7 +486,7 @@
   A link that `blockr.core-change_link` keeps on its block may still take an input that another link feeds, since the command swaps the inputs of the two links.
   Where the args name no input and the block has no free input, both preflights say why, such as `Every input of the block "c" takes a link already.`
   The preflight of `blockr.core-change_link` also fails where the args name a block that the board lacks, as that of `blockr.core-add_link` does (#695, #741).
-* Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, a `show_conditions` that is no array of severities, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
+* Core's basic frontend, its table renderer and the file browser block fail on a value that they cannot read, rather than show a default in its place: an `n_rows` that is no whole number of at least 1, volumes that are no object of paths, and an answer of `list_dir` that lists no `dirs` and `files` (#510).
 * An app sets three locks, each on its own, where it set one until now (see `?"locked-board"`).
   The load lock, the blockr option `lock_load`, fixes the app to its opening board.
   The client's store then opens no JSON board's text, and core asks the app's storage plugin for no board to open in place of the one that R sent.
@@ -525,7 +530,7 @@
   Its `show()` has the frontend show a block or a plugin, as a plugin asks it to (#443, #680).
 * The cards of core's basic frontend show their block's status as the card of a block that `serve()` serves alone does, in place of the summary below the output and the list of conditions.
   A footer, one centered line at the end of the output's box, shows a ready block's summary.
-  Below the box sits a pill for each severity of the conditions of R's reply that the board option `show_conditions` names, and the pill of the messages also counts why an invalid or a waiting block does not run.
+  Below the box sits a pill for each severity of the conditions of R's reply, and the pill of the messages also counts why an invalid or a waiting block does not run.
   The pill of the errors reads `error`, and those of the warnings and the messages count them.
   Each pill opens and closes its banners below it, each condition in full, in the color of its severity and in the order R raised them, and the reason last among the messages.
   The pill of the errors is open from the start, so that a failed block shows its error at once.
@@ -607,13 +612,13 @@
   The function `bind()` passes the host's `submit()` the notifier that its options give, and `useValue()` and core's controls pass one, since they show the reason below the input.
   The request option `conditions` is gone, and `notifier` takes its place (#644, #709).
 * Where a later reply to `hello` names a package at another version than the page loaded, core asks for the page to be reloaded through a notification of the code `page_reload_needed`, which each board that opens raises again while the versions differ, in place of the banner that its page drew.
-  A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply, of the severities that `show_conditions` names.
+  A block's card shows those about the block below its UI and its output, in its pills and its banners, whoever raised them, as it shows the conditions of R's reply.
   The card of a block that `serve()` serves alone shows every notification of the board.
   A renderer made with `outputRenderer()` no longer shows why the latest ask failed, which its component still gets as `error`.
   In place of a component that throws, it draws nothing and raises a notification of the code `render_failed` through its host, until the component draws another output.
   Core's upload and file browser blocks no longer show a request that failed, and the upload block raises `upload_unanswered` where R kept a file but answered no path for it (#539).
 * Core's basic frontend shows each notification that concerns neither a block nor a plugin that it shows in a section as a toast, whatever its severity and whoever raised it, in place of its list above the board.
-  Each plugin's section shows the notifications about the plugin, of the severities that `show_conditions` names, as pills on its title beside the plugin's name, whether the section is open or collapsed, as a card's pills count those about its block.
+  Each plugin's section shows the notifications about the plugin, of every severity, as pills on its title beside the plugin's name, whether the section is open or collapsed, as a card's pills count those about its block.
   Each pill opens the messages of its notifications below the title, and starts closed, since the plugin shows them in its UI.
   The toasts sit in the window's bottom right corner.
   Each names what it concerns, such as a board option or a plugin, and the package that its source names.
@@ -713,6 +718,10 @@
   Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
+* The board option `show_conditions` is gone, with `new_show_conditions_option()` and the blockr option `show_conditions`, which gave its default.
+  Which notifications reach the user is no longer a choice: core's basic frontend shows every notification about a block on its card, and every notification about a plugin on the plugin's section, whatever its severity.
+  The pill of the errors starts open, as before, and the others start closed.
+  A board that holds a value for `show_conditions` opens without it, and the warning `board_objects_dropped` names it (#773).
 * Core's React SDK offers `NotificationList`, in which a UI shows the notifications that `useNotified()` gives it, in the message style of the design system of blockr.ui.
   The list holds an item for each notification, in the order given.
   Each item holds the notification's severity in `data-severity` and its message as text.

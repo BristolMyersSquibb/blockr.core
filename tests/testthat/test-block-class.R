@@ -488,13 +488,16 @@ test_that("str_value() is extensible via NextMethod()", {
 
 test_that("a block's board options are those its UI module and requests read", {
 
+  # A board option of a package, beside core's
+  new_zoom_option <- function(value) new_board_option("zoom", value)
+
   with_opts <- block_constructor(
     new_block_class(
       "opts_block",
       inputs = "data",
       expr = function() bbquote(.(data)),
       ui = js_module("opts.js"),
-      options = list(new_show_conditions_option, new_n_rows_option),
+      options = list(new_zoom_option, new_n_rows_option),
       requests = list(
         page = new_block_request(
           function(data, options) utils::head(data, options),
@@ -510,7 +513,7 @@ test_that("a block's board options are those its UI module and requests read", {
 
   expect_setequal(
     names(board_options(with_opts())),
-    c("show_conditions", "n_rows", "dark_mode")
+    c("zoom", "n_rows", "dark_mode")
   )
   expect_length(board_options(new_class_head_block()), 0L)
 })

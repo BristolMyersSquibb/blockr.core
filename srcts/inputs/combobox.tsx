@@ -41,10 +41,10 @@
 // and otherwise what `renderEmptyState` says, "No options" by default, as
 // wherever the `items` that its caller filters are none.
 //
-// Given `bound`, it shows and edits a block's state arg or a board option's
-// value, which useValue() binds, as the SDK's other inputs do
-// (./inputs.tsx): one string, or an array of strings where it picks several,
-// by the ids of its items.
+// Given `bound`, it shows and edits a value that useValue() binds, a block's
+// state arg, a board option's value or a value that a function reads from a
+// block's state, as the SDK's other inputs do (./inputs.tsx): one string, or
+// an array of strings where it picks several, by the ids of its items.
 // It shows a value that its items lack, such as a column that the data no
 // longer has, as missing, and marks itself invalid.
 // While it has no items yet, as `items` and `defaultItems` are undefined while
@@ -58,7 +58,7 @@
 // host holds then, so that it keeps a string that the assistant added in the
 // meantime.
 // It submits them in the order the user picked them, after those the value
-// holds, or where `ordered`, in the order of its items, as for severities.
+// holds, or where `ordered`, in the order of its items.
 // Where the select goes while its list is open, as where its module
 // unmounts, the picks go with it, as though the user never made them.
 // A chip that the user removes while the list is closed it submits at once.

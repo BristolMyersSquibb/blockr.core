@@ -290,6 +290,101 @@ describe("the inputs of a block's UI", () => {
   });
 });
 
+describe("an input bound with two functions", () => {
+  // A block whose state arg `conditions` holds a list, of which an input edits
+  // the condition at an index.
+  type Conditions = Readonly<{ conditions: readonly string[] }>;
+
+  const conditions: BlockFixture = {
+    states: [
+      { conditions: ["a", "b"] },
+      { conditions: ["a", "b", "c"] },
+      { conditions: ["a2", "b", "c"] },
+      { conditions: ["a2", "b"] },
+      { conditions: ["a2", "b2"] },
+    ],
+    requests: [],
+  };
+
+  // The input binds through functions that the component makes anew each time
+  // it draws.
+  function Condition({ host, index }: { host: BlockHost<Conditions>; index: number }): ReactElement {
+    const bound = useValue(
+      host,
+      (state) => state.conditions[index],
+      (value, state) => ({
+        conditions: state.conditions.map((condition, i) => (i === index && typeof value === "string" ? value : condition)),
+      }),
+    );
+    return <TextField bound={bound} label="Condition" />;
+  }
+
+  function condition(index = 0) {
+    const host = stubBlockHost<Conditions>(conditions);
+    const drawn = draw(<Condition host={host} index={index} />);
+    return { host, ...drawn, input: labelled(drawn.el, "Condition") };
+  }
+
+  test("shows the value that the first reads, and submits the change that the second builds once the user pauses, from the state as it is then", async () => {
+    const { host, input } = condition();
+    expect(input.value).toBe("a");
+
+    act(() => {
+      type(input, "a2");
+    });
+    // The assistant adds a condition before the pause ends.
+    act(() => {
+      host.setState({ conditions: ["a", "b", "c"] });
+    });
+    await wait(PAUSE);
+
+    expect(host.submitted).toEqual([{ conditions: ["a2", "b", "c"] }]);
+    expect(input.value).toBe("a2");
+  });
+
+  test("says below itself why the host refused a change", async () => {
+    const { host, el, input } = condition();
+
+    act(() => {
+      type(input, "z");
+    });
+    await wait(PAUSE);
+
+    expect(host.submitted).toEqual([{ conditions: ["z", "b"] }]);
+    expect(texts(el, '[role="alert"]')[0]).toContain("which the fixture does not list");
+  });
+
+  test("keeps what the user types for one submit while the component draws again, with functions that read the same value", async () => {
+    const { host, redraw, input } = condition();
+
+    act(() => {
+      type(input, "a2");
+    });
+    redraw(<Condition host={host} index={0} />);
+    expect(host.submitted).toEqual([]);
+    await wait(PAUSE);
+
+    expect(host.submitted).toEqual([{ conditions: ["a2", "b"] }]);
+  });
+
+  test("binds anew where the functions of a render read another value, and submits what the user typed with those before", async () => {
+    const { host, redraw, input } = condition();
+
+    act(() => {
+      type(input, "a2");
+    });
+    redraw(<Condition host={host} index={1} />);
+    expect(host.submitted).toEqual([{ conditions: ["a2", "b"] }]);
+    expect(input.value).toBe("b");
+
+    act(() => {
+      type(input, "b2");
+    });
+    await wait(PAUSE);
+    expect(host.submitted).toEqual([{ conditions: ["a2", "b"] }, { conditions: ["a2", "b2"] }]);
+  });
+});
+
 describe("a number field's text as the user types", () => {
   test("stays as the user typed it after the binding submits it on a pause, and takes the field's format once the user leaves", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
@@ -345,12 +440,14 @@ function Rows({ host, max, outdated }: { host: OptionHost<number>; max?: number;
 // the range and the step of the board option's field, as the field says it.
 const said = (text: string, max?: number): string | null => numberSaid(text, { min: 1, max, step: 1 });
 
-function Conditions({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
+// A select of several strings, as the UI of a package's board option may draw
+// one, which submits the picks in the order of its items.
+function Severities({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
   return (
     <ComboBox
       bound={useValue(host)}
       selectionMode="multiple"
-      label="Message types to display"
+      label="Severities"
       defaultItems={ids(["message", "warning", "error"])}
       ordered
       outdated={outdated}
@@ -515,9 +612,9 @@ describe("the inputs of a board option's UI", () => {
   });
 
   test("submit the picked severities in the order of the choices", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
-    const { el } = draw(<Conditions host={host} />);
-    const field = labelled(el, "Message types to display");
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error"] });
+    const { el } = draw(<Severities host={host} />);
+    const field = labelled(el, "Severities");
 
     await step(() => {
       field.click();
@@ -534,9 +631,9 @@ describe("the inputs of a board option's UI", () => {
   });
 
   test("show a string that the items lack as missing, whose chip the user removes", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
-    const { el } = draw(<Conditions host={host} />);
-    const field = labelled(el, "Message types to display");
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error", "debug"] });
+    const { el } = draw(<Severities host={host} />);
+    const field = labelled(el, "Severities");
 
     expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
     await removeChip(field, step, "debug (not available)");
@@ -547,14 +644,14 @@ describe("the inputs of a board option's UI", () => {
   });
 
   test("keep outdated items on screen, and mark no string that they lack until they are current", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
-    const { el, redraw } = draw(<Conditions host={host} outdated />);
-    const field = labelled(el, "Message types to display");
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error", "debug"] });
+    const { el, redraw } = draw(<Severities host={host} outdated />);
+    const field = labelled(el, "Severities");
 
     expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug"], null]);
     expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
 
-    redraw(<Conditions host={host} />);
+    redraw(<Severities host={host} />);
     expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
     expect(host.submitted).toEqual([]);
   });
