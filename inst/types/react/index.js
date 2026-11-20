@@ -28,9 +28,10 @@ function jsonEqual(a, b) {
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
-function bind(host, key, show, options = {}) {
+function bind(host, key, next, last, given) {
+  const [change, show, options] = typeof key === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
   const source = createSource(host);
-  source.check(key);
+  const held2 = source.value(key, change);
   const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
   let shown;
   let typed;
@@ -38,15 +39,34 @@ function bind(host, key, show, options = {}) {
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
-    const value = source.get(key);
+    const value = held2.get();
     if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
     shown = { value };
     show(value);
   };
+  let unbuilt;
+  const unbuild = (error) => {
+    host.log.error(asError(error));
+    unbuilt?.();
+    unbuilt = options.notifier === void 0 ? host.notify({
+      severity: "error",
+      code: "change_failed",
+      message: `The control failed to build the change it submits: ${errorMessage(error)}`
+    }) : void 0;
+  };
   const submit = async (value) => {
-    if (jsonEqual(source.get(key), value)) return true;
+    let submitted;
     try {
-      await (value === void 0 ? source.unset(key, submitting) : source.submit(key, value, submitting));
+      submitted = held2.submit(value, submitting);
+    } catch (error) {
+      unbuild(error);
+      options.settled?.(error);
+      return false;
+    }
+    unbuilt?.();
+    unbuilt = void 0;
+    try {
+      if (submitted !== null) await submitted;
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -70,7 +90,7 @@ function bind(host, key, show, options = {}) {
   });
   display(true);
   return {
-    get: () => source.get(key),
+    get: () => held2.get(),
     async commit(value) {
       const took = await submit(value);
       if (!took) display(true);
@@ -144,24 +164,24 @@ function follow(host, name, options) {
 }
 function createSource(host) {
   if ("option" in host) {
-    const check = (key) => {
-      if (key !== host.option) {
-        throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
-      }
-    };
     return {
-      check,
-      get(key) {
-        check(key);
-        return host.value();
-      },
-      submit(key, value, opts) {
-        check(key);
-        return host.submit(value, opts);
-      },
-      unset(key) {
-        check(key);
-        return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+      value(key) {
+        if (typeof key === "function") {
+          throw new TypeError(`The value of the board option "${host.option}" is bound by its id, not through functions.`);
+        }
+        if (key !== host.option) {
+          throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
+        }
+        return {
+          get: () => host.value(),
+          submit(value, opts) {
+            if (jsonEqual(host.value(), value)) return null;
+            if (value === void 0) {
+              return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+            }
+            return host.submit(value, opts);
+          }
+        };
       },
       onValues: (fn) => host.on("value", fn),
       onContext: () => () => void 0,
@@ -170,15 +190,29 @@ function createSource(host) {
     };
   }
   return {
-    check: () => void 0,
-    get: (key) => own(host.state(), key),
-    submit: (key, value, opts) => host.submit({ [key]: value }, opts),
-    unset: (key, opts) => host.submit({ [key]: void 0 }, opts),
+    value(key, change) {
+      const read = typeof key === "function" ? key : (state) => own(state, key);
+      const build = typeof key === "function" ? change : (value) => ({ [key]: value });
+      if (typeof build !== "function") {
+        throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
+      }
+      return {
+        get: () => read(host.state()),
+        submit(value, opts) {
+          const state = host.state();
+          const next = build(value, state);
+          return holds(state, next) ? null : host.submit(next, opts);
+        }
+      };
+    },
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input) => ({ input: input.input, revision: input.revision })),
     request: (name, args, opts) => host.request(name, args, opts)
   };
+}
+function holds(state, change) {
+  return Object.entries(change).every(([arg, value]) => jsonEqual(own(state, arg), value));
 }
 function strings(value) {
   return Array.isArray(value) ? value.filter((x) => typeof x === "string") : [];
@@ -206,29 +240,36 @@ function outputSnapshot(host) {
   snapshots.set(host, next);
   return next;
 }
-function useValue(host, key) {
-  const name = key ?? ("option" in host ? host.option : "");
-  const [value, setValue] = useState(() => held(host, name));
+function useValue(host, key, change) {
+  const read = typeof key === "function" ? key : null;
+  const name = typeof key === "function" ? null : key ?? ("option" in host ? host.option : "");
+  const given = read === null || change === void 0 ? null : { read, change };
+  const [value, setValue] = useState(() => held(host, name, { current: given }));
   const [error, setError] = useState(null);
   const binding = useRef(null);
+  const functions = useRef(given);
   useLayoutEffect(() => {
-    const bound = bind(host, name, setValue, {
-      settled: (refused) => {
-        setError(refused === null ? null : errorMessage(refused));
-      },
-      notifier: () => void 0
-    });
-    binding.current = bound;
+    binding.current = start(host, name, functions, setValue, setError);
     return () => {
+      const bound = binding.current;
       binding.current = null;
-      bound.release();
+      bound?.release();
     };
   }, [host, name]);
+  useLayoutEffect(() => {
+    if (read === null || change === void 0) return;
+    const last = functions.current;
+    if (last !== null && last.read === read && last.change === change) return;
+    const moved = last === null || !readAlike(last.read, read, host.state());
+    if (moved) binding.current?.release();
+    functions.current = { read, change };
+    if (moved) binding.current = start(host, name, functions, setValue, setError);
+  }, [read, change, host, name]);
   return useMemo(
     () => ({
       value,
       error,
-      get: () => binding.current?.get() ?? held(host, name),
+      get: () => binding.current?.get() ?? held(host, name, functions),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
       unset: () => binding.current?.unset() ?? Promise.resolve(false),
       type: (next) => {
@@ -265,8 +306,32 @@ function useRequest(host, name, options = {}) {
   }, [host, name, reads]);
   return answered;
 }
-function held(host, key) {
-  return "option" in host ? host.value() : own(host.state(), key);
+function start(host, name, functions, show, refused) {
+  const options = {
+    settled: (error) => {
+      refused(error === null ? null : errorMessage(error));
+    },
+    notifier: () => void 0
+  };
+  if (name !== null) return bind(host, name, show, options);
+  return bind(
+    host,
+    (state) => functions.current?.read(state),
+    (value, state) => functions.current?.change(value, state) ?? {},
+    show,
+    options
+  );
+}
+function held(host, name, functions) {
+  if ("option" in host) return host.value();
+  return name === null ? functions.current?.read(host.state()) : own(host.state(), name);
+}
+function readAlike(a, b, state) {
+  try {
+    return jsonEqual(a(state), b(state));
+  } catch {
+    return false;
+  }
 }
 function useBoard(core) {
   const subscribe = useCallback(
@@ -1439,7 +1504,7 @@ function BoundSlider({
     setMoving(null);
   }
   const shown = useRef8([]);
-  const start = useRef8(null);
+  const start2 = useRef8(null);
   const min = props.minValue ?? 0;
   const fits = (value2) => inRange(value2, min, props.maxValue ?? 100, props.step ?? 1);
   const lacked = moving === null && held2.some((value2) => !fits(value2));
@@ -1454,14 +1519,14 @@ function BoundSlider({
         invalid: lacked && !outdated,
         said: moving === null && held2.length === 0 ? () => "" : lacked ? (format) => held2.map((x) => fits(x) || outdated ? format(x) : missing(format(x))).join(held2.length === 2 ? "\u2013" : ", ") : void 0,
         onChange: (next) => {
-          start.current ??= shown.current;
+          start2.current ??= shown.current;
           setMoving(numbers(next));
           onChange?.(next);
         },
         onChangeEnd: (next) => {
           const ended = numbers(next);
-          const began = start.current ?? shown.current;
-          start.current = null;
+          const began = start2.current ?? shown.current;
+          start2.current = null;
           if (jsonEqual(ended, began)) {
             setMoving(null);
           } else {

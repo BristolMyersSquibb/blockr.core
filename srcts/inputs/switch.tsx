@@ -6,9 +6,9 @@
 // description and the error message that the starter kit adds.
 // It holds its label as its children.
 //
-// Given `bound`, it shows and edits a boolean, a block's state arg or a board
-// option's value, which useValue() binds, as the SDK's other inputs do
-// (./inputs.tsx).
+// Given `bound`, it shows and edits a boolean that useValue() binds, a block's
+// state arg, a board option's value or a value that a function reads from a
+// block's state, as the SDK's other inputs do (./inputs.tsx).
 // It submits the user's pick at once, and says below itself why the host
 // refused what it submitted.
 

@@ -11,11 +11,12 @@
 // where there is none, as a dialog that closes on Escape needs.
 // The button is outside the order of Tab, and keeps the focus in the field.
 //
-// Given `bound`, it shows and edits a string, a block's state arg or a board
-// option's value, which useValue() binds, as the SDK's TextField does
-// (./textfield.tsx): it hands what the user types to the binding, which
-// submits it once the user pauses, and at once as the user leaves the field,
-// presses Enter or clears the search.
+// Given `bound`, it shows and edits a string that useValue() binds, a block's
+// state arg, a board option's value or a value that a function reads from a
+// block's state, as the SDK's TextField does (./textfield.tsx).
+// It hands what the user types to the binding, which submits it once the
+// user pauses, and at once as the user leaves the field, presses Enter or
+// clears the search.
 // It keeps what the user typed until the binding shows the value again.
 // It says below itself why the host refused what it submitted.
 

@@ -22,6 +22,7 @@ export interface Bound {
     flush(): void;
 }
 export declare function useValue<S extends State>(host: BlockHost<S>, key: Extract<keyof S, string>): Bound;
+export declare function useValue<S extends State>(host: BlockHost<S>, read: (state: S) => Json | undefined, change: (value: Json | undefined, state: S) => Partial<S>): Bound;
 export declare function useValue<V extends Json>(host: OptionHost<V>): Bound;
 export interface Answered {
     readonly answer: Json | Blob | undefined;

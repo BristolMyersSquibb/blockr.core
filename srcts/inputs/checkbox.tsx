@@ -12,10 +12,10 @@
 // A checkbox holds its label as its children, and a group its checkboxes,
 // each with the value that it picks.
 //
-// Given `bound`, a checkbox shows and edits a boolean, a block's state arg or
-// a board option's value, which useValue() binds, as the SDK's other inputs do
-// (./inputs.tsx), and a group an array of strings, by the values of its
-// checkboxes.
+// Given `bound`, a checkbox shows and edits a boolean that useValue() binds, a
+// block's state arg, a board option's value or a value that a function reads
+// from a block's state, as the SDK's other inputs do (./inputs.tsx), and a
+// group an array of strings, by the values of its checkboxes.
 // Each submits the user's pick at once, a group built from the value that the
 // host holds then, so that it keeps a string that the assistant added in the
 // meantime.

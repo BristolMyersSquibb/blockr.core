@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost } from "../../stubs/index.ts";
+import { texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
@@ -109,6 +110,16 @@ test("submits nothing where the user picks the join the state holds", async () =
   await picked(join, step, "Inner");
   expect(host.submitted).toEqual([]);
   expect(selectShows(join)).toBe("Inner");
+});
+
+test("says below the select why the host refused the join the user picked, and shows the join the state holds again", async () => {
+  // The fixture lists no left join by these columns, so the host refuses it.
+  const { host, view, join } = await mounted(demandFirst);
+
+  await picked(join, step, "Left");
+  expect(host.submitted).toEqual([{ ...demandFirst, all_x: true }]);
+  expect(selectShows(join)).toBe("Inner");
+  expect(texts(view.el, '[role="alert"]')).toEqual([expect.stringContaining("which the fixture does not list")]);
 });
 
 test("shows a column it joins by that the inputs do not share, as missing once R says which they share", async () => {

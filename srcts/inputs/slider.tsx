@@ -9,8 +9,9 @@
 // The number, or the numbers, show at the right of the label.
 //
 // Given `bound`, it shows and edits a number, or an array of numbers where it
-// has several thumbs, a block's state arg or a board option's value, which
-// useValue() binds, as the SDK's other inputs do (./inputs.tsx).
+// has several thumbs, that useValue() binds, a block's state arg, a board
+// option's value or a value that a function reads from a block's state, as
+// the SDK's other inputs do (./inputs.tsx).
 // It shows the number that it moves to while the user drags a thumb, and
 // submits it as the user lets go, through onChangeEnd, so that a drag is one
 // edit and one undo step, as it submits a step of a thumb by a key.

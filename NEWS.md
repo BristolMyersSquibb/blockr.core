@@ -252,6 +252,10 @@
   Core's React SDK holds what the renderers and core's UIs draw with.
   Its hook `useOutput()` follows an output host, while `useValue()` binds a block's state arg or a board option's value and `useRequest()` follows a request, both through a binding that needs no framework.
   Its inputs each show and edit one value that `useValue()` binds, and `reactModule()` and `outputRenderer()` make a module and a renderer from a React component.
+  Given two functions in place of a state arg's name, `useValue()`, `bind()` and the controls of `controls()` bind the value that the first reads from the block's state, such as the join that two state args make, or one condition of a list.
+  As the binding submits, after the pause for typing too, the second builds the change of the state from the value and from the state as the host holds it then.
+  So an input sets several state args in one submit, or edits part of a state arg and keeps an edit made in the meantime, such as a condition that the assistant added.
+  Such an input says below itself why the host refused a submit, and submits nothing that the state holds already (#772).
   Its hooks `useBoard()`, `useStatus()` and `useNotified()` follow the board, a block's status and the notifications about a board object through `CoreApi`, as core's own frontend and cards do.
   The hook `useNotified()` takes the board object as `{ block: id }` or `{ plugin: id }`, or null for every notification (#673, #710).
   Core ships the SDK to packages beside its types, as `@blockr/core/react`, the binding as `@blockr/core/binding`, and as `@blockr/core/build` the build preset with which core bundles its own modules.
@@ -280,6 +284,7 @@
   The most rows that the head block's number input takes come from the request `n_max`, and the merge block's columns to join by from the request `shared`, while the modules of the static, fixed and row-bind blocks draw nothing.
   The merge block offers its join in one select, "Join type", of an inner, a left, a right and a full join, in place of a checkbox for each of `all_x` and `all_y`.
   A pick sets both state args in one submit, so that it is one edit and one undo step (#693).
+  The select binds both state args through `useValue()`, and says below itself why the host refused a join (#772).
   Each module ships the JSON Schema of its block's state beside it, which the build writes from the module's type of the state.
   R writes the state of the blocks it builds by that schema, and writes a named vector that the schema has as an object, such as the file browser's volumes, as an object.
   Core offers its inputs to packages that write their modules without React, through `controls()`, which draws the same inputs with core's copy of React, as `@blockr/core/controls` in a build, or through the module `blockr.core-controls`, which `host.module()` reaches.

@@ -582,7 +582,7 @@ export default reactModule(HeadBlock);
 The SDK holds these:
 
 - The function `reactModule()` makes a module from a component.
-- The hook `useValue()` binds a state arg to an input, by the contract's rules.
+- The hook `useValue()` binds a state arg to an input, by the contract's rules, or a value that two functions read from the state and change, as below.
 - The hook `useRequest()` follows a request, which it asks again whenever its args or the revisions of the block's inputs change. Its `loading` says whether it is asking, while `answer` keeps the last answer and `error` says why the latest ask failed.
 - The text field `TextField` and the number field `NumberField`, which are [React Aria's `TextField`](https://react-aria.adobe.com/TextField) and [`NumberField`](https://react-aria.adobe.com/NumberField) in core's theme.
   Each takes the props of its part of React Aria, and the `label`, `description`, `errorMessage` and `placeholder` of React Aria's Tailwind starter kit.
@@ -624,6 +624,32 @@ A `NumberField` whose `maxValue` a request gives takes `outdated` too, as in the
 The `Select` and the groups show a value that their items lack in the same way, the `Select` as a row of its own at the top of its list, and a group as an item of its own, before its items, each picked, which the user unpicks to drop the value.
 A `Slider` shows a number outside its range, or off its step, as missing beside its label, with the thumb at the nearest end.
 Each takes `outdated` too.
+
+An input that sets several state args, or edits part of one, binds through two functions in place of the state arg's name.
+The first reads the input's value from the state.
+The second builds the change to submit from the value that the user gave and from the state as the host holds it then.
+So the merge block's select of the join type sets `all_x` and `all_y` in one submit, which is one edit and one undo step:
+
+```tsx
+const joins = [
+  { id: "inner", name: "Inner", args: { all_x: false, all_y: false } },
+  { id: "left", name: "Left", args: { all_x: true, all_y: false } },
+  { id: "right", name: "Right", args: { all_x: false, all_y: true } },
+  { id: "full", name: "Full", args: { all_x: true, all_y: true } },
+];
+
+// The join that all_x and all_y make, by its id, and the state args of a join.
+const joinOf = (state: State) => joins.find(({ args }) => args.all_x === state.all_x && args.all_y === state.all_y)?.id;
+const argsOf = (id: Json | undefined) => joins.find((join) => join.id === id)?.args ?? {};
+
+<Select bound={useValue(host, joinOf, argsOf)} label="Join type" items={joins} isRequired>
+  {(join) => <SelectItem id={join.id}>{join.name}</SelectItem>}
+</Select>
+```
+
+A text field of one condition of a list builds the list with that condition replaced, from the list as it is when the field submits.
+So it keeps a condition that an assistant added while the user typed.
+The binding submits nothing that the state holds already, and its `unset()` submits the change that the second function builds from `undefined`.
 
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
 
@@ -778,8 +804,9 @@ It has no items until the module gives them, in its options or through `setItems
 Given the `selectionMode` `"multiple"`, it picks an array of strings, which it submits once, as its list closes.
 The option `loading` of `follow()` runs each time the request is asked, and the option `answer` once it answers.
 In `loading`, a module calls `setOutdated(true)` on each input whose items or `maxValue` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
+Each control also takes the two functions of `useValue()` in place of its key, as `ui.comboBox(joinOf, argsOf, { label: "Join type", items: joins, isRequired: true })` does for the join type.
 
-A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.
+A widget of a package's own binds to a state arg, or through the two functions, with `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.
 A package that builds nothing writes the schema of the state by hand, with the description of each state arg in its property's `description`.
 
 ### Where the files go

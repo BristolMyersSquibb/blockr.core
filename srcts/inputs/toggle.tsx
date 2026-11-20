@@ -10,10 +10,11 @@
 // needs to name what it picks, as a select names it.
 // A group holds its buttons, each with the id that it picks.
 //
-// Given `bound`, a toggle button shows and edits a boolean, a block's state
-// arg or a board option's value, which useValue() binds, as the SDK's other
-// inputs do (./inputs.tsx), and a group a string, or an array of strings
-// where its selectionMode is "multiple", by the ids of its buttons.
+// Given `bound`, a toggle button shows and edits a boolean that useValue()
+// binds, a block's state arg, a board option's value or a value that a
+// function reads from a block's state, as the SDK's other inputs do
+// (./inputs.tsx), and a group a string, or an array of strings where its
+// selectionMode is "multiple", by the ids of its buttons.
 // Each submits the user's pick at once, a group of several built from the
 // value that the host holds then, so that it keeps a string that the
 // assistant added in the meantime.

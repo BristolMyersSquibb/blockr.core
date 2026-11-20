@@ -27,6 +27,7 @@ export interface Followed {
     release(): void;
 }
 export declare function bind<S extends State>(host: BlockHost<S>, key: Extract<keyof S, string>, show: (value: Json | undefined) => void, options?: BindOptions): Binding;
+export declare function bind<S extends State>(host: BlockHost<S>, read: (state: S) => Json | undefined, change: (value: Json | undefined, state: S) => Partial<S>, show: (value: Json | undefined) => void, options?: BindOptions): Binding;
 export declare function bind<V extends Json>(host: OptionHost<V>, key: OptionId, show: (value: Json | undefined) => void, options?: BindOptions): Binding;
 export declare function follow(host: BlockHost | OptionHost, name: string, options: FollowOptions): Followed;
 export declare function strings(value: unknown): readonly string[];

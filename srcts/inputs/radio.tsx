@@ -9,9 +9,10 @@
 // as its children, one below the other, or side by side where its
 // orientation is "horizontal".
 //
-// Given `bound`, a group shows and edits a string, a block's state arg or a
-// board option's value, which useValue() binds, as the SDK's other inputs do
-// (./inputs.tsx), by the values of its radios.
+// Given `bound`, a group shows and edits a string that useValue() binds, a
+// block's state arg, a board option's value or a value that a function reads
+// from a block's state, as the SDK's other inputs do (./inputs.tsx), by the
+// values of its radios.
 // It submits the user's pick at once.
 // It shows a value that none of its radios holds as a radio of its own,
 // before them, picked and marked as missing, and marks itself invalid, but not

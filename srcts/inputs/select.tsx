@@ -16,10 +16,10 @@
 // a modal of the SDK that holds the select, as every overlay of the SDK sits
 // in such a portal (../overlays/index.ts).
 //
-// Given `bound`, it shows and edits a block's state arg or a board option's
-// value, which useValue() binds, as the SDK's other inputs do (./inputs.tsx):
-// one string, or an array of strings where it picks several, by the ids of
-// its items.
+// Given `bound`, it shows and edits a value that useValue() binds, a block's
+// state arg, a board option's value or a value that a function reads from a
+// block's state, as the SDK's other inputs do (./inputs.tsx): one string, or
+// an array of strings where it picks several, by the ids of its items.
 // It submits as the ComboBox does: one pick as the user picks it, and several
 // once, as the list closes, built from the value that the host holds then, in
 // the order the user picked them, after those the value holds, or where

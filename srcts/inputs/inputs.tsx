@@ -1,6 +1,8 @@
 // What the inputs of core's React SDK share, each of which shows and edits
-// one value that `useValue()` binds, a block's state arg or a board option's
-// value, so that each meets the contract of a block's UI as its binding does
+// one value that `useValue()` binds: a block's state arg, a board option's
+// value, or a value that a function reads from a block's state, as the join
+// that two state args make,
+// so that each meets the contract of a block's UI as its binding does
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
 // how an input shows a value that it lacks, the line below an input that says
 // why the host refused what it submitted, and what the user typed into a
