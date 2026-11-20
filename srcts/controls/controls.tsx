@@ -371,7 +371,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Blo
 
   function checkbox(key: string | Read, next: Change | { label: string }, last?: { label: string }): void {
     const [target, options] = after(key, next, last);
-    input(target, (bound) => <inputs.Checkbox bound={bound} label={options.label} />);
+    input(target, (bound) => <inputs.Checkbox bound={bound}>{options.label}</inputs.Checkbox>);
   }
 
   function cleanup(): void {

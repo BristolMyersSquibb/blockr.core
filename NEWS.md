@@ -733,6 +733,27 @@
   The `notifier` of `menu()` and of `trigger()` gets the board action with the notifications of a refused batch.
   Core's board action Rename renames a block or a stack through a text row that holds the name, and core's board actions that remove carry a bin as their icon.
   Core runs each menu by the same rules under the `CoreApi` for tests and draws none there, and the `menu()` of `stubCore()` opens the menu of a target, or gives the menu that is open, whose rows a test picks by their labels (#743).
+* Core's React SDK offers the rest of the form inputs of React Aria's Tailwind starter kit, each in core's theme, after its file in the starter kit, with the props of its part of React Aria and those that the starter kit adds.
+  These are the checkbox group `CheckboxGroup`, the radios `RadioGroup` and `Radio`, the switch `Switch`, the toggle buttons `ToggleButton` and `ToggleButtonGroup`, the slider `Slider`, the select `Select`, which has no field to type into, with `SelectItem` and `SelectSection`, the search field `SearchField`, the tags `TagGroup` and `Tag`, the field of tokens `TokenField` with `Token`, the list box `ListBox` with `ListBoxItem`, the form `Form`, the button inside a field `FieldButton`, the drop zone `DropZone` and the command palette `CommandPalette`.
+  The SDK also offers React Aria's `FileTrigger`, `Autocomplete` and `useFilter()`, which draw nothing of their own, for a caller to compose with the others, as an `Autocomplete` with a `SearchField` narrows a `ListBox` or a `Menu`.
+  The `Checkbox` of the SDK is React Aria's too, and takes its label as its children, in place of `label`.
+  Given `bound`, the checkbox, the switch and the toggle button edit a boolean, the radio group a string and the checkbox group an array of strings, each of which they submit at once.
+  A toggle button group edits a string, or an array of strings where its `selectionMode` is `"multiple"`, which it submits at once too.
+  A group of one leaves its state arg unset as the user unpicks its pick, unless it sets `disallowEmptySelection`.
+  The `Select` submits as the `ComboBox` does: one pick at once, and several once, as its list closes.
+  The groups of several and the `Select` build what they submit from the value that the host holds then, and keep the order of their items where `ordered`.
+  The `Slider` edits a number, or an array of numbers where it has several thumbs, which it submits as the user lets go of a thumb, and never a number that it pulled into its range or onto its step.
+  The `SearchField` submits as the `TextField` does, and at once as the user clears it, by its button or by Escape.
+  An input shows a value that it lacks, a pick that none of its items holds or a number outside the slider's range or off its step, as it is, marks itself invalid, and says below itself which values are not available, as "Not available: wt", but not while it is `outdated`.
+  So the `ComboBox` no longer writes "(not available)" into the text of such a value.
+  A group and the `Select` draw no item for such a value, so the line of a group or a `Select` of several holds a button, Remove, which drops the values that its items lack, while the user drops it from one of one by picking an item.
+  The slider shows such a number beside its label, with its thumb at the nearest end, and submits the number of a thumb that the user did not move as the value holds it.
+  The `checkbox()` of `controls()` draws with the `Checkbox` of the SDK.
+  The head block picks its direction, and the board option `dark_mode` its theme, with a `ToggleButtonGroup`.
+  The merge block picks its join, the file browser its volume, and the picker and the Edit board's links their input and their position with a `Select`.
+  The search of the Edit board's tables is a `SearchField`, whose button clears it, as Escape does, and the upload block takes a file that the user drops on it, in a `DropZone` around a `FileTrigger` with a `Button`.
+  The forms of the picker and of the Edit board's links and stacks are React Aria's `Form`, and the button that clears the pick of a `ComboBox` is a `FieldButton`.
+  Compressed, core's vendor file grows from 177.5 KB to 219.4 KB (#755, #781).
 * Core's React SDK offers `NotificationList`, in which a UI shows the notifications that `useNotified()` gives it, in the message style of the design system of blockr.ui.
   The list holds an item for each notification, in the order given.
   Each item holds the notification's severity in `data-severity` and its message as text.

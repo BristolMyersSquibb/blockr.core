@@ -1,7 +1,11 @@
-// The UI of the upload block: a file input,
-// whose file the module sends to R through the action upload,
+// The UI of the upload block: a drop zone, the SDK's DropZone, which takes a
+// file that the user drops on it, and holds a button that picks a file the
+// browser's way, React Aria's FileTrigger with the SDK's Button.
+// The module sends the file to R through the action upload,
 // which keeps the file and answers with its path,
 // which the module then submits as the state arg file_path.
+// While a file is on its way, the zone takes no other and the button is
+// disabled.
 // The module draws only its own state: the file on its way or the file
 // uploaded, and why the host refused the path.
 // Where the upload fails, core raises a notification of each condition of R's
@@ -11,7 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { strings } from "../../binding/index.ts";
-import { Field, reactModule, Stack, useValue } from "../../react/index.ts";
+import { Button, DropZone, FileTrigger, reactModule, Stack, Text, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -60,25 +64,38 @@ function UploadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   }
 
   const held = typeof path.value === "string" && path.value !== "" ? path.value : undefined;
-  // The line below the input names the file on its way or the file uploaded.
+  const busy = uploading !== null;
+  // The line below the zone names the file on its way or the file uploaded.
   // Before then, the block's status says what is missing.
   const said = uploading !== null ? `Uploading ${uploading}…` : held === undefined ? null : `Uploaded ${basename(held)}`;
   return (
     <Stack>
-      <Field label="Upload data">
-        <input
-          type="file"
-          className={styles.box}
-          disabled={uploading !== null}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            // The input forgets the file,
-            // so that picking the same file again uploads it again.
-            event.target.value = "";
+      <DropZone
+        isDisabled={busy}
+        onDrop={(event) => {
+          // The first file among what the user dropped, where there is one.
+          const item = event.items.find((dropped) => dropped.kind === "file");
+          if (item?.kind === "file") void item.getFile().then(upload);
+        }}
+      >
+        <Text slot="label" className={styles.label}>
+          Upload data
+        </Text>
+        <span className={styles.hint}>Drop a file here, or</span>
+        {/* FileTrigger forgets the file it picked as the user presses the
+            button again, so that picking the same file again uploads it
+            again. */}
+        <FileTrigger
+          onSelect={(files) => {
+            const file = files?.[0];
             if (file !== undefined) void upload(file);
           }}
-        />
-      </Field>
+        >
+          <Button variant="secondary" isDisabled={busy}>
+            Choose a file
+          </Button>
+        </FileTrigger>
+      </DropZone>
       {said !== null && <p className={styles.hint}>{said}</p>}
       {path.error !== null && (
         <p role="alert" className={styles.alert}>

@@ -11,7 +11,7 @@
 
 import type { ReactElement } from "react";
 import { strings } from "../../binding/index.ts";
-import { ComboBox, ComboBoxItem, reactModule, Stack, Text, useRequest, useValue } from "../../react/index.ts";
+import { ComboBox, ComboBoxItem, reactModule, Select, SelectItem, Stack, Text, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { Json } from "../../types/json.ts";
@@ -60,14 +60,14 @@ function MergeBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
       >
         {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
       </ComboBox>
-      <ComboBox bound={useValue(host, joinOf, argsOf)} label="Join type" defaultItems={joins} isRequired>
+      <Select bound={useValue(host, joinOf, argsOf)} label="Join type" items={joins} isRequired>
         {(item) => (
-          <ComboBoxItem id={item.id} textValue={item.name}>
+          <SelectItem id={item.id} textValue={item.name}>
             <Text slot="label">{item.name}</Text>
             <Text slot="description">{item.description}</Text>
-          </ComboBoxItem>
+          </SelectItem>
         )}
-      </ComboBox>
+      </Select>
     </Stack>
   );
 }
