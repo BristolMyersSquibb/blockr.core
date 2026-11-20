@@ -10,6 +10,10 @@
 //   the block's links too. Another place moves the link with move_link,
 //   which keeps its id and its ends, once change_link has changed the rest.
 //   Undo takes back each command that changed the link as a step of its own.
+// Where the store or the command registry refuses an edit, the form that adds
+// a link says why below its buttons. Where it refuses an edit in the table, a
+// removal or the save of a row's form, the table says so below itself, naming
+// the link, until the user's next edit in the table.
 // The form and the edit offer only links that the store takes:
 // - As a link's target, a block with an input that no other link feeds, or a
 //   variadic block, which takes any number of links. A block without inputs
@@ -40,7 +44,8 @@ import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import type { RegistryEntry } from "../../types/registry.ts";
-import { classes, identifier, Pager, runCommand, TableSearch, useSearch, useTableView } from "../../ui/index.ts";
+import { classes, identifier, Pager, Refusal, TableSearch, useEdits, useSearch, useTableView } from "../../ui/index.ts";
+import type { Edits } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
 
@@ -52,6 +57,9 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
     [blockName(board, link.from), link.from, blockName(board, link.to), link.to, link.input].join(" "),
   );
   const variadic = variadicBlocks(board, core.blockRegistry());
+  // The edits of the table's rows, which say why one was refused below the
+  // table.
+  const edits = useEdits(core);
 
   return (
     <Section title="Links" count={links.length}>
@@ -91,11 +99,21 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
                 </thead>
                 <tbody>
                   {view.rows.map(([id, link]) => (
-                    <LinkRow key={id} core={core} board={board} id={id} link={link} variadic={variadic.has(link.to)} locked={locked} />
+                    <LinkRow
+                      key={id}
+                      core={core}
+                      edits={edits}
+                      board={board}
+                      id={id}
+                      link={link}
+                      variadic={variadic.has(link.to)}
+                      locked={locked}
+                    />
                   ))}
                 </tbody>
               </table>
             )}
+            <Refusal refusal={edits.refusal} />
             <Pager label="Pages of links" view={view} />
           </>
         )}
@@ -106,6 +124,7 @@ export function LinksSection({ core, board, locked }: { core: CoreApi; board: Bo
 
 function LinkRow({
   core,
+  edits,
   board,
   id,
   link,
@@ -113,6 +132,7 @@ function LinkRow({
   locked,
 }: {
   core: CoreApi;
+  edits: Edits;
   board: Board;
   id: LinkId;
   link: Link;
@@ -129,6 +149,7 @@ function LinkRow({
             core={core}
             board={board}
             editing={{ id, link }}
+            tableEdits={edits}
             submitLabel="Save"
             onDone={close}
           />
@@ -154,7 +175,13 @@ function LinkRow({
             className={classes.quiet}
             aria-label={`Edit the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
             ref={button}
-            onClick={open}
+            onClick={() => {
+              // Opening the form is the user's next edit in the table, so the
+              // table's refusal goes. The form says why its own edits are
+              // refused.
+              edits.clear();
+              open();
+            }}
           >
             Edit
           </button>
@@ -163,7 +190,8 @@ function LinkRow({
             className={classes.quiet}
             aria-label={`Remove the link from ${blockName(board, link.from)} to ${blockName(board, link.to)}`}
             onClick={() => {
-              void runCommand(core, "blockr.core-remove_link", { id });
+              const title = `Could not remove the link from "${blockName(board, link.from)}" to "${blockName(board, link.to)}".`;
+              void edits.run(title, "blockr.core-remove_link", { id });
             }}
           >
             Remove
@@ -202,16 +230,22 @@ type Errors = Partial<Record<"from" | "to" | "input", string>>;
 // only links that the store takes (above). Where it changes a link into a
 // variadic block, it offers the link's place among the block's links as
 // well.
+// The form that adds a link says why the store or the command registry
+// refused it below its buttons. The form that changes a link runs its edits
+// through `tableEdits`, the edits of the table whose row it takes, and the
+// table says why below itself.
 function LinkForm({
   core,
   board,
   editing,
+  tableEdits,
   submitLabel,
   onDone,
 }: {
   core: CoreApi;
   board: Board;
   editing?: { readonly id: LinkId; readonly link: Link };
+  tableEdits?: Edits;
   submitLabel: string;
   onDone?: () => void;
 }): ReactElement {
@@ -225,6 +259,8 @@ function LinkForm({
   const [place, setPlace] = useState<number | undefined>(undefined);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
+  const ownEdits = useEdits(core);
+  const edits = tableEdits ?? ownEdits;
 
   // The blocks that the form offers, with the links of the board but the one
   // that the form changes, which is about to move.
@@ -275,6 +311,7 @@ function LinkForm({
     const found = check();
     flushSync(() => {
       setErrors(found);
+      edits.clear();
     });
     if (Object.keys(found).length > 0 || source === undefined || target === undefined || busy) {
       focusFirstInvalid(form);
@@ -283,13 +320,19 @@ function LinkForm({
     const linkInput = variadic ? name.trim() : chosen;
     const args: Record<string, Json> = { from: source, to: target, ...(linkInput === undefined ? {} : { input: linkInput }) };
     setBusy(true);
+    // The sentence that names the edit, which names the link as its row did
+    // where the form changes one.
+    const title =
+      editing === undefined
+        ? "Could not add the link."
+        : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
     let ran =
       editing === undefined
-        ? await runCommand(core, "blockr.core-add_link", args)
-        : await runCommand(core, "blockr.core-change_link", { id: editing.id, ...args });
+        ? await edits.run(title, "blockr.core-add_link", args)
+        : await edits.run(title, "blockr.core-change_link", { id: editing.id, ...args });
     if (ran && editing !== undefined && among !== undefined && position !== undefined && position !== among.place) {
       const before = placeAmong(core.store.board(), editing.id, target).others[position - 1];
-      ran = await runCommand(core, "blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) });
+      ran = await edits.run(title, "blockr.core-move_link", { id: editing.id, ...(before === undefined ? {} : { before }) });
     }
     setBusy(false);
     if (!ran) return;
@@ -414,6 +457,7 @@ function LinkForm({
           </button>
         )}
       </div>
+      {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
     </form>
   );
 }

@@ -29,7 +29,10 @@
 // The form checks the id and the input's name as the user leaves each field
 // and as they submit, before the commands do, so that the user learns what to
 // change next to the field. What the command registry or the store refuses
-// all the same, CoreApi tells the user of.
+// all the same, the form of the Edit board plugin says below its button,
+// until the user submits it again. In a dialog of core's basic frontend, the
+// form leaves the refusal to core, which raises it as a notification, since
+// the frontend draws every notification.
 
 import { useMemo, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
@@ -41,7 +44,7 @@ import type { BlockId, Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { RegistryEntry } from "../types/registry.ts";
-import { classes, identifier, runCommand, useSearch } from "../ui/index.ts";
+import { classes, identifier, Refusal, useEdits, useSearch } from "../ui/index.ts";
 import { own, packageFromId } from "../util/index.ts";
 
 // Where the new block goes.
@@ -61,13 +64,20 @@ export interface PickerProps {
   // Whether a dialog that shows the form puts the focus on its first field as
   // it opens.
   readonly autofocus?: boolean;
+  // Whether the form says why the command registry or the store refused the
+  // block, below its button, as the form of the Edit board plugin does. The
+  // form then takes the notification of the refusal, so that core raises
+  // none. Otherwise core raises it, as for the form in a dialog of core's
+  // basic frontend.
+  readonly showsRefusal?: boolean;
 }
 
 type Errors = Partial<Record<"registry" | "id" | "input", string>>;
 
-export function BlockPicker({ core, mode, onAdded, autofocus = false }: PickerProps): ReactElement {
+export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = false }: PickerProps): ReactElement {
   const board = useBoard(core);
   const registry = core.blockRegistry();
+  const edits = useEdits(core, showsRefusal);
   const [picked, setPicked] = useState<string | undefined>(undefined);
   const [input, setInput] = useState<string | undefined>(undefined);
   const [inputName, setInputName] = useState("");
@@ -105,6 +115,7 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false }: PickerPr
     const found = check();
     flushSync(() => {
       setErrors(found);
+      edits.clear();
     });
     if (Object.keys(found).length > 0 || entry === undefined || busy) {
       focusFirstInvalid(form);
@@ -120,10 +131,9 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false }: PickerPr
       ...(link.kind === "name" ? filled("input", inputName) : {}),
     };
     setBusy(true);
+    const title = "Could not add the block.";
     const ran =
-      mode.kind === "add"
-        ? await runCommand(core, "blockr.core-add_block", args)
-        : await runCommand(core, addAndLink(core, mode, args, into));
+      mode.kind === "add" ? await edits.run(title, "blockr.core-add_block", args) : await edits.run(title, addAndLink(core, mode, args, into));
     setBusy(false);
     if (!ran) return;
     setPicked(undefined);
@@ -239,6 +249,7 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false }: PickerPr
           Add block
         </button>
       </div>
+      <Refusal refusal={edits.refusal} />
     </form>
   );
 }
