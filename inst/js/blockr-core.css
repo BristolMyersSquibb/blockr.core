@@ -2,6 +2,7 @@
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *, :before, :after, ::backdrop {
+      --tw-divide-y-reverse: 0;
       --tw-border-style: solid;
       --tw-leading: initial;
       --tw-font-weight: initial;
@@ -719,6 +720,18 @@
   row-gap: var(--bc-spacing);
 }
 
+:where(.bc\:divide-y > :not(:last-child)) {
+  --tw-divide-y-reverse: 0;
+  border-bottom-style: var(--tw-border-style);
+  border-top-style: var(--tw-border-style);
+  border-top-width: calc(1px * var(--tw-divide-y-reverse));
+  border-bottom-width: calc(1px * calc(1 - var(--tw-divide-y-reverse)));
+}
+
+:where(.bc\:divide-border-default > :not(:last-child)) {
+  border-color: var(--bc-color-border-default);
+}
+
 .bc\:justify-self-stretch {
   justify-self: stretch;
 }
@@ -994,6 +1007,10 @@
 
 .bc\:py-2 {
   padding-block: calc(var(--bc-spacing) * 2);
+}
+
+.bc\:py-4 {
+  padding-block: calc(var(--bc-spacing) * 4);
 }
 
 .bc\:pt-1 {
@@ -1375,6 +1392,14 @@
   color: var(--bc-color-text-muted);
 }
 
+.bc\:first\:pt-0:first-child {
+  padding-top: 0;
+}
+
+.bc\:last\:pb-0:last-child {
+  padding-bottom: 0;
+}
+
 .bc\:empty\:hidden:empty {
   display: none;
 }
@@ -1752,6 +1777,12 @@
     --bc-spinner-start: 360deg;
     --bc-spinner-end: 363deg;
   }
+}
+
+@property --tw-divide-y-reverse {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
 }
 
 @property --tw-border-style {

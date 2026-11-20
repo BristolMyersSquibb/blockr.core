@@ -11636,13 +11636,10 @@ function OptionsDialog({ onClose }) {
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id2]);
   }
-  return /* @__PURE__ */ jsxs23(Dialog3, { title: "Board options", onClose, children: [
-    categories.size === 0 ? /* @__PURE__ */ jsx31("p", { className: styles.hint, children: "The board holds no board options." }) : null,
-    [...categories].map(([category, ids3]) => /* @__PURE__ */ jsxs23("section", { "aria-label": category, className: "bc:grid bc:gap-2", children: [
-      /* @__PURE__ */ jsx31("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
-      ids3.map((id2) => /* @__PURE__ */ jsx31(OptionUi, { id: id2 }, id2))
-    ] }, category))
-  ] });
+  return /* @__PURE__ */ jsx31(Dialog3, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx31("p", { className: styles.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx31("div", { className: "bc:grid bc:divide-y bc:divide-border-default", children: [...categories].map(([category, ids3]) => /* @__PURE__ */ jsxs23("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
+    /* @__PURE__ */ jsx31("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
+    ids3.map((id2) => /* @__PURE__ */ jsx31(OptionUi, { id: id2 }, id2))
+  ] }, category)) }) });
 }
 function OptionUi({ id: id2 }) {
   const { core } = useFrontEnd();

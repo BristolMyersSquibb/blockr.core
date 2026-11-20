@@ -713,6 +713,9 @@ describe("the toolbar", () => {
     // show_conditions and dark_mode, which core's basic frontend requires.
     expect(Object.keys(board().options).sort()).toEqual(["dark_mode", "n_rows", "show_conditions"]);
     expect(texts(dialog(), "h3")).toEqual(["Table options", "Board options", "Theme options"]);
+    // The categories sit in one box, which draws a line between each two.
+    const boxes = new Set([...dialog().querySelectorAll("section")].map((section) => section.parentElement));
+    expect([...boxes].map((box) => box?.className)).toEqual([expect.stringMatching(/(^| )bc:divide-y( |$)/)]);
     expect(dialog().textContent).toContain("Preview rows");
     expect(dialog().textContent).toContain("Message types to display");
 
