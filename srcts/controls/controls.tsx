@@ -3,8 +3,11 @@
 // through `@blockr/core/controls` or the module blockr.core-controls.
 // They are the inputs of core's React SDK, drawn with core's copy of React,
 // so that each input is written once.
-// Each is bound to one value, a block's state arg or a board option's value,
-// and so meets the contract of a block's UI
+// Each is bound to one value, as bind() binds it:
+// a block's state arg, a board option's value,
+// or a value that a function reads from a block's state,
+// for a control that sets several state args or edits part of one.
+// So each meets the contract of a block's UI
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 // They draw before the call that makes or changes one returns,
 // and as the host announces a change,
@@ -17,7 +20,7 @@ import type { ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { bind as bindValue, follow as followRequest } from "../binding/index.ts";
-import type { Binding, Followed, FollowOptions } from "../binding/index.ts";
+import type { BindOptions, Binding, Followed, FollowOptions } from "../binding/index.ts";
 import * as inputs from "../inputs/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
@@ -151,6 +154,35 @@ export interface Controls<K extends string = string> {
   readonly cleanup: () => void;
 }
 
+// The controls of a block's UI, each of which takes two functions in place
+// of its key, as bind() does: the first reads the value that the control
+// shows from the block's state, and the second builds the change that it
+// submits from a value and from the state as the host holds it then,
+// as for a select of the join that two state args make, or a text field of
+// one condition of a list.
+export interface BlockControls<S extends State = State> extends Controls<Extract<keyof S, string>> {
+  bind(key: Extract<keyof S, string>, show: Show): Binding;
+  bind(read: Read<S>, change: Change<S>, show: Show): Binding;
+  text(key: Extract<keyof S, string>, options: TextFieldOptions): void;
+  text(read: Read<S>, change: Change<S>, options: TextFieldOptions): void;
+  number(key: Extract<keyof S, string>, options: NumberFieldOptions): NumberField;
+  number(read: Read<S>, change: Change<S>, options: NumberFieldOptions): NumberField;
+  comboBox(key: Extract<keyof S, string>, options: ComboBoxOptions): ComboBox;
+  comboBox(read: Read<S>, change: Change<S>, options: ComboBoxOptions): ComboBox;
+  checkbox(key: Extract<keyof S, string>, options: { label: string }): void;
+  checkbox(read: Read<S>, change: Change<S>, options: { label: string }): void;
+}
+
+// The functions that a control takes in place of its key, and what it hands
+// the value it shows.
+type Read<S extends State = State> = (state: S) => Json | undefined;
+type Change<S extends State = State> = (value: Json | undefined, state: S) => Partial<S>;
+type Show = (value: Json | undefined) => void;
+
+// What a control binds: the value under a key, or the value that `read`
+// reads, with the change that `change` builds.
+type Target = string | { readonly read: Read; readonly change: Change };
+
 // What a control draws, in the order the controls were made,
 // by an id that keeps its place as React draws them again.
 interface Entry {
@@ -161,13 +193,10 @@ interface Entry {
 // The controls of a block's UI, bound to the block's state args,
 // or of a board option's UI, bound to the board option's value under its id.
 // The module puts `el` in its element and returns `cleanup` from its render().
-export function controls<S extends State>(
-  host: BlockHost<S>,
-  signal: AbortSignal,
-): Controls<Extract<keyof S, string>>;
+export function controls<S extends State>(host: BlockHost<S>, signal: AbortSignal): BlockControls<S>;
 // A board option's controls take its id as their key.
 export function controls<V extends Json>(host: OptionHost<V>, signal: AbortSignal): Controls;
-export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Controls {
+export function controls(host: BlockHost | OptionHost, signal: AbortSignal): BlockControls {
   const el = document.createElement("div");
   el.className = styles.stack;
   const root = createRoot(el);
@@ -205,18 +234,30 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     put(() => <Slot node={node} />);
   }
 
-  // Binds an input of core's React SDK to the value under the key,
+  // Binds what the control binds, as bind() does given a key or the two
+  // functions.
+  function bindTo(target: Target, show: Show, options: BindOptions): Binding {
+    // The binding's overloads take the host's own type, which the union here
+    // is not.
+    const binding =
+      typeof target === "string"
+        ? bindValue(host as BlockHost, target, show, options)
+        : bindValue(host as BlockHost, target.read, target.change, show, options);
+    bindings.push(binding);
+    return binding;
+  }
+
+  // Binds an input of core's React SDK as bindTo() does,
   // which it draws with the value as the binding last showed it
   // and why the host refused what it last submitted, if it did.
-  function input(key: string, draw: (bound: Bound) => ReactElement): void {
+  function input(target: Target, draw: (bound: Bound) => ReactElement): void {
     let value: Json | undefined;
     let refusal: string | null = null;
     // The binding shows the value once as it is made,
     // before the input is put among the controls.
     let made = false;
-    const binding = bindValue(
-      host as BlockHost,
-      key,
+    const binding = bindTo(
+      target,
       (shown) => {
         value = shown;
         if (made) redraw();
@@ -231,7 +272,6 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
         notifier: () => undefined,
       },
     );
-    bindings.push(binding);
     made = true;
     put(() =>
       draw({
@@ -263,14 +303,11 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     return host.value();
   }
 
-  function bind(key: string, show: (value: Json | undefined) => void): Binding {
-    // The binding's overloads take the host's own type, which the union here
-    // is not.
+  function bind(key: string | Read, next: Change | Show, last?: Show): Binding {
+    const [target, show] = after(key, next, last);
     // The line below the controls shows why the host refused what the widget
     // submitted, so core raises no notification of it.
-    const binding = bindValue(host as BlockHost, key, show, { settled: alert, notifier: () => undefined });
-    bindings.push(binding);
-    return binding;
+    return bindTo(target, show, { settled: alert, notifier: () => undefined });
   }
 
   function follow(name: string, options: FollowOptions): Followed {
@@ -279,14 +316,16 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     return request;
   }
 
-  function text(key: string, options: TextFieldOptions): void {
-    input(key, (bound) => <inputs.TextField bound={bound} spellCheck="false" {...options} />);
+  function text(key: string | Read, next: Change | TextFieldOptions, last?: TextFieldOptions): void {
+    const [target, options] = after(key, next, last);
+    input(target, (bound) => <inputs.TextField bound={bound} spellCheck="false" {...options} />);
   }
 
-  function number(key: string, options: NumberFieldOptions): NumberField {
+  function number(key: string | Read, next: Change | NumberFieldOptions, last?: NumberFieldOptions): NumberField {
+    const [target, options] = after(key, next, last);
     let maxValue = options.maxValue;
     let outdated = false;
-    input(key, (bound) => <inputs.NumberField bound={bound} {...options} maxValue={maxValue} outdated={outdated} />);
+    input(target, (bound) => <inputs.NumberField bound={bound} {...options} maxValue={maxValue} outdated={outdated} />);
     return {
       setMaxValue(next) {
         maxValue = next;
@@ -299,10 +338,11 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     };
   }
 
-  function comboBox(key: string, options: ComboBoxOptions): ComboBox {
+  function comboBox(key: string | Read, next: Change | ComboBoxOptions, last?: ComboBoxOptions): ComboBox {
+    const [target, options] = after(key, next, last);
     let items = options.items;
     let outdated = false;
-    input(key, (bound) => (
+    input(target, (bound) => (
       <inputs.ComboBox
         bound={bound}
         label={options.label}
@@ -329,8 +369,9 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
     };
   }
 
-  function checkbox(key: string, options: { label: string }): void {
-    input(key, (bound) => <inputs.Checkbox bound={bound} label={options.label} />);
+  function checkbox(key: string | Read, next: Change | { label: string }, last?: { label: string }): void {
+    const [target, options] = after(key, next, last);
+    input(target, (bound) => <inputs.Checkbox bound={bound} label={options.label} />);
   }
 
   function cleanup(): void {
@@ -344,6 +385,12 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   signal.addEventListener("abort", cleanup, { once: true });
 
   return { el, add, get, bind, text, number, comboBox, checkbox, follow, alert, cleanup };
+}
+
+// What a control binds, given its key or the two functions, and what it takes
+// besides, which follows them.
+function after<T>(key: string | Read, next: Change | T, last: T | undefined): [Target, T] {
+  return typeof key === "function" ? [{ read: key, change: next as Change }, last as T] : [key, next as T];
 }
 
 // An element that the module draws itself, which React puts in a wrapper that

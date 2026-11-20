@@ -12,6 +12,20 @@ function errorMessage(error) {
 function asError(error) {
   return error instanceof Error ? error : new Error(String(error));
 }
+function isObject(x) {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+function jsonEqual(a, b) {
+  if (a === b) return true;
+  if (Array.isArray(a)) {
+    return Array.isArray(b) && a.length === b.length && a.every((x, i) => jsonEqual(x, b[i]));
+  }
+  if (isObject(a) && isObject(b)) {
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && jsonEqual(a[key], b[key]));
+  }
+  return false;
+}
 
 // srcts/react/hooks.ts
 var snapshots = /* @__PURE__ */ new WeakMap();
@@ -35,29 +49,36 @@ function outputSnapshot(host) {
   snapshots.set(host, next);
   return next;
 }
-function useValue(host, key) {
-  const name = key ?? ("option" in host ? host.option : "");
-  const [value, setValue] = useState(() => held(host, name));
+function useValue(host, key, change) {
+  const read = typeof key === "function" ? key : null;
+  const name = typeof key === "function" ? null : key ?? ("option" in host ? host.option : "");
+  const given = read === null || change === void 0 ? null : { read, change };
+  const [value, setValue] = useState(() => held(host, name, { current: given }));
   const [error, setError] = useState(null);
   const binding = useRef(null);
+  const functions = useRef(given);
   useLayoutEffect(() => {
-    const bound = bind(host, name, setValue, {
-      settled: (refused) => {
-        setError(refused === null ? null : errorMessage(refused));
-      },
-      notifier: () => void 0
-    });
-    binding.current = bound;
+    binding.current = start(host, name, functions, setValue, setError);
     return () => {
+      const bound = binding.current;
       binding.current = null;
-      bound.release();
+      bound?.release();
     };
   }, [host, name]);
+  useLayoutEffect(() => {
+    if (read === null || change === void 0) return;
+    const last = functions.current;
+    if (last !== null && last.read === read && last.change === change) return;
+    const moved = last === null || !readAlike(last.read, read, host.state());
+    if (moved) binding.current?.release();
+    functions.current = { read, change };
+    if (moved) binding.current = start(host, name, functions, setValue, setError);
+  }, [read, change, host, name]);
   return useMemo(
     () => ({
       value,
       error,
-      get: () => binding.current?.get() ?? held(host, name),
+      get: () => binding.current?.get() ?? held(host, name, functions),
       commit: (next) => binding.current?.commit(next) ?? Promise.resolve(false),
       unset: () => binding.current?.unset() ?? Promise.resolve(false),
       type: (next) => {
@@ -94,8 +115,32 @@ function useRequest(host, name, options = {}) {
   }, [host, name, reads]);
   return answered;
 }
-function held(host, key) {
-  return "option" in host ? host.value() : own(host.state(), key);
+function start(host, name, functions, show, refused) {
+  const options = {
+    settled: (error) => {
+      refused(error === null ? null : errorMessage(error));
+    },
+    notifier: () => void 0
+  };
+  if (name !== null) return bind(host, name, show, options);
+  return bind(
+    host,
+    (state) => functions.current?.read(state),
+    (value, state) => functions.current?.change(value, state) ?? {},
+    show,
+    options
+  );
+}
+function held(host, name, functions) {
+  if ("option" in host) return host.value();
+  return name === null ? functions.current?.read(host.state()) : own(host.state(), name);
+}
+function readAlike(a, b, state) {
+  try {
+    return jsonEqual(a(state), b(state));
+  } catch {
+    return false;
+  }
 }
 function useBoard(core) {
   const subscribe = useCallback(

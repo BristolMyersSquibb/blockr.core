@@ -17,7 +17,7 @@ import type { BlockId, Board } from "../types/board.ts";
 import type { BoardObject, CoreApi, CoreFailure, Notification } from "../types/core-api.ts";
 import type { BlockHost, OptionHost, OutputHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { errorMessage, own } from "../util/index.ts";
+import { errorMessage, jsonEqual, own } from "../util/index.ts";
 
 // What an output host holds at one moment. A renderer reads the board options
 // of its output family through the host's option(), whose values change only
@@ -75,37 +75,61 @@ export interface Bound {
 
 // Binds a block's state arg by its name, or a board option's value,
 // for as long as the component is mounted.
+// Given two functions in place of the name, it binds the value that the
+// first reads from the block's state, and submits the change that the
+// second builds, as bind() does with them, for an input that sets several
+// state args or edits part of one.
 // The binding takes the notification of each submit that the host refuses,
 // so that core raises none, since the component shows why as `error`.
 export function useValue<S extends State>(host: BlockHost<S>, key: Extract<keyof S, string>): Bound;
+export function useValue<S extends State>(
+  host: BlockHost<S>,
+  read: (state: S) => Json | undefined,
+  change: (value: Json | undefined, state: S) => Partial<S>,
+): Bound;
 export function useValue<V extends Json>(host: OptionHost<V>): Bound;
-export function useValue(host: BlockHost | OptionHost, key?: string): Bound {
-  const name = key ?? ("option" in host ? host.option : "");
-  const [value, setValue] = useState<Json | undefined>(() => held(host, name));
+export function useValue(host: BlockHost | OptionHost, key?: string | Read, change?: Change): Bound {
+  const read = typeof key === "function" ? key : null;
+  const name = typeof key === "function" ? null : (key ?? ("option" in host ? host.option : ""));
+  const given = read === null || change === undefined ? null : { read, change };
+  const [value, setValue] = useState<Json | undefined>(() => held(host, name, { current: given }));
   const [error, setError] = useState<string | null>(null);
   const binding = useRef<Binding | null>(null);
+  // The functions that the binding reads and builds with.
+  const functions = useRef(given);
 
   // The binding starts before the browser paints, so that no event of the
   // user comes before it.
   useLayoutEffect(() => {
-    const bound = bind(host as BlockHost, name, setValue, {
-      settled: (refused) => {
-        setError(refused === null ? null : errorMessage(refused));
-      },
-      notifier: () => undefined,
-    });
-    binding.current = bound;
+    binding.current = start(host, name, functions, setValue, setError);
     return () => {
+      const bound = binding.current;
       binding.current = null;
-      bound.release();
+      bound?.release();
     };
   }, [host, name]);
+
+  // A binding made with two functions reads and builds with those of the
+  // latest render.
+  // Where those read another value from the state than the functions before
+  // them, as where a component's input moves to another condition of a list,
+  // the binding submits what the user typed with the functions before, and
+  // starts again.
+  useLayoutEffect(() => {
+    if (read === null || change === undefined) return;
+    const last = functions.current;
+    if (last !== null && last.read === read && last.change === change) return;
+    const moved = last === null || !readAlike(last.read, read, (host as BlockHost).state());
+    if (moved) binding.current?.release();
+    functions.current = { read, change };
+    if (moved) binding.current = start(host, name, functions, setValue, setError);
+  }, [read, change, host, name]);
 
   return useMemo(
     () => ({
       value,
       error,
-      get: () => binding.current?.get() ?? held(host, name),
+      get: () => binding.current?.get() ?? held(host, name, functions),
       commit: (next: Json) => binding.current?.commit(next) ?? Promise.resolve(false),
       unset: () => binding.current?.unset() ?? Promise.resolve(false),
       type: (next: Json | undefined) => {
@@ -177,8 +201,58 @@ export function useRequest(host: BlockHost | OptionHost, name: string, options: 
   return answered;
 }
 
-function held(host: BlockHost | OptionHost, key: string): Json | undefined {
-  return "option" in host ? host.value() : own(host.state(), key);
+// The functions of a binding made with two.
+type Read = (state: State) => Json | undefined;
+type Change = (value: Json | undefined, state: State) => Partial<State>;
+interface Functions {
+  readonly current: { readonly read: Read; readonly change: Change } | null;
+}
+
+// Binds the value under the name, or given none, the value that the
+// functions in `functions` read, as they are at the moment the binding calls
+// them.
+// The binding hands `show` each value that it shows, and `refused` why the
+// host refused a submit.
+// It takes the notification of each submit that the host refuses, so that
+// core raises none.
+function start(
+  host: BlockHost | OptionHost,
+  name: string | null,
+  functions: Functions,
+  show: (value: Json | undefined) => void,
+  refused: (error: string | null) => void,
+): Binding {
+  const options = {
+    settled: (error: unknown) => {
+      refused(error === null ? null : errorMessage(error));
+    },
+    notifier: () => undefined,
+  };
+  if (name !== null) return bind(host as BlockHost, name, show, options);
+  return bind(
+    host as BlockHost,
+    (state) => functions.current?.read(state),
+    (value, state) => functions.current?.change(value, state) ?? {},
+    show,
+    options,
+  );
+}
+
+// The value as the host holds it, under the name, or given none, as the
+// functions in `functions` read it.
+function held(host: BlockHost | OptionHost, name: string | null, functions: Functions): Json | undefined {
+  if ("option" in host) return host.value();
+  return name === null ? functions.current?.read(host.state()) : own(host.state(), name);
+}
+
+// Whether both functions read the same value from the state, where neither
+// throws.
+function readAlike(a: Read, b: Read, state: State): boolean {
+  try {
+    return jsonEqual(a(state), b(state));
+  } catch {
+    return false;
+  }
 }
 
 // The board, which the store keeps the same object until it announces a

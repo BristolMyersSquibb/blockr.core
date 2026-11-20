@@ -10,6 +10,9 @@ function own(record, key) {
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
+function asError(error) {
+  return error instanceof Error ? error : new Error(String(error));
+}
 function isObject(x) {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }
@@ -27,9 +30,10 @@ function jsonEqual(a, b) {
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
-function bind(host, key, show, options = {}) {
+function bind(host, key, next, last, given) {
+  const [change, show, options] = typeof key === "function" ? [next, last, given ?? {}] : [void 0, next, last ?? {}];
   const source = createSource(host);
-  source.check(key);
+  const held = source.value(key, change);
   const submitting = options.notifier === void 0 ? {} : { notifier: options.notifier };
   let shown;
   let typed;
@@ -37,15 +41,34 @@ function bind(host, key, show, options = {}) {
   let released = false;
   const display = (again = false) => {
     if (released || timer !== void 0) return;
-    const value = source.get(key);
+    const value = held.get();
     if (!again && shown !== void 0 && jsonEqual(shown.value, value)) return;
     shown = { value };
     show(value);
   };
+  let unbuilt;
+  const unbuild = (error) => {
+    host.log.error(asError(error));
+    unbuilt?.();
+    unbuilt = options.notifier === void 0 ? host.notify({
+      severity: "error",
+      code: "change_failed",
+      message: `The control failed to build the change it submits: ${errorMessage(error)}`
+    }) : void 0;
+  };
   const submit = async (value) => {
-    if (jsonEqual(source.get(key), value)) return true;
+    let submitted;
     try {
-      await (value === void 0 ? source.unset(key, submitting) : source.submit(key, value, submitting));
+      submitted = held.submit(value, submitting);
+    } catch (error) {
+      unbuild(error);
+      options.settled?.(error);
+      return false;
+    }
+    unbuilt?.();
+    unbuilt = void 0;
+    try {
+      if (submitted !== null) await submitted;
     } catch (error) {
       options.settled?.(error);
       return false;
@@ -69,7 +92,7 @@ function bind(host, key, show, options = {}) {
   });
   display(true);
   return {
-    get: () => source.get(key),
+    get: () => held.get(),
     async commit(value) {
       const took = await submit(value);
       if (!took) display(true);
@@ -143,24 +166,24 @@ function follow(host, name, options) {
 }
 function createSource(host) {
   if ("option" in host) {
-    const check = (key) => {
-      if (key !== host.option) {
-        throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
-      }
-    };
     return {
-      check,
-      get(key) {
-        check(key);
-        return host.value();
-      },
-      submit(key, value, opts) {
-        check(key);
-        return host.submit(value, opts);
-      },
-      unset(key) {
-        check(key);
-        return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+      value(key) {
+        if (typeof key === "function") {
+          throw new TypeError(`The value of the board option "${host.option}" is bound by its id, not through functions.`);
+        }
+        if (key !== host.option) {
+          throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
+        }
+        return {
+          get: () => host.value(),
+          submit(value, opts) {
+            if (jsonEqual(host.value(), value)) return null;
+            if (value === void 0) {
+              return Promise.reject(new Error(`The board option "${host.option}" always holds a value, so none of it is unset.`));
+            }
+            return host.submit(value, opts);
+          }
+        };
       },
       onValues: (fn) => host.on("value", fn),
       onContext: () => () => void 0,
@@ -169,15 +192,29 @@ function createSource(host) {
     };
   }
   return {
-    check: () => void 0,
-    get: (key) => own(host.state(), key),
-    submit: (key, value, opts) => host.submit({ [key]: value }, opts),
-    unset: (key, opts) => host.submit({ [key]: void 0 }, opts),
+    value(key, change) {
+      const read = typeof key === "function" ? key : (state) => own(state, key);
+      const build = typeof key === "function" ? change : (value) => ({ [key]: value });
+      if (typeof build !== "function") {
+        throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
+      }
+      return {
+        get: () => read(host.state()),
+        submit(value, opts) {
+          const state = host.state();
+          const next = build(value, state);
+          return holds(state, next) ? null : host.submit(next, opts);
+        }
+      };
+    },
     onValues: (fn) => host.on("state", fn),
     onContext: (fn) => host.on("context", fn),
     inputs: () => host.context().inputs.map((input) => ({ input: input.input, revision: input.revision })),
     request: (name, args, opts) => host.request(name, args, opts)
   };
+}
+function holds(state, change) {
+  return Object.entries(change).every(([arg, value]) => jsonEqual(own(state, arg), value));
 }
 function strings(value) {
   return Array.isArray(value) ? value.filter((x) => typeof x === "string") : [];
@@ -923,13 +960,17 @@ function controls(host, signal) {
   function add(node) {
     put(() => /* @__PURE__ */ jsx12(Slot, { node }));
   }
-  function input(key, draw) {
+  function bindTo(target, show, options) {
+    const binding = typeof target === "string" ? bind(host, target, show, options) : bind(host, target.read, target.change, show, options);
+    bindings.push(binding);
+    return binding;
+  }
+  function input(target, draw) {
     let value;
     let refusal = null;
     let made = false;
-    const binding = bind(
-      host,
-      key,
+    const binding = bindTo(
+      target,
       (shown) => {
         value = shown;
         if (made) redraw();
@@ -944,7 +985,6 @@ function controls(host, signal) {
         notifier: () => void 0
       }
     );
-    bindings.push(binding);
     made = true;
     put(
       () => draw({
@@ -973,38 +1013,40 @@ function controls(host, signal) {
     }
     return host.value();
   }
-  function bind2(key, show) {
-    const binding = bind(host, key, show, { settled: alert, notifier: () => void 0 });
-    bindings.push(binding);
-    return binding;
+  function bind2(key, next, last) {
+    const [target, show] = after(key, next, last);
+    return bindTo(target, show, { settled: alert, notifier: () => void 0 });
   }
   function follow2(name, options) {
     const request = follow(host, name, options);
     followed.push(request);
     return request;
   }
-  function text(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx12(TextField2, { bound, spellCheck: "false", ...options }));
+  function text(key, next, last) {
+    const [target, options] = after(key, next, last);
+    input(target, (bound) => /* @__PURE__ */ jsx12(TextField2, { bound, spellCheck: "false", ...options }));
   }
-  function number(key, options) {
+  function number(key, next, last) {
+    const [target, options] = after(key, next, last);
     let maxValue = options.maxValue;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx12(NumberField2, { bound, ...options, maxValue, outdated }));
+    input(target, (bound) => /* @__PURE__ */ jsx12(NumberField2, { bound, ...options, maxValue, outdated }));
     return {
-      setMaxValue(next) {
-        maxValue = next;
+      setMaxValue(next2) {
+        maxValue = next2;
         redraw();
       },
-      setOutdated(next) {
-        outdated = next;
+      setOutdated(next2) {
+        outdated = next2;
         redraw();
       }
     };
   }
-  function comboBox(key, options) {
+  function comboBox(key, next, last) {
+    const [target, options] = after(key, next, last);
     let items = options.items;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx12(
+    input(target, (bound) => /* @__PURE__ */ jsx12(
       ComboBox2,
       {
         bound,
@@ -1020,18 +1062,19 @@ function controls(host, signal) {
       }
     ));
     return {
-      setItems(next) {
-        items = next;
+      setItems(next2) {
+        items = next2;
         redraw();
       },
-      setOutdated(next) {
-        outdated = next;
+      setOutdated(next2) {
+        outdated = next2;
         redraw();
       }
     };
   }
-  function checkbox(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx12(Checkbox, { bound, label: options.label }));
+  function checkbox(key, next, last) {
+    const [target, options] = after(key, next, last);
+    input(target, (bound) => /* @__PURE__ */ jsx12(Checkbox, { bound, label: options.label }));
   }
   function cleanup() {
     if (ended) return;
@@ -1042,6 +1085,9 @@ function controls(host, signal) {
   }
   signal.addEventListener("abort", cleanup, { once: true });
   return { el, add, get, bind: bind2, text, number, comboBox, checkbox, follow: follow2, alert, cleanup };
+}
+function after(key, next, last) {
+  return typeof key === "function" ? [{ read: key, change: next }, last] : [key, next];
 }
 function Slot({ node }) {
   const ref = useRef3(null);

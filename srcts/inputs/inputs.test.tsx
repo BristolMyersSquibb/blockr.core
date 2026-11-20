@@ -290,6 +290,101 @@ describe("the inputs of a block's UI", () => {
   });
 });
 
+describe("an input bound with two functions", () => {
+  // A block whose state arg `conditions` holds a list, of which an input edits
+  // the condition at an index.
+  type Conditions = Readonly<{ conditions: readonly string[] }>;
+
+  const conditions: BlockFixture = {
+    states: [
+      { conditions: ["a", "b"] },
+      { conditions: ["a", "b", "c"] },
+      { conditions: ["a2", "b", "c"] },
+      { conditions: ["a2", "b"] },
+      { conditions: ["a2", "b2"] },
+    ],
+    requests: [],
+  };
+
+  // The input binds through functions that the component makes anew each time
+  // it draws.
+  function Condition({ host, index }: { host: BlockHost<Conditions>; index: number }): ReactElement {
+    const bound = useValue(
+      host,
+      (state) => state.conditions[index],
+      (value, state) => ({
+        conditions: state.conditions.map((condition, i) => (i === index && typeof value === "string" ? value : condition)),
+      }),
+    );
+    return <TextField bound={bound} label="Condition" />;
+  }
+
+  function condition(index = 0) {
+    const host = stubBlockHost<Conditions>(conditions);
+    const drawn = draw(<Condition host={host} index={index} />);
+    return { host, ...drawn, input: labelled(drawn.el, "Condition") };
+  }
+
+  test("shows the value that the first reads, and submits the change that the second builds once the user pauses, from the state as it is then", async () => {
+    const { host, input } = condition();
+    expect(input.value).toBe("a");
+
+    act(() => {
+      type(input, "a2");
+    });
+    // The assistant adds a condition before the pause ends.
+    act(() => {
+      host.setState({ conditions: ["a", "b", "c"] });
+    });
+    await wait(PAUSE);
+
+    expect(host.submitted).toEqual([{ conditions: ["a2", "b", "c"] }]);
+    expect(input.value).toBe("a2");
+  });
+
+  test("says below itself why the host refused a change", async () => {
+    const { host, el, input } = condition();
+
+    act(() => {
+      type(input, "z");
+    });
+    await wait(PAUSE);
+
+    expect(host.submitted).toEqual([{ conditions: ["z", "b"] }]);
+    expect(texts(el, '[role="alert"]')[0]).toContain("which the fixture does not list");
+  });
+
+  test("keeps what the user types for one submit while the component draws again, with functions that read the same value", async () => {
+    const { host, redraw, input } = condition();
+
+    act(() => {
+      type(input, "a2");
+    });
+    redraw(<Condition host={host} index={0} />);
+    expect(host.submitted).toEqual([]);
+    await wait(PAUSE);
+
+    expect(host.submitted).toEqual([{ conditions: ["a2", "b"] }]);
+  });
+
+  test("binds anew where the functions of a render read another value, and submits what the user typed with those before", async () => {
+    const { host, redraw, input } = condition();
+
+    act(() => {
+      type(input, "a2");
+    });
+    redraw(<Condition host={host} index={1} />);
+    expect(host.submitted).toEqual([{ conditions: ["a2", "b"] }]);
+    expect(input.value).toBe("b");
+
+    act(() => {
+      type(input, "b2");
+    });
+    await wait(PAUSE);
+    expect(host.submitted).toEqual([{ conditions: ["a2", "b"] }, { conditions: ["a2", "b2"] }]);
+  });
+});
+
 describe("a number field's text as the user types", () => {
   test("stays as the user typed it after the binding submits it on a pause, and takes the field's format once the user leaves", async () => {
     const host = stubOptionHost<number>({ option: "n_rows", value: 25 });
