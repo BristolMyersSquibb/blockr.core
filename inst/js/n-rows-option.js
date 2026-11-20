@@ -19,12 +19,6 @@ var optionSchemas = {
     minimum: 1,
     description: "How many rows of a table a block's output shows"
   },
-  show_conditions: {
-    type: "array",
-    items: { enum: ["message", "warning", "error"] },
-    uniqueItems: true,
-    description: "The severities of a block's conditions that the board shows"
-  },
   dark_mode: {
     enum: ["light", "dark"],
     description: "Whether the board shows in its light or its dark theme"
@@ -40,13 +34,6 @@ function numberUi(label, min) {
     return /* @__PURE__ */ jsx(NumberField, { bound: useValue(host), label, minValue: min, step: 1 });
   }
   return reactModule(NumberUi);
-}
-function multiSelectUi(label, values) {
-  const items = values.map((id) => ({ id }));
-  function MultiSelectUi({ host }) {
-    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), selectionMode: "multiple", label, defaultItems: items, ordered: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.id }) });
-  }
-  return reactModule(MultiSelectUi);
 }
 function selectUi(label, placeholder, items) {
   function SelectUi({ host }) {
@@ -67,20 +54,6 @@ var nRows = {
     return checked("n_rows", takesRows, value, typeof value === "string" ? asNumber(value) : value);
   },
   ui: numberUi("Preview rows", optionSchemas.n_rows.minimum)
-};
-var SEVERITIES = ["message", "warning", "error"];
-var showConditions = {
-  label: "Message types to display",
-  category: "Board options",
-  schema: optionSchemas.show_conditions,
-  // R writes a blockr option of one severity as a string, as an environment
-  // variable gives it.
-  default: async (core) => {
-    const value = await core.blockrOption("show_conditions");
-    if (value === void 0) return ["warning", "error"];
-    return checked("show_conditions", takesSeverities, value, typeof value === "string" ? [value] : value);
-  },
-  ui: multiSelectUi("Message types to display", SEVERITIES)
 };
 var darkMode = {
   label: "Light/dark mode",
@@ -113,12 +86,6 @@ function checked(id, takes, sent, value = sent) {
 }
 function takesRows(value) {
   return typeof value === "number" && Number.isInteger(value) && value >= optionSchemas.n_rows.minimum;
-}
-function takesSeverities(value) {
-  const allowed = optionSchemas.show_conditions.items.enum;
-  if (!Array.isArray(value)) return false;
-  const given = value;
-  return given.every((x) => allowed.includes(x)) && new Set(given).size === given.length;
 }
 function takesTheme(value) {
   const allowed = optionSchemas.dark_mode.enum;
