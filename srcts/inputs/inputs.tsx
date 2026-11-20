@@ -1,14 +1,14 @@
-// The inputs that core's UIs draw with React, each showing and editing one
-// value that `useValue()` binds, a block's state arg or a board option's value,
-// so that each meets the contract of a block's UI as its binding does
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
-// Each submits a pick at once and says below itself why the host refused what
-// it submitted.
-// A label holds its input, so that it needs no id,
-// as a block's UI may be mounted in several places at once.
-// The select is in ./combobox.tsx, and the text and number fields, which keep
-// what the user types until their binding submits it, are in ./textfield.tsx
-// and ./numberfield.tsx.
+// What the inputs of core's React SDK share, each of which shows and edits
+// one value that `useValue()` binds, a block's state arg or a board option's
+// value, so that each meets the contract of a block's UI as its binding does
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
+// how an input shows a value that it lacks, the line below an input that says
+// why the host refused what it submitted, and what the user typed into a
+// field until its binding submits it.
+// Here too are the stack of a UI's inputs and the field, a label that holds
+// its input, so that it needs no id, as a block's UI may be mounted in
+// several places at once.
+// Each input sits in a file of its own beside this one.
 // React Aria gives their parts ids, which React makes anew for each mount.
 
 import { useState } from "react";
@@ -32,26 +32,8 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-export function Checkbox({ bound, label }: { bound: Bound; label: string }): ReactElement {
-  return (
-    <>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          className={styles.checkbox}
-          checked={bound.value === true}
-          onChange={(event) => {
-            void bound.commit(event.target.checked);
-          }}
-        />
-        {label}
-      </label>
-      <Refusal error={bound.error} />
-    </>
-  );
-}
-
-// How a select shows a value that its choices lack.
+// How an input shows a value that it lacks, such as a pick that none of its
+// items holds or a number outside a slider's range.
 export function missing(value: string): string {
   return `${value} (not available)`;
 }

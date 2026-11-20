@@ -99,7 +99,7 @@ function BlockForm({ host }: { host: BlockHost<Form> }): ReactElement {
       <ComboBox bound={useValue(host, "by")} selectionMode="multiple" label="By columns" defaultItems={ids(["a", "b", "c"])}>
         {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
       </ComboBox>
-      <Checkbox bound={useValue(host, "keep")} label="Keep" />
+      <Checkbox bound={useValue(host, "keep")}>Keep</Checkbox>
     </Stack>
   );
 }
@@ -115,7 +115,7 @@ function block(state: Form = form({})) {
     direction: labelled(drawn.el, "Direction"),
     label: labelled(drawn.el, "Label"),
     by: labelled(drawn.el, "By columns"),
-    keep: find(drawn.el, ":scope > div > label:last-of-type input", HTMLInputElement),
+    keep: labelled(drawn.el, "Keep"),
   };
   return { host, ...drawn, inputs };
 }

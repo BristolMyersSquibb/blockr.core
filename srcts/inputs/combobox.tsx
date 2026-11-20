@@ -17,9 +17,10 @@
 //
 // The field of several shows each pick as a chip, whose button removes it,
 // as Backspace in the empty field removes the last one.
-// A button at the field's right, before the one that opens the list, clears
-// the pick, or every pick, where there is one, but where the select
+// A FieldButton at the field's right, before the button that opens the list,
+// clears the pick, or every pick, where there is one, but where the select
 // `isRequired`.
+// It is outside the order of Tab, and keeps the focus in the field.
 // Bound, a select of one unsets its state arg so, as a block's new select of
 // an arg without a default starts.
 // A press in the field opens the list, as typing into it does.
@@ -98,7 +99,10 @@ import type {
   ListBoxSectionProps,
   ValidationResult,
 } from "../aria/index.ts";
+import { FieldButton } from "./button.tsx";
+import { Chevron, Cross, Tick } from "./icons.tsx";
 import { missing, Refusal } from "./inputs.tsx";
+import { inOrder, merged } from "./items.ts";
 
 type Mode = "single" | "multiple";
 
@@ -179,11 +183,8 @@ function BoundSeveral({
   // user picked since the list opened, after those the value holds, without
   // those the user removed.
   const submit = (next: readonly string[], opened: readonly string[]): void => {
-    const added = next.filter((value) => !opened.includes(value));
-    const removed = opened.filter((value) => !next.includes(value));
-    if (added.length === 0 && removed.length === 0) return;
-    const now = strings(bound.get());
-    const value = [...now.filter((x) => !removed.includes(x)), ...added.filter((x) => !now.includes(x))];
+    const value = merged(strings(bound.get()), opened, next);
+    if (value === null) return;
     void bound.commit(ordered && items !== undefined ? inOrder(value, ids(items)) : value);
   };
 
@@ -235,11 +236,6 @@ function ids(items: Iterable<object>): string[] {
     const id = (item as { id?: unknown }).id;
     return typeof id === "string" || typeof id === "number" ? [String(id)] : [];
   });
-}
-
-// The values in the order of the ids, those that the ids lack after them.
-function inOrder(values: readonly string[], order: readonly string[]): string[] {
-  return [...order.filter((id) => values.includes(id)), ...values.filter((value) => !order.includes(value))];
 }
 
 // The label, the field, the description, the error message and the list.
@@ -307,7 +303,8 @@ function Drawn({
 // React Aria takes a new array of picks for a change of the value, and then
 // empties the field, so that a caller that builds the picks afresh as it draws
 // would empty the field as the user types into it.
-function useSameValue<V>(value: V): V {
+// The Select takes its picks so too (./select.tsx).
+export function useSameValue<V>(value: V): V {
   const [drawn, setDrawn] = useState(value);
   const same = drawn === value || (Array.isArray(drawn) && Array.isArray(value) && sameKeys(drawn, value));
   if (!same) setDrawn(value);
@@ -419,25 +416,25 @@ function Field({
         />
       </div>
       {clearable && (keys.length > 0 || one !== null) ? (
-        // A button of the field's own, not React Aria's, which the select
-        // would take for its own and open the list with. It keeps the focus
-        // in the text field, as a press in the list does.
-        <button
-          type="button"
-          tabIndex={-1}
+        // A FieldButton whose slot is null, which React Aria's ComboBox then
+        // leaves alone, rather than take it for the button that opens the
+        // list. It is outside the order of Tab, and keeps the focus in the
+        // text field, as a press in the list does.
+        // React Aria's Button takes no title, so the cross carries it.
+        <FieldButton
+          slot={null}
+          excludeFromTabOrder
+          preventFocusOnPress
           aria-label={label === undefined ? "Clear" : `Clear ${label}`}
-          title={multiple ? "Clear every pick" : "Clear the pick"}
-          className={CLEAR}
-          onMouseDown={(event) => {
-            event.preventDefault();
-          }}
-          onClick={() => {
+          onPress={() => {
             if (onClear !== undefined) onClear();
             else state?.setValue(multiple ? [] : null);
           }}
         >
-          <Cross />
-        </button>
+          <span title={multiple ? "Clear every pick" : "Clear the pick"} className="bc:flex bc:size-full bc:items-center bc:justify-center">
+            <Cross />
+          </span>
+        </FieldButton>
       ) : null}
       <Button className={OPENER}>
         <Chevron />
@@ -489,64 +486,6 @@ export function ComboBoxSection<T extends object>({ title, items, children, ...p
   );
 }
 
-// The one chevron of the design system, which turns up while the list is
-// open.
-function Chevron(): ReactElement {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="bc:shrink-0 bc:text-text-muted bc:transition-transform bc:group-data-open:rotate-180"
-    >
-      <polyline points="3 4.5 6 7.5 9 4.5" />
-    </svg>
-  );
-}
-
-// The design system's tick of a pick of several.
-function Tick(): ReactElement {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3.5 8.5l3 3 6-7" />
-    </svg>
-  );
-}
-
-// The cross of a chip's button.
-function Cross(): ReactElement {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M2.5 2.5l5 5M7.5 2.5l-5 5" />
-    </svg>
-  );
-}
-
 // The classes of the field and its parts, of the list and of its parts.
 // The field is a box like core's other inputs, which holds the chips, the text
 // field and the button, and draws the outline of the focus while the focus is
@@ -558,8 +497,6 @@ const FIELD =
 const VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
 const INPUT =
   "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
-const CLEAR =
-  "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:hover:bg-bg-subtle bc:hover:text-text-default";
 const OPENER =
   "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
 // A chip of a pick that the items lack shows in the colour of danger, as the

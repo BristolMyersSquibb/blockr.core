@@ -330,7 +330,7 @@ export function controls(host: BlockHost | OptionHost, signal: AbortSignal): Con
   }
 
   function checkbox(key: string, options: { label: string }): void {
-    input(key, (bound) => <inputs.Checkbox bound={bound} label={options.label} />);
+    input(key, (bound) => <inputs.Checkbox bound={bound}>{options.label}</inputs.Checkbox>);
   }
 
   function cleanup(): void {

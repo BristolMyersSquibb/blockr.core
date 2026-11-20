@@ -280,6 +280,28 @@ describe("a select of one item", () => {
     expect([seen, field.value, clearButton(field)]).toEqual([[null], "", null]);
     expect([clearButton(labelled(el, "Kept")), clearButton(labelled(el, "None"))]).toEqual([null, null]);
   });
+
+  test("keeps the focus in its field as the user presses the button that clears it, which Tab skips", async () => {
+    const { el } = await draw(<Held label="Fruit" defaultItems={fruits} start="apple" seen={[]} />);
+    const field = labelled(el, "Fruit");
+    const button = clearButton(field);
+    expect(button?.tabIndex).toBe(-1);
+
+    // The browser moves the focus to a button as a mouse presses it, which
+    // happy-dom leaves out, so the test does that after the press.
+    field.focus();
+    await step(() => {
+      button?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
+      button?.focus();
+    });
+    expect(document.activeElement).toBe(field);
+    await step(() => {
+      button?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
+      button?.click();
+    });
+
+    expect([document.activeElement, field.value]).toEqual([field, ""]);
+  });
 });
 
 describe("a select of several items", () => {

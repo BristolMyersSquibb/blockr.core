@@ -1,9 +1,13 @@
-// What a user does to the select of core's React SDK in a test, React Aria's
-// ComboBox (../inputs/combobox.tsx): finds its field by its label, opens its
-// list, picks an item of the list and removes a chip of its field, by what
-// the user reads.
+// What a user does to the selects of core's React SDK in a test, React Aria's
+// ComboBox (../inputs/combobox.tsx) and Select (../inputs/select.tsx): finds
+// the ComboBox's field, or the Select's button, by its label, opens its list,
+// picks an item of the list and removes a chip of the ComboBox's field, by
+// what the user reads.
 // React Aria draws the list in a portal at the end of the page's body, which
-// the field names in aria-controls while the list is open.
+// the field or the button names in aria-controls while the list is open.
+// The ComboBox keeps the focus in its field while its list is open, and the
+// Select moves it into the list, so a key that closes the list goes to the
+// element that has the focus.
 
 import { press } from "./inputs.ts";
 
@@ -19,7 +23,7 @@ export async function listed(field: HTMLElement, act: Act): Promise<string[]> {
   });
   const rows = optionLabels(field);
   await act(() => {
-    press(field, "Escape");
+    press(focused(field), "Escape");
   });
   return rows;
 }
@@ -37,9 +41,34 @@ export async function picked(field: HTMLElement, act: Act, ...labels: string[]):
   }
   if (listFromField(field) !== null) {
     await act(() => {
-      press(field, "Escape");
+      press(focused(field), "Escape");
     });
   }
+}
+
+// The element that has the focus, where it is the field or sits in the field's
+// list, and the field otherwise.
+function focused(field: HTMLElement): HTMLElement {
+  const active = field.ownerDocument.activeElement;
+  const list = listFromField(field);
+  return active instanceof HTMLElement && (active === field || list?.contains(active) === true) ? active : field;
+}
+
+// The button of the Select whose label is the text given, in `el`, which
+// React Aria names by the pick it shows and by the label.
+export function selectButton(el: ParentNode, label: string): HTMLButtonElement {
+  const found = [...el.querySelectorAll('button[aria-haspopup="listbox"]')].find((button) =>
+    (button.getAttribute("aria-labelledby") ?? "").split(" ").some((id) => byId(button, id)?.textContent.trim() === label),
+  );
+  if (!(found instanceof HTMLButtonElement)) throw new Error(`Found no select labelled ${label}.`);
+  return found;
+}
+
+// What the Select's button shows: the pick, the picks of several, or the
+// placeholder.
+export function selectShows(button: HTMLElement): string {
+  const [id] = (button.getAttribute("aria-labelledby") ?? "").split(" ");
+  return byId(button, id ?? "")?.textContent.trim() ?? "";
 }
 
 // The text field that the label of the text given names, through its for
