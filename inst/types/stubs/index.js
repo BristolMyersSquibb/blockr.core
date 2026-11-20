@@ -9546,8 +9546,11 @@ function createSource(host) {
   if ("option" in host) {
     return {
       value(key2) {
+        if (typeof key2 === "function") {
+          throw new TypeError(`The value of the board option "${host.option}" is bound by its id, not through functions.`);
+        }
         if (key2 !== host.option) {
-          throw new Error(`The host of the board option "${host.option}" holds no value "${String(key2)}".`);
+          throw new Error(`The host of the board option "${host.option}" holds no value "${key2}".`);
         }
         return {
           get: () => host.value(),
@@ -9570,7 +9573,7 @@ function createSource(host) {
     value(key2, change) {
       const read = typeof key2 === "function" ? key2 : (state2) => own(state2, key2);
       const build = typeof key2 === "function" ? change : (value2) => ({ [key2]: value2 });
-      if (build === void 0) {
+      if (typeof build !== "function") {
         throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
       }
       return {

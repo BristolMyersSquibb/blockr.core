@@ -50,5 +50,25 @@ export interface Controls<K extends string = string> {
     alert(error: unknown): void;
     readonly cleanup: () => void;
 }
-export declare function controls<S extends State>(host: BlockHost<S>, signal: AbortSignal): Controls<Extract<keyof S, string>>;
+export interface BlockControls<S extends State = State> extends Controls<Extract<keyof S, string>> {
+    bind(key: Extract<keyof S, string>, show: Show): Binding;
+    bind(read: Read<S>, change: Change<S>, show: Show): Binding;
+    text(key: Extract<keyof S, string>, options: TextFieldOptions): void;
+    text(read: Read<S>, change: Change<S>, options: TextFieldOptions): void;
+    number(key: Extract<keyof S, string>, options: NumberFieldOptions): NumberField;
+    number(read: Read<S>, change: Change<S>, options: NumberFieldOptions): NumberField;
+    comboBox(key: Extract<keyof S, string>, options: ComboBoxOptions): ComboBox;
+    comboBox(read: Read<S>, change: Change<S>, options: ComboBoxOptions): ComboBox;
+    checkbox(key: Extract<keyof S, string>, options: {
+        label: string;
+    }): void;
+    checkbox(read: Read<S>, change: Change<S>, options: {
+        label: string;
+    }): void;
+}
+type Read<S extends State = State> = (state: S) => Json | undefined;
+type Change<S extends State = State> = (value: Json | undefined, state: S) => Partial<S>;
+type Show = (value: Json | undefined) => void;
+export declare function controls<S extends State>(host: BlockHost<S>, signal: AbortSignal): BlockControls<S>;
 export declare function controls<V extends Json>(host: OptionHost<V>, signal: AbortSignal): Controls;
+export {};

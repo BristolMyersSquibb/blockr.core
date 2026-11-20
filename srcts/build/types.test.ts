@@ -252,9 +252,17 @@ export const viewsPlugin: PluginClass = {
 const mergeModule = `import type { BlockModule } from "@blockr/core";
 import { controls, strings } from "@blockr/core/controls";
 
-type MergeState = { by?: string[]; all_x: boolean };
+type MergeState = { by?: string[]; all_x: boolean; all_y: boolean };
 
 export const api = 1;
+
+// The joins, each with the state args that make it.
+const joins = [
+  { id: "inner", name: "Inner", all_x: false, all_y: false },
+  { id: "left", name: "Left", all_x: true, all_y: false },
+  { id: "right", name: "Right", all_x: false, all_y: true },
+  { id: "full", name: "Full", all_x: true, all_y: true },
+];
 
 const merge: BlockModule<MergeState> = {
   render({ el, host, signal }) {
@@ -264,7 +272,14 @@ const merge: BlockModule<MergeState> = {
       selectionMode: "multiple",
       renderEmptyState: () => "No column is shared.",
     });
-    ui.checkbox("all_x", { label: "Keep the rows of x that y does not match" });
+    ui.comboBox(
+      (state) => joins.find((join) => join.all_x === state.all_x && join.all_y === state.all_y)?.id,
+      (id) => {
+        const join = joins.find((each) => each.id === id);
+        return join === undefined ? {} : { all_x: join.all_x, all_y: join.all_y };
+      },
+      { label: "Join type", items: joins, isRequired: true },
+    );
     ui.follow("shared", {
       loading() {
         by.setOutdated(true);

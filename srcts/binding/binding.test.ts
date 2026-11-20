@@ -229,6 +229,20 @@ describe("a binding made with two functions", () => {
     expect(host.submitted).toEqual([joined({ conditions: ["z", "b"] })]);
   });
 
+  test("takes a second that builds the change, and binds no board option's value through functions", () => {
+    const host = stubBlockHost<Joined>(joinFixture);
+    const option = stubOptionHost<number>({ option: "n_rows", value: 25 });
+
+    expect(() => {
+      // @ts-expect-error: a state arg's name builds no change.
+      bind(host, first, "conditions", () => undefined);
+    }).toThrow("A binding made with a function that reads its value takes a second, which builds the change it submits.");
+    expect(() => {
+      // @ts-expect-error: a board option's value is bound by its id alone.
+      bind(option, (value: Json) => value, (value: Json) => value, () => undefined);
+    }).toThrow('The value of the board option "n_rows" is bound by its id, not through functions.');
+  });
+
   test("unsets through the change that the second builds from undefined, and submits nothing where that change is held already", async () => {
     const host = stubBlockHost<Joined>(joinFixture);
     const condition = bind(host, first, withFirst, () => undefined);

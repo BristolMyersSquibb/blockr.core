@@ -147,8 +147,11 @@ function createSource(host) {
   if ("option" in host) {
     return {
       value(key) {
+        if (typeof key === "function") {
+          throw new TypeError(`The value of the board option "${host.option}" is bound by its id, not through functions.`);
+        }
         if (key !== host.option) {
-          throw new Error(`The host of the board option "${host.option}" holds no value "${String(key)}".`);
+          throw new Error(`The host of the board option "${host.option}" holds no value "${key}".`);
         }
         return {
           get: () => host.value(),
@@ -171,7 +174,7 @@ function createSource(host) {
     value(key, change) {
       const read = typeof key === "function" ? key : (state) => own(state, key);
       const build = typeof key === "function" ? change : (value) => ({ [key]: value });
-      if (build === void 0) {
+      if (typeof build !== "function") {
         throw new TypeError("A binding made with a function that reads its value takes a second, which builds the change it submits.");
       }
       return {
@@ -804,13 +807,17 @@ function controls(host, signal) {
   function add(node) {
     put(() => /* @__PURE__ */ jsx6(Slot, { node }));
   }
-  function input(key, draw) {
+  function bindTo(target, show, options) {
+    const binding = typeof target === "string" ? bind(host, target, show, options) : bind(host, target.read, target.change, show, options);
+    bindings.push(binding);
+    return binding;
+  }
+  function input(target, draw) {
     let value;
     let refusal = null;
     let made = false;
-    const binding = bind(
-      host,
-      key,
+    const binding = bindTo(
+      target,
       (shown) => {
         value = shown;
         if (made) redraw();
@@ -825,7 +832,6 @@ function controls(host, signal) {
         notifier: () => void 0
       }
     );
-    bindings.push(binding);
     made = true;
     put(
       () => draw({
@@ -854,38 +860,40 @@ function controls(host, signal) {
     }
     return host.value();
   }
-  function bind2(key, show) {
-    const binding = bind(host, key, show, { settled: alert, notifier: () => void 0 });
-    bindings.push(binding);
-    return binding;
+  function bind2(key, next, last) {
+    const [target, show] = after(key, next, last);
+    return bindTo(target, show, { settled: alert, notifier: () => void 0 });
   }
   function follow2(name, options) {
     const request = follow(host, name, options);
     followed.push(request);
     return request;
   }
-  function text(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx6(TextField2, { bound, spellCheck: "false", ...options }));
+  function text(key, next, last) {
+    const [target, options] = after(key, next, last);
+    input(target, (bound) => /* @__PURE__ */ jsx6(TextField2, { bound, spellCheck: "false", ...options }));
   }
-  function number(key, options) {
+  function number(key, next, last) {
+    const [target, options] = after(key, next, last);
     let maxValue = options.maxValue;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx6(NumberField2, { bound, ...options, maxValue, outdated }));
+    input(target, (bound) => /* @__PURE__ */ jsx6(NumberField2, { bound, ...options, maxValue, outdated }));
     return {
-      setMaxValue(next) {
-        maxValue = next;
+      setMaxValue(next2) {
+        maxValue = next2;
         redraw();
       },
-      setOutdated(next) {
-        outdated = next;
+      setOutdated(next2) {
+        outdated = next2;
         redraw();
       }
     };
   }
-  function comboBox(key, options) {
+  function comboBox(key, next, last) {
+    const [target, options] = after(key, next, last);
     let items = options.items;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx6(
+    input(target, (bound) => /* @__PURE__ */ jsx6(
       ComboBox2,
       {
         bound,
@@ -901,18 +909,19 @@ function controls(host, signal) {
       }
     ));
     return {
-      setItems(next) {
-        items = next;
+      setItems(next2) {
+        items = next2;
         redraw();
       },
-      setOutdated(next) {
-        outdated = next;
+      setOutdated(next2) {
+        outdated = next2;
         redraw();
       }
     };
   }
-  function checkbox(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx6(Checkbox, { bound, label: options.label }));
+  function checkbox(key, next, last) {
+    const [target, options] = after(key, next, last);
+    input(target, (bound) => /* @__PURE__ */ jsx6(Checkbox, { bound, label: options.label }));
   }
   function cleanup() {
     if (ended) return;
@@ -923,6 +932,9 @@ function controls(host, signal) {
   }
   signal.addEventListener("abort", cleanup, { once: true });
   return { el, add, get, bind: bind2, text, number, comboBox, checkbox, follow: follow2, alert, cleanup };
+}
+function after(key, next, last) {
+  return typeof key === "function" ? [{ read: key, change: next }, last] : [key, next];
 }
 function Slot({ node }) {
   const ref = useRef3(null);
