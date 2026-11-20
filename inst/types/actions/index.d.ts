@@ -1,2 +1,4 @@
 export { boardActionsApi, createBoardActions } from "./actions.ts";
-export type { BoardAction, BoardActions, BoardActionsParts, CommandCall, Target } from "./actions.ts";
+export type { BoardAction, BoardActions, BoardActionsParts, CommandCall, MenuPlace, ShowMenu, Target } from "./actions.ts";
+export { showMenu } from "./menu.tsx";
+export type { OpenMenu, QuickLevel, QuickRow, ShownLevel, ShownRow } from "./quick.ts";

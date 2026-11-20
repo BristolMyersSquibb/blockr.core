@@ -483,6 +483,7 @@ import {
   Select,
   SelectStateContext,
   SelectValue,
+  Separator,
   Slider,
   SliderFill,
   SliderOutput,

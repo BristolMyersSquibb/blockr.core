@@ -722,6 +722,17 @@
   Which notifications reach the user is no longer a choice: core's basic frontend shows every notification about a block on its card, and every notification about a plugin on the plugin's section, whatever its severity.
   The pill of the errors starts open, as before, and the others start closed.
   A board that holds a value for `show_conditions` opens without it, and the warning `board_objects_dropped` names it (#773).
+* The call `core.boardActions.menu(target, opts)` opens the menu of a target at `opts.anchor`, with a row for each board action that `on()` gives the target, whichever package opens the menu.
+  Core draws the menu with the `Menu` of the SDK: the rows of each category together, with a divider between two categories, in the order add, edit, clipboard, the categories of packages and remove, each row with its icon and its `detail` at its end, and the rows that remove in the theme's danger color under the pointer, on the theme's new danger background, `--bc-color-bg-danger`, which a frontend sets to restyle it.
+  Picking a row closes the menu and runs the board action's `run`, as `trigger()` does, or opens its quick action as the menu's next level.
+  A board action's `quick` gives its quick action, a level of rows of the types `QuickLevel` and `QuickRow`, in which an item runs a batch or opens a further level at the same spot, a multi ticks its choices and applies them as the menu closes, and a text row refuses a value in place and submits it on Enter.
+  Escape goes back a level, a level's filter narrows its rows as the user types, with Enter picking the first row left, and a level that waits for a promise shows that it loads, or the message that the promise rejects with.
+  Core runs the batch of a row with the caller's `extend`, as one step.
+  The call `trigger()` takes the element that the user triggered from, `el`, and opens the quick action of a board action with `quick` at `anchor`, or at the box of `el`.
+  The keyboard's focus returns to `el` as either menu closes.
+  The `notifier` of `menu()` and of `trigger()` gets the board action with the notifications of a refused batch.
+  Core's board action Rename renames a block or a stack through a text row that holds the name, and core's board actions that remove carry a bin as their icon.
+  Core runs each menu by the same rules under the `CoreApi` for tests and draws none there, and the `menu()` of `stubCore()` opens the menu of a target, or gives the menu that is open, whose rows a test picks by their labels (#743).
 * Core's React SDK offers the rest of the form inputs of React Aria's Tailwind starter kit, each in core's theme, after its file in the starter kit, with the props of its part of React Aria and those that the starter kit adds.
   These are the checkbox group `CheckboxGroup`, the radios `RadioGroup` and `Radio`, the switch `Switch`, the toggle buttons `ToggleButton` and `ToggleButtonGroup`, the slider `Slider`, the select `Select`, which has no field to type into, with `SelectItem` and `SelectSection`, the search field `SearchField`, the tags `TagGroup` and `Tag`, the field of tokens `TokenField` with `Token`, the list box `ListBox` with `ListBoxItem`, the form `Form`, the button inside a field `FieldButton`, the drop zone `DropZone` and the command palette `CommandPalette`.
   The SDK also offers React Aria's `FileTrigger`, `Autocomplete` and `useFilter()`, which draw nothing of their own, for a caller to compose with the others, as an `Autocomplete` with a `SearchField` narrows a `ListBox` or a `Menu`.
@@ -742,7 +753,7 @@
   The merge block picks its join, the file browser its volume, and the picker and the Edit board's links their input and their position with a `Select`.
   The search of the Edit board's tables is a `SearchField`, whose button clears it, as Escape does, and the upload block takes a file that the user drops on it, in a `DropZone` around a `FileTrigger` with a `Button`.
   The forms of the picker and of the Edit board's links and stacks are React Aria's `Form`, and the button that clears the pick of a `ComboBox` is a `FieldButton`.
-  Compressed, core's vendor file grows from 174.9 KB to 219.2 KB (#755, #781).
+  Compressed, core's vendor file grows from 177.5 KB to 219.4 KB (#755, #781).
 
 # blockr.core 0.1.4
 

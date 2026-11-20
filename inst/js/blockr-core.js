@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-124e8717.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-b2c113b7.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -249,7 +249,7 @@ function checkRaised(notification) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-124e8717.js";
+import { Validator } from "./vendor-b2c113b7.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -410,9 +410,9 @@ function logSettings(values2, base) {
 }
 function logLevel(value2) {
   if (value2 === void 0) return "info";
-  const named3 = typeof value2 === "string" && value2 !== "" ? THRESHOLDS.filter((level2) => level2.startsWith(value2)) : [];
-  const [level] = named3;
-  if (named3.length === 1 && level !== void 0) return level;
+  const named4 = typeof value2 === "string" && value2 !== "" ? THRESHOLDS.filter((level2) => level2.startsWith(value2)) : [];
+  const [level] = named4;
+  if (named4.length === 1 && level !== void 0) return level;
   throw new TypeError(
     `The blockr option log_level is ${JSON.stringify(value2)}, where it takes "fatal", "error", "warn", "info", "debug" or "trace".`
   );
@@ -660,7 +660,7 @@ function createClient(transport, options) {
     }
   }
   function sendHello() {
-    const named3 = options.hello();
+    const named4 = options.hello();
     const id2 = mint();
     const call = {
       id: id2,
@@ -675,15 +675,15 @@ function createClient(transport, options) {
         }
         const { reply } = result;
         if (reply.status === "ok" && "capabilities" in reply) {
-          if (sameMajor(reply.protocol, named3.protocol)) {
+          if (sameMajor(reply.protocol, named4.protocol)) {
             const theirs = new Set(reply.capabilities);
-            shared = new Set(named3.capabilities.filter((c) => theirs.has(c)));
+            shared = new Set(named4.capabilities.filter((c) => theirs.has(c)));
             state2 = "ready";
             const outbound = held2;
             held2 = [];
             dispatch(outbound);
           } else {
-            stop(reply.protocol, named3.protocol);
+            stop(reply.protocol, named4.protocol);
           }
         }
         guard(() => {
@@ -691,7 +691,7 @@ function createClient(transport, options) {
         });
       }
     };
-    transmit([{ message: { ...named3, id: id2, kind: "hello" }, call }], /* @__PURE__ */ new Map());
+    transmit([{ message: { ...named4, id: id2, kind: "hello" }, call }], /* @__PURE__ */ new Map());
   }
   transport.listen({
     started() {
@@ -795,10 +795,10 @@ function createClient(transport, options) {
   };
 }
 function requestSpan(request, given = {}) {
-  const named3 = spanName(request);
-  if (named3 === void 0) return void 0;
+  const named4 = spanName(request);
+  if (named4 === void 0) return void 0;
   return tracer().startSpan(
-    named3,
+    named4,
     {
       kind: SpanKind.CLIENT,
       attributes: { ...requestAttributes(request), ...given.attributes },
@@ -829,19 +829,19 @@ function requestAttributes(request) {
     case "output":
       return { "blockr.block.id": request.block, "blockr.block.revision": request.revision };
     case "request": {
-      const named3 = { "blockr.request.type": request.type, "blockr.request.name": request.name };
+      const named4 = { "blockr.request.type": request.type, "blockr.request.name": request.name };
       switch (request.type) {
         case "block_class":
-          return { ...named3, "blockr.block.id": request.block, "blockr.block.registry_id": request.registry_id };
+          return { ...named4, "blockr.block.id": request.block, "blockr.block.registry_id": request.registry_id };
         case "option":
-          return { ...named3, "blockr.option.id": request.option };
+          return { ...named4, "blockr.option.id": request.option };
         case "plugin":
-          return { ...named3, "blockr.plugin.class_id": request.plugin };
+          return { ...named4, "blockr.plugin.class_id": request.plugin };
         case "output_class":
-          return { ...named3, "blockr.block.id": request.output.block, "blockr.block.revision": request.output.revision };
+          return { ...named4, "blockr.block.id": request.output.block, "blockr.block.revision": request.output.revision };
         case "renderer":
           return {
-            ...named3,
+            ...named4,
             "blockr.block.id": request.output.block,
             "blockr.block.revision": request.output.revision,
             "blockr.renderer.id": request.renderer
@@ -1035,8 +1035,8 @@ function createOneTime(blocks, params, priority, statuses, inputs) {
   if (blocks.length === 0) return new Error("An evaluation with parameters names no block.");
   const absent = blocks.filter((id2) => !statuses.has(id2));
   if (absent.length > 0) {
-    const named3 = absent.length === 1 ? "block" : "blocks";
-    return new Error(`The board holds no ${named3} ${quoted(absent)} to evaluate.`);
+    const named4 = absent.length === 1 ? "block" : "blocks";
+    return new Error(`The board holds no ${named4} ${quoted(absent)} to evaluate.`);
   }
   const parts = /* @__PURE__ */ new Map();
   for (const id2 of blocks) {
@@ -2412,9 +2412,9 @@ function mountableModule(exports, module, pkg) {
   }
   return mod;
 }
-function optionReader(values2, named3, unnamed) {
+function optionReader(values2, named4, unnamed) {
   return (id2) => {
-    if (!named3.includes(id2)) throw new Error(unnamed(id2));
+    if (!named4.includes(id2)) throw new Error(unnamed(id2));
     return own(values2, id2);
   };
 }
@@ -2708,7 +2708,7 @@ function mountOutput(deps, el, block) {
       }
     );
   }
-  function named3() {
+  function named4() {
     if ([...expected.keys()].some((id2) => !ready.has(id2))) return void 0;
     return outputOptions;
   }
@@ -2723,7 +2723,7 @@ function mountOutput(deps, el, block) {
   }
   function wanted() {
     if (info === null) return void 0;
-    const ids2 = named3();
+    const ids2 = named4();
     if (ids2 === void 0) return void 0;
     if (ids2.some((id2) => !Object.hasOwn(store.board().options, id2))) return void 0;
     const status = scheduler.status(block);
@@ -2867,17 +2867,17 @@ function mountOutput(deps, el, block) {
   function take(next) {
     held2 = next;
     error = null;
-    const named4 = next.output.renderer;
-    expect(named4);
-    if (drawing !== void 0 && drawing.prepared.renderer.id !== named4.id) unmountRenderer();
+    const named5 = next.output.renderer;
+    expect(named5);
+    if (drawing !== void 0 && drawing.prepared.renderer.id !== named5.id) unmountRenderer();
     if (drawing === void 0) {
-      prepare(named4).then(
+      prepare(named5).then(
         (prepared) => {
           if (ended() || drawing !== void 0 || held2?.output.renderer.id !== prepared.renderer.id) return;
           mountRenderer(prepared);
         },
         (failure) => {
-          fail(failure, named4);
+          fail(failure, named5);
         }
       );
     }
@@ -3033,7 +3033,7 @@ function mountOutput(deps, el, block) {
   }
   function outputHost(prepared) {
     const listeners = /* @__PURE__ */ new Set();
-    let named4;
+    let named5;
     let following = true;
     const notified = /* @__PURE__ */ new Set();
     const module = rendererModule(prepared.renderer);
@@ -3043,7 +3043,7 @@ function mountOutput(deps, el, block) {
       body: () => held2?.body ?? null,
       params: () => held2?.asked.params ?? EMPTY,
       option(id2) {
-        let memo = named4;
+        let memo = named5;
         if (memo === void 0 || memo.for !== held2) {
           const read = optionReader(
             optionsFor(held2?.asked),
@@ -3051,7 +3051,7 @@ function mountOutput(deps, el, block) {
             (unnamed) => `The output family of block class "${registryId2}" names no board option "${unnamed}" in R, so the renderer "${prepared.renderer.id}" cannot read it.`
           );
           memo = { for: held2, read };
-          named4 = memo;
+          named5 = memo;
         }
         return memo.read(id2);
       },
@@ -3329,21 +3329,21 @@ function createMounts(options) {
         fail(error);
         return;
       }
-      const named3 = classOptions(entry);
-      const kept = keepOptions(named3, by, () => {
+      const named4 = classOptions(entry);
+      const kept = keepOptions(named4, by, () => {
         if (ended()) return;
         end();
-        lacking(named3);
+        lacking(named4);
       });
       stopKeeping = kept.stop;
       const failures = await kept.added;
       if (ended()) return;
       if (failures.length > 0) {
         kept.stop();
-        lacking(named3);
+        lacking(named4);
         return;
       }
-      host.name(named3);
+      host.name(named4);
       try {
         const rendered = await mod.render({ el, host, signal: signal5 });
         if (typeof rendered !== "function") return;
@@ -3388,7 +3388,7 @@ var contextValues = /* @__PURE__ */ new WeakMap();
 function blockHost(deps) {
   const { store, commands, scheduler, block, entry } = deps;
   let seen = store.board();
-  let named3 = [];
+  let named4 = [];
   let state2 = mountedBlock(seen)?.state ?? {};
   let context4 = blockContext(mountedBlock(seen));
   let following = true;
@@ -3402,7 +3402,7 @@ function blockHost(deps) {
     const recipe = scheduler.inputs(block)?.recipe ?? [];
     const values2 = Object.freeze(
       Object.fromEntries(
-        named3.flatMap((id2) => {
+        named4.flatMap((id2) => {
           const value2 = own(seen.options, id2);
           return value2 === void 0 ? [] : [[id2, value2]];
         })
@@ -3418,7 +3418,7 @@ function blockHost(deps) {
       ),
       option: optionReader(
         values2,
-        named3,
+        named4,
         (id2) => `The block class "${entry.id}" names no board option "${id2}" in R, so its UI module cannot read it.`
       )
     });
@@ -3535,7 +3535,7 @@ function blockHost(deps) {
     },
     log: createLog(deps.module.package ?? null),
     name(options) {
-      named3 = options;
+      named4 = options;
       context4 = blockContext(mountedBlock(seen));
     },
     drop() {
@@ -3773,10 +3773,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-124e8717.js";
+import { computed as computed3, signal as signal4 } from "./vendor-b2c113b7.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-124e8717.js";
+import { signal as signal3 } from "./vendor-b2c113b7.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -5278,9 +5278,9 @@ function collection(name3, current2, part, modify, places, before, failures) {
     readdPlaces[id2] = after.find((other) => !removed.has(other)) ?? null;
   }
   const kept = order.filter((id2) => !removed.has(id2)).map((id2) => [id2, current2[id2]]);
-  const keptSuccessor = (named3) => named3 === null ? null : removed.has(named3) ? own(readdPlaces, named3) ?? null : named3;
+  const keptSuccessor = (named4) => named4 === null ? null : removed.has(named4) ? own(readdPlaces, named4) ?? null : named4;
   const moves = [];
-  for (const [id2, named3] of Object.entries(before ?? {})) {
+  for (const [id2, named4] of Object.entries(before ?? {})) {
     if (Object.hasOwn(part.add ?? {}, id2)) continue;
     const at = kept.findIndex(([other]) => other === id2);
     const entry = kept[at];
@@ -5288,7 +5288,7 @@ function collection(name3, current2, part, modify, places, before, failures) {
       failures.push(`The board holds no ${name3(id2)} to move.`);
       continue;
     }
-    const to = keptSuccessor(named3);
+    const to = keptSuccessor(named4);
     const was = kept[at + 1]?.[0] ?? null;
     if (to === was || to === id2) continue;
     if (to !== null && !kept.some(([other]) => other === to)) {
@@ -5306,10 +5306,10 @@ function collection(name3, current2, part, modify, places, before, failures) {
       failures.push(`The board holds ${name3(id2)} already.`);
       continue;
     }
-    const named3 = own(before ?? {}, id2);
-    const successor = named3 === void 0 ? own(places ?? {}, id2) ?? null : keptSuccessor(named3);
+    const named4 = own(before ?? {}, id2);
+    const successor = named4 === void 0 ? own(places ?? {}, id2) ?? null : keptSuccessor(named4);
     const at = successor === null ? -1 : kept.findIndex(([other]) => other === successor);
-    if (at < 0 && successor !== null && named3 !== void 0) {
+    if (at < 0 && successor !== null && named4 !== void 0) {
       failures.push(
         `The board holds no ${name3(successor)} for ${name3(id2)} to go before.`
       );
@@ -5603,10 +5603,10 @@ function fit(delta, board) {
   );
   const held2 = (id2) => Object.hasOwn(board.links, id2) && !(links.rm ?? []).includes(id2);
   const before = Object.fromEntries(
-    Object.entries(delta.links?.before ?? {}).flatMap(([id2, named3]) => {
-      if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named3]];
+    Object.entries(delta.links?.before ?? {}).flatMap(([id2, named4]) => {
+      if (Object.hasOwn(links.add ?? {}, id2)) return [[id2, named4]];
       if (!held2(id2)) return [];
-      return [[id2, named3 !== null && Object.hasOwn(board.links, named3) ? named3 : null]];
+      return [[id2, named4 !== null && Object.hasOwn(board.links, named4) ? named4 : null]];
     })
   );
   const stacks = collection2(board.stacks, delta.stacks);
@@ -5879,7 +5879,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-124e8717.js";
+import { computed as computed2, signal as signal2 } from "./vendor-b2c113b7.js";
 function createRegistrations(migration = () => void 0) {
   const classes = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -6082,7 +6082,7 @@ function createStore(options = {}) {
     const [kind, id2] = JSON.parse(key2);
     return kind === "block" ? `block "${id2}"` : `the plugin "${id2}"`;
   }
-  function named3(deltas) {
+  function named4(deltas) {
     const failures = [];
     const compare = (key2, edit) => {
       if (edit === void 0) return;
@@ -6114,7 +6114,7 @@ function createStore(options = {}) {
   function runOnBoard(deltas) {
     const refused2 = "The store rejected the delta";
     const start2 = current2(refused2);
-    const failures = named3(deltas);
+    const failures = named4(deltas);
     if (failures.length > 0) throw new StoreError(refused2, failures);
     return { start: start2, ...run(start2, deltas, {}, refused2) };
   }
@@ -7121,10 +7121,10 @@ function isLogged(error) {
   return error instanceof CommandError && loggedErrors.has(error);
 }
 function inList(index, id2, error) {
-  const named3 = error instanceof CommandError || error instanceof StoreError;
+  const named4 = error instanceof CommandError || error instanceof StoreError;
   const refused2 = new CommandError(
     `The list of commands was refused at command ${String(index + 1)}, "${id2}"`,
-    named3 ? error.failures : [errorMessage(error)],
+    named4 ? error.failures : [errorMessage(error)],
     { cause: error, index, preflight: error instanceof CommandError ? error.preflight : void 0 }
   );
   if (isLogged(error)) loggedErrors.add(refused2);
@@ -7180,6 +7180,31 @@ function copyCommand(doc, text) {
 function coreBoardActions(raise) {
   return [
     {
+      id: "blockr.core-rename_action",
+      label: "Rename",
+      on: ["block", "stack"],
+      category: "edit",
+      offers: (board, target2, lock) => !lock.board && named2(board, target2) !== void 0,
+      quick(board, target2) {
+        const object2 = named2(board, target2);
+        if (object2 === void 0) return void 0;
+        return {
+          rows: [
+            {
+              kind: "text",
+              label: "Name",
+              value: object2.name,
+              check: (value2) => value2.trim() === "" ? "A name cannot be empty." : void 0,
+              submit(value2) {
+                const name3 = value2.trim();
+                return name3 === object2.name ? [] : [{ id: object2.command, args: { id: object2.id, name: name3 } }];
+              }
+            }
+          ]
+        };
+      }
+    },
+    {
       id: "blockr.core-copy_block_id_action",
       label: "Copy block ID",
       detail: (_board, target2) => blockOf(target2),
@@ -7202,6 +7227,7 @@ function coreBoardActions(raise) {
     {
       id: "blockr.core-remove_block_action",
       label: "Remove block",
+      icon: TRASH,
       on: ["block"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && heldBlock(board, target2) !== void 0,
@@ -7210,6 +7236,7 @@ function coreBoardActions(raise) {
     {
       id: "blockr.core-remove_link_action",
       label: "Remove link",
+      icon: TRASH,
       on: ["link"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && "link" in target2 && Object.hasOwn(board.links, target2.link),
@@ -7218,6 +7245,7 @@ function coreBoardActions(raise) {
     {
       id: "blockr.core-remove_stack_action",
       label: "Remove stack",
+      icon: TRASH,
       on: ["stack"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && "stack" in target2 && Object.hasOwn(board.stacks, target2.stack),
@@ -7226,12 +7254,24 @@ function coreBoardActions(raise) {
     {
       id: "blockr.core-remove_selected_action",
       label: "Remove",
+      icon: TRASH,
       on: ["selection"],
       category: "remove",
       offers: (board, target2, lock) => !lock.board && removals(board, target2).length > 0,
       run: (board, target2) => removals(board, target2)
     }
   ];
+}
+function named2(board, target2) {
+  if ("block" in target2) {
+    const block = own(board.blocks, target2.block);
+    return block === void 0 ? void 0 : { id: target2.block, name: block.name, command: "blockr.core-rename_block" };
+  }
+  if ("stack" in target2) {
+    const stack = own(board.stacks, target2.stack);
+    return stack === void 0 ? void 0 : { id: target2.stack, name: stack.name, command: "blockr.core-rename_stack" };
+  }
+  return void 0;
 }
 function blockOf(target2) {
   return "block" in target2 ? target2.block : void 0;
@@ -7258,6 +7298,385 @@ function removals(board, target2) {
     }
   }
   return [...links, ...blocks, ...stacks];
+}
+var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';
+
+// srcts/actions/quick.ts
+var SUBJECTS = {
+  quick: "The quick action of the board action",
+  pick: "A row of the quick action of the board action",
+  submit: "A row of the quick action of the board action"
+};
+var GAVE = {
+  quick: 'It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
+  pick: "It gave neither a batch of commands nor a level of rows.",
+  submit: 'It gave no batch of commands, as [{ id: "blockr.core-rename_block", args: { id: "a", name: "Head" } }].'
+};
+var NO_BATCH = 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].';
+var MENU = "Board actions";
+var FIRST = ["add", "edit", "clipboard"];
+var LAST = "remove";
+function inMenuOrder(actions) {
+  const seen = [...new Set(actions.map(({ category }) => category))].filter(
+    (category) => !FIRST.includes(category) && category !== LAST
+  );
+  const order = [...FIRST, ...seen, LAST];
+  return [...actions].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
+}
+function openMenu(start2, parts) {
+  const stack = [];
+  const listeners = /* @__PURE__ */ new Set();
+  let ended = false;
+  let levels = 0;
+  let view;
+  function changed() {
+    view = void 0;
+    for (const fn of [...listeners]) fn();
+  }
+  function now() {
+    view ??= shownNow();
+    return view;
+  }
+  function entry(action2, state2, actions) {
+    return {
+      id: ++levels,
+      action: action2,
+      ...actions === void 0 ? {} : { actions },
+      state: state2,
+      filter: "",
+      values: /* @__PURE__ */ new Map(),
+      tried: /* @__PURE__ */ new Set(),
+      ticks: /* @__PURE__ */ new Map()
+    };
+  }
+  function place(state2, action2, replacing) {
+    const next = entry(action2, state2);
+    if (replacing === void 0) stack.push(next);
+    else stack.splice(stack.indexOf(replacing), 1, next);
+    changed();
+    return next;
+  }
+  function end(ran) {
+    if (ended) return;
+    ended = true;
+    stack.length = 0;
+    changed();
+    listeners.clear();
+    parts.closed(ran);
+  }
+  function finish(batch2, action2) {
+    if (batch2.length === 0) {
+      end();
+      return Promise.resolve();
+    }
+    return closing(parts.run(batch2, action2));
+  }
+  function closing(ran) {
+    ran.catch(() => void 0);
+    end(ran);
+    return ran;
+  }
+  function settle2(given, action2, what, replacing) {
+    let value2;
+    try {
+      value2 = given();
+    } catch (error) {
+      place(failure(action2, what, error), action2, replacing);
+      return Promise.resolve();
+    }
+    if (!isThenable(value2)) return outcome(value2, action2, what, replacing);
+    const loading = place({ kind: "loading" }, action2, replacing);
+    const current2 = () => !ended && stack.at(-1) === loading;
+    return Promise.resolve(value2).then(
+      (resolved) => current2() ? outcome(resolved, action2, what, loading) : void 0,
+      (error) => {
+        if (current2()) place(failure(action2, what, error), action2, loading);
+      }
+    );
+  }
+  function outcome(value2, action2, what, replacing) {
+    if (what === "quick" && value2 === void 0) {
+      place(
+        {
+          kind: "error",
+          message: `The board action "${action2.id}" gives no quick action for the target, and core does not open advanced actions yet.`
+        },
+        action2,
+        replacing
+      );
+      return Promise.resolve();
+    }
+    if (what !== "quick" && isBatch(value2)) return finish(value2, action2);
+    if ((what === "quick" || what === "pick") && isLevel(value2)) {
+      place({ kind: "level", level: value2 }, action2, replacing);
+      return Promise.resolve();
+    }
+    place(failure(action2, what, new TypeError(GAVE[what])), action2, replacing);
+    return Promise.resolve();
+  }
+  function failure(action2, what, error) {
+    log.error(new Error(`${SUBJECTS[what]} "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+    return { kind: "error", message: errorMessage(error) };
+  }
+  function shownNow() {
+    const current2 = stack.at(-1);
+    const back = stack.length > 1;
+    if (current2 === void 0) return { level: { id: 0, label: MENU, back: false, loading: false, rows: [] }, rows: [] };
+    const { id: id2, state: state2 } = current2;
+    const label = current2.action?.label ?? MENU;
+    if (state2.kind === "loading") return { level: { id: id2, label, back, loading: true, rows: [] }, rows: [] };
+    if (state2.kind === "error") return { level: { id: id2, label, back, loading: false, error: state2.message, rows: [] }, rows: [] };
+    const { title, filter } = state2.level;
+    const rows = filtered(state2.level, filter === true ? folded(current2.filter.trim()) : "");
+    return {
+      level: {
+        id: id2,
+        label: title ?? label,
+        ...title === void 0 ? {} : { title },
+        ...filter === true ? { filter: current2.filter } : {},
+        back,
+        loading: false,
+        rows: rows.map((showing) => shownRow(current2, showing))
+      },
+      rows
+    };
+  }
+  function shownRow(current2, { row, index, choices }) {
+    if (row.kind === "item") {
+      const { label, heading, icon, detail, category } = row;
+      return {
+        kind: "item",
+        label,
+        ...heading === void 0 ? {} : { heading },
+        ...icon === void 0 ? {} : { icon },
+        ...detail === void 0 ? {} : { detail },
+        ...category === void 0 ? {} : { category }
+      };
+    }
+    if (row.kind === "multi") {
+      const ticked = ticks(current2, index, row);
+      return {
+        kind: "multi",
+        label: row.label,
+        choices: (choices ?? row.choices).map(({ id: id2, label }) => ({ id: id2, label, picked: ticked.has(id2) }))
+      };
+    }
+    const value2 = current2.values.get(index) ?? row.value ?? "";
+    const refusal2 = current2.tried.has(index) ? refused2(current2, row, value2) : void 0;
+    return { kind: "text", label: row.label, value: value2, ...refusal2 === void 0 ? {} : { refusal: refusal2 } };
+  }
+  function refused2(current2, row, value2) {
+    if (row.check === void 0) return void 0;
+    try {
+      const why = row.check(value2);
+      return typeof why === "string" && why !== "" ? why : void 0;
+    } catch (error) {
+      if (current2.action !== void 0) failure(current2.action, "submit", error);
+      return errorMessage(error);
+    }
+  }
+  function at(index) {
+    const current2 = stack.at(-1);
+    if (ended || current2?.state.kind !== "level") return void 0;
+    const found = index === void 0 ? void 0 : now().rows[index];
+    return found === void 0 ? { current: current2 } : { current: current2, found };
+  }
+  function enter(action2) {
+    if (action2.run !== void 0) return closing(parts.trigger(action2));
+    if (action2.quick !== void 0) return settle2(() => action2.quick?.(parts.board(), parts.target, parts.core()), action2, "quick");
+    place(
+      { kind: "error", message: `The board action "${action2.id}" asks the user through its advanced action, which core does not open yet.` },
+      action2
+    );
+    return Promise.resolve();
+  }
+  function submit(current2, row, index, action2) {
+    const value2 = current2.values.get(index) ?? row.value ?? "";
+    current2.tried.add(index);
+    if (refused2(current2, row, value2) !== void 0) {
+      changed();
+      return Promise.resolve();
+    }
+    return settle2(() => row.submit(value2), action2, "submit");
+  }
+  function applied(current2) {
+    const { action: action2, state: state2 } = current2;
+    if (action2 === void 0 || state2.kind !== "level") return [];
+    return state2.level.rows.flatMap((row, index) => {
+      if (row.kind !== "multi" || !current2.ticks.has(index)) return [];
+      const ticked = ticks(current2, index, row);
+      const before = row.choices.filter((choice) => choice.picked).map(({ id: id2 }) => id2);
+      const picked = row.choices.filter((choice) => ticked.has(choice.id)).map(({ id: id2 }) => id2);
+      if (picked.length === before.length && picked.every((id2, i) => id2 === before[i])) return [];
+      try {
+        const batch2 = row.apply(picked);
+        if (!isBatch(batch2)) throw new TypeError(NO_BATCH);
+        return batch2;
+      } catch (error) {
+        parts.failed(action2, new Error(`${SUBJECTS.submit} "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+        return [];
+      }
+    });
+  }
+  function pick2(index) {
+    const shown2 = at(index);
+    if (shown2 === void 0) return Promise.resolve();
+    const { current: current2, found } = shown2;
+    if (index === void 0) {
+      const rows = now().rows;
+      const first = rows.findIndex(({ row: row3 }) => row3.kind !== "text");
+      const row2 = rows[first];
+      if (row2?.row.kind === "multi") {
+        const choice = (row2.choices ?? row2.row.choices)[0];
+        if (choice !== void 0) tick(first, choice.id);
+        return Promise.resolve();
+      }
+      return row2 === void 0 ? Promise.resolve() : pick2(first);
+    }
+    if (found === void 0) return Promise.resolve();
+    const action2 = current2.actions?.[found.index];
+    if (action2 !== void 0) {
+      if (parts.applies(action2)) return enter(action2);
+      end();
+      return Promise.resolve();
+    }
+    const { row } = found;
+    if (current2.action === void 0) return Promise.resolve();
+    if (row.kind === "item") return settle2(() => row.pick(), current2.action, "pick");
+    if (row.kind === "text") return submit(current2, row, found.index, current2.action);
+    return Promise.resolve();
+  }
+  function tick(index, choice) {
+    const shown2 = at(index);
+    const row = shown2?.found?.row;
+    if (shown2?.found === void 0 || row?.kind !== "multi" || !row.choices.some(({ id: id2 }) => id2 === choice)) return;
+    const { current: current2, found } = shown2;
+    const ticked = new Set(ticks(current2, found.index, row));
+    if (ticked.has(choice)) ticked.delete(choice);
+    else ticked.add(choice);
+    current2.ticks.set(found.index, ticked);
+    changed();
+  }
+  if ("actions" in start2) {
+    const board = parts.board();
+    const actions = inMenuOrder(start2.actions);
+    stack.push(
+      entry(void 0, { kind: "level", level: { rows: actions.map((action2) => actionRow(action2, board, parts.target)) } }, actions)
+    );
+  } else {
+    void enter(start2.action);
+  }
+  return {
+    get: () => now().level,
+    subscribe(fn) {
+      if (ended) return () => void 0;
+      const wrapped = () => {
+        fn();
+      };
+      listeners.add(wrapped);
+      return () => {
+        listeners.delete(wrapped);
+      };
+    },
+    closed: () => ended,
+    pick: pick2,
+    tick,
+    type(value2, index) {
+      const shown2 = at(index);
+      if (shown2 === void 0) return;
+      const { current: current2, found } = shown2;
+      if (index === void 0) {
+        if (current2.state.kind !== "level" || current2.state.level.filter !== true || current2.filter === value2) return;
+        current2.filter = value2;
+        changed();
+        return;
+      }
+      if (found?.row.kind !== "text") return;
+      current2.values.set(found.index, value2);
+      changed();
+    },
+    escape() {
+      if (ended) return;
+      if (stack.length > 1) {
+        stack.pop();
+        changed();
+        return;
+      }
+      end();
+    },
+    close() {
+      const current2 = stack.at(-1);
+      if (ended || current2 === void 0) return Promise.resolve();
+      const batch2 = applied(current2);
+      if (current2.action !== void 0) return finish(batch2, current2.action);
+      end();
+      return Promise.resolve();
+    },
+    drop() {
+      end();
+    }
+  };
+}
+function ticks(current2, index, row) {
+  return current2.ticks.get(index) ?? new Set(row.choices.filter((choice) => choice.picked).map(({ id: id2 }) => id2));
+}
+function filtered(level, query) {
+  return level.rows.flatMap((row, index) => {
+    if (query === "" || row.kind === "text") return [{ row, index }];
+    if (row.kind === "item") return [row.label, row.detail ?? ""].some((text) => folded(text).includes(query)) ? [{ row, index }] : [];
+    if (folded(row.label).includes(query)) return [{ row, index }];
+    const choices = row.choices.filter((choice) => folded(choice.label).includes(query));
+    return choices.length === 0 ? [] : [{ row, index, choices }];
+  });
+}
+function actionRow(action2, board, target2) {
+  let detail;
+  try {
+    const given = action2.detail?.(board, target2);
+    if (typeof given === "string" && given !== "") detail = given;
+  } catch (error) {
+    log.error(new Error(`The detail of the board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
+  }
+  return {
+    kind: "item",
+    label: action2.label,
+    ...action2.icon === void 0 ? {} : { icon: action2.icon },
+    ...detail === void 0 ? {} : { detail },
+    category: action2.category,
+    pick: () => []
+  };
+}
+function isBatch(value2) {
+  return Array.isArray(value2) && value2.every((call) => isObject(call) && typeof call.id === "string");
+}
+function isLevel(value2) {
+  if (!isObject(value2) || !Array.isArray(value2.rows)) return false;
+  if (!optional(value2.title, "string") || !optional(value2.filter, "boolean")) return false;
+  return value2.rows.every(isRow);
+}
+function isRow(row) {
+  if (!isObject(row) || typeof row.label !== "string" || row.label === "") return false;
+  switch (row.kind) {
+    case "item":
+      return typeof row.pick === "function" && [row.heading, row.icon, row.detail, row.category].every((member) => optional(member, "string"));
+    case "multi":
+      return typeof row.apply === "function" && Array.isArray(row.choices) && row.choices.every(
+        (choice) => isObject(choice) && typeof choice.id === "string" && typeof choice.label === "string" && typeof choice.picked === "boolean"
+      );
+    case "text":
+      return typeof row.submit === "function" && optional(row.value, "string") && optional(row.check, "function");
+    default:
+      return false;
+  }
+}
+function optional(member, type) {
+  return member === void 0 || typeof member === type;
+}
+function isThenable(value2) {
+  return (typeof value2 === "object" || typeof value2 === "function") && value2 !== null && typeof value2.then === "function";
+}
+function folded(text) {
+  return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase();
 }
 
 // srcts/actions/actions.ts
@@ -7302,48 +7721,56 @@ function checked2(plugin, given, taken) {
     if (typeof id2 !== "string" || !isCommandId(id2)) {
       throw new Error(`${of} gives a board action whose id ${JSON.stringify(id2)} is not named as a command's id is, "{pkg}-{name}".`);
     }
-    const named3 = `${of} gives the board action "${id2}"`;
+    const named4 = `${of} gives the board action "${id2}"`;
     if (ids2.has(id2)) {
-      throw new Error(`${named3}, which has the id of another board action.`);
+      throw new Error(`${named4}, which has the id of another board action.`);
     }
     ids2.add(id2);
     if (typeof action2.label !== "string" || action2.label === "") {
-      throw new Error(`${named3} without a label.`);
+      throw new Error(`${named4} without a label.`);
     }
     if (action2.icon !== void 0 && typeof action2.icon !== "string") {
-      throw new Error(`${named3}, whose icon is no string of SVG markup.`);
+      throw new Error(`${named4}, whose icon is no string of SVG markup.`);
     }
     const on = action2.on;
     if (!Array.isArray(on)) {
-      throw new Error(`${named3}, whose on is no array of the kinds of target that it applies to.`);
+      throw new Error(`${named4}, whose on is no array of the kinds of target that it applies to.`);
     }
     if (on.length === 0) {
-      throw new Error(`${named3}, whose on is empty, so that no menu would offer it.`);
+      throw new Error(`${named4}, whose on is empty, so that no menu would offer it.`);
     }
     const other = on.find((kind) => typeof kind !== "string" || !Object.hasOwn(KINDS2, kind));
     if (other !== void 0) {
-      throw new Error(`${named3}, whose on names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}.`);
+      throw new Error(`${named4}, whose on names ${JSON.stringify(other)}, which is none of the kinds of target, ${quoted(Object.keys(KINDS2))}.`);
     }
     if (typeof action2.category !== "string" || action2.category === "") {
-      throw new Error(`${named3} without a category.`);
+      throw new Error(`${named4} without a category.`);
     }
-    for (const member of ["detail", "offers", "run"]) {
+    for (const member of ["detail", "offers", "run", "quick"]) {
       if (action2[member] !== void 0 && typeof action2[member] !== "function") {
-        throw new Error(`${named3}, whose ${member} is no function.`);
+        throw new Error(`${named4}, whose ${member} is no function.`);
       }
     }
     const asks = ["quick", "advanced"].filter((member) => action2[member] !== void 0);
     if (action2.run !== void 0 && asks.length > 0) {
-      throw new Error(`${named3}, which has run beside ${asks.join(" and ")}, while run is for a board action that asks the user nothing.`);
+      throw new Error(`${named4}, which has run beside ${asks.join(" and ")}, while run is for a board action that asks the user nothing.`);
     }
     if (action2.run === void 0 && asks.length === 0) {
-      throw new Error(`${named3}, which has none of run, quick and advanced.`);
+      throw new Error(`${named4}, which has none of run, quick and advanced.`);
     }
     return action2;
   });
 }
 function boardActionsApi(actions, parts) {
-  const { store, lock, refused: refused2, raiseAgain } = parts;
+  const { store, lock, refused: refused2, raiseAgain, signal: signal5 } = parts;
+  let shown2;
+  signal5?.addEventListener(
+    "abort",
+    () => {
+      shown2?.drop();
+    },
+    { once: true }
+  );
   function applies(action2, board, target2) {
     if (!action2.on.includes(kindOf(target2))) return false;
     if (action2.offers === void 0) return true;
@@ -7353,6 +7780,11 @@ function boardActionsApi(actions, parts) {
       log.error(new Error(`The offers of the board action "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
       return false;
     }
+  }
+  function on(target2) {
+    if (!store.hasBoard()) return [];
+    const board = store.board();
+    return actions.registered().filter((action2) => applies(action2, board, target2));
   }
   async function batchOf(action2, target2, notifier) {
     let batch2;
@@ -7384,48 +7816,124 @@ function boardActionsApi(actions, parts) {
     );
     return failure;
   }
-  return {
-    on(given) {
-      const target2 = targetGiven(given);
-      if (!store.hasBoard()) return [];
-      const board = store.board();
-      return actions.registered().filter((action2) => applies(action2, board, target2));
-    },
-    async trigger(id2, given, opts) {
-      const target2 = targetGiven(given);
-      const notifier = givenNotifier(opts, "trigger()");
-      if (opts?.extend !== void 0 && typeof opts.extend !== "function") {
-        throw new TypeError("The `extend` of trigger() is a function.");
+  function notifierOf(given, action2) {
+    const { notifier } = given;
+    return notifier === void 0 ? void 0 : (notifications) => {
+      notifier(notifications, action2);
+    };
+  }
+  async function runBatch(batch2, action2, given) {
+    if (batch2.length === 0) return;
+    const core = parts.core();
+    const notifier = notifierOf(given, action2);
+    let added = [];
+    if (given.extend !== void 0) {
+      let deltas;
+      try {
+        deltas = await core.commands.plan(batch2);
+      } catch (error) {
+        refused2(error, void 0, notifier);
+        throw error;
       }
+      const extra = given.extend(deltas);
+      if (!isBatch(extra)) {
+        throw new TypeError(`The \`extend\` of ${given.call} returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`);
+      }
+      added = extra;
+    }
+    await core.commands.run([...batch2, ...added], "user", notifier === void 0 ? void 0 : { notifier });
+  }
+  async function runOf(action2, target2, given) {
+    const batch2 = await batchOf(action2, target2, notifierOf(given, action2));
+    if (batch2 !== void 0) await runBatch(batch2, action2, given);
+  }
+  function open(start2, target2, given, closed) {
+    void shown2?.close().catch(() => void 0);
+    let hide;
+    const menu = openMenu(start2, {
+      board: () => store.board(),
+      target: target2,
+      core: parts.core,
+      applies: (action2) => store.hasBoard() && applies(action2, store.board(), target2),
+      run: (batch2, action2) => runBatch(batch2, action2, given),
+      trigger: (action2) => runOf(action2, target2, given),
+      failed(action2, failure) {
+        failed2(action2, failure, notifierOf(given, action2));
+      },
+      closed(ran) {
+        if (shown2 === menu) shown2 = void 0;
+        hide?.();
+        hide = void 0;
+        closed?.(ran);
+      }
+    });
+    shown2 = menu;
+    hide = parts.show(menu, { el: given.el, anchor: given.anchor ?? given.el.getBoundingClientRect() });
+  }
+  return {
+    on: (target2) => on(targetGiven(target2)),
+    menu(target2, opts) {
+      const checked3 = targetGiven(target2);
+      const given = optionsGiven(opts, "menu()");
+      if (signal5?.aborted === true) return;
+      const offered = on(checked3);
+      if (offered.length > 0) open({ actions: offered }, checked3, given);
+    },
+    async trigger(id2, target2, opts) {
+      const checked3 = targetGiven(target2);
+      const given = optionsGiven(opts, "trigger()");
       const action2 = actions.registered().find((registered) => registered.id === id2);
       if (action2 === void 0) {
         throw new Error(`No board action "${id2}" is registered.`);
       }
-      if (action2.run === void 0) {
-        throw new Error(`The board action "${id2}" asks the user through its quick action or its advanced action, which core does not open yet.`);
+      if (action2.run === void 0 && action2.quick === void 0) {
+        throw new Error(`The board action "${id2}" asks the user through its advanced action alone, which core does not open yet.`);
       }
-      if (!store.hasBoard() || !applies(action2, store.board(), target2)) return;
-      const batch2 = await batchOf(action2, target2, notifier);
-      if (batch2 === void 0 || batch2.length === 0) return;
-      const core = parts.core();
-      let added = [];
-      if (opts?.extend !== void 0) {
-        let deltas;
-        try {
-          deltas = await core.commands.plan(batch2);
-        } catch (error) {
-          refused2(error, void 0, notifier);
-          throw error;
-        }
-        const extra = opts.extend(deltas);
-        if (!isBatch(extra)) {
-          throw new TypeError('The `extend` of trigger() returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].');
-        }
-        added = extra;
+      if (signal5?.aborted === true || !store.hasBoard() || !applies(action2, store.board(), checked3)) return;
+      if (action2.run !== void 0) {
+        await runOf(action2, checked3, given);
+        return;
       }
-      await core.commands.run([...batch2, ...added], "user", notifier === void 0 ? void 0 : { notifier });
+      await new Promise((resolve, reject) => {
+        open({ action: action2 }, checked3, given, (ran) => {
+          if (ran === void 0) resolve();
+          else ran.then(resolve, reject);
+        });
+      });
     }
   };
+}
+function optionsGiven(opts, call) {
+  const given = isObject(opts) ? opts : {};
+  const { el, anchor, extend, notifier } = given;
+  if (!isElement(el)) {
+    throw new TypeError(`The \`el\` of ${call} is the element that the user triggered from, to which the keyboard's focus returns.`);
+  }
+  if (anchor === void 0 ? call === "menu()" : !isRect(anchor)) {
+    throw new TypeError(`The \`anchor\` of ${call} is the box at which the menu opens, a DOMRect.`);
+  }
+  if (extend !== void 0 && typeof extend !== "function") {
+    throw new TypeError(`The \`extend\` of ${call} is a function.`);
+  }
+  if (notifier !== void 0 && typeof notifier !== "function") {
+    throw new TypeError(`The \`notifier\` of ${call} is a function.`);
+  }
+  return {
+    call,
+    el,
+    anchor,
+    // Each is called as a method of the options, as a caller may write it.
+    extend: extend === void 0 ? void 0 : (deltas) => extend.call(given, deltas),
+    notifier: notifier === void 0 ? void 0 : (notifications, action2) => {
+      notifier.call(given, notifications, action2);
+    }
+  };
+}
+function isElement(value2) {
+  return isObject(value2) && typeof value2.focus === "function" && typeof value2.getBoundingClientRect === "function";
+}
+function isRect(value2) {
+  return isObject(value2) && ["x", "y", "width", "height"].every((key2) => typeof value2[key2] === "number");
 }
 function targetGiven(given) {
   if (isObject(given) && Object.keys(given).length === 1) {
@@ -7449,9 +7957,265 @@ function kindOf(target2) {
   if ("option" in target2) return "option";
   return "plugin";
 }
-function isBatch(value2) {
-  return Array.isArray(value2) && value2.every((call) => isObject(call) && typeof call.id === "string");
+
+// srcts/actions/menu.tsx
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { Autocomplete, Input, Separator, TextField as AriaTextField } from "./vendor-b2c113b7.js";
+import { TextField } from "@blockr/core/react";
+import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+var showMenu = (menu, at) => {
+  const doc = at.el.ownerDocument;
+  const host = doc.createElement("div");
+  doc.body.append(host);
+  const root = createRoot(host);
+  const insideRef = { current: null };
+  const tab = (event) => {
+    if (event.key !== "Tab" || event.isComposing || !(event.target instanceof Node) || insideRef.current?.contains(event.target) !== true) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void menu.close().catch(() => void 0);
+  };
+  doc.defaultView?.addEventListener("keydown", tab, true);
+  flushSync(() => {
+    root.render(/* @__PURE__ */ jsx(CoreMenu, { menu, at, insideRef }));
+  });
+  return () => {
+    doc.defaultView?.removeEventListener("keydown", tab, true);
+    const active = doc.activeElement;
+    const lost = active === null || active === doc.body || (insideRef.current?.contains(active) ?? false);
+    root.unmount();
+    host.remove();
+    if (lost && at.el.isConnected) at.el.focus({ preventScroll: true });
+  };
+};
+function CoreMenu({ menu, at, insideRef }) {
+  const level = useSyncExternalStore(menu.subscribe, menu.get);
+  const anchor = useRef(null);
+  const { x, y, width, height } = at.anchor;
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
+    /* @__PURE__ */ jsx(
+      Popover,
+      {
+        triggerRef: anchor,
+        isOpen: true,
+        placement: "bottom start",
+        isKeyboardDismissDisabled: true,
+        onOpenChange: (open) => {
+          if (!open) void menu.close().catch(() => void 0);
+        },
+        className: "bc:max-w-80 bc:min-w-45",
+        children: /* @__PURE__ */ jsx(
+          "div",
+          {
+            ref: (el) => {
+              insideRef.current = el;
+            },
+            role: "dialog",
+            "aria-label": level.title ?? level.label,
+            tabIndex: -1,
+            className: "bc:grid bc:gap-1 bc:outline-none",
+            onKeyDownCapture: (event) => {
+              if (event.nativeEvent.isComposing) return;
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                menu.escape();
+              } else if (event.key === "Enter" && isFilter(event.target) && !event.target.hasAttribute("aria-activedescendant")) {
+                event.preventDefault();
+                event.stopPropagation();
+                void menu.pick().catch(() => void 0);
+              }
+            },
+            children: /* @__PURE__ */ jsx(Level, { menu, level, insideRef }, level.id)
+          }
+        )
+      }
+    )
+  ] });
 }
+function Level({ menu, level, insideRef }) {
+  const texts = level.rows.flatMap((row, i) => row.kind === "text" ? [{ row, i }] : []);
+  const listed = level.rows.flatMap((row, i) => row.kind === "text" ? [] : [{ row, i }]);
+  const rows = level.rows.length > 0;
+  useEffect(() => {
+    let frames = 0;
+    let frame;
+    const place = () => {
+      const el = insideRef.current;
+      if (el === null) return;
+      const field = el.querySelector("input:not([data-filter])") ?? el.querySelector("input[data-filter]");
+      const first = field ?? el.querySelector("[role=menuitem][data-key], [role=menuitemcheckbox][data-key]");
+      if (first === null && rows && frames++ < 10) {
+        frame = requestAnimationFrame(place);
+        return;
+      }
+      (first ?? el).focus({ preventScroll: true });
+      if (field !== null && !field.hasAttribute("data-filter")) field.select();
+    };
+    place();
+    return () => {
+      if (frame !== void 0) cancelAnimationFrame(frame);
+    };
+  }, [insideRef, rows]);
+  const pick2 = (i) => {
+    void menu.pick(i).catch(() => void 0);
+  };
+  const grouped = groups(listed);
+  const list = /* @__PURE__ */ jsx(Menu, { "aria-label": level.label, renderEmptyState: () => /* @__PURE__ */ jsx("p", { className: NOTE, children: "No matches" }), children: grouped.map((group, g) => {
+    const divider = g > 0 && group.category !== grouped[g - 1]?.category;
+    const section = group.kind === "multi" ? /* @__PURE__ */ jsx(
+      MenuSection,
+      {
+        id: `multi-${String(group.i)}`,
+        title: group.row.label,
+        selectionMode: "multiple",
+        selectedKeys: group.row.choices.filter((choice) => choice.picked).map(({ id: id2 }) => choiceKey(group.i, id2)),
+        onSelectionChange: (keys) => {
+          for (const choice of group.row.choices) {
+            const ticked = keys === "all" || keys.has(choiceKey(group.i, choice.id));
+            if (ticked !== choice.picked) menu.tick(group.i, choice.id);
+          }
+        },
+        children: group.row.choices.map((choice) => /* @__PURE__ */ jsx(MenuItem, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
+      },
+      `multi-${String(group.i)}`
+    ) : /* @__PURE__ */ jsx(MenuSection, { id: `items-${String(group.items[0]?.i ?? g)}`, title: group.heading, children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx(
+      Item,
+      {
+        row,
+        onPick: () => {
+          pick2(i);
+        }
+      },
+      i
+    )) }, `items-${String(group.items[0]?.i ?? g)}`);
+    return divider ? [/* @__PURE__ */ jsx(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
+  }) });
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    level.title === void 0 ? null : /* @__PURE__ */ jsx("p", { className: "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted", children: level.title }),
+    level.loading ? /* @__PURE__ */ jsx("p", { role: "status", className: `${NOTE} bc:animate-[bc-appear_300ms_ease-out_300ms_both]`, children: "Loading\u2026" }) : level.error === void 0 ? /* @__PURE__ */ jsxs(Fragment, { children: [
+      texts.map(({ row, i }) => /* @__PURE__ */ jsx(
+        TextRow,
+        {
+          row,
+          onType: (value2) => {
+            menu.type(value2, i);
+          },
+          onSubmit: () => {
+            pick2(i);
+          }
+        },
+        i
+      )),
+      level.filter === void 0 ? listed.length === 0 ? null : list : /* @__PURE__ */ jsxs(
+        Autocomplete,
+        {
+          inputValue: level.filter,
+          onInputChange: (value2) => {
+            menu.type(value2);
+          },
+          children: [
+            /* @__PURE__ */ jsx(AriaTextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx(Input, { "data-filter": "", placeholder: "Filter", spellCheck: "false", className: FILTER }) }),
+            list
+          ]
+        }
+      )
+    ] }) : /* @__PURE__ */ jsx("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger", children: level.error })
+  ] });
+}
+function groups(listed) {
+  const all = [];
+  for (const { row, i } of listed) {
+    if (row.kind === "text") continue;
+    if (row.kind === "multi") {
+      all.push({ kind: "multi", row, i });
+      continue;
+    }
+    const last = all.at(-1);
+    if (last?.kind === "items" && last.heading === row.heading && last.category === row.category) {
+      last.items.push({ row, i });
+    } else {
+      all.push({
+        kind: "items",
+        ...row.heading === void 0 ? {} : { heading: row.heading },
+        ...row.category === void 0 ? {} : { category: row.category },
+        items: [{ row, i }]
+      });
+    }
+  }
+  return all;
+}
+function Item({ row, onPick }) {
+  const { label, icon, detail } = row;
+  const removes = row.category === "remove";
+  return /* @__PURE__ */ jsxs(
+    MenuItem,
+    {
+      textValue: label,
+      ...detail === void 0 ? {} : { "aria-label": `${label}, ${detail}` },
+      onAction: onPick,
+      className: removes ? REMOVES : void 0,
+      children: [
+        /* @__PURE__ */ jsxs(
+          "span",
+          {
+            className: `bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${removes ? "bc:group-data-focused:text-text-danger bc:group-data-hovered:text-text-danger" : ""}`,
+            children: [
+              icon === void 0 ? null : /* @__PURE__ */ jsx(
+                "span",
+                {
+                  "aria-hidden": "true",
+                  className: "bc:flex bc:size-4 bc:shrink-0 bc:[&>svg]:size-full",
+                  dangerouslySetInnerHTML: { __html: icon }
+                }
+              ),
+              /* @__PURE__ */ jsx("span", { className: "bc:min-w-0 bc:truncate", children: label })
+            ]
+          }
+        ),
+        detail === void 0 ? null : /* @__PURE__ */ jsx("span", { className: "bc:text-xs bc:text-text-muted", children: detail })
+      ]
+    }
+  );
+}
+function TextRow({
+  row,
+  onType,
+  onSubmit
+}) {
+  return /* @__PURE__ */ jsx(
+    TextField,
+    {
+      label: row.label,
+      value: row.value,
+      spellCheck: "false",
+      isInvalid: row.refusal !== void 0,
+      ...row.refusal === void 0 ? {} : { errorMessage: row.refusal },
+      className: "bc:px-1 bc:pt-1",
+      onChange: onType,
+      onKeyDown: (event) => {
+        if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+          event.preventDefault();
+          onSubmit();
+        } else event.continuePropagation();
+      }
+    }
+  );
+}
+function choiceKey(row, choice) {
+  return `${String(row)}:${choice}`;
+}
+function isFilter(target2) {
+  return target2 instanceof HTMLInputElement && target2.hasAttribute("data-filter");
+}
+var NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";
+var FILTER = "bc:box-border bc:w-full bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-text-default bc:outline-none";
+var DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border-default";
+var REMOVES = "bc:group bc:data-hovered:bg-bg-danger! bc:data-focused:bg-bg-danger!";
 
 // srcts/core/plugins.ts
 var NONE = Object.freeze({});
@@ -7582,18 +8346,18 @@ function runPlugins(deps) {
       cannotDraw(withoutOptions(`the ui of the plugin class "${plugin}"`, missing));
     }
     void (async () => {
-      const named3 = optionsOf(plugin);
-      const kept = keepOptions(named3, `the plugin class "${plugin}"`, () => {
+      const named4 = optionsOf(plugin);
+      const kept = keepOptions(named4, `the plugin class "${plugin}"`, () => {
         if (ended()) return;
         end();
-        lacking(named3);
+        lacking(named4);
       });
       stopKeeping = kept.stop;
       const failures = await kept.added;
       if (ended()) return;
       if (failures.length > 0) {
         kept.stop();
-        lacking(named3);
+        lacking(named4);
         return;
       }
       try {
@@ -7767,7 +8531,9 @@ function createCore(parts) {
       lock: parts.lock,
       core: () => api,
       refused: refused2,
-      raiseAgain: notifications.raiseAgain
+      raiseAgain: notifications.raiseAgain,
+      show: parts.showMenu,
+      ...parts.signal === void 0 ? {} : { signal: parts.signal }
     }),
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),
@@ -8368,7 +9134,7 @@ function createNotifications(store, options = {}) {
     if (ended) return;
     if (!present(about)) {
       if (next.size > 0) {
-        log.debug(`Core drops the notifications of R's reply to ${requested(request, module)} about ${named2(about)}, which the board does not hold.`);
+        log.debug(`Core drops the notifications of R's reply to ${requested(request, module)} about ${named3(about)}, which the board does not hold.`);
       }
       next.clear();
     }
@@ -8377,7 +9143,7 @@ function createNotifications(store, options = {}) {
   const raise = (given) => {
     if (ended) return nothing;
     if (given.about !== void 0 && !present(given.about)) {
-      log.debug(`Core drops a notification that core raised about ${named2(given.about)}, which the board does not hold.`);
+      log.debug(`Core drops a notification that core raised about ${named3(given.about)}, which the board does not hold.`);
       return nothing;
     }
     const id2 = raisedId(given);
@@ -8412,9 +9178,9 @@ function createNotifications(store, options = {}) {
     const about = given.about === void 0 ? module.object : given.about ?? void 0;
     if (about !== void 0 && !known(about)) {
       if (left2.has(key(about))) {
-        log.debug(`Core drops a notification that ${raiser(module.object)} raised about ${named2(about)}, which has left the board.`);
+        log.debug(`Core drops a notification that ${raiser(module.object)} raised about ${named3(about)}, which has left the board.`);
       } else {
-        log.error(`Core drops a notification that ${raiser(module.object)} raised about ${named2(about)}, ${unknown(about)}.`);
+        log.error(`Core drops a notification that ${raiser(module.object)} raised about ${named3(about)}, ${unknown(about)}.`);
       }
       return nothing;
     }
@@ -8511,7 +9277,7 @@ function isEvaluatePhase(phase) {
 function key(object2) {
   return JSON.stringify(object2);
 }
-function named2(object2) {
+function named3(object2) {
   if ("block" in object2) return `the block "${object2.block}"`;
   if ("link" in object2) return `the link "${object2.link}"`;
   if ("stack" in object2) return `the stack "${object2.stack}"`;
@@ -8525,7 +9291,7 @@ function requested(request, module) {
   return renderer === void 0 ? `the request "${request.name}"` : `the request "${request.name}" of the renderer "${renderer}"`;
 }
 function raiser(object2) {
-  return "plugin" in object2 ? named2(object2) : `a module of ${named2(object2)}`;
+  return "plugin" in object2 ? named3(object2) : `a module of ${named3(object2)}`;
 }
 function unknown(object2) {
   if ("option" in object2) return "which no loaded package defines";
@@ -8766,6 +9532,7 @@ function start(options) {
       },
       commands,
       boardActions,
+      showMenu: options.showMenu ?? showMenu,
       scheduler,
       loader,
       blockrOptions,
@@ -8783,7 +9550,7 @@ function start(options) {
     let dropped = [];
     let failure;
     if (later === void 0) {
-      const instead = alone ? void 0 : await named3(reply, store, core, signal5, raise, opening2);
+      const instead = alone ? void 0 : await named4(reply, store, core, signal5, raise, opening2);
       await migrations.prepare(instead?.text ?? reply.board, reply.block_registry);
       if (instead === void 0) {
         dropped = await opening2.step("store.open", () => store.open(reply));
@@ -8911,7 +9678,7 @@ function start(options) {
       return void 0;
     }
   }
-  async function named3(reply, store, core, signal5, raise, opening2) {
+  async function named4(reply, store, core, signal5, raise, opening2) {
     if (reply.lock.load) return void 0;
     const classes = store.plugins.registered();
     const plugin = Object.keys(reply.plugins).find((id2) => own(classes, id2)?.storage !== void 0);
@@ -9073,13 +9840,13 @@ function noOtel() {
 }
 
 // srcts/page/card.tsx
-import { useCallback as useCallback2, useSyncExternalStore } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { useCallback as useCallback2, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { flushSync as flushSync2 } from "react-dom";
+import { createRoot as createRoot2 } from "react-dom/client";
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
-import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
 function useFooter(status, notifications) {
   const shown2 = useShown(status);
@@ -9099,7 +9866,7 @@ function useOpened(atStart) {
   return { open, toggle, panel };
 }
 function Footer({ status, shown: shown2, settled: settled2 }) {
-  return /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsx2(
     "footer",
     {
       "aria-busy": status?.running === true,
@@ -9124,7 +9891,7 @@ function Pills({
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
-  return /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsx2(
     "div",
     {
       role: "group",
@@ -9133,7 +9900,7 @@ function Pills({
       className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
       children: pills.map(({ severity, n }) => {
         const mark = MARKS[severity];
-        return /* @__PURE__ */ jsxs(
+        return /* @__PURE__ */ jsxs2(
           "button",
           {
             type: "button",
@@ -9144,7 +9911,7 @@ function Pills({
             },
             className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
             children: [
-              /* @__PURE__ */ jsx(SeverityIcon, { severity }),
+              /* @__PURE__ */ jsx2(SeverityIcon, { severity }),
               severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
             ]
           },
@@ -9161,7 +9928,7 @@ function Banners({ shown: shown2, notifications, open, panel }) {
   const reason = shown2?.reason ?? null;
   if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
   if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx(Banner, { severity, message }, i)) });
+  return /* @__PURE__ */ jsx2("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx2(Banner, { severity, message }, i)) });
 }
 function isSettled(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
@@ -9195,23 +9962,23 @@ var MARKS = {
 };
 function Banner({ severity, message }) {
   const mark = MARKS[severity];
-  return /* @__PURE__ */ jsxs(
+  return /* @__PURE__ */ jsxs2(
     "li",
     {
       "data-severity": severity,
       className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
       children: [
-        /* @__PURE__ */ jsx("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx(SeverityIcon, { severity }) }),
-        /* @__PURE__ */ jsxs("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
-          /* @__PURE__ */ jsx("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
+        /* @__PURE__ */ jsx2("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx2(SeverityIcon, { severity }) }),
+        /* @__PURE__ */ jsxs2("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
+          /* @__PURE__ */ jsx2("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
+          /* @__PURE__ */ jsx2("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
         ] })
       ]
     }
   );
 }
 function SeverityIcon({ severity }) {
-  return /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsx2(
     "svg",
     {
       "aria-hidden": "true",
@@ -9222,12 +9989,12 @@ function SeverityIcon({ severity }) {
       strokeWidth: 1.6,
       strokeLinecap: "round",
       strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
-        /* @__PURE__ */ jsx("path", { d: "M8 6.2v3.2M8 11.6v.1" })
-      ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+      children: severity === "warning" ? /* @__PURE__ */ jsxs2(Fragment2, { children: [
+        /* @__PURE__ */ jsx2("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx2("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+      ] }) : /* @__PURE__ */ jsxs2(Fragment2, { children: [
+        /* @__PURE__ */ jsx2("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx2("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
       ] })
     }
   );
@@ -9241,15 +10008,15 @@ function useShown(status) {
 var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
 
 // srcts/card/mounted.tsx
-import { useLayoutEffect, useRef } from "react";
-import { jsx as jsx2 } from "react/jsx-runtime";
+import { useLayoutEffect, useRef as useRef2 } from "react";
+import { jsx as jsx3 } from "react/jsx-runtime";
 function Mounted({
   mount,
   label,
   className,
   data
 }) {
-  const ref = useRef(null);
+  const ref = useRef2(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (el === null) return;
@@ -9258,7 +10025,7 @@ function Mounted({
       queueMicrotask(cleanup);
     };
   }, [mount]);
-  return /* @__PURE__ */ jsx2("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
+  return /* @__PURE__ */ jsx3("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
 }
 
 // srcts/card/status.ts
@@ -9272,7 +10039,7 @@ function useSized(status) {
 
 // srcts/page/card.tsx
 import { useNotified, useStatus } from "@blockr/core/react";
-import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 var OWNER = "blockr.core";
 function drawCard(el, core, signal5) {
   if (signal5.aborted) return;
@@ -9284,9 +10051,9 @@ function drawCard(el, core, signal5) {
   }
   const demand = core.scheduler.demand(OWNER, [id2]);
   el.replaceChildren();
-  const root = createRoot(el);
-  flushSync(() => {
-    root.render(/* @__PURE__ */ jsx3(AloneCard, { core, id: id2 }));
+  const root = createRoot2(el);
+  flushSync2(() => {
+    root.render(/* @__PURE__ */ jsx4(AloneCard, { core, id: id2 }));
   });
   signal5.addEventListener(
     "abort",
@@ -9308,20 +10075,20 @@ function AloneCard({ core, id: id2 }) {
   const mountOutput2 = useCallback2((el) => core.mountOutput(el, id2), [core, id2]);
   const inputs = !core.store.locked(id2);
   const current2 = status?.status === "ready" && !status.running;
-  return /* @__PURE__ */ jsxs2(
+  return /* @__PURE__ */ jsxs3(
     "article",
     {
       "aria-label": name3,
       className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
       children: [
-        /* @__PURE__ */ jsx3("header", { children: /* @__PURE__ */ jsx3("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
-        inputs ? /* @__PURE__ */ jsx3(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
-        /* @__PURE__ */ jsxs2(
+        /* @__PURE__ */ jsx4("header", { children: /* @__PURE__ */ jsx4("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
+        inputs ? /* @__PURE__ */ jsx4(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsxs3(
           "div",
           {
             className: `bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
-              /* @__PURE__ */ jsx3(
+              /* @__PURE__ */ jsx4(
                 Mounted,
                 {
                   mount: mountOutput2,
@@ -9330,12 +10097,12 @@ function AloneCard({ core, id: id2 }) {
                   className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              sized ? /* @__PURE__ */ jsx3(Footer, { ...footer }) : null
+              sized ? /* @__PURE__ */ jsx4(Footer, { ...footer }) : null
             ]
           }
         ),
-        /* @__PURE__ */ jsx3(Pills, { ...footer }),
-        /* @__PURE__ */ jsx3(Banners, { ...footer })
+        /* @__PURE__ */ jsx4(Pills, { ...footer }),
+        /* @__PURE__ */ jsx4(Banners, { ...footer })
       ]
     }
   );
@@ -9347,7 +10114,7 @@ function useBlockName(core, id2) {
     }),
     [core]
   );
-  return useSyncExternalStore(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
+  return useSyncExternalStore2(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
 }
 
 // srcts/page/page.ts
