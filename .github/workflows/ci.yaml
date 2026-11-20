@@ -10,6 +10,7 @@ jobs:
     uses: BristolMyersSquibb/blockr.ci/.github/workflows/ci.yaml@main
     with:
       typescript-dir: '.'
+      image: true
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
@@ -20,5 +21,6 @@ jobs:
       revdep-strict: |
         BristolMyersSquibb/blockr.dock@js-state
         BristolMyersSquibb/blockr.assistant@js-state
+      image: true
     secrets:
       BLOCKR_PAT: ${{ secrets.BLOCKR_PAT }}
