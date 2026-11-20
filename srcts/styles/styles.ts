@@ -3,7 +3,7 @@
 // They are Tailwind CSS utilities under core's prefix,
 // which core's stylesheet holds.
 // An input takes its colors from the variables of core's theme,
-// such as --bc-color-border-default, whose defaults follow the text around it,
+// such as --bc-color-border-default,
 // so that it suits a light and a dark theme alike,
 // and its face from the theme's sans, --bc-font-sans,
 // while the radii and the sizes come from Tailwind's theme.

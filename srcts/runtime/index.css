@@ -12,11 +12,15 @@
  *   restyle core.
  * - The colors of core's UIs are variables of the theme by what each is for,
  *   named after blockr.ui's design tokens, as `--bc-color-border-default`
- *   after `--blockr-color-border-default`. Their defaults follow the text
- *   around the element that core draws in, or take the theme's red and blue
- *   or the page's background, so that core suits a light and a dark frontend
- *   alike, and a frontend or a UI kit sets them to restyle core.
- *   The danger and the warning texts take lighter values under the dark theme.
+ *   after `--blockr-color-border-default`. Most of their defaults follow the
+ *   text around the element that core draws in, or take the theme's red and
+ *   blue, so that core suits a light and a dark frontend alike, and a
+ *   frontend or a UI kit sets them to restyle core.
+ *   Two take blockr.ui's colors instead: border-default and bg-raised.
+ *   The dock takes its look from blockr.ui, so core's menus, dialogs and
+ *   fields draw in the dock's colors.
+ *   These two and the danger and the warning texts take other values under
+ *   the dark theme.
  * - The theme also holds a color for each status of a block and for each
  *   category of block classes, for every plugin that draws them.
  *   Their defaults are blockr.ui's colors, rather than ones that follow the
@@ -75,30 +79,34 @@
   --color-text-warning: var(--bc-color-amber-800);
   --color-text-success: var(--bc-color-green-600);
   --color-text-on-accent: var(--bc-color-white);
-  --color-border-default: color-mix(in oklab, currentColor 25%, transparent);
+  --color-border-default: #e5e7eb;
   --color-border-danger: var(--bc-color-red-500);
   --color-border-warning: var(--bc-color-amber-500);
   --color-border-accent: var(--bc-color-blue-500);
   --color-bg-accent: var(--bc-color-blue-600);
   --color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
-  --color-bg-raised: Canvas;
+  --color-bg-raised: #ffffff;
 }
 
 /*
  * What floats over the board, such as a menu or a dialog, covers what lies
  * below it, so its background, bg-raised, is opaque.
- * Its default is the page's background, the system color Canvas,
- * which the browser draws in the page's theme.
- * Under the dark theme, it mixes in 10% of the text.
- * A menu is then lighter than the card it opens over,
- * whose background lays 5% of the text over the page.
+ * Its defaults are the values of blockr.ui's design tokens.
+ * So are those of border-default, which outlines a menu and core's cards and
+ * fields.
+ * A menu that opens over a card of the dock then draws as blockr.ui's own
+ * menus do.
+ * Under the dark theme, both take the values that blockr.ui gives them there.
+ * A menu is then lighter than the card it opens over, whether the dock or
+ * core's basic frontend draws the card.
  * The rule sits in the theme's layer, as the theme's variables do,
- * so that a frontend or a UI kit that sets the variable outside a layer
+ * so that a frontend or a UI kit that sets a variable outside a layer
  * wins over it.
  */
 @layer theme {
   :root[data-bc-theme="dark"] {
-    --bc-color-bg-raised: color-mix(in oklab, Canvas, currentColor 10%);
+    --bc-color-bg-raised: #1e242e;
+    --bc-color-border-default: #232932;
   }
 }
 

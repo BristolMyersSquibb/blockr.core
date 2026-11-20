@@ -406,14 +406,14 @@ test("keeps core's utilities under its prefix and outside layers, without Prefli
 
 test("names the colors of core's UIs as variables of its theme, which follow the text around them", async () => {
   await write({
-    "test.css": `@import "${core}";\n@source inline("bc:border-border-default bc:text-text-danger");\n`,
+    "test.css": `@import "${core}";\n@source inline("bc:bg-bg-subtle bc:text-text-danger");\n`,
   });
 
   const css = await stylesheet(join(root, "test.css"));
 
   // A utility reads the variable, so that a frontend restyles core by setting it.
-  expect(css).toMatch(/^\.bc\\:border-border-default(, [^{]+)? \{\n {2}border-color: var\(--bc-color-border-default\);/m);
-  expect(css).toContain("--bc-color-border-default: color-mix(in oklab, currentColor 25%, transparent);");
+  expect(css).toMatch(/^\.bc\\:bg-bg-subtle(, [^{]+)? \{\n {2}background-color: var\(--bc-color-bg-subtle\);/m);
+  expect(css).toContain("--bc-color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);");
   // A colour with an accent of its own takes the theme's, which the stylesheet
   // then holds too.
   expect(css).toContain("--bc-color-text-danger: var(--bc-color-red-700);");
@@ -439,19 +439,23 @@ test("draws the danger and the warning texts in shades that reach 4.5:1 under th
   expect(css.replace(theme, "")).not.toMatch(/--bc-color-text-(danger|warning):/);
 });
 
-test("draws what floats over the board on the page's background, which the dark theme lightens, as a variable of its theme", async () => {
-  await write({ "test.css": `@import "${core}";\n@source inline("bc:bg-bg-raised");\n` });
+test("draws what floats over the board, and the border of core's UIs, in blockr.ui's colors under either theme, as variables of its theme", async () => {
+  await write({ "test.css": `@import "${core}";\n@source inline("bc:bg-bg-raised bc:border-border-default");\n` });
 
   const css = await stylesheet(join(root, "test.css"));
 
   expect(css).toMatch(/^\.bc\\:bg-bg-raised(, [^{]+)? \{\n {2}background-color: var\(--bc-color-bg-raised\);/m);
-  // Both of its defaults sit in the theme's layer, so that a frontend that sets
-  // the variable outside a layer wins over them.
+  expect(css).toMatch(/^\.bc\\:border-border-default(, [^{]+)? \{\n {2}border-color: var\(--bc-color-border-default\);/m);
+  // Each default is the value that blockr.ui gives its token of the same name
+  // under that theme. They sit in the theme's layer, so that a frontend that
+  // sets a variable outside a layer wins over them.
   const start = css.indexOf("@layer theme {");
   const theme = css.slice(start, css.indexOf("\n}\n", start));
-  expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-bg-raised: Canvas;/);
-  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-bg-raised: color-mix\(in oklab, Canvas, currentColor 10%\);/);
-  expect(css.replace(theme, "")).not.toContain("--bc-color-bg-raised:");
+  expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-bg-raised: #fff(fff)?;/);
+  expect(theme).toMatch(/:root, :host(, [^{]+)? \{[^}]*--bc-color-border-default: #e5e7eb;/);
+  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-bg-raised: #1e242e;/);
+  expect(theme).toMatch(/:root\[data-bc-theme="dark"\] \{[^}]*--bc-color-border-default: #232932;/);
+  expect(css.replace(theme, "")).not.toMatch(/--bc-color-(bg-raised|border-default):/);
 });
 
 test("holds a color for each status of a block, lighter under the dark theme, and for each category of block classes, though no utility uses those", async () => {
