@@ -988,6 +988,149 @@ test_that("an app holds the output families that serve() read", {
   expect_false("js/basic-table.js" %in% chr_xtr(modules, "path"))
 })
 
+test_that("serve() stops on a board option that no available package lists", {
+
+  new_nowhere_option <- function(value) new_board_option("nowhere", value)
+  new_elsewhere_option <- function(value) new_board_option("elsewhere", value)
+
+  dir <- withr::local_tempdir()
+  writeLines("export const api = 1;", file.path(dir, "needy-block.js"))
+  writeLines("export default {};", file.path(dir, "inner-output.js"))
+
+  inner_output <- new_output_family(
+    function(result, ...) text_output(result, ...),
+    "inner_output",
+    options = list(new_nowhere_option, new_elsewhere_option),
+    renderer = new_renderer(
+      "inner_output",
+      js_module(file.path(dir, "inner-output.js"), package = NULL)
+    )
+  )
+
+  outer_output <- new_output_family(
+    function(result, ...) inner_output(result, ...),
+    "outer_output",
+    families = list(inner_output)
+  )
+
+  # The class's UI module, its request and the family that its family hands
+  # its results to each read one
+  cls <- test_block_class(
+    "needy_block",
+    expr = function() quote(month.name),
+    ui = js_module(file.path(dir, "needy-block.js"), package = NULL),
+    options = new_nowhere_option,
+    requests = list(
+      files = new_block_request(
+        function(dir) dir,
+        options = list(dir = new_elsewhere_option)
+      )
+    ),
+    output = outer_output
+  )
+
+  board <- new_board(c(a = block_constructor(cls)()))
+
+  msg <- paste(
+    "The UI module of block class needy_block reads the board option",
+    "nowhere, which no available package lists.",
+    "The request files of block class needy_block reads the board option",
+    "elsewhere, which no available package lists.",
+    "Output family inner_output reads the board options nowhere and",
+    "elsewhere, which no available package lists."
+  )
+
+  expect_error(serve(board), msg, fixed = TRUE, class = "board_options_unknown")
+
+  # So does a block that serve() serves alone
+  expect_error(
+    serve(block_constructor(cls)()),
+    msg,
+    fixed = TRUE,
+    class = "board_options_unknown"
+  )
+
+  # Every class whose family is open reaches the families that the packages
+  # list, and the error names such a family once
+  any_output <- new_output_family(
+    function(result, ...) text_output(result, ...),
+    "any_output",
+    families = TRUE
+  )
+
+  open_class <- function(id) {
+    test_block_class(
+      id,
+      expr = function() quote(month.name),
+      ui = js_module(file.path(dir, "needy-block.js"), package = NULL),
+      output = any_output
+    )
+  }
+
+  listed <- app_families
+
+  local_mocked_bindings(
+    app_families = function(...) c(listed(), list(inner_output = inner_output))
+  )
+
+  open <- new_board(
+    c(
+      a = block_constructor(open_class("any_block"))(),
+      b = block_constructor(open_class("other_block"))()
+    )
+  )
+
+  cnd <- expect_error(serve(open), class = "board_options_unknown")
+
+  expect_identical(
+    conditionMessage(cnd),
+    paste(
+      "Output family inner_output reads the board options nowhere and",
+      "elsewhere, which no available package lists."
+    )
+  )
+
+  # The app serves once a package lists them
+  local_listing(
+    "blockr.test",
+    list(
+      options = list(
+        nowhere = list(module = "js/nowhere.js"),
+        elsewhere = list(module = "js/elsewhere.js")
+      )
+    )
+  )
+
+  expect_s3_class(serve(board), "shiny.appobj")
+  expect_s3_class(serve(open), "shiny.appobj")
+})
+
+test_that("a plugin's board option that no package lists stops the app", {
+
+  local_plugin_classes(Needy = plugin_ctor(function() NULL, "needy_plugin"))
+  local_versions(blockr.test = "0.1.0")
+
+  testthat::local_mocked_s3_method(
+    "plugin_options",
+    "needy_plugin",
+    function(x, ...) function(value) new_board_option("nowhere", value)
+  )
+
+  expect_error(
+    serve(served_board()),
+    paste(
+      "The plugin of class blockr.test-needy_plugin reads the board option",
+      "nowhere, which no available package lists."
+    ),
+    fixed = TRUE,
+    class = "board_options_unknown"
+  )
+
+  # An app that runs no such plugin serves
+  rows <- subset(available_plugins(), id != "needy_plugin")
+  expect_s3_class(serve(served_board(), plugins = rows), "shiny.appobj")
+})
+
 test_that("the page names the files that it imports, which R serves at once", {
 
   # A module of its own content, which R serves nowhere yet.

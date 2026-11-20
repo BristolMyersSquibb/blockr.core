@@ -417,16 +417,22 @@
   Where another link feeds the input that the user picks, the form says so, and saving swaps the inputs of the two links in one step.
   Core's command `blockr.core-change_link` swaps them where the link keeps its block.
   Until now, the store refused that change, since an input takes one link.
-  Each edit is one of core's commands, so that undo takes back each one, and the plugin tells the user through a notification why the store or the command registry refused one.
+  Each edit is one of core's commands, so that undo takes back each one.
+  Where the store or the command registry refuses one, the plugin says why close to the control that made it, until the user's next edit there: below the buttons of a form that adds a block, a link or a stack, and below a table for an edit in its rows.
+  It says so in a banner that marks an error as a card's banners do, under a sentence that names the edit, with the reasons in a list where there are several.
+  It takes the edit's notification through the edit's `notifier`, so that core raises none.
   Under the board lock, it draws no control and lists the board's links and stacks alone.
-  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block (#565, #573, #584).
+  A card's menu of core's basic frontend still renames and removes its block, and adds a block before or after it, with the plugin's form for a block.
+  There, core still raises a notification for an edit that the store or the command registry refuses (#565, #573, #584, #711).
 * Block classes and plugin classes name the board options that they read in R, by their constructors, as requests and output families do.
   A block class names those that its UI module reads itself in the `options` of `new_block_class()`, and a plugin class through its method of the new generic `plugin_options()`.
   A renderer names none, since the output family names the board options of its outputs, those that its renderers read included.
   R names their IDs in its reply to `hello`, and core puts them on the board before the module draws, so that no module names a board option in JS.
+  As `serve()` builds the app, it checks that an available package lists each board option that the app's block classes, requests, output families and plugin classes read.
+  Where none lists one, the app stops, and the error names the board option and what reads it.
   A module reads their values through its host, with `host.context().option(id)` for a block's UI module and `host.option(id)` for a renderer.
   For any other ID, a misspelled one included, `option()` throws an error that names the component and the ID.
-  So a block class's UI module no longer repeats the board options that its requests read, and core no longer checks that it does (#704).
+  So a block class's UI module no longer repeats the board options that its requests read, and core no longer checks that it does (#704, #771).
 * The `bbquote()` function throws an error for a call to `.()` or `..()` that holds anything but a single name, such as `.(n + 1L)` or data.table's `.(total = sum(value))`, `.(n = .N)` or `.(x, y)`.
   Until now, base `bquote()` evaluated the first argument of such a call, so that `.(total = sum(value))` failed with `could not find function "sum"` and `.(n = .N)` silently became `.(.N)`.
   A class that builds data.table code returns a call or a string instead (#496).
@@ -665,6 +671,9 @@
   It picks one item, or several where its `selectionMode` is `"multiple"`, out of a list that the user filters by typing into its field, and draws the items that `ComboBoxItem` and `ComboBoxSection` give, with React Aria's `Text` for an item's description.
   The field of several shows each pick as a chip, which its button removes, as Backspace in the empty field removes the last one.
   A button at the field's right, before the one that opens the list, clears the pick, or every pick, but where the select `isRequired`.
+  Where the select is disabled or read-only, its field changes no pick.
+  Its chips then show no button and remove nothing on a key, Backspace removes nothing, no button clears, and a press in the field opens no list.
+  The chips of a disabled select take no focus either, as its text field takes none.
   A bound select of one leaves its state arg unset so, through the new `unset()` of the binding of `bind()` and of `Bound` in the SDK, as a new block leaves an arg without a default.
   For that, a block host's `submit()` leaves a state arg that its change gives as `undefined` unset, through the `unset` of `set_block`.
   React Aria draws the list as wide as the field, in a portal at the end of the page's body.
@@ -672,7 +681,7 @@
   Given `bound`, it binds a block's state arg or a board option's value, as before: one string, or an array of strings, which it submits once, as its list closes, in place of `Checklist`, which is gone.
   The page loads the parts of React Aria that core draws with in core's vendor file, and the types of `@blockr/core` name React Aria as a dependency.
   The `comboBox()` of `controls()` takes `items`, `selectionMode`, `ordered` and `renderEmptyState`, in place of `select()` and `checklist()`, which are gone, as are `Choice` and `asChoices()`.
-  Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).
+  Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684, #770).
 * The `selection` of `CoreApi` holds the board objects that the user selected, such as `[{ block: "a" }, { link: "ab" }]`.
   Whatever selects sets it, as the DAG will as the user selects nodes, links and stacks, while core's basic frontend selects nothing.
   Its `get()` gives the board objects selected, its `set()` selects those given in place of them, and its `subscribe()` calls back whenever they change.

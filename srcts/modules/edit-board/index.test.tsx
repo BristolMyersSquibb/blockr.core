@@ -14,7 +14,7 @@ import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
 import { chipLabels, labelled, listed, listFromField, optionFromLabel, optionLabels, picked } from "../../testing/select.ts";
 import { find, press, texts, type } from "../../testing/inputs.ts";
-import { held, notificationCode } from "../../testing/notifications.ts";
+import { held } from "../../testing/notifications.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
@@ -63,6 +63,29 @@ async function mounted(options: StubCoreOptions = {}): Promise<Mounted> {
   return { el, core: stubbed.core, board: () => stubbed.core.store.board(), notes, end };
 }
 
+// The plugin's UI over a store that refuses every edit: the board of the
+// fixture hello under the board lock. The plugin draws no control there, so
+// the test hands it a CoreApi that says the board is open, and draws every
+// control.
+async function refusing(): Promise<Omit<Mounted, "notes">> {
+  const el = document.createElement("div");
+  document.body.append(el);
+  const hello: HelloReply = { ...HELLO, lock: { board: true, load: false } };
+  const stubbed = await act(() => stubCore({ hello, modules: { "blockr.core-edit_board": editBoard } }));
+  const core: CoreApi = { ...stubbed.core, lock: { ...stubbed.core.lock, board: false } };
+  let end = (): void => undefined;
+  await act(async () => {
+    end = editBoard.default.ui.render({ el, core, signal: new AbortController().signal });
+    await stubbed.settled();
+  });
+  stops.push(() => {
+    act(() => {
+      end();
+    });
+  }, stubbed.stop);
+  return { el, core: stubbed.core, board: () => stubbed.core.store.board(), end };
+}
+
 // The plugin's section of the title given.
 function section(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): HTMLElement {
   return find(el, `section[aria-label="${title}"]`);
@@ -88,6 +111,28 @@ function row(el: ParentNode, name: string): HTMLTableRowElement {
 // The names of the rows of the section's table, in order.
 function rows(el: HTMLElement, title: "Blocks" | "Links" | "Stacks"): string[] {
   return [...section(el, title).querySelectorAll("tbody tr")].map((tr) => tr.getAttribute("aria-label") ?? "");
+}
+
+// What a banner of the plugin says of why the store or the command registry
+// refused an edit: the sentence that names the edit, then each reason.
+function said(alert: Element): string[] {
+  return [...alert.querySelectorAll("p, li")].map((line) => line.textContent);
+}
+
+// What the plugin says in `el` of why the store or the command registry
+// refused an edit, banner by banner, in order.
+function refusals(el: ParentNode): string[][] {
+  return [...el.querySelectorAll('[role="alert"]')].map(said);
+}
+
+// What the plugin says below the section's table of why the store or the
+// command registry refused an edit that the user made in the table's rows.
+function belowTable(el: HTMLElement): string[][] {
+  const banners: string[][] = [];
+  for (let next = find(el, "table").nextElementSibling; next?.getAttribute("role") === "alert"; next = next.nextElementSibling) {
+    banners.push(said(next));
+  }
+  return banners;
 }
 
 // The lines below a field, its description and its error, which React Aria
@@ -259,6 +304,11 @@ describe("the blocks", () => {
     const blocks = section(el, "Blocks");
 
     await click(button(blocks, "Rename the block Head"));
+    // The field is as wide as the column of names, rather than spilling into
+    // the next. Its input stretches across the field.
+    const field = find(blocks, 'input[aria-label="Block name"]').parentElement;
+    expect(field?.className).toMatch(/(^| )bc:w-full( |$)/);
+    expect(field?.className).not.toContain("bc:min-w-40");
     await step(() => {
       const name = find(blocks, 'input[aria-label="Block name"]', HTMLInputElement);
       type(name, "First rows");
@@ -626,7 +676,7 @@ describe("each edit", () => {
     expect(core.store.canUndo()).toBe(false);
   });
 
-  test("that the command registry or the store refuses, core tells the user of through a notification, and the plugin raises none", async () => {
+  test("that the command registry or the store refuses, the plugin says why below the form that made it, in a banner in the colour of an error under a sentence that names the edit, until the user submits the form again, and core raises no notification of it", async () => {
     const { el, core, board, notes } = await mounted();
     const add = (): HTMLFormElement => form(section(el, "Links"), "Add link");
     await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
@@ -638,14 +688,114 @@ describe("each edit", () => {
     await click(button(add(), "Add link"));
 
     expect(Object.values(board().links).filter((l) => l.to === "b")).toEqual([{ from: "a", to: "b", input: "data" }]);
-    const refused = held(core, (n) => notificationCode(n) === "board_edit_failed");
-    expect(refused).toHaveLength(1);
-    expect(refused[0]?.severity).toBe("error");
-    expect(refused[0]?.source).toEqual({ kind: "core", code: "board_edit_failed" });
-    // It concerns the board, whatever block the edit names.
-    expect(refused[0]?.about).toBeUndefined();
-    expect(refused[0]?.message).toContain('The command "blockr.core-add_link" refused to run');
+    expect(refusals(add())).toEqual([["Could not add the link.", 'Every input of the block "b" takes a link already.']]);
+    expect(find(add(), '[role="alert"]').className).toContain("bc:border-border-danger");
+    // It shows below the form's button.
+    expect(find(add(), '[role="alert"]').previousElementSibling?.contains(button(add(), "Add link"))).toBe(true);
+    expect(held(core)).toEqual([]);
     expect(notes).toEqual([]);
+
+    // The reason stays as the user changes the form, and goes as the user
+    // submits it again.
+    await chosen(add(), "To", "Bind");
+    expect(refusals(add())).toHaveLength(1);
+    await click(button(add(), "Add link"));
+    expect(refusals(add())).toEqual([]);
+    expect(Object.values(board().links)).toContainEqual({ from: "f", to: "e", input: "" });
+  });
+
+  test("that the store refuses from the rows of a table, the plugin says why below the table, naming the edit, until the user's next edit in the table", async () => {
+    const { el, core, board } = await refusing();
+    const before = board();
+    const blocks = section(el, "Blocks");
+    const stacks = section(el, "Stacks");
+
+    await click(button(blocks, "Remove the block Head"));
+    expect(belowTable(blocks)).toEqual([
+      [
+        'Could not remove the block "Head".',
+        'The board lock refuses to remove block "b".',
+        'The board lock refuses to remove links "ab", "bc" and "be".',
+        'The board lock refuses to change stack "s1".',
+      ],
+    ]);
+    // The board lock refuses each part of the removal, so the reasons show as
+    // a list.
+    expect(find(blocks, "table").nextElementSibling?.querySelectorAll("ul > li")).toHaveLength(3);
+
+    // The next edit in the table takes the place of the last.
+    await click(button(blocks, "Rename the block Iris"));
+    await step(() => {
+      const name = find(blocks, 'input[aria-label="Block name"]', HTMLInputElement);
+      type(name, "Sources");
+      press(name, "Enter");
+    });
+    expect(belowTable(blocks)).toEqual([['Could not rename the block "Iris".', 'The board lock refuses to rename block "a".']]);
+
+    // The tables do not show the ids of links and stacks, which the store's
+    // reason names, so the sentence before it names the link or the stack.
+    await click(button(section(el, "Links"), "Remove the link from Iris to Head"));
+    expect(belowTable(section(el, "Links"))).toEqual([['Could not remove the link from "Iris" to "Head".', 'The board lock refuses to remove link "ab".']]);
+    await click(button(stacks, "Remove the stack Input"));
+    expect(belowTable(stacks)).toEqual([['Could not remove the stack "Input".', 'The board lock refuses to remove stack "s1".']]);
+    // Opening the form that changes a stack is the user's next edit in the
+    // table, and the reason goes.
+    await click(button(stacks, "Edit the stack Input"));
+    expect(refusals(stacks)).toEqual([]);
+    await click(button(form(stacks, "Change stack"), "Cancel"));
+    expect(belowTable(stacks)).toEqual([]);
+
+    expect(board()).toEqual(before);
+    expect(held(core)).toEqual([]);
+  });
+
+  test("that the store refuses from a form that adds to the board, the plugin says why below the form's buttons, as the form stays as the user filled it in", async () => {
+    const { el, core, board } = await refusing();
+    const before = board();
+    const addBlock = (): HTMLFormElement => form(section(el, "Blocks"), "Add block");
+    const stacks = section(el, "Stacks");
+
+    await chosen(addBlock(), "Block class", "dataset", "dataset block");
+    await click(button(addBlock(), "Add block"));
+    expect(refusals(addBlock())).toEqual([["Could not add the block.", expect.stringMatching(/^The board lock refuses to add block "[a-z_]+"\.$/)]]);
+    expect(labelled(addBlock(), "Block class").value).toBe("dataset block");
+
+    await click(button(form(stacks, "Add stack"), "Add stack"));
+    expect(refusals(form(stacks, "Add stack"))).toEqual([["Could not add the stack.", expect.stringMatching(/^The board lock refuses to add stack "[a-z_]+"\.$/)]]);
+
+    expect(board()).toEqual(before);
+    expect(held(core)).toEqual([]);
+  });
+
+  test("that the store refuses from the form that changes a row of a table, the plugin says why below the table, naming the row, as the form stays as the user filled it in", async () => {
+    const { el, core, board } = await refusing();
+    const before = board();
+    const links = section(el, "Links");
+    const stacks = section(el, "Stacks");
+
+    await click(button(links, "Edit the link from Iris to Head"));
+    await chosen(form(links, "Change link"), "To", "Bind");
+    await click(button(form(links, "Change link"), "Save"));
+    expect(belowTable(links)).toEqual([['Could not change the link from "Iris" to "Head".', 'The board lock refuses to change link "ab".']]);
+    expect(refusals(form(links, "Change link"))).toEqual([]);
+    expect(labelled(form(links, "Change link"), "To").value).toBe("Bind");
+
+    await click(button(stacks, "Edit the stack Input"));
+    await step(() => {
+      type(labelled(form(stacks, "Change stack"), "Name"), "Sources");
+    });
+    await click(button(form(stacks, "Change stack"), "Save"));
+    expect(belowTable(stacks)).toEqual([['Could not change the stack "Input".', 'The board lock refuses to change stack "s1".']]);
+    expect(refusals(form(stacks, "Change stack"))).toEqual([]);
+    expect(labelled(form(stacks, "Change stack"), "Name").value).toBe("Sources");
+
+    // Saving the form again is the user's next edit in the table, and the
+    // reason shows anew.
+    await click(button(form(stacks, "Change stack"), "Save"));
+    expect(belowTable(stacks)).toHaveLength(1);
+
+    expect(board()).toEqual(before);
+    expect(held(core)).toEqual([]);
   });
 });
 

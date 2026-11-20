@@ -102,11 +102,17 @@ export function chipLabels(field: HTMLElement): string[] {
   return chips(field).map((chip) => chip.textContent.trim());
 }
 
+// The chip of the label given in the field of a select of several.
+export function chipFromLabel(field: HTMLElement, label: string): HTMLElement {
+  const found = chips(field).find((chip) => chip.textContent.trim() === label);
+  if (!(found instanceof HTMLElement)) throw new Error(`Found no chip ${label} of ${field.id}.`);
+  return found;
+}
+
 // Clicks the button that removes the chip of the label given.
 export async function removeChip(field: HTMLElement, act: Act, label: string): Promise<void> {
-  const chip = chips(field).find((found) => found.textContent.trim() === label);
-  const button = chip?.querySelector("button");
-  if (!(button instanceof HTMLElement)) throw new Error(`Found no chip ${label} of ${field.id}.`);
+  const button = chipFromLabel(field, label).querySelector("button");
+  if (!(button instanceof HTMLElement)) throw new Error(`Found no button that removes the chip ${label} of ${field.id}.`);
   await act(() => {
     button.click();
   });
@@ -128,8 +134,10 @@ export async function cleared(field: HTMLElement, act: Act): Promise<void> {
   });
 }
 
+// The chips of a select of several: the rows of React Aria's TagGroup, or the
+// items of the plain list that a disabled select draws.
 function chips(field: HTMLElement): Element[] {
-  return [...(field.closest('[role="group"]')?.querySelectorAll('[role="row"]') ?? [])];
+  return [...(field.closest('[role="group"]')?.querySelectorAll('[role="row"], [role="listitem"]') ?? [])];
 }
 
 // The element of the id given in the tree that holds `node`, whether on the

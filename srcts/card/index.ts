@@ -9,9 +9,10 @@
 // hooks of core's React SDK.
 // The basic frontend's toasts mark a notification's severity as the cards do,
 // and its plugins' sections draw the notifications about a plugin in the same
-// pills and banners.
-// The bundles of core's runtime and of the basic frontend each hold a copy of
-// it, as each holds one of srcts/util.
+// pills and banners. The banner of the Edit board plugin that says why an edit
+// was refused marks an error as they do (../ui/ui.tsx).
+// The bundles of core's runtime, of the basic frontend and of the Edit board
+// plugin each hold a copy of it, as each holds one of srcts/util.
 
 export { Banners, Footer, MARKS, Pills, SeverityIcon, useFooter, usePills } from "./footer.tsx";
 export type { FooterProps } from "./footer.tsx";

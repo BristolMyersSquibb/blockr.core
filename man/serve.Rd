@@ -140,6 +140,12 @@ other, as \code{serve()} read them (see \code{\link[=read_blocks_yml]{read_block
 So the replies to \code{hello} name the same ones wherever the app runs,
 including in another R process, as when a script hands the app to
 \code{callr::r_bg()}, or shinytest2 runs it.
+The app stops where one of its components reads a board option that no
+available package lists, and the error names the component and the board
+option.
+Those components are the UI module of each block class in the app's block
+registry, the class's requests and the output families that make its
+outputs, and each plugin that the app runs.
 }
 \section{End-to-end tests}{
 

@@ -123,7 +123,7 @@ start_transport_app <- function(encoding = "base64", timeout = 30) {
 # So `navigate()` also asks the page for `app` until it has one.
 navigate <- function(page, url, timeout = 30) {
 
-  loaded <- page$Page$loadEventFired(wait_ = FALSE)
+  loaded <- page$Page$loadEventFired(timeout_ = timeout, wait_ = FALSE)
   page$Page$navigate(url, wait_ = FALSE)
   page$wait_for(loaded)
 
@@ -208,7 +208,7 @@ start_served_app <- function(call, timeout = 30) {
 # has evaluated it. It gives the page's text.
 page_showing <- function(page, url, texts, timeout = 30) {
 
-  loaded <- page$Page$loadEventFired(wait_ = FALSE)
+  loaded <- page$Page$loadEventFired(timeout_ = timeout, wait_ = FALSE)
   page$Page$navigate(url, wait_ = FALSE)
   page$wait_for(loaded)
 
