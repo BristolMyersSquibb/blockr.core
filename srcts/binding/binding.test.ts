@@ -229,6 +229,34 @@ describe("a binding made with two functions", () => {
     expect(host.submitted).toEqual([joined({ conditions: ["z", "b"] })]);
   });
 
+  test("raises why the second failed to build a change as a notification about the block where it has no notifier, and logs it, until a later change builds", async () => {
+    const host = stubBlockHost<Joined>(joinFixture);
+    let failing = true;
+    const change = (value: Json | undefined, state: Joined): Partial<Joined> => {
+      if (failing) throw new Error("No condition is first.");
+      return withFirst(value, state);
+    };
+    const condition = bind(host, first, change, () => undefined);
+    const shown = bind(host, first, change, () => undefined, { notifier: () => undefined });
+
+    await expect(condition.commit("z")).resolves.toBe(false);
+    await expect(condition.commit("y")).resolves.toBe(false);
+    await expect(shown.commit("x")).resolves.toBe(false);
+    expect(host.notified).toEqual([
+      { severity: "error", code: "change_failed", message: "The control failed to build the change it submits: No condition is first." },
+    ]);
+    expect(host.logged.map((line) => [line.level, line.error?.message])).toEqual([
+      ["error", "No condition is first."],
+      ["error", "No condition is first."],
+      ["error", "No condition is first."],
+    ]);
+
+    failing = false;
+    await expect(condition.commit("a")).resolves.toBe(true);
+    expect(host.notified).toEqual([]);
+    expect(host.submitted).toEqual([]);
+  });
+
   test("takes a second that builds the change, and binds no board option's value through functions", () => {
     const host = stubBlockHost<Joined>(joinFixture);
     const option = stubOptionHost<number>({ option: "n_rows", value: 25 });

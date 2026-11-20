@@ -10,6 +10,9 @@ function own(record, key) {
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
+function asError(error) {
+  return error instanceof Error ? error : new Error(String(error));
+}
 function isObject(x) {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }
@@ -43,11 +46,29 @@ function bind(host, key, next, last, given) {
     shown = { value };
     show(value);
   };
+  let unbuilt;
+  const unbuild = (error) => {
+    host.log.error(asError(error));
+    unbuilt?.();
+    unbuilt = options.notifier === void 0 ? host.notify({
+      severity: "error",
+      code: "change_failed",
+      message: `The control failed to build the change it submits: ${errorMessage(error)}`
+    }) : void 0;
+  };
   const submit = async (value) => {
+    let submitted;
     try {
-      const submitted = held.submit(value, submitting);
-      if (submitted === null) return true;
-      await submitted;
+      submitted = held.submit(value, submitting);
+    } catch (error) {
+      unbuild(error);
+      options.settled?.(error);
+      return false;
+    }
+    unbuilt?.();
+    unbuilt = void 0;
+    try {
+      if (submitted !== null) await submitted;
     } catch (error) {
       options.settled?.(error);
       return false;

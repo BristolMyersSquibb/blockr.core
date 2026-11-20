@@ -9485,11 +9485,29 @@ function bind(host, key2, next, last, given) {
     shown2 = { value: value2 };
     show2(value2);
   };
+  let unbuilt;
+  const unbuild = (error) => {
+    host.log.error(asError(error));
+    unbuilt?.();
+    unbuilt = options.notifier === void 0 ? host.notify({
+      severity: "error",
+      code: "change_failed",
+      message: `The control failed to build the change it submits: ${errorMessage(error)}`
+    }) : void 0;
+  };
   const submit = async (value2) => {
+    let submitted;
     try {
-      const submitted = held3.submit(value2, submitting);
-      if (submitted === null) return true;
-      await submitted;
+      submitted = held3.submit(value2, submitting);
+    } catch (error) {
+      unbuild(error);
+      options.settled?.(error);
+      return false;
+    }
+    unbuilt?.();
+    unbuilt = void 0;
+    try {
+      if (submitted !== null) await submitted;
     } catch (error) {
       options.settled?.(error);
       return false;

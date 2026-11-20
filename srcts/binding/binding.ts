@@ -30,6 +30,9 @@
 //   notification about the block or the board option, unless the binding
 //   passes the host a notifier, as one does for a control that shows why
 //   itself, as core's inputs do below themselves.
+//   Where the second of two functions fails to build a change, which no host
+//   then sees, the binding tells the user why itself in the same way, and
+//   logs what the function threw.
 // A followed request is asked again whenever what it reads changes,
 // the revisions of a block's linked data inputs among them,
 // and hands on only the answer of the latest request asked.
@@ -41,7 +44,7 @@ import type { OptionId } from "../types/board.ts";
 import type { Notifier } from "../types/core-api.ts";
 import type { BlockHost, HostRequestOpts, OptionHost, State } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
-import { jsonEqual, own } from "../util/index.ts";
+import { asError, errorMessage, jsonEqual, own } from "../util/index.ts";
 
 // How long a binding waits after the last keystroke before it submits,
 // in milliseconds.
@@ -78,11 +81,13 @@ export interface Binding {
 
 export interface BindOptions {
   // Hears how each submit ended: null where the host took it,
-  // and what refused it otherwise.
+  // and otherwise what refused it, or what the second of two functions threw.
   readonly settled?: (error: unknown) => void;
   // Takes the notification of each submit that the host refuses, which core
   // then does not raise, for a control that shows why itself, through
   // `settled`. The binding passes it to the host's submit().
+  // Given one, the binding raises no notification either where the second of
+  // two functions fails to build a change.
   readonly notifier?: Notifier;
 }
 
@@ -172,15 +177,44 @@ export function bind(
     show(value);
   };
 
+  // The notification of why `change` failed to build the last change, until
+  // a later change builds.
+  let unbuilt: (() => void) | undefined;
+
+  // Says why `change` failed to build a change, which no host then sees, as
+  // core says why the host refused a submit: through a notification about
+  // the block, in place of the last one, unless the binding has a notifier.
+  // It logs what `change` threw, since that is the module's fault.
+  const unbuild = (error: unknown): void => {
+    host.log.error(asError(error));
+    unbuilt?.();
+    unbuilt =
+      options.notifier === undefined
+        ? host.notify({
+            severity: "error",
+            code: "change_failed",
+            message: `The control failed to build the change it submits: ${errorMessage(error)}`,
+          })
+        : undefined;
+  };
+
   // Submits the value, or unsets the state arg given undefined, unless the
   // host holds it already, and resolves with whether the host took it.
   // Where `change` throws, the submit fails as one that the host refused
   // does.
   const submit = async (value: Json | undefined): Promise<boolean> => {
+    let submitted: Promise<void> | null;
     try {
-      const submitted = held.submit(value, submitting);
-      if (submitted === null) return true;
-      await submitted;
+      submitted = held.submit(value, submitting);
+    } catch (error) {
+      unbuild(error);
+      options.settled?.(error);
+      return false;
+    }
+    unbuilt?.();
+    unbuilt = undefined;
+    try {
+      if (submitted !== null) await submitted;
     } catch (error) {
       options.settled?.(error);
       return false;
