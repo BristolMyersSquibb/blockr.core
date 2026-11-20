@@ -288,6 +288,10 @@ export function createRegistrations(
         throw new Error(`The plugin class "${id}" has a ${member} without a render() function.`);
       }
     }
+    const frontend = given.frontend;
+    if (isObject(frontend) && frontend.advanced !== undefined && typeof frontend.advanced !== "function") {
+      throw new Error(`The plugin class "${id}" has a frontend whose advanced is no function.`);
+    }
     const storage = given.storage;
     if (storage !== undefined) {
       if (!isObject(storage) || typeof storage.controls !== "function") {

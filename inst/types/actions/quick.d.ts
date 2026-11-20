@@ -1,9 +1,11 @@
 import type { Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 export interface QuickLevel {
     readonly title?: string;
     readonly filter?: boolean;
+    readonly picked?: Json;
     readonly rows: readonly QuickRow[];
 }
 export type QuickRow = {
@@ -14,6 +16,7 @@ export type QuickRow = {
     readonly detail?: string;
     readonly category?: BoardAction["category"];
     pick(): readonly CommandCall[] | QuickLevel | Promise<readonly CommandCall[] | QuickLevel>;
+    readonly advanced?: Json;
 } | {
     readonly kind: "multi";
     readonly label: string;
@@ -35,14 +38,17 @@ export interface ShownLevel {
     readonly label: string;
     readonly title?: string;
     readonly filter?: string;
+    readonly advanced: boolean;
     readonly back: boolean;
     readonly loading: boolean;
     readonly error?: string;
     readonly rows: readonly ShownRow[];
 }
-export type ShownRow = Omit<Extract<QuickRow, {
+export type ShownRow = (Omit<Extract<QuickRow, {
     kind: "item";
-}>, "pick"> | Omit<Extract<QuickRow, {
+}>, "pick" | "advanced"> & {
+    readonly advanced?: true;
+}) | Omit<Extract<QuickRow, {
     kind: "multi";
 }>, "apply"> | {
     readonly kind: "text";
@@ -55,6 +61,7 @@ export interface OpenMenu {
     readonly subscribe: (fn: () => void) => () => void;
     readonly closed: () => boolean;
     readonly pick: (row?: number) => Promise<void>;
+    readonly openAdvanced: (row?: number) => Promise<void>;
     readonly tick: (row: number, choice: string) => void;
     readonly type: (value: string, row?: number) => void;
     readonly escape: () => void;
@@ -73,6 +80,10 @@ export interface MenuParts {
     readonly applies: (action: BoardAction) => boolean;
     readonly run: (batch: readonly CommandCall[], action: BoardAction) => Promise<void>;
     readonly trigger: (action: BoardAction) => Promise<void>;
+    readonly advanced: (action: BoardAction, opened: {
+        readonly picked?: Json;
+        readonly filter?: string;
+    }) => Promise<void>;
     readonly failed: (action: BoardAction, failure: Error) => void;
     readonly closed: (ran: Promise<void> | undefined) => void;
 }

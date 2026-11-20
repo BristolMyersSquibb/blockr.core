@@ -29,9 +29,12 @@
 // those that the call raises through its `notify`.
 //
 // It gives the board actions that apply to a target, opens the menu of a
-// target, and triggers one by its id, running its batch through CoreApi's
-// command registry (../actions/actions.ts). The menu that is open closes as
-// the next board opens.
+// target, triggers one by its id, running its batch through CoreApi's command
+// registry, and opens or mounts a board action's advanced action
+// (../actions/actions.ts). Core shows an advanced action in the place that
+// the caller gives, or in that of the frontend that draws the board, or in
+// core's dialog. The menu that is open closes as the next board opens, and so
+// does every advanced action.
 //
 // Where the store or the command registry refuses an edit that a plugin makes
 // through CoreApi, of whatever origin, core tells the user why, as an error of
@@ -41,7 +44,7 @@
 // the host's block or board option (../mount/block.ts, ../mount/option.ts).
 
 import { boardActionsApi } from "../actions/index.ts";
-import type { BoardActions, ShowMenu } from "../actions/index.ts";
+import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index.ts";
 import { isLogged } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
@@ -59,6 +62,7 @@ import {
   coreNotification,
   errorMessage,
   givenNotifier,
+  holdsObject,
   isBoardObject,
   isPackageName,
   jsonEqual,
@@ -80,10 +84,16 @@ export interface CoreParts {
   readonly store: Store;
   readonly commands: Commands;
   // The board actions registered for the board, core's own and those of the
-  // classes of the app's plugins, which CoreApi offers and triggers, and what
-  // draws each menu of board actions that CoreApi opens.
+  // classes of the app's plugins, which CoreApi offers and triggers, what
+  // draws each menu of board actions that CoreApi opens, and what draws core's
+  // dialog, which shows each advanced action that neither the caller nor the
+  // frontend shows.
   readonly boardActions: BoardActions;
   readonly showMenu: ShowMenu;
+  readonly showDialog: ShowDialog;
+  // The place of the frontend that draws the board, where the frontend's
+  // module gives `advanced`, as the page's frontends give it (./frontends.ts).
+  readonly advanced?: () => Place | undefined;
   readonly scheduler: Scheduler;
   readonly loader: Loader;
   readonly blockrOptions: BlockrOptions;
@@ -234,6 +244,8 @@ export function createCore(parts: CoreParts): Core {
       refused,
       raiseAgain: notifications.raiseAgain,
       show: parts.showMenu,
+      dialog: parts.showDialog,
+      ...(parts.advanced === undefined ? {} : { frontend: parts.advanced }),
       ...(parts.signal === undefined ? {} : { signal: parts.signal }),
     }),
     scheduler: {
@@ -573,13 +585,7 @@ function createSelection(
   // option where the board holds its value, and a plugin where the app runs
   // it. No change removes a plugin from the open board, so a selected plugin
   // stays selected until a plugin sets the selection again.
-  function holds(object: BoardObject, board: Board): boolean {
-    if ("block" in object) return Object.hasOwn(board.blocks, object.block);
-    if ("link" in object) return Object.hasOwn(board.links, object.link);
-    if ("stack" in object) return Object.hasOwn(board.stacks, object.stack);
-    if ("option" in object) return Object.hasOwn(board.options, object.option);
-    return Object.hasOwn(plugins.appPlugins(), object.plugin);
-  }
+  const holds = (object: BoardObject, board: Board): boolean => holdsObject(board, object, plugins.appPlugins());
 
   const offStore = store.subscribe((_change, board) => {
     const kept = selected.filter((object) => holds(object, board));

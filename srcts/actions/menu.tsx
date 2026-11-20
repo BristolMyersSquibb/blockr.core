@@ -22,6 +22,13 @@
 // heading in a group under it, and each multi as a group of its choices, which
 // tick. A level that loads says so, after a moment, so that one that loads at
 // once shows nothing, and one that failed shows why, in the danger colour.
+// A level whose board action has an advanced action shows the open icon at
+// its top right, at the end of the title's line: a button named "Show all
+// options". An item that gives `advanced` shows the icon at its end, and a
+// click on the icon opens the advanced action, where a click elsewhere on the
+// item picks it. The icon is in the shape of blockr.ui's `open`, a box with an
+// arrow out of its top right corner
+// (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/open.svg).
 // A level with a text row has the focus in its first one, with the value
 // selected, one with a filter in the filter, and any other in its first row.
 // The keys:
@@ -30,6 +37,10 @@
 //   a multi.
 // - Enter picks the row with the focus, submits a text row, and in the filter
 //   picks the first row left, or the row that the arrow keys moved to.
+// - Mod+Enter, Ctrl or Cmd with Enter, opens the advanced action, as a click
+//   on an open icon does: the icon of the row with the focus, or of the row
+//   that the arrow keys moved to from the filter, where it shows one, and
+//   otherwise the level's.
 // - The arrow keys move between the rows, from the filter too.
 // As the menu closes, the keyboard's focus returns to the element that the
 // user triggered from. React Aria's popover keeps a click outside the menu
@@ -39,7 +50,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Autocomplete, Input, Separator, TextField as AriaTextField } from "../aria/index.ts";
+import { Autocomplete, Button as AriaButton, Input, Separator, TextField as AriaTextField } from "../aria/index.ts";
 import { TextField } from "../inputs/index.ts";
 import { Menu, MenuItem, MenuSection, Popover } from "../overlays/index.ts";
 import type { MenuPlace, ShowMenu } from "./actions.ts";
@@ -119,6 +130,12 @@ function CoreMenu({ menu, at, insideRef }: { menu: OpenMenu; at: MenuPlace; insi
               event.preventDefault();
               event.stopPropagation();
               menu.escape();
+            } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && level.advanced) {
+              // Mod+Enter, which opens the advanced action, as a click on the
+              // open icon of the row with the focus does, or on the level's.
+              event.preventDefault();
+              event.stopPropagation();
+              void menu.openAdvanced(openRow(event.target)).catch(() => undefined);
             } else if (event.key === "Enter" && isFilter(event.target) && !event.target.hasAttribute("aria-activedescendant")) {
               // Enter in the filter, where the arrow keys moved to no row.
               event.preventDefault();
@@ -167,6 +184,9 @@ function Level({ menu, level, insideRef }: { menu: OpenMenu; level: ShownLevel; 
   const pick = (i?: number): void => {
     void menu.pick(i).catch(() => undefined);
   };
+  const openAdvanced = (i?: number): void => {
+    void menu.openAdvanced(i).catch(() => undefined);
+  };
   const grouped = groups(listed);
 
   const list = (
@@ -200,8 +220,12 @@ function Level({ menu, level, insideRef }: { menu: OpenMenu; level: ShownLevel; 
                 <Item
                   key={i}
                   row={row}
+                  index={i}
                   onPick={() => {
                     pick(i);
+                  }}
+                  onOpen={() => {
+                    openAdvanced(i);
                   }}
                 />
               ))}
@@ -214,8 +238,21 @@ function Level({ menu, level, insideRef }: { menu: OpenMenu; level: ShownLevel; 
 
   return (
     <>
-      {level.title === undefined ? null : (
-        <p className="bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted">{level.title}</p>
+      {level.advanced ? (
+        <div className="bc:flex bc:items-center bc:gap-2">
+          {level.title === undefined ? null : <p className={`${TITLE} bc:min-w-0 bc:flex-1`}>{level.title}</p>}
+          <AriaButton
+            aria-label="Show all options"
+            className={OPEN}
+            onPress={() => {
+              openAdvanced();
+            }}
+          >
+            <OpenIcon />
+          </AriaButton>
+        </div>
+      ) : level.title === undefined ? null : (
+        <p className={TITLE}>{level.title}</p>
       )}
       {level.loading ? (
         <p role="status" className={`${NOTE} bc:animate-[bc-appear_300ms_ease-out_300ms_both]`}>
@@ -293,8 +330,12 @@ function groups(listed: readonly { row: ShownRow; i: number }[]): Group[] {
 }
 
 // An item, with its icon before its label and its detail at its end, both of
-// which assistive technology reads with the label, in its name.
-function Item({ row, onPick }: { row: ItemRow; onPick: () => void }): ReactElement {
+// which assistive technology reads with the label, in its name, and after
+// them the open icon, where the item shows one. A click on the open icon
+// opens the advanced action, and does not reach the item, so that the item is
+// not picked. The open icon carries the item's index, by which Mod+Enter on
+// the item finds it.
+function Item({ row, index, onPick, onOpen }: { row: ItemRow; index: number; onPick: () => void; onOpen: () => void }): ReactElement {
   const { label, icon, detail } = row;
   const removes = row.category === "remove";
   return (
@@ -322,8 +363,56 @@ function Item({ row, onPick }: { row: ItemRow; onPick: () => void }): ReactEleme
         <span className="bc:min-w-0 bc:truncate">{label}</span>
       </span>
       {detail === undefined ? null : <span className="bc:text-xs bc:text-text-muted">{detail}</span>}
+      {row.advanced === true ? (
+        <span
+          aria-hidden="true"
+          data-open-row={index}
+          className={`${OPEN} bc:-my-1`}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+        >
+          <OpenIcon />
+        </span>
+      ) : null}
     </MenuItem>
   );
+}
+
+// The open icon, in the shape of blockr.ui's `open`, at the stroke of the
+// menu's icons.
+function OpenIcon(): ReactElement {
+  return (
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.25}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" />
+      <path d="M10 2.5h3.5V6M13.5 2.5 8 8" />
+    </svg>
+  );
+}
+
+// The row whose open icon Mod+Enter opens: the row with the focus, or the one
+// that the arrow keys moved to from the filter, where its open icon shows, or
+// undefined for the level's icon.
+function openRow(target: EventTarget | null): number | undefined {
+  if (!(target instanceof Element)) return undefined;
+  const active = isFilter(target) ? target.getAttribute("aria-activedescendant") : null;
+  const item = active === null ? target.closest('[role="menuitem"]') : target.ownerDocument.getElementById(active);
+  const marked = item?.querySelector("[data-open-row]")?.getAttribute("data-open-row");
+  return marked === undefined || marked === null ? undefined : Number(marked);
 }
 
 // A text row: a field that holds the row's value, and says below itself why
@@ -367,6 +456,12 @@ function isFilter(target: EventTarget): target is HTMLInputElement {
   return target instanceof HTMLInputElement && target.hasAttribute("data-filter");
 }
 
+// A level's title.
+const TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
+// The open icon, a button 24 px square at the end of the level's title, and
+// the same at the end of an item.
+const OPEN =
+  "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:data-focus-visible:ring-2 bc:data-focus-visible:ring-border-accent";
 // A note in place of rows, as that a level loads or that the filter leaves no
 // row.
 const NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";

@@ -24,6 +24,7 @@ export {
   checkRaised,
   coreNotification,
   givenNotifier,
+  holdsObject,
   isBoardObject,
   notifyNothing,
   raiseNothing,

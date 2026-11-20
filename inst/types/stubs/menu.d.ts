@@ -3,6 +3,7 @@ export interface StubMenu {
     level(): Omit<ShownLevel, "id"> | undefined;
     closed(): boolean;
     pick(label?: string): Promise<void>;
+    openAdvanced(label?: string): Promise<void>;
     tick(row: string, choice: string): void;
     type(value: string, row?: string): void;
     escape(): void;

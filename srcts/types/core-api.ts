@@ -60,6 +60,10 @@ export interface CoreApi {
     // Picking a row closes the menu and runs the board action's run, as
     // trigger() does, or opens its quick action as the menu's next level, in
     // which a pick that returns a batch closes the menu and runs the batch.
+    // It opens the board action's advanced action instead where the board
+    // action has no quick action, or its quick gives no level for the target.
+    // A click on the open icon of a level of a quick action, or of an item,
+    // closes the menu and opens the advanced action too.
     // Each batch runs with the commands that `extend` returns at its end, as
     // one step of the user. Where the store or the command registry refuses
     // the batch, core tells the user why through a notification of the code
@@ -78,6 +82,10 @@ export interface CoreApi {
         anchor: DOMRect;
         extend?(deltas: readonly Delta[]): readonly CommandCall[];
         notifier?(notifications: readonly Notification[], action: BoardAction): void;
+        // Shows each advanced action that the menu opens in room of the
+        // caller's, in place of the frontend's place, as the frontend's
+        // `advanced` member does (FrontendModule, below).
+        advanced?: FrontendModule["advanced"];
       },
     ): void;
     // Triggers the board action with the id given on the target, as a button
@@ -94,14 +102,21 @@ export interface CoreApi {
     //   at `anchor`, or at the box of `el`, as a menu of core's, which runs the
     //   batch of a row as menu() does, and closes the menu that is open. The
     //   keyboard's focus returns to `el` as the menu closes.
-    // Where the store or the command registry refuses the batch, core tells
-    // the user why through a notification of the code `board_edit_failed`.
-    // The notifier takes either notification in place of core, with the board
-    // action. It resolves once the batch has run, or once the menu has closed
-    // without one, and rejects with the refusal or the failure. It rejects for
-    // an id that no board action has, for a board action with neither `run`
-    // nor `quick`, since core opens no advanced action yet, for what is no
-    // target, and for options without `el`.
+    // - Where the board action has an advanced action alone, or its quick
+    //   gives no level for the target, it opens the advanced action in its
+    //   place: the caller's `advanced`, or else the frontend's place, or else
+    //   core's dialog, from which the keyboard's focus returns to `el`.
+    // Where the store or the command registry refuses the batch of a run or a
+    // row, core tells the user why through a notification of the code
+    // `board_edit_failed`. The notifier takes either notification in place of
+    // core, with the board action. It resolves once the batch has run, or
+    // once the menu has closed without one, and rejects with the refusal or
+    // the failure. For an advanced action, it resolves once the advanced
+    // action ends: once its done() has run a batch, or its place has closed
+    // without one. A batch that the store refuses there leaves the advanced
+    // action open, whose done() rejects with the refusal. It rejects for an id
+    // that no board action has, for what is no target, and for options
+    // without `el`.
     trigger(
       id: string,
       target: Target,
@@ -113,8 +128,21 @@ export interface CoreApi {
         // returns them, such as the position of a block that the batch adds.
         extend?(deltas: readonly Delta[]): readonly CommandCall[];
         notifier?(notifications: readonly Notification[], action: BoardAction): void;
+        advanced?: FrontendModule["advanced"];
       },
     ): Promise<void>;
+    // Renders the advanced action of the board action with the id given on
+    // the target in the element, which a plugin gives as room of its own, as
+    // the Edit board plugin shows the advanced action of Add block, until the
+    // function that it returns runs. The advanced action gets `picked` where
+    // given. There its done() runs the batch as one step of the user, and core
+    // renders the advanced action again, so that it is ready for the next
+    // edit. Where a board object that the target names leaves the board, core
+    // unmounts it and leaves the element empty. It renders nothing where on()
+    // leaves the board action out for the target. It throws for an id that no
+    // board action has, for a board action without an advanced action, for
+    // what is no target or no element, and once the next board has opened.
+    mountAdvanced(el: HTMLElement, id: string, target: Target, picked?: Json): () => void;
   };
   // The scheduler's methods for frontends and plugins. Core alone calls
   // the others.
@@ -479,6 +507,22 @@ export interface PluginModule {
 // asks to show a block or a plugin through CoreApi's show(), with the board
 // object, the page's element and CoreApi, and which may be async. A frontend
 // that keeps every block and plugin in view leaves it out.
+// It may give `advanced` too, which shows an advanced action in the
+// frontend's place, as the dock shows one in its sidebar
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#what-a-frontend-gives).
+// Core calls it with the board action's id, a title, the target, a mount()
+// and a close(). The frontend renders the advanced action in its place
+// through mount(), until the cleanup that mount() returns runs, and calls
+// close() as the user closes the place. It may pass mount() another target,
+// on which core renders the same board action where a menu of the target
+// offers it, and otherwise renders nothing, so that a pinned place may move on
+// to a block that a batch added, or follow core.selection. Each mount renders
+// the advanced action afresh.
+// It returns a function, which core calls once done() ends the advanced
+// action, with the deltas of the batch that done() ran, or with none where it
+// ran none. The frontend then closes its place, or keeps it open and mounts
+// the advanced action again, as a place that the user pinned does. A frontend
+// without it leaves every advanced action to core's dialog.
 export interface FrontendModule {
   render(args: {
     el: HTMLElement;
@@ -492,6 +536,13 @@ export interface FrontendModule {
     el: HTMLElement;
     core: CoreApi;
   }): void | Promise<void>;
+  advanced?(args: {
+    readonly id: string;
+    readonly title: string;
+    readonly target: Target;
+    readonly mount: (el: HTMLElement, target?: Target) => () => void;
+    readonly close: () => void;
+  }): (deltas?: readonly Delta[]) => void;
 }
 
 // Which blocks and plugins are on screen, which the frontend sets as what it

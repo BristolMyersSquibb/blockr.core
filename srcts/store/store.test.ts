@@ -2704,6 +2704,9 @@ describe("registering", () => {
     expect(() => register({ id, start: {} })).toThrow(`The plugin class "${id}" has a start that is no function.`);
     expect(() => register({ id, ui: "blockr.dock-dock" })).toThrow(`The plugin class "${id}" has a ui without a render() function.`);
     expect(() => register({ id, frontend: {} })).toThrow(`The plugin class "${id}" has a frontend without a render() function.`);
+    expect(() => register({ id, frontend: { render: () => undefined, advanced: "sidebar" } })).toThrow(
+      `The plugin class "${id}" has a frontend whose advanced is no function.`,
+    );
     expect(() => register({ id, storage: { save: () => undefined } })).toThrow(
       `The plugin class "${id}" has a storage without a controls() function.`,
     );
