@@ -66,7 +66,9 @@ test_that("the merge block's fixture", {
       list(by = I(c("Time", "demand")), all_x = TRUE, all_y = TRUE),
       list(by = I(c("Time", "demand")), all_x = FALSE, all_y = FALSE),
       list(by = I(c("demand", "Time")), all_x = FALSE, all_y = FALSE),
-      list(by = I("Time"), all_x = TRUE, all_y = FALSE)
+      list(by = I("Time"), all_x = TRUE, all_y = FALSE),
+      list(by = I("Time"), all_x = FALSE, all_y = TRUE),
+      list(by = I("Time"), all_x = TRUE, all_y = TRUE)
     ),
     inputs = list(x = datasets::BOD, y = datasets::BOD),
     requests = list(list(name = "shared"))
