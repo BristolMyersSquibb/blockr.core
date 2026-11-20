@@ -7484,17 +7484,16 @@ var TRASH = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke=
 
 // srcts/actions/quick.ts
 var SUBJECTS = {
-  run: "The board action",
   quick: "The quick action of the board action",
   pick: "A row of the quick action of the board action",
   submit: "A row of the quick action of the board action"
 };
 var GAVE = {
-  run: 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].',
   quick: 'It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
   pick: "It gave neither a batch of commands nor a level of rows.",
   submit: 'It gave no batch of commands, as [{ id: "blockr.core-rename_block", args: { id: "a", name: "Head" } }].'
 };
+var NO_BATCH = 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].';
 var MENU = "Board actions";
 var FIRST = ["add", "edit", "clipboard"];
 var LAST = "remove";
@@ -7551,7 +7550,9 @@ function openMenu(start3, parts) {
       end();
       return Promise.resolve();
     }
-    const ran = parts.run(batch2, action2);
+    return closing(parts.run(batch2, action2));
+  }
+  function closing(ran) {
     ran.catch(() => void 0);
     end(ran);
     return ran;
@@ -7575,7 +7576,6 @@ function openMenu(start3, parts) {
     );
   }
   function outcome(value2, action2, what, replacing) {
-    if (what === "run" && value2 === void 0) return finish([], action2);
     if (what === "quick" && value2 === void 0) {
       place(
         {
@@ -7663,7 +7663,7 @@ function openMenu(start3, parts) {
     return found === void 0 ? { current: current2 } : { current: current2, found };
   }
   function enter(action2) {
-    if (action2.run !== void 0) return settle2(() => action2.run?.(parts.board(), parts.target, parts.core()), action2, "run");
+    if (action2.run !== void 0) return closing(parts.trigger(action2));
     if (action2.quick !== void 0) return settle2(() => action2.quick?.(parts.board(), parts.target, parts.core()), action2, "quick");
     place(
       { kind: "error", message: `The board action "${action2.id}" asks the user through its advanced action, which core does not open yet.` },
@@ -7691,7 +7691,7 @@ function openMenu(start3, parts) {
       if (picked.length === before.length && picked.every((id2, i) => id2 === before[i])) return [];
       try {
         const batch2 = row.apply(picked);
-        if (!isBatch(batch2)) throw new TypeError(GAVE.run);
+        if (!isBatch(batch2)) throw new TypeError(NO_BATCH);
         return batch2;
       } catch (error) {
         parts.failed(action2, new Error(`${SUBJECTS.submit} "${action2.id}" failed: ${errorMessage(error)}`, { cause: error }));
@@ -8024,6 +8024,10 @@ function boardActionsApi(actions, parts) {
     }
     await core.commands.run([...batch2, ...added], "user", notifier === void 0 ? void 0 : { notifier });
   }
+  async function runOf(action2, target2, given) {
+    const batch2 = await batchOf(action2, target2, notifierOf(given, action2));
+    if (batch2 !== void 0) await runBatch(batch2, action2, given);
+  }
   function open(start3, target2, given, closed) {
     void shown2?.close().catch(() => void 0);
     let hide;
@@ -8033,6 +8037,7 @@ function boardActionsApi(actions, parts) {
       core: parts.core,
       applies: (action2) => store.hasBoard() && applies(action2, store.board(), target2),
       run: (batch2, action2) => runBatch(batch2, action2, given),
+      trigger: (action2) => runOf(action2, target2, given),
       failed(action2, failure) {
         failed3(action2, failure, notifierOf(given, action2));
       },
@@ -8067,8 +8072,7 @@ function boardActionsApi(actions, parts) {
       }
       if (signal5?.aborted === true || !store.hasBoard() || !applies(action2, store.board(), checked4)) return;
       if (action2.run !== void 0) {
-        const batch2 = await batchOf(action2, checked4, notifierOf(given, action2));
-        if (batch2 !== void 0) await runBatch(batch2, action2, given);
+        await runOf(action2, checked4, given);
         return;
       }
       await new Promise((resolve, reject) => {

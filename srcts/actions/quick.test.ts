@@ -34,10 +34,13 @@ function asking(level: QuickLevel | (() => ReturnType<NonNullable<BoardAction["q
 }
 
 // A menu with parts that record each batch that it runs, with the id of its
-// board action, each failure that it reports, and each closing, with the
-// promise of what closing ran. A batch of `refused` rejects.
+// board action, each board action that they trigger, each failure that they
+// report, and each closing, with the promise of what closing ran. A batch of
+// `refused` rejects, and so does a board action triggered whose name says
+// that it fails.
 function opened(start: MenuStart, more: Partial<MenuParts> = {}) {
   const ran: [readonly CommandCall[], string][] = [];
+  const triggered: string[] = [];
   const failures: [string, string][] = [];
   const closings: (Promise<void> | undefined)[] = [];
   const menu = openMenu(start, {
@@ -49,6 +52,10 @@ function opened(start: MenuStart, more: Partial<MenuParts> = {}) {
       ran.push([batch, by.id]);
       return batch.some((call) => call.id === "refused") ? Promise.reject(new Error("Refused.")) : Promise.resolve();
     },
+    trigger(by) {
+      triggered.push(by.id);
+      return by.id.includes("fails") ? Promise.reject(new Error("The clipboard is refused.")) : Promise.resolve();
+    },
     failed(by, failure) {
       failures.push([by.id, failure.message]);
     },
@@ -57,7 +64,7 @@ function opened(start: MenuStart, more: Partial<MenuParts> = {}) {
     },
     ...more,
   });
-  return { menu, ran, failures, closings };
+  return { menu, ran, triggered, failures, closings };
 }
 
 // The labels of the rows that the menu shows.
@@ -118,38 +125,34 @@ describe("the menu of a target", () => {
     expect(reported.errors().map((line) => line.message)).toEqual(['The detail of the board action "blockr.test-broken_action" failed: boom']);
   });
 
-  test("closes and runs the batch that a board action's run returns, as the batch of that board action, calling run at once", async () => {
-    const calls: unknown[] = [];
-    const runs = action("runs", {
-      run(board, target, core) {
-        calls.push([board, target, core]);
-        return rename("Run");
-      },
-    });
-    const { menu, ran, closings } = opened({ actions: [action("other", { run: () => [] }), runs] });
+  test("closes at once as the user picks the row of a board action with run, which its parts trigger within the pick, as trigger() does", async () => {
+    const runs = action("runs", { run: () => rename("Run") });
+    const { menu, triggered, closings } = opened({ actions: [action("other", { run: () => [] }), runs] });
 
     const picked = menu.pick(1);
-    expect(calls).toEqual([[BOARD, { block: "a" }, CORE]]);
+    expect(triggered).toEqual([runs.id]);
     expect(menu.closed()).toBe(true);
-    await picked;
-
-    expect(ran).toEqual([[rename("Run"), runs.id]]);
     expect(closings).toHaveLength(1);
     expect(closings[0]).toBeInstanceOf(Promise);
+    await expect(picked).resolves.toBeUndefined();
   });
 
-  test("closes and runs nothing where run returns no batch or an empty one, or where the menu of the target no longer offers the board action", async () => {
-    for (const [run, applies] of [
-      [() => undefined, true],
-      [() => [], true],
-      [() => rename("Never"), false],
-    ] as const) {
-      const { menu, ran, closings } = opened({ actions: [action("runs", { run })] }, { applies: () => applies });
-      await menu.pick(0);
-      expect(menu.closed()).toBe(true);
-      expect(ran).toEqual([]);
-      expect(closings).toEqual([undefined]);
-    }
+  test("rejects a pick with what the board action's run failed with, once the menu has closed, since core tells the user of it as trigger() does", async () => {
+    const { menu, closings } = opened({ actions: [action("fails", { run: () => rename("Never") })] });
+
+    await expect(menu.pick(0)).rejects.toThrow("The clipboard is refused.");
+    expect(menu.closed()).toBe(true);
+    await expect(closings[0]).rejects.toThrow("The clipboard is refused.");
+  });
+
+  test("closes and triggers nothing where the menu of the target no longer offers the board action", async () => {
+    const { menu, triggered, closings } = opened({ actions: [action("runs", { run: () => rename("Never") })] }, { applies: () => false });
+
+    await menu.pick(0);
+
+    expect(menu.closed()).toBe(true);
+    expect(triggered).toEqual([]);
+    expect(closings).toEqual([undefined]);
   });
 
   test("shows a board action's quick action as its next level, from which Escape goes back, and closes from its first level", () => {

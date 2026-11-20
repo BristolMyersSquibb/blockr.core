@@ -15,8 +15,9 @@
 // A menu opens at one of two first levels:
 // - The menu of a target, which menu() opens: a row for each board action that
 //   on() gives the target, an item with the board action's label, icon,
-//   detail and category. Picking it runs the board action's run, or opens its
-//   quick action as the menu's next level.
+//   detail and category. Picking it closes the menu and runs the board
+//   action's run, as trigger() does, or opens its quick action as the menu's
+//   next level.
 // - The quick action of a board action, which trigger() opens.
 // The rules, after the menus that blockr.dock#544 planned:
 // - Picking an item whose pick returns a batch closes the menu and runs the
@@ -35,14 +36,16 @@
 //   types, and a multi's choices by their labels. Enter in the filter picks
 //   the first item left, or ticks the first choice left where a multi comes
 //   first.
-// - Where quick, pick or run returns a promise, the menu shows at the same
-//   spot that it is loading until the promise resolves, and the error's
-//   message in place of the rows where the promise rejects. Escape goes back
-//   as from any level, and drops what the promise brings later.
-// A function of a board action that throws or rejects, or gives what is no
+// - Where quick or pick returns a promise, the menu shows at the same spot
+//   that it is loading until the promise resolves, and the error's message in
+//   place of the rows where the promise rejects. Escape goes back as from any
+//   level, and drops what the promise brings later.
+// A function of a quick action that throws or rejects, or gives what is no
 // level or no batch, is a fault of the board action's package, which core
-// logs at error. The menu shows the message in place of the rows, but for
-// a multi's apply as the menu closes, whose fault the menu can no longer show
+// logs at error, and the menu shows the message in place of the rows.
+// A board action's run, and a multi's apply as the menu closes, fail after the
+// menu has closed. So core tells the user of their faults through a
+// notification of the code board_action_failed, as trigger() does
 // (MenuParts, below).
 // The open icon of a level, which opens the board action's advanced action,
 // comes with the advanced actions. Until then, the row of a board action that
@@ -180,6 +183,11 @@ export interface MenuParts {
   // Runs a batch of the board action as one step of the user, and resolves
   // once it has run, or rejects with the refusal.
   readonly run: (batch: readonly CommandCall[], action: BoardAction) => Promise<void>;
+  // Runs the board action's run as trigger() does, and resolves once its
+  // batch has run, or rejects with the refusal or the failure, which core has
+  // told the user of. It calls run at once, so that a copy within the user's
+  // click runs within it.
+  readonly trigger: (action: BoardAction) => Promise<void>;
   // Tells the user that a multi's apply of the board action failed as the
   // menu closed, where the menu no longer shows it, and logs it as a fault of
   // the board action's package.
@@ -220,14 +228,13 @@ interface Showing {
 type MultiRow = Extract<QuickRow, { kind: "multi" }>;
 type TextRow = Extract<QuickRow, { kind: "text" }>;
 
-// The function of a board action whose fault a menu shows: its run or its
-// quick, or the pick or the submit of a row of its quick action, whose
-// check and apply count as the row's too.
-type Part = "run" | "quick" | "pick" | "submit";
+// The function of a board action whose fault a menu shows: its quick, or the
+// pick or the submit of a row of its quick action, whose check counts as the
+// row's too.
+type Part = "quick" | "pick" | "submit";
 
 // What each part names in the line that core logs for its fault.
 const SUBJECTS: Readonly<Record<Part, string>> = {
-  run: "The board action",
   quick: "The quick action of the board action",
   pick: "A row of the quick action of the board action",
   submit: "A row of the quick action of the board action",
@@ -236,11 +243,13 @@ const SUBJECTS: Readonly<Record<Part, string>> = {
 // What core says of what a part gave, where it is none of what the part
 // gives.
 const GAVE: Readonly<Record<Part, string>> = {
-  run: 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].',
   quick: 'It gave no level of rows, as { rows: [{ kind: "item", label: "Head", pick: () => [] }] }.',
   pick: "It gave neither a batch of commands nor a level of rows.",
   submit: 'It gave no batch of commands, as [{ id: "blockr.core-rename_block", args: { id: "a", name: "Head" } }].',
 };
+
+// What core says of what a multi's apply gave, where it is no batch.
+const NO_BATCH = 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].';
 
 // What names the menu of a target to assistive technology.
 const MENU = "Board actions";
@@ -323,9 +332,13 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
       end();
       return Promise.resolve();
     }
-    const ran = parts.run(batch, action);
-    // The caller that waits for the batch gets the refusal, and the page hears
-    // no rejection that nobody waits for.
+    return closing(parts.run(batch, action));
+  }
+
+  // Closes the menu, which what it started goes on behind, and resolves or
+  // rejects as that does. The caller that waits for it gets the refusal, and
+  // the page hears no rejection that nobody waits for.
+  function closing(ran: Promise<void>): Promise<void> {
     ran.catch(() => undefined);
     end(ran);
     return ran;
@@ -357,7 +370,6 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
 
   // What a function of the board action gave, once it is no promise.
   function outcome(value: unknown, action: BoardAction, what: Part, replacing?: Entry): Promise<void> {
-    if (what === "run" && value === undefined) return finish([], action);
     if (what === "quick" && value === undefined) {
       place(
         {
@@ -461,12 +473,13 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
   }
 
   // Picks the board action of a row of the menu of a target, or opens the
-  // quick action that trigger() opens: it runs the board action's run, or
-  // shows its quick action as the menu's next level. Where the menu of the
-  // target no longer offers the board action, picking its row closes the
-  // menu and runs nothing, as trigger() does.
+  // quick action that trigger() opens: it closes the menu and runs the board
+  // action's run as trigger() does, or shows its quick action as the menu's
+  // next level. Where the menu of the target no longer offers the board
+  // action, picking its row closes the menu and runs nothing, as trigger()
+  // does.
   function enter(action: BoardAction): Promise<void> {
-    if (action.run !== undefined) return settle(() => action.run?.(parts.board(), parts.target, parts.core()), action, "run");
+    if (action.run !== undefined) return closing(parts.trigger(action));
     if (action.quick !== undefined) return settle(() => action.quick?.(parts.board(), parts.target, parts.core()), action, "quick");
     place(
       { kind: "error", message: `The board action "${action.id}" asks the user through its advanced action, which core does not open yet.` },
@@ -501,7 +514,7 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
       if (picked.length === before.length && picked.every((id, i) => id === before[i])) return [];
       try {
         const batch: unknown = row.apply(picked);
-        if (!isBatch(batch)) throw new TypeError(GAVE.run);
+        if (!isBatch(batch)) throw new TypeError(NO_BATCH);
         return batch;
       } catch (error) {
         parts.failed(action, new Error(`${SUBJECTS.submit} "${action.id}" failed: ${errorMessage(error)}`, { cause: error }));

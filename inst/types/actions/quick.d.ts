@@ -72,6 +72,7 @@ export interface MenuParts {
     readonly core: () => CoreApi;
     readonly applies: (action: BoardAction) => boolean;
     readonly run: (batch: readonly CommandCall[], action: BoardAction) => Promise<void>;
+    readonly trigger: (action: BoardAction) => Promise<void>;
     readonly failed: (action: BoardAction, failure: Error) => void;
     readonly closed: (ran: Promise<void> | undefined) => void;
 }

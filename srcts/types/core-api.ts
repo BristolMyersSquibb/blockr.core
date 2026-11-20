@@ -57,16 +57,18 @@ export interface CoreApi {
     // detail for the target and its category, in core's menu, which core draws
     // whichever package opens it, and runs by the rules of a quick action
     // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-menus-of-board-objects).
-    // Picking a row runs the board action's run, or opens its quick action as
-    // the menu's next level. A pick that returns a batch closes the menu and
-    // runs the batch, with the commands that `extend` returns at its end, as
+    // Picking a row closes the menu and runs the board action's run, as
+    // trigger() does, or opens its quick action as the menu's next level, in
+    // which a pick that returns a batch closes the menu and runs the batch.
+    // Each batch runs with the commands that `extend` returns at its end, as
     // one step of the user. Where the store or the command registry refuses
     // the batch, core tells the user why through a notification of the code
-    // `board_edit_failed`, which the notifier takes in place of core, with the
-    // board action that ran the batch. It opens no menu where on() gives the
-    // target none, and it closes the menu that is open. The keyboard's focus
-    // returns to `el` as the menu closes. It throws for what is no target, and
-    // for options without `el` and `anchor`.
+    // `board_edit_failed`, and where `run` throws, rejects or returns no
+    // batch, through one of the code `board_action_failed`. The notifier takes
+    // either in place of core, with the board action. It opens no menu where
+    // on() gives the target none, and it closes the menu that is open. The
+    // keyboard's focus returns to `el` as the menu closes. It throws for what
+    // is no target, and for options without `el` and `anchor`.
     menu(
       target: Target,
       opts: {

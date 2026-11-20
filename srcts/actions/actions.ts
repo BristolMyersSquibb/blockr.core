@@ -20,8 +20,9 @@
 // action that does not name it.
 // A call of menu() opens the menu of a target, with a row for each board
 // action that on() gives the target, which core runs by the rules of a quick
-// action (./quick.ts) and draws at the anchor (./menu.tsx). Picking a row runs
-// the board action's run, or opens its quick action as the menu's next level.
+// action (./quick.ts) and draws at the anchor (./menu.tsx). Picking a row
+// closes the menu and runs the board action's run as trigger() does, or opens
+// its quick action as the menu's next level.
 // A call of trigger() runs a board action that asks the user nothing in these
 // steps:
 // 1. Core looks the board action up by its id.
@@ -397,6 +398,14 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     await core.commands.run([...batch, ...added], "user", notifier === undefined ? undefined : { notifier });
   }
 
+  // Runs the board action's run on the target, and the batch that it returns
+  // as one step of the user, as trigger() does for a board action that asks
+  // the user nothing (steps 3 to 5, above).
+  async function runOf(action: BoardAction, target: Target, given: Given): Promise<void> {
+    const batch = await batchOf(action, target, notifierOf(given, action));
+    if (batch !== undefined) await runBatch(batch, action, given);
+  }
+
   // Opens a menu at the place that the caller gives, in place of the menu
   // that is open, which closes as at a click outside it, and calls `closed`
   // with the promise of the batch that it ran, if any, as it closes.
@@ -409,6 +418,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       core: parts.core,
       applies: (action) => store.hasBoard() && applies(action, store.board(), target),
       run: (batch, action) => runBatch(batch, action, given),
+      trigger: (action) => runOf(action, target, given),
       failed(action, failure) {
         failed(action, failure, notifierOf(given, action));
       },
@@ -444,8 +454,7 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       }
       if (signal?.aborted === true || !store.hasBoard() || !applies(action, store.board(), checked)) return;
       if (action.run !== undefined) {
-        const batch = await batchOf(action, checked, notifierOf(given, action));
-        if (batch !== undefined) await runBatch(batch, action, given);
+        await runOf(action, checked, given);
         return;
       }
       await new Promise<void>((resolve, reject) => {

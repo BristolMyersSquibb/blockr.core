@@ -32,7 +32,8 @@ const item = (label: string, more: Partial<Extract<QuickRow, { kind: "item" }>> 
 
 // Core's menu, drawn at a point beside a button that the user triggered from,
 // which has the keyboard's focus as the menu opens, with parts that record each
-// batch that it runs and unmount the menu as it closes.
+// batch that it runs, a board action's run's too, and unmount the menu as it
+// closes.
 async function drawn(start: MenuStart) {
   const trigger = document.createElement("button");
   trigger.textContent = "Open";
@@ -50,6 +51,12 @@ async function drawn(start: MenuStart) {
       run(batch, by) {
         ran.push([batch, by.id]);
         return Promise.resolve();
+      },
+      // Runs the board action's run and records its batch, as core's part
+      // runs it as trigger() does.
+      async trigger(by) {
+        const batch = await by.run?.({} as Board, { block: "a" }, {} as CoreApi);
+        if (batch !== undefined) ran.push([batch, by.id]);
       },
       failed: () => undefined,
       closed() {

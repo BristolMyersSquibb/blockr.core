@@ -392,6 +392,41 @@ describe("menu()", () => {
     s.stop();
   });
 
+  test("closes as the user picks a row whose run fails, and raises board_action_failed about the plugin, which core logs, or hands it to the notifier with the board action, as trigger() does", async () => {
+    const refused = action("Paste", ["block"], { run: () => Promise.reject(new Error("The clipboard is refused.")) });
+    const cls = listing("test", [refused]);
+    const s = await stubbed([cls]);
+    const message = 'The board action "blockr.test-Paste_action" failed: The clipboard is refused.';
+
+    const reported = logged();
+    const menu = s.menu({ block: "b" });
+    const picked = menu.pick("Paste");
+    // The menu closes before run settles.
+    expect(menu.closed()).toBe(true);
+    await expect(picked).rejects.toThrow(message);
+    const handed: [string[], string][] = [];
+    await expect(
+      s.menu({ block: "b" }, {
+        notifier(notifications, by) {
+          handed.push([notifications.map(notificationCode), by.id]);
+        },
+      }).pick("Paste"),
+    ).rejects.toThrow(message);
+    reported.restore();
+
+    expect(reported.errors().map((line) => line.message)).toEqual([message, message]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_action_failed")).toEqual([
+      {
+        severity: "error",
+        message,
+        source: { kind: "core", code: "board_action_failed", module: { object: { plugin: cls.id }, package: "blockr.test" } },
+        about: { plugin: cls.id },
+      },
+    ]);
+    expect(handed).toEqual([[["board_action_failed"], refused.id]]);
+    s.stop();
+  });
+
   test("runs nothing for a row whose board action no longer applies to the target, as where the block left the board since the menu opened", async () => {
     const s = await stubCore();
     const menu = s.menu({ block: "f" });
