@@ -131,9 +131,11 @@ function Heading({ column }: { column: TableColumn }): ReactElement {
 
 // The rows that the page holds, and the buttons to the page before and after,
 // where the table has more than one page.
+// The pager is inset as the table's cells are, so that its text lines up
+// with theirs.
 function Pager({ table, page, onPage }: { table: TableOutput; page: Page; onPage: (page: number) => void }): ReactElement {
   return (
-    <div className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:text-xs bc:text-text-muted">
+    <div className="bc:flex bc:items-center bc:justify-between bc:gap-2 bc:px-2 bc:text-xs bc:text-text-muted">
       <span>{rowsText(table, page)}</span>
       {(page.page > 1 || page.more) && (
         <div className="bc:flex bc:items-center bc:gap-2">
