@@ -754,6 +754,21 @@
   The search of the Edit board's tables is a `SearchField`, whose button clears it, as Escape does, and the upload block takes a file that the user drops on it, in a `DropZone` around a `FileTrigger` with a `Button`.
   The forms of the picker and of the Edit board's links and stacks are React Aria's `Form`, and the button that clears the pick of a `ComboBox` is a `FieldButton`.
   Compressed, core's vendor file grows from 177.5 KB to 219.4 KB (#755, #781).
+* Core's React SDK offers `NotificationList`, in which a UI shows the notifications that `useNotified()` gives it, in the message style of the design system of blockr.ui.
+  The list holds an item for each notification, in the order given.
+  Each item holds the notification's severity in `data-severity` and its message as text.
+  An error draws the theme's danger text on a danger fill, with a subtle danger edge, and a warning draws the same in the warning colors.
+  A message draws on the theme's neutral fill, with its neutral border.
+  Each item takes a font size of 13 pixels and a corner radius of 6 pixels.
+  The caller names the list in `aria-label`, as "Errors", and places it.
+  Where no notification is given, the list draws nothing.
+  The danger fill is the theme's danger background, `--bc-color-bg-danger`.
+  Core's theme gains the variables of the warning fill and of the edges, named after the design tokens of blockr.ui: `--bc-color-bg-warning`, `--bc-color-border-danger-subtle` and `--bc-color-border-warning-subtle`.
+  Their defaults mix the theme's warning or danger border: at 10% for the warning fill, as the danger background does, and at 35% for the danger edge and 45% for the warning edge, as blockr.ui mixes its subtle borders (#788).
+* R sends the message of each condition in a reply, and the reason of an invalid or a waiting block, as plain text, without the ANSI escapes that cli adds where its colors are on.
+  While R evaluates blocks, makes outputs and answers requests, cli writes without colors, and puts plain marks in their place, such as quotes around a file name.
+  It also strips any escape that a message still holds.
+  So no UI needs to remove escapes before it shows a message (#788).
 * A board action's `advanced` is its advanced action, which holds every option of the board action in a place with enough room.
   It is a module of the new type `AdvancedModule`, whose `render()` gets the element, `CoreApi`, the target, a signal and `done()`.
   Its `done()` runs a batch as one step of the user, with the caller's `extend`, and ends the advanced action, or with no batch only ends it.

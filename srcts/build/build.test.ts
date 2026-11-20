@@ -439,6 +439,33 @@ test("draws the danger and the warning texts in shades that reach 4.5:1 under th
   expect(css.replace(theme, "")).not.toMatch(/--bc-color-text-(danger|warning):/);
 });
 
+test("fills an error and a warning, and edges them, in variables of its theme, mixed from the danger and the warning borders", async () => {
+  await write({
+    "test.css": `@import "${core}";\n@source inline("bc:bg-bg-danger bc:bg-bg-warning bc:border-border-danger-subtle bc:border-border-warning-subtle");\n`,
+  });
+
+  const css = await stylesheet(join(root, "test.css"));
+
+  // A utility reads the variable, so that a frontend restyles the fill or the
+  // edge by setting it.
+  expect(css).toMatch(/^\.bc\\:bg-bg-danger \{\n {2}background-color: var\(--bc-color-bg-danger\);/m);
+  expect(css).toMatch(/^\.bc\\:bg-bg-warning \{\n {2}background-color: var\(--bc-color-bg-warning\);/m);
+  expect(css).toMatch(/^\.bc\\:border-border-danger-subtle \{\n {2}border-color: var\(--bc-color-border-danger-subtle\);/m);
+  expect(css).toMatch(/^\.bc\\:border-border-warning-subtle \{\n {2}border-color: var\(--bc-color-border-warning-subtle\);/m);
+  // The defaults mix the borders, which the stylesheet then holds too, all in
+  // the theme's layer, so that a frontend that sets one outside a layer wins
+  // over them.
+  const start = css.indexOf("@layer theme {");
+  const theme = css.slice(start, css.indexOf("\n}\n", start));
+  expect(theme).toContain("--bc-color-bg-danger: color-mix(in oklab, var(--bc-color-border-danger) 10%, transparent);");
+  expect(theme).toContain("--bc-color-bg-warning: color-mix(in oklab, var(--bc-color-border-warning) 10%, transparent);");
+  expect(theme).toContain("--bc-color-border-danger-subtle: color-mix(in oklab, var(--bc-color-border-danger) 35%, transparent);");
+  expect(theme).toContain("--bc-color-border-warning-subtle: color-mix(in oklab, var(--bc-color-border-warning) 45%, transparent);");
+  expect(theme).toContain("--bc-color-border-danger: var(--bc-color-red-500);");
+  expect(theme).toContain("--bc-color-border-warning: var(--bc-color-amber-500);");
+  expect(css.replace(theme, "")).not.toMatch(/--bc-color-(bg-danger|bg-warning|border-danger-subtle|border-warning-subtle):/);
+});
+
 test("draws what floats over the board on the page's background, which the dark theme lightens, as a variable of its theme", async () => {
   await write({ "test.css": `@import "${core}";\n@source inline("bc:bg-bg-raised");\n` });
 

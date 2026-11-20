@@ -9,6 +9,8 @@
 // command palette.
 // The inputs, the buttons and the overlays are React Aria's, in core's theme,
 // and React Aria's FileTrigger and Autocomplete come unstyled.
+// It also holds the list in which a UI shows notifications, as useNotified()
+// gives them, in the message style of blockr.ui's design system.
 
 export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } from "./hooks.ts";
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
@@ -84,3 +86,5 @@ export {
   Popover,
 } from "../overlays/index.ts";
 export type { CommandPaletteProps, MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
+export { NotificationList } from "./notifications.tsx";
+export type { NotificationListProps } from "./notifications.tsx";

@@ -6,3 +6,5 @@ export { Autocomplete, Button, Checkbox, CheckboxGroup, ComboBox, ComboBoxItem, 
 export type { ButtonProps, CheckboxGroupProps, CheckboxProps, ComboBoxProps, ComboBoxSectionProps, NumberFieldProps, RadioGroupProps, RadioProps, SearchFieldProps, SelectProps, SelectSectionProps, SliderProps, SwitchProps, TagGroupProps, TagProps, TextFieldProps, ToggleButtonGroupProps, ToggleButtonProps, TokenFieldProps, } from "../inputs/index.ts";
 export { CommandPalette, Dialog, DialogTrigger, Heading, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Modal, Popover, } from "../overlays/index.ts";
 export type { CommandPaletteProps, MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
+export { NotificationList } from "./notifications.tsx";
+export type { NotificationListProps } from "./notifications.tsx";
