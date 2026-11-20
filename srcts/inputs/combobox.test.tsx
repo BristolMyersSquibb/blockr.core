@@ -14,6 +14,7 @@ import type { BlockFixture } from "../stubs/index.ts";
 import { press, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import {
+  chipFromLabel,
   chipLabels,
   cleared,
   clearButton,
@@ -123,6 +124,17 @@ describe("a select of one item", () => {
       type(field, "an");
     });
     expect(optionLabels(field)).toEqual(["Banana"]);
+  });
+
+  test("opens no list on a press in the field where it is read-only, as React Aria's ComboBox opens none then", async () => {
+    const { el } = await draw(<Held label="Fruit" defaultItems={fruits} start="apple" seen={[]} isReadOnly />);
+    const field = labelled(el, "Fruit");
+
+    await step(() => {
+      field.click();
+    });
+
+    expect(listFromField(field)).toBeNull();
   });
 
   test("calls onChange with the id of the item that the user picks, and shows the item's text", async () => {
@@ -347,6 +359,43 @@ describe("a select of several items", () => {
 
     expect(seen).toEqual([["apple", "cherry"], ["apple"]]);
     expect(chipLabels(field)).toEqual(["Apple"]);
+  });
+
+  test("keeps its picks where it is disabled or read-only, as its chips show no button, and neither Delete nor Backspace removes one", async () => {
+    // The buttons that the chips show, by their names, and each change that
+    // the select calls onChange with as the user presses Delete on the chip
+    // of Apple, then Backspace on that of Banana and in the empty field.
+    const removed = async (props: Pick<ComboBoxProps<Fruit, "multiple">, "isDisabled" | "isReadOnly">): Promise<[string[], unknown[]]> => {
+      const seen: unknown[] = [];
+      const { el, unmount } = await draw(
+        <Held label="Fruits" selectionMode="multiple" defaultItems={fruits} start={["apple", "banana", "cherry"]} seen={seen} {...props} />,
+      );
+      const field = labelled(el, "Fruits");
+      const buttons = chipLabels(field).flatMap((label) => chipFromLabel(field, label).querySelector("button")?.getAttribute("aria-label") ?? []);
+      for (const [label, key] of [
+        ["Apple", "Delete"],
+        ["Banana", "Backspace"],
+      ] as const) {
+        await step(() => {
+          const chip = chipFromLabel(field, label);
+          chip.focus();
+          press(chip, key);
+        });
+      }
+      await step(() => {
+        field.focus();
+        press(field, "Backspace");
+      });
+      await unmount();
+      return [buttons, seen];
+    };
+
+    expect(await removed({})).toEqual([
+      ["Remove Apple", "Remove Banana", "Remove Cherry"],
+      [["banana", "cherry"], ["cherry"], []],
+    ]);
+    expect(await removed({ isDisabled: true })).toEqual([[], []]);
+    expect(await removed({ isReadOnly: true })).toEqual([[], []]);
   });
 });
 

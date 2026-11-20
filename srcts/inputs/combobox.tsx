@@ -23,6 +23,10 @@
 // Bound, a select of one unsets its state arg so, as a block's new select of
 // an arg without a default starts.
 // A press in the field opens the list, as typing into it does.
+// Where the select is disabled or read-only, the field changes no pick, as
+// React Aria's ComboBox changes none then.
+// Its chips show no button and remove nothing on a key, Backspace removes
+// nothing, no button clears, and a press in the field opens no list.
 // The list hangs below the field, or above it where the window has no room
 // below, as wide as the field.
 // React Aria draws it in a portal at the end of the page's body, above a modal
@@ -252,6 +256,7 @@ function Drawn({
   ...props
 }: DrawnProps): ReactElement {
   const multiple = props.selectionMode === "multiple";
+  const editable = props.isDisabled !== true && props.isReadOnly !== true;
   const given = props.items ?? props.defaultItems;
   // Whether it has no items yet, as its children draw an item with none given.
   const unknown = given === undefined && typeof children === "function";
@@ -271,7 +276,8 @@ function Drawn({
         placeholder={placeholder}
         multiple={multiple}
         marking={marking}
-        clearable={props.isRequired !== true && props.isDisabled !== true && props.isReadOnly !== true}
+        editable={editable}
+        clearable={props.isRequired !== true && editable}
         onClear={onClear}
         label={label}
       />
@@ -324,6 +330,7 @@ function Field({
   placeholder,
   multiple,
   marking,
+  editable,
   clearable,
   onClear,
   label,
@@ -331,6 +338,9 @@ function Field({
   readonly placeholder: string | undefined;
   readonly multiple: boolean;
   readonly marking: boolean;
+  // Whether the field changes the pick, as not where the select is disabled
+  // or read-only.
+  readonly editable: boolean;
   readonly clearable: boolean;
   readonly onClear: (() => void) | undefined;
   readonly label: string | undefined;
@@ -352,7 +362,11 @@ function Field({
     <Group isInvalid={invalid} className={FIELD}>
       <div className={VALUES}>
         {keys.length === 0 ? null : (
-          <TagGroup aria-label={label === undefined ? "Picks" : `Picks of ${label}`} onRemove={remove} className="bc:flex bc:min-w-0 bc:max-w-full">
+          <TagGroup
+            aria-label={label === undefined ? "Picks" : `Picks of ${label}`}
+            onRemove={editable ? remove : undefined}
+            className="bc:flex bc:min-w-0 bc:max-w-full"
+          >
             <TagList className="bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1">
               {keys.map((key) => {
                 const text = known.get(key) ?? String(key);
@@ -360,9 +374,11 @@ function Field({
                 return (
                   <Tag key={key} id={key} textValue={text} data-missing={gone || undefined} className={CHIP}>
                     <span className="bc:truncate">{gone ? missing(text) : text}</span>
-                    <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
-                      <Cross />
-                    </Button>
+                    {editable ? (
+                      <Button slot="remove" aria-label={`Remove ${text}`} className={CHIP_REMOVE}>
+                        <Cross />
+                      </Button>
+                    ) : null}
                   </Tag>
                 );
               })}
@@ -375,14 +391,14 @@ function Field({
           aria-invalid={invalid || undefined}
           className={INPUT}
           onClick={() => {
-            if (state !== null && !state.isOpen) state.open(null, "manual");
+            if (editable && state !== null && !state.isOpen) state.open(null, "manual");
           }}
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
             // An Escape that closes the list closes nothing else, such as the
             // dialog or the form that holds the select, which React Aria lets
             // it reach.
             if (event.key === "Escape" && state?.isOpen === true) event.preventDefault();
-            if (event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
+            if (!editable || event.key !== "Backspace" || event.currentTarget.value !== "" || keys.length === 0) return;
             state?.setValue(keys.slice(0, -1));
           }}
         />
@@ -534,8 +550,10 @@ const OPENER =
 // A chip of a pick that the items lack shows in the colour of danger, as the
 // field then does, through the attributes that mark them, whose classes win
 // over those of their default colours.
+// A chip with no button, as where the select is disabled or read-only, pads
+// its right as it pads its left.
 const CHIP =
-  "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-0.5 bc:pl-1.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
+  "bc:inline-flex bc:max-w-full bc:min-w-0 bc:items-center bc:gap-0.5 bc:rounded bc:border bc:border-border-default bc:bg-bg-subtle bc:py-0 bc:pr-1.5 bc:pl-1.5 bc:data-allows-removing:pr-0.5 bc:text-xs bc:leading-5 bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-missing:border-border-danger bc:data-missing:text-text-danger";
 const CHIP_REMOVE =
   "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default";
 // The list takes the field's width, and the box of the rows scrolls within

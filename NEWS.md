@@ -660,6 +660,8 @@
   It picks one item, or several where its `selectionMode` is `"multiple"`, out of a list that the user filters by typing into its field, and draws the items that `ComboBoxItem` and `ComboBoxSection` give, with React Aria's `Text` for an item's description.
   The field of several shows each pick as a chip, which its button removes, as Backspace in the empty field removes the last one.
   A button at the field's right, before the one that opens the list, clears the pick, or every pick, but where the select `isRequired`.
+  Where the select is disabled or read-only, its field changes no pick.
+  Its chips then show no button and remove nothing on a key, Backspace removes nothing, no button clears, and a press in the field opens no list.
   A bound select of one leaves its state arg unset so, through the new `unset()` of the binding of `bind()` and of `Bound` in the SDK, as a new block leaves an arg without a default.
   For that, a block host's `submit()` leaves a state arg that its change gives as `undefined` unset, through the `unset` of `set_block`.
   React Aria draws the list as wide as the field, in a portal at the end of the page's body.
@@ -667,7 +669,7 @@
   Given `bound`, it binds a block's state arg or a board option's value, as before: one string, or an array of strings, which it submits once, as its list closes, in place of `Checklist`, which is gone.
   The page loads the parts of React Aria that core draws with in core's vendor file, and the types of `@blockr/core` name React Aria as a dependency.
   The `comboBox()` of `controls()` takes `items`, `selectionMode`, `ordered` and `renderEmptyState`, in place of `select()` and `checklist()`, which are gone, as are `Choice` and `asChoices()`.
-  Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684).
+  Core's picker, the forms of its Edit board plugin, its board options and its blocks draw with the select, in place of the native selects and the searchable dropdowns that they drew until now (#684, #770).
 * The `selection` of `CoreApi` holds the board objects that the user selected, such as `[{ block: "a" }, { link: "ab" }]`.
   Whatever selects sets it, as the DAG will as the user selects nodes, links and stacks, while core's basic frontend selects nothing.
   Its `get()` gives the board objects selected, its `set()` selects those given in place of them, and its `subscribe()` calls back whenever they change.
