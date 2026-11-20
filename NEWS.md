@@ -713,6 +713,17 @@
   Where a board action's `run` throws, rejects or returns no batch, core raises `board_action_failed` about the plugin whose class lists the board action, unless the caller's `notifier` takes it, and `trigger()` rejects.
   Core's own board actions are Copy block ID, which puts the block's ID on the clipboard and raises `copy_failed` where the browser refuses, and Remove block, Remove link, Remove stack and Remove on a selection.
   Under the board lock, every one of them but Copy block ID fails its `offers` (#742).
+* The call `core.boardActions.menu(target, opts)` opens the menu of a target at `opts.anchor`, with a row for each board action that `on()` gives the target, whichever package opens the menu.
+  Core draws the menu with the `Menu` of the SDK: the rows of each category together, with a divider between two categories, in the order add, edit, clipboard, the categories of packages and remove, each row with its icon and its `detail` at its end, and the rows that remove in the theme's danger color under the pointer.
+  Picking a row runs the board action's `run`, or opens its quick action as the menu's next level.
+  A board action's `quick` gives its quick action, a level of rows of the types `QuickLevel` and `QuickRow`, in which an item runs a batch or opens a further level at the same spot, a multi ticks its choices and applies them as the menu closes, and a text row refuses a value in place and submits it on Enter.
+  Escape goes back a level, a level's filter narrows its rows as the user types, with Enter picking the first row left, and a level that waits for a promise shows that it loads, or the message that the promise rejects with.
+  Core runs the batch of a row with the caller's `extend`, as one step.
+  The call `trigger()` takes the element that the user triggered from, `el`, and opens the quick action of a board action with `quick` at `anchor`, or at the box of `el`.
+  The keyboard's focus returns to `el` as either menu closes.
+  The `notifier` of `menu()` and of `trigger()` gets the board action with the notifications of a refused batch.
+  Core's board action Rename renames a block or a stack through a text row that holds the name, and core's board actions that remove carry a bin as their icon.
+  Core runs each menu by the same rules under the `CoreApi` for tests and draws none there, and the `menu()` of `stubCore()` opens the menu of a target, or gives the menu that is open, whose rows a test picks by their labels (#743).
 
 # blockr.core 0.1.4
 

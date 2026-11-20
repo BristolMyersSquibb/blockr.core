@@ -52,30 +52,65 @@ export interface CoreApi {
     // them. It throws for what is no target, and gives none while the store
     // holds no board.
     on(target: Target): readonly BoardAction[];
-    // Runs the board action with the id given on the target, where the board
-    // action asks the user nothing: the batch that its `run` returns, or that
-    // a promise of its `run` resolves with, with the commands that `extend`
-    // returns at its end, as one step of the user. It runs nothing where on()
-    // leaves the board action out for the target, as under the board lock for
-    // every board action of core's but Copy block ID. Where the store or the
-    // command registry refuses the batch, core tells the user why through a
-    // notification of the code `board_edit_failed`. Where `run` throws,
-    // rejects or returns no batch, core tells the user through one of the code
-    // `board_action_failed`, about the plugin whose class lists the board
-    // action. The notifier takes either in place of core. It resolves once
-    // the batch has run, and rejects with the refusal or the failure. It
-    // rejects for an id that no board action has, for a board action without
-    // `run`, since core opens no quick action and no advanced action yet, and
-    // for what is no target.
+    // Opens the menu of the target at the anchor, with a row for each board
+    // action that on() gives the target, showing its label, its icon, its
+    // detail for the target and its category, in core's menu, which core draws
+    // whichever package opens it, and runs by the rules of a quick action
+    // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-menus-of-board-objects).
+    // Picking a row runs the board action's run, or opens its quick action as
+    // the menu's next level. A pick that returns a batch closes the menu and
+    // runs the batch, with the commands that `extend` returns at its end, as
+    // one step of the user. Where the store or the command registry refuses
+    // the batch, core tells the user why through a notification of the code
+    // `board_edit_failed`, which the notifier takes in place of core, with the
+    // board action that ran the batch. It opens no menu where on() gives the
+    // target none, and it closes the menu that is open. The keyboard's focus
+    // returns to `el` as the menu closes. It throws for what is no target, and
+    // for options without `el` and `anchor`.
+    menu(
+      target: Target,
+      opts: {
+        // The element that the user triggered from, and the box at which the
+        // menu opens, such as the pointer of a right click.
+        el: HTMLElement;
+        anchor: DOMRect;
+        extend?(deltas: readonly Delta[]): readonly CommandCall[];
+        notifier?(notifications: readonly Notification[], action: BoardAction): void;
+      },
+    ): void;
+    // Triggers the board action with the id given on the target, as a button
+    // or a gesture does. It runs nothing where on() leaves the board action
+    // out for the target, as under the board lock for every board action of
+    // core's but Copy block ID. Otherwise:
+    // - Where the board action asks the user nothing, it runs the batch that
+    //   its `run` returns, or that a promise of its `run` resolves with, with
+    //   the commands that `extend` returns at its end, as one step of the user.
+    //   Where `run` throws, rejects or returns no batch, core tells the user
+    //   through a notification of the code `board_action_failed`, about the
+    //   plugin whose class lists the board action.
+    // - Where the board action has a quick action, it opens the quick action
+    //   at `anchor`, or at the box of `el`, as a menu of core's, which runs the
+    //   batch of a row as menu() does, and closes the menu that is open. The
+    //   keyboard's focus returns to `el` as the menu closes.
+    // Where the store or the command registry refuses the batch, core tells
+    // the user why through a notification of the code `board_edit_failed`.
+    // The notifier takes either notification in place of core, with the board
+    // action. It resolves once the batch has run, or once the menu has closed
+    // without one, and rejects with the refusal or the failure. It rejects for
+    // an id that no board action has, for a board action with neither `run`
+    // nor `quick`, since core opens no advanced action yet, for what is no
+    // target, and for options without `el`.
     trigger(
       id: string,
       target: Target,
-      opts?: {
+      opts: {
+        el: HTMLElement;
+        anchor?: DOMRect;
         // The caller's commands, which run after the batch in the same step,
         // for the deltas that the batch will apply, as core.commands.plan()
         // returns them, such as the position of a block that the batch adds.
         extend?(deltas: readonly Delta[]): readonly CommandCall[];
-        notifier?(notifications: readonly Notification[]): void;
+        notifier?(notifications: readonly Notification[], action: BoardAction): void;
       },
     ): Promise<void>;
   };

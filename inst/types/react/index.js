@@ -377,6 +377,7 @@ var Boundary = class extends Component {
 
 // srcts/aria/index.ts
 import {
+  Autocomplete,
   Button,
   Collection,
   ComboBox,
@@ -404,6 +405,7 @@ import {
   NumberField,
   NumberFieldStateContext,
   Popover,
+  Separator,
   Tag,
   TagGroup,
   TagList,

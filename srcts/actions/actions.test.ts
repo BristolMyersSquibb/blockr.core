@@ -1,11 +1,13 @@
 // Board actions on the CoreApi for tests: those that core registers, its own and
 // those that the classes of the app's plugins list, the classes that core
 // refuses for a board action that breaks a rule, the board actions that on()
-// gives for a target, and triggering one that asks the user nothing.
+// gives for a target, the menu of a target, which the CoreApi for tests
+// drives by the labels of its rows, and triggering a board action, one that
+// asks the user nothing and one with a quick action.
 
 import { describe, expect, test } from "vitest";
 import type { HelloReply } from "../protocol/index.ts";
-import type { PluginClass } from "../store/index.ts";
+import type { Delta, PluginClass } from "../store/index.ts";
 import { HELLO, stubCore } from "../stubs/index.ts";
 import { logged } from "../testing/logged.ts";
 import { held, notificationCode } from "../testing/notifications.ts";
@@ -14,9 +16,13 @@ import { withPlugins } from "../testing/store.ts";
 import type { Board } from "../types/board.ts";
 import type { CoreApi, Notification } from "../types/core-api.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
+import type { QuickLevel } from "./quick.ts";
 
 // Core's board actions on a block, which come first in every menu of one.
-const ON_BLOCK = ["blockr.core-copy_block_id_action", "blockr.core-remove_block_action"];
+const ON_BLOCK = ["blockr.core-rename_action", "blockr.core-copy_block_id_action", "blockr.core-remove_block_action"];
+
+// The element that the user triggers from, which a trigger() needs.
+const el = document.body;
 
 // A board action of blockr.test on the kinds of target given, labelled by its
 // name, which runs no batch unless `more` gives a run of its own.
@@ -174,6 +180,11 @@ describe("the board actions that core registers", () => {
       [{ ...action("x", ["block"]), offers: true }],
       'gives the board action "blockr.test-x_action", whose offers is no function.',
     ],
+    [
+      "a board action whose quick is no function",
+      [{ ...action("x", ["block"]), run: undefined, quick: { rows: [] } }],
+      'gives the board action "blockr.test-x_action", whose quick is no function.',
+    ],
   ])("refuse a class that gives %s, as a package that writes its JS without types may", async (_what, given, message) => {
     const cls: PluginClass = { id: "blockr.test-untyped_plugin", boardActions: given as readonly BoardAction[] };
     const reported = logged();
@@ -261,6 +272,214 @@ describe("on()", () => {
   });
 });
 
+describe("menu()", () => {
+  // A board action of blockr.test on blocks whose quick action is the level
+  // given.
+  function asking(name: string, level: QuickLevel, more: Partial<BoardAction> = {}): BoardAction {
+    return { ...action(name, ["block"]), run: undefined, quick: () => level, ...more };
+  }
+
+  // A multi of the blocks a and b, which ticks none, and whose apply runs the
+  // batch that `batch` returns.
+  function multi(batch: () => readonly CommandCall[]): QuickLevel {
+    return {
+      rows: [
+        {
+          kind: "multi",
+          label: "Blocks",
+          choices: [
+            { id: "a", label: "Iris", picked: false },
+            { id: "b", label: "Head", picked: false },
+          ],
+          apply: batch,
+        },
+      ],
+    };
+  }
+
+  const at = { el, anchor: new DOMRect(10, 20, 0, 0) };
+
+  test("opens the menu of the target with a row for each board action that on() gives it, in the order of their categories, which the CoreApi for tests drives by the labels of its rows", async () => {
+    const embed = action("Add to document", ["block"], { category: "document", detail: () => "Notes" });
+    const s = await stubbed([listing("test", [embed, action("Export", ["board"])])]);
+
+    const menu = s.menu({ block: "b" });
+
+    expect(menu.level()).toEqual({
+      label: "Board actions",
+      back: false,
+      loading: false,
+      rows: [
+        { kind: "item", label: "Rename", category: "edit" },
+        { kind: "item", label: "Copy block ID", detail: "b", category: "clipboard" },
+        { kind: "item", label: "Add to document", detail: "Notes", category: "document" },
+        { kind: "item", label: "Remove block", icon: expect.stringContaining("<svg") as string, category: "remove" },
+      ],
+    });
+    expect(s.menu()).toBe(menu);
+    expect(() => menu.pick("Nowhere")).toThrow(
+      'The menu shows no item or text row "Nowhere". It shows "Rename", "Copy block ID", "Add to document" and "Remove block".',
+    );
+    menu.escape();
+    expect(menu.closed()).toBe(true);
+    expect(s.menu()).toBeUndefined();
+    s.stop();
+  });
+
+  test("opens no menu where on() gives the target no board action, and throws for what is no target and for options without an element or an anchor", async () => {
+    const s = await stubCore();
+    const menu = (...args: unknown[]): void => {
+      (s.core.boardActions.menu as (...given: unknown[]) => void)(...args);
+    };
+
+    s.core.boardActions.menu({ board: true }, at);
+    expect(s.menu()).toBeUndefined();
+    expect(() => {
+      s.menu({ board: true });
+    }).toThrow('No board action applies to the target {"board":true}, so that no menu opens.');
+
+    expect(() => {
+      menu({ blok: "b" }, at);
+    }).toThrow(TypeError);
+    expect(() => {
+      menu({ block: "b" });
+    }).toThrow(
+      new TypeError("The `el` of menu() is the element that the user triggered from, to which the keyboard's focus returns."),
+    );
+    expect(() => {
+      menu({ block: "b" }, { el });
+    }).toThrow(new TypeError("The `anchor` of menu() is the box at which the menu opens, a DOMRect."));
+    expect(() => {
+      menu({ block: "b" }, { ...at, notifier: "toast" });
+    }).toThrow(new TypeError("The `notifier` of menu() is a function."));
+    expect(() => {
+      menu({ block: "b" }, { ...at, extend: "more" });
+    }).toThrow(new TypeError("The `extend` of menu() is a function."));
+    expect(s.menu()).toBeUndefined();
+    s.stop();
+  });
+
+  test("runs the batch of a row as one step of the user, with the commands that extend returns, and hands the notifier a refusal with the board action that ran the batch", async () => {
+    const renames = action("Rename to First", ["block"], { run: () => [{ id: "blockr.core-rename_block", args: { id: "b", name: "First" } }] });
+    const breaks = action("Break", ["block"], { run: () => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }] });
+    const s = await stubbed([listing("test", [renames, breaks])]);
+    const board = s.core.store.board();
+    const seen: string[][] = [];
+    const handed: [string[], string][] = [];
+    const opts = {
+      extend(deltas: readonly Delta[]): CommandCall[] {
+        seen.push(deltas.map((delta) => Object.keys(delta.blocks?.mod ?? {})).flat());
+        return [{ id: "blockr.core-rename_block", args: { id: "a", name: "Second" } }];
+      },
+      notifier(notifications: readonly Notification[], by: BoardAction) {
+        handed.push([notifications.map(notificationCode), by.id]);
+      },
+    };
+
+    const menu = s.menu({ block: "b" }, opts);
+    await menu.pick("Rename to First");
+
+    expect(menu.closed()).toBe(true);
+    expect(seen).toEqual([["b"]]);
+    expect(s.core.store.board().blocks.b?.name).toBe("First");
+    expect(s.core.store.board().blocks.a?.name).toBe("Second");
+    s.core.store.undo();
+    expect(s.core.store.board()).toEqual(board);
+
+    await expect(s.menu({ block: "b" }, opts).pick("Break")).rejects.toThrow('The list of commands was refused at command 1, "blockr.core-remove_link"');
+    expect(handed).toEqual([[["board_edit_failed"], breaks.id]]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_edit_failed")).toEqual([]);
+    s.stop();
+  });
+
+  test("runs nothing for a row whose board action no longer applies to the target, as where the block left the board since the menu opened", async () => {
+    const s = await stubCore();
+    const menu = s.menu({ block: "f" });
+
+    await s.core.commands.run([{ id: "blockr.core-remove_block", args: { id: "f" } }]);
+    const board = s.core.store.board();
+    await menu.pick("Remove block");
+
+    expect(menu.closed()).toBe(true);
+    expect(s.core.store.board()).toBe(board);
+    expect(held(s.core, (n) => n.source.kind === "core")).toEqual([]);
+    s.stop();
+  });
+
+  test("closes the menu that is open as another opens, as a click outside it does, which applies the ticks of a multi", async () => {
+    const ticks = asking("Ticks", multi(() => [{ id: "blockr.core-rename_block", args: { id: "b", name: "Ticked" } }]));
+    const s = await stubbed([listing("test", [ticks])]);
+
+    const first = s.menu({ block: "b" });
+    await first.pick("Ticks");
+    first.tick("Blocks", "Head");
+    const second = s.menu({ block: "a" });
+
+    expect(first.closed()).toBe(true);
+    expect(second.closed()).toBe(false);
+    expect(s.menu()).toBe(second);
+    await s.settled();
+    expect(s.core.store.board().blocks.b?.name).toBe("Ticked");
+    s.stop();
+  });
+
+  test("closes the menu that is open as the next board opens, and drops its ticks", async () => {
+    const ticks = asking("Ticks", multi(() => [{ id: "blockr.core-rename_block", args: { id: "b", name: "Ticked" } }]));
+    const s = await stubbed([listing("test", [ticks])]);
+
+    const menu = s.menu({ block: "b" });
+    await menu.pick("Ticks");
+    menu.tick("Blocks", "Head");
+    await s.core.store.open(JSON.stringify(HELLO.board));
+    await s.settled();
+
+    expect(menu.closed()).toBe(true);
+    expect(s.menu()).toBeUndefined();
+    expect(s.core.store.board().blocks.b?.name).toBe("Head");
+    s.stop();
+  });
+
+  test("raises board_action_failed about the plugin where a multi's apply fails as the menu closes, which core logs, or hands it to the notifier with the board action", async () => {
+    const ticks = asking(
+      "Ticks",
+      multi(() => {
+        throw new Error("boom");
+      }),
+    );
+    const cls = listing("test", [ticks]);
+    const s = await stubbed([cls]);
+    const message = 'A row of the quick action of the board action "blockr.test-Ticks_action" failed: boom';
+
+    const reported = logged();
+    const menu = s.menu({ block: "b" });
+    await menu.pick("Ticks");
+    menu.tick("Blocks", "Iris");
+    await menu.close();
+    const handed: [string[], string][] = [];
+    const notified = s.menu({ block: "b" }, {
+      notifier(notifications, by) {
+        handed.push([notifications.map(notificationCode), by.id]);
+      },
+    });
+    await notified.pick("Ticks");
+    notified.tick("Blocks", "Iris");
+    await notified.close();
+    reported.restore();
+
+    expect(reported.errors().map((line) => line.message)).toEqual([message, message]);
+    expect(held(s.core, (n) => notificationCode(n) === "board_action_failed")).toEqual([
+      {
+        severity: "error",
+        message,
+        source: { kind: "core", code: "board_action_failed", module: { object: { plugin: cls.id }, package: "blockr.test" } },
+        about: { plugin: cls.id },
+      },
+    ]);
+    expect(handed).toEqual([[["board_action_failed"], ticks.id]]);
+    s.stop();
+  });
+});
+
 describe("trigger()", () => {
   // A plugin class whose board action on blocks runs the batch that `run`
   // returns, and records what it got.
@@ -283,7 +502,7 @@ describe("trigger()", () => {
     const s = await stubbed([cls]);
     const board = s.core.store.board();
 
-    const triggered = s.core.boardActions.trigger(id, { block: "b" });
+    const triggered = s.core.boardActions.trigger(id, { block: "b" }, { el });
     // Before trigger() waits for anything, as a copy within the user's click
     // needs.
     expect(got).toHaveLength(1);
@@ -302,7 +521,7 @@ describe("trigger()", () => {
     const { cls, id } = running(() => Promise.resolve(rename("Later")));
     const s = await stubbed([cls]);
 
-    await s.core.boardActions.trigger(id, { block: "b" });
+    await s.core.boardActions.trigger(id, { block: "b" }, { el });
 
     expect(s.core.store.board().blocks.b?.name).toBe("Later");
     s.stop();
@@ -315,6 +534,7 @@ describe("trigger()", () => {
     const seen: unknown[] = [];
 
     await s.core.boardActions.trigger(id, { block: "b" }, {
+      el,
       extend(deltas) {
         seen.push(...deltas.map((delta) => Object.keys(delta.blocks?.add ?? {})));
         return [{ id: "blockr.core-rename_block", args: { id: "n", name: "Placed" } }];
@@ -333,9 +553,9 @@ describe("trigger()", () => {
     const s = await stubbed([cls]);
     const board = s.core.store.board();
 
-    await s.core.boardActions.trigger(id, { block: "b" });
+    await s.core.boardActions.trigger(id, { block: "b" }, { el });
     // A link is no target of the board action, whose on names blocks alone.
-    await s.core.boardActions.trigger(id, { link: "ab" });
+    await s.core.boardActions.trigger(id, { link: "ab" }, { el });
 
     expect(got).toEqual([]);
     expect(s.core.store.board()).toBe(board);
@@ -353,8 +573,8 @@ describe("trigger()", () => {
       return rename("Never");
     };
 
-    await s.core.boardActions.trigger(none.id, { block: "b" }, { extend });
-    await s.core.boardActions.trigger(empty.id, { block: "b" }, { extend });
+    await s.core.boardActions.trigger(none.id, { block: "b" }, { el, extend });
+    await s.core.boardActions.trigger(empty.id, { block: "b" }, { el, extend });
 
     expect(extended).toBe(0);
     expect(s.core.store.board()).toBe(board);
@@ -368,7 +588,7 @@ describe("trigger()", () => {
     const board = s.core.store.board();
     const refusals = () => held(s.core, (n) => notificationCode(n) === "board_edit_failed");
 
-    await expect(s.core.boardActions.trigger(id, { block: "b" })).rejects.toThrow(
+    await expect(s.core.boardActions.trigger(id, { block: "b" }, { el })).rejects.toThrow(
       'The list of commands was refused at command 2, "blockr.core-remove_link"',
     );
     expect(refusals()).toEqual([
@@ -383,6 +603,7 @@ describe("trigger()", () => {
     const handed: (readonly Notification[])[] = [];
     await expect(
       s.core.boardActions.trigger(id, { block: "b" }, {
+        el,
         notifier(notifications) {
           handed.push(notifications);
         },
@@ -402,6 +623,7 @@ describe("trigger()", () => {
 
     await expect(
       s.core.boardActions.trigger(id, { block: "b" }, {
+        el,
         extend() {
           extended = true;
           return [];
@@ -437,9 +659,9 @@ describe("trigger()", () => {
     const s = await stubbed([cls]);
 
     const reported = logged();
-    await expect(s.core.boardActions.trigger(id, { block: "b" })).rejects.toThrow(message);
+    await expect(s.core.boardActions.trigger(id, { block: "b" }, { el })).rejects.toThrow(message);
     // Anew for each failure, in place of the one before.
-    await expect(s.core.boardActions.trigger(id, { block: "b" })).rejects.toThrow(message);
+    await expect(s.core.boardActions.trigger(id, { block: "b" }, { el })).rejects.toThrow(message);
     reported.restore();
 
     expect(reported.errors().map((line) => line.message)).toEqual([message, message]);
@@ -462,6 +684,7 @@ describe("trigger()", () => {
     const reported = logged();
     await expect(
       s.core.boardActions.trigger(id, { block: "b" }, {
+        el,
         notifier(notifications) {
           handed.push(notifications);
         },
@@ -475,26 +698,115 @@ describe("trigger()", () => {
     s.stop();
   });
 
-  test("rejects for an id that no board action has, for a board action without run and for what is no target, no notifier or no extend", async () => {
-    const asks = { ...action("asks", ["block"]), run: undefined, quick: () => ({ rows: [] }) };
+  test("rejects for an id that no board action has, for a board action with neither run nor quick, and for what is no target, no element, no anchor, no notifier or no extend", async () => {
+    const asks = { ...action("asks", ["block"]), run: undefined, advanced: { render: () => () => undefined } };
     const s = await stubbed([listing("test", [asks])]);
     const trigger = (...args: unknown[]) => (s.core.boardActions.trigger as (...given: unknown[]) => Promise<void>)(...args);
+    const remove = "blockr.core-remove_block_action";
 
-    await expect(trigger("blockr.test-nowhere_action", { block: "b" })).rejects.toThrow('No board action "blockr.test-nowhere_action" is registered.');
-    await expect(trigger(asks.id, { block: "b" })).rejects.toThrow(
-      'The board action "blockr.test-asks_action" asks the user through its quick action or its advanced action, which core does not open yet.',
+    await expect(trigger("blockr.test-nowhere_action", { block: "b" }, { el })).rejects.toThrow(
+      'No board action "blockr.test-nowhere_action" is registered.',
     );
-    await expect(trigger("blockr.core-remove_block_action", { blok: "b" })).rejects.toThrow(TypeError);
-    await expect(trigger("blockr.core-remove_block_action", { block: "b" }, { notifier: "toast" })).rejects.toThrow(
+    await expect(trigger(asks.id, { block: "b" }, { el })).rejects.toThrow(
+      'The board action "blockr.test-asks_action" asks the user through its advanced action alone, which core does not open yet.',
+    );
+    await expect(trigger(remove, { blok: "b" }, { el })).rejects.toThrow(TypeError);
+    for (const opts of [undefined, {}, { el: "body" }]) {
+      await expect(trigger(remove, { block: "b" }, opts)).rejects.toThrow(
+        new TypeError("The `el` of trigger() is the element that the user triggered from, to which the keyboard's focus returns."),
+      );
+    }
+    await expect(trigger(remove, { block: "b" }, { el, anchor: { x: 1 } })).rejects.toThrow(
+      new TypeError("The `anchor` of trigger() is the box at which the menu opens, a DOMRect."),
+    );
+    await expect(trigger(remove, { block: "b" }, { el, notifier: "toast" })).rejects.toThrow(
       new TypeError("The `notifier` of trigger() is a function."),
     );
-    await expect(trigger("blockr.core-remove_block_action", { block: "b" }, { extend: [] })).rejects.toThrow(
-      new TypeError("The `extend` of trigger() is a function."),
-    );
-    await expect(trigger("blockr.core-remove_block_action", { block: "b" }, { extend: () => "rename" })).rejects.toThrow(
+    await expect(trigger(remove, { block: "b" }, { el, extend: [] })).rejects.toThrow(new TypeError("The `extend` of trigger() is a function."));
+    await expect(trigger(remove, { block: "b" }, { el, extend: () => "rename" })).rejects.toThrow(
       'The `extend` of trigger() returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].',
     );
     expect(Object.hasOwn(s.core.store.board().blocks, "b")).toBe(true);
+    s.stop();
+  });
+
+  test("hands the notifier the board action whose batch was refused", async () => {
+    const { cls, id } = running(() => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }]);
+    const s = await stubbed([cls]);
+    const handed: string[] = [];
+
+    await expect(
+      s.core.boardActions.trigger(id, { block: "b" }, {
+        el,
+        notifier(_notifications, by) {
+          handed.push(by.id);
+        },
+      }),
+    ).rejects.toThrow("refused");
+
+    expect(handed).toEqual([id]);
+    s.stop();
+  });
+
+  test("opens the quick action of a board action as a menu, and resolves once the menu closes without a batch, or once its batch has run", async () => {
+    const got: unknown[] = [];
+    const asks: BoardAction = {
+      ...action("asks", ["block"]),
+      run: undefined,
+      quick(board, target, core) {
+        got.push([board, target, core]);
+        return { rows: [{ kind: "item", label: "First", pick: () => rename("First") }] };
+      },
+    };
+    const s = await stubbed([listing("test", [asks])]);
+
+    const closed = s.core.boardActions.trigger(asks.id, { block: "b" }, { el });
+    expect(got).toEqual([[s.core.store.board(), { block: "b" }, s.core]]);
+    expect(s.menu()?.level()).toMatchObject({ label: "asks", back: false, rows: [{ kind: "item", label: "First" }] });
+    s.menu()?.escape();
+    await expect(closed).resolves.toBeUndefined();
+    expect(s.core.store.canUndo()).toBe(false);
+
+    const ran = s.core.boardActions.trigger(asks.id, { block: "b" }, { el, anchor: new DOMRect(1, 2, 0, 0) });
+    await s.menu()?.pick("First");
+    await expect(ran).resolves.toBeUndefined();
+    expect(s.core.store.board().blocks.b?.name).toBe("First");
+    s.stop();
+  });
+
+  test("rejects with the refusal of the batch that its quick action ran, which the notifier takes with the board action", async () => {
+    const asks: BoardAction = {
+      ...action("asks", ["block"]),
+      run: undefined,
+      quick: () => ({ rows: [{ kind: "item", label: "Break", pick: () => [{ id: "blockr.core-remove_link", args: { id: "nowhere" } }] }] }),
+    };
+    const s = await stubbed([listing("test", [asks])]);
+    const handed: [string[], string][] = [];
+
+    const triggered = s.core.boardActions.trigger(asks.id, { block: "b" }, {
+      el,
+      notifier(notifications, by) {
+        handed.push([notifications.map(notificationCode), by.id]);
+      },
+    });
+    await expect(s.menu()?.pick("Break")).rejects.toThrow("refused");
+    await expect(triggered).rejects.toThrow('The list of commands was refused at command 1, "blockr.core-remove_link"');
+
+    expect(handed).toEqual([[["board_edit_failed"], asks.id]]);
+    s.stop();
+  });
+
+  test("opens no quick action where on() leaves its board action out for the target, and resolves", async () => {
+    const asks: BoardAction = {
+      ...action("asks", ["block"]),
+      run: undefined,
+      quick: () => ({ rows: [] }),
+      offers: () => false,
+    };
+    const s = await stubbed([listing("test", [asks])]);
+
+    await expect(s.core.boardActions.trigger(asks.id, { block: "b" }, { el })).resolves.toBeUndefined();
+    expect(s.menu()).toBeUndefined();
     s.stop();
   });
 });

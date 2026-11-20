@@ -13,11 +13,17 @@
 // (../core/start.ts). It refuses the whole class where one of its board actions
 // breaks a rule (register(), below).
 //
-// CoreApi's `boardActions` gives the board actions that apply to a target, and
-// triggers one by its id (boardActionsApi(), below). Core hands a board action
-// only targets of the kinds that its `on` names, so that a kind added later
-// reaches no board action that does not name it. A call of trigger() runs a
-// board action that asks the user nothing in these steps:
+// CoreApi's `boardActions` gives the board actions that apply to a target,
+// opens the menu of a target, and triggers a board action by its id
+// (boardActionsApi(), below). Core hands a board action only targets of the
+// kinds that its `on` names, so that a kind added later reaches no board
+// action that does not name it.
+// A call of menu() opens the menu of a target, with a row for each board
+// action that on() gives the target, which core runs by the rules of a quick
+// action (./quick.ts) and draws at the anchor (./menu.tsx). Picking a row runs
+// the board action's run, or opens its quick action as the menu's next level.
+// A call of trigger() runs a board action that asks the user nothing in these
+// steps:
 // 1. Core looks the board action up by its id.
 // 2. Core runs nothing where on() leaves the board action out for the target,
 //    as under the board lock, where every board action of core's but Copy
@@ -34,11 +40,19 @@
 //    that it returns to the end of the batch.
 // 5. Core runs the batch as one step of the user, through CoreApi's command
 //    registry, which tells the user why it refused the batch, or hands that to
-//    the caller's notifier.
+//    the caller's notifier, with the board action.
 // The promise of trigger() resolves once the batch has run, and rejects with
 // the refusal.
-// Core opens no quick action and no advanced action yet, so trigger() rejects
-// for a board action without `run`.
+// For a board action with a quick action, trigger() opens the quick action as
+// a menu at the anchor, or at the box of the element that the user triggered
+// from, and resolves once the menu has closed and the batch that it ran, if
+// any, has run. A batch of a row runs as steps 4 and 5 have it.
+// Core shows one menu at a time: opening one closes the menu that is open, as
+// a click outside it does, and the keyboard's focus returns to the element
+// that the user triggered from as a menu closes.
+// Core opens no advanced action yet, so trigger() rejects for a board action
+// with neither `run` nor `quick`, and the menu shows that it does not open the
+// advanced action, where a board action has no quick action for the target.
 
 import { isCommandId } from "../commands/index.ts";
 import type { Delta, Store } from "../store/index.ts";
@@ -47,9 +61,11 @@ import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
 import { log } from "../log/index.ts";
-import { coreNotification, errorMessage, givenNotifier, isBoardObject, isObject, packageFromId, quoted, sourceModule } from "../util/index.ts";
+import { coreNotification, errorMessage, isBoardObject, isObject, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Raise, Refused } from "../util/index.ts";
 import { coreBoardActions } from "./core.ts";
+import { isBatch, openMenu } from "./quick.ts";
+import type { MenuStart, OpenMenu, QuickLevel } from "./quick.ts";
 
 // What a board action acts on: the board, as the DAG's canvas offers it, one
 // board object, as a notification names one, or several, as the DAG's
@@ -94,6 +110,11 @@ export interface BoardAction {
   // returns no batch where it does what it does without commands, as Copy
   // block ID puts the block's id on the clipboard.
   run?(board: Board, target: Target, core: CoreApi): readonly CommandCall[] | undefined | Promise<readonly CommandCall[] | undefined>;
+  // Its quick action, where it asks the user: the first level of rows that
+  // shows at the trigger, which may wait, as for asking R for a block's
+  // columns, or none for the target, where the edit takes more picks than two,
+  // as Create link's on the board (./quick.ts).
+  quick?(board: Board, target: Target, core: CoreApi): QuickLevel | undefined | Promise<QuickLevel | undefined>;
 }
 
 // The kinds of target, each of which names the menus that offer a board
@@ -196,7 +217,7 @@ function checked(plugin: PluginClassId, given: unknown, taken: ReadonlySet<strin
     if (typeof action.category !== "string" || action.category === "") {
       throw new Error(`${named} without a category.`);
     }
-    for (const member of ["detail", "offers", "run"]) {
+    for (const member of ["detail", "offers", "run", "quick"]) {
       if (action[member] !== undefined && typeof action[member] !== "function") {
         throw new Error(`${named}, whose ${member} is no function.`);
       }
@@ -212,14 +233,26 @@ function checked(plugin: PluginClassId, given: unknown, taken: ReadonlySet<strin
   });
 }
 
+// Where a menu opens: the element that the user triggered from, to which the
+// keyboard's focus returns as the menu closes, and the box at which the menu
+// opens, such as the pointer of a right click.
+export interface MenuPlace {
+  readonly el: HTMLElement;
+  readonly anchor: DOMRect;
+}
+
+// Draws an open menu at its place, until the function that it returns runs,
+// which core calls as the menu closes.
+export type ShowMenu = (menu: OpenMenu, at: MenuPlace) => () => void;
+
 // What CoreApi's `boardActions` reads.
 export interface BoardActionsParts {
   // The store of the open board, whose board each board action gets.
   readonly store: Pick<Store, "board" | "hasBoard">;
   // The locks that the app sets, which each `offers` gets.
   readonly lock: Lock;
-  // CoreApi, which each `run` gets, and through whose command registry
-  // trigger() runs a batch, so that core tells the user why the command
+  // CoreApi, which each `run` and `quick` gets, and through whose command
+  // registry a batch runs, so that core tells the user why the command
   // registry refused it, or hands that to the caller's notifier.
   readonly core: () => CoreApi;
   // Tells the user why the command registry refused to plan a batch for the
@@ -230,12 +263,39 @@ export interface BoardActionsParts {
   // notifier, as core raises a refusal: here, that a board action's `run`
   // failed.
   readonly raiseAgain: (notification: Omit<Notification, "id">, notifier?: Notifier) => void;
+  // Draws each menu that menu() and trigger() open: core's menu on the page
+  // (./menu.tsx).
+  readonly show: ShowMenu;
+  // Ends what CoreApi runs as it aborts, as another board opens: the menu
+  // that is open closes, dropping what the user ticked, and none opens later.
+  readonly signal?: AbortSignal;
+}
+
+// The options of a call of menu() or trigger(), checked: where the menu opens,
+// with the anchor that trigger() takes from the box of `el` where it is given
+// none, the caller's `extend`, and its notifier, which takes the board action
+// whose batch was refused with the notifications.
+interface Given {
+  readonly call: "menu()" | "trigger()";
+  readonly el: HTMLElement;
+  readonly anchor: DOMRect | undefined;
+  readonly extend: ((deltas: readonly Delta[]) => unknown) | undefined;
+  readonly notifier: ((notifications: readonly Notification[], action: BoardAction) => void) | undefined;
 }
 
 // CoreApi's `boardActions`, over the board actions registered for the open
 // board.
 export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts): CoreApi["boardActions"] {
-  const { store, lock, refused, raiseAgain } = parts;
+  const { store, lock, refused, raiseAgain, signal } = parts;
+  // The menu that is open, of which core shows one at a time.
+  let shown: OpenMenu | undefined;
+  signal?.addEventListener(
+    "abort",
+    () => {
+      shown?.drop();
+    },
+    { once: true },
+  );
 
   // Whether a menu of the target offers the board action: its `on` names the
   // kind of the target, and its `offers` passes for the target or it has none.
@@ -250,6 +310,12 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
       log.error(new Error(`The offers of the board action "${action.id}" failed: ${errorMessage(error)}`, { cause: error }));
       return false;
     }
+  }
+
+  function on(target: Target): BoardAction[] {
+    if (!store.hasBoard()) return [];
+    const board = store.board();
+    return actions.registered().filter((action) => applies(action, board, target));
   }
 
   // The batch that the board action's `run` returns, which it calls at once,
@@ -274,12 +340,13 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     return batch;
   }
 
-  // The failure of a board action's `run`, which is a fault of the board
-  // action's package: core logs it at error, and tells the user through a
-  // notification of the code board_action_failed, about the plugin whose
-  // class lists the board action, naming the class's module, or hands it to
-  // the notifier. Core raises it anew for each failure, as a refusal, so that
-  // a frontend that has shown it shows it again.
+  // The failure of a board action's `run`, or of a multi's apply as the menu
+  // closes, which is a fault of the board action's package: core logs it at
+  // error, and tells the user through a notification of the code
+  // board_action_failed, about the plugin whose class lists the board action,
+  // naming the class's module, or hands it to the notifier. Core raises it
+  // anew for each failure, as a refusal, so that a frontend that has shown it
+  // shows it again.
   function failed(action: BoardAction, failure: Error, notifier: Notifier | undefined): Error {
     log.error(failure);
     const plugin = actions.classOf(action.id);
@@ -295,48 +362,155 @@ export function boardActionsApi(actions: BoardActions, parts: BoardActionsParts)
     return failure;
   }
 
-  return {
-    on(given) {
-      const target = targetGiven(given);
-      if (!store.hasBoard()) return [];
-      const board = store.board();
-      return actions.registered().filter((action) => applies(action, board, target));
-    },
-    async trigger(id, given, opts) {
-      const target = targetGiven(given);
-      const notifier = givenNotifier(opts, "trigger()");
-      if (opts?.extend !== undefined && typeof opts.extend !== "function") {
-        throw new TypeError("The `extend` of trigger() is a function.");
+  // The caller's notifier, for the batch of the board action given.
+  function notifierOf(given: Given, action: BoardAction): Notifier | undefined {
+    const { notifier } = given;
+    return notifier === undefined
+      ? undefined
+      : (notifications) => {
+          notifier(notifications, action);
+        };
+  }
+
+  // Runs the batch of the board action as one step of the user, with the
+  // commands that the caller's `extend` returns for the deltas that the batch
+  // will apply at its end. It runs nothing for an empty batch.
+  async function runBatch(batch: readonly CommandCall[], action: BoardAction, given: Given): Promise<void> {
+    if (batch.length === 0) return;
+    const core = parts.core();
+    const notifier = notifierOf(given, action);
+    let added: readonly CommandCall[] = [];
+    if (given.extend !== undefined) {
+      let deltas: Delta[];
+      try {
+        deltas = await core.commands.plan(batch);
+      } catch (error) {
+        refused(error, undefined, notifier);
+        throw error;
       }
+      const extra: unknown = given.extend(deltas);
+      if (!isBatch(extra)) {
+        throw new TypeError(`The \`extend\` of ${given.call} returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].`);
+      }
+      added = extra;
+    }
+    await core.commands.run([...batch, ...added], "user", notifier === undefined ? undefined : { notifier });
+  }
+
+  // Opens a menu at the place that the caller gives, in place of the menu
+  // that is open, which closes as at a click outside it, and calls `closed`
+  // with the promise of the batch that it ran, if any, as it closes.
+  function open(start: MenuStart, target: Target, given: Given, closed?: (ran: Promise<void> | undefined) => void): void {
+    void shown?.close().catch(() => undefined);
+    let hide: (() => void) | undefined;
+    const menu = openMenu(start, {
+      board: () => store.board(),
+      target,
+      core: parts.core,
+      applies: (action) => store.hasBoard() && applies(action, store.board(), target),
+      run: (batch, action) => runBatch(batch, action, given),
+      failed(action, failure) {
+        failed(action, failure, notifierOf(given, action));
+      },
+      closed(ran) {
+        if (shown === menu) shown = undefined;
+        hide?.();
+        hide = undefined;
+        closed?.(ran);
+      },
+    });
+    shown = menu;
+    hide = parts.show(menu, { el: given.el, anchor: given.anchor ?? given.el.getBoundingClientRect() });
+  }
+
+  return {
+    on: (target) => on(targetGiven(target)),
+    menu(target, opts) {
+      const checked = targetGiven(target);
+      const given = optionsGiven(opts, "menu()");
+      if (signal?.aborted === true) return;
+      const offered = on(checked);
+      if (offered.length > 0) open({ actions: offered }, checked, given);
+    },
+    async trigger(id, target, opts) {
+      const checked = targetGiven(target);
+      const given = optionsGiven(opts, "trigger()");
       const action = actions.registered().find((registered) => registered.id === id);
       if (action === undefined) {
         throw new Error(`No board action "${id}" is registered.`);
       }
-      if (action.run === undefined) {
-        throw new Error(`The board action "${id}" asks the user through its quick action or its advanced action, which core does not open yet.`);
+      if (action.run === undefined && action.quick === undefined) {
+        throw new Error(`The board action "${id}" asks the user through its advanced action alone, which core does not open yet.`);
       }
-      if (!store.hasBoard() || !applies(action, store.board(), target)) return;
-      const batch = await batchOf(action, target, notifier);
-      if (batch === undefined || batch.length === 0) return;
-      const core = parts.core();
-      let added: readonly CommandCall[] = [];
-      if (opts?.extend !== undefined) {
-        let deltas: Delta[];
-        try {
-          deltas = await core.commands.plan(batch);
-        } catch (error) {
-          refused(error, undefined, notifier);
-          throw error;
-        }
-        const extra: unknown = opts.extend(deltas);
-        if (!isBatch(extra)) {
-          throw new TypeError('The `extend` of trigger() returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].');
-        }
-        added = extra;
+      if (signal?.aborted === true || !store.hasBoard() || !applies(action, store.board(), checked)) return;
+      if (action.run !== undefined) {
+        const batch = await batchOf(action, checked, notifierOf(given, action));
+        if (batch !== undefined) await runBatch(batch, action, given);
+        return;
       }
-      await core.commands.run([...batch, ...added], "user", notifier === undefined ? undefined : { notifier });
+      await new Promise<void>((resolve, reject) => {
+        open({ action }, checked, given, (ran) => {
+          if (ran === undefined) resolve();
+          else ran.then(resolve, reject);
+        });
+      });
     },
   };
+}
+
+// The options that a caller gives menu() or trigger(), checked, as a plugin in
+// plain JS may give others: the element that the user triggered from, the
+// anchor, which menu() needs and trigger() takes from the box of the element
+// where it is given none, and the caller's `extend` and notifier. It throws a
+// TypeError for options that are none of these.
+function optionsGiven(opts: unknown, call: Given["call"]): Given {
+  const given = isObject(opts) ? opts : {};
+  const { el, anchor, extend, notifier } = given;
+  if (!isElement(el)) {
+    throw new TypeError(`The \`el\` of ${call} is the element that the user triggered from, to which the keyboard's focus returns.`);
+  }
+  if (anchor === undefined ? call === "menu()" : !isRect(anchor)) {
+    throw new TypeError(`The \`anchor\` of ${call} is the box at which the menu opens, a DOMRect.`);
+  }
+  if (extend !== undefined && typeof extend !== "function") {
+    throw new TypeError(`The \`extend\` of ${call} is a function.`);
+  }
+  if (notifier !== undefined && typeof notifier !== "function") {
+    throw new TypeError(`The \`notifier\` of ${call} is a function.`);
+  }
+  return {
+    call,
+    el,
+    anchor: anchor as DOMRect | undefined,
+    // Each is called as a method of the options, as a caller may write it.
+    extend: extend === undefined ? undefined : (deltas) => (extend as Method).call(given, deltas),
+    notifier:
+      notifier === undefined
+        ? undefined
+        : (notifications, action) => {
+            (notifier as Method).call(given, notifications, action);
+          },
+  };
+}
+
+// A function in the options of a call, which the types of CoreApi type, and
+// which a caller in plain JS gives as it chooses.
+type Method = (this: unknown, ...args: unknown[]) => unknown;
+
+// Whether a value is an element that the user can trigger from, which takes
+// the keyboard's focus and has a box. An element of another window counts,
+// which is no HTMLElement of this one.
+function isElement(value: unknown): value is HTMLElement {
+  return (
+    isObject(value) &&
+    typeof (value as { focus?: unknown }).focus === "function" &&
+    typeof (value as { getBoundingClientRect?: unknown }).getBoundingClientRect === "function"
+  );
+}
+
+// Whether a value is a box, as a DOMRect is, with its numbers.
+function isRect(value: unknown): value is DOMRect {
+  return isObject(value) && ["x", "y", "width", "height"].every((key) => typeof value[key] === "number");
 }
 
 // The target that a caller gives on() or trigger(), copied, so that no board
@@ -365,9 +539,4 @@ function kindOf(target: Target): BoardAction["on"][number] {
   if ("stack" in target) return "stack";
   if ("option" in target) return "option";
   return "plugin";
-}
-
-// Whether a value is a batch of commands, each by its id.
-function isBatch(value: unknown): value is readonly CommandCall[] {
-  return Array.isArray(value) && value.every((call) => isObject(call) && typeof call.id === "string");
 }
