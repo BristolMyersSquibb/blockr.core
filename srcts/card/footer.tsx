@@ -7,13 +7,12 @@
 //   block's summary.
 // - The pills sit on a centred line of their own below the box, since the box
 //   holds what the block's UI and its renderer draw: a pill for each severity
-//   that the card shows of the notifications about the block, whoever raised
-//   them. Those are the conditions of R's reply, and what failed of the
-//   block's UI module, its output and its requests, and what its modules
-//   raise (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications).
+//   of the notifications about the block, whoever raised them. Those are the
+//   conditions of R's reply, and what failed of the block's UI module, its
+//   output and its requests, and what its modules raise
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#notifications).
 //   The pill of the messages also counts the reason of an invalid or a
-//   waiting block, whatever severities the card shows, so that a card always
-//   says why a block does not run.
+//   waiting block, so that a card always says why a block does not run.
 //   The pill of the errors reads "error", and those of the warnings and the
 //   messages count them, as "2 warnings".
 //   No pill writes out a message, which may be of any length.
@@ -62,8 +61,6 @@ export interface FooterProps {
   readonly settled: boolean;
   // The notifications about the block or the plugin, in the order they came.
   readonly notifications: readonly Notification[];
-  // The severities whose pills and banners the card or the section shows.
-  readonly severities: readonly Severity[];
   // The severities whose banners are open.
   readonly open: ReadonlySet<Severity>;
   // Opens the banners of the severity, or closes them where they are open.
@@ -73,24 +70,18 @@ export interface FooterProps {
 }
 
 // What the footer, the pills and the banners of a block draw from, for its
-// status, the notifications about it and the severities given, or every
-// severity where none are given.
-export function useFooter(
-  status: BlockStatus | undefined,
-  notifications: readonly Notification[],
-  severities: readonly Severity[] = SEVERITIES,
-): FooterProps {
+// status and the notifications about it.
+export function useFooter(status: BlockStatus | undefined, notifications: readonly Notification[]): FooterProps {
   const shown = useShown(status);
   const opened = useOpened(OPEN_AT_START);
-  return { status, shown, settled: isSettled(status, shown), notifications, severities, ...opened };
+  return { status, shown, settled: isSettled(status, shown), notifications, ...opened };
 }
 
 // What the pills and the banners of a plugin's section draw from, for the
-// notifications about the plugin and the severities given, or every severity
-// where none are given.
-export function usePills(notifications: readonly Notification[], severities: readonly Severity[] = SEVERITIES): FooterProps {
+// notifications about the plugin.
+export function usePills(notifications: readonly Notification[]): FooterProps {
   const opened = useOpened(NONE_OPEN);
-  return { status: undefined, shown: undefined, settled: true, notifications, severities, ...opened };
+  return { status: undefined, shown: undefined, settled: true, notifications, ...opened };
 }
 
 // The severities whose banners are open, starting with those given, what
@@ -133,14 +124,13 @@ export function Pills({
   shown,
   settled,
   notifications,
-  severities,
   open,
   toggle,
   panel,
   className = "bc:justify-center bc:px-5",
 }: FooterProps & { readonly className?: string }): ReactElement | null {
   const pills = SEVERITIES.flatMap((severity) => {
-    const n = counted(shown, notifications, severities, severity);
+    const n = counted(shown, notifications, severity);
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
@@ -177,9 +167,9 @@ export function Pills({
 
 // The banners of the pills that are open: the notifications in the order
 // they came, and the reason last among the messages.
-export function Banners({ shown, notifications, severities, open, panel }: FooterProps): ReactElement | null {
-  const listed: { severity: Severity; message: string }[] = notifications.filter(
-    (notification) => severities.includes(notification.severity) && open.has(notification.severity),
+export function Banners({ shown, notifications, open, panel }: FooterProps): ReactElement | null {
+  const listed: { severity: Severity; message: string }[] = notifications.filter((notification) =>
+    open.has(notification.severity),
   );
   const reason = shown?.reason ?? null;
   if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
@@ -200,17 +190,9 @@ function isSettled(status: BlockStatus | undefined, shown: BlockStatus | undefin
 }
 
 // How many banners the pill of a severity opens: the notifications of the
-// severity, where the card shows it, and for the messages, the reason too,
-// whatever severities the card shows.
-function counted(
-  status: BlockStatus | undefined,
-  notifications: readonly Notification[],
-  severities: readonly Severity[],
-  severity: Severity,
-): number {
-  const n = severities.includes(severity)
-    ? notifications.filter((notification) => notification.severity === severity).length
-    : 0;
+// severity, and for the messages, the reason too.
+function counted(status: BlockStatus | undefined, notifications: readonly Notification[], severity: Severity): number {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
   return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 

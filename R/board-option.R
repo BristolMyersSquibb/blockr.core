@@ -216,9 +216,3 @@ new_n_rows_option <- function(value) {
 new_dark_mode_option <- function(value) {
   new_board_option("dark_mode", value)
 }
-
-#' @rdname new_board_options
-#' @export
-new_show_conditions_option <- function(value) {
-  new_board_option("show_conditions", value)
-}

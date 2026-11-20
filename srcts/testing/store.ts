@@ -34,9 +34,9 @@ export const noUi: OptionModule = { render: () => undefined };
 // it.
 export const noCore = (): CoreApi => ({}) as CoreApi;
 
-// Core's board options, as the fixtures' boards hold their values, and
-// dark_mode, which core's basic frontend requires too, with the light theme as
-// its default, so that no test reads the theme of the system it runs on.
+// Core's board options: n_rows, whose value the fixtures' boards hold, and
+// dark_mode, which core's basic frontend requires, with the light theme as its
+// default, so that no test reads the theme of the system it runs on.
 export const coreOptions: readonly Option[] = [
   {
     id: "n_rows",
@@ -44,14 +44,6 @@ export const coreOptions: readonly Option[] = [
     category: "Table options",
     schema: { type: "integer", minimum: 1 },
     default: 50,
-    ui: noUi,
-  },
-  {
-    id: "show_conditions",
-    label: "Message types to display",
-    category: "Board options",
-    schema: { type: "array", items: { enum: ["message", "warning", "error"] } },
-    default: ["warning", "error"],
     ui: noUi,
   },
   {

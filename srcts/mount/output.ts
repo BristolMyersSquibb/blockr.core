@@ -37,8 +37,8 @@
 // block's output, ok or error, which concerns the block, in place of those
 // before. Where an ask fails without an error from R, as where it gets no
 // reply, core raises one of its own with the failure that the host's
-// `error()` gives. A frontend chooses which of them to show: a card shows those
-// whose severity `show_conditions` names. A renderer that cannot draw, as one
+// `error()` gives. A frontend shows every one of them, as a card does in its
+// pills, whatever their severity. A renderer that cannot draw, as one
 // that fails to load or throws in render(), raises one that concerns the
 // block, with the renderer and its package, which holds until the next board
 // opens or the block leaves the board, and leaves the element empty. Core

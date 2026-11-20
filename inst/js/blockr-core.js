@@ -9848,10 +9848,10 @@ import { createRoot as createRoot2 } from "react-dom/client";
 import { useCallback, useId, useState } from "react";
 import { Fragment as Fragment2, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
-function useFooter(status, notifications, severities = SEVERITIES2) {
+function useFooter(status, notifications) {
   const shown2 = useShown(status);
   const opened = useOpened(OPEN_AT_START);
-  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, severities, ...opened };
+  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
 }
 function useOpened(atStart) {
   const [open, setOpen] = useState(atStart);
@@ -9881,14 +9881,13 @@ function Pills({
   shown: shown2,
   settled: settled2,
   notifications,
-  severities,
   open,
   toggle,
   panel,
   className = "bc:justify-center bc:px-5"
 }) {
   const pills = SEVERITIES2.flatMap((severity) => {
-    const n = counted(shown2, notifications, severities, severity);
+    const n = counted(shown2, notifications, severity);
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
@@ -9922,9 +9921,9 @@ function Pills({
     }
   );
 }
-function Banners({ shown: shown2, notifications, severities, open, panel }) {
+function Banners({ shown: shown2, notifications, open, panel }) {
   const listed = notifications.filter(
-    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
+    (notification) => open.has(notification.severity)
   );
   const reason = shown2?.reason ?? null;
   if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
@@ -9934,8 +9933,8 @@ function Banners({ shown: shown2, notifications, severities, open, panel }) {
 function isSettled(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
-function counted(status, notifications, severities, severity) {
-  const n = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+function counted(status, notifications, severity) {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
   return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 var MARKS = {

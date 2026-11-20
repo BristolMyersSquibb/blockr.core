@@ -133,7 +133,7 @@ board <- new_board(
   blocks = c(a = new_identity_block(), b = new_identity_block("Second")),
   links = links(from = "a", to = "b"),
   stacks = stacks(s = new_stack("a", "Start")),
-  options = new_show_conditions_option("error"),
+  options = new_n_rows_option(25L),
   name = "My board"
 )
 

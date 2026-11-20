@@ -15,11 +15,9 @@ import { MARKS, SeverityIcon } from "../../card/index.ts";
 import { freeInputs } from "../../commands/index.ts";
 import { BlockPicker } from "../../picker/index.ts";
 import type { AddMode } from "../../picker/index.ts";
-import type { Condition } from "../../protocol/index.ts";
 import { useBoard } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId } from "../../types/board.ts";
-import type { Json } from "../../types/json.ts";
 import { classes } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { BlockCard, StackGroup } from "./card.tsx";
@@ -47,10 +45,6 @@ function Page(): ReactElement {
   const { core } = useFrontEnd();
   const board = useBoard(core);
   const items = useMemo(() => layoutItems(board), [board]);
-  // The same array until show_conditions changes, so that a card or a
-  // plugin's section draws again only as what it shows changes.
-  const shown = board.options.show_conditions;
-  const severities = useMemo(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState<Shown | null>(null);
   const add = useCallback((mode: AddMode) => {
     setDialog({ kind: "add", mode });
@@ -67,7 +61,6 @@ function Page(): ReactElement {
         key={`block-${id}`}
         id={id}
         block={block}
-        severities={severities}
         prependable={(freeInputs(board, core.blockRegistry(), id)?.length ?? 0) > 0}
         add={add}
       />
@@ -86,7 +79,7 @@ function Page(): ReactElement {
           above the board and the keyboard reaches them first. A wide page
           shows them beside the board. */}
       <div className="bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start">
-        <Plugins severities={severities} />
+        <Plugins />
         <div className="bc:grid bc:min-w-0 bc:flex-1 bc:gap-4">
           {items.length === 0 ? <p className={styles.hint}>The board holds no blocks yet.</p> : null}
           {items.map((item) => {
@@ -223,19 +216,4 @@ function ToastItem({ toast, title }: { toast: Toast; title: string }): ReactElem
       </button>
     </div>
   );
-}
-
-// The severities that the board option show_conditions names. Core's basic
-// frontend requires the board option, so the board that it draws holds a value
-// of it, and a value that is no array of severities fails, rather than show
-// none.
-export function asSeverities(value: Json | undefined): readonly Condition["severity"][] {
-  if (Array.isArray(value) && value.every(isSeverity)) return value;
-  throw new TypeError(
-    `The board option show_conditions is ${JSON.stringify(value)}, where the board takes an array of "message", "warning" and "error".`,
-  );
-}
-
-function isSeverity(value: Json): value is Condition["severity"] {
-  return value === "error" || value === "warning" || value === "message";
 }

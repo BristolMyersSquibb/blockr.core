@@ -15,14 +15,11 @@
 #' then holds no value for it, so that whatever needs it takes the default of
 #' its definition in the client.
 #'
-#' Core ships three board options: `n_rows`, the rows of a table output's page,
-#' `show_conditions`, the severities of the notifications about a block or a
-#' plugin that a frontend shows, such as the conditions of a block's
-#' evaluation, and `dark_mode`, which switches between the light and the dark
-#' theme.
-#' Core's basic frontend requires `show_conditions` and `dark_mode`.
-#' So the client gives every board that lacks a value of either one its
-#' default as the board opens.
+#' Core ships two board options: `n_rows`, the rows of a table output's page,
+#' and `dark_mode`, which switches between the light and the dark theme.
+#' Core's basic frontend requires `dark_mode`.
+#' So the client puts the default of `dark_mode` on every board that lacks a
+#' value of it, as the board opens.
 #' Their schemas ship beside their modules, and R writes the value that a
 #' script gives by them (see [blockr_ser()]).
 #'
@@ -32,8 +29,8 @@
 #' So `options(blockr.n_rows = 25L)`, or the environment variable
 #' `BLOCKR_N_ROWS`, still sets the rows of a page on a board that holds no
 #' value for `n_rows`.
-#' Without a blockr option, `n_rows` takes 10, `show_conditions` warnings and
-#' errors, and `dark_mode` the theme that the user's system prefers.
+#' Without a blockr option, `n_rows` takes 10, and `dark_mode` the theme that
+#' the user's system prefers.
 #'
 #' Several board options make a `board_options` object, which
 #' `new_board_options()` makes, holding one board option per ID. The predicate
@@ -47,7 +44,6 @@
 #' @examples
 #' opts <- new_board_options(
 #'   new_n_rows_option(25L),
-#'   new_show_conditions_option("error"),
 #'   new_dark_mode_option()
 #' )
 #'

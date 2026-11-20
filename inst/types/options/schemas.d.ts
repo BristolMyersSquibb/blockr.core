@@ -4,14 +4,6 @@ export declare const optionSchemas: {
         minimum: number;
         description: string;
     };
-    show_conditions: {
-        type: string;
-        items: {
-            enum: string[];
-        };
-        uniqueItems: true;
-        description: string;
-    };
     dark_mode: {
         enum: string[];
         description: string;
