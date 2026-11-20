@@ -667,7 +667,7 @@ describe("the host", () => {
 
     // A board option that the class does not read is no news to the module.
     const heard = contexts.length;
-    store.apply({ options: { set: { show_conditions: ["error"] } } });
+    store.apply({ options: { set: { dark_mode: "dark" } } });
     expect(contexts).toHaveLength(heard);
   });
 

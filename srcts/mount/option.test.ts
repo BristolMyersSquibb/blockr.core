@@ -145,17 +145,16 @@ async function tick(ms = 0): Promise<void> {
   await vi.advanceTimersByTimeAsync(ms);
 }
 
-// The board options n_rows, show_conditions and dark_mode of core, with the UI
-// given for n_rows, and a board option theme whose default is a function,
-// which core's basic frontend does not require.
+// The board options n_rows and dark_mode of core, with the UI given for
+// n_rows, and a board option theme whose default is a function, which core's
+// basic frontend does not require.
 function options(nRows: OptionModule, calls: { count: number } = { count: 0 }, dark: OptionModule = nRows): Option[] {
-  const [rows, conditions, darkMode] = coreOptions;
-  if (rows === undefined || conditions === undefined || darkMode === undefined) {
+  const [rows, darkMode] = coreOptions;
+  if (rows === undefined || darkMode === undefined) {
     throw new Error("The fixtures lack core's board options.");
   }
   return [
     { ...rows, ui: nRows },
-    conditions,
     darkMode,
     {
       id: "theme",

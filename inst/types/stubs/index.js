@@ -9265,14 +9265,14 @@ import { createPortal } from "react-dom";
 import { useCallback, useId, useState } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
-function useFooter(status, notifications, severities = SEVERITIES2) {
+function useFooter(status, notifications) {
   const shown2 = useShown(status);
   const opened = useOpened(OPEN_AT_START);
-  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, severities, ...opened };
+  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
 }
-function usePills(notifications, severities = SEVERITIES2) {
+function usePills(notifications) {
   const opened = useOpened(NONE_OPEN);
-  return { status: void 0, shown: void 0, settled: true, notifications, severities, ...opened };
+  return { status: void 0, shown: void 0, settled: true, notifications, ...opened };
 }
 function useOpened(atStart) {
   const [open, setOpen] = useState(atStart);
@@ -9302,14 +9302,13 @@ function Pills({
   shown: shown2,
   settled: settled2,
   notifications,
-  severities,
   open,
   toggle,
   panel,
   className = "bc:justify-center bc:px-5"
 }) {
   const pills = SEVERITIES2.flatMap((severity) => {
-    const n = counted(shown2, notifications, severities, severity);
+    const n = counted(shown2, notifications, severity);
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
@@ -9343,9 +9342,9 @@ function Pills({
     }
   );
 }
-function Banners({ shown: shown2, notifications, severities, open, panel }) {
+function Banners({ shown: shown2, notifications, open, panel }) {
   const listed = notifications.filter(
-    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
+    (notification) => open.has(notification.severity)
   );
   const reason = shown2?.reason ?? null;
   if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
@@ -9355,8 +9354,8 @@ function Banners({ shown: shown2, notifications, severities, open, panel }) {
 function isSettled(status, shown2) {
   return status !== void 0 && status === shown2 && !status.running;
 }
-function counted(status, notifications, severities, severity) {
-  const n = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+function counted(status, notifications, severity) {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
   return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 var MARKS = {
@@ -9875,9 +9874,6 @@ function Tick({ size = 14 }) {
     }
   );
 }
-function Dash() {
-  return /* @__PURE__ */ jsx5("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx5("path", { d: "M4 8h8" }) });
-}
 function Cross() {
   return /* @__PURE__ */ jsx5(
     "svg",
@@ -10007,89 +10003,6 @@ function held3(values2, known2) {
 
 // srcts/inputs/checkbox.tsx
 import { Fragment as Fragment2, jsx as jsx7, jsxs as jsxs4 } from "react/jsx-runtime";
-function Checkbox({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx7(DrawnCheckbox, { ...props }) : /* @__PURE__ */ jsx7(BoundCheckbox, { ...props, bound });
-}
-function BoundCheckbox({ bound, onChange, ...props }) {
-  return /* @__PURE__ */ jsxs4(Fragment2, { children: [
-    /* @__PURE__ */ jsx7(
-      DrawnCheckbox,
-      {
-        ...props,
-        isSelected: bound.value === true,
-        onChange: (selected) => {
-          void bound.commit(selected);
-          onChange?.(selected);
-        }
-      }
-    ),
-    /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
-  ] });
-}
-function DrawnCheckbox({ children, description, errorMessage: errorMessage2, className, ...props }) {
-  const ref = useRef4(null);
-  useItem(props.value, ref);
-  return /* @__PURE__ */ jsxs4(CheckboxField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
-    /* @__PURE__ */ jsx7(CheckboxButton, { className: composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`), children: composeRenderProps(children, (children2, { isSelected, isIndeterminate }) => /* @__PURE__ */ jsxs4(Fragment2, { children: [
-      /* @__PURE__ */ jsx7("span", { className: BOX, children: isIndeterminate ? /* @__PURE__ */ jsx7(Dash, {}) : isSelected ? /* @__PURE__ */ jsx7(Tick, { size: 12 }) : null }),
-      children2
-    ] })) }),
-    /* @__PURE__ */ jsx7(Text, { slot: "description", className: `${styles.hint} bc:ml-6 bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx7(FieldError, { className: `${styles.alert} bc:ml-6`, children: errorMessage2 })
-  ] });
-}
-function CheckboxGroup2({ bound, outdated = false, ordered = false, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx7(DrawnGroup, { ...props }) : /* @__PURE__ */ jsx7(BoundGroup, { ...props, bound, outdated, ordered });
-}
-function BoundGroup({
-  bound,
-  outdated,
-  ordered,
-  onChange,
-  children,
-  ...props
-}) {
-  const { known: known2, items } = useItems();
-  const shown2 = strings(bound.value);
-  const gone = lacking(shown2, known2);
-  const marking = !outdated && gone.length > 0;
-  return /* @__PURE__ */ jsxs4(Fragment2, { children: [
-    /* @__PURE__ */ jsx7(
-      DrawnGroup,
-      {
-        ...props,
-        value: [...shown2],
-        isInvalid: props.isInvalid === true || marking,
-        onChange: (picks) => {
-          const value2 = merged(strings(bound.get()), shown2, picks);
-          if (value2 !== null) void bound.commit(ordered && known2 !== null ? inOrder(value2, known2) : value2);
-          onChange?.(picks);
-        },
-        children: /* @__PURE__ */ jsx7(ItemsContext.Provider, { value: items, children })
-      }
-    ),
-    marking ? /* @__PURE__ */ jsx7(
-      NotAvailable,
-      {
-        values: gone,
-        onRemove: () => {
-          void bound.commit(held3(strings(bound.get()), known2));
-        }
-      }
-    ) : null,
-    /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
-  ] });
-}
-function DrawnGroup({ label, description, errorMessage: errorMessage2, children, className, ...props }) {
-  return /* @__PURE__ */ jsxs4(CheckboxGroup, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx7(Label, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsx7("div", { className: "bc:grid bc:gap-1.5", children }),
-    /* @__PURE__ */ jsx7(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx7(FieldError, { className: styles.alert, children: errorMessage2 })
-  ] });
-}
-var CHECK = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
-var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";
 
 // srcts/inputs/combobox.tsx
 import { useContext as useContext2, useRef as useRef5, useState as useState6 } from "react";
@@ -10807,9 +10720,9 @@ function DrawnButton({ className, ...props }) {
   );
 }
 function ToggleButtonGroup2({ bound, outdated = false, ordered = false, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx20(DrawnGroup2, { ...props }) : /* @__PURE__ */ jsx20(BoundGroup2, { ...props, bound, outdated, ordered });
+  return bound === void 0 ? /* @__PURE__ */ jsx20(DrawnGroup, { ...props }) : /* @__PURE__ */ jsx20(BoundGroup, { ...props, bound, outdated, ordered });
 }
-function BoundGroup2({
+function BoundGroup({
   bound,
   outdated,
   ordered,
@@ -10824,7 +10737,7 @@ function BoundGroup2({
   const marking = !outdated && gone.length > 0;
   return /* @__PURE__ */ jsxs14(Fragment12, { children: [
     /* @__PURE__ */ jsx20(
-      DrawnGroup2,
+      DrawnGroup,
       {
         ...props,
         selectedKeys: shown2,
@@ -10855,7 +10768,7 @@ function BoundGroup2({
     /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
-function DrawnGroup2({ label, description, invalid = false, children, className, ...props }) {
+function DrawnGroup({ label, description, invalid = false, children, className, ...props }) {
   const labelId = useId2();
   const descriptionId = useId2();
   const described = description !== void 0 && description !== "";
@@ -11470,18 +11383,12 @@ function Menu3({ label, items }) {
 
 // srcts/modules/basic/card.tsx
 import { jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
-var BlockCard = memo(function BlockCard2({
-  id: id2,
-  block,
-  severities,
-  prependable,
-  add
-}) {
+var BlockCard = memo(function BlockCard2({ id: id2, block, prependable, add }) {
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
   const notified = useNotified(core, { block: id2 });
-  const footer = useFooter(status, notified, severities);
+  const footer = useFooter(status, notified);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState15(false);
   const ref = useRef13(null);
@@ -11708,7 +11615,7 @@ function hasSection(core, plugin) {
 function placed(core) {
   return Object.entries(core.plugins.appPlugins()).filter(([id2]) => hasSection(core, id2));
 }
-function Plugins({ severities }) {
+function Plugins() {
   const { core } = useFrontEnd();
   const shown2 = placed(core);
   if (shown2.length === 0) return null;
@@ -11717,18 +11624,14 @@ function Plugins({ severities }) {
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx32(PluginSection, { id: id2, plugin, severities }, id2))
+      children: shown2.map(([id2, plugin]) => /* @__PURE__ */ jsx32(PluginSection, { id: id2, plugin }, id2))
     }
   );
 }
-function PluginSection({
-  id: id2,
-  plugin,
-  severities
-}) {
+function PluginSection({ id: id2, plugin }) {
   const { core, inView: inView2, sections } = useFrontEnd();
   const notified = useNotified(core, { plugin: id2 });
-  const pills = usePills(notified, severities);
+  const pills = usePills(notified);
   const collapsed = useSyncExternalStore3(sections.subscribe, () => sections.collapsed(id2));
   const body = useId3();
   const ref = useRef14(null);
@@ -12251,8 +12154,6 @@ function Page() {
   const { core } = useFrontEnd();
   const board = useBoard(core);
   const items = useMemo6(() => layoutItems(board), [board]);
-  const shown2 = board.options.show_conditions;
-  const severities = useMemo6(() => asSeverities(shown2), [shown2]);
   const [dialog, setDialog] = useState17(null);
   const add = useCallback8((mode) => {
     setDialog({ kind: "add", mode });
@@ -12268,7 +12169,6 @@ function Page() {
       {
         id: id2,
         block,
-        severities,
         prependable: (freeInputs(board, core.blockRegistry(), id2)?.length ?? 0) > 0,
         add
       },
@@ -12286,7 +12186,7 @@ function Page() {
       }
     ),
     /* @__PURE__ */ jsxs26("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
-      /* @__PURE__ */ jsx34(Plugins, { severities }),
+      /* @__PURE__ */ jsx34(Plugins, {}),
       /* @__PURE__ */ jsxs26("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
         items.length === 0 ? /* @__PURE__ */ jsx34("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item) => {
@@ -12396,15 +12296,6 @@ function ToastItem({ toast, title }) {
       ]
     }
   );
-}
-function asSeverities(value2) {
-  if (Array.isArray(value2) && value2.every(isSeverity)) return value2;
-  throw new TypeError(
-    `The board option show_conditions is ${JSON.stringify(value2)}, where the board takes an array of "message", "warning" and "error".`
-  );
-}
-function isSeverity(value2) {
-  return value2 === "error" || value2 === "warning" || value2 === "message";
 }
 
 // srcts/modules/basic/demand.ts
@@ -13433,12 +13324,6 @@ var optionSchemas = {
     minimum: 1,
     description: "How many rows of a table a block's output shows"
   },
-  show_conditions: {
-    type: "array",
-    items: { enum: ["message", "warning", "error"] },
-    uniqueItems: true,
-    description: "The severities of a block's conditions that the board shows"
-  },
   dark_mode: {
     enum: ["light", "dark"],
     description: "Whether the board shows in its light or its dark theme"
@@ -13452,12 +13337,6 @@ function numberUi(label, min) {
     return /* @__PURE__ */ jsx41(NumberField2, { bound: useValue(host), label, minValue: min, step: 1 });
   }
   return reactModule(NumberUi);
-}
-function checkboxGroupUi(label, values2) {
-  function CheckboxGroupUi({ host }) {
-    return /* @__PURE__ */ jsx41(CheckboxGroup2, { bound: useValue(host), label, ordered: true, children: values2.map((value2) => /* @__PURE__ */ jsx41(Checkbox, { value: value2, children: value2 }, value2)) });
-  }
-  return reactModule(CheckboxGroupUi);
 }
 function toggleButtonGroupUi(label, items) {
   function ToggleButtonGroupUi({ host }) {
@@ -13478,20 +13357,6 @@ var nRows = {
     return checked3("n_rows", takesRows, value2, typeof value2 === "string" ? asNumber(value2) : value2);
   },
   ui: numberUi("Preview rows", optionSchemas.n_rows.minimum)
-};
-var SEVERITIES3 = ["message", "warning", "error"];
-var showConditions = {
-  label: "Message types to display",
-  category: "Board options",
-  schema: optionSchemas.show_conditions,
-  // R writes a blockr option of one severity as a string, as an environment
-  // variable gives it.
-  default: async (core) => {
-    const value2 = await core.blockrOption("show_conditions");
-    if (value2 === void 0) return ["warning", "error"];
-    return checked3("show_conditions", takesSeverities, value2, typeof value2 === "string" ? [value2] : value2);
-  },
-  ui: checkboxGroupUi("Message types to display", SEVERITIES3)
 };
 var darkMode = {
   label: "Light/dark mode",
@@ -13514,7 +13379,6 @@ var darkMode = {
 };
 var coreOptions = {
   n_rows: nRows,
-  show_conditions: showConditions,
   dark_mode: darkMode
 };
 function setTheme(theme) {
@@ -13530,12 +13394,6 @@ function checked3(id2, takes, sent2, value2 = sent2) {
 function takesRows(value2) {
   return typeof value2 === "number" && Number.isInteger(value2) && value2 >= optionSchemas.n_rows.minimum;
 }
-function takesSeverities(value2) {
-  const allowed = optionSchemas.show_conditions.items.enum;
-  if (!Array.isArray(value2)) return false;
-  const given = value2;
-  return given.every((x) => allowed.includes(x)) && new Set(given).size === given.length;
-}
 function takesTheme(value2) {
   const allowed = optionSchemas.dark_mode.enum;
   return allowed.includes(value2);
@@ -13543,7 +13401,7 @@ function takesTheme(value2) {
 
 // inst/protocol/fixtures/hello.json
 var hello_default = {
-  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, show_conditions and dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
+  description: "The handshake of a core app. The client names every capability, and R, which runs requests in the session's process, names cancel and progress but not interrupt. Its reply carries everything the client needs before it draws the board: the block registry, which holds every class registered, the upload block's included, each with the board options that its UI module reads, none for core's classes, and the renderers of its outputs, where the module that core offers other packages' UIs is served, the app's plugins, core's basic frontend, its storage plugin and its Edit board plugin, each under the id of its class with its class's name and version, the board options that it reads, dark_mode for core's basic frontend, and where the module of its class is served, since the script passes serve() no plugins and no other package lists a plugin class, nothing in frontend, since core's basic frontend takes no argument of serve(), core's board options, each with where its module is served and the version of its shape, since every app uses core, no renderers, since the app names none for a board option, no lock, and the opening board that the app script built, as a JSON board. R drew the ids that the script left out, that of the link from a to f and the board's, which the script gave a name but no id, so the JSON board holds every id, as one that the client saves does.",
   client: [
     {
       id: "1",
@@ -13866,7 +13724,7 @@ var hello_default = {
           "blockr.core-basic_frontend_plugin": {
             name: "Basic frontend",
             version: 1,
-            options: ["show_conditions", "dark_mode"],
+            options: ["dark_mode"],
             module: "blockr.core/basic.js?v=0f3d8e21",
             css: "blockr.core/basic.css?v=6a9b2c4e"
           },
@@ -13888,11 +13746,6 @@ var hello_default = {
           n_rows: {
             package: "blockr.core",
             module: "blockr.core/n-rows-option.js?v=2b9c7e14",
-            version: 1
-          },
-          show_conditions: {
-            package: "blockr.core",
-            module: "blockr.core/show-conditions-option.js?v=6f3a8d05",
             version: 1
           },
           dark_mode: {
@@ -13967,11 +13820,7 @@ var hello_default = {
             },
             stacks: { s1: { name: "Input", blocks: ["a", "b"], color: null } },
             options: {
-              n_rows: { value: 50, version: 1 },
-              show_conditions: {
-                value: ["warning", "error"],
-                version: 1
-              }
+              n_rows: { value: 50, version: 1 }
             },
             plugins: {}
           }

@@ -72,7 +72,7 @@
 #' R calls it on the same plugin, and sends the IDs of the board options in
 #' its reply to `hello`.
 #' The client puts them on the board before it starts the plugin or draws its
-#' UI, as core's basic frontend gets `show_conditions` and `dark_mode`.
+#' UI, as core's basic frontend gets `dark_mode`.
 #' A plugin class that needs R gives its requests through its method of
 #' [plugin_requests()], which R calls on such a plugin too.
 #'
@@ -337,7 +337,7 @@ plugin_options.plugin <- function(x, ...) {
 #' @rdname new_plugin
 #' @export
 plugin_options.basic_frontend_plugin <- function(x, ...) {
-  list(new_show_conditions_option, new_dark_mode_option)
+  new_dark_mode_option
 }
 
 #' @rdname new_plugin

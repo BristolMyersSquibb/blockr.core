@@ -10,14 +10,14 @@ import { createPortal } from "react-dom";
 import { useCallback, useId, useState } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var SEVERITIES = ["error", "warning", "message"];
-function useFooter(status, notifications, severities = SEVERITIES) {
+function useFooter(status, notifications) {
   const shown = useShown(status);
   const opened = useOpened(OPEN_AT_START);
-  return { status, shown, settled: isSettled(status, shown), notifications, severities, ...opened };
+  return { status, shown, settled: isSettled(status, shown), notifications, ...opened };
 }
-function usePills(notifications, severities = SEVERITIES) {
+function usePills(notifications) {
   const opened = useOpened(NONE_OPEN);
-  return { status: void 0, shown: void 0, settled: true, notifications, severities, ...opened };
+  return { status: void 0, shown: void 0, settled: true, notifications, ...opened };
 }
 function useOpened(atStart) {
   const [open, setOpen] = useState(atStart);
@@ -47,14 +47,13 @@ function Pills({
   shown,
   settled,
   notifications,
-  severities,
   open,
   toggle,
   panel,
   className = "bc:justify-center bc:px-5"
 }) {
   const pills = SEVERITIES.flatMap((severity) => {
-    const n = counted(shown, notifications, severities, severity);
+    const n = counted(shown, notifications, severity);
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
@@ -88,9 +87,9 @@ function Pills({
     }
   );
 }
-function Banners({ shown, notifications, severities, open, panel }) {
+function Banners({ shown, notifications, open, panel }) {
   const listed = notifications.filter(
-    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
+    (notification) => open.has(notification.severity)
   );
   const reason = shown?.reason ?? null;
   if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
@@ -100,8 +99,8 @@ function Banners({ shown, notifications, severities, open, panel }) {
 function isSettled(status, shown) {
   return status !== void 0 && status === shown && !status.running;
 }
-function counted(status, notifications, severities, severity) {
-  const n = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+function counted(status, notifications, severity) {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
   return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 var MARKS = {
@@ -808,18 +807,12 @@ function Menu({ label, items }) {
 
 // srcts/modules/basic/card.tsx
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
-var BlockCard = memo(function BlockCard2({
-  id: id2,
-  block,
-  severities,
-  prependable,
-  add
-}) {
+var BlockCard = memo(function BlockCard2({ id: id2, block, prependable, add }) {
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
   const notified = useNotified(core, { block: id2 });
-  const footer = useFooter(status, notified, severities);
+  const footer = useFooter(status, notified);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState8(false);
   const ref = useRef4(null);
@@ -1048,7 +1041,7 @@ function hasSection(core, plugin) {
 function placed(core) {
   return Object.entries(core.plugins.appPlugins()).filter(([id2]) => hasSection(core, id2));
 }
-function Plugins({ severities }) {
+function Plugins() {
   const { core } = useFrontEnd();
   const shown = placed(core);
   if (shown.length === 0) return null;
@@ -1057,18 +1050,14 @@ function Plugins({ severities }) {
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown.map(([id2, plugin]) => /* @__PURE__ */ jsx9(PluginSection, { id: id2, plugin, severities }, id2))
+      children: shown.map(([id2, plugin]) => /* @__PURE__ */ jsx9(PluginSection, { id: id2, plugin }, id2))
     }
   );
 }
-function PluginSection({
-  id: id2,
-  plugin,
-  severities
-}) {
+function PluginSection({ id: id2, plugin }) {
   const { core, inView: inView2, sections } = useFrontEnd();
   const notified = useNotified2(core, { plugin: id2 });
-  const pills = usePills(notified, severities);
+  const pills = usePills(notified);
   const collapsed = useSyncExternalStore2(sections.subscribe, () => sections.collapsed(id2));
   const body = useId2();
   const ref = useRef5(null);
@@ -1592,8 +1581,6 @@ function Page() {
   const { core } = useFrontEnd();
   const board = useBoard3(core);
   const items = useMemo3(() => layoutItems(board), [board]);
-  const shown = board.options.show_conditions;
-  const severities = useMemo3(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState10(null);
   const add = useCallback6((mode) => {
     setDialog({ kind: "add", mode });
@@ -1609,7 +1596,6 @@ function Page() {
       {
         id: id2,
         block,
-        severities,
         prependable: (freeInputs(board, core.blockRegistry(), id2)?.length ?? 0) > 0,
         add
       },
@@ -1627,7 +1613,7 @@ function Page() {
       }
     ),
     /* @__PURE__ */ jsxs10("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
-      /* @__PURE__ */ jsx11(Plugins, { severities }),
+      /* @__PURE__ */ jsx11(Plugins, {}),
       /* @__PURE__ */ jsxs10("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
         items.length === 0 ? /* @__PURE__ */ jsx11("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item) => {
@@ -1737,15 +1723,6 @@ function ToastItem({ toast, title }) {
       ]
     }
   );
-}
-function asSeverities(value2) {
-  if (Array.isArray(value2) && value2.every(isSeverity)) return value2;
-  throw new TypeError(
-    `The board option show_conditions is ${JSON.stringify(value2)}, where the board takes an array of "message", "warning" and "error".`
-  );
-}
-function isSeverity(value2) {
-  return value2 === "error" || value2 === "warning" || value2 === "message";
 }
 
 // srcts/modules/basic/demand.ts

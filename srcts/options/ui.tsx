@@ -4,7 +4,7 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 
 import type { ReactElement } from "react";
-import { Checkbox, CheckboxGroup, NumberField, ToggleButton, ToggleButtonGroup } from "../inputs/index.ts";
+import { NumberField, ToggleButton, ToggleButtonGroup } from "../inputs/index.ts";
 import { reactModule, useValue } from "../react/index.ts";
 import type { ModuleProps } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
@@ -16,24 +16,6 @@ export function numberUi(label: string, min: number): OptionModule<number> {
     return <NumberField bound={useValue(host)} label={label} minValue={min} step={1} />;
   }
   return reactModule(NumberUi);
-}
-
-// A checkbox for each of the strings given, such as the severities of
-// show_conditions, which submits the strings checked in the order of the
-// strings.
-export function checkboxGroupUi(label: string, values: readonly string[]): OptionModule<string[]> {
-  function CheckboxGroupUi({ host }: ModuleProps<OptionHost<string[]>>): ReactElement {
-    return (
-      <CheckboxGroup bound={useValue(host)} label={label} ordered>
-        {values.map((value) => (
-          <Checkbox key={value} value={value}>
-            {value}
-          </Checkbox>
-        ))}
-      </CheckboxGroup>
-    );
-  }
-  return reactModule(CheckboxGroupUi);
 }
 
 // A toggle button for each of the items, each a value by its id and how it

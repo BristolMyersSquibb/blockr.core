@@ -4,7 +4,6 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
 export declare const nRows: Omit<Option, "id">;
-export declare const showConditions: Omit<Option, "id">;
 export declare const darkMode: Omit<Option, "id">;
 export declare const coreOptions: Readonly<Record<OptionId, Omit<Option, "id">>>;
 export declare function setTheme(theme: Json): void;

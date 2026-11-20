@@ -255,7 +255,7 @@ Each value takes the shape that the board option's schema in the browser gives, 
 So `new_dark_mode_option()` takes `"dark"` or `"light"`, where version 0.1 also took `TRUE` and `FALSE`.
 The browser refuses a board that holds a value that its schema refuses, naming the board option.
 
-Five board options of version 0.1 are gone, with their constructors:
+Six board options of version 0.1 are gone, with their constructors:
 
 | Version 0.1 | Version 0.2 |
 |---|---|
@@ -264,6 +264,7 @@ Five board options of version 0.1 are gone, with their constructors:
 | `new_page_size_option()` | The `n_rows` board option, which gives the rows of a table output's page |
 | `new_filter_rows_option()` | Nothing, since a table output has no search |
 | `new_llm_model_option()` | The assistant of blockr.assistant, whose migration notes say how |
+| `new_show_conditions_option()` | Nothing, since every frontend shows every notification about what it draws |
 
 In version 0.1, `serve()` also takes board options, through `custom_options()`.
 In version 0.2, it takes no `options`, and `new_board()` takes the values instead.
@@ -274,7 +275,7 @@ Gone with it are `custom_options()` and `blockr_app_options()`.
 A blockr option that gives a board option its default still does, as the R option `blockr.n_rows` or the environment variable `BLOCKR_N_ROWS` does for the `n_rows` board option.
 The board option's definition in the browser reads the blockr option when it first needs the default.
 So the default reaches every board that holds no value for the board option, a saved board among them, since a board saves only the values that someone set.
-Core reads three such blockr options: `n_rows`, `show_conditions` and `dark_mode`.
+Core reads two such blockr options: `n_rows` and `dark_mode`.
 
 The fallback of `n_rows` is 10 rows in version 0.2, where it was 50, so that a table fits its card.
 A script that wants 50 rows sets `options(blockr.n_rows = 50)`.
@@ -284,7 +285,7 @@ Core no longer reads these blockr options of version 0.1, so a script drops them
 | Blockr option | Version 0.2 |
 |---|---|
 | `core_blocks` | The rows of `blocks` (above) |
-| `page_size`, `filter_rows` and `thematic` | Nothing, since their board options are gone |
+| `page_size`, `filter_rows`, `thematic` and `show_conditions` | Nothing, since their board options are gone |
 | `chat_function` | Nothing in core, since it went with the `llm_model` board option |
 | `tabular_display` | The blockr option `renderers`, as `options(blockr.renderers = list(table_output = blockr.ui::table_preview()))` draws tables with the preview of blockr.ui |
 | `background_construction_delay` | Nothing, since the browser schedules evaluation |

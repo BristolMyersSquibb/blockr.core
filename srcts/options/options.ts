@@ -3,19 +3,16 @@
 // core registers under the id that R's reply to `hello` gives it, as Board
 // options has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.13#defining-a-board-option):
-// n_rows, the rows of a table output's page, show_conditions, the severities
-// that a frontend shows, and dark_mode, which switches the theme. Each keeps
-// the label and the category of today's R constructor, and takes its schema
-// from ./schemas.ts and its UI module from ./ui.tsx.
+// n_rows, the rows of a table output's page, and dark_mode, which switches the
+// theme. Each keeps the label and the category of today's R constructor, and
+// takes its schema from ./schemas.ts and its UI module from ./ui.tsx.
 //
 // Each default is a function of CoreApi that reads the blockr option of the
 // board option's name, which today's R constructor reads, through
 // CoreApi.blockrOption(), so that a deployment still sets the default, and
 // takes a fallback only where nothing sets the blockr option. The fallbacks
 // are today's, but for n_rows, whose page holds 10 rows where today's holds
-// 50. The fallback of show_conditions names warnings and errors, as today's
-// does: why a block is invalid or waiting is part of its status, which a
-// frontend shows whatever show_conditions names.
+// 50.
 // Core calls the function only where something needs the board option and the
 // board lacks its value, as a mounted renderer or an onChange() does, so that
 // nothing is read before then.
@@ -31,7 +28,7 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { asLogical, asNumber } from "../util/index.ts";
 import { optionSchemas } from "./schemas.ts";
-import { checkboxGroupUi, numberUi, toggleButtonGroupUi } from "./ui.tsx";
+import { numberUi, toggleButtonGroupUi } from "./ui.tsx";
 
 // What a board option's default reads of CoreApi.
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
@@ -49,25 +46,6 @@ export const nRows: Omit<Option, "id"> = {
     return checked("n_rows", takesRows, value, typeof value === "string" ? asNumber(value) : value);
   },
   ui: numberUi("Preview rows", optionSchemas.n_rows.minimum),
-};
-
-const SEVERITIES = ["message", "warning", "error"] as const;
-
-// The severities of the notifications about a block or a plugin that a
-// frontend shows, such as the conditions of a block's evaluation, while R
-// reports every severity.
-export const showConditions: Omit<Option, "id"> = {
-  label: "Message types to display",
-  category: "Board options",
-  schema: optionSchemas.show_conditions,
-  // R writes a blockr option of one severity as a string, as an environment
-  // variable gives it.
-  default: async (core: BlockrOptions) => {
-    const value = await core.blockrOption("show_conditions");
-    if (value === undefined) return ["warning", "error"];
-    return checked("show_conditions", takesSeverities, value, typeof value === "string" ? [value] : value);
-  },
-  ui: checkboxGroupUi("Message types to display", SEVERITIES),
 };
 
 // Whether the board shows in its light or its dark theme. Today's fallback is
@@ -98,7 +76,6 @@ export const darkMode: Omit<Option, "id"> = {
 // Core's board options by id, as core lists them in R, each with its module.
 export const coreOptions: Readonly<Record<OptionId, Omit<Option, "id">>> = {
   n_rows: nRows,
-  show_conditions: showConditions,
   dark_mode: darkMode,
 };
 
@@ -134,13 +111,6 @@ function checked(id: OptionId, takes: (value: Json) => boolean, sent: Json, valu
 // board.
 function takesRows(value: Json): boolean {
   return typeof value === "number" && Number.isInteger(value) && value >= optionSchemas.n_rows.minimum;
-}
-
-function takesSeverities(value: Json): boolean {
-  const allowed: readonly Json[] = optionSchemas.show_conditions.items.enum;
-  if (!Array.isArray(value)) return false;
-  const given: readonly Json[] = value;
-  return given.every((x) => allowed.includes(x)) && new Set(given).size === given.length;
 }
 
 function takesTheme(value: Json): boolean {

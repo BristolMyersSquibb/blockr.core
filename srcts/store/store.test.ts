@@ -277,7 +277,7 @@ function file(
     } as Readonly<Record<string, Block & { version?: number }>>,
     links: { ab: { from: "a", to: "b", input: "data" } },
     stacks: { s1: { name: "Input", blocks: ["a", "b"], color: null } },
-    options: { n_rows: 50, show_conditions: ["warning", "error"] },
+    options: { n_rows: 50 },
     plugins: {},
     ...board,
   };
@@ -763,7 +763,7 @@ describe("opening a board", () => {
             a: { registry_id: "blockr.core-dataset_block", state: { dataset: "mtcars" }, name: "Cars", locked: null },
             b: head(-1),
           },
-          options: { n_rows: "fifty", show_conditions: ["warning", "error"] },
+          options: { n_rows: "fifty", dark_mode: "light" },
           plugins: { [dock.id]: { views: [] } },
         }),
       ),
@@ -2215,8 +2215,8 @@ describe("undo", () => {
     const seen = changes(store);
 
     store.apply([
-      { options: { set: { n_rows: 20, seed: 42 } } },
-      { blocks: { mod: { b: { state: { n: 7 } } } }, options: { unset: ["show_conditions"] }, name: "Renamed" },
+      { options: { set: { n_rows: 20, seed: 42, dark_mode: "dark" } } },
+      { blocks: { mod: { b: { state: { n: 7 } } } }, options: { unset: ["dark_mode"] }, name: "Renamed" },
     ]);
     const { options } = store.board();
     expect(options).toEqual({ n_rows: 20, seed: 42 });
@@ -2244,7 +2244,7 @@ describe("undo", () => {
     const seen = changes(store);
 
     // Core adds the board options that a module requires as such a step.
-    const delta: Delta = { options: { set: { n_rows: 20 }, unset: ["show_conditions"] } };
+    const delta: Delta = { options: { set: { dark_mode: "dark" }, unset: ["n_rows"] } };
     store.apply(delta, "blockr.core");
     expect(seen).toEqual([{ delta, origin: "blockr.core" }]);
     expect([store.canUndo(), store.canRedo(), store.canUndo("blockr.core")]).toEqual([true, true, false]);
@@ -2255,7 +2255,7 @@ describe("undo", () => {
     store.undo();
     expect(store.board().name).toBe("Iris review");
     expect(store.canUndo()).toBe(false);
-    expect(store.board().options).toEqual({ n_rows: 20 });
+    expect(store.board().options).toEqual({ dark_mode: "dark" });
   });
 
   test("a step applied with undo: false is no undo step: it is applied, announced and numbered as any other, with undo: false on each delta, and leaves the undo and redo lists as they are, whoever takes it", async () => {
