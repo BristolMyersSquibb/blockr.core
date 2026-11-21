@@ -2,7 +2,8 @@
 // for tests: which targets they apply to, under the board lock too, Rename
 // through its quick action, Copy block ID with the clipboard API, the
 // document's copy command and neither, and those that remove a block, a link,
-// a stack and what a selection holds.
+// a stack and what a selection holds. Those that add a block have tests of
+// their own (./add.test.tsx).
 
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { HELLO, stubCore } from "../stubs/index.ts";
@@ -10,6 +11,10 @@ import { held, notificationCode } from "../testing/notifications.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { BoardAction, Target } from "./actions.ts";
 
+const ADD = "blockr.core-add_block_action";
+const APPEND = "blockr.core-append_block_action";
+const PREPEND = "blockr.core-prepend_block_action";
+const INSERT = "blockr.core-insert_block_action";
 const RENAME = "blockr.core-rename_action";
 const COPY = "blockr.core-copy_block_id_action";
 const REMOVE_BLOCK = "blockr.core-remove_block_action";
@@ -58,34 +63,49 @@ function refusingClipboard(): void {
 }
 
 describe("core's board actions", () => {
-  test("are Rename, Copy block ID and Remove block on a block, Remove link on a link, Rename and Remove stack on a stack and Remove on a selection, in the order of their table", async () => {
+  test("are Add block on the board, Append block, Prepend block, Rename, Copy block ID and Remove block on a block, Insert block and Remove link on a link, Rename and Remove stack on a stack and Remove on a selection, in the order of their table", async () => {
     const s = await stubCore();
     const on = (target: Target) => s.core.boardActions.on(target);
 
+    expect(rows(on({ board: true }))).toEqual([[ADD, "Add block", "add"]]);
+    // Links feed every input of the head block b, and none feeds the bind
+    // block e, which is variadic.
     expect(rows(on({ block: "b" }))).toEqual([
+      [APPEND, "Append block", "add"],
       [RENAME, "Rename", "edit"],
       [COPY, "Copy block ID", "clipboard"],
       [REMOVE_BLOCK, "Remove block", "remove"],
     ]);
-    expect(rows(on({ link: "ab" }))).toEqual([[REMOVE_LINK, "Remove link", "remove"]]);
+    expect(rows(on({ block: "e" }))).toEqual([
+      [APPEND, "Append block", "add"],
+      [PREPEND, "Prepend block", "add"],
+      [RENAME, "Rename", "edit"],
+      [COPY, "Copy block ID", "clipboard"],
+      [REMOVE_BLOCK, "Remove block", "remove"],
+    ]);
+    expect(rows(on({ link: "ab" }))).toEqual([
+      [INSERT, "Insert block", "add"],
+      [REMOVE_LINK, "Remove link", "remove"],
+    ]);
     expect(rows(on({ stack: "s1" }))).toEqual([
       [RENAME, "Rename", "edit"],
       [REMOVE_STACK, "Remove stack", "remove"],
     ]);
     expect(rows(on({ selection: [{ block: "b" }, { link: "ab" }] }))).toEqual([[REMOVE_SELECTED, "Remove", "remove"]]);
-    expect(on({ board: true })).toEqual([]);
     expect(on({ option: "n_rows" })).toEqual([]);
     expect(on({ plugin: "blockr.core-edit_board_plugin" })).toEqual([]);
 
     // Copy block ID's row shows the block's id.
     const copy = on({ block: "b" }).find(({ id }) => id === COPY);
     expect(copy?.detail?.(s.core.store.board(), { block: "b" })).toBe("b");
-    // Those that remove carry the bin, and the others no icon.
-    const icons = (target: Target) => on(target).map(({ icon }) => icon?.includes("<svg") ?? false);
-    expect(icons({ block: "b" })).toEqual([false, false, true]);
-    expect(icons({ link: "ab" })).toEqual([true]);
-    expect(icons({ stack: "s1" })).toEqual([false, true]);
-    expect(icons({ selection: [{ block: "b" }] })).toEqual([true]);
+    // Those that add carry the plus, those that remove the bin, and the
+    // others no icon.
+    const icons = (target: Target) => on(target).map(({ icon }) => (icon === undefined ? "none" : icon.includes("M8 3v10M3 8h10") ? "plus" : "bin"));
+    expect(icons({ board: true })).toEqual(["plus"]);
+    expect(icons({ block: "e" })).toEqual(["plus", "plus", "none", "none", "bin"]);
+    expect(icons({ link: "ab" })).toEqual(["plus", "bin"]);
+    expect(icons({ stack: "s1" })).toEqual(["none", "bin"]);
+    expect(icons({ selection: [{ block: "b" }] })).toEqual(["bin"]);
     s.stop();
   });
 

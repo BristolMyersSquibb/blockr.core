@@ -2,8 +2,13 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.8#cores-basic-frontend).
 //
 // A card shows these, top to bottom:
-// - The block's name, its class and its status, and a menu to rename or
-//   remove the block or to add a block before or after it.
+// - The block's name, its class and its status, and a button that opens the
+//   block's menu of board actions, which core draws
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-menus-of-board-objects).
+//   The menu offers core's Append block, Prepend block, Rename, Copy block ID
+//   and Remove block, and the board actions of other packages on a block.
+//   Core shows an advanced action that the menu opens, such as the block
+//   picker, in its dialog, since the frontend gives no place of its own.
 // - The block's UI and its output, which core mounts, and in whose elements
 //   core draws nothing of its own, not even where they fail.
 // - The footer, the last line of the output's box, which shows a ready
@@ -40,40 +45,36 @@
 // The card gives its block focus as the user moves into it, by a click or by
 // moving the keyboard's focus into it, so that a plugin such as the assistant
 // knows which block the user is looking at. Hovering over the card does not.
-// Under the board lock, the card draws no control for what the lock fixes. It
-// has no menu, and it mounts the UI only of a block that the board lock leaves
-// open, as the store's locked() says.
+// Under the board lock, the card draws no control for what the lock fixes. Its
+// menu offers only the board actions that the lock leaves, such as Copy block
+// ID, and it mounts the UI only of a block that the board lock leaves open, as
+// the store's locked() says. The card draws the menu's button only where a
+// board action applies to the block.
 
-import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { Banners, Footer, Mounted, Pills, useFooter, useSized } from "../../card/index.ts";
-import { useNotified, useStatus } from "../../react/index.ts";
+import { Button, useNotified, useStatus } from "../../react/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack } from "../../types/board.ts";
-import type { AddMode } from "../../picker/index.ts";
-import { classes, NameField, runCommand } from "../../ui/index.ts";
+import { classes } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
-import { Menu } from "./ui.tsx";
 
 export interface CardProps {
   readonly id: BlockId;
   readonly block: Block;
-  // Whether the block takes a link from a new block, which it does while an
-  // input of it is free.
-  readonly prependable: boolean;
-  readonly add: (mode: AddMode) => void;
 }
 
-export const BlockCard = memo(function BlockCard({ id, block, prependable, add }: CardProps): ReactElement {
+export const BlockCard = memo(function BlockCard({ id, block }: CardProps): ReactElement {
   const front = useFrontEnd();
   const { core, inView } = front;
   const status = useStatus(core, id);
   const notified = useNotified(core, { block: id });
   const footer = useFooter(status, notified);
   const sized = useSized(status);
-  const [renaming, setRenaming] = useState(false);
   const ref = useRef<HTMLElement>(null);
+  const actions = useRef<HTMLButtonElement>(null);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -86,10 +87,10 @@ export const BlockCard = memo(function BlockCard({ id, block, prependable, add }
     if (core.focus.get() !== id) core.focus.set(id);
   }, [core, id]);
 
-  const locked = core.lock.board;
   const inputs = !core.store.locked(id);
   const entry = own(core.blockRegistry(), block.registry_id);
   const ready = status?.status === "ready";
+  const offered = core.boardActions.on({ block: id }).length > 0;
 
   return (
     <article
@@ -100,56 +101,27 @@ export const BlockCard = memo(function BlockCard({ id, block, prependable, add }
       onFocus={focus}
     >
       <header className="bc:flex bc:flex-wrap bc:items-center bc:gap-2">
-        {renaming ? (
-          <NameField
-            label="Block name"
-            name={block.name}
-            onSubmit={(name) => {
-              void runCommand(core, "blockr.core-rename_block", { id, name });
-            }}
-            onDone={() => {
-              setRenaming(false);
-            }}
-          />
-        ) : (
-          <h3 className={classes.heading}>{block.name}</h3>
-        )}
+        <h3 className={classes.heading}>{block.name}</h3>
         <span className="bc:text-xs bc:text-text-muted">{entry?.name ?? block.registry_id}</span>
         <StatusBadge status={status} />
-        {locked ? null : (
+        {offered ? (
           <div className="bc:ml-auto bc:flex bc:items-center bc:gap-1">
-            <Menu
-              label={`Actions of ${block.name}`}
-              items={[
-                {
-                  label: "Rename",
-                  onSelect: () => {
-                    setRenaming(true);
-                  },
-                },
-                {
-                  label: "Add block before",
-                  disabled: !prependable,
-                  onSelect: () => {
-                    add({ kind: "before", to: id });
-                  },
-                },
-                {
-                  label: "Add block after",
-                  onSelect: () => {
-                    add({ kind: "after", from: id });
-                  },
-                },
-                {
-                  label: "Remove",
-                  onSelect: () => {
-                    void runCommand(core, "blockr.core-remove_block", { id });
-                  },
-                },
-              ]}
-            />
+            <Button
+              ref={actions}
+              variant="quiet"
+              aria-label={`Actions of ${block.name}`}
+              aria-haspopup="menu"
+              onPress={() => {
+                const el = actions.current;
+                if (el !== null) core.boardActions.menu({ block: id }, { el, anchor: el.getBoundingClientRect() });
+              }}
+            >
+              <span aria-hidden="true" className="bc:text-base bc:leading-none">
+                ⋯
+              </span>
+            </Button>
           </div>
-        )}
+        ) : null}
       </header>
       {inputs ? <Mounted mount={mountUi} label="Inputs" className="bc:min-w-0" /> : null}
       {/* The output starts 416 pixels high, which fits a table output's page of

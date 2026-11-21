@@ -1,9 +1,13 @@
 // Core's board actions, from the table of Core's board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions),
-// in its order: Rename, Copy block ID, Remove block, Remove link, Remove stack,
-// and Remove on a selection. Their ids are under blockr.core and keep the names
+// in its order: Add block, Append block, Prepend block and Insert block,
+// Rename, Copy block ID, Remove block, Remove link, Remove stack, and Remove
+// on a selection. Their ids are under blockr.core and keep the names
 // of the dock's actions, as blockr.core-remove_block_action, but for Rename and
 // Copy block ID, which are new.
+// - Add block, Append block, Prepend block and Insert block add a block
+//   through a pick in their quick actions, or through the block picker, their
+//   advanced action (./add.tsx).
 // - Rename, on a block or a stack, asks for the name in its quick action, a
 //   text row that holds the name, which refuses an empty name, and runs core's
 //   command that renames the block or the stack. A name that the user leaves
@@ -15,9 +19,10 @@
 //   what they act on.
 // - Remove on a selection removes every block, link and stack of the
 //   selection in one step, and leaves out what else the selection holds.
-// Each but Rename acts at once, through its run(). Those that remove carry the
-// bin of a row that destroys something as their icon, in the shape of
-// blockr.ui's `trash`, since blockr.ui builds on blockr.core
+// Each but Rename and the four that add a block acts at once, through its
+// run(). Those that add a block carry a plus as their icon. Those that remove
+// carry the bin of a row that destroys something, in the shape of blockr.ui's
+// `trash`, since blockr.ui builds on blockr.core
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/trash.svg).
 // Under the board lock, every one but Copy block ID fails its offers(), since
 // the store refuses what they run
@@ -26,15 +31,20 @@
 // as where the block has left the board since the menu opened, so that no
 // menu offers a board action that leads nowhere.
 
-import type { BlockId, Board } from "../types/board.ts";
+import type { Board, RegistryId } from "../types/board.ts";
+import type { RegistryEntry } from "../types/registry.ts";
 import { coreNotification, own } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
+import { addingBoardActions } from "./add.tsx";
 import { copyText } from "./clipboard.ts";
+import { blockOf, heldBlock } from "./targets.ts";
 
-// Core's board actions, whose notifications core raises through `raise`.
-export function coreBoardActions(raise: Raise): BoardAction[] {
+// Core's board actions, whose notifications core raises through `raise`, and
+// which read the block registry of the open board through `registry`.
+export function coreBoardActions(raise: Raise, registry: () => Readonly<Record<RegistryId, RegistryEntry>>): BoardAction[] {
   return [
+    ...addingBoardActions(registry),
     {
       id: "blockr.core-rename_action",
       label: "Rename",
@@ -133,18 +143,6 @@ function named(board: Board, target: Target): { id: string; name: string; comman
     return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: "blockr.core-rename_stack" };
   }
   return undefined;
-}
-
-// The block that the target names, for a board action on blocks alone, which
-// core hands no other target.
-function blockOf(target: Target): BlockId | undefined {
-  return "block" in target ? target.block : undefined;
-}
-
-// The block that the target names, where the board holds it.
-function heldBlock(board: Board, target: Target): BlockId | undefined {
-  const block = blockOf(target);
-  return block !== undefined && Object.hasOwn(board.blocks, block) ? block : undefined;
 }
 
 // The batch that removes a block, a link or a stack by its id with the command

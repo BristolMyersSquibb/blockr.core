@@ -1,8 +1,9 @@
 import type { Store } from "../store/index.ts";
-import type { Board, PluginClassId } from "../types/board.ts";
+import type { Board, PluginClassId, RegistryId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
+import type { RegistryEntry } from "../types/registry.ts";
 import type { Raise, Refused } from "../util/index.ts";
 import type { AdvancedModule, Place, ShowDialog } from "./advanced.ts";
 import type { OpenMenu, QuickLevel } from "./quick.ts";
@@ -32,7 +33,7 @@ export interface BoardActions {
     registered(): readonly BoardAction[];
     classOf(id: string): PluginClassId | undefined;
 }
-export declare function createBoardActions(raise: Raise): BoardActions;
+export declare function createBoardActions(raise: Raise, registry: () => Readonly<Record<RegistryId, RegistryEntry>>): BoardActions;
 export interface MenuPlace {
     readonly el: HTMLElement;
     readonly anchor: DOMRect;

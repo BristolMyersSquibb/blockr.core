@@ -18,8 +18,7 @@
     "react-dom/client",
     "react",
     "react/jsx-runtime",
-    "@blockr/core/react",
-    "./vendor-48cbe59f.js"
+    "@blockr/core/react"
   ],
   "blockr-core-controls.js": [
     "react",
@@ -44,9 +43,9 @@
   "blockr-core.js": [
     "@opentelemetry/api",
     "./vendor-48cbe59f.js",
-    "react",
     "react-dom",
     "react-dom/client",
+    "react",
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
@@ -68,8 +67,8 @@
     "react-dom/client",
     "react",
     "@blockr/core/react",
-    "./vendor-48cbe59f.js",
-    "react/jsx-runtime"
+    "react/jsx-runtime",
+    "./vendor-48cbe59f.js"
   ],
   "filebrowser-block.js": [
     "react",

@@ -1,7 +1,8 @@
 // How a control runs its edits through useEdits(): where the store or the
 // command registry refuses one, the control says why itself, under the
-// sentence that names the edit, and core raises nothing, or, for a control
-// that leaves the refusal to core, core raises it.
+// sentence that names the edit, and core raises nothing, whether the edit
+// runs through the command registry or through the done() of an advanced
+// action.
 // The fixture's board holds the blocks a, Iris, and b, Head, among others.
 
 import { act } from "react";
@@ -10,10 +11,11 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
 import { stubCore } from "../stubs/index.ts";
 import { find } from "../testing/inputs.ts";
-import { held, notificationCode } from "../testing/notifications.ts";
+import { held } from "../testing/notifications.ts";
 import { step } from "../testing/react.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import { Refusal, useEdits } from "./index.ts";
+import type { Done } from "./index.ts";
 
 const stops: (() => void)[] = [];
 
@@ -23,9 +25,10 @@ afterEach(() => {
 });
 
 // A control with a button for each edit, which removes blocks, and the banner
-// that says why the last edit was refused, where the control shows refusals.
-function Control({ core, shows }: { core: Pick<CoreApi, "commands">; shows?: boolean }): ReactElement {
-  const edits = useEdits(core, shows);
+// that says why the last edit was refused. The edits of the buttons named
+// "through done" run through the `done` given.
+function Control({ core, done }: { core: Pick<CoreApi, "commands">; done?: Done }): ReactElement {
+  const edits = useEdits(core);
   const runs: Record<string, () => Promise<boolean>> = {
     "Remove Head": () => edits.run('Could not remove the block "Head".', "blockr.core-remove_block", { id: "b" }),
     "Remove nowhere": () => edits.run('Could not remove the block "nowhere".', "blockr.core-remove_block", { id: "nowhere" }),
@@ -34,6 +37,9 @@ function Control({ core, shows }: { core: Pick<CoreApi, "commands">; shows?: boo
         { id: "blockr.core-remove_block", args: { id: "a" } },
         { id: "blockr.core-remove_block", args: { id: "nowhere" } },
       ]),
+    "Remove Head through done": () => edits.run('Could not remove the block "Head".', [{ id: "blockr.core-remove_block", args: { id: "b" } }], done),
+    "Remove nowhere through done": () =>
+      edits.run('Could not remove the block "nowhere".', [{ id: "blockr.core-remove_block", args: { id: "nowhere" } }], done),
   };
   return (
     <div>
@@ -55,8 +61,8 @@ function Control({ core, shows }: { core: Pick<CoreApi, "commands">; shows?: boo
 
 // The control on the board of the fixture hello, drawn in an element on the
 // page. Its edits run through `run` where one is given, in place of the
-// command registry's.
-async function drawn({ shows, run }: { shows?: boolean; run?: CoreApi["commands"]["run"] } = {}): Promise<{
+// command registry's, and those through done through `done`.
+async function drawn({ run, done }: { run?: CoreApi["commands"]["run"]; done?: Done } = {}): Promise<{
   el: HTMLElement;
   core: CoreApi;
 }> {
@@ -66,7 +72,7 @@ async function drawn({ shows, run }: { shows?: boolean; run?: CoreApi["commands"
   document.body.append(el);
   const root = createRoot(el);
   await step(() => {
-    root.render(<Control core={core} {...(shows === undefined ? {} : { shows })} />);
+    root.render(<Control core={core} {...(done === undefined ? {} : { done })} />);
   });
   stops.push(() => {
     act(() => {
@@ -119,17 +125,28 @@ describe("an edit that the command registry or the store refuses", () => {
     expect(Object.keys(core.store.board().blocks)).not.toContain("b");
   });
 
-  test("is left to core, which raises it, by a control that shows no refusal", async () => {
-    const { el, core } = await drawn({ shows: false });
+  test("that runs through the done() of an advanced action is said by the control as well, which hands done() a notifier that takes the refusal's notifications", async () => {
+    // A done() that runs the list as one step of the user with the notifier
+    // that the control hands it, as core's does, and records each list.
+    const lists: (readonly unknown[])[] = [];
+    const ran: { commands?: CoreApi["commands"] } = {};
+    const done: Done = async (list, opts) => {
+      lists.push(list);
+      await ran.commands?.run(list, "user", opts);
+    };
+    const { el, core } = await drawn({ done });
+    ran.commands = core.commands;
 
-    await click(el, "Remove nowhere");
-    await click(el, "Remove Iris and nowhere");
+    await click(el, "Remove nowhere through done");
+    expect(refusals(el)).toEqual([['Could not remove the block "nowhere".', 'It fails its preflight on the board as it is, with the args {"id":"nowhere"}.']]);
+    expect(held(core)).toEqual([]);
+
+    await click(el, "Remove Head through done");
     expect(refusals(el)).toEqual([]);
-    // Core's notification holds the error's message, which no sentence that
-    // names the edit heads.
-    expect(held(core).map((n) => [n.severity, notificationCode(n), n.message.split("\n")[0]])).toEqual([
-      ["error", "board_edit_failed", 'The command "blockr.core-remove_block" refused to run'],
-      ["error", "board_edit_failed", 'The list of commands was refused at command 2, "blockr.core-remove_block"'],
+    expect(Object.keys(core.store.board().blocks)).not.toContain("b");
+    expect(lists).toEqual([
+      [{ id: "blockr.core-remove_block", args: { id: "nowhere" } }],
+      [{ id: "blockr.core-remove_block", args: { id: "b" } }],
     ]);
   });
 });

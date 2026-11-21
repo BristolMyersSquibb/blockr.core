@@ -62,10 +62,11 @@
 import { isCommandId } from "../commands/index.ts";
 import { REPLACED } from "../mount/index.ts";
 import type { Delta, Store } from "../store/index.ts";
-import type { Board, PluginClassId } from "../types/board.ts";
+import type { Board, PluginClassId, RegistryId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
+import type { RegistryEntry } from "../types/registry.ts";
 import { log } from "../log/index.ts";
 import { coreNotification, errorMessage, isObject, packageFromId, quoted, sourceModule } from "../util/index.ts";
 import type { Raise, Refused } from "../util/index.ts";
@@ -165,9 +166,11 @@ export interface BoardActions {
 }
 
 // The board actions of an open board, with core's own, whose notifications,
-// as of a copy that the browser refuses, core raises through `raise`.
-export function createBoardActions(raise: Raise): BoardActions {
-  let registered: readonly BoardAction[] = coreBoardActions(raise);
+// as of a copy that the browser refuses, core raises through `raise`, and
+// which read the board's block registry through `registry`, as Add block
+// lists its classes.
+export function createBoardActions(raise: Raise, registry: () => Readonly<Record<RegistryId, RegistryEntry>>): BoardActions {
+  let registered: readonly BoardAction[] = coreBoardActions(raise, registry);
   // The plugin class that lists each board action that a class lists, by the
   // board action's id.
   const classes = new Map<string, PluginClassId>();

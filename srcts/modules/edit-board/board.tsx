@@ -2,7 +2,9 @@
 // its links and its stacks, as What it shows has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#what-it-shows).
 // Each section holds a form that adds one, and a table of those that the board
-// holds, with the controls that change and remove each. A table shows a page
+// holds, with the controls that change and remove each. The form that adds a
+// block is the advanced action of core's board action Add block, which the
+// plugin mounts through mountAdvanced() (./blocks.tsx). A table shows a page
 // of rows at a time, which a search narrows, so that it stays usable on a
 // board of many blocks.
 // Each section collapses by its heading, which counts what the board holds.

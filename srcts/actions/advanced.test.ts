@@ -163,7 +163,7 @@ describe("opening an advanced action", () => {
 
   test("opens it from the open icon of a level with the level's picked and the filter's text, and of an item with the item's advanced", async () => {
     const shown = form();
-    const add = asking("Append block", ["block"], shown.module, {
+    const add = asking("Append test block", ["block"], shown.module, {
       quick: () => ({
         filter: true,
         picked: { input: "data" },
@@ -176,7 +176,7 @@ describe("opening an advanced action", () => {
     const s = await stubbed([listing([add])]);
 
     const menu = s.menu({ block: "b" });
-    await menu.pick("Append block");
+    await menu.pick("Append test block");
     menu.type("Hea");
     const fromLevel = menu.openAdvanced();
     expect(menu.closed()).toBe(true);

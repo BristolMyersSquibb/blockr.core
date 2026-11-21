@@ -1,5 +1,5 @@
 export { runCommand, useEdits } from "./edits.ts";
-export type { Edits, Refused } from "./edits.ts";
+export type { Done, Edits, Refused } from "./edits.ts";
 export { useHistory } from "./hooks.ts";
 export { useSearch } from "./search.ts";
 export type { Search } from "./search.ts";
