@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode, RefObject } from "react";
+import type { Target } from "../../actions/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 export declare function EditBoard({ core }: {
     core: CoreApi;
@@ -24,3 +25,17 @@ export declare function useRowEditing(): {
     close: () => void;
     button: RefObject<HTMLButtonElement | null>;
 };
+export declare function offers(core: CoreApi, id: string, target: Target): boolean;
+export declare function Advanced({ core, id, target }: {
+    core: CoreApi;
+    id: string;
+    target: Target;
+}): ReactElement;
+export declare function RowAdvanced({ core, id, target, label, columns, onDone, }: {
+    core: CoreApi;
+    id: string;
+    target: Target;
+    label: string;
+    columns: number;
+    onDone: () => void;
+}): ReactElement;

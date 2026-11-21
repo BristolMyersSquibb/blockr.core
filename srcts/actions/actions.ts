@@ -68,10 +68,11 @@ import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
 import { log } from "../log/index.ts";
 import { coreNotification, errorMessage, isObject, packageFromId, quoted, sourceModule } from "../util/index.ts";
-import type { Raise, Refused } from "../util/index.ts";
+import type { Refused } from "../util/index.ts";
 import { createAdvanced } from "./advanced.ts";
 import type { AdvancedModule, Batching, Opening, Place, ShowDialog } from "./advanced.ts";
 import { coreBoardActions } from "./core.ts";
+import type { CoreParts } from "./core.ts";
 import { isElement, targetGiven } from "./given.ts";
 import { isBatch, openMenu } from "./quick.ts";
 import type { MenuStart, OpenMenu, QuickLevel } from "./quick.ts";
@@ -165,9 +166,11 @@ export interface BoardActions {
 }
 
 // The board actions of an open board, with core's own, whose notifications,
-// as of a copy that the browser refuses, core raises through `raise`.
-export function createBoardActions(raise: Raise): BoardActions {
-  let registered: readonly BoardAction[] = coreBoardActions(raise);
+// as of a copy that the browser refuses, core raises through the `raise` of
+// `parts`, and which read the preflights of the command registry and the
+// block registry through it.
+export function createBoardActions(parts: CoreParts): BoardActions {
+  let registered: readonly BoardAction[] = coreBoardActions(parts);
   // The plugin class that lists each board action that a class lists, by the
   // board action's id.
   const classes = new Map<string, PluginClassId>();

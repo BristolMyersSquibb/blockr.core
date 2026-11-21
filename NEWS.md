@@ -834,6 +834,22 @@
   The call `core.boardActions.mountAdvanced(el, id, target, picked)` renders an advanced action in a plugin's own room, where `done()` runs the batch and core renders the advanced action again.
   Where a board object that the target names leaves the board, core ends the advanced action, as a `done()` without a batch does.
   The `advanced()` of `stubCore()` gives the advanced action that core's dialog shows, and `StubMenu` gains `openAdvanced()`, which clicks an open icon (#744).
+* Core registers four more board actions, which create and edit a link or a stack.
+  Create link applies to a block that a new link can join to another, and to the board where it holds such a block.
+  On a block, its quick action lists the blocks that the block can send to and those that it can take from, by their names and IDs, and then asks for the input, where the block that the link goes into has several free ones.
+  It lists only the links for which the preflight of `blockr.core-add_link` passes, and no menu offers it where none would be left.
+  On the board, its row opens its advanced action at once.
+  Edit link applies to a link, and its quick action offers Change source…, Move to input…, whose inputs that another link feeds swap the inputs of the two links, and, into a variadic block, Rename input….
+  Create stack applies to a block, to a selection that holds a block and to the board.
+  Its quick action lists the board's stacks that the blocks join, and New stack, which adds a stack of the blocks with a name and a color that no other stack has.
+  Edit stack applies to a stack, and its quick action gives the stack a color of the palette that no other stack has, or ticks the stack's blocks.
+  Under the board lock, all four fail their `offers`.
+  Their advanced actions are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
+  A form that adds runs nothing before the user submits it, and mints the new link's or stack's ID with `core.mintId()`.
+  A form that edits applies each edit as the user makes it, through `core.commands.run()`, so that it has no Save button, and says below itself why the store refused an edit.
+  It names a link's input or a stack once the user leaves the field or presses Enter there, and gives a stack a color as the user lets go of a part of the color picker or picks a swatch.
+  A row of the plugin's tables turns into the form that edits its link or its stack, with a Done button, which closes it, as Escape does.
+  Escape in a select whose list is open closes the list alone (#746).
 
 # blockr.core 0.1.4
 

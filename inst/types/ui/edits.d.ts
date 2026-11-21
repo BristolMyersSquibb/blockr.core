@@ -10,6 +10,9 @@ export interface Edits {
     readonly refusal: Refused | null;
     run(title: string, id: string, args?: Json): Promise<boolean>;
     run(title: string, list: readonly Listed[]): Promise<boolean>;
+    attempt(title: string, start: (opts: {
+        readonly notifier?: () => void;
+    }) => Promise<unknown>): Promise<boolean>;
     clear(): void;
 }
 export interface Refused {

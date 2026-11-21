@@ -650,11 +650,14 @@ window.e2e = {
     e2e.close(field);
   },
   // Types the name into the field of the label given and submits it with
-  // Enter, once React has drawn what was typed.
+  // Enter, once React has drawn what was typed. The field is named by its
+  // aria-label, as the field that renames a block in place, or by a label of
+  // its own, as the name of a stack in the form that edits it.
   async rename(label, name, within) {
     const field = await e2e.until(
       () => [...within.querySelectorAll('input')]
-        .find((input) => input.getAttribute('aria-label') === label),
+        .find((input) => input.getAttribute('aria-label') === label) ||
+        e2e.labelled(within, label),
       'field ' + label
     );
     e2e.set(field, name, 'input');

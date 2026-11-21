@@ -54,6 +54,10 @@ export interface Edits {
   // show.
   run(title: string, id: string, args?: Json): Promise<boolean>;
   run(title: string, list: readonly Listed[]): Promise<boolean>;
+  // Runs what `start` starts with the options that it hands it, such as the
+  // done() of an advanced action, which runs a batch and takes a notifier in
+  // its options as run() does, and resolves whether it ran.
+  attempt(title: string, start: (opts: { readonly notifier?: () => void }) => Promise<unknown>): Promise<boolean>;
   // Takes the refusal down where the user's next edit there does not reach
   // run(): where a form's own checks stop it, or where the user opens the
   // form that changes a row of the table.
@@ -78,12 +82,15 @@ export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
   const [refusal, setRefusal] = useState<Refused | null>(null);
   return useMemo(() => {
     const opts = { notifier: () => undefined };
-    function run(title: string, target: string | readonly Listed[], args?: Json): Promise<boolean> {
-      if (!shows) return typeof target === "string" ? runCommand(core, target, args) : runCommand(core, target);
+    function attempt(title: string, start: (opts: { readonly notifier?: () => void }) => Promise<unknown>): Promise<boolean> {
+      if (!shows) {
+        return start({}).then(
+          () => true,
+          () => false,
+        );
+      }
       setRefusal(null);
-      const running =
-        typeof target === "string" ? core.commands.run(target, args, "user", opts) : core.commands.run(target, "user", opts);
-      return running.then(
+      return start(opts).then(
         () => true,
         (error: unknown) => {
           setRefusal({ title, reasons: reasons(error) });
@@ -91,9 +98,15 @@ export function useEdits(core: Pick<CoreApi, "commands">, shows = true): Edits {
         },
       );
     }
+    function run(title: string, target: string | readonly Listed[], args?: Json): Promise<boolean> {
+      return attempt(title, (given) =>
+        typeof target === "string" ? core.commands.run(target, args, "user", given) : core.commands.run(target, "user", given),
+      );
+    }
     return {
       refusal,
       run,
+      attempt,
       clear: () => {
         setRefusal(null);
       },
