@@ -250,7 +250,7 @@ var Boundary = class extends Component {
 };
 
 // srcts/inputs/button.tsx
-import { Button as AriaButton, composeRenderProps } from "./vendor-c0c37790.js";
+import { Button as AriaButton, composeRenderProps } from "./vendor-5251b9c2.js";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -293,7 +293,7 @@ import {
   FieldError,
   Label,
   Text
-} from "./vendor-c0c37790.js";
+} from "./vendor-5251b9c2.js";
 
 // srcts/inputs/icons.tsx
 import { jsx as jsx3, jsxs } from "react/jsx-runtime";
@@ -559,11 +559,11 @@ var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justif
 
 // srcts/inputs/colorfield.tsx
 import { useContext as useContext2, useState as useState5 } from "react";
-import { ColorField as AriaColorField, composeRenderProps as composeRenderProps3, FieldError as FieldError2, Input, Label as Label2, parseColor as parseColor2, Text as Text2 } from "./vendor-c0c37790.js";
+import { ColorField as AriaColorField, composeRenderProps as composeRenderProps3, FieldError as FieldError2, Input, Label as Label2, parseColor as parseColor2, Text as Text2 } from "./vendor-5251b9c2.js";
 
 // srcts/inputs/colors.ts
 import { createContext as createContext2, useState as useState4 } from "react";
-import { parseColor } from "./vendor-c0c37790.js";
+import { parseColor } from "./vendor-5251b9c2.js";
 var FALLBACK = "#000000";
 function hex(color) {
   return color.getChannelValue("alpha") < 1 ? color.toString("hexa") : color.toString("hex");
@@ -668,7 +668,7 @@ import {
   Label as Label3,
   SliderOutput,
   SliderTrack
-} from "./vendor-c0c37790.js";
+} from "./vendor-5251b9c2.js";
 import { Fragment as Fragment3, jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 function ColorThumb({ className, style, ...props }) {
   return /* @__PURE__ */ jsx7(
@@ -792,10 +792,10 @@ var WHEEL_TRACK = "bc:data-disabled:bg-gray-300 bc:dark:data-disabled:bg-gray-80
 var CHECKERBOARD = "repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 16px 16px";
 
 // srcts/inputs/colorpicker.tsx
-import { ColorPicker as AriaColorPicker, Button as Button2 } from "./vendor-c0c37790.js";
+import { ColorPicker as AriaColorPicker, Button as Button2 } from "./vendor-5251b9c2.js";
 
 // srcts/overlays/dialog.tsx
-import { composeRenderProps as composeRenderProps5, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps5, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-5251b9c2.js";
 import { jsx as jsx8 } from "react/jsx-runtime";
 function Modal({ className, ...props }) {
   return /* @__PURE__ */ jsx8(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx8("div", { className: CENTER, children: /* @__PURE__ */ jsx8(AriaModal, { ...props, className: composeRenderProps5(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
@@ -818,10 +818,10 @@ import {
   MenuItem as AriaMenuItem,
   MenuSection as AriaMenuSection,
   MenuTrigger as AriaMenuTrigger
-} from "./vendor-c0c37790.js";
+} from "./vendor-5251b9c2.js";
 
 // srcts/overlays/popover.tsx
-import { composeRenderProps as composeRenderProps6, Popover as AriaPopover } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps6, Popover as AriaPopover } from "./vendor-5251b9c2.js";
 import { jsx as jsx9 } from "react/jsx-runtime";
 function Popover({ className, offset = 4, ...props }) {
   return /* @__PURE__ */ jsx9(AriaPopover, { ...props, offset, className: composeRenderProps6(className, (given) => `${POPOVER} ${given ?? ""}`) });
@@ -859,7 +859,7 @@ var HEADING = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 
 // srcts/overlays/palette.tsx
-import { Autocomplete, useFilter } from "./vendor-c0c37790.js";
+import { Autocomplete, useFilter } from "./vendor-5251b9c2.js";
 import { jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
 function CommandPalette({
   isOpen,
@@ -906,7 +906,7 @@ function CommandPalette({
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/overlays/index.ts
-import { DialogTrigger, Heading, Keyboard } from "./vendor-c0c37790.js";
+import { DialogTrigger, Heading, Keyboard } from "./vendor-5251b9c2.js";
 
 // srcts/inputs/colorswatches.tsx
 import { useContext as useContext4 } from "react";
@@ -915,7 +915,7 @@ import {
   ColorSwatchPicker as AriaColorSwatchPicker,
   ColorSwatchPickerItem as AriaColorSwatchPickerItem,
   composeRenderProps as composeRenderProps8
-} from "./vendor-c0c37790.js";
+} from "./vendor-5251b9c2.js";
 import { Fragment as Fragment5, jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
 function ColorSwatch({ className, style, ...props }) {
   return /* @__PURE__ */ jsx12(
@@ -1036,7 +1036,7 @@ import {
   TagList,
   Text as Text3,
   Virtualizer
-} from "./vendor-c0c37790.js";
+} from "./vendor-5251b9c2.js";
 import { Fragment as Fragment7, jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
 function ComboBox(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -1310,7 +1310,7 @@ var ROW = "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center b
 var NOTE2 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/dropzone.tsx
-import { composeRenderProps as composeRenderProps10, DropZone as AriaDropZone } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps10, DropZone as AriaDropZone } from "./vendor-5251b9c2.js";
 import { jsx as jsx15 } from "react/jsx-runtime";
 function DropZone({ className, ...props }) {
   return /* @__PURE__ */ jsx15(AriaDropZone, { ...props, className: composeRenderProps10(className, (given) => `${ZONE} ${given ?? ""}`) });
@@ -1318,14 +1318,14 @@ function DropZone({ className, ...props }) {
 var ZONE = "bc:box-border bc:flex bc:min-h-20 bc:flex-col bc:items-center bc:justify-center bc:gap-2 bc:rounded-lg bc:border bc:border-dashed bc:border-border-default bc:p-4 bc:text-center bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-drop-target:border-solid bc:data-drop-target:border-border-accent bc:data-drop-target:bg-bg-subtle bc:data-disabled:opacity-50";
 
 // srcts/inputs/form.tsx
-import { Form as AriaForm } from "./vendor-c0c37790.js";
+import { Form as AriaForm } from "./vendor-5251b9c2.js";
 import { jsx as jsx16 } from "react/jsx-runtime";
 function Form({ className, ...props }) {
   return /* @__PURE__ */ jsx16(AriaForm, { ...props, className: `bc:grid bc:gap-3 ${className ?? ""}` });
 }
 
 // srcts/inputs/listbox.tsx
-import { composeRenderProps as composeRenderProps11, ListBox as AriaListBox } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps11, ListBox as AriaListBox } from "./vendor-5251b9c2.js";
 import { jsx as jsx17 } from "react/jsx-runtime";
 function ListBox2({ className, ...props }) {
   return /* @__PURE__ */ jsx17(AriaListBox, { ...props, className: composeRenderProps11(className, (given) => `${LISTBOX2} ${given ?? ""}`) });
@@ -1347,7 +1347,7 @@ import {
   NumberField as AriaNumberField,
   NumberFieldStateContext,
   Text as Text4
-} from "./vendor-c0c37790.js";
+} from "./vendor-5251b9c2.js";
 import { Fragment as Fragment8, jsx as jsx18, jsxs as jsxs11 } from "react/jsx-runtime";
 function NumberField({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
@@ -1479,7 +1479,7 @@ var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-ce
 
 // srcts/inputs/radio.tsx
 import { useRef as useRef6 } from "react";
-import { composeRenderProps as composeRenderProps13, FieldError as FieldError5, Label as Label6, RadioButton, RadioField, RadioGroup as AriaRadioGroup, Text as Text5 } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps13, FieldError as FieldError5, Label as Label6, RadioButton, RadioField, RadioGroup as AriaRadioGroup, Text as Text5 } from "./vendor-5251b9c2.js";
 import { Fragment as Fragment9, jsx as jsx19, jsxs as jsxs12 } from "react/jsx-runtime";
 function RadioGroup({ bound, outdated = false, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx19(DrawnGroup2, { ...props }) : /* @__PURE__ */ jsx19(BoundGroup2, { ...props, bound, outdated });
@@ -1536,7 +1536,7 @@ var RADIO = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text
 var CIRCLE = "bc:box-border bc:size-4 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:transition-[border-width] bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-[5px] bc:group-data-selected:border-bg-accent bc:group-data-invalid:border-border-danger";
 
 // srcts/inputs/searchfield.tsx
-import { composeRenderProps as composeRenderProps14, FieldError as FieldError6, Group as Group3, Input as Input4, Label as Label7, SearchField as AriaSearchField, Text as Text6 } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps14, FieldError as FieldError6, Group as Group3, Input as Input4, Label as Label7, SearchField as AriaSearchField, Text as Text6 } from "./vendor-5251b9c2.js";
 import { Fragment as Fragment10, jsx as jsx20, jsxs as jsxs13 } from "react/jsx-runtime";
 function SearchField({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx20(Drawn6, { ...props }) : /* @__PURE__ */ jsx20(BoundSearch, { ...props, bound });
@@ -1603,7 +1603,7 @@ import {
   SelectValue,
   Text as Text7,
   useLocale
-} from "./vendor-c0c37790.js";
+} from "./vendor-5251b9c2.js";
 import { Fragment as Fragment11, jsx as jsx21, jsxs as jsxs14 } from "react/jsx-runtime";
 function Select(props) {
   const { bound, outdated = false, ordered = false, ...rest } = props;
@@ -1770,7 +1770,7 @@ import {
   SliderThumb,
   SliderTrack as SliderTrack2,
   useLocale as useLocale2
-} from "./vendor-c0c37790.js";
+} from "./vendor-5251b9c2.js";
 import { Fragment as Fragment12, jsx as jsx22, jsxs as jsxs15 } from "react/jsx-runtime";
 function Slider2({ bound, outdated = false, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx22(Drawn8, { ...props }) : /* @__PURE__ */ jsx22(BoundSlider, { ...props, bound, outdated });
@@ -1879,7 +1879,7 @@ var FILL = "bc:rounded-full bc:bg-bg-accent bc:group-data-invalid:bg-border-dang
 var THUMB2 = "bc:top-1/2 bc:box-border bc:size-4 bc:cursor-grab bc:rounded-full bc:border-2 bc:border-bg-accent bc:bg-bg-raised bc:shadow-xs bc:outline-offset-2 bc:outline-border-accent bc:data-dragging:cursor-grabbing bc:data-focus-visible:outline-2 bc:data-disabled:cursor-default bc:group-data-invalid:border-border-danger";
 
 // srcts/inputs/switch.tsx
-import { composeRenderProps as composeRenderProps17, FieldError as FieldError8, SwitchButton, SwitchField, Text as Text8 } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps17, FieldError as FieldError8, SwitchButton, SwitchField, Text as Text8 } from "./vendor-5251b9c2.js";
 import { Fragment as Fragment13, jsx as jsx23, jsxs as jsxs16 } from "react/jsx-runtime";
 function Switch({ bound, onChange, ...props }) {
   if (bound === void 0) return /* @__PURE__ */ jsx23(Drawn9, { ...props, onChange });
@@ -1914,7 +1914,7 @@ var HANDLE = "bc:size-4 bc:rounded-full bc:bg-text-muted bc:shadow-xs bc:transit
 
 // srcts/inputs/tags.tsx
 import { createContext as createContext3, useContext as useContext9 } from "react";
-import { Button as Button6, composeRenderProps as composeRenderProps18, Label as Label10, Tag as AriaTag, TagGroup as AriaTagGroup, TagList as TagList2, Text as Text9 } from "./vendor-c0c37790.js";
+import { Button as Button6, composeRenderProps as composeRenderProps18, Label as Label10, Tag as AriaTag, TagGroup as AriaTagGroup, TagList as TagList2, Text as Text9 } from "./vendor-5251b9c2.js";
 import { Fragment as Fragment14, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
 var colors = {
   gray: "bc:border-border-default bc:bg-bg-subtle bc:text-text-default",
@@ -1959,7 +1959,7 @@ var TAG = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:cursor-default bc:items-ce
 var REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:data-hovered:bg-bg-subtle";
 
 // srcts/inputs/textfield.tsx
-import { composeRenderProps as composeRenderProps19, FieldError as FieldError9, Input as Input5, Label as Label11, Text as Text10, TextArea, TextField as AriaTextField } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps19, FieldError as FieldError9, Input as Input5, Label as Label11, Text as Text10, TextArea, TextField as AriaTextField } from "./vendor-5251b9c2.js";
 import { Fragment as Fragment15, jsx as jsx25, jsxs as jsxs18 } from "react/jsx-runtime";
 function TextField({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx25(Drawn10, { ...props }) : /* @__PURE__ */ jsx25(BoundText, { ...props, bound });
@@ -2006,7 +2006,7 @@ function Drawn10({ label, description, errorMessage: errorMessage2, placeholder,
 // srcts/inputs/toggle.tsx
 import { createContext as createContext4, useContext as useContext10, useId, useRef as useRef9 } from "react";
 import { strings as strings4 } from "@blockr/core/binding";
-import { composeRenderProps as composeRenderProps20, ToggleButton as AriaToggleButton, ToggleButtonGroup as AriaToggleButtonGroup } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps20, ToggleButton as AriaToggleButton, ToggleButtonGroup as AriaToggleButtonGroup } from "./vendor-5251b9c2.js";
 import { Fragment as Fragment16, jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
 function ToggleButton({ bound, onChange, ...props }) {
   if (bound === void 0) return /* @__PURE__ */ jsx26(DrawnButton, { ...props, onChange });
@@ -2115,7 +2115,7 @@ var TOGGLE = "bc:inline-flex bc:min-h-6 bc:cursor-pointer bc:items-center bc:jus
 var ALONE = "bc:rounded-md bc:border bc:border-solid bc:border-border-default bc:data-selected:border-border-accent";
 
 // srcts/inputs/tokenfield.tsx
-import { composeRenderProps as composeRenderProps21, Label as Label12, Text as Text11, Token as AriaToken, TokenField as AriaTokenField, TokenInput } from "./vendor-c0c37790.js";
+import { composeRenderProps as composeRenderProps21, Label as Label12, Text as Text11, Token as AriaToken, TokenField as AriaTokenField, TokenInput } from "./vendor-5251b9c2.js";
 import { jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
 function TokenField({
   label,
@@ -2138,7 +2138,7 @@ var INPUT4 = "bc:box-border bc:min-h-[30px] bc:w-full bc:rounded-md bc:border bc
 var TOKEN = "bc:mx-0.5 bc:inline-flex bc:h-5 bc:cursor-default bc:items-center bc:whitespace-nowrap bc:rounded bc:border bc:border-border-accent bc:bg-bg-subtle bc:px-1.5 bc:text-xs bc:text-text-default bc:data-selected:bg-bg-accent bc:data-selected:text-text-on-accent";
 
 // srcts/inputs/index.ts
-import { Autocomplete as Autocomplete2, FileTrigger, Text as Text12, useFilter as useFilter2 } from "./vendor-c0c37790.js";
+import { Autocomplete as Autocomplete2, FileTrigger, Text as Text12, useFilter as useFilter2 } from "./vendor-5251b9c2.js";
 
 // srcts/react/notifications.tsx
 import { jsx as jsx28 } from "react/jsx-runtime";
@@ -2152,9 +2152,236 @@ var SETS = {
   warning: "bc:border-border-warning-subtle bc:bg-bg-warning bc:text-text-warning",
   message: "bc:border-border-default bc:bg-bg-subtle bc:text-text-default"
 };
+
+// srcts/dnd/dnd.tsx
+import { composeRenderProps as composeRenderProps22, DropIndicator as AriaDropIndicator, useDragAndDrop as useAriaDragAndDrop } from "./vendor-5251b9c2.js";
+import { jsx as jsx29, jsxs as jsxs21 } from "react/jsx-runtime";
+function useDragAndDrop(options) {
+  return useAriaDragAndDrop({ renderDropIndicator: (target) => /* @__PURE__ */ jsx29(DropIndicator, { target }), ...options });
+}
+function DropIndicator(props) {
+  return /* @__PURE__ */ jsx29(AriaDropIndicator, { ...props, className: composeRenderProps22(props.className, (given) => `${INDICATOR} ${given ?? ""}`) });
+}
+function DragButton() {
+  return /* @__PURE__ */ jsx29(Button, { slot: "drag", variant: "quiet", children: /* @__PURE__ */ jsx29(Grip, {}) });
+}
+function Grip() {
+  return /* @__PURE__ */ jsxs21("svg", { width: "12", height: "12", viewBox: "0 0 12 12", fill: "currentColor", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx29("circle", { cx: "4", cy: "2.5", r: "1" }),
+    /* @__PURE__ */ jsx29("circle", { cx: "8", cy: "2.5", r: "1" }),
+    /* @__PURE__ */ jsx29("circle", { cx: "4", cy: "6", r: "1" }),
+    /* @__PURE__ */ jsx29("circle", { cx: "8", cy: "6", r: "1" }),
+    /* @__PURE__ */ jsx29("circle", { cx: "4", cy: "9.5", r: "1" }),
+    /* @__PURE__ */ jsx29("circle", { cx: "8", cy: "9.5", r: "1" })
+  ] });
+}
+var INDICATOR = "bc:outline-none bc:data-drop-target:outline-1 bc:data-drop-target:outline-bg-accent bc:forced-colors:data-drop-target:outline-[Highlight]";
+
+// srcts/gridlist/gridlist.tsx
+import {
+  composeRenderProps as composeRenderProps23,
+  GridList as AriaGridList,
+  GridListHeader as AriaGridListHeader,
+  GridListItem as AriaGridListItem,
+  GridListSection
+} from "./vendor-5251b9c2.js";
+import { Fragment as Fragment17, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
+function GridList(props) {
+  return /* @__PURE__ */ jsx30(AriaGridList, { ...props, className: composeRenderProps23(props.className, (given) => `${LIST3} ${given ?? ""}`) });
+}
+function GridListItem({ children, ...props }) {
+  const textValue = props.textValue ?? (typeof children === "string" ? children : void 0);
+  return /* @__PURE__ */ jsx30(AriaGridListItem, { ...props, textValue, className: composeRenderProps23(props.className, (given) => `${ITEM4} ${given ?? ""}`), children: composeRenderProps23(children, (children2, { selectionMode, selectionBehavior, allowsDragging }) => /* @__PURE__ */ jsxs22(Fragment17, { children: [
+    allowsDragging && /* @__PURE__ */ jsx30(DragButton, {}),
+    selectionMode !== "none" && selectionBehavior === "toggle" && /* @__PURE__ */ jsx30(Checkbox, { slot: "selection" }),
+    children2
+  ] })) });
+}
+function GridListHeader({ className, ...props }) {
+  return /* @__PURE__ */ jsx30(AriaGridListHeader, { ...props, className: `${HEADER} ${className ?? ""}` });
+}
+var LIST3 = "bc:grid bc:content-start bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none bc:data-[orientation=horizontal]:flex bc:data-[orientation=horizontal]:flex-row bc:data-[orientation=horizontal]:flex-nowrap bc:data-empty:px-2 bc:data-empty:py-0.5 bc:data-empty:text-sm bc:data-empty:text-text-muted bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var ITEM4 = "bc:flex bc:shrink-0 bc:cursor-pointer bc:select-none bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-0.5 bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
+var HEADER = "bc:block bc:px-2 bc:pt-1 bc:text-xs bc:font-semibold bc:text-text-muted";
+
+// srcts/table/table.tsx
+import {
+  Cell as AriaCell,
+  Collection as Collection4,
+  Column as AriaColumn,
+  composeRenderProps as composeRenderProps24,
+  Row as AriaRow,
+  Table as AriaTable,
+  TableBody as AriaTableBody,
+  TableHeader as AriaTableHeader,
+  useTableOptions
+} from "./vendor-5251b9c2.js";
+import { jsx as jsx31, jsxs as jsxs23 } from "react/jsx-runtime";
+function Table({ className, ...props }) {
+  return /* @__PURE__ */ jsx31("div", { onScroll: props.onScroll, className: `${BOX2} ${className ?? ""}`, children: /* @__PURE__ */ jsx31(AriaTable, { ...props, className: TABLE }) });
+}
+function Column({ align = "start", ...props }) {
+  return /* @__PURE__ */ jsx31(
+    AriaColumn,
+    {
+      ...props,
+      className: composeRenderProps24(props.className, (given) => `${COLUMN} ${align === "end" ? "bc:text-end" : "bc:text-start"} ${given ?? ""}`),
+      children: composeRenderProps24(props.children, (children, { sortDirection }) => /* @__PURE__ */ jsxs23("span", { className: `${HEADING3} ${align === "end" ? "bc:flex-row-reverse" : ""}`, children: [
+        children,
+        sortDirection === void 0 ? null : /* @__PURE__ */ jsx31(Arrow, { down: sortDirection === "descending" })
+      ] }))
+    }
+  );
+}
+function TableHeader({ columns, children, ...props }) {
+  const { selectionBehavior, selectionMode, allowsDragging } = useTableOptions();
+  return /* @__PURE__ */ jsxs23(AriaTableHeader, { ...props, children: [
+    allowsDragging && /* @__PURE__ */ jsx31(AriaColumn, { className: PART }),
+    selectionBehavior === "toggle" && /* @__PURE__ */ jsx31(AriaColumn, { className: PART, children: selectionMode === "multiple" && /* @__PURE__ */ jsx31(Checkbox, { slot: "selection" }) }),
+    /* @__PURE__ */ jsx31(Collection4, { items: columns, children })
+  ] });
+}
+function TableBody(props) {
+  return /* @__PURE__ */ jsx31(AriaTableBody, { ...props, className: composeRenderProps24(props.className, (given) => `${BODY} ${given ?? ""}`) });
+}
+function Row({ id, columns, children, ...props }) {
+  const { selectionBehavior, allowsDragging } = useTableOptions();
+  return /* @__PURE__ */ jsxs23(AriaRow, { id, ...props, className: composeRenderProps24(props.className, (given) => `${ROW2} ${given ?? ""}`), children: [
+    allowsDragging && /* @__PURE__ */ jsx31(Cell, { className: "bc:w-px", children: /* @__PURE__ */ jsx31(DragButton, {}) }),
+    selectionBehavior === "toggle" && /* @__PURE__ */ jsx31(Cell, { className: "bc:w-px", children: /* @__PURE__ */ jsx31(Checkbox, { slot: "selection" }) }),
+    /* @__PURE__ */ jsx31(Collection4, { items: columns, children })
+  ] });
+}
+function Cell(props) {
+  return /* @__PURE__ */ jsx31(AriaCell, { ...props, className: composeRenderProps24(props.className, (given) => `${CELL} ${given ?? ""}`) });
+}
+function Arrow({ down }) {
+  return /* @__PURE__ */ jsx31(
+    "svg",
+    {
+      width: "12",
+      height: "12",
+      viewBox: "0 0 16 16",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.5",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      className: `bc:mb-0.5 bc:shrink-0 bc:forced-colors:text-[ButtonText] ${down ? "bc:rotate-180" : ""}`,
+      children: /* @__PURE__ */ jsx31("path", { d: "M8 13V3M4 7l4-4 4 4" })
+    }
+  );
+}
+var BOX2 = "bc:min-w-0 bc:overflow-auto bc:font-sans bc:text-text-default";
+var TABLE = "bc:w-full bc:border-collapse bc:text-left bc:text-sm";
+var COLUMN = "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom bc:font-semibold bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-allows-sorting:cursor-pointer";
+var HEADING3 = "bc:flex bc:items-end bc:gap-1";
+var PART = "bc:w-px bc:border-b bc:border-border-default bc:px-2 bc:py-1";
+var BODY = "bc:data-empty:text-center bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted";
+var ROW2 = "bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-selection-mode:select-none";
+var CELL = "bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+
+// srcts/tree/navigation-tree.tsx
+import { createContext as createContext5, useContext as useContext11 } from "react";
+import {
+  Button as Button8,
+  composeRenderProps as composeRenderProps26,
+  Link,
+  NavigationTree as AriaNavigationTree,
+  NavigationTreeHeader as AriaNavigationTreeHeader,
+  NavigationTreeItem as AriaNavigationTreeItem,
+  NavigationTreeItemContent as AriaNavigationTreeItemContent,
+  NavigationTreeSection as AriaNavigationTreeSection
+} from "./vendor-5251b9c2.js";
+
+// srcts/tree/tree.tsx
+import {
+  Button as Button7,
+  composeRenderProps as composeRenderProps25,
+  Tree as AriaTree,
+  TreeItem as AriaTreeItem,
+  TreeItemContent
+} from "./vendor-5251b9c2.js";
+import { jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
+function Tree(props) {
+  return /* @__PURE__ */ jsx32(AriaTree, { ...props, className: composeRenderProps25(props.className, (given) => `${TREE} ${given ?? ""}`) });
+}
+function TreeItem({ title, children, ...props }) {
+  return /* @__PURE__ */ jsxs24(AriaTreeItem, { textValue: title, ...props, className: composeRenderProps25(props.className, (given) => `${ITEM5} ${given ?? ""}`), children: [
+    /* @__PURE__ */ jsx32(TreeItemContent, { children: ({ selectionMode, selectionBehavior, hasChildItems, isExpanded, allowsDragging }) => /* @__PURE__ */ jsxs24("div", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-1", children: [
+      allowsDragging && /* @__PURE__ */ jsx32(DragButton, {}),
+      selectionMode !== "none" && selectionBehavior === "toggle" && /* @__PURE__ */ jsx32(Checkbox, { slot: "selection" }),
+      /* @__PURE__ */ jsx32("div", { className: INDENT }),
+      hasChildItems ? /* @__PURE__ */ jsx32(Button7, { slot: "chevron", className: EXPAND, children: /* @__PURE__ */ jsx32(Chevron3, { expanded: isExpanded }) }) : /* @__PURE__ */ jsx32("div", { className: "bc:size-6 bc:shrink-0" }),
+      /* @__PURE__ */ jsx32("span", { className: "bc:min-w-0 bc:truncate", children: title })
+    ] }) }),
+    children
+  ] });
+}
+function Chevron3({ expanded }) {
+  return /* @__PURE__ */ jsx32(
+    "svg",
+    {
+      width: "14",
+      height: "14",
+      viewBox: "0 0 16 16",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.5",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      className: `bc:text-text-muted bc:transition-transform bc:motion-reduce:transition-none ${expanded ? "bc:rotate-90" : ""}`,
+      children: /* @__PURE__ */ jsx32("path", { d: "M6 3.5 10.5 8 6 12.5" })
+    }
+  );
+}
+var TREE = "bc:grid bc:content-start bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var ITEM5 = "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:rounded bc:px-1 bc:font-sans bc:text-sm bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50";
+var INDENT = "bc:w-[calc((var(--tree-item-level)_-_1)_*_var(--bc-spacing)_*_3)] bc:shrink-0";
+var EXPAND = "bc:flex bc:size-6 bc:shrink-0 bc:cursor-default bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:outline-none bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:opacity-50";
+
+// srcts/tree/navigation-tree.tsx
+import { Fragment as Fragment18, jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
+var IndicatorContext = createContext5(void 0);
+var RenderLinkContext = createContext5(void 0);
+function NavigationTree({ renderLink, ...props }) {
+  return /* @__PURE__ */ jsx33(RenderLinkContext.Provider, { value: renderLink, children: /* @__PURE__ */ jsx33(AriaNavigationTree, { ...props, className: composeRenderProps26(props.className, (given) => `${TREE2} ${given ?? ""}`) }) });
+}
+function NavigationTreeItem(props) {
+  return /* @__PURE__ */ jsx33(AriaNavigationTreeItem, { ...props, className: composeRenderProps26(props.className, (given) => `${ITEM6} ${given ?? ""}`) });
+}
+function NavigationTreeItemContent({ children }) {
+  return /* @__PURE__ */ jsx33(AriaNavigationTreeItemContent, { children: ({ level, hasChildItems, isExpanded, isCurrent, isCurrentAncestor }) => /* @__PURE__ */ jsxs25(Fragment18, { children: [
+    level > 1 && /* @__PURE__ */ jsx33("div", { className: "bc:shrink-0", style: { width: `calc((${String(level)} - 1) * var(--bc-spacing) * 4)` } }),
+    /* @__PURE__ */ jsx33(IndicatorContext.Provider, { value: isCurrent ? "current" : isCurrentAncestor && !isExpanded ? "ancestor" : void 0, children }),
+    /* @__PURE__ */ jsx33(Button8, { slot: "chevron", isDisabled: !hasChildItems, className: `${EXPAND2} ${hasChildItems ? "" : "bc:invisible"}`, children: /* @__PURE__ */ jsx33(Chevron3, { expanded: isExpanded }) })
+  ] }) });
+}
+function NavigationTreeSection(props) {
+  return /* @__PURE__ */ jsx33(AriaNavigationTreeSection, { ...props, className: "bc:not-first:mt-4" });
+}
+function NavigationTreeHeader(props) {
+  return /* @__PURE__ */ jsx33(AriaNavigationTreeHeader, { ...props, className: "bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted" });
+}
+function NavigationTreeItemLink({ render, children, ...props }) {
+  const indicator = useContext11(IndicatorContext);
+  const given = useContext11(RenderLinkContext);
+  return /* @__PURE__ */ jsx33(Link, { render: render ?? given, ...props, className: LINK, children: ({ isHovered }) => /* @__PURE__ */ jsxs25(Fragment18, { children: [
+    /* @__PURE__ */ jsx33("span", { "aria-hidden": "true", "data-indicator": indicator ?? (isHovered ? "hover" : void 0), className: MARK }),
+    children
+  ] }) });
+}
+var TREE2 = "bc:flex bc:flex-col bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none";
+var ITEM6 = "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:rounded-md bc:font-sans bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:opacity-50";
+var LINK = "bc:relative bc:flex bc:min-w-0 bc:flex-1 bc:cursor-pointer bc:items-center bc:gap-2 bc:px-2 bc:py-1.5 bc:text-sm bc:text-current bc:no-underline bc:outline-none bc:group-[:not([data-href])]:cursor-default bc:data-disabled:cursor-default";
+var MARK = "bc:absolute bc:start-0.5 bc:top-1/2 bc:h-[1lh] bc:w-0.5 bc:-translate-y-1/2 bc:rounded-full bc:forced-color-adjust-none bc:group-data-href:data-[indicator=hover]:bg-border-default bc:data-[indicator=current]:bg-bg-accent bc:data-[indicator=ancestor]:size-1 bc:data-[indicator=ancestor]:bg-border-default bc:forced-colors:data-indicator:bg-[Highlight]";
+var EXPAND2 = "bc:flex bc:size-6 bc:shrink-0 bc:cursor-default bc:items-center bc:justify-center bc:rounded-md bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 export {
   Autocomplete2 as Autocomplete,
   Button,
+  Cell,
   Checkbox,
   CheckboxGroup,
   ColorArea,
@@ -2166,17 +2393,23 @@ export {
   ColorSwatchPickerItem,
   ColorThumb,
   ColorWheel,
+  Column,
   ComboBox,
   ComboBoxItem,
   ComboBoxSection,
   CommandPalette,
   Dialog,
   DialogTrigger,
+  DropIndicator,
   DropZone,
   Field,
   FieldButton,
   FileTrigger,
   Form,
+  GridList,
+  GridListHeader,
+  GridListItem,
+  GridListSection,
   Heading,
   Keyboard,
   ListBox2 as ListBox,
@@ -2186,11 +2419,18 @@ export {
   MenuSection,
   MenuTrigger,
   Modal,
+  NavigationTree,
+  NavigationTreeHeader,
+  NavigationTreeItem,
+  NavigationTreeItemContent,
+  NavigationTreeItemLink,
+  NavigationTreeSection,
   NotificationList,
   NumberField,
   Popover,
   Radio,
   RadioGroup,
+  Row,
   SearchField,
   Select,
   SelectItem,
@@ -2198,6 +2438,9 @@ export {
   Slider2 as Slider,
   Stack,
   Switch,
+  Table,
+  TableBody,
+  TableHeader,
   Tag2 as Tag,
   TagGroup2 as TagGroup,
   Text12 as Text,
@@ -2206,9 +2449,12 @@ export {
   ToggleButtonGroup,
   Token,
   TokenField,
+  Tree,
+  TreeItem,
   outputRenderer,
   reactModule,
   useBoard,
+  useDragAndDrop,
   useFilter2 as useFilter,
   useNotified,
   useOutput,

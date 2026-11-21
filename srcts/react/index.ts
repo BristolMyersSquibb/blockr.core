@@ -7,9 +7,11 @@
 // such as the tags, the list box, the form and the drop zone, the buttons,
 // and the overlays: the modal and the dialog, the menu, the popover and the
 // command palette.
-// The inputs, the buttons and the overlays are React Aria's, in core's theme,
-// and so are the colours: a field, a picker, swatches and the parts of a
-// picker.
+// It holds the table, the trees and the grid list, which bind no value, and
+// what drags the items of the last three and drops onto them.
+// The inputs, the buttons, the overlays, the table, the trees and the grid
+// list are React Aria's, in core's theme, and so are the colours: a field, a
+// picker, swatches and the parts of a picker.
 // React Aria's FileTrigger and Autocomplete come unstyled.
 // It also holds the list in which a UI shows notifications, as useNotified()
 // gives them, in the message style of blockr.ui's design system.
@@ -109,3 +111,19 @@ export {
 export type { CommandPaletteProps, MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
 export { NotificationList } from "./notifications.tsx";
 export type { NotificationListProps } from "./notifications.tsx";
+export { DropIndicator, useDragAndDrop } from "../dnd/index.ts";
+export type { DragAndDropHooks, DragAndDropOptions, DropIndicatorProps } from "../dnd/index.ts";
+export { GridList, GridListHeader, GridListItem, GridListSection } from "../gridlist/index.ts";
+export { Cell, Column, Row, Table, TableBody, TableHeader } from "../table/index.ts";
+export type { ColumnProps, TableProps } from "../table/index.ts";
+export {
+  NavigationTree,
+  NavigationTreeHeader,
+  NavigationTreeItem,
+  NavigationTreeItemContent,
+  NavigationTreeItemLink,
+  NavigationTreeSection,
+  Tree,
+  TreeItem,
+} from "../tree/index.ts";
+export type { NavigationTreeItemLinkProps, NavigationTreeProps, TreeItemProps } from "../tree/index.ts";
