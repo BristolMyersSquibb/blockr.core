@@ -25,6 +25,11 @@
 //   rejects with why where it fails, naming the frontend's class, so that the
 //   plugin that asked hears of it
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#showing-a-block-or-a-plugin).
+// - As core shows an advanced action that the caller of menu() or trigger()
+//   shows nowhere else, it shows it in the frontend's place, through the
+//   `advanced` member of the module of the frontend that draws the board,
+//   where it has one, and otherwise in core's dialog
+//   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#what-a-frontend-gives).
 // - As the signal aborts, core runs the cleanup that render() returned, and the
 //   element says that the board is loading until the next frontend draws.
 // A frontend releases what it holds as its signal aborts, as a module does as
@@ -151,6 +156,12 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
         showError(el, why.message);
         log.error(why);
       }
+    },
+    advanced(signal) {
+      const current = drawn;
+      if (current?.board !== signal || current.frontend.advanced === undefined) return undefined;
+      const { frontend } = current;
+      return (args) => frontend.advanced?.(args) ?? (() => undefined);
     },
     async show(object, signal) {
       const current = drawn;

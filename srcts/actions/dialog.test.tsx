@@ -1,0 +1,136 @@
+// Core's dialog, as React draws it on the page: a modal dialog titled with the
+// board action's label, at least 420 px wide, in which core renders the
+// advanced action through mount(), and which closes on its Close button, on
+// Escape, as the function that it returns runs and as the signal aborts,
+// telling core through close() and giving the keyboard's focus back to the
+// element that the user triggered from.
+
+import { act } from "react";
+import { afterEach, describe, expect, test } from "vitest";
+import type { Delta } from "../store/index.ts";
+import { find, press } from "../testing/inputs.ts";
+import { inert, openDialog } from "../testing/overlays.ts";
+import { step } from "../testing/react.ts";
+import type { PlaceArgs } from "./advanced.ts";
+import { showDialog } from "./dialog.tsx";
+
+// Core's dialog for an advanced action that draws a field, opened from a
+// button that has the keyboard's focus, with a close() that counts its calls.
+async function drawn(signal?: AbortSignal) {
+  const trigger = document.createElement("button");
+  trigger.textContent = "Open";
+  document.body.append(trigger);
+  trigger.focus();
+  const mounted: HTMLElement[] = [];
+  let unmounted = 0;
+  let closed = 0;
+  const args: PlaceArgs = {
+    id: "blockr.test-edit_form_action",
+    title: "Edit form",
+    target: { block: "b" },
+    mount(el) {
+      mounted.push(el);
+      const input = document.createElement("input");
+      input.setAttribute("aria-label", "Name");
+      el.append(input);
+      return () => {
+        unmounted++;
+        el.replaceChildren();
+      };
+    },
+    close() {
+      closed++;
+    },
+  };
+  let hide: (deltas?: readonly Delta[]) => void = () => undefined;
+  await step(() => {
+    hide = showDialog(args, { el: trigger, ...(signal === undefined ? {} : { signal }) });
+  });
+  hides.push(hide);
+  await settle();
+  return { trigger, mounted, unmounted: () => unmounted, closed: () => closed, hide };
+}
+
+// Waits for what React Aria scheduled, such as moving the focus.
+async function settle(): Promise<void> {
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+}
+
+const shown = (): Element | null => document.querySelector('[role="dialog"]');
+
+// What closes each dialog that a test drew, which closes any that the test
+// left open before the page's body empties, so that React Aria keeps no focus
+// in an element that has left the page.
+const hides: ((deltas?: readonly Delta[]) => void)[] = [];
+
+afterEach(async () => {
+  await step(() => {
+    for (const hide of hides.splice(0)) hide();
+  });
+  document.body.replaceChildren();
+});
+
+describe("core's dialog", () => {
+  test("is a modal dialog titled with the board action's label, at least 420 px wide, in which core renders the advanced action", async () => {
+    const { trigger, mounted } = await drawn();
+
+    const dialog = openDialog();
+    const title = document.getElementById(dialog.getAttribute("aria-labelledby") ?? "");
+    expect(title?.textContent).toBe("Edit form");
+    expect(dialog.parentElement?.classList.contains("bc:min-w-[min(420px,100%)]")).toBe(true);
+    expect(mounted).toHaveLength(1);
+    expect(dialog.contains(mounted[0] ?? null)).toBe(true);
+    expect(find(dialog, 'input[aria-label="Name"]')).toBeTruthy();
+    // The modal keeps the rest of the page out of reach.
+    expect(inert(trigger)).toBe(true);
+  });
+
+  test("closes on its Close button, unmounts the advanced action, tells core through close(), and gives the focus back to the element that the user triggered from", async () => {
+    const { trigger, unmounted, closed } = await drawn();
+
+    const close = [...openDialog().querySelectorAll("button")].find((button) => button.textContent.trim() === "Close");
+    if (close === undefined) throw new Error("Found no Close button.");
+    await step(() => {
+      close.click();
+    });
+    await settle();
+
+    expect(shown()).toBeNull();
+    expect(unmounted()).toBe(1);
+    expect(closed()).toBe(1);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  test("closes on Escape, which React Aria hears where the focus is", async () => {
+    const { trigger, closed } = await drawn();
+
+    await step(() => {
+      press(document.activeElement instanceof HTMLElement ? document.activeElement : openDialog(), "Escape");
+    });
+    await settle();
+
+    expect(shown()).toBeNull();
+    expect(closed()).toBe(1);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  test("closes once as the function that it returns runs, and as the signal aborts", async () => {
+    const first = await drawn();
+    await step(() => {
+      first.hide([]);
+      first.hide();
+    });
+    expect(shown()).toBeNull();
+    expect(first.unmounted()).toBe(1);
+    expect(first.closed()).toBe(1);
+
+    const board = new AbortController();
+    const second = await drawn(board.signal);
+    await step(() => {
+      board.abort();
+    });
+    expect(shown()).toBeNull();
+    expect(second.unmounted()).toBe(1);
+    expect(second.closed()).toBe(1);
+  });
+});

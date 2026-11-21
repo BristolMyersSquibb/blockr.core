@@ -20,7 +20,10 @@
 // what the test gives.
 // Core runs each menu of board actions as on the page, and draws none: the
 // test opens the menu of a target, or takes the menu that is open, and picks
-// its rows by their labels (./menu.ts).
+// its rows by their labels (./menu.ts). Core shows each advanced action in its
+// dialog, as on the page, where neither the caller nor the frontend shows it,
+// and draws no modal: the test takes the advanced action that the dialog
+// shows, and reads the element in which core renders it (./advanced.ts).
 
 import type { Target } from "../actions/index.ts";
 import { pageFrontEnds, start } from "../core/index.ts";
@@ -56,6 +59,8 @@ import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import type { BlockOutput, OutputFixtures } from "../types/outputs.ts";
 import { errorMessage, isObject, own, packageFromId } from "../util/index.ts";
+import { stubDialogs } from "./advanced.ts";
+import type { StubAdvanced } from "./advanced.ts";
 import { stubMenus } from "./menu.ts";
 import type { StubMenu } from "./menu.ts";
 // The stubs ship the fixtures that R and both test suites read from inst/.
@@ -181,6 +186,9 @@ export interface StubCore {
   // where none is.
   menu(target: Target, opts?: MenuOptions): StubMenu;
   menu(): StubMenu | undefined;
+  // The advanced action that core's dialog shows, as a menu, trigger() or a
+  // frontend opened it, or undefined where the dialog shows none.
+  advanced(): StubAdvanced | undefined;
   // Ends what core started, and what the stub logged with it.
   readonly stop: () => void;
 }
@@ -224,6 +232,7 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
   }, true);
   const r = fixtureR(hello, options);
   const menus = stubMenus();
+  const dialogs = stubDialogs();
   const started = start({
     transport: r.transport,
     loader: {
@@ -237,6 +246,7 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     ...(options.el === undefined ? {} : { frontEnds: pageFrontEnds(options.el) }),
     measure: options.measure ?? { info: () => INFO, watch: () => () => undefined },
     showMenu: menus.show,
+    showDialog: dialogs.show,
   });
 
   let first: CoreApi;
@@ -264,6 +274,7 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
       return core();
     },
     menu,
+    advanced: () => dialogs.open(),
     sent: r.sent,
     settled: async () => {
       for (let quiet = 0; quiet < 3; ) {

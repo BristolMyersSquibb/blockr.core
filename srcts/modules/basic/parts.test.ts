@@ -4,10 +4,10 @@
 import { describe, expect, test } from "vitest";
 import type { Stack } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
+import { onMac, shortcutLabel } from "../../util/index.ts";
 import { demandShown, IN_VIEW, OWNER, SHOWN } from "./demand.ts";
 import type { View } from "./demand.ts";
 import { layoutItems } from "./layout.ts";
-import { onMac, shortcutLabel } from "./shortcuts.ts";
 
 describe("where each block goes", () => {
   const block = { registry_id: "blockr.core-head_block", state: {}, name: "Head", locked: null };
