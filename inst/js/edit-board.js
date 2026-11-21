@@ -297,7 +297,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-f64f0790.js";
+import { useFilter } from "./vendor-d1dac32a.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2("");
@@ -1223,13 +1223,32 @@ function blockName(board, block) {
 }
 
 // srcts/modules/edit-board/stacks.tsx
-import { useId as useId2, useState as useState10 } from "react";
-import { ComboBox as ComboBox3, ComboBoxSection as ComboBoxSection2, Form as Form3, TextField as TextField4 } from "@blockr/core/react";
+import { useState as useState10 } from "react";
+import {
+  Checkbox,
+  ColorArea,
+  ColorField,
+  ColorPicker,
+  ColorSlider,
+  ColorSwatch,
+  ColorSwatchPicker,
+  ColorSwatchPickerItem,
+  ComboBox as ComboBox3,
+  ComboBoxSection as ComboBoxSection2,
+  Form as Form3,
+  TextField as TextField4
+} from "@blockr/core/react";
 import { Fragment as Fragment4, jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 var PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"];
 function suggestedColor(stacks) {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
   return PALETTE.find((color2) => !used.has(color2)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
+}
+function stackColor(color2) {
+  return typeof color2 === "string" ? color2 : color2.toString("hex");
+}
+function sameColor(a, b) {
+  return a === null || b === null ? a === b : a.toLowerCase() === b.toLowerCase();
 }
 function suggestedName(stacks) {
   const names = new Set(stacks.map((stack) => stack.name));
@@ -1335,15 +1354,10 @@ function StackBlocks({ board, blocks }) {
   ] });
 }
 function Swatch({ color: color2 }) {
-  return /* @__PURE__ */ jsx8(
-    "span",
-    {
-      "aria-hidden": "true",
-      className: "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default",
-      style: color2 === null ? void 0 : { backgroundColor: color2 }
-    }
-  );
+  return color2 === null ? /* @__PURE__ */ jsx8("span", { "aria-hidden": "true", className: RING }) : /* @__PURE__ */ jsx8(ColorSwatch, { color: color2, className: DOT });
 }
+var RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+var DOT = "bc:size-3! bc:rounded-full!";
 function StackForm({
   core,
   board,
@@ -1381,17 +1395,18 @@ function StackForm({
     event.preventDefault();
     if (busy) return;
     const trimmed = name2.trim();
+    const hex = color2 === null ? null : stackColor(color2);
     setBusy(true);
     let ran;
     if (editing === void 0) {
-      const args = { blocks: kept, color: color2, name: trimmed === "" ? fallbackName : trimmed };
+      const args = { blocks: kept, color: hex, name: trimmed === "" ? fallbackName : trimmed };
       ran = await edits.run("Could not add the stack.", "blockr.core-add_stack", args);
     } else {
       const { id: id2, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
       const changed = {
         ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
-        ...color2 === stack.color ? {} : { color: color2 }
+        ...sameColor(hex, stack.color) ? {} : { color: hex }
       };
       const title = `Could not change the stack "${stack.name}".`;
       ran = !renamed || await edits.run(title, "blockr.core-rename_stack", { id: id2, name: trimmed });
@@ -1437,7 +1452,7 @@ function StackForm({
                     onChange: setName
                   }
                 ),
-                /* @__PURE__ */ jsx8(ColorField, { color: color2, onChange: setColor })
+                /* @__PURE__ */ jsx8(StackColor, { color: color2, onChange: setColor })
               ] }),
               /* @__PURE__ */ jsx8(
                 ComboBox3,
@@ -1477,39 +1492,38 @@ function StackForm({
     )
   );
 }
-function ColorField({ color: color2, onChange }) {
-  const id2 = useId2();
+function StackColor({ color: color2, onChange }) {
   const [last, setLast] = useState10(color2 ?? PALETTE[0]);
+  const shown = color2 ?? last;
   return /* @__PURE__ */ jsxs7("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx8("legend", { className: styles.legend, children: "Colour" }),
-    /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
-      /* @__PURE__ */ jsxs7("label", { className: styles.check, children: [
-        /* @__PURE__ */ jsx8(
-          "input",
-          {
-            type: "checkbox",
-            className: styles.checkbox,
-            checked: color2 !== null,
-            onChange: (event) => {
-              onChange(event.target.checked ? last : null);
-            }
-          }
-        ),
-        "A colour of its own"
-      ] }),
+    /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1", children: [
       /* @__PURE__ */ jsx8(
-        "input",
+        Checkbox,
         {
-          id: id2,
-          type: "color",
-          "aria-label": "The stack's colour",
-          disabled: color2 === null,
-          value: color2 ?? last,
-          className: "bc:h-7 bc:w-10 bc:cursor-pointer bc:rounded bc:border bc:border-border-field bc:bg-transparent bc:p-0.5 bc:text-text-default bc:disabled:cursor-default bc:disabled:opacity-50",
-          onChange: (event) => {
-            setLast(event.target.value);
-            onChange(event.target.value);
-          }
+          isSelected: color2 !== null,
+          onChange: (selected) => {
+            onChange(selected ? last : null);
+          },
+          children: "A colour of its own"
+        }
+      ),
+      /* @__PURE__ */ jsxs7(
+        ColorPicker,
+        {
+          label: stackColor(shown).toUpperCase(),
+          value: shown,
+          isDisabled: color2 === null,
+          onChange: (picked) => {
+            setLast(picked);
+            onChange(picked);
+          },
+          children: [
+            /* @__PURE__ */ jsx8(ColorArea, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
+            /* @__PURE__ */ jsx8(ColorSlider, { colorSpace: "hsb", channel: "hue" }),
+            /* @__PURE__ */ jsx8(ColorField, { label: "Hex" }),
+            /* @__PURE__ */ jsx8(ColorSwatchPicker, { "aria-label": "Palette", className: "bc:max-w-36", children: PALETTE.map((hex) => /* @__PURE__ */ jsx8(ColorSwatchPickerItem, { color: hex }, hex)) })
+          ]
         }
       )
     ] })

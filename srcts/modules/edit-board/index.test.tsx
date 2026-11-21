@@ -15,6 +15,7 @@ import type { StubCoreOptions } from "../../stubs/index.ts";
 import { chipLabels, labelled, listed, listFromField, optionFromLabel, optionLabels, picked, selectButton, selectShows } from "../../testing/select.ts";
 import { find, press, texts, type } from "../../testing/inputs.ts";
 import { held } from "../../testing/notifications.ts";
+import { openDialog } from "../../testing/overlays.ts";
 import { step } from "../../testing/react.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi, Notification } from "../../types/core-api.ts";
@@ -157,6 +158,17 @@ async function click(el: HTMLElement): Promise<void> {
   await acting(() => {
     el.click();
   });
+}
+
+// The button of a stack form's colour picker, which names the colour by its
+// hex beside its swatch.
+function colorButton(form: HTMLFormElement): HTMLButtonElement {
+  return find(form, "fieldset button", HTMLButtonElement);
+}
+
+// The name of the colour that a swatch shows, as a screen reader says it.
+function swatchName(el: ParentNode): string | null {
+  return el.querySelector('[role="img"]')?.getAttribute("aria-label") ?? null;
 }
 
 // Picks the option of a searchable dropdown, through its search.
@@ -576,11 +588,11 @@ describe("the stacks", () => {
   test("are added with a name, a colour and blocks that the user picks, for which the form suggests a name and a colour of their own", async () => {
     const { el, board } = await mounted();
     const add = (): HTMLFormElement => form(section(el, "Stacks"), "Add stack");
-    const color = (): HTMLInputElement => find(add(), 'input[type="color"]', HTMLInputElement);
 
     expect(labelled(add(), "Name").placeholder).toBe("Stack 1");
     expect(find(add(), 'input[type="checkbox"]', HTMLInputElement).checked).toBe(true);
-    expect(color().value).toBe("#66c2a5");
+    expect(colorButton(add()).textContent).toBe("#66C2A5");
+    expect(swatchName(colorButton(add()))).toBe("light pale green cyan");
 
     // The blocks of no stack come first, and those of another stack apart.
     const blocks = labelled(add(), "Blocks");
@@ -615,8 +627,63 @@ describe("the stacks", () => {
     expect(board().stacks[id ?? ""]).toEqual({ name: "Stack 1", blocks: ["f", "c"], color: "#66c2a5" });
     // The next stack gets a name and a colour of its own.
     expect(labelled(add(), "Name").placeholder).toBe("Stack 2");
-    expect(color().value).toBe("#fc8d62");
+    expect(colorButton(add()).textContent).toBe("#FC8D62");
     expect(texts(row(section(el, "Stacks"), "Stack 1"), "li")).toEqual(["Scatter f", "Merge c"]);
+    // The table names the stack's colour, as a swatch that a screen reader
+    // reads, and draws a ring for a stack with none, which it skips.
+    expect(swatchName(row(section(el, "Stacks"), "Stack 1"))).toBe("light pale green cyan");
+    expect(swatchName(row(section(el, "Stacks"), "Input"))).toBeNull();
+    expect(find(row(section(el, "Stacks"), "Input"), 'span[aria-hidden="true"]').style.backgroundColor).toBe("");
+  });
+
+  test("take the colour that the user picks, of the palette or any other, or none", async () => {
+    const { el, board } = await mounted();
+    const add = (): HTMLFormElement => form(section(el, "Stacks"), "Add stack");
+    const checkbox = (): HTMLInputElement => find(add(), 'input[type="checkbox"]', HTMLInputElement);
+
+    await click(colorButton(add()));
+    const palette = find(openDialog(), '[role="listbox"][aria-label="Palette"]');
+    expect([...palette.querySelectorAll('[role="option"]')].map(swatchName)).toEqual([
+      "light pale green cyan",
+      "light red orange",
+      "light pale blue",
+      "light magenta pink",
+      "light vibrant yellow green",
+      "very light vibrant yellow",
+      "light pale orange yellow",
+      "light gray",
+    ]);
+    const pick = [...palette.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => swatchName(option) === "light pale blue");
+    await click(pick ?? palette);
+    expect(colorButton(add()).textContent).toBe("#8DA0CB");
+
+    // Any other colour, as its hex.
+    const hex = find(openDialog(), 'input:not([type="range"])', HTMLInputElement);
+    await step(() => {
+      type(hex, "#123456");
+      press(hex, "Enter");
+    });
+    expect(colorButton(add()).textContent).toBe("#123456");
+    await step(() => {
+      press(hex, "Escape");
+    });
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    // Without a colour of its own, the picker keeps the last colour, which the
+    // checkbox gives the stack again.
+    await click(checkbox());
+    expect([checkbox().checked, colorButton(add()).disabled, colorButton(add()).textContent]).toEqual([false, true, "#123456"]);
+    await click(checkbox());
+    expect([checkbox().checked, colorButton(add()).disabled]).toEqual([true, false]);
+    await click(button(add(), "Add stack"));
+    await click(checkbox());
+    await click(button(add(), "Add stack"));
+
+    const added = Object.values(board().stacks).filter((stack) => stack.name !== "Input");
+    expect(added.map(({ name, color }) => ({ name, color }))).toEqual([
+      { name: "Stack 1", color: "#123456" },
+      { name: "Stack 2", color: null },
+    ]);
   });
 
   test("are changed in their row: renamed, coloured and given other blocks, one of which leaves its stack, each change a step of its own", async () => {

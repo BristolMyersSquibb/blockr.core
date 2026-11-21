@@ -16,15 +16,33 @@
 // A new stack starts with a name and a colour that no other stack has, such
 // as "Stack 2" and the first colour of a palette that no stack uses, which
 // the user may change or, for the colour, leave out.
+// The section draws a stack's colour with the colours of core's React SDK: a
+// swatch in the table, and a colour picker in the form, beside a checkbox that
+// gives the stack a colour.
+// The picker's popover holds the palette's colours among its swatches.
 // Where the store or the command registry refuses an edit, the form that adds
 // a stack says why below its buttons. Where it refuses an edit in the table, a
 // removal or the save of a row's form, the table says so below itself, naming
 // the stack, until the user's next edit in the table.
 // Under the board lock, it lists the stacks alone.
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
-import { ComboBox, ComboBoxSection, Form, TextField } from "../../react/index.ts";
+import {
+  Checkbox,
+  ColorArea,
+  ColorField,
+  ColorPicker,
+  ColorSlider,
+  ColorSwatch,
+  ColorSwatchPicker,
+  ColorSwatchPickerItem,
+  ComboBox,
+  ComboBoxSection,
+  Form,
+  TextField,
+} from "../../react/index.ts";
+import type { Color } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -44,6 +62,26 @@ const PALETTE = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f
 function suggestedColor(stacks: readonly Stack[]): string {
   const used = new Set(stacks.map((stack) => stack.color?.toLowerCase()));
   return PALETTE.find((color) => !used.has(color)) ?? PALETTE[stacks.length % PALETTE.length] ?? PALETTE[0];
+}
+
+// A colour as the form holds it: the hex of a stack's colour or of the
+// palette, or the colour that the picker gave.
+// The form keeps the colour as the picker gave it, in the colour space of the
+// part that the user changed it in, rather than as hex.
+// The hex of a grey holds no hue, so the picker's hue stays where the user
+// left it.
+type Picked = string | Color;
+
+// The hex of a colour that the form holds, as a stack holds it: six digits,
+// as React Aria's color.toString("hex") writes them.
+function stackColor(color: Picked): string {
+  return typeof color === "string" ? color : color.toString("hex");
+}
+
+// Whether two colours of stacks are one, which their hex may give in either
+// case.
+function sameColor(a: string | null, b: string | null): boolean {
+  return a === null || b === null ? a === b : a.toLowerCase() === b.toLowerCase();
 }
 
 // "Stack 1", or the first "Stack n" that no stack has.
@@ -206,16 +244,17 @@ function StackBlocks({ board, blocks }: { board: Board; blocks: readonly BlockId
   );
 }
 
-// The colour of a stack, or a ring where it has none.
+// The colour of a stack, as the SDK's swatch, which a screen reader names by
+// its colour, or a ring where it has none, which a screen reader skips.
+// Each is a dot of 0.75rem. The SDK's swatch is a rounded square of 2rem,
+// whose size and shape the dot's classes win over with Tailwind's important
+// modifier.
 function Swatch({ color }: { color: string | null }): ReactElement {
-  return (
-    <span
-      aria-hidden="true"
-      className="bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default"
-      style={color === null ? undefined : { backgroundColor: color }}
-    />
-  );
+  return color === null ? <span aria-hidden="true" className={RING} /> : <ColorSwatch color={color} className={DOT} />;
 }
+
+const RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+const DOT = "bc:size-3! bc:rounded-full!";
 
 // The form that adds a stack, or that changes the stack given.
 // The form that adds a stack says why the store or the command registry
@@ -240,7 +279,7 @@ function StackForm({
   const registry = core.blockRegistry();
   const stacks = Object.values(board.stacks);
   const [name, setName] = useState(editing?.stack.name ?? "");
-  const [color, setColor] = useState<string | null>(editing === undefined ? suggestedColor(stacks) : editing.stack.color);
+  const [color, setColor] = useState<Picked | null>(editing === undefined ? suggestedColor(stacks) : editing.stack.color);
   const [blocks, setBlocks] = useState<readonly BlockId[]>(editing?.stack.blocks ?? []);
   const [busy, setBusy] = useState(false);
   const ownEdits = useEdits(core);
@@ -273,17 +312,18 @@ function StackForm({
     event.preventDefault();
     if (busy) return;
     const trimmed = name.trim();
+    const hex = color === null ? null : stackColor(color);
     setBusy(true);
     let ran: boolean;
     if (editing === undefined) {
-      const args: Record<string, Json> = { blocks: kept, color, name: trimmed === "" ? fallbackName : trimmed };
+      const args: Record<string, Json> = { blocks: kept, color: hex, name: trimmed === "" ? fallbackName : trimmed };
       ran = await edits.run("Could not add the stack.", "blockr.core-add_stack", args);
     } else {
       const { id, stack } = editing;
       const renamed = trimmed !== "" && trimmed !== stack.name;
       const changed: Record<string, Json> = {
         ...(sameBlocks(kept, stack.blocks) ? {} : { blocks: kept }),
-        ...(color === stack.color ? {} : { color }),
+        ...(sameColor(hex, stack.color) ? {} : { color: hex }),
       };
       // The sentence that names the edit, which names the stack as its row
       // did.
@@ -326,7 +366,7 @@ function StackForm({
             autoComplete="off"
             onChange={setName}
           />
-          <ColorField color={color} onChange={setColor} />
+          <StackColor color={color} onChange={setColor} />
         </div>
         <ComboBox
           selectionMode="multiple"
@@ -368,38 +408,48 @@ function StackForm({
   );
 }
 
-// A stack's colour, or none: a checkbox that gives the stack a colour, and the
-// browser's colour picker, which picks it.
-function ColorField({ color, onChange }: { color: string | null; onChange: (color: string | null) => void }): ReactElement {
-  const id = useId();
-  const [last, setLast] = useState(color ?? PALETTE[0]);
+// A stack's colour, or none: the SDK's checkbox, which gives the stack a
+// colour, and the SDK's colour picker, which picks it.
+// The picker's popover holds the starter kit's parts, an area of the
+// saturation and the brightness, a slider of the hue and a field of the hex,
+// and below them the palette's colours as swatches, in two rows of four,
+// which pick one at a click.
+// While the stack has no colour, the picker shows the colour last picked and
+// is disabled, and the checkbox gives the stack that colour again.
+// The picker's button names the colour by its hex too.
+function StackColor({ color, onChange }: { color: Picked | null; onChange: (color: Picked | null) => void }): ReactElement {
+  const [last, setLast] = useState<Picked>(color ?? PALETTE[0]);
+  const shown = color ?? last;
   return (
     <fieldset className={styles.fieldset}>
       <legend className={styles.legend}>Colour</legend>
-      <div className="bc:flex bc:items-center bc:gap-2">
-        <label className={styles.check}>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
-            checked={color !== null}
-            onChange={(event) => {
-              onChange(event.target.checked ? last : null);
-            }}
-          />
-          A colour of its own
-        </label>
-        <input
-          id={id}
-          type="color"
-          aria-label="The stack's colour"
-          disabled={color === null}
-          value={color ?? last}
-          className="bc:h-7 bc:w-10 bc:cursor-pointer bc:rounded bc:border bc:border-border-field bc:bg-transparent bc:p-0.5 bc:text-text-default bc:disabled:cursor-default bc:disabled:opacity-50"
-          onChange={(event) => {
-            setLast(event.target.value);
-            onChange(event.target.value);
+      <div className="bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1">
+        <Checkbox
+          isSelected={color !== null}
+          onChange={(selected) => {
+            onChange(selected ? last : null);
           }}
-        />
+        >
+          A colour of its own
+        </Checkbox>
+        <ColorPicker
+          label={stackColor(shown).toUpperCase()}
+          value={shown}
+          isDisabled={color === null}
+          onChange={(picked) => {
+            setLast(picked);
+            onChange(picked);
+          }}
+        >
+          <ColorArea colorSpace="hsb" xChannel="saturation" yChannel="brightness" />
+          <ColorSlider colorSpace="hsb" channel="hue" />
+          <ColorField label="Hex" />
+          <ColorSwatchPicker aria-label="Palette" className="bc:max-w-36">
+            {PALETTE.map((hex) => (
+              <ColorSwatchPickerItem key={hex} color={hex} />
+            ))}
+          </ColorSwatchPicker>
+        </ColorPicker>
       </div>
     </fieldset>
   );
