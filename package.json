@@ -4,8 +4,7 @@
   "description": "Builds and checks the client of blockr.core: TypeScript in srcts/, bundled into inst/js.",
   "type": "module",
   "engines": {
-    "node": "^22.18.0 || >=24",
-    "npm": ">=11.18.0"
+    "node": "^22.18.0 || >=24"
   },
   "scripts": {
     "typecheck": "tsc -b",
