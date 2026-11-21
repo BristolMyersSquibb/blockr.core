@@ -6,6 +6,9 @@
 // So the page runs one copy of React Aria, which holds the parts named here
 // alone, since the whole of React Aria is several times the size of React.
 // A part that core starts to draw with goes here.
+// So do the functions of @internationalized/date
+// (https://react-aria.adobe.com/internationalized/date/) with which the SDK's
+// dates read the strings of a state and write those that they submit.
 // React Aria 1.22 still names the parts of its toasts UNSTABLE_, so a minor
 // release may change them.
 
@@ -14,6 +17,13 @@ export {
   Breadcrumb,
   Breadcrumbs,
   Button,
+  Calendar,
+  CalendarCell,
+  CalendarGrid,
+  CalendarGridBody,
+  CalendarGridHeader,
+  CalendarHeaderCell,
+  CalendarHeading,
   Cell,
   CheckboxButton,
   CheckboxField,
@@ -23,6 +33,11 @@ export {
   ComboBox,
   ComboBoxStateContext,
   composeRenderProps,
+  DateField,
+  DateInput,
+  DatePicker,
+  DateRangePicker,
+  DateSegment,
   Dialog,
   DialogTrigger,
   Disclosure,
@@ -70,6 +85,7 @@ export {
   RadioButton,
   RadioField,
   RadioGroup,
+  RangeCalendar,
   Row,
   SearchField,
   Select,
@@ -103,6 +119,7 @@ export {
   Text,
   TextArea,
   TextField,
+  TimeField,
   ToggleButton,
   ToggleButtonGroup,
   ToggleButtonGroupContext,
@@ -126,16 +143,23 @@ export {
   useTableOptions,
   Virtualizer,
 } from "react-aria-components";
+export { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "@internationalized/date";
 export type {
   AutocompleteProps,
   BreadcrumbProps,
   BreadcrumbsProps,
   ButtonProps,
+  CalendarProps,
   CellProps,
   CheckboxFieldProps,
   CheckboxGroupProps,
   ColumnProps,
   ComboBoxProps,
+  DateFieldProps,
+  DatePickerProps,
+  DateRange,
+  DateRangePickerProps,
+  DateValue,
   DialogProps,
   DisclosureGroupProps,
   DisclosurePanelProps,
@@ -170,6 +194,7 @@ export type {
   QueuedToast,
   RadioFieldProps,
   RadioGroupProps,
+  RangeCalendarProps,
   RowProps,
   SearchFieldProps,
   Selection,
@@ -191,6 +216,8 @@ export type {
   TagListProps,
   TagProps,
   TextFieldProps,
+  TimeFieldProps,
+  TimeValue,
   ToastOptions,
   ToastProps,
   ToastRegionProps,
@@ -207,3 +234,4 @@ export type {
   TreeProps,
   ValidationResult,
 } from "react-aria-components";
+export type { CalendarDate } from "@internationalized/date";

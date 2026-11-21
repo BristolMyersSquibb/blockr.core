@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-e43ec196.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-8bee73fa.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -249,7 +249,7 @@ function checkRaised(notification) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-e43ec196.js";
+import { Validator } from "./vendor-8bee73fa.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -3786,10 +3786,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-e43ec196.js";
+import { computed as computed3, signal as signal4 } from "./vendor-8bee73fa.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-e43ec196.js";
+import { signal as signal3 } from "./vendor-8bee73fa.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -5892,7 +5892,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-e43ec196.js";
+import { computed as computed2, signal as signal2 } from "./vendor-8bee73fa.js";
 function createRegistrations(migration = () => void 0) {
   const classes = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -7975,7 +7975,7 @@ function kindOf(target2) {
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Autocomplete, Input, Separator, TextField as AriaTextField } from "./vendor-e43ec196.js";
+import { Autocomplete, Input, Separator, TextField as AriaTextField } from "./vendor-8bee73fa.js";
 import { TextField } from "@blockr/core/react";
 import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
