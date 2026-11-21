@@ -171,6 +171,28 @@ describe("a bound date field", () => {
     expect(alerts(el)).toEqual(["Not available: 2026-11-19T14:30:00"]);
   });
 
+  test("submits a step of a segment by a key at once, as a pick, and keeps an edit that the user typed before it", async () => {
+    const { el, submitted } = block(field(), "2026-11-19", ["2026-11-20", "2026-12-25"]);
+    await step(() => {
+      segment(el, "day").focus();
+    });
+    await step(() => {
+      press(segment(el, "day"), "ArrowUp");
+    });
+    expect(submitted()).toEqual(["2026-11-20"]);
+
+    // The step of the month submits the day that the user typed with it.
+    await typeInto(segment(el, "day"), "25");
+    expect(submitted()).toEqual(["2026-11-20"]);
+    await step(() => {
+      segment(el, "month").focus();
+    });
+    await step(() => {
+      press(segment(el, "month"), "ArrowUp");
+    });
+    expect(submitted()).toEqual(["2026-11-20", "2026-12-25"]);
+  });
+
   test("shows the date that the host announces, as the assistant sets it", async () => {
     const { el, host } = block(field(), "2026-11-19", []);
     await step(() => {
@@ -238,11 +260,12 @@ describe("a bound date field", () => {
 });
 
 describe("a bound time field", () => {
-  test("shows the time that the state holds, and submits the time that the user steps to as the user leaves", async () => {
-    function At({ host }: { readonly host: BlockHost<Dates> }): ReactElement {
-      return <TimeField bound={useValue(host, "on")} label="At" hourCycle={24} />;
-    }
-    const { el, submitted, leave } = block(At, "14:30:00", ["15:30:00"]);
+  function At({ host }: { readonly host: BlockHost<Dates> }): ReactElement {
+    return <TimeField bound={useValue(host, "on")} label="At" hourCycle={24} />;
+  }
+
+  test("shows the time that the state holds, and submits a step of a segment by a key at once, as a pick", async () => {
+    const { el, submitted } = block(At, "14:30:00", ["15:30:00", "15:00:00"]);
     expect(segments(el)).toEqual(["14", "30"]);
 
     await step(() => {
@@ -251,9 +274,31 @@ describe("a bound time field", () => {
     await step(() => {
       press(segment(el, "hour"), "ArrowUp");
     });
-    expect(submitted()).toEqual([]);
-    await leave();
     expect(submitted()).toEqual(["15:30:00"]);
+    expect(segments(el)).toEqual(["15", "30"]);
+
+    // Home steps the minute to its smallest.
+    await step(() => {
+      segment(el, "minute").focus();
+    });
+    await step(() => {
+      press(segment(el, "minute"), "Home");
+    });
+    expect(submitted()).toEqual(["15:30:00", "15:00:00"]);
+  });
+
+  test("submits what the user typed after a step only as the user leaves", async () => {
+    const { el, submitted, leave } = block(At, "14:30:00", ["15:30:00", "15:45:00"]);
+    await step(() => {
+      segment(el, "hour").focus();
+    });
+    await step(() => {
+      press(segment(el, "hour"), "ArrowUp");
+    });
+    await typeInto(segment(el, "minute"), "45");
+    expect(submitted()).toEqual(["15:30:00"]);
+    await leave();
+    expect(submitted()).toEqual(["15:30:00", "15:45:00"]);
   });
 });
 
@@ -263,7 +308,7 @@ describe("a bound date picker", () => {
   }
 
   test("submits a pick in its calendar at once, and what the user types as the user leaves", async () => {
-    const { el, submitted, leave } = block(Picker, "2026-11-19", ["2026-11-20", "2026-11-25"]);
+    const { el, submitted, leave } = block(Picker, "2026-11-19", ["2026-11-20", "2026-11-25", "2026-11-24"]);
     expect(segments(el)).toEqual(["11", "19", "2026"]);
 
     const opener = el.querySelector("button");
@@ -281,6 +326,15 @@ describe("a bound date picker", () => {
     expect(submitted()).toEqual(["2026-11-20"]);
     await leave();
     expect(submitted()).toEqual(["2026-11-20", "2026-11-25"]);
+
+    // A step of a segment of its field submits at once, as in the date field.
+    await step(() => {
+      segment(el, "day").focus();
+    });
+    await step(() => {
+      press(segment(el, "day"), "ArrowDown");
+    });
+    expect(submitted()).toEqual(["2026-11-20", "2026-11-25", "2026-11-24"]);
   });
 });
 

@@ -7,7 +7,11 @@
 // year goes from 2 to 20, 202 and 2026, and each of these is a date.
 // So the input submits nothing as the user pauses, unlike the SDK's text
 // field.
-// A pick, as of a day in a calendar, it submits at once.
+// A pick, as of a day in a calendar, it submits at once, and so a step of a
+// segment by a key, as by the arrow up, as the SDK's number field submits a
+// step of its number.
+// React Aria takes the keys that step a segment for its own, so the input
+// hears each key before React Aria does, through heard().
 // It submits only a value that `fits` takes, as one in the input's range, and
 // a value that does not fit gives way to the state again.
 // An empty value unsets the state arg, as the select of one does once the
@@ -21,9 +25,9 @@
 // value again, or until the host refuses it.
 // It shows as missing a value that `read` reads as none, as the select shows a
 // value that its items lack.
-// Where the input unmounts while the user edits, the edit goes with it, since
-// the binding submits only what it was handed through type(), which it
-// submits after a pause.
+// Where the input unmounts while the user edits, the edit goes with it, as
+// the picks of the select of several go with it where it unmounts while its
+// list is open (./combobox.tsx).
 
 import { useRef, useState } from "react";
 import type { Bound } from "../react/index.ts";
@@ -37,8 +41,13 @@ export interface BoundDate<V> {
   // The state's value, as the input shows it as missing, where `read` reads
   // it as none, or null.
   readonly missing: string | null;
-  // Takes an edit, which the input submits through flush().
-  edit(value: V | null): void;
+  // Hears a key that the user presses in the input's segments, before React
+  // Aria changes the value by it, which an element of the input calls.
+  readonly heard: (key: string) => void;
+  // Takes a change of the input's segments: a step, after a key that steps a
+  // segment, which it submits at once, and otherwise an edit, which it
+  // submits through flush().
+  change(value: V | null): void;
   // Submits a pick at once.
   pick(value: V | null): void;
   // Submits the edit, as the user leaves the input or presses Enter.
@@ -51,6 +60,10 @@ export interface BoundDateOptions<V> {
   readonly fits: (value: V) => boolean;
   readonly required: boolean;
 }
+
+// The keys with which React Aria's spin button steps a segment of a date or a
+// time: the arrows up and down, Page Up and Page Down, Home and End.
+const STEPS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
 
 // The value that the input shows in place of the state: the edit of the
 // user, until the user leaves the input, or the value that it submitted, until
@@ -72,6 +85,8 @@ export function useBoundDate<V>(bound: Bound, { read, write, fits, required }: B
     latest.current = next;
     setKept(next);
   };
+  // Whether the key that the user pressed last steps a segment.
+  const stepped = useRef(false);
   const [seen, setSeen] = useState(bound.value);
   if (!Object.is(seen, bound.value)) {
     setSeen(bound.value);
@@ -97,8 +112,16 @@ export function useBoundDate<V>(bound: Bound, { read, write, fits, required }: B
   return {
     value: kept === null ? (held ?? null) : kept.value,
     missing: kept === null && bound.value !== undefined && held === undefined ? shownValue(bound.value) : null,
-    edit: (value) => {
-      keep({ value, submitted: false });
+    heard: (key) => {
+      stepped.current = STEPS.has(key);
+    },
+    change: (value) => {
+      if (stepped.current) {
+        stepped.current = false;
+        submit(value);
+      } else {
+        keep({ value, submitted: false });
+      }
     },
     pick: submit,
     flush: () => {

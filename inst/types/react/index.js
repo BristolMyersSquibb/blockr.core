@@ -613,6 +613,7 @@ function shownValue(value) {
 }
 
 // srcts/inputs/bounddate.ts
+var STEPS = /* @__PURE__ */ new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
 function useBoundDate(bound, { read, write, fits, required }) {
   const held3 = bound.value === void 0 ? null : read(bound.value);
   const [kept, setKept] = useState2(null);
@@ -621,6 +622,7 @@ function useBoundDate(bound, { read, write, fits, required }) {
     latest.current = next;
     setKept(next);
   };
+  const stepped = useRef2(false);
   const [seen, setSeen] = useState2(bound.value);
   if (!Object.is(seen, bound.value)) {
     setSeen(bound.value);
@@ -644,8 +646,16 @@ function useBoundDate(bound, { read, write, fits, required }) {
   return {
     value: kept === null ? held3 ?? null : kept.value,
     missing: kept === null && bound.value !== void 0 && held3 === void 0 ? shownValue(bound.value) : null,
-    edit: (value) => {
-      keep({ value, submitted: false });
+    heard: (key) => {
+      stepped.current = STEPS.has(key);
+    },
+    change: (value) => {
+      if (stepped.current) {
+        stepped.current = false;
+        submit(value);
+      } else {
+        keep({ value, submitted: false });
+      }
     },
     pick: submit,
     flush: () => {
@@ -1359,8 +1369,9 @@ function BoundDate({
         validationBehavior,
         value: date.value,
         missing: date.missing,
+        onKey: date.heard,
         onChange: (value) => {
-          date.edit(value);
+          date.change(value);
           onChange?.(value);
         },
         onBlur: (event) => {
@@ -1398,8 +1409,9 @@ function BoundTime({
         validationBehavior,
         value: time.value,
         missing: time.missing,
+        onKey: time.heard,
         onChange: (value) => {
-          time.edit(value);
+          time.change(value);
           onChange?.(value);
         },
         onBlur: (event) => {
@@ -1415,25 +1427,43 @@ function BoundTime({
     /* @__PURE__ */ jsx8(Refusal, { error: bound.error })
   ] });
 }
-function DrawnDate({ label, description, errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
+function DrawnDate({
+  label,
+  description,
+  errorMessage: errorMessage2,
+  missing = null,
+  onKey,
+  isInvalid,
+  className,
+  ...props
+}) {
   return /* @__PURE__ */ jsx8(
     DateField,
     {
       ...props,
       isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx8(FieldParts, { label, description, errorMessage: errorMessage2, missing })
+      children: /* @__PURE__ */ jsx8(FieldParts, { label, description, errorMessage: errorMessage2, missing, onKey })
     }
   );
 }
-function DrawnTime({ label, description, errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
+function DrawnTime({
+  label,
+  description,
+  errorMessage: errorMessage2,
+  missing = null,
+  onKey,
+  isInvalid,
+  className,
+  ...props
+}) {
   return /* @__PURE__ */ jsx8(
     TimeField,
     {
       ...props,
       isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx8(FieldParts, { label, description, errorMessage: errorMessage2, missing })
+      children: /* @__PURE__ */ jsx8(FieldParts, { label, description, errorMessage: errorMessage2, missing, onKey })
     }
   );
 }
@@ -1441,15 +1471,28 @@ function FieldParts({
   label,
   description,
   errorMessage: errorMessage2,
-  missing
+  missing,
+  onKey
 }) {
   return /* @__PURE__ */ jsxs6(Fragment4, { children: [
     label === void 0 ? null : /* @__PURE__ */ jsx8(Label, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsx8(DateInput2, { className: BOX2 }),
+    /* @__PURE__ */ jsx8(Segments, { onKey, children: /* @__PURE__ */ jsx8(DateInput2, { className: BOX2 }) }),
     /* @__PURE__ */ jsx8(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
     /* @__PURE__ */ jsx8(FieldError, { className: styles.alert, children: errorMessage2 }),
     missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx8(NotAvailable, { values: [missing] })
   ] });
+}
+function Segments({ onKey, children }) {
+  return onKey === void 0 ? /* @__PURE__ */ jsx8(Fragment4, { children }) : /* @__PURE__ */ jsx8(
+    "div",
+    {
+      className: "bc:contents",
+      onKeyDownCapture: (event) => {
+        onKey(event.key);
+      },
+      children
+    }
+  );
 }
 function DateInput2({ slot, className }) {
   return /* @__PURE__ */ jsx8(DateInput, { slot, className, children: (segment) => /* @__PURE__ */ jsx8(DateSegment, { segment, className: SEGMENT }) });
@@ -1576,7 +1619,7 @@ function usePicking(value) {
     },
     onChange: (next) => {
       if (open.current) value.pick(next);
-      else value.edit(next);
+      else value.change(next);
     },
     onBlur: () => {
       value.flush();
@@ -1611,6 +1654,7 @@ function BoundPicker({
         validationBehavior,
         value: date.value,
         missing: date.missing,
+        onKey: date.heard,
         onOpenChange: (isOpen) => {
           picking.onOpenChange(isOpen);
           onOpenChange?.(isOpen);
@@ -1657,6 +1701,7 @@ function BoundRangePicker({
         validationBehavior,
         value: range.value,
         missing: range.missing,
+        onKey: range.heard,
         onOpenChange: (isOpen) => {
           picking.onOpenChange(isOpen);
           onOpenChange?.(isOpen);
@@ -1678,7 +1723,16 @@ function BoundRangePicker({
     /* @__PURE__ */ jsx13(Refusal, { error: bound.error })
   ] });
 }
-function DrawnPicker({ label, description, errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
+function DrawnPicker({
+  label,
+  description,
+  errorMessage: errorMessage2,
+  missing = null,
+  onKey,
+  isInvalid,
+  className,
+  ...props
+}) {
   return /* @__PURE__ */ jsxs9(
     DatePicker,
     {
@@ -1688,7 +1742,7 @@ function DrawnPicker({ label, description, errorMessage: errorMessage2, missing 
       children: [
         label === void 0 ? null : /* @__PURE__ */ jsx13(Label, { className: styles.label, children: label }),
         /* @__PURE__ */ jsxs9(Group, { className: FIELD2, children: [
-          /* @__PURE__ */ jsx13(DateInput2, { className: `${INLINE} bc:flex-1` }),
+          /* @__PURE__ */ jsx13(Segments, { onKey, children: /* @__PURE__ */ jsx13(DateInput2, { className: `${INLINE} bc:flex-1` }) }),
           /* @__PURE__ */ jsx13(Opener, {})
         ] }),
         /* @__PURE__ */ jsx13(PickerParts, { description, errorMessage: errorMessage2, missing }),
@@ -1702,6 +1756,7 @@ function DrawnRangePicker({
   description,
   errorMessage: errorMessage2,
   missing = null,
+  onKey,
   isInvalid,
   className,
   ...props
@@ -1715,11 +1770,11 @@ function DrawnRangePicker({
       children: [
         label === void 0 ? null : /* @__PURE__ */ jsx13(Label, { className: styles.label, children: label }),
         /* @__PURE__ */ jsxs9(Group, { className: FIELD2, children: [
-          /* @__PURE__ */ jsxs9("div", { className: ENDS, children: [
+          /* @__PURE__ */ jsx13(Segments, { onKey, children: /* @__PURE__ */ jsxs9("div", { className: ENDS, children: [
             /* @__PURE__ */ jsx13(DateInput2, { slot: "start", className: INLINE }),
             /* @__PURE__ */ jsx13("span", { "aria-hidden": "true", className: "bc:px-1 bc:text-text-muted", children: "\u2013" }),
             /* @__PURE__ */ jsx13(DateInput2, { slot: "end", className: `${INLINE} bc:flex-1` })
-          ] }),
+          ] }) }),
           /* @__PURE__ */ jsx13(Opener, {})
         ] }),
         /* @__PURE__ */ jsx13(PickerParts, { description, errorMessage: errorMessage2, missing }),

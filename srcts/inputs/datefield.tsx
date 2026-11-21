@@ -17,14 +17,15 @@
 // the field's granularity takes a time (./dates.ts).
 // The time field shows and edits a time in the same way, as "14:30:00".
 // Each submits what the user typed as the user leaves the field or presses
-// Enter (./bounddate.ts).
+// Enter, and a step of a segment by a key at once, as a pick
+// (./bounddate.ts).
 // It submits only a value from minValue to maxValue, and the date field only
 // a date that isDateUnavailable leaves.
 // A bound field takes React Aria's validationBehavior "aria" by default, so
 // that it marks a value that it does not take as the user types it.
 // It says below itself why the host refused what it submitted.
 
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import {
   composeRenderProps,
   DateField as AriaDateField,
@@ -74,10 +75,15 @@ export function TimeField<T extends TimeValue>({ bound, ...props }: TimeFieldPro
   return bound === undefined ? <DrawnTime {...props} /> : <BoundTime {...(props as DrawnTimeProps<TimeValue>)} bound={bound} />;
 }
 
-// What a field draws with, and the state's value that it shows as missing,
-// where it shows one.
-type DrawnDateProps<T extends DateValue> = Omit<DateFieldProps<T>, "bound"> & { readonly missing?: string | null };
-type DrawnTimeProps<T extends TimeValue> = Omit<TimeFieldProps<T>, "bound"> & { readonly missing?: string | null };
+// What a field draws with, the state's value that it shows as missing, where
+// it shows one, and what hears each key that the user presses in its segments,
+// where it is bound.
+interface Bindable {
+  readonly missing?: string | null;
+  readonly onKey?: (key: string) => void;
+}
+type DrawnDateProps<T extends DateValue> = Omit<DateFieldProps<T>, "bound"> & Bindable;
+type DrawnTimeProps<T extends TimeValue> = Omit<TimeFieldProps<T>, "bound"> & Bindable;
 
 function BoundDate({
   bound,
@@ -101,8 +107,9 @@ function BoundDate({
         validationBehavior={validationBehavior}
         value={date.value}
         missing={date.missing}
+        onKey={date.heard}
         onChange={(value) => {
-          date.edit(value);
+          date.change(value);
           onChange?.(value);
         }}
         onBlur={(event) => {
@@ -140,8 +147,9 @@ function BoundTime({
         validationBehavior={validationBehavior}
         value={time.value}
         missing={time.missing}
+        onKey={time.heard}
         onChange={(value) => {
-          time.edit(value);
+          time.change(value);
           onChange?.(value);
         }}
         onBlur={(event) => {
@@ -161,26 +169,44 @@ function BoundTime({
 // The label, the field, the description, the error message, and the line that
 // names a value of the state that the field shows as missing, as the SDK's
 // other inputs name a value that they lack.
-function DrawnDate<T extends DateValue>({ label, description, errorMessage, missing = null, isInvalid, className, ...props }: DrawnDateProps<T>): ReactElement {
+function DrawnDate<T extends DateValue>({
+  label,
+  description,
+  errorMessage,
+  missing = null,
+  onKey,
+  isInvalid,
+  className,
+  ...props
+}: DrawnDateProps<T>): ReactElement {
   return (
     <AriaDateField
       {...props}
       isInvalid={missing === null ? isInvalid : true}
       className={composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`)}
     >
-      <FieldParts label={label} description={description} errorMessage={errorMessage} missing={missing} />
+      <FieldParts label={label} description={description} errorMessage={errorMessage} missing={missing} onKey={onKey} />
     </AriaDateField>
   );
 }
 
-function DrawnTime<T extends TimeValue>({ label, description, errorMessage, missing = null, isInvalid, className, ...props }: DrawnTimeProps<T>): ReactElement {
+function DrawnTime<T extends TimeValue>({
+  label,
+  description,
+  errorMessage,
+  missing = null,
+  onKey,
+  isInvalid,
+  className,
+  ...props
+}: DrawnTimeProps<T>): ReactElement {
   return (
     <AriaTimeField
       {...props}
       isInvalid={missing === null ? isInvalid : true}
       className={composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`)}
     >
-      <FieldParts label={label} description={description} errorMessage={errorMessage} missing={missing} />
+      <FieldParts label={label} description={description} errorMessage={errorMessage} missing={missing} onKey={onKey} />
     </AriaTimeField>
   );
 }
@@ -190,11 +216,14 @@ function FieldParts({
   description,
   errorMessage,
   missing,
-}: Pick<DrawnDateProps<DateValue>, "label" | "description" | "errorMessage" | "missing">): ReactElement {
+  onKey,
+}: Pick<DrawnDateProps<DateValue>, "label" | "description" | "errorMessage" | "missing" | "onKey">): ReactElement {
   return (
     <>
       {label === undefined ? null : <Label className={styles.label}>{label}</Label>}
-      <DateInput className={BOX} />
+      <Segments onKey={onKey}>
+        <DateInput className={BOX} />
+      </Segments>
       {/* React Aria names the description of the field only where the
           element is there from the start, so it is there while empty too. */}
       <Text slot="description" className={`${styles.hint} bc:empty:hidden`}>
@@ -203,6 +232,27 @@ function FieldParts({
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
       {missing === null || missing === undefined ? null : <NotAvailable values={[missing]} />}
     </>
+  );
+}
+
+// The segments inside it, in an element that hears each key that the user
+// presses in them before React Aria does, through `onKey`, as React Aria stops
+// a key that steps a segment.
+// The element draws no box, so the segments sit where they would without it.
+// Where no `onKey` is given, as in an input that is not bound, there is no
+// such element.
+export function Segments({ onKey, children }: { readonly onKey: ((key: string) => void) | undefined; readonly children: ReactNode }): ReactElement {
+  return onKey === undefined ? (
+    <>{children}</>
+  ) : (
+    <div
+      className="bc:contents"
+      onKeyDownCapture={(event) => {
+        onKey(event.key);
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

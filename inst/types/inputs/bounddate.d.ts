@@ -3,7 +3,8 @@ import type { Json } from "../types/json.ts";
 export interface BoundDate<V> {
     readonly value: V | null;
     readonly missing: string | null;
-    edit(value: V | null): void;
+    readonly heard: (key: string) => void;
+    change(value: V | null): void;
     pick(value: V | null): void;
     flush(): void;
 }

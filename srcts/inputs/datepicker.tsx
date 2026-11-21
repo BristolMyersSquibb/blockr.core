@@ -22,8 +22,9 @@
 // "2026-11-19 14:30:00" where its granularity takes a time (./dates.ts).
 // The range picker shows and edits a range in the same way, as
 // { "start": "2026-11-19", "end": "2026-11-26" }.
-// Each submits a pick in its calendar at once, and what the user typed into
-// its field as the user leaves the picker or presses Enter (./bounddate.ts).
+// Each submits a pick in its calendar at once, and so a step of a segment of
+// its field by a key, and what the user typed into its field as the user
+// leaves the picker or presses Enter (./bounddate.ts).
 // The date picker submits only a date from minValue to maxValue that
 // isDateUnavailable leaves, and the range picker only a range whose ends lie
 // from minValue to maxValue, and whose start comes no later than its end.
@@ -56,7 +57,7 @@ import { useBoundDate } from "./bounddate.ts";
 import type { BoundDate } from "./bounddate.ts";
 import { FieldButton } from "./button.tsx";
 import { Calendar, RangeCalendar } from "./calendar.tsx";
-import { DateInput, INLINE } from "./datefield.tsx";
+import { DateInput, INLINE, Segments } from "./datefield.tsx";
 import { dateFits, rangeFits, readDate, readRange, takesTime, writeDate, writeRange } from "./dates.ts";
 import { NotAvailable, Refusal } from "./inputs.tsx";
 
@@ -90,15 +91,21 @@ export function DateRangePicker<T extends DateValue>({ bound, ...props }: DateRa
   );
 }
 
-// What a picker draws with, and the state's value that it shows as missing,
-// where it shows one.
-type DrawnProps<T extends DateValue> = Omit<DatePickerProps<T>, "bound"> & { readonly missing?: string | null };
-type DrawnRangeProps<T extends DateValue> = Omit<DateRangePickerProps<T>, "bound"> & { readonly missing?: string | null };
+// What a picker draws with, the state's value that it shows as missing, where
+// it shows one, and what hears each key that the user presses in the segments
+// of its field, where it is bound.
+interface Bindable {
+  readonly missing?: string | null;
+  readonly onKey?: (key: string) => void;
+}
+type DrawnProps<T extends DateValue> = Omit<DatePickerProps<T>, "bound"> & Bindable;
+type DrawnRangeProps<T extends DateValue> = Omit<DateRangePickerProps<T>, "bound"> & Bindable;
 
 // The handlers through which a bound picker hands its binding what the user
 // does: a change while its calendar is open, which is a pick, and any other
-// change, which is an edit of its field, which it submits as the focus leaves
-// the picker or as the user presses Enter in its field.
+// change, which is a change of its field's segments, a step or an edit, which
+// it submits as the focus leaves the picker or as the user presses Enter in
+// its field.
 // React passes on a key that the user presses in the calendar to the picker,
 // whose popover React Aria draws in a portal, so a key counts only where it
 // comes from the picker's own element.
@@ -110,7 +117,7 @@ function usePicking<V>(value: BoundDate<V>) {
     },
     onChange: (next: V | null): void => {
       if (open.current) value.pick(next);
-      else value.edit(next);
+      else value.change(next);
     },
     onBlur: (): void => {
       value.flush();
@@ -145,6 +152,7 @@ function BoundPicker({
         validationBehavior={validationBehavior}
         value={date.value}
         missing={date.missing}
+        onKey={date.heard}
         onOpenChange={(isOpen) => {
           picking.onOpenChange(isOpen);
           onOpenChange?.(isOpen);
@@ -191,6 +199,7 @@ function BoundRangePicker({
         validationBehavior={validationBehavior}
         value={range.value}
         missing={range.missing}
+        onKey={range.heard}
         onOpenChange={(isOpen) => {
           picking.onOpenChange(isOpen);
           onOpenChange?.(isOpen);
@@ -216,7 +225,16 @@ function BoundRangePicker({
 // The label, the field with its button, the description, the error message,
 // which says why the picker is invalid, or which value of the state it shows
 // as missing, and the popover with the calendar.
-function DrawnPicker<T extends DateValue>({ label, description, errorMessage, missing = null, isInvalid, className, ...props }: DrawnProps<T>): ReactElement {
+function DrawnPicker<T extends DateValue>({
+  label,
+  description,
+  errorMessage,
+  missing = null,
+  onKey,
+  isInvalid,
+  className,
+  ...props
+}: DrawnProps<T>): ReactElement {
   return (
     <AriaDatePicker
       {...props}
@@ -225,7 +243,9 @@ function DrawnPicker<T extends DateValue>({ label, description, errorMessage, mi
     >
       {label === undefined ? null : <Label className={styles.label}>{label}</Label>}
       <Group className={FIELD}>
-        <DateInput className={`${INLINE} bc:flex-1`} />
+        <Segments onKey={onKey}>
+          <DateInput className={`${INLINE} bc:flex-1`} />
+        </Segments>
         <Opener />
       </Group>
       <PickerParts description={description} errorMessage={errorMessage} missing={missing} />
@@ -242,6 +262,7 @@ function DrawnRangePicker<T extends DateValue>({
   description,
   errorMessage,
   missing = null,
+  onKey,
   isInvalid,
   className,
   ...props
@@ -254,13 +275,15 @@ function DrawnRangePicker<T extends DateValue>({
     >
       {label === undefined ? null : <Label className={styles.label}>{label}</Label>}
       <Group className={FIELD}>
-        <div className={ENDS}>
-          <DateInput slot="start" className={INLINE} />
-          <span aria-hidden="true" className="bc:px-1 bc:text-text-muted">
-            –
-          </span>
-          <DateInput slot="end" className={`${INLINE} bc:flex-1`} />
-        </div>
+        <Segments onKey={onKey}>
+          <div className={ENDS}>
+            <DateInput slot="start" className={INLINE} />
+            <span aria-hidden="true" className="bc:px-1 bc:text-text-muted">
+              –
+            </span>
+            <DateInput slot="end" className={`${INLINE} bc:flex-1`} />
+          </div>
+        </Segments>
         <Opener />
       </Group>
       <PickerParts description={description} errorMessage={errorMessage} missing={missing} />
