@@ -421,7 +421,7 @@ describe("the card of a block that serve() serves alone", () => {
     // card shows its pills and its banners alone.
     await r.set({ status: "failed", conditions: [condition("error", "object 'Sepal' not found")] });
     expect(output(el).className).toContain("bc:h-0");
-    expect(box(el).className).not.toContain("bc:h-96");
+    expect(box(el).className).not.toContain("bc:h-104");
     expect(summary(el)).toBeNull();
     expect(pills(el)).toEqual(["error"]);
     expect(banners(el)).toEqual([["error", "object 'Sepal' not found"]]);
@@ -430,7 +430,7 @@ describe("the card of a block that serve() serves alone", () => {
 
     await r.set({ revision: 3, evaluated: 3, summary: "<data.frame> [6 × 5]" });
     expect(output(el).className).toContain("bc:flex-1");
-    expect(box(el).className).toContain("bc:h-96");
+    expect(box(el).className).toContain("bc:h-104");
     expect(summary(el)).toBe("<data.frame> [6 × 5]");
 
     // Core keeps drawing the last output as the block fails or waits, so the
@@ -445,7 +445,7 @@ describe("the card of a block that serve() serves alone", () => {
       reason: 'This block is waiting for its input "data" to be linked.',
     });
     expect(output(el).className).toContain("bc:flex-1");
-    expect(box(el).className).toContain("bc:h-96");
+    expect(box(el).className).toContain("bc:h-104");
     expect(summary(el)).toBe("");
   });
 

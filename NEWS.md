@@ -698,6 +698,7 @@
   The `text()` and `number()` of `controls()` take React Aria's names, such as `minValue` in place of `min`, and the handle that `number()` returns has `setMaxValue()` in place of `setMax()`.
   Core's other text fields, in the forms of the Edit board plugin, in renaming a block or the board, and in the search of a table, draw with the `TextField` of the SDK too.
   The SDK also offers React Aria's `Button`, with the starter kit's `variant`, its `Modal`, `Dialog`, `DialogTrigger` and `Heading`, its `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with its `Keyboard` for an item's shortcut, and its `Popover`, in core's theme, after the starter kit.
+  Its `Button` takes a ref as well, which holds the button's element.
   React Aria draws every overlay of the SDK in a portal at the end of the page's body.
   Core's basic frontend draws its dialogs and its menus with them, in place of native dialogs that `showModal()` opened and lists of its own.
   An item of a storage control's menu shows the control's tooltip below its label and its shortcut at its right.
@@ -705,7 +706,7 @@
   The select draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
   The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
-  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708).
+  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801).
 * Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
   A board action changes the board only through commands, and runs each batch as one undo step of the user.
   Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
@@ -769,6 +770,19 @@
   While R evaluates blocks, makes outputs and answers requests, cli writes without colors, and puts plain marks in their place, such as quotes around a file name.
   It also strips any escape that a message still holds.
   So no UI needs to remove escapes before it shows a message (#788).
+* Core's React SDK offers React Aria's table, trees and grid list, in core's theme, after those of React Aria's Tailwind starter kit: [`Table`](https://react-aria.adobe.com/Table), with `TableHeader`, `Column`, `TableBody`, `Row` and `Cell`, [`Tree`](https://react-aria.adobe.com/Tree) and `TreeItem`, the starter kit's [`NavigationTree`](https://react-aria.adobe.com/NavigationTree), with `NavigationTreeItem`, `NavigationTreeItemContent`, `NavigationTreeItemLink`, `NavigationTreeSection` and `NavigationTreeHeader`, and [`GridList`](https://react-aria.adobe.com/GridList), with `GridListItem`, `GridListSection` and `GridListHeader`.
+  Each takes the props of its part of React Aria, and none of them binds a value.
+  None of them draws a frame of its own, so that none adds a frame inside the card or the panel that holds it.
+  A column takes `align` as well, whose `"end"` lines the column's heading up at its right edge, above a column of numbers.
+  A row of a table, a grid list or a tree starts with a checkbox where the user selects rows, and with a button that drags it where its rows drag.
+  The SDK also offers React Aria's `useDragAndDrop` and its `DropIndicator`, which shows where a dragged row would land.
+  The hook draws that indicator unless its caller's `renderDropIndicator` draws another, since React Aria's own has no style.
+  Core's table renderer draws a table output with the `Table` of the SDK, and looks, sorts and pages as before.
+  The file browser block draws as file dialogs do, in one frame: a bar with a button that goes up a directory and the path down to the directory, above a `Table` of the SDK.
+  The table lists the directory's entries, the directories first, each with its icon, the size of a file and the time it changed last, and it highlights the block's file.
+  The user moves through the entries by the arrow keys and opens one by Enter, while the row `..` is gone.
+  The request `list_dir` answers each entry with its name and the time it changed last, in UTC, and each file with its size in bytes, where it answered with names alone.
+  Compressed with `gzip`, core's vendor file grows from 214 KB to 252 KB, of which drag and drop takes 10 KB (#757).
 * A board action's `advanced` is its advanced action, which holds every option of the board action in a place with enough room.
   It is a module of the new type `AdvancedModule`, whose `render()` gets the element, `CoreApi`, the target, a signal and `done()`.
   Its `done()` runs a batch as one step of the user, with the caller's `extend`, and ends the advanced action, or with no batch only ends it.

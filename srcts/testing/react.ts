@@ -1,8 +1,10 @@
-// Mounting a module that draws with React in a test, and acting on it, through
-// React's act(), which runs what React scheduled before the test reads the
-// page.
+// Mounting a module that draws with React in a test, drawing a component on
+// the page, and acting on either, through React's act(), which runs what
+// React scheduled before the test reads the page.
 
 import { act } from "react";
+import type { ReactElement } from "react";
+import { createRoot } from "react-dom/client";
 import { mount } from "../stubs/index.ts";
 import type { Mounted } from "../stubs/index.ts";
 
@@ -22,4 +24,29 @@ export async function step(fn: () => void): Promise<void> {
     fn();
     return Promise.resolve();
   });
+}
+
+// Draws the component in an element of its own on the page, so that its parts
+// can take the focus, and gives what draws it again with other props and what
+// unmounts it.
+export function draw(node: ReactElement): { el: HTMLElement; redraw: (next: ReactElement) => void; unmount: () => void } {
+  const el = document.createElement("div");
+  document.body.append(el);
+  const root = createRoot(el);
+  const render = (next: ReactElement): void => {
+    act(() => {
+      root.render(next);
+    });
+  };
+  render(node);
+  return {
+    el,
+    redraw: render,
+    unmount: () => {
+      act(() => {
+        root.unmount();
+      });
+      el.remove();
+    },
+  };
 }
