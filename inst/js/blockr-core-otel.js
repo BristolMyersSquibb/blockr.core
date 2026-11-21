@@ -10,7 +10,7 @@ import {
   resourceFromAttributes,
   StackContextManager,
   TracerProvider
-} from "./opentelemetry-DICPNHNT.js";
+} from "./opentelemetry-4144b137.js";
 var SEVERITIES = {
   error: SeverityNumber.ERROR,
   warn: SeverityNumber.WARN,

@@ -3,9 +3,9 @@
 // bundles its modules alike
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#react).
 // It holds esbuild's options for a module: an ES module for the browser, whose
-// imports of React, of core's React SDK, its dates, its binding and its
-// controls, and of OpenTelemetry's API stay imports, which the page that R
-// serves resolves through its import map.
+// imports of React, of core's React SDK, its binding and its controls, and of
+// OpenTelemetry's API stay imports, which the page that R serves resolves
+// through its import map.
 // So the module's bundle holds none of them.
 // It fails a build that imports React Aria, whose components a module draws
 // from the React SDK.
@@ -49,7 +49,7 @@ const REACT_ARIA = /^(react-aria-components|react-aria|react-stately|@react-(ari
 const imports: Plugin = {
   name: "blockr.core-imports",
   setup(build) {
-    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react(\/.*)?|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
+    build.onResolve({ filter: /^(react(-dom)?(\/.*)?|@blockr\/core\/(react|binding|controls|otel)|@opentelemetry\/api)$/ }, (args) => {
       if (!(IMPORTS as readonly string[]).includes(args.path)) {
         return {
           errors: [

@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
-import type { ValidationResult } from "../aria/index.ts";
-import type { DatePickerProps as AriaDatePickerProps, DateRangePickerProps as AriaDateRangePickerProps, DateValue } from "./aria.ts";
+import type { DatePickerProps as AriaDatePickerProps, DateRangePickerProps as AriaDateRangePickerProps, DateValue, ValidationResult } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 export interface DatePickerProps<T extends DateValue> extends AriaDatePickerProps<T> {
     readonly label?: string;

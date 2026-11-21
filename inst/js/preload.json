@@ -19,7 +19,7 @@
     "react",
     "react/jsx-runtime",
     "@blockr/core/react",
-    "./vendor-6RYOVVQI.js"
+    "./vendor-5d559dcd.js"
   ],
   "blockr-core-controls.js": [
     "react",
@@ -31,14 +31,7 @@
   ],
   "blockr-core-otel.js": [
     "@opentelemetry/api",
-    "./opentelemetry-DICPNHNT.js"
-  ],
-  "blockr-core-react-dates.js": [
-    "./vendor-6RYOVVQI.js",
-    "./vendor-dates-U7BSBF7L.js",
-    "@blockr/core/react",
-    "react",
-    "react/jsx-runtime"
+    "./opentelemetry-4144b137.js"
   ],
   "blockr-core-react.js": [
     "react",
@@ -46,11 +39,11 @@
     "react-dom",
     "react-dom/client",
     "react/jsx-runtime",
-    "./vendor-6RYOVVQI.js"
+    "./vendor-5d559dcd.js"
   ],
   "blockr-core.js": [
     "@opentelemetry/api",
-    "./vendor-6RYOVVQI.js",
+    "./vendor-5d559dcd.js",
     "react",
     "react-dom",
     "react-dom/client",
@@ -75,7 +68,7 @@
     "react-dom/client",
     "react",
     "@blockr/core/react",
-    "./vendor-6RYOVVQI.js",
+    "./vendor-5d559dcd.js",
     "react/jsx-runtime"
   ],
   "filebrowser-block.js": [
@@ -100,20 +93,42 @@
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
-  "opentelemetry-DICPNHNT.js": [
+  "opentelemetry-4144b137.js": [
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
+    "@opentelemetry/api",
     "@opentelemetry/api"
   ],
   "react-dom-client.js": [
-    "./vendor-6RYOVVQI.js"
+    "./vendor-5d559dcd.js"
   ],
   "react-dom.js": [
-    "./vendor-6RYOVVQI.js"
+    "./vendor-5d559dcd.js"
   ],
   "react-jsx-runtime.js": [
-    "./vendor-6RYOVVQI.js"
+    "./vendor-5d559dcd.js"
   ],
   "react.js": [
-    "./vendor-6RYOVVQI.js"
+    "./vendor-5d559dcd.js"
   ],
   "scatter-block.js": [
     "@blockr/core/binding",
@@ -129,11 +144,5 @@
     "@blockr/core/binding",
     "@blockr/core/react",
     "react/jsx-runtime"
-  ],
-  "vendor-6RYOVVQI.js": [
-    "./chunk-KZM34BVD.js"
-  ],
-  "vendor-dates-U7BSBF7L.js": [
-    "./chunk-KZM34BVD.js"
   ]
 }

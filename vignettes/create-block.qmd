@@ -610,11 +610,9 @@ The SDK holds these:
   React Aria's `FileTrigger`, which picks a file from the button it holds, and its `Autocomplete` and `useFilter()`, with which a `SearchField` narrows a `ListBox` or a `Menu`, draw nothing of their own, and a module composes them with the others.
   A file reaches R through a request of the block class that receives it, as the upload block's does.
 - The layout of a UI: `Stack`, which puts the inputs one below the other, and `Field`, a label that holds an input of the module's own.
-  Below such an input, `NotAvailable` names the values that it lacks, and `Refusal` says why the host refused what it submitted, as the inputs of the SDK say below themselves.
 - The buttons `Button` and `FieldButton`, a button inside a field, and the overlays: `Modal`, `Dialog`, `DialogTrigger` and `Heading`, `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with `Keyboard` for an item's shortcut, `Popover`, and `CommandPalette`, a menu that a search field narrows, in a modal, which are React Aria's in core's theme.
   React Aria draws each overlay in a portal at the end of the page's body, and opens a menu or a dialog of a trigger from its `Button`.
-- The dates and times, from an entry point of their own, `@blockr/core/react/dates`: the date field `DateField`, the time field `TimeField`, the pickers `DatePicker` and `DateRangePicker`, and the calendars `Calendar` and `RangeCalendar`, which are React Aria's in core's theme.
-  The page loads them only once a module first imports them.
+- The dates and times: the date field `DateField`, the time field `TimeField`, the pickers `DatePicker` and `DateRangePicker`, and the calendars `Calendar` and `RangeCalendar`, which are React Aria's in core's theme.
   Each takes the props of its part of React Aria, and the fields and the pickers take the `label`, `description` and `errorMessage` of React Aria's Tailwind starter kit.
   A bound date is a string, as `"2026-11-19"`, which R reads with `as.Date()`.
   Where an input's `granularity` takes a time, the date has one, as `"2026-11-19 14:30:00"`, which R reads with `as.POSIXct()`.
@@ -688,7 +686,7 @@ An arg without a default is optional in the type, as the merge block's `by?: rea
 
 A package keeps such sources outside `inst/`, such as in `srcts/`, and builds them into `inst/js/`.
 It builds with esbuild and core's build preset, `@blockr/core/build`.
-The preset leaves the module's imports of React, and of core's React SDK, its dates, its binding and its controls, as imports.
+The preset leaves the module's imports of React, and of core's React SDK, its binding and its controls, as imports.
 The page that R serves resolves them through an import map, to the one copy of each that blockr.core ships, so the module's bundle holds none of them.
 The module then runs the SDK of the blockr.core it runs on, and its inputs take the classes of that blockr.core's stylesheet.
 The preset fails a build that imports React Aria, such as `react-aria-components`.

@@ -1,4 +1,4 @@
-import type { DateRange, DateValue, TimeValue } from "./aria.ts";
+import type { DateRange, DateValue, TimeValue } from "../aria/index.ts";
 import type { Json } from "../types/json.ts";
 export type Granularity = "day" | "hour" | "minute" | "second";
 export declare function takesTime(granularity: Granularity | undefined): boolean;

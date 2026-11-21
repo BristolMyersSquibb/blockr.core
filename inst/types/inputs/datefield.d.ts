@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
-import type { ValidationResult } from "../aria/index.ts";
-import type { DateFieldProps as AriaDateFieldProps, DateValue, TimeFieldProps as AriaTimeFieldProps, TimeValue } from "./aria.ts";
+import type { DateFieldProps as AriaDateFieldProps, DateValue, TimeFieldProps as AriaTimeFieldProps, TimeValue, ValidationResult } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 export interface DateFieldProps<T extends DateValue> extends AriaDateFieldProps<T> {
     readonly label?: string;

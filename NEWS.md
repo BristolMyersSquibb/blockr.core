@@ -772,18 +772,14 @@
   So no UI needs to remove escapes before it shows a message (#788).
 
 * Core's React SDK offers React Aria's dates and times in core's theme, after those of React Aria's Tailwind starter kit: the date field `DateField`, the time field `TimeField`, the date picker `DatePicker`, the date range picker `DateRangePicker`, the calendar `Calendar` and the range calendar `RangeCalendar`.
-  They come from an entry point of their own, `@blockr/core/react/dates`, which the page's import map names and the build preset leaves an import.
-  The page loads them, and the parts of React Aria that they draw with, only once a module first imports them, from a file of their own, `vendor-dates-<hash>.js`, of 44 KB gzipped.
-  That file shares the rest of React Aria with the vendor file through a chunk, `chunk-<hash>.js`, which holds the vendor file's code, so that the page runs one copy of React Aria.
+  Their parts of React Aria load with the others, in core's vendor file, which holds every part of React Aria that the SDK offers.
   Each takes the props of its part of React Aria, the fields and the pickers take the `label`, `description` and `errorMessage` that the starter kit adds, and an input takes `bound` too.
   A bound input holds a date as `"2026-11-19"`, which R reads with `as.Date()`, and a date with a time, where its `granularity` takes one, as `"2026-11-19 14:30:00"`, which R reads with `as.POSIXct()`.
   It holds a time as `"14:30:00"`, and a range as `{ "start": …, "end": … }` of two such dates, which R reads as a named list.
   These are R's own forms, so a block writes them into its code as they are, as `as.Date("2026-11-19")`.
   The string holds the time as the user picked it, and no time zone, so the block's code names the zone, such as that of its data.
   A field submits what the user typed as the user leaves it or presses Enter, a picker or a calendar submits a pick at once, and each submits only a value in its range.
-  Where the state holds a value that does not read so, as `"2026-11-19T14:30:00"`, which R's `as.POSIXct()` reads as midnight, a bound input marks itself invalid and says below itself that the value is not available.
-  The SDK exports `NotAvailable` and `Refusal`, which its dates draw with, as its other inputs do.
-  The vendor file takes each part of React Aria from the part's own entry point, such as `react-aria-components/Button`, and esbuild gives each file of code from other projects in `inst/js` the hash in its name, as `vendor-JF4OGNM7.js` (#758).
+  Where the state holds a value that does not read so, as `"2026-11-19T14:30:00"`, which R's `as.POSIXct()` reads as midnight, a bound input marks itself invalid and says below itself that the value is not available (#758).
 
 # blockr.core 0.1.4
 

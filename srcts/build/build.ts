@@ -4,11 +4,10 @@
 // - Core's runtime, srcts/runtime/index.ts, is bundled into blockr-core.js.
 // - A module, srcts/modules/<name>/index.ts or index.tsx, is bundled into
 //   <name>.js on its own, by the build preset of ./preset.ts.
-// - Core's React SDK, srcts/react, its dates and times, srcts/dates, its
-//   binding, srcts/binding, and its controls, srcts/controls, are bundled into
-//   files of their own, blockr-core-react.js, blockr-core-react-dates.js,
-//   blockr-core-binding.js and blockr-core-controls.js, and so is its
-//   OpenTelemetry module, srcts/otel, into blockr-core-otel.js.
+// - Core's React SDK, srcts/react, its binding, srcts/binding, and its
+//   controls, srcts/controls, are bundled into files of their own,
+//   blockr-core-react.js, blockr-core-binding.js and blockr-core-controls.js,
+//   and so is its OpenTelemetry module, srcts/otel, into blockr-core-otel.js.
 // - The parts of OpenTelemetry's SDK that the OpenTelemetry module uses, which
 //   srcts/otel/sdk.ts names, are bundled, minified, into a file of their own,
 //   opentelemetry-<hash>.js, which the module imports by that name, so that
@@ -25,37 +24,27 @@
 //   inputs draw with, as the one place in core's code that imports React
 //   Aria. The file bundles those parts alone, since the whole of React Aria is
 //   several times the size of React.
-//   The parts of React Aria that core's dates and times draw with, which
-//   srcts/dates/aria.ts names, are bundled, minified, into a file of their
-//   own, vendor-dates-<hash>.js, since the page loads them only once a module
-//   first imports core's dates.
-//   The code of the vendor file goes into a chunk, chunk-<hash>.js, which
-//   both files import, so that the page runs one copy of what they share,
-//   such as React and React Aria's Button.
 //   React's entry points, such as `react` and `react-dom/client`, are written
 //   as ES modules of their own, such as react.js and react-dom-client.js,
-//   which read React from the vendor file.
+//   which read React from that file.
 //   The runtime, the modules and the SDK, the binding, the controls and the
-//   OpenTelemetry module import the other packages from the vendor file by
-//   its name, and React Aria where they import srcts/aria/index.ts.
-//   Core's dates import the parts of dates and times from their file, where
-//   they import srcts/dates/aria.ts.
+//   OpenTelemetry module import the other packages from that file by its name,
+//   and React Aria where they import srcts/aria/index.ts.
 //   So blockr-core.js holds core's own code alone, and the page runs one copy
 //   of each package.
 //   The vendor check of ./vendor-check.ts, which core ships to packages beside
 //   the preset, fails the build where one of those files would bundle any
 //   other package from node_modules.
-// - The runtime, the modules and the SDK, its dates, the binding and the
-//   controls leave their imports of React, of OpenTelemetry's API and of each
-//   other imports, which the page that R serves resolves through its import
-//   map, as inst/js/import-map.json lays it out. So the page runs one copy of
-//   each, and so do a package's modules.
+// - The runtime, the modules and the SDK, the binding and the controls leave
+//   their imports of React, of OpenTelemetry's API and of each other imports,
+//   which the page that R serves resolves through its import map, as
+//   inst/js/import-map.json lays it out. So the page runs one copy of each,
+//   and so do a package's modules.
 //   The runtime leaves its import of the OpenTelemetry module an import as
 //   well, so that a page loads the module only where it imports it.
 // - What each file imports up front, the static imports of ./preload.ts, goes
 //   into preload.json, React's entry points included, which import the vendor
-//   file, and the vendor file and the file of the dates, which import the
-//   chunk.
+//   file.
 //   R names those files in the page's head, so that the browser fetches them at
 //   once, rather than each once the file that imports it has loaded.
 // - An index.css beside either is its stylesheet, built with Tailwind CSS into
@@ -89,8 +78,7 @@
 //   So the stubs hold core's own code alone.
 //   The controls, srcts/controls/index.ts, go there as the SDK does,
 //   as `@blockr/core/controls`, for a package that writes its modules without
-//   React, and so do the SDK's dates, srcts/dates/index.ts, as
-//   `@blockr/core/react/dates`.
+//   React.
 // - The licenses of what the files in inst/js, inst/types and inst/ids hold
 //   from other projects go into LICENSES in each of these directories.
 //   Each has a line for each package from node_modules, with its version, its
@@ -114,9 +102,10 @@
 // owns the schemas only, and in inst/ids the files of words and LICENSES.
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import tailwindcss from "@tailwindcss/postcss";
 import * as esbuild from "esbuild";
@@ -185,71 +174,28 @@ function reactNames(): Record<string, string[]> {
   return JSON.parse(out) as Record<string, string[]>;
 }
 
-// A file that vendored() bundles, by its name, as vendor, and either the
-// source that it starts from, `in`, or its code, `contents`, which imports
-// what the file bundles.
-type VendoredFile = { readonly name: string } & ({ readonly in: string } | { readonly contents: string });
-
-// What vendored() wrote: the name of each file that it was given, by the
-// name given, the names of all the files, with the chunks, the metafile of
-// the build, which gives what each file imports, and what each file holds
-// from other projects, by its path, as licensedSources() gives it.
-interface Vendored {
-  readonly files: ReadonlyMap<string, string>;
-  readonly written: readonly string[];
-  readonly metafile: esbuild.Metafile;
-  readonly sources: ReadonlyMap<string, string[]>;
-}
-
-// The namespace of the files that vendored() is given the code of, which the
-// code of one such file imports another by, as `vendored:vendor`.
-const VENDORED = "vendored";
-
 // Bundles code that core ships from other projects, minified and with its
-// license comments, into files in `out`, one for each of `files`, which it
-// resolves from core's repo.
-// Where several files hold the same code, esbuild puts it into a chunk of its
-// own, as chunk-JF4OGNM7.js, which each of them imports, so that the page
-// runs one copy of it.
-// The imports that `input` names external stay imports, which the page's
-// import map resolves.
-// Each file's name holds a hash of its content that esbuild gives it, as
-// vendor-JF4OGNM7.js, so that no browser runs an old copy from its cache,
-// since what imports the file imports it by that name.
+// license comments, into one file in `out`, which it resolves from core's
+// repo, and returns the file's name and the imports that the file leaves to
+// the page's import map, those that `input` names external.
+// It returns what the file holds from other projects too, as
+// licensedSources() gives it.
+// The name holds a hash of the content, as vendor-3f2a9c1d.js, so that no
+// browser runs an old copy from its cache, since what imports the file imports
+// it by that name.
 // A file that the import map names, which R serves at a URL that holds a hash
 // of the content, is named as given instead.
 async function vendored(
   out: string,
-  files: readonly VendoredFile[],
-  input: Pick<esbuild.BuildOptions, "nodePaths" | "external"> = {},
+  name: string,
+  input: Pick<esbuild.BuildOptions, "stdin" | "entryPoints" | "nodePaths" | "external">,
   hashed = true,
-): Promise<Vendored> {
-  const code = new Map(files.flatMap((file) => ("contents" in file ? [[file.name, file.contents] as const] : [])));
+): Promise<{ file: string; imports: string[]; sources: string[] }> {
   const result = await esbuild.build({
     absWorkingDir: repo,
     ...input,
-    entryPoints: files.map((file) => ({ in: "in" in file ? file.in : `${VENDORED}:${file.name}`, out: file.name })),
-    plugins: [
-      {
-        name: "blockr.core-vendored",
-        setup(build) {
-          build.onResolve({ filter: new RegExp(`^${VENDORED}:`) }, (args) => ({
-            path: args.path.slice(VENDORED.length + 1),
-            namespace: VENDORED,
-          }));
-          build.onLoad({ filter: /.*/, namespace: VENDORED }, (args) => ({
-            contents: code.get(args.path) ?? "",
-            resolveDir: repo,
-            loader: "js",
-          }));
-        },
-      },
-    ],
     bundle: true,
-    splitting: files.length > 1,
-    outdir: out,
-    entryNames: hashed ? "[name]-[hash]" : "[name]",
-    chunkNames: "chunk-[hash]",
+    write: false,
     metafile: true,
     format: "esm",
     platform: "browser",
@@ -263,19 +209,13 @@ async function vendored(
     throw new Error("esbuild warned, as printed above");
   }
 
-  // The name given for each file, by its entry point as the metafile names it.
-  const named = new Map(files.map((file) => ["in" in file ? relative(repo, file.in) : `${VENDORED}:${file.name}`, file.name] as const));
-  const outputs = Object.entries(result.metafile.outputs);
+  const text = result.outputFiles[0]?.text ?? "";
+  const file = hashed ? `${name}-${createHash("sha256").update(text).digest("hex").slice(0, 8)}.js` : `${name}.js`;
+  await writeFile(join(out, file), text);
   return {
-    files: new Map(
-      outputs.flatMap(([path, { entryPoint }]) => {
-        const name = entryPoint === undefined ? undefined : named.get(entryPoint);
-        return name === undefined ? [] : [[name, basename(path)] as const];
-      }),
-    ),
-    written: outputs.map(([path]) => basename(path)),
-    metafile: result.metafile,
-    sources: licensedSources(result.metafile, repo),
+    file,
+    imports: externalImports(result.metafile),
+    sources: [...licensedSources(result.metafile, repo).values()].flat(),
   };
 }
 
@@ -314,80 +254,51 @@ function licensedSources(metafile: esbuild.Metafile, dir: string): Map<string, s
 // fails the build.
 const VENDOR_IMPORTS = ["@preact/signals-core", "@cfworker/json-schema"] as const;
 
-// The files in srcts that name the parts of React Aria that core's code draws
-// with: aria/index.ts, whose parts the build bundles into vendor-<hash>.js by
-// those names, and dates/aria.ts, whose parts of dates and times it bundles
-// into vendor-dates-<hash>.js.
-function ariaFiles(src: string): { vendor: string; dates: string } {
-  return { vendor: join(src, "aria", "index.ts"), dates: join(src, "dates", "aria.ts") };
+// The file in srcts that names the parts of React Aria that core's code draws
+// with, which the build bundles into vendor-<hash>.js by those names.
+function ariaFile(src: string): string {
+  return join(src, "aria", "index.ts");
 }
 
-// What vendorBundle() wrote, with the names of the vendor file and of the file
-// of the dates, which it writes only where srcts holds dates/aria.ts.
-type VendorFiles = Vendored & { readonly file: string; readonly dates: string | undefined };
-
 // Bundles React, ReactDOM and the packages that VENDOR_IMPORTS names into one
-// minified file in `out`, as vendor-JF4OGNM7.js, with the parts of React Aria
-// that srcts/aria/index.ts names, where srcts holds it.
-// It bundles the parts of dates and times that srcts/dates/aria.ts names,
-// where srcts holds it, into a file of their own, as
-// vendor-dates-NB2X5AQE.js.
-// The vendor file exports each of React's entry points as a namespace of its
-// own, entry0 for `react` and so on, which React's ES modules read.
+// minified file in `out`, as vendor-3f2a9c1d.js, with the parts of React Aria
+// that srcts/aria/index.ts names, where srcts holds it, and returns its name
+// and what it holds from other projects.
+// The file exports each of React's entry points as a namespace of its own,
+// entry0 for `react` and so on, which React's ES modules read.
 // It exports the names of the other packages as they are, which core's code
-// imports, and the names that srcts/aria/index.ts exports, as the file of the
-// dates exports those that srcts/dates/aria.ts exports.
-// The file of the dates imports the vendor file's code first, as the page
-// loads the vendor file before any module imports core's dates.
-// So esbuild finds all of the vendor file's code in both files, and puts it
-// into one chunk, which both import.
-// The file of the dates then holds the parts of dates and times alone, and the
-// vendor file the exports of the chunk, under the names that core's code
-// imports.
-// Without that import, esbuild would split the vendor file's code in two, at
-// what the dates share with it, such as React, and split it again for each
-// further file of parts that the page loads on demand, such as colours would
-// be.
-// The page would load all of these pieces as it starts, which together take
-// more than the one chunk.
-async function vendorBundle(out: string, src: string): Promise<VendorFiles> {
-  const aria = ariaFiles(src);
-  const vendor = {
-    name: "vendor",
-    contents: [
-      ...REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`),
-      ...VENDOR_IMPORTS.map((name) => `export * from ${JSON.stringify(name)};`),
-      ...(existsSync(aria.vendor) ? [`export * from ${JSON.stringify(aria.vendor)};`] : []),
-    ].join("\n"),
-  };
-  const dates = existsSync(aria.dates)
-    ? [{ name: "vendor-dates", contents: `import "${VENDORED}:vendor";\nexport * from ${JSON.stringify(aria.dates)};\n` }]
-    : [];
-  const built = await vendored(out, [vendor, ...dates], { nodePaths: [join(repo, "node_modules")] });
-  return { ...built, file: built.files.get("vendor") ?? "", dates: built.files.get("vendor-dates") };
+// imports, and the names that srcts/aria/index.ts exports.
+async function vendorBundle(out: string, src: string): Promise<{ file: string; sources: string[] }> {
+  const aria = ariaFile(src);
+  return vendored(out, "vendor", {
+    stdin: {
+      contents: [
+        ...REACT_ENTRIES.map((name, i) => `export * as entry${String(i)} from ${JSON.stringify(name)};`),
+        ...VENDOR_IMPORTS.map((name) => `export * from ${JSON.stringify(name)};`),
+        ...(existsSync(aria) ? [`export * from ${JSON.stringify(aria)};`] : []),
+      ].join("\n"),
+      resolveDir: repo,
+      loader: "js",
+    },
+    nodePaths: [join(repo, "node_modules")],
+  });
 }
 
 // Leaves each import of a package that VENDOR_IMPORTS names an import of the
-// vendor file, by its name beside the file that imports it, and so each import
-// of srcts/aria/index.ts, in `src`, and each import of srcts/dates/aria.ts an
-// import of the file of the dates, as vendorBundle() names them.
+// vendor file, `file`, by its name beside the file that imports it, and so
+// each import of srcts/aria/index.ts, in `src`.
 // The packages have no side effects, as their package.json files say.
 // So a file that imports none of their names, as from code of core's that it
 // bundles, keeps no import of the vendor file.
-function vendorImports(files: Pick<VendorFiles, "file" | "dates">, src: string): esbuild.Plugin {
+function vendorImports(file: string, src: string): esbuild.Plugin {
   const names: readonly string[] = VENDOR_IMPORTS;
-  const aria = ariaFiles(src);
-  const beside = (file: string) => ({ path: `./${file}`, external: true, sideEffects: false });
-  const vendor = beside(files.file);
-  const dates = files.dates === undefined ? undefined : beside(files.dates);
+  const aria = ariaFile(src);
+  const vendor = { path: `./${file}`, external: true, sideEffects: false };
   return {
     name: "blockr.core-vendor-imports",
     setup(build) {
       build.onResolve({ filter: /^[^./]/ }, (args) => (names.includes(args.path) ? vendor : undefined));
-      build.onResolve({ filter: /^\.\.?\// }, (args) => {
-        const path = resolve(args.resolveDir, args.path);
-        return path === aria.vendor ? vendor : path === aria.dates ? dates : undefined;
-      });
+      build.onResolve({ filter: /^\.\.?\// }, (args) => (resolve(args.resolveDir, args.path) === aria ? vendor : undefined));
     },
   };
 }
@@ -421,15 +332,14 @@ async function reactModules(out: string, bundle: string): Promise<string[]> {
 // runtime imports by its name too.
 const LIBRARIES = [
   ["@blockr/core/react", "react"],
-  ["@blockr/core/react/dates", "dates"],
   ["@blockr/core/binding", "binding"],
   ["@blockr/core/controls", "controls"],
   ["@blockr/core/otel", "otel"],
 ] as const;
 
-// Maps the imports in core's sources of core's React SDK, its dates, its
-// binding and its controls, from their sources in srcts, to their names in the
-// import map, which the preset leaves imports.
+// Maps the imports in core's sources of core's React SDK, its binding and its
+// controls, from their sources in srcts, to their names in the import map,
+// which the preset leaves imports.
 // The SDK holds the inputs and the overlays, so an import of srcts/inputs or
 // srcts/overlays is one of the SDK.
 // The build of a library bundles the library's own sources, which `own` names.
@@ -455,27 +365,38 @@ function sourceImports(src: string, own?: Import): esbuild.Plugin {
 }
 
 // Bundles the parts of OpenTelemetry's SDK that srcts/otel/sdk.ts names into
-// one file in `out`, as opentelemetry-KZ3MV2QH.js, as it bundles React, and
-// returns what vendored() returns, with the file's name, or writes nothing
-// where srcts holds no such file.
+// one file in `out`, as opentelemetry-3f2a9c1d.js, as it bundles React, and
+// returns its name with the imports that it leaves to the import map and what
+// it holds from other projects, or writes nothing where srcts holds no such
+// file.
 // The bundle leaves its imports of OpenTelemetry's API imports, so that the
 // SDK records through the API that core's runtime and the modules of packages
 // use.
-async function otelSdk(src: string, out: string): Promise<(Vendored & { readonly file: string }) | undefined> {
+async function otelSdk(
+  src: string,
+  out: string,
+): Promise<{ file: string; imports: string[]; sources: string[] } | undefined> {
   const entry = join(src, "otel", "sdk.ts");
   if (!existsSync(entry)) return undefined;
-  const built = await vendored(out, [{ name: "opentelemetry", in: entry }], {
-    nodePaths: [join(repo, "node_modules")],
-    external: [OTEL_API],
-  });
-  return { ...built, file: built.files.get("opentelemetry") ?? "" };
+  return vendored(out, "opentelemetry", { entryPoints: [entry], nodePaths: [join(repo, "node_modules")], external: [OTEL_API] });
 }
 
 // Bundles OpenTelemetry's API into the file in `out` that the import map names
-// for it, opentelemetry-api.js, with its default export too.
-async function otelApi(out: string): Promise<Vendored> {
-  const contents = `export * from ${JSON.stringify(OTEL_API)};\nexport { default } from ${JSON.stringify(OTEL_API)};\n`;
-  return vendored(out, [{ name: importFile(OTEL_API).replace(/\.js$/, ""), contents }], {}, false);
+// for it, opentelemetry-api.js, with its default export too, and returns the
+// file's name and what it holds from other projects.
+async function otelApi(out: string): Promise<{ file: string; sources: string[] }> {
+  return vendored(
+    out,
+    importFile(OTEL_API).replace(/\.js$/, ""),
+    {
+      stdin: {
+        contents: `export * from ${JSON.stringify(OTEL_API)};\nexport { default } from ${JSON.stringify(OTEL_API)};\n`,
+        resolveDir: repo,
+        loader: "js",
+      },
+    },
+    false,
+  );
 }
 
 // Leaves the OpenTelemetry module's import of srcts/otel/sdk.ts an import of
@@ -508,7 +429,7 @@ export async function build(root: string): Promise<string[]> {
     metafile: true,
   } satisfies esbuild.BuildOptions;
   const vendor = await vendorBundle(out, src);
-  const plugins = (own?: Import) => [vendorImports(vendor, src), sourceImports(src, own), ...preset.plugins, vendorCheck];
+  const plugins = (own?: Import) => [vendorImports(vendor.file, src), sourceImports(src, own), ...preset.plugins, vendorCheck];
   const libraries = LIBRARIES.filter(([, dir]) => existsSync(join(src, dir, "index.ts")));
   const otel = await otelSdk(src, out);
   const sdk = otel?.file;
@@ -547,17 +468,18 @@ export async function build(root: string): Promise<string[]> {
   // What each file holds from other projects, by the file's path.
   const bundled = new Map(results.flatMap((result) => [...licensedSources(result.metafile, root)]));
   const react = await reactModules(out, vendor.file);
-  written.push(...react.map((file) => relative(root, join(out, file))));
+  written.push(...[vendor.file, ...react].map((file) => relative(root, join(out, file))));
+  bundled.set(join(out, vendor.file), vendor.sources);
+  if (otel !== undefined) {
+    written.push(relative(root, join(out, otel.file)));
+    bundled.set(join(out, otel.file), otel.sources);
+  }
   // OpenTelemetry's API, where core's runtime, a module, a library or the
   // bundle of the SDK imports it.
-  const external = [...results, ...(otel === undefined ? [] : [otel])].flatMap((result) => externalImports(result.metafile));
-  const api = external.includes(OTEL_API) ? await otelApi(out) : undefined;
-  // The files of code from other projects: the vendor file, the file of the
-  // dates and their chunk, and the bundles of OpenTelemetry.
-  const vendoredFiles = [vendor, ...(otel === undefined ? [] : [otel]), ...(api === undefined ? [] : [api])];
-  for (const files of vendoredFiles) {
-    written.push(...files.written.map((file) => relative(root, join(out, file))));
-    for (const [file, sources] of files.sources) bundled.set(file, sources);
+  if ([...results.flatMap((result) => externalImports(result.metafile)), ...(otel?.imports ?? [])].includes(OTEL_API)) {
+    const api = await otelApi(out);
+    written.push(relative(root, join(out, api.file)));
+    bundled.set(join(out, api.file), api.sources);
   }
 
   // The import map that the page R serves holds, as R reads it: each import by
@@ -571,14 +493,14 @@ export async function build(root: string): Promise<string[]> {
   await writeJson(map, { imports });
   written.push(relative(root, map));
 
-  // What each file imports up front, the files of code from other projects
-  // among them, as the vendor file imports the chunk and the bundle of
-  // OpenTelemetry's SDK imports its API, and React's entry points, which the
-  // build writes itself, the vendor file.
+  // What each file imports up front, and React's entry points, which the build
+  // writes itself, the vendor file, as the bundle of OpenTelemetry's SDK
+  // imports its API.
   const preload = join(out, "preload.json");
   const imported: Record<string, readonly string[]> = {
-    ...staticImports([...results, ...vendoredFiles].map((result) => result.metafile)),
+    ...staticImports(results.map((result) => result.metafile)),
     ...Object.fromEntries(react.map((file) => [file, [`./${vendor.file}`]])),
+    ...(otel === undefined || otel.imports.length === 0 ? {} : { [otel.file]: otel.imports }),
   };
   await writeJson(preload, Object.fromEntries(Object.entries(imported).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
   written.push(relative(root, preload));
@@ -917,9 +839,8 @@ function packageVersion(name: string): string {
 
 // The package that inst/types is: the types modules are written against, as
 // `@blockr/core`, the stubs of the hosts, as `@blockr/core/stubs`, and core's
-// React SDK, its dates, its binding and the build preset, as
-// `@blockr/core/react`, `@blockr/core/react/dates`, `@blockr/core/binding` and
-// `@blockr/core/build`.
+// React SDK, its binding and the build preset, as `@blockr/core/react`,
+// `@blockr/core/binding` and `@blockr/core/build`.
 // Its bundles leave React an import, so it names the React that core's
 // runtime bundles, at that version, as its peer.
 // So npm installs that React with `@blockr/core` where a package has none, and
@@ -949,10 +870,8 @@ function packageVersion(name: string): string {
 // file bundles, since core's declarations name its types, while a package
 // draws with React Aria only through the components of the SDK.
 // The SDK's dates read the strings of a state with @internationalized/date,
-// which srcts/dates/aria.ts names, and which the bundles leave an import as
-// well.
-// So the package names it as its dependency too, at the version that the
-// file of the dates bundles.
+// which srcts/aria/index.ts names too, and which the bundles leave an import
+// as well, so the package names it as its dependency in the same way.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -964,7 +883,6 @@ export const TYPES_PACKAGE = {
     "./binding": { types: "./binding/index.d.ts", default: "./binding/index.js" },
     "./build": { types: "./build/index.d.ts", default: "./build/index.js" },
     "./react": { types: "./react/index.d.ts", default: "./react/index.js" },
-    "./react/dates": { types: "./dates/index.d.ts", default: "./dates/index.js" },
     "./stubs": { types: "./stubs/index.d.ts", default: "./stubs/index.js" },
     "./controls": { types: "./controls/index.d.ts", default: "./controls/index.js" },
   },
@@ -983,10 +901,9 @@ export const TYPES_PACKAGE = {
 
 // The modules of srcts that the types package bundles,
 // each as the export of its name.
-const BUNDLED = ["stubs", "binding", "react", "dates", "build", "controls"];
+const BUNDLED = ["stubs", "binding", "react", "build", "controls"];
 
-// Leaves each import of a package that `names` holds an import, and each
-// import of one of its entry points, such as react-aria-components/Button.
+// Leaves each import of a package that `names` holds an import.
 // The packages have no side effects, as their package.json files say.
 // So a bundle that holds some of core's code, but uses no name of the
 // package that the code imports, keeps no import of it.
@@ -997,9 +914,7 @@ function dependencyImports(names: readonly string[]): esbuild.Plugin {
     name: "blockr.core-dependency-imports",
     setup(build) {
       build.onResolve({ filter: /^[^./]/ }, (args) =>
-        names.some((name) => args.path === name || args.path.startsWith(`${name}/`))
-          ? { path: args.path, external: true, sideEffects: false }
-          : undefined,
+        names.includes(args.path) ? { path: args.path, external: true, sideEffects: false } : undefined,
       );
     },
   };

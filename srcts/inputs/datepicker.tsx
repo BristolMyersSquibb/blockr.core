@@ -8,7 +8,7 @@
 // and take what those take: the props of their part of React Aria, and the
 // label, the description and the error message that the starter kit adds.
 // The date picker holds the field of a date, which the user types into as
-// into the date field (./field.tsx), and the range picker one such field for
+// into the date field (./datefield.tsx), and the range picker one such field for
 // each end of the range.
 // The button at the field's right opens the SDK's calendar, or its range
 // calendar (./calendar.tsx), in a popover of the SDK, in which the user picks
@@ -18,12 +18,12 @@
 //
 // Given `bound`, the date picker shows and edits a date, a block's state arg
 // or a board option's value, which useValue() binds, as the SDK's other inputs
-// do (../inputs/inputs.tsx): a string such as "2026-11-19", or
-// "2026-11-19 14:30:00" where its granularity takes a time (./values.ts).
+// do (./inputs.tsx): a string such as "2026-11-19", or
+// "2026-11-19 14:30:00" where its granularity takes a time (./dates.ts).
 // The range picker shows and edits a range in the same way, as
 // { "start": "2026-11-19", "end": "2026-11-26" }.
 // Each submits a pick in its calendar at once, and what the user typed into
-// its field as the user leaves the picker or presses Enter (./bound.ts).
+// its field as the user leaves the picker or presses Enter (./bounddate.ts).
 // The date picker submits only a date from minValue to maxValue that
 // isDateUnavailable leaves, and the range picker only a range whose ends lie
 // from minValue to maxValue, and whose start comes no later than its end.
@@ -33,19 +33,32 @@
 
 import { useRef } from "react";
 import type { KeyboardEvent, ReactElement } from "react";
-import { composeRenderProps, FieldError, Group, Label, Text } from "../aria/index.ts";
-import type { ValidationResult } from "../aria/index.ts";
-import { DatePicker as AriaDatePicker, DateRangePicker as AriaDateRangePicker } from "./aria.ts";
-import type { DatePickerProps as AriaDatePickerProps, DateRange, DateRangePickerProps as AriaDateRangePickerProps, DateValue } from "./aria.ts";
-import { FieldButton, NotAvailable, Refusal } from "../inputs/index.ts";
+import {
+  composeRenderProps,
+  DatePicker as AriaDatePicker,
+  DateRangePicker as AriaDateRangePicker,
+  FieldError,
+  Group,
+  Label,
+  Text,
+} from "../aria/index.ts";
+import type {
+  DatePickerProps as AriaDatePickerProps,
+  DateRange,
+  DateRangePickerProps as AriaDateRangePickerProps,
+  DateValue,
+  ValidationResult,
+} from "../aria/index.ts";
 import { Popover } from "../overlays/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
-import { useBoundDate } from "./bound.ts";
-import type { BoundDate } from "./bound.ts";
+import { useBoundDate } from "./bounddate.ts";
+import type { BoundDate } from "./bounddate.ts";
+import { FieldButton } from "./button.tsx";
 import { Calendar, RangeCalendar } from "./calendar.tsx";
-import { DateInput, INLINE } from "./field.tsx";
-import { dateFits, rangeFits, readDate, readRange, takesTime, writeDate, writeRange } from "./values.ts";
+import { DateInput, INLINE } from "./datefield.tsx";
+import { dateFits, rangeFits, readDate, readRange, takesTime, writeDate, writeRange } from "./dates.ts";
+import { NotAvailable, Refusal } from "./inputs.tsx";
 
 export interface DatePickerProps<T extends DateValue> extends AriaDatePickerProps<T> {
   // What the starter kit adds.

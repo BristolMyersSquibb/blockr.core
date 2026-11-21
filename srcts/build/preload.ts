@@ -9,10 +9,7 @@
 // files too.
 // The list holds, for each file that imports others up front, each of them:
 // an import by name, which the page's import map resolves, as `react`, and a
-// file beside it, by its path from the file, as `./vendor-JF4OGNM7.js`.
-// A file beside it counts too where the same build wrote it, as the chunk that
-// esbuild splits off code that several files of a build share, which each of
-// them imports.
+// file beside it, by its path from the file, as `./vendor-3f2a9c1d.js`.
 // A stylesheet's `@import` of a file beside it counts as well.
 // A dynamic import is left out, since the page loads it only as it runs the
 // import, as core's runtime loads its OpenTelemetry module.
@@ -30,20 +27,10 @@ export function staticImports(metafiles: readonly (Metafile | undefined)[]): Rec
   for (const metafile of metafiles) {
     for (const [path, output] of Object.entries(metafile?.outputs ?? {})) {
       const imports = output.imports.flatMap((entry) =>
-        entry.kind !== "import-statement" && entry.kind !== "import-rule"
-          ? []
-          : entry.external === true
-            ? [entry.path]
-            : [`./${fileName(entry.path)}`],
+        entry.external === true && (entry.kind === "import-statement" || entry.kind === "import-rule") ? [entry.path] : [],
       );
-      if (imports.length > 0) files.push([fileName(path), [...new Set(imports)]]);
+      if (imports.length > 0) files.push([path.slice(path.lastIndexOf("/") + 1), [...new Set(imports)]]);
     }
   }
   return Object.fromEntries(files.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
-}
-
-// The name of a file that a build wrote, without its directory, as the
-// metafile gives its path.
-function fileName(path: string): string {
-  return path.slice(path.lastIndexOf("/") + 1);
 }

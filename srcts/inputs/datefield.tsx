@@ -12,12 +12,12 @@
 //
 // Given `bound`, the date field shows and edits a date, a block's state arg or
 // a board option's value, which useValue() binds, as the SDK's other inputs do
-// (../inputs/inputs.tsx).
+// (./inputs.tsx).
 // The date is a string, as "2026-11-19", or as "2026-11-19 14:30:00" where
-// the field's granularity takes a time (./values.ts).
+// the field's granularity takes a time (./dates.ts).
 // The time field shows and edits a time in the same way, as "14:30:00".
 // Each submits what the user typed as the user leaves the field or presses
-// Enter (./bound.ts).
+// Enter (./bounddate.ts).
 // It submits only a value from minValue to maxValue, and the date field only
 // a date that isDateUnavailable leaves.
 // A bound field takes React Aria's validationBehavior "aria" by default, so
@@ -25,15 +25,28 @@
 // It says below itself why the host refused what it submitted.
 
 import type { ReactElement } from "react";
-import { composeRenderProps, FieldError, Label, Text } from "../aria/index.ts";
-import type { ValidationResult } from "../aria/index.ts";
-import { DateField as AriaDateField, DateInput as AriaDateInput, DateSegment, TimeField as AriaTimeField } from "./aria.ts";
-import type { DateFieldProps as AriaDateFieldProps, DateValue, TimeFieldProps as AriaTimeFieldProps, TimeValue } from "./aria.ts";
-import { NotAvailable, Refusal } from "../inputs/index.ts";
+import {
+  composeRenderProps,
+  DateField as AriaDateField,
+  DateInput as AriaDateInput,
+  DateSegment,
+  FieldError,
+  Label,
+  Text,
+  TimeField as AriaTimeField,
+} from "../aria/index.ts";
+import type {
+  DateFieldProps as AriaDateFieldProps,
+  DateValue,
+  TimeFieldProps as AriaTimeFieldProps,
+  TimeValue,
+  ValidationResult,
+} from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
-import { useBoundDate } from "./bound.ts";
-import { dateFits, readDate, readTime, takesTime, timeFits, writeDate, writeTime } from "./values.ts";
+import { useBoundDate } from "./bounddate.ts";
+import { dateFits, readDate, readTime, takesTime, timeFits, writeDate, writeTime } from "./dates.ts";
+import { NotAvailable, Refusal } from "./inputs.tsx";
 
 export interface DateFieldProps<T extends DateValue> extends AriaDateFieldProps<T> {
   // What the starter kit adds.

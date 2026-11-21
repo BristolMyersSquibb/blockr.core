@@ -23,8 +23,8 @@
 // R does, as "2026-11-19 14:30".
 // An input with a time reads a date alone as midnight, as R does.
 
-import { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "./aria.ts";
-import type { DateRange, DateValue, TimeValue } from "./aria.ts";
+import { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "../aria/index.ts";
+import type { DateRange, DateValue, TimeValue } from "../aria/index.ts";
 import type { Json } from "../types/json.ts";
 import { own } from "../util/index.ts";
 

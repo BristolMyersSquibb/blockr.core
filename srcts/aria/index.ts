@@ -5,79 +5,139 @@
 // (../build/build.ts).
 // So the page runs one copy of React Aria, which holds the parts named here
 // alone, since the whole of React Aria is several times the size of React.
-// A part that core starts to draw with goes here, but for the parts of dates
-// and times, which ../dates/aria.ts names.
-//
-// Each part comes from its own entry point, such as
-// react-aria-components/Button, rather than from react-aria-components, whose
-// file imports every part.
-// The build splits the parts of dates and times from the vendor file, and
-// esbuild counts a part as one that the vendor file reaches wherever a file
-// that the vendor file reaches imports it.
-// Through that file, the vendor file would hold the parts of dates and times
-// too.
+// A part that core starts to draw with goes here.
+// So do the functions of @internationalized/date
+// (https://react-aria.adobe.com/internationalized/date/) with which the SDK's
+// dates read the strings of a state and write those that they submit.
 
-export { Autocomplete } from "react-aria-components/Autocomplete";
-export { Button } from "react-aria-components/Button";
-export { CheckboxButton, CheckboxField } from "react-aria-components/Checkbox";
-export { CheckboxGroup } from "react-aria-components/CheckboxGroup";
-export { Collection } from "react-aria-components/Collection";
-export { ComboBox, ComboBoxStateContext, useFilter } from "react-aria-components/ComboBox";
-export { composeRenderProps } from "react-aria-components/composeRenderProps";
-export { Dialog, DialogTrigger } from "react-aria-components/Dialog";
-export { DropZone } from "react-aria-components/DropZone";
-export { FieldError } from "react-aria-components/FieldError";
-export { FileTrigger } from "react-aria-components/FileTrigger";
-export { Form } from "react-aria-components/Form";
-export { Group } from "react-aria-components/Group";
-export { Header } from "react-aria-components/Header";
-export { Heading } from "react-aria-components/Heading";
-export { useLocale } from "react-aria-components/I18nProvider";
-export { Input } from "react-aria-components/Input";
-export { Keyboard } from "react-aria-components/Keyboard";
-export { Label } from "react-aria-components/Label";
-export { ListBox, ListBoxItem, ListBoxSection } from "react-aria-components/ListBox";
-export { Menu, MenuItem, MenuSection, MenuTrigger } from "react-aria-components/Menu";
-export { Modal, ModalOverlay } from "react-aria-components/Modal";
-export { NumberField, NumberFieldStateContext } from "react-aria-components/NumberField";
-export { Popover } from "react-aria-components/Popover";
-export { RadioButton, RadioField, RadioGroup } from "react-aria-components/RadioGroup";
-export { SearchField } from "react-aria-components/SearchField";
-export { Select, SelectStateContext, SelectValue } from "react-aria-components/Select";
-export { Separator } from "react-aria-components/Separator";
-export { Slider, SliderFill, SliderOutput, SliderStateContext, SliderThumb, SliderTrack } from "react-aria-components/Slider";
-export { SwitchButton, SwitchField } from "react-aria-components/Switch";
-export { Tag, TagGroup, TagList } from "react-aria-components/TagGroup";
-export { Text } from "react-aria-components/Text";
-export { TextArea } from "react-aria-components/TextArea";
-export { TextField } from "react-aria-components/TextField";
-export { ToggleButton } from "react-aria-components/ToggleButton";
-export { ToggleButtonGroup } from "react-aria-components/ToggleButtonGroup";
-export { Token, TokenField, TokenInput } from "react-aria-components/TokenField";
-export { ListLayout, Virtualizer } from "react-aria-components/Virtualizer";
-export type { AutocompleteProps } from "react-aria-components/Autocomplete";
-export type { ButtonProps } from "react-aria-components/Button";
-export type { CheckboxFieldProps } from "react-aria-components/Checkbox";
-export type { CheckboxGroupProps } from "react-aria-components/CheckboxGroup";
-export type { Key } from "react-aria-components/Collection";
-export type { ComboBoxProps } from "react-aria-components/ComboBox";
-export type { DialogProps } from "react-aria-components/Dialog";
-export type { DropZoneProps } from "react-aria-components/DropZone";
-export type { ValidationResult } from "react-aria-components/FieldError";
-export type { FileTriggerProps } from "react-aria-components/FileTrigger";
-export type { FormProps } from "react-aria-components/Form";
-export type { ListBoxItemProps, ListBoxProps, ListBoxSectionProps, Selection } from "react-aria-components/ListBox";
-export type { MenuItemProps, MenuProps, MenuSectionProps, MenuTriggerProps } from "react-aria-components/Menu";
-export type { ModalOverlayProps } from "react-aria-components/Modal";
-export type { NumberFieldProps } from "react-aria-components/NumberField";
-export type { PopoverProps } from "react-aria-components/Popover";
-export type { RadioFieldProps, RadioGroupProps } from "react-aria-components/RadioGroup";
-export type { SearchFieldProps } from "react-aria-components/SearchField";
-export type { SelectProps } from "react-aria-components/Select";
-export type { SliderProps } from "react-aria-components/Slider";
-export type { SwitchFieldProps } from "react-aria-components/Switch";
-export type { TagGroupProps, TagListProps, TagProps } from "react-aria-components/TagGroup";
-export type { TextFieldProps } from "react-aria-components/TextField";
-export type { ToggleButtonProps } from "react-aria-components/ToggleButton";
-export type { ToggleButtonGroupProps } from "react-aria-components/ToggleButtonGroup";
-export type { TokenFieldProps, TokenFieldValue, TokenInputProps, TokenProps } from "react-aria-components/TokenField";
+export {
+  Autocomplete,
+  Button,
+  Calendar,
+  CalendarCell,
+  CalendarGrid,
+  CalendarGridBody,
+  CalendarGridHeader,
+  CalendarHeaderCell,
+  CalendarHeading,
+  CheckboxButton,
+  CheckboxField,
+  CheckboxGroup,
+  Collection,
+  ComboBox,
+  ComboBoxStateContext,
+  composeRenderProps,
+  DateField,
+  DateInput,
+  DatePicker,
+  DateRangePicker,
+  DateSegment,
+  Dialog,
+  DialogTrigger,
+  DropZone,
+  FieldError,
+  FileTrigger,
+  Form,
+  Group,
+  Header,
+  Heading,
+  Input,
+  Keyboard,
+  Label,
+  ListBox,
+  ListBoxItem,
+  ListBoxSection,
+  ListLayout,
+  Menu,
+  MenuItem,
+  MenuSection,
+  MenuTrigger,
+  Modal,
+  ModalOverlay,
+  NumberField,
+  NumberFieldStateContext,
+  Popover,
+  RadioButton,
+  RadioField,
+  RadioGroup,
+  RangeCalendar,
+  SearchField,
+  Select,
+  SelectStateContext,
+  SelectValue,
+  Separator,
+  Slider,
+  SliderFill,
+  SliderOutput,
+  SliderStateContext,
+  SliderThumb,
+  SliderTrack,
+  SwitchButton,
+  SwitchField,
+  Tag,
+  TagGroup,
+  TagList,
+  Text,
+  TextArea,
+  TextField,
+  TimeField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Token,
+  TokenField,
+  TokenInput,
+  useFilter,
+  useLocale,
+  Virtualizer,
+} from "react-aria-components";
+export { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "@internationalized/date";
+export type {
+  AutocompleteProps,
+  ButtonProps,
+  CalendarProps,
+  CheckboxFieldProps,
+  CheckboxGroupProps,
+  ComboBoxProps,
+  DateFieldProps,
+  DatePickerProps,
+  DateRange,
+  DateRangePickerProps,
+  DateValue,
+  DialogProps,
+  DropZoneProps,
+  FileTriggerProps,
+  FormProps,
+  Key,
+  ListBoxItemProps,
+  ListBoxProps,
+  ListBoxSectionProps,
+  MenuItemProps,
+  MenuProps,
+  MenuSectionProps,
+  MenuTriggerProps,
+  ModalOverlayProps,
+  NumberFieldProps,
+  PopoverProps,
+  RadioFieldProps,
+  RadioGroupProps,
+  RangeCalendarProps,
+  SearchFieldProps,
+  Selection,
+  SelectProps,
+  SliderProps,
+  SwitchFieldProps,
+  TagGroupProps,
+  TagListProps,
+  TagProps,
+  TextFieldProps,
+  TimeFieldProps,
+  TimeValue,
+  ToggleButtonGroupProps,
+  ToggleButtonProps,
+  TokenFieldProps,
+  TokenFieldValue,
+  TokenInputProps,
+  TokenProps,
+  ValidationResult,
+} from "react-aria-components";
+export type { CalendarDate } from "@internationalized/date";

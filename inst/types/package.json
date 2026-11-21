@@ -19,10 +19,6 @@
       "types": "./react/index.d.ts",
       "default": "./react/index.js"
     },
-    "./react/dates": {
-      "types": "./dates/index.d.ts",
-      "default": "./dates/index.js"
-    },
     "./stubs": {
       "types": "./stubs/index.d.ts",
       "default": "./stubs/index.js"

@@ -2,7 +2,8 @@
 // UIs draw with and which core ships to packages as `@blockr/core/react`.
 // It holds the hooks through which a component follows its host or CoreApi,
 // the helpers that make a module or a renderer from a component, the inputs,
-// each on one value that useValue() binds or for its caller, the selects,
+// each on one value that useValue() binds or for its caller, among them the
+// dates and times, the selects,
 // which every UI draws with, bound or not, the parts that take no binding,
 // such as the tags, the list box, the form and the drop zone, the buttons,
 // and the overlays: the modal and the dialog, the menu, the popover and the
@@ -11,10 +12,6 @@
 // and React Aria's FileTrigger and Autocomplete come unstyled.
 // It also holds the list in which a UI shows notifications, as useNotified()
 // gives them, in the message style of blockr.ui's design system.
-// It holds the line below an input that names the values that it lacks, and
-// the line that says why the host refused what it submitted, which its inputs
-// draw, and which its dates draw from here as well, from a file of their own
-// (../dates/index.ts).
 
 export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } from "./hooks.ts";
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
@@ -23,11 +20,15 @@ export type { ModuleProps, OutputProps } from "./module.tsx";
 export {
   Autocomplete,
   Button,
+  Calendar,
   Checkbox,
   CheckboxGroup,
   ComboBox,
   ComboBoxItem,
   ComboBoxSection,
+  DateField,
+  DatePicker,
+  DateRangePicker,
   DropZone,
   Field,
   FieldButton,
@@ -35,11 +36,10 @@ export {
   Form,
   ListBox,
   ListBoxItem,
-  NotAvailable,
   NumberField,
   Radio,
   RadioGroup,
-  Refusal,
+  RangeCalendar,
   SearchField,
   Select,
   SelectItem,
@@ -51,6 +51,7 @@ export {
   TagGroup,
   Text,
   TextField,
+  TimeField,
   ToggleButton,
   ToggleButtonGroup,
   Token,
@@ -59,13 +60,18 @@ export {
 } from "../inputs/index.ts";
 export type {
   ButtonProps,
+  CalendarProps,
   CheckboxGroupProps,
   CheckboxProps,
   ComboBoxProps,
   ComboBoxSectionProps,
+  DateFieldProps,
+  DatePickerProps,
+  DateRangePickerProps,
   NumberFieldProps,
   RadioGroupProps,
   RadioProps,
+  RangeCalendarProps,
   SearchFieldProps,
   SelectProps,
   SelectSectionProps,
@@ -74,6 +80,7 @@ export type {
   TagGroupProps,
   TagProps,
   TextFieldProps,
+  TimeFieldProps,
   ToggleButtonGroupProps,
   ToggleButtonProps,
   TokenFieldProps,

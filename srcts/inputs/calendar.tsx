@@ -11,18 +11,17 @@
 // by side, with buttons that page to the months before and after.
 // The user picks a day, or the first and the last day of a range, by a press
 // or by the arrow keys and Enter.
-// The date pickers of the SDK open them (./picker.tsx).
+// The date pickers of the SDK open them (./datepicker.tsx).
 //
 // Given `bound`, the calendar shows and picks a date, a block's state arg or
 // a board option's value, which useValue() binds, as the SDK's other inputs do
-// (../inputs/inputs.tsx), as a string such as "2026-11-19" (./values.ts).
+// (./inputs.tsx), as a string such as "2026-11-19" (./dates.ts).
 // The range calendar picks a range in the same way, as { "start":
 // "2026-11-19", "end": "2026-11-26" }.
-// Each submits a pick at once (./bound.ts).
+// Each submits a pick at once (./bounddate.ts).
 // It says below itself why the host refused what it submitted.
 
 import type { ReactElement } from "react";
-import { composeRenderProps, Text, useLocale } from "../aria/index.ts";
 import {
   Calendar as AriaCalendar,
   CalendarCell,
@@ -31,20 +30,24 @@ import {
   CalendarGridHeader,
   CalendarHeaderCell,
   CalendarHeading,
+  composeRenderProps,
   RangeCalendar as AriaRangeCalendar,
-} from "./aria.ts";
+  Text,
+  useLocale,
+} from "../aria/index.ts";
 import type {
   CalendarDate,
   CalendarProps as AriaCalendarProps,
   DateRange,
   DateValue,
   RangeCalendarProps as AriaRangeCalendarProps,
-} from "./aria.ts";
-import { Button, NotAvailable, Refusal } from "../inputs/index.ts";
+} from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
-import { useBoundDate } from "./bound.ts";
-import { dateFits, rangeFits, readDate, readRange, writeDate, writeRange } from "./values.ts";
+import { useBoundDate } from "./bounddate.ts";
+import { Button } from "./button.tsx";
+import { dateFits, rangeFits, readDate, readRange, writeDate, writeRange } from "./dates.ts";
+import { NotAvailable, Refusal } from "./inputs.tsx";
 
 export interface CalendarProps<T extends DateValue> extends AriaCalendarProps<T> {
   // What the starter kit adds.

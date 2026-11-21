@@ -51,11 +51,12 @@ async function write(files: Record<string, string>): Promise<void> {
 // node_modules of core's repo, which a package does not have.
 // The test would then pass where a package's type check fails.
 // With them come OpenTelemetry's API, which npm installs as their peer, as
-// the types of `@blockr/core` name it, and React Aria, which npm installs as
-// their dependency, whose types the SDK's declarations name.
+// the types of `@blockr/core` name it, and React Aria and
+// @internationalized/date, which npm installs as their dependencies, whose
+// types the SDK's declarations name.
 async function installTypes(): Promise<void> {
   await cp(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), { recursive: true });
-  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria"]) {
+  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria", "@internationalized/date"]) {
     await mkdir(dirname(join(root, "node_modules", name)), { recursive: true });
     await symlink(join(repo, "node_modules", name), join(root, "node_modules", name), "dir");
   }
@@ -169,7 +170,7 @@ test("what a package's tests load imports no package but those that `@blockr/cor
   // The stubs draw core's UIs, the board options' among them, with React.
   expect(await importedPackages("stubs")).toContain("react");
   const named = { ...manifest.peerDependencies, ...manifest.dependencies };
-  for (const name of ["stubs", "react", "dates", "binding", "controls"]) {
+  for (const name of ["stubs", "react", "binding", "controls"]) {
     expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(named, pkg))).toEqual([]);
   }
 });
@@ -186,7 +187,7 @@ async function bundledFiles(name: string): Promise<string[]> {
 // So its files hold core's own code alone, as the Conventions of State in JS
 // ask (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#conventions).
 test("what core ships for a package's tests and build holds core's own code alone", async () => {
-  for (const name of ["stubs", "react", "dates", "binding", "controls", "build"]) {
+  for (const name of ["stubs", "react", "binding", "controls", "build"]) {
     const files = await bundledFiles(name);
     // The bundle notes the path of each file above its code, such as
     // srcts/stubs/core.ts.

@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { CalendarProps as AriaCalendarProps, DateValue, RangeCalendarProps as AriaRangeCalendarProps } from "./aria.ts";
+import type { CalendarProps as AriaCalendarProps, DateValue, RangeCalendarProps as AriaRangeCalendarProps } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 export interface CalendarProps<T extends DateValue> extends AriaCalendarProps<T> {
     readonly errorMessage?: string;

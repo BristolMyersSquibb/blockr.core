@@ -1,6 +1,6 @@
 // How a bound date or time input of the SDK shows and submits its value, a
 // date, a time or a range, which `read` reads from the value of a block's
-// state arg or of a board option, and `write` writes, as ./values.ts lays out.
+// state arg or of a board option, and `write` writes, as ./dates.ts lays out.
 // Typing into the input's segments is an edit, which the input keeps and
 // submits once the user leaves the input or presses Enter.
 // React Aria changes the value with every keystroke into a segment, as the
@@ -29,7 +29,7 @@ import { useRef, useState } from "react";
 import type { Bound } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
 import { jsonEqual } from "../util/index.ts";
-import { shownValue } from "./values.ts";
+import { shownValue } from "./dates.ts";
 
 export interface BoundDate<V> {
   // The value that the input shows, or null for none.
