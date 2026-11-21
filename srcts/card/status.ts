@@ -13,6 +13,8 @@ import type { BlockStatus } from "../scheduler/index.ts";
 // and a block that fails or reads invalid at once leaves no empty room.
 // Core then keeps drawing the last output whatever the block's status, so the
 // output keeps its height as the block fails or waits, and does not jump.
+// The output also has its height while it waits until the card is on screen,
+// so that nothing moves as it draws.
 export function useSized(status: BlockStatus | undefined): boolean {
   const ready = status?.status === "ready";
   const [sized, setSized] = useState(ready);

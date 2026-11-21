@@ -10,6 +10,9 @@
 // It sets CoreApi's onScreen to the blocks whose cards are in view and the
 // plugins whose sections are, as the browser counts them, so that neither the
 // cards of a collapsed group nor a collapsed section is on screen.
+// So core asks R for the output of a card only while the card is in view, and
+// for an output in a plugin's section only while the section is
+// (../../core/core.ts).
 
 import type { BlockId, PluginClassId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";

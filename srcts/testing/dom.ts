@@ -21,7 +21,16 @@
 //   (https://github.com/capricorn86/happy-dom/issues/2484), which its PR
 //   #2516 fixes, and this part goes once a release of happy-dom holds the
 //   fix.
-// Outside happy-dom, neither changes what the DOM does.
+// - In happy-dom, an IntersectionObserver never reports. So core's basic
+//   frontend would count no card in view, and core would ask R for the output
+//   of no card, which waits until its block is on screen.
+//   So an IntersectionObserver reports each element that it observes as in
+//   view, on the microtask after observe(), as on a page that shows them all.
+//   This matches the stubs, which measure every output's element as a panel of
+//   640 by 400 pixels (../stubs/core.ts).
+//   A test that checks what is in view gives an IntersectionObserver of its
+//   own.
+// Outside happy-dom, none of them changes what the DOM does.
 
 for (const name of ["clientWidth", "clientHeight"]) {
   if (typeof HTMLElement === "undefined") break;
@@ -42,4 +51,49 @@ for (const name of ["min", "max", "step"]) {
       else property.set?.call(this, value);
     },
   });
+}
+
+if (typeof navigator !== "undefined" && navigator.userAgent.includes("HappyDOM")) {
+  globalThis.IntersectionObserver = class InView implements IntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "0px";
+    readonly scrollMargin = "0px";
+    readonly thresholds: readonly number[] = [0];
+    readonly #callback: IntersectionObserverCallback;
+    readonly #observed = new Set<Element>();
+
+    constructor(callback: IntersectionObserverCallback) {
+      this.#callback = callback;
+    }
+
+    observe(target: Element): void {
+      this.#observed.add(target);
+      queueMicrotask(() => {
+        if (!this.#observed.has(target)) return;
+        const rect = target.getBoundingClientRect();
+        const entry = {
+          target,
+          isIntersecting: true,
+          intersectionRatio: 1,
+          boundingClientRect: rect,
+          intersectionRect: rect,
+          rootBounds: null,
+          time: performance.now(),
+        } satisfies IntersectionObserverEntry;
+        this.#callback([entry], this);
+      });
+    }
+
+    unobserve(target: Element): void {
+      this.#observed.delete(target);
+    }
+
+    disconnect(): void {
+      this.#observed.clear();
+    }
+
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+  };
 }

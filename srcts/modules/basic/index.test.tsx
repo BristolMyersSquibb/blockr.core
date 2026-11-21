@@ -9,7 +9,7 @@ import { act } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { HELLO, stubCore } from "../../stubs/index.ts";
 import type { StubCoreOptions } from "../../stubs/index.ts";
-import type { HelloReply } from "../../protocol/index.ts";
+import type { HelloReply, Request } from "../../protocol/index.ts";
 import type { PluginClass, StorageControl } from "../../store/index.ts";
 import { find, picking, press, texts, toggleButton, type } from "../../testing/inputs.ts";
 import { classModule, listedModules, pluginUi } from "../../testing/plugins.ts";
@@ -57,6 +57,8 @@ interface Drawn {
   board: () => Board;
   settled: () => Promise<void>;
   stop: () => void;
+  // The blocks whose outputs core asked R for, in order.
+  asked: () => string[];
 }
 
 // What stops each page that a test drew, which runs as the test ends, so that
@@ -80,6 +82,39 @@ async function drawn(options: StubCoreOptions = {}): Promise<Drawn> {
     board: () => stubbed.core.store.board(),
     settled,
     stop: stubbed.stop,
+    asked: () => stubbed.sent.flatMap((request: Request) => (request.kind === "output" ? [request.block] : [])),
+  };
+}
+
+// An IntersectionObserver in place of the one that the tests run with, which
+// reports an element in view or out of view only as the test says.
+function viewing() {
+  const observers = new Set<{ readonly callback: IntersectionObserverCallback; readonly observed: Set<Element>; readonly observer: IntersectionObserver }>();
+  class Observer {
+    readonly #observed = new Set<Element>();
+    constructor(callback: IntersectionObserverCallback) {
+      observers.add({ callback, observed: this.#observed, observer: this as unknown as IntersectionObserver });
+    }
+    observe(target: Element): void {
+      this.#observed.add(target);
+    }
+    unobserve(target: Element): void {
+      this.#observed.delete(target);
+    }
+    disconnect(): void {
+      this.#observed.clear();
+    }
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+  }
+  vi.stubGlobal("IntersectionObserver", Observer);
+  return {
+    report(target: Element, isIntersecting: boolean): void {
+      for (const { callback, observed, observer } of observers) {
+        if (observed.has(target)) callback([{ target, isIntersecting } as IntersectionObserverEntry], observer);
+      }
+    },
   };
 }
 
@@ -268,6 +303,7 @@ afterEach(() => {
   });
   document.body.replaceChildren();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("the page", () => {
@@ -1288,8 +1324,9 @@ describe("which block has focus", () => {
 describe("what is on screen", () => {
   test("is the blocks whose cards and the plugins whose sections show in the viewport, as the page lays them out", async () => {
     // The page lays out the card of Head and the UI of the Edit board plugin
-    // in view, and nothing else. The UI's element is the one that the panel
-    // of the plugin's section holds.
+    // in view, and nothing else, which the browser has yet to report. The
+    // UI's element is the one that the panel of the plugin's section holds.
+    viewing();
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
       const shown =
         this.matches('article[aria-label="Head"]') ||
@@ -1299,6 +1336,46 @@ describe("what is on screen", () => {
     });
     const { core } = await drawn();
     expect(core.onScreen.get()).toEqual({ blocks: ["b"], plugins: ["blockr.core-edit_board_plugin"] });
+  });
+
+  test("has core ask R for a card's output once the card is in view, while the card keeps the room of its output, and keep drawing the output as the card leaves", async () => {
+    const view = viewing();
+    const { el, core, settled, asked } = await drawn();
+    const head = card(el, "Head");
+    const output = find(head, '[aria-label="Output"]');
+    expect(core.scheduler.status("b")?.status).toBe("ready");
+    expect(asked()).toEqual([]);
+    expect(output.textContent).toBe("");
+    // The card gives the output its height while the output waits, so that
+    // nothing moves as the output draws.
+    expect(output.className).toContain("bc:flex-1");
+    const box = output.parentElement?.className;
+
+    await step(() => {
+      view.report(head, true);
+    });
+    await settled();
+    expect(asked()).toEqual(["b"]);
+    expect(output.textContent).toBe("Output of b");
+    expect(output.parentElement?.className).toBe(box);
+
+    // The card leaves the view, and Head evaluates again meanwhile.
+    await step(() => {
+      view.report(head, false);
+    });
+    await step(() => {
+      core.scheduler.invalidate("b");
+    });
+    await settled();
+    expect(core.scheduler.status("b")?.status).toBe("ready");
+    expect(asked()).toEqual(["b"]);
+    expect(output.textContent).toBe("Output of b");
+
+    await step(() => {
+      view.report(head, true);
+    });
+    await settled();
+    expect(asked()).toEqual(["b", "b"]);
   });
 });
 

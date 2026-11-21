@@ -21,10 +21,13 @@
 // the card greys the output out while the block is not ready.
 // It greys out the output alone, and not the pills, so that they keep the
 // colours of their severities.
-// Core asks R for an output only once the block reads ready and the output's
-// element measures more than 0 by 0, and R draws a plot at that size.
+// Core asks R for an output only once the block reads ready, the output's
+// element measures more than 0 by 0 and the card is on screen, and R draws a
+// plot at that size.
 // So the card gives the output a height of its own from the first time the
 // block reads ready on, which the user may drag to another.
+// A card whose output waits until the card is on screen takes the same room,
+// so that nothing on the page moves as the output draws.
 // Before then there is nothing to draw, and the card of a block that fails or
 // reads invalid at once shows the pills and the banners alone, as that of a
 // waiting block does.
