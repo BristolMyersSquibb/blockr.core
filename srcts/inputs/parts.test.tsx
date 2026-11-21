@@ -11,7 +11,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { drop, find, picking, texts, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import { labelled } from "../testing/select.ts";
-import { Autocomplete, Button, Checkbox, DropZone, FileTrigger, Form, ListBox, ListBoxItem, Radio, RadioGroup, SearchField, Select, SelectItem, Switch, Tag, TagGroup, Text, TextField, Token, TokenField, useFilter } from "./index.ts";
+import { Autocomplete, Button, Checkbox, DateField, DatePicker, DropZone, FileTrigger, Form, ListBox, ListBoxItem, Radio, RadioGroup, SearchField, Select, SelectItem, Switch, Tag, TagGroup, Text, TextField, Token, TokenField, useFilter } from "./index.ts";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -219,7 +219,7 @@ describe("the boxes of the fields and of the controls that their outline alone m
   const borders = (el: Element): string[] =>
     [el, ...el.querySelectorAll("*")].flatMap((e) => e.getAttribute("class")?.split(" ") ?? []).filter((name) => name.startsWith("bc:border-border-"));
 
-  test("draw their borders in border-field: a search field, a select and a field of tokens", async () => {
+  test("draw their borders in border-field: a search field, a select, a field of tokens, a date field and a date picker", async () => {
     const { el } = await draw(
       <>
         <div data-field="search">
@@ -233,10 +233,16 @@ describe("the boxes of the fields and of the controls that their outline alone m
         <div data-field="tokens">
           <TokenField label="Formula">{() => <Token />}</TokenField>
         </div>
+        <div data-field="date">
+          <DateField label="On" />
+        </div>
+        <div data-field="picker">
+          <DatePicker label="From" />
+        </div>
       </>,
     );
 
-    for (const field of ["search", "select", "tokens"]) {
+    for (const field of ["search", "select", "tokens", "date", "picker"]) {
       expect(borders(find(el, `[data-field="${field}"]`))).toEqual(["bc:border-border-field"]);
     }
   });
