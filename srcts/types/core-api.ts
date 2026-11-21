@@ -69,10 +69,14 @@ export interface CoreApi {
     // the batch, core tells the user why through a notification of the code
     // `board_edit_failed`, and where `run` throws, rejects or returns no
     // batch, through one of the code `board_action_failed`. The notifier takes
-    // either in place of core, with the board action. It opens no menu where
-    // on() gives the target none, and it closes the menu that is open. The
-    // keyboard's focus returns to `el` as the menu closes. It throws for what
-    // is no target, and for options without `el` and `anchor`.
+    // either in place of core, with the board action. For an advanced action,
+    // `extend` and the notifier take part until it first ends, and only on the
+    // target that it opened on, so that a place that the user pinned, which
+    // mounts it again or on another target, runs the batches there without
+    // them. It opens no menu where on() gives the target none, and it closes
+    // the menu that is open. The keyboard's focus returns to `el` as the menu
+    // closes. It throws for what is no target, and for options without `el`
+    // and `anchor`.
     menu(
       target: Target,
       opts: {
@@ -114,7 +118,9 @@ export interface CoreApi {
     // the failure. For an advanced action, it resolves once the advanced
     // action ends: once its done() has run a batch, or its place has closed
     // without one. A batch that the store refuses there leaves the advanced
-    // action open, whose done() rejects with the refusal. It rejects for an id
+    // action open, whose done() rejects with the refusal. The caller's
+    // `extend` and notifier take part until then, on the target that the
+    // advanced action opened on, as menu() has it. It rejects for an id
     // that no board action has, for what is no target, and for options
     // without `el`.
     trigger(

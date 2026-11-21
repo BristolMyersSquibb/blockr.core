@@ -46,8 +46,9 @@
 // What the user triggered ends with the first end: the promise of the opening
 // resolves then, which is what trigger() waits for. The `picked` and `filter`
 // of the open icon, and the caller's `extend` and notifier, go to the
-// advanced action until then. A pinned place that mounts it again gets it
-// without them.
+// advanced action on the target that it opened on until then. A pinned place
+// that mounts it again, or mounts it on another target, gets it without them,
+// so that no block lands where the user right-clicked for another.
 //
 // A place may pass mount() another target, on which core renders the board
 // action where a menu of the target would offer it, as trigger() checks, and
@@ -337,14 +338,16 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
     }
     const target = other === undefined ? shown.target : targetGiven(other);
     if (shown.closed || !renders(shown.action, target)) return () => undefined;
+    // What the user triggered goes to the target that it opened on alone.
+    const own = sameTarget(target, shown.target);
     const { picked, filter } = shown.opening;
-    const given = shown.first && sameTarget(target, shown.target) ? { ...(picked === undefined ? {} : { picked }), ...(filter === undefined ? {} : { filter }) } : {};
+    const given = shown.first && own ? { ...(picked === undefined ? {} : { picked }), ...(filter === undefined ? {} : { filter }) } : {};
     const unmount = render(
       el,
       shown.action,
       target,
       given,
-      (calls, notifier) => finishShown(shown, calls, notifier),
+      (calls, notifier) => finishShown(shown, own, calls, notifier),
       () => {
         end(shown);
       },
@@ -357,17 +360,20 @@ export function createAdvanced(parts: AdvancedParts): Advanced {
   }
 
   // A done() of an advanced action that a place shows: it runs the batch, if
-  // any, and then ends the advanced action.
-  async function finishShown(shown: Shown, calls: readonly CommandCall[] | undefined, notifier: Notifier | undefined): Promise<void> {
+  // any, and then ends the advanced action. The caller's `extend` and
+  // notifier take part until the advanced action first ends, in a mount on
+  // the target that it opened on, which `own` tells.
+  async function finishShown(shown: Shown, own: boolean, calls: readonly CommandCall[] | undefined, notifier: Notifier | undefined): Promise<void> {
     if (calls === undefined || calls.length === 0) {
       end(shown);
       return;
     }
-    const { first, opening } = shown;
+    const { opening } = shown;
+    const triggered = shown.first && own;
     const deltas = await parts.run(calls, {
       ...(opening.call === undefined ? {} : { call: opening.call }),
-      extend: first ? opening.extend : undefined,
-      notifier: notifier ?? (first ? opening.notifier : undefined),
+      extend: triggered ? opening.extend : undefined,
+      notifier: notifier ?? (triggered ? opening.notifier : undefined),
     });
     end(shown, deltas);
   }

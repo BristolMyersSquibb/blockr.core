@@ -7869,14 +7869,15 @@ function createAdvanced(parts) {
     }
     const target2 = other === void 0 ? shown2.target : targetGiven(other);
     if (shown2.closed || !renders(shown2.action, target2)) return () => void 0;
+    const own2 = sameTarget(target2, shown2.target);
     const { picked, filter } = shown2.opening;
-    const given = shown2.first && sameTarget(target2, shown2.target) ? { ...picked === void 0 ? {} : { picked }, ...filter === void 0 ? {} : { filter } } : {};
+    const given = shown2.first && own2 ? { ...picked === void 0 ? {} : { picked }, ...filter === void 0 ? {} : { filter } } : {};
     const unmount = render2(
       el,
       shown2.action,
       target2,
       given,
-      (calls, notifier) => finishShown(shown2, calls, notifier),
+      (calls, notifier) => finishShown(shown2, own2, calls, notifier),
       () => {
         end(shown2);
       }
@@ -7887,16 +7888,17 @@ function createAdvanced(parts) {
       unmount();
     };
   }
-  async function finishShown(shown2, calls, notifier) {
+  async function finishShown(shown2, own2, calls, notifier) {
     if (calls === void 0 || calls.length === 0) {
       end(shown2);
       return;
     }
-    const { first, opening: opening2 } = shown2;
+    const { opening: opening2 } = shown2;
+    const triggered = shown2.first && own2;
     const deltas = await parts.run(calls, {
       ...opening2.call === void 0 ? {} : { call: opening2.call },
-      extend: first ? opening2.extend : void 0,
-      notifier: notifier ?? (first ? opening2.notifier : void 0)
+      extend: triggered ? opening2.extend : void 0,
+      notifier: notifier ?? (triggered ? opening2.notifier : void 0)
     });
     end(shown2, deltas);
   }

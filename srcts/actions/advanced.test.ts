@@ -465,6 +465,53 @@ describe("the place of an advanced action", () => {
     s.stop();
   });
 
+  test("runs a done() on another target that mount() is given without what the user triggered, the caller's extend and notifier and what the open icon handed it, and ends the advanced action", async () => {
+    const shown = form();
+    const append = asking("Append form", ["block"], shown.module, {
+      quick: () => ({ filter: true, picked: { input: "data" }, rows: [{ kind: "item", label: "Head", pick: () => rename("Head") }] }),
+    });
+    const s = await stubbed([listing([append])]);
+    const room = place();
+    const extended: string[][] = [];
+    const caller: string[][] = [];
+    const refusals = () => held(s.core, (n) => notificationCode(n) === "board_edit_failed");
+
+    const menu = s.menu(
+      { block: "b" },
+      {
+        advanced: room.advanced,
+        extend(deltas) {
+          extended.push(added(deltas));
+          return [];
+        },
+        notifier(notifications) {
+          caller.push(notifications.map(notificationCode));
+        },
+      },
+    );
+    await menu.pick("Append form");
+    menu.type("Hea");
+    const opened = menu.openAdvanced();
+
+    // A pinned place that follows the selection moves on to another block
+    // before the user submits.
+    room.last().mount(document.createElement("div"), { block: "d" });
+    const args = shown.last();
+    expect(args.target).toEqual({ block: "d" });
+    expect(args).not.toHaveProperty("picked");
+    expect(args).not.toHaveProperty("filter");
+
+    await expect(args.done(refused)).rejects.toThrow(REFUSAL);
+    expect(caller).toEqual([]);
+    expect(refusals()).toHaveLength(1);
+
+    await args.done([{ id: "blockr.core-add_block", args: { registry_id: "blockr.core-head_block", id: "n" } }]);
+    await opened;
+    expect(extended).toEqual([]);
+    expect(room.ended.map((deltas) => deltas.map(added))).toEqual([[["n"]]]);
+    s.stop();
+  });
+
   test("is the frontend's where the caller gives none, which core calls as a method of the frontend's module, and core's dialog where the frontend gives none", async () => {
     const shown = form();
     const edit = asking("Edit form", ["block"], shown.module);
