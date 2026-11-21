@@ -132,7 +132,7 @@ test("drags an item to another place from the keyboard, showing where it would l
       </GridList>
     );
   }
-  const { el } = draw(<Reordering />);
+  const { el, unmount } = draw(<Reordering />);
   const grip = (text: string): HTMLButtonElement => {
     const found = rowOf(el, text).querySelector<HTMLButtonElement>('button[slot="drag"]');
     if (found === null) throw new Error(`Found no button that drags ${text}.`);
@@ -161,4 +161,10 @@ test("drags an item to another place from the keyboard, showing where it would l
   }
   expect(moves).toEqual(["apple before plum"]);
   expect(rowTexts(el)).toEqual(["Pear", "Apple", "Plum"]);
+
+  // React Aria moves the focus 50 ms after a drop, on a timer that it clears
+  // as the list unmounts.
+  // The test unmounts the list, so that the timer cannot fire once the test's
+  // page is gone, where React finds no window.
+  unmount();
 });

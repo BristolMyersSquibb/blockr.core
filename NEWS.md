@@ -275,6 +275,9 @@
   The danger and the warning texts of the theme reach the contrast that WCAG's level AA asks of text, 4.5:1, under either theme, on a card and on the tint of a card's mark too.
   Under the light theme, they take Tailwind's red-700 and amber-800, and under the dark theme the colors that blockr.ui gives them there, as the statuses do.
   A card marks a message in blue-700 under the light theme, for the same reason (#677).
+  The pills and the banners of a card, and those of a plugin's section, tint an error with the theme's danger fill, `--bc-color-bg-danger`, and a warning with its warning fill, `--bc-color-bg-warning`.
+  The banner that says why an edit was refused takes the danger fill too.
+  A frontend that sets the fills restyles the tints (#796).
   The client defines core's board options `n_rows` and `dark_mode`, each with its UI, and each takes its default from the blockr option of its name, as before.
   The board option `dark_mode` switches the page's theme in `data-bc-theme`, an attribute of core's own on the page's root element, rather than in Bootstrap's `data-bs-theme` (#589).
   A package that styles the dark theme keys off the same attribute.
