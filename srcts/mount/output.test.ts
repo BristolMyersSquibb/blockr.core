@@ -23,7 +23,7 @@ import type { OutputRenderer } from "../types/outputs.ts";
 import type { RegistryEntry } from "../types/registry.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import { createLoader, createMounts, ModuleError, RequestError } from "./index.ts";
-import type { Measure, Mounts, OutputEvent } from "./index.ts";
+import type { Measure, Mounts, OnScreenOf, OutputEvent } from "./index.ts";
 
 const TABLE: OutputRenderer = { id: "blockr.core-table_output", module: "blockr.core/basic-table.js?v=b7e2a915" };
 const PREVIEW: OutputRenderer = { id: "blockr.ui-table_preview", module: "blockr.ui/table-preview.js?v=1", css: "blockr.ui/table-preview.css?v=2" };
@@ -112,6 +112,53 @@ function measuring(start: OutputInfo | null = INFO) {
   };
 }
 
+// What onScreen says of each output, by the elements that a test puts on
+// screen, and whose subscribers it calls as it changes.
+function screen(...shown: HTMLElement[]) {
+  const on = new Set(shown);
+  const listeners = new Set<() => void>();
+  const onScreen: OnScreenOf = {
+    holds: (el) => on.has(el),
+    subscribe(fn) {
+      listeners.add(fn);
+      return () => {
+        listeners.delete(fn);
+      };
+    },
+  };
+  return {
+    onScreen,
+    show(el: HTMLElement, shows = true) {
+      if (shows) on.add(el);
+      else on.delete(el);
+      for (const fn of [...listeners]) fn();
+    },
+  };
+}
+
+// The onScreen that a caller of mountOutput() gives, which a test changes,
+// with how many subscribe() follow it.
+function callerScreen(start: boolean) {
+  let shows = start;
+  const listeners = new Set<(onScreen: boolean) => void>();
+  return {
+    onScreen: {
+      get: () => shows,
+      subscribe(fn: (onScreen: boolean) => void) {
+        listeners.add(fn);
+        return () => {
+          listeners.delete(fn);
+        };
+      },
+    },
+    following: () => listeners.size,
+    set(next: boolean) {
+      shows = next;
+      for (const fn of [...listeners]) fn(shows);
+    },
+  };
+}
+
 interface Setup {
   r: PlayedR;
   store: Store;
@@ -139,7 +186,8 @@ async function setup(
     reply = bare,
     info = INFO,
     options = [],
-  }: { reply?: HelloReply; info?: OutputInfo | null; options?: readonly Option[] } = {},
+    onScreen,
+  }: { reply?: HelloReply; info?: OutputInfo | null; options?: readonly Option[]; onScreen?: OnScreenOf } = {},
 ): Promise<Setup> {
   const r = playR();
   r.connect();
@@ -202,6 +250,7 @@ async function setup(
       replied,
       notify,
       signal,
+      ...(onScreen === undefined ? {} : { onScreen }),
     });
     return {
       r,
@@ -1041,6 +1090,201 @@ describe("a request", () => {
       [{ object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" }, { type: "output_class", name: "download" }, [failure]],
       [{ object: { block: "b" }, renderer: TABLE.id, package: "blockr.core" }, { type: "renderer", name: "sort" }, [warning]],
     ]);
+  });
+});
+
+describe("on screen", () => {
+  test("asks for nothing while onScreen does not hold what the element sits in, and asks once it does", async () => {
+    const table = renderer();
+    const el = document.createElement("div");
+    const shown = screen();
+    const s = await setup({ [TABLE.module]: table.exports }, { onScreen: shown.onScreen });
+    s.scheduler.demand("test", ["b"]);
+    await evaluateAll(s.r);
+    s.mounts.mountOutput(el, "b");
+    await tick();
+    expect(outputs(s.r)).toHaveLength(0);
+
+    shown.show(el);
+    await tick();
+    expect(outputs(s.r)).toHaveLength(1);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(el.textContent).toContain('"total":150');
+  });
+
+  test("keeps drawing what it drew as the output leaves the screen, and asks for a newer output only once the output is back", async () => {
+    const table = renderer();
+    const el = document.createElement("div");
+    const shown = screen(el);
+    const s = await setup({ [TABLE.module]: table.exports }, { onScreen: shown.onScreen });
+    s.scheduler.demand("test", ["b"]);
+    await evaluateAll(s.r);
+    s.mounts.mountOutput(el, "b");
+    await tick();
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+
+    shown.show(el, false);
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    expect(s.scheduler.status("b")?.status).toBe("ready");
+    expect(outputs(s.r)).toHaveLength(1);
+    expect(table.cleanups()).toBe(0);
+    expect(el.textContent).toContain('"total":150');
+
+    shown.show(el);
+    await tick();
+    expect(outputs(s.r)).toHaveLength(2);
+    expect(lastOutput(s.r).revision).toBe(s.scheduler.status("b")?.revision);
+    replyTable(s.r, lastOutput(s.r), 149);
+    await tick();
+    expect(table.mounts).toHaveLength(1);
+    expect(el.textContent).toContain('"total":149');
+  });
+
+  test("lands an ask that is on its way as the output leaves the screen", async () => {
+    const table = renderer();
+    const el = document.createElement("div");
+    const shown = screen(el);
+    const s = await setup({ [TABLE.module]: table.exports }, { onScreen: shown.onScreen });
+    s.scheduler.demand("test", ["b"]);
+    await evaluateAll(s.r);
+    s.mounts.mountOutput(el, "b");
+    await tick();
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    expect(outputs(s.r)).toHaveLength(2);
+
+    shown.show(el, false);
+    replyTable(s.r, lastOutput(s.r), 149);
+    await tick();
+    expect(s.r.cancels()).toEqual([]);
+    expect(el.textContent).toContain('"total":149');
+  });
+
+  test("mounts no renderer while the output is off screen, though core keeps an output, and draws that one once the output is on screen", async () => {
+    const table = renderer();
+    const first = document.createElement("div");
+    const second = document.createElement("div");
+    const shown = screen(first);
+    const s = await setup({ [TABLE.module]: table.exports }, { onScreen: shown.onScreen });
+    s.scheduler.demand("test", ["b"]);
+    await evaluateAll(s.r);
+    s.mounts.mountOutput(first, "b");
+    await tick();
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+
+    s.mounts.mountOutput(second, "b");
+    await tick();
+    expect(table.mounts).toHaveLength(1);
+    expect(second.textContent).toBe("");
+
+    shown.show(second);
+    await tick();
+    expect(table.mounts).toHaveLength(2);
+    expect(second.textContent).toContain('"total":150');
+    expect(outputs(s.r)).toHaveLength(1);
+  });
+
+  test("mounts no renderer in an element that measures nothing, though core keeps an output, and draws that one once the element measures a size", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    await ready(s);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+
+    s.size.set(null);
+    const hidden = document.createElement("div");
+    s.mounts.mountOutput(hidden, "b");
+    await tick();
+    expect(table.mounts).toHaveLength(1);
+    expect(hidden.textContent).toBe("");
+
+    s.size.set(INFO);
+    await tick();
+    expect(table.mounts).toHaveLength(2);
+    expect(hidden.textContent).toContain('"total":150');
+    expect(outputs(s.r)).toHaveLength(1);
+  });
+
+  test("follows the onScreen that its caller gives beside CoreApi's, until the mount ends", async () => {
+    const table = renderer();
+    const el = document.createElement("div");
+    const caller = callerScreen(false);
+    const s = await setup({ [TABLE.module]: table.exports });
+    s.scheduler.demand("test", ["b"]);
+    await evaluateAll(s.r);
+    const end = s.mounts.mountOutput(el, "b", { onScreen: caller.onScreen });
+    await tick();
+    expect(caller.following()).toBe(1);
+    expect(outputs(s.r)).toHaveLength(0);
+
+    caller.set(true);
+    await tick();
+    expect(outputs(s.r)).toHaveLength(1);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    expect(el.textContent).toContain('"total":150');
+
+    end();
+    expect(caller.following()).toBe(0);
+  });
+
+  test("asks for the output of the block's revision while a request of the output waits, though the output is off screen", async () => {
+    const table = renderer();
+    const el = document.createElement("div");
+    const shown = screen(el);
+    const s = await setup({ [TABLE.module]: table.exports }, { onScreen: shown.onScreen });
+    s.scheduler.demand("test", ["b"]);
+    await evaluateAll(s.r);
+    s.mounts.mountOutput(el, "b");
+    await tick();
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+
+    shown.show(el, false);
+    s.scheduler.invalidate("b");
+    await evaluateAll(s.r);
+    expect(outputs(s.r)).toHaveLength(1);
+
+    const download = table.host().request("download");
+    await tick();
+    expect(outputs(s.r)).toHaveLength(2);
+    replyTable(s.r, lastOutput(s.r));
+    await tick();
+    const revision = s.scheduler.status("b")?.revision;
+    expect(requests(s.r)[0]).toMatchObject({ output: { block: "b", revision } });
+    s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "ok", value: [1], conditions: [] });
+    await expect(download).resolves.toEqual([1]);
+  });
+
+  test("throws for options that are no object and for an onScreen without get() and subscribe(), and ends where the caller's subscribe() throws", async () => {
+    const table = renderer();
+    const s = await setup({ [TABLE.module]: table.exports });
+    const el = document.createElement("div");
+    expect(() => s.mounts.mountOutput(el, "b", null as never)).toThrow("The options of mountOutput() are an object, not null.");
+    for (const onScreen of [true, { get: () => true }, { subscribe: () => () => undefined }]) {
+      expect(() => s.mounts.mountOutput(el, "b", { onScreen } as never)).toThrow(
+        "The onScreen of mountOutput() has get() and subscribe(), as CoreApi's focus has.",
+      );
+    }
+
+    const failure = new Error("No subscriptions.");
+    const throwing = {
+      get: () => true,
+      subscribe: () => {
+        throw failure;
+      },
+    };
+    s.scheduler.demand("test", ["b"]);
+    await evaluateAll(s.r);
+    expect(() => s.mounts.mountOutput(el, "b", { onScreen: throwing })).toThrow(failure);
+    await tick();
+    expect(outputs(s.r)).toHaveLength(0);
   });
 });
 

@@ -25,6 +25,7 @@ export interface CoreParts {
     readonly options: Readonly<Record<OptionId, OptionEntry>>;
     readonly notifications: Holder;
     readonly measure?: Measure;
+    readonly page?: HTMLElement;
     readonly signal?: AbortSignal;
     readonly show: (object: ShownObject) => Promise<void>;
 }

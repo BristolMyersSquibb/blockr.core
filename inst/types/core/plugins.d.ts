@@ -24,6 +24,7 @@ export interface RunningDeps {
     readonly core: () => CoreApi;
     readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
     readonly raise: Raise;
+    readonly uis: WeakMap<Element, PluginClassId>;
     readonly signal?: AbortSignal;
 }
 export declare function runPlugins(deps: RunningDeps): RunningPlugins;

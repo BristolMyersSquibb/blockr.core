@@ -2647,9 +2647,19 @@ function whyFailed(reply, block) {
   const error = conditions.find((condition) => condition.severity === "error");
   return error ?? coreFailure("output_unanswered", `R failed to make the output of block "${block}".`);
 }
-function mountOutput(deps, el, block) {
+function callerOnScreen(opts) {
+  if (!isObject(opts)) throw new TypeError(`The options of mountOutput() are an object, not ${JSON.stringify(opts)}.`);
+  const given = opts.onScreen;
+  if (given === void 0) return void 0;
+  if (!isObject(given) || typeof given.get !== "function" || typeof given.subscribe !== "function") {
+    throw new TypeError("The onScreen of mountOutput() has get() and subscribe(), as CoreApi's focus has.");
+  }
+  return given;
+}
+function mountOutput(deps, el, block, opts = {}) {
   const { store, scheduler, loader, measure } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
+  const caller = callerOnScreen(opts);
   const found = own(store.board().blocks, block);
   if (found === void 0) {
     throw new Error(`The board holds no block "${block}" whose output to mount.`);
@@ -2721,8 +2731,14 @@ function mountOutput(deps, el, block) {
       })
     );
   }
+  function onScreen() {
+    if (info === null || !deps.onScreen.holds(el, block)) return false;
+    const shows = caller === void 0 ? true : caller.get();
+    return shows === true;
+  }
   function wanted() {
     if (info === null) return void 0;
+    if (waiting2.size === 0 && !onScreen()) return void 0;
     const ids2 = named4();
     if (ids2 === void 0) return void 0;
     if (ids2.some((id2) => !Object.hasOwn(store.board().options, id2))) return void 0;
@@ -2753,6 +2769,7 @@ function mountOutput(deps, el, block) {
         }
       }
     }
+    draw();
     wake();
   }
   function stopAsking() {
@@ -2870,19 +2887,22 @@ function mountOutput(deps, el, block) {
     const named5 = next.output.renderer;
     expect(named5);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named5.id) unmountRenderer();
-    if (drawing === void 0) {
-      prepare(named5).then(
-        (prepared) => {
-          if (ended() || drawing !== void 0 || held2?.output.renderer.id !== prepared.renderer.id) return;
-          mountRenderer(prepared);
-        },
-        (failure) => {
-          fail(failure, named5);
-        }
-      );
-    }
+    draw();
     announce2();
     wake();
+  }
+  function draw() {
+    if (held2 === void 0 || drawing !== void 0 || !onScreen()) return;
+    const named5 = held2.output.renderer;
+    prepare(named5).then(
+      (prepared) => {
+        if (ended() || drawing !== void 0 || held2?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
+        mountRenderer(prepared);
+      },
+      (failure) => {
+        fail(failure, named5);
+      }
+    );
   }
   function mountRenderer(prepared) {
     const signal5 = new AbortController();
@@ -2978,25 +2998,26 @@ function mountOutput(deps, el, block) {
       };
       waiting2.add(check2);
       signal5?.addEventListener("abort", check2, { once: true });
+      sync();
     });
   }
-  async function request(prepared, name3, args, opts) {
+  async function request(prepared, name3, args, opts2) {
     const what = `The request "${name3}" of the output of block "${block}"`;
-    const notifier = givenNotifier(opts, `the request "${name3}" of the output of block "${block}"`);
+    const notifier = givenNotifier(opts2, `the request "${name3}" of the output of block "${block}"`);
     const module = rendererModule(prepared.renderer);
-    const requested2 = { type: opts.scope === "renderer" ? "renderer" : "output_class", name: name3 };
+    const requested2 = { type: opts2.scope === "renderer" ? "renderer" : "output_class", name: name3 };
     const inCaller = keepContext();
     for (let attempt3 = 1; ; attempt3++) {
-      const target2 = await current2(name3, opts.signal);
+      const target2 = await current2(name3, opts2.signal);
       const output = { block, revision: target2.asked.revision };
       const fields = { output, name: name3, args: { ...args }, options: target2.asked.options, params: target2.asked.params };
-      const asked = opts.scope === "renderer" ? { kind: "request", type: "renderer", renderer: prepared.renderer.id, ...fields } : { kind: "request", type: "output_class", ...fields };
+      const asked = opts2.scope === "renderer" ? { kind: "request", type: "renderer", renderer: prepared.renderer.id, ...fields } : { kind: "request", type: "output_class", ...fields };
       const { reply, body } = await inCaller(
         () => deps.answers.ask(
-          { request: asked, share: opts.file === void 0 ? "keep" : "once", ...opts.file === void 0 ? {} : { body: opts.file } },
+          { request: asked, share: opts2.file === void 0 ? "keep" : "once", ...opts2.file === void 0 ? {} : { body: opts2.file } },
           {
-            ...opts.signal === void 0 ? {} : { signal: opts.signal },
-            ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
+            ...opts2.signal === void 0 ? {} : { signal: opts2.signal },
+            ...opts2.progress === void 0 ? {} : { progress: opts2.progress.bind(opts2) }
           }
         )
       );
@@ -3021,11 +3042,11 @@ function mountOutput(deps, el, block) {
       }
     }
   }
-  function checkRequest(name3, args, opts) {
+  function checkRequest(name3, args, opts2) {
     if (typeof name3 !== "string" || name3 === "") return new TypeError("A request of an output is named by a non-empty string.");
     if (!isObject(args)) return new TypeError(`The args of the request "${name3}" are an object.`);
-    if (!isObject(opts)) return new TypeError(`The options of the request "${name3}" are an object.`);
-    const scope = opts.scope;
+    if (!isObject(opts2)) return new TypeError(`The options of the request "${name3}" are an object.`);
+    const scope = opts2.scope;
     if (scope !== void 0 && scope !== "class" && scope !== "renderer") {
       return new TypeError(`A request of an output has the scope "class" or "renderer", not ${JSON.stringify(scope)}.`);
     }
@@ -3074,11 +3095,11 @@ function mountOutput(deps, el, block) {
         if (!isObject(params)) throw new TypeError("An output's parameters are an object.");
         if (following) replaceParams(params);
       },
-      request(name3, args = {}, opts = {}) {
-        const invalid = checkRequest(name3, args, opts);
+      request(name3, args = {}, opts2 = {}) {
+        const invalid = checkRequest(name3, args, opts2);
         if (invalid !== void 0) return Promise.reject(invalid);
         if (!following || !bound()) return Promise.reject(unboundError());
-        return request(prepared, name3, args, opts);
+        return request(prepared, name3, args, opts2);
       },
       emit(name3, payload) {
         if (following && bound()) deps.emit({ block, name: name3, payload });
@@ -3105,6 +3126,8 @@ function mountOutput(deps, el, block) {
       }
     };
   }
+  let offCaller;
+  const offOnScreen = deps.onScreen.subscribe(sync);
   const offStore = store.subscribe((_change, next) => {
     if (!Object.hasOwn(next.blocks, block)) {
       end();
@@ -3147,6 +3170,8 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     controller.abort();
     offEnd();
+    if (offCaller !== void 0) attempt(offCaller);
+    offOnScreen();
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
@@ -3161,6 +3186,13 @@ function mountOutput(deps, el, block) {
   }
   for (const given of entry.renderers ?? []) expect(given);
   if (shelf.last !== void 0) take(shelf.last);
+  try {
+    const off = caller?.subscribe(sync);
+    if (typeof off === "function") offCaller = off;
+  } catch (failure) {
+    end();
+    throw failure;
+  }
   sync();
   return end;
 }
@@ -3181,6 +3213,7 @@ function sorted2(x) {
 // srcts/mount/block.ts
 var CORE = "blockr.core";
 var NO_STATUS = Object.freeze(unevaluated(0, false));
+var EVERY_OUTPUT_ON_SCREEN = { holds: () => true, subscribe: () => () => void 0 };
 function createMounts(options) {
   const { store, commands, scheduler, loader } = options;
   const replaced2 = options.signal ?? new AbortController().signal;
@@ -3194,6 +3227,7 @@ function createMounts(options) {
   const notify = options.notify ?? notifyNothing;
   const refused2 = options.refused ?? refusedNothing;
   const optionPackage = options.optionPackage ?? (() => void 0);
+  const onScreen = options.onScreen ?? EVERY_OUTPUT_ON_SCREEN;
   store.subscribe((change) => {
     if ("opened" in change) return;
     for (const id2 of change.delta.blocks?.rm ?? []) shelves.drop(id2);
@@ -3366,10 +3400,11 @@ function createMounts(options) {
   }
   return {
     mountBlock,
-    mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, emit, raise, replied: replied2, notify },
+    mountOutput: (el, block, opts) => mountOutput(
+      { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, emit, raise, replied: replied2, notify, onScreen },
       el,
-      block
+      block,
+      opts
     ),
     mountOption: (el, option) => mountOption(
       { store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
@@ -8327,12 +8362,14 @@ function runPlugins(deps) {
     const end = () => {
       if (ended()) return;
       offEnd();
+      if (deps.uis.get(el) === plugin) deps.uis.delete(el);
       stopKeeping?.();
       controller.abort();
       if (cleanup !== void 0) attempt(cleanup);
       el.replaceChildren();
     };
     const offEnd = onAbort(replaced2, end);
+    deps.uis.set(el, plugin);
     function fail(error) {
       if (ended()) return;
       log.error(asError(error));
@@ -8488,6 +8525,12 @@ function createCore(parts) {
     if (!isLogged(error)) log.debug(why);
     notifications.raiseAgain(coreNotification("board_edit_failed", "error", why, about === void 0 ? {} : { about }), notifier);
   };
+  const onScreen = createOnScreen(parts.signal);
+  const uis = /* @__PURE__ */ new WeakMap();
+  const outputOnScreen = {
+    holds: (el, block) => holdsOutput(onScreen.get(), uis, parts.page, el, block),
+    subscribe: (fn) => onScreen.subscribe(fn)
+  };
   const mounts = createMounts({
     store,
     commands,
@@ -8500,6 +8543,7 @@ function createCore(parts) {
     notify: notifications.notify,
     refused: refused2,
     optionPackage,
+    onScreen: outputOnScreen,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
     emit(event) {
@@ -8518,6 +8562,7 @@ function createCore(parts) {
     core: () => api,
     plugins: parts.plugins,
     raise,
+    uis,
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const focus = createFocus(store, parts.signal);
@@ -8567,7 +8612,7 @@ function createCore(parts) {
     },
     focus,
     selection,
-    onScreen: createOnScreen(parts.signal),
+    onScreen,
     show(object2) {
       if (parts.signal?.aborted === true) return Promise.resolve();
       const shown2 = shownObject(object2);
@@ -8586,7 +8631,7 @@ function createCore(parts) {
     blockrOption: (name3) => blockrOptions.read(name3),
     mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
-    mountOutput: (el, block) => mounts.mountOutput(el, block),
+    mountOutput: (el, block, opts) => mounts.mountOutput(el, block, opts),
     mountOption: (el, option) => mounts.mountOption(el, option),
     mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin)
   };
@@ -8748,6 +8793,20 @@ function sameIds(a, b) {
   const inB = new Set(b);
   return new Set(a).size === inB.size && a.every((id2) => inB.has(id2));
 }
+function holdsOutput(shown2, uis, page, el, block) {
+  if (shown2 === null) return true;
+  for (let at = el; at !== null; at = enclosing(at)) {
+    const plugin = uis.get(at);
+    if (plugin !== void 0) return shown2.plugins.includes(plugin);
+    if (at === page) return shown2.blocks.includes(block);
+  }
+  return true;
+}
+function enclosing(el) {
+  if (el.parentElement !== null) return el.parentElement;
+  const root = el.parentNode;
+  return root !== null && "host" in root ? root.host : null;
+}
 function createFocus(store, signal5) {
   let focused = null;
   const listeners = /* @__PURE__ */ new Set();
@@ -8882,6 +8941,7 @@ function pageFrontEnds(el) {
     el.replaceChildren(loadingNote());
   }
   return {
+    el,
     prepare(front, signal5) {
       if (signal5.aborted) return;
       end();
@@ -9544,7 +9604,8 @@ function start(options) {
       notifications,
       signal: signal5,
       show: (object2) => options.frontEnds?.show(object2, signal5) ?? Promise.resolve(),
-      ...options.measure === void 0 ? {} : { measure: options.measure }
+      ...options.measure === void 0 ? {} : { measure: options.measure },
+      ...options.frontEnds?.el === void 0 ? {} : { page: options.frontEnds.el }
     });
     running2 = { store, scheduler, core, notifications, controller };
     let dropped = [];
