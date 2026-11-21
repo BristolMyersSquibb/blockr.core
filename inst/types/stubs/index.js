@@ -18,6 +18,45 @@ for (const name2 of ["min", "max", "step"]) {
     }
   });
 }
+if (typeof navigator !== "undefined" && navigator.userAgent.includes("HappyDOM")) {
+  globalThis.IntersectionObserver = class InView {
+    root = null;
+    rootMargin = "0px";
+    scrollMargin = "0px";
+    thresholds = [0];
+    #callback;
+    #observed = /* @__PURE__ */ new Set();
+    constructor(callback) {
+      this.#callback = callback;
+    }
+    observe(target2) {
+      this.#observed.add(target2);
+      queueMicrotask(() => {
+        if (!this.#observed.has(target2)) return;
+        const rect = target2.getBoundingClientRect();
+        const entry = {
+          target: target2,
+          isIntersecting: true,
+          intersectionRatio: 1,
+          boundingClientRect: rect,
+          intersectionRect: rect,
+          rootBounds: null,
+          time: performance.now()
+        };
+        this.#callback([entry], this);
+      });
+    }
+    unobserve(target2) {
+      this.#observed.delete(target2);
+    }
+    disconnect() {
+      this.#observed.clear();
+    }
+    takeRecords() {
+      return [];
+    }
+  };
+}
 
 // srcts/util/util.ts
 function own(record, key2) {
@@ -3035,8 +3074,12 @@ function mountOutput(deps, el, block) {
       })
     );
   }
+  function onScreen() {
+    return info !== null && deps.onScreen.holds(el, block);
+  }
   function wanted() {
     if (info === null) return void 0;
+    if (waiting2.size === 0 && !onScreen()) return void 0;
     const ids3 = named4();
     if (ids3 === void 0) return void 0;
     if (ids3.some((id2) => !Object.hasOwn(store.board().options, id2))) return void 0;
@@ -3067,6 +3110,7 @@ function mountOutput(deps, el, block) {
         }
       }
     }
+    draw();
     wake();
   }
   function stopAsking() {
@@ -3184,19 +3228,22 @@ function mountOutput(deps, el, block) {
     const named5 = next.output.renderer;
     expect(named5);
     if (drawing !== void 0 && drawing.prepared.renderer.id !== named5.id) unmountRenderer();
-    if (drawing === void 0) {
-      prepare(named5).then(
-        (prepared) => {
-          if (ended() || drawing !== void 0 || held4?.output.renderer.id !== prepared.renderer.id) return;
-          mountRenderer(prepared);
-        },
-        (failure) => {
-          fail(failure, named5);
-        }
-      );
-    }
+    draw();
     announce2();
     wake();
+  }
+  function draw() {
+    if (held4 === void 0 || drawing !== void 0 || !onScreen()) return;
+    const named5 = held4.output.renderer;
+    prepare(named5).then(
+      (prepared) => {
+        if (ended() || drawing !== void 0 || held4?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
+        mountRenderer(prepared);
+      },
+      (failure) => {
+        fail(failure, named5);
+      }
+    );
   }
   function mountRenderer(prepared) {
     const signal5 = new AbortController();
@@ -3292,6 +3339,7 @@ function mountOutput(deps, el, block) {
       };
       waiting2.add(check2);
       signal5?.addEventListener("abort", check2, { once: true });
+      sync();
     });
   }
   async function request(prepared, name2, args, opts) {
@@ -3419,6 +3467,7 @@ function mountOutput(deps, el, block) {
       }
     };
   }
+  const offOnScreen = deps.onScreen.subscribe(sync);
   const offStore = store.subscribe((_change, next) => {
     if (!Object.hasOwn(next.blocks, block)) {
       end();
@@ -3461,6 +3510,7 @@ function mountOutput(deps, el, block) {
     if (ended()) return;
     controller.abort();
     offEnd();
+    offOnScreen();
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
@@ -3495,6 +3545,7 @@ function sorted2(x) {
 // srcts/mount/block.ts
 var CORE = "blockr.core";
 var NO_STATUS = Object.freeze(unevaluated(0, false));
+var EVERY_OUTPUT_ON_SCREEN = { holds: () => true, subscribe: () => () => void 0 };
 function createMounts(options) {
   const { store, commands, scheduler, loader } = options;
   const replaced2 = options.signal ?? new AbortController().signal;
@@ -3508,6 +3559,7 @@ function createMounts(options) {
   const notify = options.notify ?? notifyNothing;
   const refused2 = options.refused ?? refusedNothing;
   const optionPackage = options.optionPackage ?? (() => void 0);
+  const onScreen = options.onScreen ?? EVERY_OUTPUT_ON_SCREEN;
   store.subscribe((change) => {
     if ("opened" in change) return;
     for (const id2 of change.delta.blocks?.rm ?? []) shelves.drop(id2);
@@ -3681,7 +3733,7 @@ function createMounts(options) {
   return {
     mountBlock,
     mountOutput: (el, block) => mountOutput(
-      { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, emit, raise, replied: replied2, notify },
+      { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, emit, raise, replied: replied2, notify, onScreen },
       el,
       block
     ),
@@ -9795,12 +9847,14 @@ function runPlugins(deps) {
     const end = () => {
       if (ended()) return;
       offEnd();
+      if (deps.uis.get(el) === plugin) deps.uis.delete(el);
       stopKeeping?.();
       controller.abort();
       if (cleanup !== void 0) attempt(cleanup);
       el.replaceChildren();
     };
     const offEnd = onAbort(replaced2, end);
+    deps.uis.set(el, plugin);
     function fail(error) {
       if (ended()) return;
       log.error(asError(error));
@@ -9956,6 +10010,12 @@ function createCore(parts) {
     if (!isLogged(error)) log.debug(why);
     notifications.raiseAgain(coreNotification("board_edit_failed", "error", why, about === void 0 ? {} : { about }), notifier);
   };
+  const onScreen = createOnScreen(parts.signal);
+  const uis = /* @__PURE__ */ new WeakMap();
+  const outputOnScreen = {
+    holds: (el, block) => holdsOutput(onScreen.get(), uis, parts.page, el, block),
+    subscribe: (fn) => onScreen.subscribe(fn)
+  };
   const mounts = createMounts({
     store,
     commands,
@@ -9968,6 +10028,7 @@ function createCore(parts) {
     notify: notifications.notify,
     refused: refused2,
     optionPackage,
+    onScreen: outputOnScreen,
     ...parts.measure === void 0 ? {} : { measure: parts.measure },
     ...parts.signal === void 0 ? {} : { signal: parts.signal },
     emit(event) {
@@ -9986,6 +10047,7 @@ function createCore(parts) {
     core: () => api,
     plugins: parts.plugins,
     raise,
+    uis,
     ...parts.signal === void 0 ? {} : { signal: parts.signal }
   });
   const focus = createFocus(store, parts.signal);
@@ -10035,7 +10097,7 @@ function createCore(parts) {
     },
     focus,
     selection,
-    onScreen: createOnScreen(parts.signal),
+    onScreen,
     show(object2) {
       if (parts.signal?.aborted === true) return Promise.resolve();
       const shown2 = shownObject(object2);
@@ -10216,6 +10278,20 @@ function sameIds2(a, b) {
   const inB = new Set(b);
   return new Set(a).size === inB.size && a.every((id2) => inB.has(id2));
 }
+function holdsOutput(shown2, uis, page, el, block) {
+  if (shown2 === null) return true;
+  for (let at = el; at !== null; at = enclosing(at)) {
+    const plugin = uis.get(at);
+    if (plugin !== void 0) return shown2.plugins.includes(plugin);
+    if (at === page) return shown2.blocks.includes(block);
+  }
+  return true;
+}
+function enclosing(el) {
+  if (el.parentElement !== null) return el.parentElement;
+  const root = el.parentNode;
+  return root !== null && "host" in root ? root.host : null;
+}
 function createFocus(store, signal5) {
   let focused = null;
   const listeners = /* @__PURE__ */ new Set();
@@ -10350,6 +10426,7 @@ function pageFrontEnds(el) {
     el.replaceChildren(loadingNote());
   }
   return {
+    el,
     prepare(front, signal5) {
       if (signal5.aborted) return;
       end();
@@ -11012,7 +11089,8 @@ function start(options) {
       notifications,
       signal: signal5,
       show: (object2) => options.frontEnds?.show(object2, signal5) ?? Promise.resolve(),
-      ...options.measure === void 0 ? {} : { measure: options.measure }
+      ...options.measure === void 0 ? {} : { measure: options.measure },
+      ...options.frontEnds?.el === void 0 ? {} : { page: options.frontEnds.el }
     });
     running2 = { store, scheduler, core, notifications, controller };
     let dropped = [];

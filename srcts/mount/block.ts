@@ -82,7 +82,7 @@ import { domMeasure } from "./measure.ts";
 import type { Measure } from "./measure.ts";
 import { mountOption } from "./option.ts";
 import { createShelves, mountOutput } from "./output.ts";
-import type { OutputEvent } from "./output.ts";
+import type { OnScreenOf, OutputEvent } from "./output.ts";
 import { blockRequest } from "./requests.ts";
 import { attempt, mountableModule, onAbort, optionReader, REPLACED, withoutOptions } from "./shared.ts";
 
@@ -90,9 +90,9 @@ export interface Mounts {
   // Mounts the UI module of the block's class in the element until the
   // returned cleanup runs. It throws where the board holds no such block.
   mountBlock(el: HTMLElement, block: BlockId): () => void;
-  // Mounts the block's output, measured, asked of R and drawn by the renderer
-  // that R names in it, until the returned cleanup runs (./output.ts). It
-  // throws where the board holds no such block.
+  // Mounts the block's output, measured, asked of R while it is on screen and
+  // drawn by the renderer that R names in it, until the returned cleanup runs
+  // (./output.ts). It throws where the board holds no such block.
   mountOutput(el: HTMLElement, block: BlockId): () => void;
   // Mounts a board option's UI, or the renderer that the app names for it,
   // until the returned cleanup runs (./option.ts). It throws where no package
@@ -130,6 +130,9 @@ export interface MountsOptions {
   readonly emit?: (event: OutputEvent) => void;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
+  // What CoreApi's onScreen says of an output, by its element (./output.ts).
+  // Every output is on screen, as far as onScreen goes, unless given.
+  readonly onScreen?: OnScreenOf;
   // Ends every mount as it aborts, as another board opens.
   readonly signal?: AbortSignal;
   // The CoreApi that a board option's default gets, where it is a function,
@@ -162,6 +165,10 @@ const CORE = "blockr.core";
 // The status of a block that the scheduler has not seen yet.
 const NO_STATUS = Object.freeze(unevaluated(0, false));
 
+// What onScreen says of every output where core is given nothing, as a test
+// may give: that it holds what the output sits in.
+const EVERY_OUTPUT_ON_SCREEN: OnScreenOf = { holds: () => true, subscribe: () => () => undefined };
+
 export function createMounts(options: MountsOptions): Mounts {
   const { store, commands, scheduler, loader } = options;
   // Aborts as another board opens in place of this one.
@@ -176,6 +183,7 @@ export function createMounts(options: MountsOptions): Mounts {
   const notify = options.notify ?? notifyNothing;
   const refused = options.refused ?? refusedNothing;
   const optionPackage = options.optionPackage ?? ((): undefined => undefined);
+  const onScreen = options.onScreen ?? EVERY_OUTPUT_ON_SCREEN;
 
   // What core keeps of the board, which goes with the mounts as another board
   // opens: the answers of requests, and of each block's output its parameters
@@ -408,7 +416,7 @@ export function createMounts(options: MountsOptions): Mounts {
     mountBlock,
     mountOutput: (el, block) =>
       mountOutput(
-        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, emit, raise, replied, notify },
+        { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, emit, raise, replied, notify, onScreen },
         el,
         block,
       ),

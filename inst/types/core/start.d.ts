@@ -13,6 +13,7 @@ export type Front = {
     readonly none: string;
 };
 export interface FrontEnds {
+    readonly el?: HTMLElement;
     prepare(front: Front, signal: AbortSignal): void;
     render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
     show(object: Parameters<CoreApi["show"]>[0], signal: AbortSignal): Promise<void>;

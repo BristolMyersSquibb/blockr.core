@@ -24,6 +24,10 @@
 // Beside them, it holds the board objects that the user selected, which
 // whatever selects sets, as the DAG does
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
+// Core asks R for a block's output only while onScreen holds what the
+// output's element sits in. It tells that from the elements in which it
+// mounted the UIs of plugins and from the page's element, in which the
+// frontend draws (holdsOutput(), below).
 // What they hold is the page's, outside the board, and ends with the board. Where an onChange() throws, core
 // raises a notification that holds until its next call returns, and so do
 // those that the call raises through its `notify`.
@@ -45,7 +49,7 @@ import type { BoardActions, ShowMenu } from "../actions/index.ts";
 import { isLogged } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
-import type { Loader, Measure, OutputEvent } from "../mount/index.ts";
+import type { Loader, Measure, OnScreenOf, OutputEvent } from "../mount/index.ts";
 import type { Lock, OptionEntry, PluginEntry, Renderer } from "../protocol/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import { asRandId, mintId } from "../store/index.ts";
@@ -107,6 +111,10 @@ export interface CoreParts {
   readonly notifications: Holder;
   // Measures an output's element, through the DOM unless given.
   readonly measure?: Measure;
+  // The page's element, in which the frontend draws, as the page gives it. A
+  // CoreApi for tests may leave it out, and core then takes an output outside
+  // the UI of every plugin as one outside the page.
+  readonly page?: HTMLElement;
   // Ends what CoreApi runs as it aborts, as another board opens: every mount,
   // and what core keeps of outputs and answers, while the outputs' events
   // reach nobody more.
@@ -178,6 +186,15 @@ export function createCore(parts: CoreParts): Core {
     notifications.raiseAgain(coreNotification("board_edit_failed", "error", why, about === undefined ? {} : { about }), notifier);
   };
 
+  const onScreen = createOnScreen(parts.signal);
+  // The plugin whose UI core mounted in each element, while the mount lasts
+  // (./plugins.ts).
+  const uis = new WeakMap<Element, PluginClassId>();
+  const outputOnScreen: OnScreenOf = {
+    holds: (el, block) => holdsOutput(onScreen.get(), uis, parts.page, el, block),
+    subscribe: (fn) => onScreen.subscribe(fn),
+  };
+
   // A host's submit() runs its command through the command registry itself,
   // not through CoreApi, and tells the user why the store refused it, about
   // the host's block or board option. The inputs of core's React SDK and its
@@ -195,6 +212,7 @@ export function createCore(parts: CoreParts): Core {
     notify: notifications.notify,
     refused,
     optionPackage,
+    onScreen: outputOnScreen,
     ...(parts.measure === undefined ? {} : { measure: parts.measure }),
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
     emit(event) {
@@ -217,6 +235,7 @@ export function createCore(parts: CoreParts): Core {
     core: () => api,
     plugins: parts.plugins,
     raise,
+    uis,
     ...(parts.signal === undefined ? {} : { signal: parts.signal }),
   });
 
@@ -269,7 +288,7 @@ export function createCore(parts: CoreParts): Core {
     },
     focus,
     selection,
-    onScreen: createOnScreen(parts.signal),
+    onScreen,
     show(object) {
       if (parts.signal?.aborted === true) return Promise.resolve();
       const shown = shownObject(object);
@@ -510,6 +529,39 @@ function isIds(given: unknown): given is string[] {
 function sameIds(a: readonly string[], b: readonly string[]): boolean {
   const inB = new Set(b);
   return new Set(a).size === inB.size && a.every((id) => inB.has(id));
+}
+
+// Whether what is on screen holds what the element of the block's output sits
+// in, by the nearest element around it in which core mounted a plugin's UI or
+// the frontend's page (mountOutput() in ../types/core-api.ts):
+// - Where the frontend has said nothing, it holds.
+// - An element in a plugin's UI follows that plugin.
+// - An element on the page, outside the UI of every plugin but the
+//   frontend's, sits on the block's card or panel, and follows the block.
+// - Core cannot tell where an element outside the page shows, so it holds for
+//   that one.
+function holdsOutput(
+  shown: ReturnType<OnScreen["get"]>,
+  uis: WeakMap<Element, PluginClassId>,
+  page: HTMLElement | undefined,
+  el: Element,
+  block: BlockId,
+): boolean {
+  if (shown === null) return true;
+  for (let at: Element | null = el; at !== null; at = enclosing(at)) {
+    const plugin = uis.get(at);
+    if (plugin !== undefined) return shown.plugins.includes(plugin);
+    if (at === page) return shown.blocks.includes(block);
+  }
+  return true;
+}
+
+// The element around the element given, across the edge of a shadow root, in
+// which a plugin may draw.
+function enclosing(el: Element): Element | null {
+  if (el.parentElement !== null) return el.parentElement;
+  const root = el.parentNode;
+  return root !== null && "host" in root ? (root as ShadowRoot).host : null;
 }
 
 // Which block has focus, which starts with none as the board opens and goes
