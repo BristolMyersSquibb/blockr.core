@@ -35,16 +35,29 @@
 import { useState } from "react";
 import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
-import { freeInputs, linkFeeding } from "../../commands/index.ts";
+import { classInputs, freeInputs, linkFeeding } from "../../commands/index.ts";
 import { createGraph } from "../../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../../picker/index.ts";
-import { ComboBox, ComboBoxItem, Form, Select, SelectItem, Text, TextField } from "../../react/index.ts";
+import { ComboBox, Form, Select, SelectItem, TextField } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
 import type { RegistryEntry } from "../../types/registry.ts";
-import { classes, identifier, Pager, Refusal, TableSearch, useEdits, useSearch, useTableView } from "../../ui/index.ts";
+import {
+  blockItem,
+  blockName,
+  blockRow,
+  blockTexts,
+  classes,
+  identifier,
+  Pager,
+  Refusal,
+  TableSearch,
+  useEdits,
+  useSearch,
+  useTableView,
+} from "../../ui/index.ts";
 import type { Edits } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
@@ -467,48 +480,10 @@ function LinkForm({
   );
 }
 
-// A block as a select offers it: by its name, with its id and its class
-// after it, by which the select finds it too.
-export interface BlockItem {
-  readonly id: BlockId;
-  readonly name: string;
-  readonly detail: string;
-}
-
-export function blockItem(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): BlockItem {
-  const block = own(board.blocks, id);
-  const cls = block === undefined ? undefined : (own(registry, block.registry_id)?.name ?? block.registry_id);
-  return { id, name: block?.name ?? id, detail: cls === undefined ? id : `${id} · ${cls}` };
-}
-
-// The texts by which a select finds a block.
-export function blockTexts(item: BlockItem): readonly string[] {
-  return [item.name, item.detail, item.id];
-}
-
-// A block's row in a select's list.
-export function blockRow(item: BlockItem): ReactElement {
-  return (
-    <ComboBoxItem id={item.id} textValue={item.name}>
-      <Text slot="label" className="bc:shrink-0 bc:truncate">
-        {item.name}
-      </Text>
-      <Text slot="description">{item.detail}</Text>
-    </ComboBoxItem>
-  );
-}
-
 // Whether the block takes a link: a variadic block always, and another block
 // where one of its inputs is free. A block without inputs takes none.
 function takesLink(board: Pick<Board, "blocks" | "links">, registry: Registry, id: BlockId): boolean {
   return (freeInputs(board, registry, id)?.length ?? 0) > 0;
-}
-
-// The inputs of the block's class, in their order, or none where the board
-// or the block registry lacks it.
-function classInputs(board: Pick<Board, "blocks">, registry: Registry, id: BlockId): readonly string[] {
-  const block = own(board.blocks, id);
-  return (block === undefined ? undefined : own(registry, block.registry_id)?.inputs) ?? [];
 }
 
 // What the form that changes a link says where another link into the same
@@ -553,9 +528,4 @@ function withoutLink(board: Board, id: LinkId | undefined): Board {
 
 function optional<K extends string>(key: K, error: string | undefined): Partial<Record<K, string>> {
   return error === undefined ? {} : ({ [key]: error } as Partial<Record<K, string>>);
-}
-
-// A block's name, or its id where the board lacks it.
-export function blockName(board: Pick<Board, "blocks">, block: BlockId): string {
-  return own(board.blocks, block)?.name ?? block;
 }

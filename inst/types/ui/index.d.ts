@@ -1,3 +1,5 @@
+export { blockItem, blockName, blockRow, blockTexts } from "./blocks.tsx";
+export type { BlockItem } from "./blocks.tsx";
 export { runCommand, useEdits } from "./edits.ts";
 export type { Edits, Refused } from "./edits.ts";
 export { useHistory } from "./hooks.ts";

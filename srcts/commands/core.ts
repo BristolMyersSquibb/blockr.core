@@ -514,6 +514,19 @@ export function coreCommands(store: Store): Command<Json, unknown>[] {
   return [...blocks, ...links, ...stacks, ...board, ...plugins];
 }
 
+// The inputs of the class of the block, in their order, as ["x", "y"], or
+// ["..."] for a variadic block, by which a frontend tells the inputs that a
+// block takes. They are none where the board lacks the block or the block
+// registry its class.
+export function classInputs(
+  board: Pick<Board, "blocks">,
+  registry: Readonly<Record<RegistryId, RegistryEntry>>,
+  id: BlockId,
+): readonly string[] {
+  const block = own(board.blocks, id);
+  return (block === undefined ? undefined : own(registry, block.registry_id)?.inputs) ?? [];
+}
+
 // The inputs of block `to` that no link feeds, by which the commands find the
 // input that a new link goes to, and a frontend the inputs that it offers.
 // It is undefined where the board lacks the block or the block registry its

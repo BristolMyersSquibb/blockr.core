@@ -47,11 +47,9 @@ import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import type { Json } from "../../types/json.ts";
-import { classes, Pager, Refusal, TableSearch, useEdits, useSearch, useTableView } from "../../ui/index.ts";
-import type { Edits } from "../../ui/index.ts";
+import { blockItem, blockName, blockRow, blockTexts, classes, Pager, Refusal, TableSearch, useEdits, useSearch, useTableView } from "../../ui/index.ts";
+import type { BlockItem, Edits } from "../../ui/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
-import { blockItem, blockName, blockRow, blockTexts } from "./links.tsx";
-import type { BlockItem } from "./links.tsx";
 
 // The colours that a new stack starts from, ColorBrewer's Set2, of which a new
 // stack takes the first that no stack has.

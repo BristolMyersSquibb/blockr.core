@@ -68,8 +68,8 @@
     "react-dom/client",
     "react",
     "@blockr/core/react",
-    "./vendor-48cbe59f.js",
-    "react/jsx-runtime"
+    "react/jsx-runtime",
+    "./vendor-48cbe59f.js"
   ],
   "filebrowser-block.js": [
     "react",

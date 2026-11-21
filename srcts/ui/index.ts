@@ -1,8 +1,8 @@
 // What core's basic frontend and its Edit board plugin draw with: the classes
 // of their buttons, lists and surfaces, what the text fields of their forms
-// take where they hold an identifier, the search and the pages of their
-// tables, and the hook through which the frontend follows the store's undo
-// history.
+// take where they hold an identifier, a block as their selects offer it, the
+// search and the pages of their tables, and the hook through which the
+// frontend follows the store's undo history.
 // It also holds how each runs an edit, and the Edit board plugin's banner that
 // says why one was refused, which marks an error as a card's banners do.
 // They draw their text fields with the SDK's TextField, and the search of a
@@ -14,6 +14,8 @@
 // more than their names through useSearch(), and a pick of a few values with
 // its Select.
 
+export { blockItem, blockName, blockRow, blockTexts } from "./blocks.tsx";
+export type { BlockItem } from "./blocks.tsx";
 export { runCommand, useEdits } from "./edits.ts";
 export type { Edits, Refused } from "./edits.ts";
 export { useHistory } from "./hooks.ts";
