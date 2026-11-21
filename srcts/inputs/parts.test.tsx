@@ -11,7 +11,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { drop, find, picking, texts, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import { labelled } from "../testing/select.ts";
-import { Autocomplete, Button, DropZone, FileTrigger, Form, ListBox, ListBoxItem, SearchField, Tag, TagGroup, Text, TextField, useFilter } from "./index.ts";
+import { Autocomplete, Button, Checkbox, DropZone, FileTrigger, Form, ListBox, ListBoxItem, Radio, RadioGroup, SearchField, Select, SelectItem, Switch, Tag, TagGroup, Text, TextField, Token, TokenField, useFilter } from "./index.ts";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -210,5 +210,61 @@ describe("the file trigger", () => {
     });
 
     expect([clicked, picked]).toEqual([[{ accept: "text/csv", connected: true }], ["sales.csv"]]);
+  });
+});
+
+describe("the boxes of the fields and of the controls that their outline alone marks", () => {
+  // The colors of the borders that an element and what it holds draw at rest,
+  // those of their states aside.
+  const borders = (el: Element): string[] =>
+    [el, ...el.querySelectorAll("*")].flatMap((e) => e.getAttribute("class")?.split(" ") ?? []).filter((name) => name.startsWith("bc:border-border-"));
+
+  test("draw their borders in border-field: a search field, a select and a field of tokens", async () => {
+    const { el } = await draw(
+      <>
+        <div data-field="search">
+          <SearchField label="Find a fruit" />
+        </div>
+        <div data-field="select">
+          <Select label="Fruit" items={fruits}>
+            {(fruit) => <SelectItem id={fruit.id}>{fruit.name}</SelectItem>}
+          </Select>
+        </div>
+        <div data-field="tokens">
+          <TokenField label="Formula">{() => <Token />}</TokenField>
+        </div>
+      </>,
+    );
+
+    for (const field of ["search", "select", "tokens"]) {
+      expect(borders(find(el, `[data-field="${field}"]`))).toEqual(["bc:border-border-field"]);
+    }
+  });
+
+  test("draw the outlines of a checkbox, a radio button, a switch and a drop zone in border-field, since the outline alone marks each while it is unchecked, off or empty", async () => {
+    const { el } = await draw(
+      <>
+        <div data-field="checkbox">
+          <Checkbox>Keep</Checkbox>
+        </div>
+        <div data-field="radio">
+          <RadioGroup label="End">
+            <Radio value="head">Head</Radio>
+          </RadioGroup>
+        </div>
+        <div data-field="switch">
+          <Switch>On</Switch>
+        </div>
+        <div data-field="zone">
+          <DropZone>
+            <Text slot="label">Drop a file</Text>
+          </DropZone>
+        </div>
+      </>,
+    );
+
+    for (const field of ["checkbox", "radio", "switch", "zone"]) {
+      expect(borders(find(el, `[data-field="${field}"]`))).toEqual(["bc:border-border-field"]);
+    }
   });
 });

@@ -19,8 +19,9 @@
  *   Two take blockr.ui's colors instead: border-default and bg-raised.
  *   The dock takes its look from blockr.ui, so core's menus and dialogs draw
  *   in the dock's colors.
- *   A field draws its border in border-field, a gray of the theme that stands
- *   out more than border-default.
+ *   A field, and a control that its outline alone marks, such as a checkbox,
+ *   draws its border in border-field, a gray of the theme that stands out
+ *   more than border-default.
  *   These three and the danger and the warning texts take other values under
  *   the dark theme.
  * - The theme also holds a color for each status of a block and for each
@@ -135,8 +136,11 @@
 /*
  * A field, such as a text field, a number field or a select, draws its border
  * in border-field.
+ * So does a control that its outline alone marks while it is unchecked, off or
+ * empty: a checkbox, a radio button, a switch or a drop zone.
  * Its defaults are gray-400, and gray-600 under the dark theme.
- * The border marks where the field is, and an empty field shows nothing else.
+ * The border marks where the field or the control is, and an empty field or an
+ * unchecked checkbox shows nothing else.
  * In border-default, the border reaches 1.1:1 to 1.3:1 on the surfaces where
  * core's fields sit: a card, a panel or a dialog, of the dock or of core's
  * basic frontend.
