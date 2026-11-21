@@ -78,7 +78,6 @@ export {
   NavigationTreeItemContent,
   NavigationTreeSection,
   NumberField,
-  NumberFieldStateContext,
   parseColor,
   Popover,
   RadioButton,
