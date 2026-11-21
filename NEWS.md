@@ -794,6 +794,17 @@
   Under core's basic frontend, core thus asks only for the outputs of the cards in the browser's viewport, and under the dock only for those of the panels that the user sees.
   A card of core's basic frontend keeps the room of its output while the output waits, so that nothing on the page moves as it draws.
   Loading `@blockr/core/stubs` makes the `IntersectionObserver` of `happy-dom` report every element that it observes as in view, so that core's basic frontend counts every card on screen in a test (#802).
+* Core's React SDK offers React Aria's dates and times in core's theme, after those of React Aria's Tailwind starter kit: the date field `DateField`, the time field `TimeField`, the date picker `DatePicker`, the date range picker `DateRangePicker`, the calendar `Calendar` and the range calendar `RangeCalendar`.
+  Their parts of React Aria load with the others, in core's vendor file, which holds every part of React Aria that the SDK offers.
+  Each takes the props of its part of React Aria, the fields and the pickers take the `label`, `description` and `errorMessage` that the starter kit adds, and an input takes `bound` too.
+  A bound input holds a date as `"2026-11-19"`, which R reads with `as.Date()`, and a date with a time, where its `granularity` takes one, as `"2026-11-19 14:30:00"`, which R reads with `as.POSIXct()`.
+  It holds a time as `"14:30:00"`, and a range as `{ "start": …, "end": … }` of two such dates, which R reads as a named list.
+  These are R's own forms, so a block writes them into its code as they are, as `as.Date("2026-11-19")`.
+  The string holds the time as the user picked it, and no time zone, so the block's code names the zone, such as that of its data.
+  A field submits what the user typed as the user leaves it or presses Enter.
+  It submits a step of a segment by a key, such as the arrow up, at once, as the number field submits a step of its number, and a picker or a calendar submits a pick at once.
+  Each submits only a value in its range.
+  Where the state holds a value that does not read so, as `"2026-11-19T14:30:00"`, which R's `as.POSIXct()` reads as midnight, a bound input marks itself invalid and says below itself that the value is not available (#758).
 * Core's React SDK offers React Aria's colors, in core's theme, after React Aria's Tailwind starter kit: a field and a picker, `ColorField` and `ColorPicker`, the swatches, `ColorSwatch` and `ColorSwatchPicker` with `ColorSwatchPickerItem`, and the parts of a picker, `ColorArea`, `ColorSlider`, `ColorWheel` and `ColorThumb`.
   Each takes the props of its part of React Aria and those that the starter kit adds, such as `label`.
   The picker takes `isDisabled` too, which disables its button.
@@ -805,7 +816,7 @@
   The stack form of the Edit board plugin draws a stack's color with a `ColorPicker` beside the `Checkbox` of the SDK, in place of the browser's checkbox and color input.
   The picker's popover holds the palette's colors as swatches below the starter kit's parts.
   The stacks' table draws each stack's color as a `ColorSwatch`, which a screen reader names by its color.
-  Compressed with `gzip`, core's vendor file grows from 252 KB to 275 KB (#759).
+  Compressed with `gzip`, core's vendor file grows from 295 KB to 318 KB (#759).
 
 # blockr.core 0.1.4
 

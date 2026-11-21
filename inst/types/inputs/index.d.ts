@@ -1,5 +1,7 @@
 export { Button, FieldButton } from "./button.tsx";
 export type { ButtonProps } from "./button.tsx";
+export { Calendar, RangeCalendar } from "./calendar.tsx";
+export type { CalendarProps, RangeCalendarProps } from "./calendar.tsx";
 export { Checkbox, CheckboxGroup } from "./checkbox.tsx";
 export type { CheckboxGroupProps, CheckboxProps } from "./checkbox.tsx";
 export { ColorField } from "./colorfield.tsx";
@@ -12,6 +14,10 @@ export { ColorSwatch, ColorSwatchPicker, ColorSwatchPickerItem } from "./colorsw
 export type { ColorSwatchPickerProps } from "./colorswatches.tsx";
 export { ComboBox, ComboBoxItem, ComboBoxSection } from "./combobox.tsx";
 export type { ComboBoxProps, ComboBoxSectionProps } from "./combobox.tsx";
+export { DateField, TimeField } from "./datefield.tsx";
+export type { DateFieldProps, TimeFieldProps } from "./datefield.tsx";
+export { DatePicker, DateRangePicker } from "./datepicker.tsx";
+export type { DatePickerProps, DateRangePickerProps } from "./datepicker.tsx";
 export { DropZone } from "./dropzone.tsx";
 export { Form } from "./form.tsx";
 export { Field, Stack } from "./inputs.tsx";

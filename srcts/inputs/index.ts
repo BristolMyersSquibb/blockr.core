@@ -16,6 +16,10 @@
 // the colour field and the colour picker, React Aria's ColorField and
 // ColorPicker, the swatch picker, its ColorSwatchPicker, and the parts of a
 // picker, its ColorArea, ColorSlider and ColorWheel.
+// And they are the dates and times: the date field and the time field, the
+// date picker and the date range picker, and the calendar and the range
+// calendar, each of a date, a time or a range in the forms that R reads
+// (./dates.ts).
 // The other parts take no `bound`: the tags, the list box, the field of
 // tokens, the form, the drop zone, a colour's swatch and the thumb of a part
 // of a picker, and the buttons, React Aria's Button, which the SDK's menus and
@@ -27,6 +31,8 @@
 
 export { Button, FieldButton } from "./button.tsx";
 export type { ButtonProps } from "./button.tsx";
+export { Calendar, RangeCalendar } from "./calendar.tsx";
+export type { CalendarProps, RangeCalendarProps } from "./calendar.tsx";
 export { Checkbox, CheckboxGroup } from "./checkbox.tsx";
 export type { CheckboxGroupProps, CheckboxProps } from "./checkbox.tsx";
 export { ColorField } from "./colorfield.tsx";
@@ -39,6 +45,10 @@ export { ColorSwatch, ColorSwatchPicker, ColorSwatchPickerItem } from "./colorsw
 export type { ColorSwatchPickerProps } from "./colorswatches.tsx";
 export { ComboBox, ComboBoxItem, ComboBoxSection } from "./combobox.tsx";
 export type { ComboBoxProps, ComboBoxSectionProps } from "./combobox.tsx";
+export { DateField, TimeField } from "./datefield.tsx";
+export type { DateFieldProps, TimeFieldProps } from "./datefield.tsx";
+export { DatePicker, DateRangePicker } from "./datepicker.tsx";
+export type { DatePickerProps, DateRangePickerProps } from "./datepicker.tsx";
 export { DropZone } from "./dropzone.tsx";
 export { Form } from "./form.tsx";
 export { Field, Stack } from "./inputs.tsx";

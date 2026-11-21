@@ -6,10 +6,20 @@
 // So the page runs one copy of React Aria, which holds the parts named here
 // alone, since the whole of React Aria is several times the size of React.
 // A part that core starts to draw with goes here.
+// So do the functions of @internationalized/date
+// (https://react-aria.adobe.com/internationalized/date/) with which the SDK's
+// dates read the strings of a state and write those that they submit.
 
 export {
   Autocomplete,
   Button,
+  Calendar,
+  CalendarCell,
+  CalendarGrid,
+  CalendarGridBody,
+  CalendarGridHeader,
+  CalendarHeaderCell,
+  CalendarHeading,
   Cell,
   CheckboxButton,
   CheckboxField,
@@ -29,6 +39,11 @@ export {
   ComboBox,
   ComboBoxStateContext,
   composeRenderProps,
+  DateField,
+  DateInput,
+  DatePicker,
+  DateRangePicker,
+  DateSegment,
   Dialog,
   DialogTrigger,
   DropIndicator,
@@ -69,6 +84,7 @@ export {
   RadioButton,
   RadioField,
   RadioGroup,
+  RangeCalendar,
   Row,
   SearchField,
   Select,
@@ -92,6 +108,7 @@ export {
   Text,
   TextArea,
   TextField,
+  TimeField,
   ToggleButton,
   ToggleButtonGroup,
   Token,
@@ -106,9 +123,11 @@ export {
   useTableOptions,
   Virtualizer,
 } from "react-aria-components";
+export { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "@internationalized/date";
 export type {
   AutocompleteProps,
   ButtonProps,
+  CalendarProps,
   CellProps,
   CheckboxFieldProps,
   CheckboxGroupProps,
@@ -124,6 +143,11 @@ export type {
   ColorWheelProps,
   ColumnProps,
   ComboBoxProps,
+  DateFieldProps,
+  DatePickerProps,
+  DateRange,
+  DateRangePickerProps,
+  DateValue,
   DialogProps,
   DragAndDropHooks,
   DragAndDropOptions,
@@ -152,6 +176,7 @@ export type {
   PopoverProps,
   RadioFieldProps,
   RadioGroupProps,
+  RangeCalendarProps,
   RowProps,
   SearchFieldProps,
   Selection,
@@ -166,6 +191,8 @@ export type {
   TagListProps,
   TagProps,
   TextFieldProps,
+  TimeFieldProps,
+  TimeValue,
   ToggleButtonGroupProps,
   ToggleButtonProps,
   TokenFieldProps,
@@ -176,3 +203,4 @@ export type {
   TreeProps,
   ValidationResult,
 } from "react-aria-components";
+export type { CalendarDate } from "@internationalized/date";
