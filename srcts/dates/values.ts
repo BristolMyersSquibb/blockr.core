@@ -1,15 +1,19 @@
 // How the SDK's dates and times read the value that a state holds, and write
-// the value that they submit, as JSON that R reads:
-// - A date is its ISO string, as "2026-11-19", which R reads with as.Date().
+// the value that they submit, as JSON that R reads.
+// The strings take R's own forms, since a block writes them into its code,
+// which users read and export, as as.Date("2026-11-19").
+// A form that R did not read as it is would put a format into the code of
+// every block that reads it, while the SDK turns any form into React Aria's
+// objects here alike.
+// - A date is "2026-11-19", which is ISO's form too.
 // - A date with a time, where the input's granularity takes a time, has a
 //   space in place of ISO's "T", as "2026-11-19 14:30:00".
-//   R reads that form with as.POSIXct(), and R writes a POSIXct in it, as
-//   yyjsonr does.
 //   R's as.POSIXct() reads "2026-11-19T14:30:00" as midnight, without a word.
 //   So the inputs show such a string as missing.
-//   The string holds no time zone.
-//   A block reads it in the time zone that it chooses, such as that of its
-//   data, so the browser's time zone plays no part, and a board means the same
+//   The string holds the time as the user picked it, and no time zone.
+//   A block's code names the zone, such as that of its data, as in
+//   as.POSIXct("2026-11-19 14:30:00", tz = "Europe/Zurich").
+//   So the browser's time zone plays no part, and a board means the same
 //   wherever it is opened.
 // - A time is "14:30:00".
 // - A range is an object of two such strings, as { "start": "2026-11-19",

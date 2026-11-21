@@ -721,7 +721,8 @@
   Each takes the props of its part of React Aria, the fields and the pickers take the `label`, `description` and `errorMessage` that the starter kit adds, and an input takes `bound` too.
   A bound input holds a date as `"2026-11-19"`, which R reads with `as.Date()`, and a date with a time, where its `granularity` takes one, as `"2026-11-19 14:30:00"`, which R reads with `as.POSIXct()`.
   It holds a time as `"14:30:00"`, and a range as `{ "start": …, "end": … }` of two such dates, which R reads as a named list.
-  The string holds no time zone, so a block reads it in the time zone that it chooses, such as that of its data.
+  These are R's own forms, so a block writes them into its code as they are, as `as.Date("2026-11-19")`.
+  The string holds the time as the user picked it, and no time zone, so the block's code names the zone, such as that of its data.
   A field submits what the user typed as the user leaves it or presses Enter, a picker or a calendar submits a pick at once, and each submits only a value in its range.
   A bound input shows a value that does not read so as missing, and marks itself invalid, as `"2026-11-19T14:30:00"`, which R's `as.POSIXct()` reads as midnight.
   The SDK exports `Refusal` and `missing()`, which its dates draw with, as its other inputs do.
