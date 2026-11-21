@@ -143,3 +143,39 @@ test_that("install_js_types() copies the types afresh at each call", {
     "export const updated = true;"
   )
 })
+
+test_that("npm runs no install script of the packages it adds", {
+
+  skip_on_cran()
+  skip_on_os("windows")
+  skip_if_not(nzchar(Sys.which("npm")), "npm is not installed")
+
+  src <- withr::local_tempdir()
+  dirs <- c(first = write_types(src, "first"))
+
+  # The types depend on a package whose install script leaves a file behind
+  dep <- file.path(src, "dep")
+  dir.create(dep)
+  writeLines('{ "name": "dep", "scripts": { "postinstall": "touch ran" } }',
+             file.path(dep, "package.json"))
+  writeLines(
+    c(
+      '{ "name": "@blockr/first", "private": true,',
+      '  "dependencies": { "dep": "file:../../dep" } }'
+    ),
+    file.path(dirs[["first"]], "package.json")
+  )
+
+  dir <- withr::local_tempdir()
+  write_description(dir, "Imports: blockr.core")
+  writeLines('{ "name": "blockr.test", "private": true }',
+             file.path(dir, "package.json"))
+
+  local_mocked_bindings(js_types_dirs = function(pkgs) dirs)
+
+  install_js_types(dir)
+
+  installed <- file.path(dir, "node_modules", "dep")
+  expect_true(file.exists(file.path(installed, "package.json")))
+  expect_false(file.exists(file.path(installed, "ran")))
+})
