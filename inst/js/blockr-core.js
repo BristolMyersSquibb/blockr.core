@@ -9942,14 +9942,14 @@ var MARKS = {
     label: "Error",
     noun: "error",
     text: "bc:text-text-danger",
-    tint: "bc:bg-red-500/10",
+    tint: "bc:bg-bg-danger",
     border: "bc:border-border-danger"
   },
   warning: {
     label: "Warning",
     noun: "warning",
     text: "bc:text-text-warning",
-    tint: "bc:bg-amber-500/10",
+    tint: "bc:bg-bg-warning",
     border: "bc:border-amber-500"
   },
   message: {

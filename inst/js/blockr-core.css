@@ -923,16 +923,6 @@
   border-color: var(--bc-color-border-warning-subtle);
 }
 
-.bc\:bg-amber-500\/10 {
-  background-color: var(--bc-color-amber-500);
-}
-
-@supports (color: color-mix(in lab, red, red)) {
-  .bc\:bg-amber-500\/10 {
-    background-color: color-mix(in oklab, var(--bc-color-amber-500) 10%, transparent);
-  }
-}
-
 .bc\:bg-bg-accent {
   background-color: var(--bc-color-bg-accent);
 }
@@ -975,16 +965,6 @@
 
 .bc\:bg-border-default {
   background-color: var(--bc-color-border-default);
-}
-
-.bc\:bg-red-500\/10 {
-  background-color: var(--bc-color-red-500);
-}
-
-@supports (color: color-mix(in lab, red, red)) {
-  .bc\:bg-red-500\/10 {
-    background-color: color-mix(in oklab, var(--bc-color-red-500) 10%, transparent);
-  }
 }
 
 .bc\:bg-status-failed {

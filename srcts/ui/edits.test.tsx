@@ -101,7 +101,7 @@ describe("an edit that the command registry or the store refuses", () => {
     // reason in a sentence, rather than in a list.
     const alert = find(el, '[role="alert"]');
     expect(alert.className).toContain("bc:border-border-danger");
-    expect(alert.className).toContain("bc:bg-red-500/10");
+    expect(alert.className).toContain("bc:bg-bg-danger");
     expect(find(alert, "p").className).toContain("bc:text-text-danger");
     expect(alert.querySelector("ul")).toBeNull();
     expect(held(core)).toEqual([]);

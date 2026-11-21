@@ -200,6 +200,9 @@ function counted(status: BlockStatus | undefined, notifications: readonly Notifi
 // banner, as the basic frontend's toasts do: in the theme's danger colour for
 // an error, its warning colour for a warning, and its accent, blue, for a
 // message.
+// The tints of an error and of a warning are the theme's fills, bg-danger and
+// bg-warning.
+// The theme holds no fill for a message, so its tint is blue-500 at 10%.
 // The blue of a message is blue-700 under the light theme.
 // The shade blue-600 reaches only 4.25:1 on the tint, below the 4.5:1 that
 // WCAG's level AA asks of text.
@@ -208,14 +211,14 @@ export const MARKS: Readonly<Record<Severity, { label: string; noun: string; tex
     label: "Error",
     noun: "error",
     text: "bc:text-text-danger",
-    tint: "bc:bg-red-500/10",
+    tint: "bc:bg-bg-danger",
     border: "bc:border-border-danger",
   },
   warning: {
     label: "Warning",
     noun: "warning",
     text: "bc:text-text-warning",
-    tint: "bc:bg-amber-500/10",
+    tint: "bc:bg-bg-warning",
     border: "bc:border-amber-500",
   },
   message: {

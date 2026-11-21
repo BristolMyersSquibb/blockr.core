@@ -106,6 +106,10 @@ function banners(card: HTMLElement): string[][] {
   ]);
 }
 
+// The backgrounds that an element draws in the page's theme and under the
+// dark theme, those of its hover and of a dialog's backdrop aside.
+const backgrounds = (el: Element | null): string[] => (el?.className ?? "").split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
+
 // The button whose text is the one given, in `el`.
 function button(el: ParentNode, text: string): HTMLButtonElement {
   const found = [...el.querySelectorAll("button")].find((b) => b.textContent.trim() === text);
@@ -457,6 +461,42 @@ describe("a card", () => {
     expect(colours("Merge")).toEqual({ dot: ["bc:bg-status-waiting"], word: ["bc:text-text-muted"] });
   });
 
+  test("tints the pill and the banners of an error and of a warning with the fills of core's theme, and those of a message with blue, for which the theme holds no fill", async () => {
+    const { el } = await drawn({
+      evaluate: (request) =>
+        request.block === "b"
+          ? {
+              status: "error",
+              conditions: [
+                { severity: "warning", class: ["simpleWarning", "warning", "condition"], phase: "expr", message: "Few rows" },
+                { severity: "message", class: ["simpleMessage", "message", "condition"], phase: "expr", message: "Took the head" },
+                { severity: "error", class: ["simpleError", "error", "condition"], phase: "expr", message: "No rows" },
+              ],
+            }
+          : undefined,
+    });
+
+    await click(button(card(el, "Head"), "1 warning"));
+    await click(button(card(el, "Head"), "1 message"));
+    const head = card(el, "Head");
+    expect(pills(head)).toEqual(["error", "1 warning", "1 message"]);
+    expect([...head.querySelectorAll('[aria-label="Status"] button')].map(backgrounds)).toEqual([
+      ["bc:bg-bg-danger"],
+      ["bc:bg-bg-warning"],
+      ["bc:bg-blue-500/10"],
+    ]);
+    expect(banners(head)).toEqual([
+      ["warning", "Few rows"],
+      ["message", "Took the head"],
+      ["error", "No rows"],
+    ]);
+    expect([...head.querySelectorAll('ul[aria-label="Conditions"] li')].map(backgrounds)).toEqual([
+      ["bc:bg-bg-warning"],
+      ["bc:bg-blue-500/10"],
+      ["bc:bg-bg-danger"],
+    ]);
+  });
+
   test("renames and removes its block from its menu, through core's commands", async () => {
     const { el, board } = await drawn();
 
@@ -647,10 +687,6 @@ describe("a card's block before", () => {
 });
 
 describe("what floats over the board", () => {
-  // The backgrounds that an element draws in the page's theme and under the
-  // dark theme, those of its hover and of a dialog's backdrop aside.
-  const backgrounds = (el: Element | null): string[] => (el?.className ?? "").split(" ").filter((name) => /^bc:(dark:)?bg-/.test(name));
-
   test("is drawn on the background that core's theme gives it: a card's menu, the dialogs and the list of a select", async () => {
     const { el, settled } = await drawn();
 

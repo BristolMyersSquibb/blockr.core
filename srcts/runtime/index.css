@@ -61,7 +61,8 @@
  * amber-800.
  * WCAG's level AA asks a contrast of 4.5:1 of text.
  * Core draws these texts on the page, on a card's bg-subtle, and on the tint
- * of a card's mark, which lays red-500 or amber-500 at 10% over the card.
+ * of a card's mark, which by default lays red-500 or amber-500 at 10% over the
+ * card.
  * The shades red-700 and amber-800 are the lightest that reach 4.5:1 on all
  * three.
  * The shade that blockr.ui takes, amber-700, reaches 4.26:1 on the tint.
@@ -73,8 +74,7 @@
  * system.
  * The fills, bg-danger and bg-warning, mix the danger or the warning border
  * at 10%.
- * By default, that is the tint of a card's mark, so the texts reach 4.5:1 on
- * the fills too.
+ * A card's mark tints an error or a warning with them.
  * Core's menu fills a row that removes with bg-danger under the pointer and
  * as the keyboard's row, as the design system fills a destructive row with
  * blockr.ui's --blockr-color-bg-danger.
