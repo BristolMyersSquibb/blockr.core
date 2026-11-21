@@ -14,11 +14,11 @@ export interface ComboBoxProps<T extends object, M extends Mode = "single"> exte
     readonly ordered?: boolean;
 }
 export declare function ComboBox<T extends object, M extends Mode = "single">(props: ComboBoxProps<T, M>): ReactElement;
+export declare function useSameValue<V>(value: V): V;
 export declare function ComboBoxItem(props: ListBoxItemProps): ReactElement;
 export interface ComboBoxSectionProps<T> extends ListBoxSectionProps<T> {
     readonly title?: string;
     readonly items?: Iterable<T>;
 }
 export declare function ComboBoxSection<T extends object>({ title, items, children, ...props }: ComboBoxSectionProps<T>): ReactElement;
-export declare function Tick(): ReactElement;
 export {};

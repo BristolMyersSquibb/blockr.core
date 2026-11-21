@@ -26,10 +26,10 @@ import {
   Button,
   Cell,
   Column,
-  ComboBox,
-  ComboBoxItem,
   reactModule,
   Row,
+  Select,
+  SelectItem,
   Stack,
   Table,
   TableBody,
@@ -159,17 +159,17 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
   return (
     <Stack>
       {names.length > 1 && (
-        <ComboBox
+        <Select
           label="Volume"
           isRequired
-          defaultItems={names.map((id) => ({ id }))}
+          items={names.map((id) => ({ id }))}
           value={volume ?? null}
           onChange={(key) => {
             if (key !== null) go({ volume: String(key), dirs: [] });
           }}
         >
-          {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
-        </ComboBox>
+          {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
+        </Select>
       )}
       <div className={FRAME}>
         <div className={BAR}>

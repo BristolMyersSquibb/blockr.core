@@ -28,7 +28,7 @@ import {
 } from "../aria/index.ts";
 import type { GridListItemProps, GridListProps } from "../aria/index.ts";
 import { DragButton } from "../dnd/index.ts";
-import { SelectionCheckbox } from "../inputs/index.ts";
+import { Checkbox } from "../inputs/index.ts";
 
 export { GridListSection };
 
@@ -43,7 +43,7 @@ export function GridListItem({ children, ...props }: GridListItemProps): ReactEl
       {composeRenderProps(children, (children, { selectionMode, selectionBehavior, allowsDragging }) => (
         <>
           {allowsDragging && <DragButton />}
-          {selectionMode !== "none" && selectionBehavior === "toggle" && <SelectionCheckbox />}
+          {selectionMode !== "none" && selectionBehavior === "toggle" && <Checkbox slot="selection" />}
           {children}
         </>
       ))}

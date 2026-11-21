@@ -4,7 +4,7 @@
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
 
 import type { ReactElement } from "react";
-import { ComboBox, ComboBoxItem, NumberField } from "../inputs/index.ts";
+import { NumberField, ToggleButton, ToggleButtonGroup } from "../inputs/index.ts";
 import { reactModule, useValue } from "../react/index.ts";
 import type { ModuleProps } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
@@ -18,20 +18,23 @@ export function numberUi(label: string, min: number): OptionModule<number> {
   return reactModule(NumberUi);
 }
 
-// A select of one of the items, each a value by its id and how it reads by
-// its name, such as light or dark for dark_mode, which a board option always
-// holds one of.
-export function selectUi<V extends Json = string>(
+// A toggle button for each of the items, each a value by its id and how it
+// reads by its name, such as light or dark for dark_mode, of which a board
+// option always holds one.
+export function toggleButtonGroupUi<V extends Json = string>(
   label: string,
-  placeholder: string,
   items: readonly { readonly id: string; readonly name: string }[],
 ): OptionModule<V> {
-  function SelectUi({ host }: ModuleProps<OptionHost<V>>): ReactElement {
+  function ToggleButtonGroupUi({ host }: ModuleProps<OptionHost<V>>): ReactElement {
     return (
-      <ComboBox bound={useValue(host)} label={label} placeholder={placeholder} defaultItems={items} isRequired>
-        {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
-      </ComboBox>
+      <ToggleButtonGroup bound={useValue(host)} label={label} disallowEmptySelection>
+        {items.map((item) => (
+          <ToggleButton key={item.id} id={item.id}>
+            {item.name}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
     );
   }
-  return reactModule(SelectUi);
+  return reactModule(ToggleButtonGroupUi);
 }

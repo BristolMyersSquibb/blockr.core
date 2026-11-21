@@ -10,7 +10,7 @@ import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
 import { rows } from "../../testing/rows.ts";
-import { labelled, picked } from "../../testing/select.ts";
+import { listed, picked, selectButton, selectShows } from "../../testing/select.ts";
 import * as browser from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -96,13 +96,14 @@ test("lists the directories first, then the files, each with its size where it i
 
 test("draws a picker of the volumes where there are several, and lists the root of the volume the user picks", async () => {
   const { host, view } = await mounted({ volumes: { here: ".", srv: "/srv" } });
-  const volume = labelled(view.el, "Volume");
-  expect(volume.value).toBe("here");
+  const volume = selectButton(view.el, "Volume");
+  expect(selectShows(volume)).toBe("here");
+  expect(await listed(volume, step)).toEqual(["here", "srv"]);
 
   await picked(volume, step, "srv");
   await settle();
 
-  expect(volume.value).toBe("srv");
+  expect(selectShows(volume)).toBe("srv");
   expect(host.requested.at(-1)).toEqual({ name: "list_dir", args: { volume: "srv", path: "" } });
   expect(host.submitted).toEqual([]);
 });

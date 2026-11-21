@@ -2,33 +2,95 @@
 // UIs draw with and which core ships to packages as `@blockr/core/react`.
 // It holds the hooks through which a component follows its host or CoreApi,
 // the helpers that make a module or a renderer from a component, the inputs,
-// each on one value that useValue() binds or for its caller, the one select,
-// which every UI draws with, bound or not, the button, the overlays: the
-// modal and the dialog, the menu and the popover, the table, the trees and
-// the grid list, which bind no value, and what drags the items of the last
-// three and drops onto them.
-// The inputs, the button, the overlays, the table, the trees and the grid
-// list are React Aria's, in core's theme.
+// each on one value that useValue() binds or for its caller, the selects,
+// which every UI draws with, bound or not, the parts that take no binding,
+// such as the tags, the list box, the form and the drop zone, the buttons,
+// and the overlays: the modal and the dialog, the menu, the popover and the
+// command palette.
+// It holds the table, the trees and the grid list, which bind no value, and
+// what drags the items of the last three and drops onto them.
+// The inputs, the buttons, the overlays, the table, the trees and the grid
+// list are React Aria's, in core's theme, and React Aria's FileTrigger and
+// Autocomplete come unstyled.
+// It also holds the list in which a UI shows notifications, as useNotified()
+// gives them, in the message style of blockr.ui's design system.
 
 export { useBoard, useNotified, useOutput, useRequest, useStatus, useValue } from "./hooks.ts";
 export type { Answered, Bound, OutputSnapshot, RequestOptions } from "./hooks.ts";
 export { outputRenderer, reactModule } from "./module.tsx";
 export type { ModuleProps, OutputProps } from "./module.tsx";
 export {
+  Autocomplete,
   Button,
   Checkbox,
+  CheckboxGroup,
   ComboBox,
   ComboBoxItem,
   ComboBoxSection,
+  DropZone,
   Field,
+  FieldButton,
+  FileTrigger,
+  Form,
+  ListBox,
+  ListBoxItem,
   NumberField,
+  Radio,
+  RadioGroup,
+  SearchField,
+  Select,
+  SelectItem,
+  SelectSection,
+  Slider,
   Stack,
+  Switch,
+  Tag,
+  TagGroup,
   Text,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Token,
+  TokenField,
+  useFilter,
 } from "../inputs/index.ts";
-export type { ButtonProps, ComboBoxProps, ComboBoxSectionProps, NumberFieldProps, TextFieldProps } from "../inputs/index.ts";
-export { Dialog, DialogTrigger, Heading, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Modal, Popover } from "../overlays/index.ts";
-export type { MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
+export type {
+  ButtonProps,
+  CheckboxGroupProps,
+  CheckboxProps,
+  ComboBoxProps,
+  ComboBoxSectionProps,
+  NumberFieldProps,
+  RadioGroupProps,
+  RadioProps,
+  SearchFieldProps,
+  SelectProps,
+  SelectSectionProps,
+  SliderProps,
+  SwitchProps,
+  TagGroupProps,
+  TagProps,
+  TextFieldProps,
+  ToggleButtonGroupProps,
+  ToggleButtonProps,
+  TokenFieldProps,
+} from "../inputs/index.ts";
+export {
+  CommandPalette,
+  Dialog,
+  DialogTrigger,
+  Heading,
+  Keyboard,
+  Menu,
+  MenuItem,
+  MenuSection,
+  MenuTrigger,
+  Modal,
+  Popover,
+} from "../overlays/index.ts";
+export type { CommandPaletteProps, MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
+export { NotificationList } from "./notifications.tsx";
+export type { NotificationListProps } from "./notifications.tsx";
 export { DropIndicator, useDragAndDrop } from "../dnd/index.ts";
 export type { DragAndDropHooks, DragAndDropOptions, DropIndicatorProps } from "../dnd/index.ts";
 export { GridList, GridListHeader, GridListItem, GridListSection } from "../gridlist/index.ts";

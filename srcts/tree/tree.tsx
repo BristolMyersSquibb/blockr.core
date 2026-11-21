@@ -28,7 +28,7 @@ import {
 } from "../aria/index.ts";
 import type { TreeItemProps as AriaTreeItemProps, TreeProps } from "../aria/index.ts";
 import { DragButton } from "../dnd/index.ts";
-import { SelectionCheckbox } from "../inputs/index.ts";
+import { Checkbox } from "../inputs/index.ts";
 
 export function Tree<T extends object>(props: TreeProps<T>): ReactElement {
   return <AriaTree {...props} className={composeRenderProps(props.className, (given) => `${TREE} ${given ?? ""}`)} />;
@@ -45,7 +45,7 @@ export function TreeItem({ title, children, ...props }: TreeItemProps): ReactEle
         {({ selectionMode, selectionBehavior, hasChildItems, isExpanded, allowsDragging }) => (
           <div className="bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-1">
             {allowsDragging && <DragButton />}
-            {selectionMode !== "none" && selectionBehavior === "toggle" && <SelectionCheckbox />}
+            {selectionMode !== "none" && selectionBehavior === "toggle" && <Checkbox slot="selection" />}
             <div className={INDENT} />
             {hasChildItems ? (
               <Button slot="chevron" className={EXPAND}>

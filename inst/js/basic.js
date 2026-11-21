@@ -313,7 +313,7 @@ function defaultBlockName(registryId2) {
 // srcts/picker/picker.tsx
 import { useMemo as useMemo2, useState as useState7 } from "react";
 import { flushSync } from "react-dom";
-import { ComboBox, ComboBoxItem, ComboBoxSection, Text, TextField as TextField3, useBoard } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField as TextField2, useBoard } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -393,7 +393,7 @@ function useHistory(core) {
 
 // srcts/ui/search.ts
 import { useState as useState4 } from "react";
-import { useFilter } from "./vendor-858b8c85.js";
+import { useFilter } from "./vendor-59c2e980.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState4("");
@@ -409,7 +409,7 @@ function useSearch(all, texts, none = "No options") {
 
 // srcts/ui/table.tsx
 import { useState as useState6 } from "react";
-import { TextField as TextField2 } from "@blockr/core/react";
+import { SearchField } from "@blockr/core/react";
 
 // srcts/ui/ui.tsx
 import { useRef as useRef2, useState as useState5 } from "react";
@@ -560,11 +560,10 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
     onAdded?.();
   }
   return /* @__PURE__ */ jsxs4(
-    "form",
+    Form,
     {
       "aria-label": "Add block",
-      noValidate: true,
-      className: "bc:grid bc:gap-3",
+      validationBehavior: "aria",
       onSubmit: (event) => {
         void submit(event);
       },
@@ -594,20 +593,20 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
           }
         ),
         link.kind === "pick" ? /* @__PURE__ */ jsx5(
-          ComboBox,
+          Select,
           {
             label: link.label,
             isRequired: true,
-            defaultItems: link.inputs.map((input3) => ({ id: input3 })),
+            items: link.inputs.map((input3) => ({ id: input3 })),
             value: chosen ?? null,
             onChange: (key) => {
               if (key !== null) setInput(String(key));
             },
-            children: (item) => /* @__PURE__ */ jsx5(ComboBoxItem, { id: item.id, children: item.id })
+            children: (item) => /* @__PURE__ */ jsx5(SelectItem, { id: item.id, children: item.id })
           }
         ) : null,
         link.kind === "name" ? /* @__PURE__ */ jsx5(
-          TextField3,
+          TextField2,
           {
             label: link.label,
             value: inputName,
@@ -627,7 +626,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
         link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx5("p", { className: styles.alert, children: link.why }) : null,
         /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx5(
-            TextField3,
+            TextField2,
             {
               label: "ID",
               value: id2,
@@ -646,7 +645,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
             }
           ),
           /* @__PURE__ */ jsx5(
-            TextField3,
+            TextField2,
             {
               label: "Name",
               value: name2,
@@ -999,13 +998,10 @@ function OptionsDialog({ onClose }) {
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id2]);
   }
-  return /* @__PURE__ */ jsxs7(Dialog, { title: "Board options", onClose, children: [
-    categories.size === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "The board holds no board options." }) : null,
-    [...categories].map(([category, ids]) => /* @__PURE__ */ jsxs7("section", { "aria-label": category, className: "bc:grid bc:gap-2", children: [
-      /* @__PURE__ */ jsx8("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
-      ids.map((id2) => /* @__PURE__ */ jsx8(OptionUi, { id: id2 }, id2))
-    ] }, category))
-  ] });
+  return /* @__PURE__ */ jsx8(Dialog, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx8("div", { className: "bc:grid bc:divide-y bc:divide-border-default", children: [...categories].map(([category, ids]) => /* @__PURE__ */ jsxs7("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
+    /* @__PURE__ */ jsx8("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
+    ids.map((id2) => /* @__PURE__ */ jsx8(OptionUi, { id: id2 }, id2))
+  ] }, category)) }) });
 }
 function OptionUi({ id: id2 }) {
   const { core } = useFrontEnd();

@@ -34,6 +34,7 @@ import type {
   MenuTriggerProps as AriaMenuTriggerProps,
   PopoverProps,
 } from "../aria/index.ts";
+import { Tick } from "../inputs/index.ts";
 import { Popover } from "./popover.tsx";
 
 export interface MenuTriggerProps extends AriaMenuTriggerProps {
@@ -84,25 +85,6 @@ export function MenuSection<T extends object>({ title, items, children, ...props
       {title === undefined ? null : <Header className={HEADING}>{title}</Header>}
       <Collection items={items}>{children}</Collection>
     </AriaMenuSection>
-  );
-}
-
-// The design system's tick of a pick.
-function Tick(): ReactElement {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3.5 8.5l3 3 6-7" />
-    </svg>
   );
 }
 

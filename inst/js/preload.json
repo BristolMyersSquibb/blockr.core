@@ -19,7 +19,7 @@
     "react",
     "react/jsx-runtime",
     "@blockr/core/react",
-    "./vendor-858b8c85.js"
+    "./vendor-59c2e980.js"
   ],
   "blockr-core-controls.js": [
     "react",
@@ -39,11 +39,11 @@
     "react-dom",
     "react-dom/client",
     "react/jsx-runtime",
-    "./vendor-858b8c85.js"
+    "./vendor-59c2e980.js"
   ],
   "blockr-core.js": [
     "@opentelemetry/api",
-    "./vendor-858b8c85.js",
+    "./vendor-59c2e980.js",
     "react",
     "react-dom",
     "react-dom/client",
@@ -68,7 +68,7 @@
     "react-dom/client",
     "react",
     "@blockr/core/react",
-    "./vendor-858b8c85.js",
+    "./vendor-59c2e980.js",
     "react/jsx-runtime"
   ],
   "filebrowser-block.js": [
@@ -119,16 +119,16 @@
     "@opentelemetry/api"
   ],
   "react-dom-client.js": [
-    "./vendor-858b8c85.js"
+    "./vendor-59c2e980.js"
   ],
   "react-dom.js": [
-    "./vendor-858b8c85.js"
+    "./vendor-59c2e980.js"
   ],
   "react-jsx-runtime.js": [
-    "./vendor-858b8c85.js"
+    "./vendor-59c2e980.js"
   ],
   "react.js": [
-    "./vendor-858b8c85.js"
+    "./vendor-59c2e980.js"
   ],
   "scatter-block.js": [
     "@blockr/core/binding",

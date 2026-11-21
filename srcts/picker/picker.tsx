@@ -35,10 +35,10 @@
 // the frontend draws every notification.
 
 import { useMemo, useState } from "react";
-import type { ReactElement, SubmitEvent } from "react";
+import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { defaultBlockName, freeInputs } from "../commands/index.ts";
-import { ComboBox, ComboBoxItem, ComboBoxSection, Text, TextField, useBoard } from "../react/index.ts";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField, useBoard } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
@@ -109,7 +109,7 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
     };
   }
 
-  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
     const found = check();
@@ -146,10 +146,9 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
   }
 
   return (
-    <form
+    <Form
       aria-label="Add block"
-      noValidate
-      className="bc:grid bc:gap-3"
+      validationBehavior="aria"
       onSubmit={(event) => {
         void submit(event);
       }}
@@ -188,17 +187,17 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
         )}
       </ComboBox>
       {link.kind === "pick" ? (
-        <ComboBox
+        <Select
           label={link.label}
           isRequired
-          defaultItems={link.inputs.map((input) => ({ id: input }))}
+          items={link.inputs.map((input) => ({ id: input }))}
           value={chosen ?? null}
           onChange={(key) => {
             if (key !== null) setInput(String(key));
           }}
         >
-          {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
-        </ComboBox>
+          {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
+        </Select>
       ) : null}
       {link.kind === "name" ? (
         <TextField
@@ -250,7 +249,7 @@ export function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefus
         </button>
       </div>
       <Refusal refusal={edits.refusal} />
-    </form>
+    </Form>
   );
 }
 

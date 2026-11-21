@@ -51,7 +51,7 @@ import type {
   TableProps as AriaTableProps,
 } from "../aria/index.ts";
 import { DragButton } from "../dnd/index.ts";
-import { SelectionCheckbox } from "../inputs/index.ts";
+import { Checkbox } from "../inputs/index.ts";
 
 // The table's `className` styles the box that the table scrolls in.
 // React Aria's Table would give the class to the table itself.
@@ -94,7 +94,7 @@ export function TableHeader<T extends object>({ columns, children, ...props }: T
       {/* The columns of the buttons that drag a row and of the checkboxes
           that select one. */}
       {allowsDragging && <AriaColumn className={PART} />}
-      {selectionBehavior === "toggle" && <AriaColumn className={PART}>{selectionMode === "multiple" && <SelectionCheckbox />}</AriaColumn>}
+      {selectionBehavior === "toggle" && <AriaColumn className={PART}>{selectionMode === "multiple" && <Checkbox slot="selection" />}</AriaColumn>}
       <Collection items={columns}>{children}</Collection>
     </AriaTableHeader>
   );
@@ -115,7 +115,7 @@ export function Row<T extends object>({ id, columns, children, ...props }: RowPr
       )}
       {selectionBehavior === "toggle" && (
         <Cell className="bc:w-px">
-          <SelectionCheckbox />
+          <Checkbox slot="selection" />
         </Cell>
       )}
       <Collection items={columns}>{children}</Collection>

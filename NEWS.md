@@ -698,6 +698,7 @@
   The `text()` and `number()` of `controls()` take React Aria's names, such as `minValue` in place of `min`, and the handle that `number()` returns has `setMaxValue()` in place of `setMax()`.
   Core's other text fields, in the forms of the Edit board plugin, in renaming a block or the board, and in the search of a table, draw with the `TextField` of the SDK too.
   The SDK also offers React Aria's `Button`, with the starter kit's `variant`, its `Modal`, `Dialog`, `DialogTrigger` and `Heading`, its `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with its `Keyboard` for an item's shortcut, and its `Popover`, in core's theme, after the starter kit.
+  Its `Button` takes a ref as well, which holds the button's element.
   React Aria draws every overlay of the SDK in a portal at the end of the page's body.
   Core's basic frontend draws its dialogs and its menus with them, in place of native dialogs that `showModal()` opened and lists of its own.
   An item of a storage control's menu shows the control's tooltip below its label and its shortcut at its right.
@@ -705,7 +706,7 @@
   The select draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
   The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
-  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708).
+  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801).
 * Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
   A board action changes the board only through commands, and runs each batch as one undo step of the user.
   Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
@@ -733,6 +734,42 @@
   The `notifier` of `menu()` and of `trigger()` gets the board action with the notifications of a refused batch.
   Core's board action Rename renames a block or a stack through a text row that holds the name, and core's board actions that remove carry a bin as their icon.
   Core runs each menu by the same rules under the `CoreApi` for tests and draws none there, and the `menu()` of `stubCore()` opens the menu of a target, or gives the menu that is open, whose rows a test picks by their labels (#743).
+* Core's React SDK offers the rest of the form inputs of React Aria's Tailwind starter kit, each in core's theme, after its file in the starter kit, with the props of its part of React Aria and those that the starter kit adds.
+  These are the checkbox group `CheckboxGroup`, the radios `RadioGroup` and `Radio`, the switch `Switch`, the toggle buttons `ToggleButton` and `ToggleButtonGroup`, the slider `Slider`, the select `Select`, which has no field to type into, with `SelectItem` and `SelectSection`, the search field `SearchField`, the tags `TagGroup` and `Tag`, the field of tokens `TokenField` with `Token`, the list box `ListBox` with `ListBoxItem`, the form `Form`, the button inside a field `FieldButton`, the drop zone `DropZone` and the command palette `CommandPalette`.
+  The SDK also offers React Aria's `FileTrigger`, `Autocomplete` and `useFilter()`, which draw nothing of their own, for a caller to compose with the others, as an `Autocomplete` with a `SearchField` narrows a `ListBox` or a `Menu`.
+  The `Checkbox` of the SDK is React Aria's too, and takes its label as its children, in place of `label`.
+  Given `bound`, the checkbox, the switch and the toggle button edit a boolean, the radio group a string and the checkbox group an array of strings, each of which they submit at once.
+  A toggle button group edits a string, or an array of strings where its `selectionMode` is `"multiple"`, which it submits at once too.
+  A group of one leaves its state arg unset as the user unpicks its pick, unless it sets `disallowEmptySelection`.
+  The `Select` submits as the `ComboBox` does: one pick at once, and several once, as its list closes.
+  The groups of several and the `Select` build what they submit from the value that the host holds then, and keep the order of their items where `ordered`.
+  The `Slider` edits a number, or an array of numbers where it has several thumbs, which it submits as the user lets go of a thumb, and never a number that it pulled into its range or onto its step.
+  The `SearchField` submits as the `TextField` does, and at once as the user clears it, by its button or by Escape.
+  An input shows a value that it lacks, a pick that none of its items holds or a number outside the slider's range or off its step, as it is, marks itself invalid, and says below itself which values are not available, as "Not available: wt", but not while it is `outdated`.
+  So the `ComboBox` no longer writes "(not available)" into the text of such a value.
+  A group and the `Select` draw no item for such a value, so the line of a group or a `Select` of several holds a button, Remove, which drops the values that its items lack, while the user drops it from one of one by picking an item.
+  The slider shows such a number beside its label, with its thumb at the nearest end, and submits the number of a thumb that the user did not move as the value holds it.
+  The `checkbox()` of `controls()` draws with the `Checkbox` of the SDK.
+  The head block picks its direction, and the board option `dark_mode` its theme, with a `ToggleButtonGroup`.
+  The merge block picks its join, the file browser its volume, and the picker and the Edit board's links their input and their position with a `Select`.
+  The search of the Edit board's tables is a `SearchField`, whose button clears it, as Escape does, and the upload block takes a file that the user drops on it, in a `DropZone` around a `FileTrigger` with a `Button`.
+  The forms of the picker and of the Edit board's links and stacks are React Aria's `Form`, and the button that clears the pick of a `ComboBox` is a `FieldButton`.
+  Compressed, core's vendor file grows from 177.5 KB to 219.4 KB (#755, #781).
+* Core's React SDK offers `NotificationList`, in which a UI shows the notifications that `useNotified()` gives it, in the message style of the design system of blockr.ui.
+  The list holds an item for each notification, in the order given.
+  Each item holds the notification's severity in `data-severity` and its message as text.
+  An error draws the theme's danger text on a danger fill, with a subtle danger edge, and a warning draws the same in the warning colors.
+  A message draws on the theme's neutral fill, with its neutral border.
+  Each item takes a font size of 13 pixels and a corner radius of 6 pixels.
+  The caller names the list in `aria-label`, as "Errors", and places it.
+  Where no notification is given, the list draws nothing.
+  The danger fill is the theme's danger background, `--bc-color-bg-danger`.
+  Core's theme gains the variables of the warning fill and of the edges, named after the design tokens of blockr.ui: `--bc-color-bg-warning`, `--bc-color-border-danger-subtle` and `--bc-color-border-warning-subtle`.
+  Their defaults mix the theme's warning or danger border: at 10% for the warning fill, as the danger background does, and at 35% for the danger edge and 45% for the warning edge, as blockr.ui mixes its subtle borders (#788).
+* R sends the message of each condition in a reply, and the reason of an invalid or a waiting block, as plain text, without the ANSI escapes that cli adds where its colors are on.
+  While R evaluates blocks, makes outputs and answers requests, cli writes without colors, and puts plain marks in their place, such as quotes around a file name.
+  It also strips any escape that a message still holds.
+  So no UI needs to remove escapes before it shows a message (#788).
 * Core's React SDK offers React Aria's table, trees and grid list, in core's theme, after those of React Aria's Tailwind starter kit: [`Table`](https://react-aria.adobe.com/Table), with `TableHeader`, `Column`, `TableBody`, `Row` and `Cell`, [`Tree`](https://react-aria.adobe.com/Tree) and `TreeItem`, the starter kit's [`NavigationTree`](https://react-aria.adobe.com/NavigationTree), with `NavigationTreeItem`, `NavigationTreeItemContent`, `NavigationTreeItemLink`, `NavigationTreeSection` and `NavigationTreeHeader`, and [`GridList`](https://react-aria.adobe.com/GridList), with `GridListItem`, `GridListSection` and `GridListHeader`.
   Each takes the props of its part of React Aria, and none of them binds a value.
   None of them draws a frame of its own, so that none adds a frame inside the card or the panel that holds it.
@@ -745,7 +782,7 @@
   The table lists the directory's entries, the directories first, each with its icon, the size of a file and the time it changed last, and it highlights the block's file.
   The user moves through the entries by the arrow keys and opens one by Enter, while the row `..` is gone.
   The request `list_dir` answers each entry with its name and the time it changed last, in UTC, and each file with its size in bytes, where it answered with names alone.
-  Compressed with `gzip`, core's vendor file grows from 171 KB to 227 KB, of which drag and drop takes 28 KB (#757).
+  Compressed with `gzip`, core's vendor file grows from 214 KB to 252 KB, of which drag and drop takes 10 KB (#757).
 
 # blockr.core 0.1.4
 

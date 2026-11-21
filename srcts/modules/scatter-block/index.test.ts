@@ -8,7 +8,7 @@ import { stubBlockHost } from "../../stubs/index.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
-import { labelled, listed, picked } from "../../testing/select.ts";
+import { labelled, listed, notAvailable, picked } from "../../testing/select.ts";
 import * as scatter from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -36,7 +36,6 @@ async function mounted(state: State, requests = fixture.requests) {
 // What a select shows: its field's text, the rows of its list and whether it
 // marks itself invalid.
 async function shown(select: HTMLInputElement): Promise<[string, string[], string | null]> {
-  // The field shows a pick that the items lack in place of its placeholder.
   return [select.value || select.placeholder, await listed(select, step), select.getAttribute("aria-invalid")];
 }
 
@@ -60,15 +59,17 @@ test("never picks a column once the columns arrive", async () => {
   expect(host.submitted).toEqual([]);
 });
 
-test("shows a column that its input lacks as it is until the columns arrive, then as missing", async () => {
+test("shows a column that its input lacks as it is, and once the columns arrive, marks it and says below the select that it is not available", async () => {
   const unanswered = await mounted({ x: "wt", y: "Sepal.Width" }, []);
   await settle();
   expect(await shown(unanswered.x)).toEqual(["wt", [], null]);
+  expect(notAvailable(unanswered.view.el)).toEqual([]);
 
-  const { host, x, y } = await mounted({ x: "wt", y: "Sepal.Width" });
+  const { host, view, x, y } = await mounted({ x: "wt", y: "Sepal.Width" });
   await settle();
-  expect(await shown(x)).toEqual(["wt (not available)", columns, "true"]);
+  expect(await shown(x)).toEqual(["wt", columns, "true"]);
   expect(await shown(y)).toEqual(["Sepal.Width", columns, null]);
+  expect(notAvailable(view.el)).toEqual(["Not available: wt"]);
   expect(host.submitted).toEqual([]);
 });
 
@@ -82,13 +83,15 @@ test("marks no column while the columns are asked again, as once its input chang
 
   release();
   await settle();
-  const marked = ["wt (not available)", columns, "true"];
+  const marked = ["wt", columns, "true"];
   expect(await shown(x)).toEqual(marked);
+  expect(notAvailable(view.el)).toEqual(["Not available: wt"]);
 
   await step(() => {
     host.setContext({ inputs: [{ input: "data", revision: 2 }] });
   });
   expect(await shown(x)).toEqual(["wt", columns, null]);
+  expect(notAvailable(view.el)).toEqual([]);
 
   // R answers no more, as where the input failed.
   requests.splice(0);

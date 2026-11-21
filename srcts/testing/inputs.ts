@@ -3,7 +3,8 @@
 // the value set through the element's own setter,
 // which React does not track as a value it set itself,
 // and then the event that the browser fires.
-// The browser's file picker is played the same way.
+// The browser's file picker, and a file dropped on an element, are played the
+// same way.
 
 import { vi } from "vitest";
 
@@ -75,6 +76,20 @@ export function choose(input: HTMLInputElement, file: File): void {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+// Drags the file over the element and drops it there, as the browser fires
+// the events of a drop.
+// The DragEvent of happy-dom leaves out the dataTransfer that it is given, so
+// each event carries it as a property of its own.
+export function drop(target: HTMLElement, file: File): void {
+  for (const name of ["dragenter", "dragover", "drop"]) {
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    const event = new DragEvent(name, { bubbles: true, cancelable: true, clientX: 1, clientY: 1 });
+    Object.defineProperty(event, "dataTransfer", { value: transfer });
+    target.dispatchEvent(event);
+  }
+}
+
 // The browser's file picker, which shows as a file input is clicked, and in
 // which the user picks the file given, or none. It returns what each input
 // clicked takes and whether it was on the page then.
@@ -94,4 +109,36 @@ function setValue(element: HTMLInputElement | HTMLTextAreaElement, value: string
   if (!Reflect.set(Object.getPrototypeOf(element) as object, "value", value, element)) {
     throw new Error("The element has no value to set.");
   }
+}
+
+// The toggle buttons of the group whose label is the text given, in `el`, by
+// their labels, with whether each is picked, as React Aria marks a button of
+// a group of one as a radio and of several as a pressed button.
+export function toggles(el: ParentNode, label: string): { readonly label: string; readonly picked: boolean }[] {
+  return [...toggleGroup(el, label).querySelectorAll("button")].map((button) => ({
+    label: button.textContent.trim(),
+    picked: button.getAttribute("aria-checked") === "true" || button.getAttribute("aria-pressed") === "true",
+  }));
+}
+
+// The toggle button of the label given, in the group whose label is the text
+// given, in `el`.
+export function toggleButton(el: ParentNode, group: string, label: string): HTMLButtonElement {
+  const found = [...toggleGroup(el, group).querySelectorAll("button")].find((button) => button.textContent.trim() === label);
+  if (found === undefined) throw new Error(`Found no toggle button ${label} in ${group}.`);
+  return found;
+}
+
+// The group of toggle buttons whose label is the text given, in `el`.
+export function toggleGroup(el: ParentNode, label: string): HTMLElement {
+  const found = [...el.querySelectorAll<HTMLElement>('[role="radiogroup"], [role="toolbar"]')].find((group) => {
+    // The label sits beside the group, on the page or not, as in the element
+    // of controls() before a module puts it there.
+    const id = group.getAttribute("aria-labelledby") ?? "";
+    const root = group.getRootNode() as ParentNode;
+    const named = id === "" ? null : root.querySelector(`[id="${CSS.escape(id)}"]`);
+    return (named?.textContent.trim() ?? group.getAttribute("aria-label")) === label;
+  });
+  if (found === undefined) throw new Error(`Found no group of toggle buttons labelled ${label}.`);
+  return found;
 }

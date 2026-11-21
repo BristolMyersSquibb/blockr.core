@@ -8,7 +8,7 @@ import { texts } from "../../testing/inputs.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
-import { chipLabels, labelled, listed, listNote, picked } from "../../testing/select.ts";
+import { chipLabels, labelled, listed, listNote, notAvailable, picked, selectButton, selectShows } from "../../testing/select.ts";
 import * as merge from "./index.tsx";
 import type { State } from "./state.ts";
 
@@ -33,7 +33,7 @@ afterEach(() => {
 async function mounted(state: State, requests = fixture.requests) {
   const host = stubBlockHost<State>({ ...fixture, requests }, { state });
   const view = await mountOnPage(merge, host);
-  return { host, view, by: labelled(view.el, "By columns"), join: labelled(view.el, "Join type") };
+  return { host, view, by: labelled(view.el, "By columns"), join: selectButton(view.el, "Join type") };
 }
 
 test("shows the state, with a choice of each column its inputs share", async () => {
@@ -42,7 +42,7 @@ test("shows the state, with a choice of each column its inputs share", async () 
 
   expect(chipLabels(by)).toEqual(["Time"]);
   expect(await listed(by, step)).toEqual(["Time", "demand"]);
-  expect(join.value).toBe("Inner");
+  expect(selectShows(join)).toBe("Inner");
   expect(host.requested).toEqual([{ name: "shared", args: {} }]);
   expect(host.submitted).toEqual([]);
 });
@@ -82,13 +82,13 @@ test("builds a submit from the state as it is, keeping a column set from outside
 test("shows the join that all_x and all_y make, of the four it offers, and one set from outside", async () => {
   const { host, join } = await mounted(left);
 
-  expect(join.value).toBe("Left");
+  expect(selectShows(join)).toBe("Left");
   expect(await listed(join, step)).toEqual(["Inner", "Left", "Right", "Full"]);
 
   await step(() => {
     host.setState(full);
   });
-  expect(join.value).toBe("Full");
+  expect(selectShows(join)).toBe("Full");
   expect(host.submitted).toEqual([]);
 });
 
@@ -97,7 +97,7 @@ test("submits both state args of the join the user picks, in one submit", async 
 
   await picked(join, step, "Right");
   expect(host.submitted).toEqual([right]);
-  expect(join.value).toBe("Right");
+  expect(selectShows(join)).toBe("Right");
 
   await picked(join, step, "Full");
   await picked(join, step, "Inner");
@@ -109,7 +109,7 @@ test("submits nothing where the user picks the join the state holds", async () =
 
   await picked(join, step, "Inner");
   expect(host.submitted).toEqual([]);
-  expect(join.value).toBe("Inner");
+  expect(selectShows(join)).toBe("Inner");
 });
 
 test("says below the select why the host refused the join the user picked, and shows the join the state holds again", async () => {
@@ -118,19 +118,19 @@ test("says below the select why the host refused the join the user picked, and s
 
   await picked(join, step, "Left");
   expect(host.submitted).toEqual([{ ...demandFirst, all_x: true }]);
-  expect(join.value).toBe("Inner");
+  expect(selectShows(join)).toBe("Inner");
   expect(texts(view.el, '[role="alert"]')).toEqual([expect.stringContaining("which the fixture does not list")]);
 });
 
 test("shows a column it joins by that the inputs do not share, as missing once R says which they share", async () => {
   const unanswered = await mounted({ by: ["rate"], all_x: false, all_y: false }, []);
   await settle();
-  expect([chipLabels(unanswered.by), unanswered.by.getAttribute("aria-invalid")]).toEqual([["rate"], null]);
+  expect([chipLabels(unanswered.by), unanswered.by.getAttribute("aria-invalid"), notAvailable(unanswered.view.el)]).toEqual([["rate"], null, []]);
   expect(await listed(unanswered.by, step)).toEqual([]);
 
-  const { by } = await mounted({ by: ["rate"], all_x: false, all_y: false });
+  const { view, by } = await mounted({ by: ["rate"], all_x: false, all_y: false });
   await settle();
-  expect([chipLabels(by), by.getAttribute("aria-invalid")]).toEqual([["rate (not available)"], "true"]);
+  expect([chipLabels(by), by.getAttribute("aria-invalid"), notAvailable(view.el)]).toEqual([["rate"], "true", ["Not available: rate"]]);
   expect(await listed(by, step)).toEqual(["Time", "demand"]);
 });
 
@@ -139,16 +139,16 @@ test("keeps every column the inputs shared while R says again which they share, 
   const release = holdRequests(host);
   const view = await mountOnPage(merge, host);
   const by = labelled(view.el, "By columns");
-  const shown = async () => [await listed(by, step), chipLabels(by), by.getAttribute("aria-invalid")];
+  const shown = async () => [await listed(by, step), chipLabels(by), by.getAttribute("aria-invalid"), notAvailable(view.el)];
   release();
   await settle();
-  const marked = [["Time", "demand"], ["rate (not available)"], "true"];
+  const marked = [["Time", "demand"], ["rate"], "true", ["Not available: rate"]];
   expect(await shown()).toEqual(marked);
 
   await step(() => {
     host.setContext({ inputs: [{ input: "x", revision: 2 }] });
   });
-  expect(await shown()).toEqual([["Time", "demand"], ["rate"], null]);
+  expect(await shown()).toEqual([["Time", "demand"], ["rate"], null, []]);
 
   release();
   await settle();

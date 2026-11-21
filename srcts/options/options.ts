@@ -28,7 +28,7 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import { asLogical, asNumber } from "../util/index.ts";
 import { optionSchemas } from "./schemas.ts";
-import { numberUi, selectUi } from "./ui.tsx";
+import { numberUi, toggleButtonGroupUi } from "./ui.tsx";
 
 // What a board option's default reads of CoreApi.
 export type BlockrOptions = Pick<CoreApi, "blockrOption">;
@@ -64,7 +64,7 @@ export const darkMode: Omit<Option, "id"> = {
     if (typeof logical === "boolean") return logical ? "dark" : "light";
     return checked("dark_mode", takesTheme, value);
   },
-  ui: selectUi("Light/dark mode", "Choose a mode", [
+  ui: toggleButtonGroupUi("Light/dark mode", [
     { id: "light", name: "Light" },
     { id: "dark", name: "Dark" },
   ]),
