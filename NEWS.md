@@ -824,6 +824,18 @@
   It submits a step of a segment by a key, such as the arrow up, at once, as the number field submits a step of its number, and a picker or a calendar submits a pick at once.
   Each submits only a value in its range.
   Where the state holds a value that does not read so, as `"2026-11-19T14:30:00"`, which R's `as.POSIXct()` reads as midnight, a bound input marks itself invalid and says below itself that the value is not available (#758).
+* Core's React SDK offers React Aria's colors, in core's theme, after React Aria's Tailwind starter kit: a field and a picker, `ColorField` and `ColorPicker`, the swatches, `ColorSwatch` and `ColorSwatchPicker` with `ColorSwatchPickerItem`, and the parts of a picker, `ColorArea`, `ColorSlider`, `ColorWheel` and `ColorThumb`.
+  Each takes the props of its part of React Aria and those that the starter kit adds, such as `label`.
+  The picker takes `isDisabled` too, which disables its button.
+  Given `bound`, each input binds a color as a string of hex: `"#RRGGBB"`, as React Aria's `color.toString("hex")` writes it, or `"#RRGGBBAA"` where the color is not opaque.
+  A bound field submits as the user leaves it or presses Enter, and keeps the alpha of the color that it showed.
+  A bound area, slider or wheel submits as the user lets go, and a bound swatch picker as the user picks a swatch.
+  A bound picker submits as the user ends a change in one of its parts.
+  Core's vendor file holds the parts of React Aria that they draw with.
+  The stack form of the Edit board plugin draws a stack's color with a `ColorPicker` beside the `Checkbox` of the SDK, in place of the browser's checkbox and color input.
+  The picker's popover holds the palette's colors as swatches below the starter kit's parts.
+  The stacks' table draws each stack's color as a `ColorSwatch`, which a screen reader names by its color.
+  Compressed with `gzip`, core's vendor file grows from 295 KB to 318 KB (#759).
 
 # blockr.core 0.1.4
 

@@ -13,8 +13,9 @@
 // It holds the table, the trees and the grid list, which bind no value, and
 // what drags the items of the last three and drops onto them.
 // The inputs, the buttons, the overlays, the layout, the table, the trees and
-// the grid list are React Aria's, in core's theme, and React Aria's
-// FileTrigger and Autocomplete come unstyled.
+// the grid list are React Aria's, in core's theme, and so are the colours: a
+// field, a picker, swatches and the parts of a picker.
+// React Aria's FileTrigger and Autocomplete come unstyled.
 // It also holds the list in which a UI shows notifications, as useNotified()
 // gives them, in the message style of blockr.ui's design system.
 
@@ -28,6 +29,15 @@ export {
   Calendar,
   Checkbox,
   CheckboxGroup,
+  ColorArea,
+  ColorField,
+  ColorPicker,
+  ColorSlider,
+  ColorSwatch,
+  ColorSwatchPicker,
+  ColorSwatchPickerItem,
+  ColorThumb,
+  ColorWheel,
   ComboBox,
   ComboBoxItem,
   ComboBoxSection,
@@ -68,6 +78,16 @@ export type {
   CalendarProps,
   CheckboxGroupProps,
   CheckboxProps,
+  Color,
+  ColorAreaProps,
+  ColorFieldProps,
+  ColorPickerProps,
+  ColorSliderProps,
+  ColorSwatchPickerItemProps,
+  ColorSwatchPickerProps,
+  ColorSwatchProps,
+  ColorThumbProps,
+  ColorWheelProps,
   ComboBoxProps,
   ComboBoxSectionProps,
   DateFieldProps,
