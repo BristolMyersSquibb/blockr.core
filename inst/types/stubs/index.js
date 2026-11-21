@@ -8631,9 +8631,206 @@ function kindOf(target2) {
 }
 
 // srcts/actions/dialog.tsx
-import { useLayoutEffect as useLayoutEffect4, useRef as useRef10 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+
+// srcts/card/footer.tsx
+import { useCallback, useId, useState } from "react";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+var SEVERITIES2 = ["error", "warning", "message"];
+function useFooter(status, notifications) {
+  const shown2 = useShown(status);
+  const opened = useOpened(OPEN_AT_START);
+  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
+}
+function usePills(notifications) {
+  const opened = useOpened(NONE_OPEN);
+  return { status: void 0, shown: void 0, settled: true, notifications, ...opened };
+}
+function useOpened(atStart) {
+  const [open, setOpen] = useState(atStart);
+  const panel = useId();
+  const toggle = useCallback((severity) => {
+    setOpen((was) => {
+      const next = new Set(was);
+      if (!next.delete(severity)) next.add(severity);
+      return next;
+    });
+  }, []);
+  return { open, toggle, panel };
+}
+function Footer({ status, shown: shown2, settled: settled2 }) {
+  return /* @__PURE__ */ jsx(
+    "footer",
+    {
+      "aria-busy": status?.running === true,
+      "data-status": shown2?.status,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+      children: shown2?.status === "ready" ? shown2.summary : null
+    }
+  );
+}
+function Pills({
+  status,
+  shown: shown2,
+  settled: settled2,
+  notifications,
+  open,
+  toggle,
+  panel,
+  className = "bc:justify-center bc:px-5"
+}) {
+  const pills = SEVERITIES2.flatMap((severity) => {
+    const n = counted(shown2, notifications, severity);
+    return n === 0 ? [] : [{ severity, n }];
+  });
+  if (pills.length === 0) return null;
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      role: "group",
+      "aria-label": "Status",
+      "aria-busy": status?.running === true,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
+      children: pills.map(({ severity, n }) => {
+        const mark = MARKS[severity];
+        return /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            "aria-expanded": open.has(severity),
+            "aria-controls": panel,
+            onClick: () => {
+              toggle(severity);
+            },
+            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+            children: [
+              /* @__PURE__ */ jsx(SeverityIcon, { severity }),
+              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
+            ]
+          },
+          severity
+        );
+      })
+    }
+  );
+}
+function Banners({ shown: shown2, notifications, open, panel }) {
+  const listed = notifications.filter(
+    (notification) => open.has(notification.severity)
+  );
+  const reason = shown2?.reason ?? null;
+  if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
+  if (listed.length === 0) return null;
+  return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx(Banner, { severity, message }, i)) });
+}
+function isSettled(status, shown2) {
+  return status !== void 0 && status === shown2 && !status.running;
+}
+function counted(status, notifications, severity) {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
+  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
+}
+var MARKS = {
+  error: {
+    label: "Error",
+    noun: "error",
+    text: "bc:text-text-danger",
+    tint: "bc:bg-red-500/10",
+    border: "bc:border-border-danger"
+  },
+  warning: {
+    label: "Warning",
+    noun: "warning",
+    text: "bc:text-text-warning",
+    tint: "bc:bg-amber-500/10",
+    border: "bc:border-amber-500"
+  },
+  message: {
+    label: "Message",
+    noun: "message",
+    text: "bc:text-blue-700 bc:dark:text-blue-400",
+    tint: "bc:bg-blue-500/10",
+    border: "bc:border-border-accent"
+  }
+};
+function Banner({ severity, message }) {
+  const mark = MARKS[severity];
+  return /* @__PURE__ */ jsxs(
+    "li",
+    {
+      "data-severity": severity,
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx(SeverityIcon, { severity }) }),
+        /* @__PURE__ */ jsxs("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
+          /* @__PURE__ */ jsx("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
+          /* @__PURE__ */ jsx("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
+        ] })
+      ]
+    }
+  );
+}
+function SeverityIcon({ severity }) {
+  return /* @__PURE__ */ jsx(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      className: "bc:size-3 bc:shrink-0",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.6,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+      ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+      ] })
+    }
+  );
+}
+function useShown(status) {
+  const [kept, setKept] = useState(void 0);
+  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
+  if (now !== void 0 && now !== kept) setKept(now);
+  return now ?? kept;
+}
+var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+var NONE_OPEN = /* @__PURE__ */ new Set();
+
+// srcts/card/mounted.tsx
+import { useLayoutEffect, useRef } from "react";
+import { jsx as jsx2 } from "react/jsx-runtime";
+function Mounted({
+  mount: mount2,
+  label,
+  className,
+  data
+}) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    const cleanup = mount2(el);
+    return () => {
+      queueMicrotask(cleanup);
+    };
+  }, [mount2]);
+  return /* @__PURE__ */ jsx2("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
+}
+
+// srcts/card/status.ts
+import { useState as useState2 } from "react";
+function useSized(status) {
+  const ready = status?.status === "ready";
+  const [sized, setSized] = useState2(ready);
+  if (ready && !sized) setSized(true);
+  return sized || ready;
+}
 
 // srcts/aria/index.ts
 import {
@@ -8770,38 +8967,38 @@ var buttons = {
 };
 
 // srcts/inputs/button.tsx
-import { jsx } from "react/jsx-runtime";
+import { jsx as jsx3 } from "react/jsx-runtime";
 function Button2({ variant = "primary", className, ...props }) {
-  return /* @__PURE__ */ jsx(Button, { ...props, className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx3(Button, { ...props, className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`) });
 }
 function FieldButton({ className, ...props }) {
-  return /* @__PURE__ */ jsx(Button, { ...props, className: composeRenderProps(className, (given) => `${FIELD_BUTTON} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx3(Button, { ...props, className: composeRenderProps(className, (given) => `${FIELD_BUTTON} ${given ?? ""}`) });
 }
 var FIELD_BUTTON = "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/bounddate.ts
-import { useRef, useState } from "react";
+import { useRef as useRef2, useState as useState3 } from "react";
 
 // srcts/inputs/inputs.tsx
-import { useState as useState2 } from "react";
-import { jsx as jsx2, jsxs } from "react/jsx-runtime";
+import { useState as useState4 } from "react";
+import { jsx as jsx4, jsxs as jsxs2 } from "react/jsx-runtime";
 function NotAvailable({
   values: values2,
   onRemove
 }) {
   if (values2.length === 0) return null;
   const named4 = values2.join(", ");
-  return /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-2", children: [
-    /* @__PURE__ */ jsx2("p", { role: "alert", className: styles.alert, children: `Not available: ${named4}` }),
-    onRemove === void 0 ? null : /* @__PURE__ */ jsx2(Button2, { variant: "quiet", "aria-label": `Remove ${named4}`, onPress: onRemove, children: "Remove" })
+  return /* @__PURE__ */ jsxs2("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-2", children: [
+    /* @__PURE__ */ jsx4("p", { role: "alert", className: styles.alert, children: `Not available: ${named4}` }),
+    onRemove === void 0 ? null : /* @__PURE__ */ jsx4(Button2, { variant: "quiet", "aria-label": `Remove ${named4}`, onPress: onRemove, children: "Remove" })
   ] });
 }
 function Refusal({ error }) {
-  return error === null ? null : /* @__PURE__ */ jsx2("p", { role: "alert", className: styles.alert, children: error });
+  return error === null ? null : /* @__PURE__ */ jsx4("p", { role: "alert", className: styles.alert, children: error });
 }
 function useTyped(bound) {
-  const [text, setText] = useState2(null);
-  const [seen, setSeen] = useState2(bound.value);
+  const [text, setText] = useState4(null);
+  const [seen, setSeen] = useState4(bound.value);
   if (!Object.is(seen, bound.value)) {
     setSeen(bound.value);
     setText(null);
@@ -8810,10 +9007,10 @@ function useTyped(bound) {
 }
 
 // srcts/inputs/calendar.tsx
-import { Fragment, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
 
 // srcts/inputs/checkbox.tsx
-import { useRef as useRef3 } from "react";
+import { useRef as useRef4 } from "react";
 
 // srcts/binding/binding.ts
 var PAUSE = 500;
@@ -8965,9 +9162,9 @@ function strings(value2) {
 }
 
 // srcts/inputs/icons.tsx
-import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import { jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
 function Chevron() {
-  return /* @__PURE__ */ jsx4(
+  return /* @__PURE__ */ jsx6(
     "svg",
     {
       width: "12",
@@ -8980,12 +9177,12 @@ function Chevron() {
       strokeLinejoin: "round",
       "aria-hidden": "true",
       className: "bc:shrink-0 bc:text-text-muted bc:transition-transform bc:group-data-open:rotate-180",
-      children: /* @__PURE__ */ jsx4("polyline", { points: "3 4.5 6 7.5 9 4.5" })
+      children: /* @__PURE__ */ jsx6("polyline", { points: "3 4.5 6 7.5 9 4.5" })
     }
   );
 }
 function Tick({ size = 14 }) {
-  return /* @__PURE__ */ jsx4(
+  return /* @__PURE__ */ jsx6(
     "svg",
     {
       width: size,
@@ -8997,15 +9194,15 @@ function Tick({ size = 14 }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx4("path", { d: "M3.5 8.5l3 3 6-7" })
+      children: /* @__PURE__ */ jsx6("path", { d: "M3.5 8.5l3 3 6-7" })
     }
   );
 }
 function Dash() {
-  return /* @__PURE__ */ jsx4("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx4("path", { d: "M4 8h8" }) });
+  return /* @__PURE__ */ jsx6("svg", { width: "12", height: "12", viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx6("path", { d: "M4 8h8" }) });
 }
 function Cross() {
-  return /* @__PURE__ */ jsx4(
+  return /* @__PURE__ */ jsx6(
     "svg",
     {
       width: "10",
@@ -9016,12 +9213,12 @@ function Cross() {
       strokeWidth: "1.4",
       strokeLinecap: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx4("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" })
+      children: /* @__PURE__ */ jsx6("path", { d: "M2.5 2.5l5 5M7.5 2.5l-5 5" })
     }
   );
 }
 function Magnifier() {
-  return /* @__PURE__ */ jsxs3(
+  return /* @__PURE__ */ jsxs4(
     "svg",
     {
       width: "14",
@@ -9034,20 +9231,20 @@ function Magnifier() {
       "aria-hidden": "true",
       className: "bc:shrink-0 bc:text-text-muted",
       children: [
-        /* @__PURE__ */ jsx4("circle", { cx: "7", cy: "7", r: "4.5" }),
-        /* @__PURE__ */ jsx4("path", { d: "M10.5 10.5L14 14" })
+        /* @__PURE__ */ jsx6("circle", { cx: "7", cy: "7", r: "4.5" }),
+        /* @__PURE__ */ jsx6("path", { d: "M10.5 10.5L14 14" })
       ]
     }
   );
 }
 
 // srcts/inputs/items.ts
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef as useRef2, useState as useState3 } from "react";
+import { createContext, useCallback as useCallback2, useContext, useLayoutEffect as useLayoutEffect2, useMemo, useRef as useRef3, useState as useState5 } from "react";
 var ItemsContext = createContext(null);
 function useItems() {
-  const entries2 = useRef2(/* @__PURE__ */ new Map());
-  const [known2, setKnown] = useState3(null);
-  const sync = useCallback(() => {
+  const entries2 = useRef3(/* @__PURE__ */ new Map());
+  const [known2, setKnown] = useState5(null);
+  const sync = useCallback2(() => {
     const next = inPageOrder([...entries2.current.values()]);
     setKnown((last) => last !== null && sameValues(last, next) ? last : next);
   }, []);
@@ -9065,14 +9262,14 @@ function useItems() {
     }),
     [sync]
   );
-  useLayoutEffect(() => {
+  useLayoutEffect2(() => {
     sync();
   });
   return { known: known2, items };
 }
 function useItem(value2, ref) {
   const items = useContext(ItemsContext);
-  useLayoutEffect(() => {
+  useLayoutEffect2(() => {
     if (items === null || value2 === void 0) return void 0;
     return items.add(value2, () => ref.current);
   }, [items, value2, ref]);
@@ -9105,13 +9302,13 @@ function held2(values2, known2) {
 }
 
 // srcts/inputs/checkbox.tsx
-import { Fragment as Fragment2, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 function Checkbox({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx5(DrawnCheckbox, { ...props }) : /* @__PURE__ */ jsx5(BoundCheckbox, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx7(DrawnCheckbox, { ...props }) : /* @__PURE__ */ jsx7(BoundCheckbox, { ...props, bound });
 }
 function BoundCheckbox({ bound, onChange, ...props }) {
-  return /* @__PURE__ */ jsxs4(Fragment2, { children: [
-    /* @__PURE__ */ jsx5(
+  return /* @__PURE__ */ jsxs5(Fragment3, { children: [
+    /* @__PURE__ */ jsx7(
       DrawnCheckbox,
       {
         ...props,
@@ -9122,29 +9319,29 @@ function BoundCheckbox({ bound, onChange, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx5(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
   ] });
 }
 function DrawnCheckbox({ children, description, errorMessage: errorMessage2, className, ...props }) {
-  const ref = useRef3(null);
+  const ref = useRef4(null);
   useItem(props.value, ref);
-  return /* @__PURE__ */ jsxs4(CheckboxField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
-    /* @__PURE__ */ jsx5(CheckboxButton, { className: composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`), children: composeRenderProps(children, (children2, { isSelected, isIndeterminate }) => /* @__PURE__ */ jsxs4(Fragment2, { children: [
-      /* @__PURE__ */ jsx5("span", { className: BOX, children: isIndeterminate ? /* @__PURE__ */ jsx5(Dash, {}) : isSelected ? /* @__PURE__ */ jsx5(Tick, { size: 12 }) : null }),
+  return /* @__PURE__ */ jsxs5(CheckboxField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
+    /* @__PURE__ */ jsx7(CheckboxButton, { className: composeRenderProps(className, (given) => `bc:group ${CHECK} ${given ?? ""}`), children: composeRenderProps(children, (children2, { isSelected, isIndeterminate }) => /* @__PURE__ */ jsxs5(Fragment3, { children: [
+      /* @__PURE__ */ jsx7("span", { className: BOX, children: isIndeterminate ? /* @__PURE__ */ jsx7(Dash, {}) : isSelected ? /* @__PURE__ */ jsx7(Tick, { size: 12 }) : null }),
       children2
     ] })) }),
-    /* @__PURE__ */ jsx5(Text, { slot: "description", className: `${styles.hint} bc:ml-6 bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx5(FieldError, { className: `${styles.alert} bc:ml-6`, children: errorMessage2 })
+    /* @__PURE__ */ jsx7(Text, { slot: "description", className: `${styles.hint} bc:ml-6 bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx7(FieldError, { className: `${styles.alert} bc:ml-6`, children: errorMessage2 })
   ] });
 }
 var CHECK = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";
 
 // srcts/inputs/colorfield.tsx
-import { useContext as useContext2, useState as useState5 } from "react";
+import { useContext as useContext2, useState as useState7 } from "react";
 
 // srcts/inputs/colors.ts
-import { createContext as createContext2, useState as useState4 } from "react";
+import { createContext as createContext2, useState as useState6 } from "react";
 var FALLBACK2 = "#000000";
 function hex3(color2) {
   return color2.getChannelValue("alpha") < 1 ? color2.toString("hexa") : color2.toString("hex");
@@ -9161,8 +9358,8 @@ function valueColor(value2) {
 var Ended = createContext2(null);
 function useDragged(bound) {
   const value2 = valueColor(bound.value);
-  const [kept, setKept] = useState4(null);
-  const [seen, setSeen] = useState4(value2);
+  const [kept, setKept] = useState6(null);
+  const [seen, setSeen] = useState6(value2);
   if (seen !== value2) {
     setSeen(value2);
     if (kept !== null && !kept.dragging && (value2 === void 0 || hex3(parseColor(value2)) !== hex3(kept.color))) setKept(null);
@@ -9182,16 +9379,16 @@ function useDragged(bound) {
 }
 
 // srcts/inputs/colorfield.tsx
-import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 function ColorField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx6(Drawn, { ...props }) : /* @__PURE__ */ jsx6(BoundField, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx8(Drawn, { ...props }) : /* @__PURE__ */ jsx8(BoundField, { ...props, bound });
 }
 function BoundField({ bound, onChange, onBlur, ...props }) {
   const value2 = valueColor(bound.value);
-  const [typing, setTyping] = useState5(null);
+  const [typing, setTyping] = useState7(null);
   const shown2 = typing === null ? value2 : typing.value;
-  return /* @__PURE__ */ jsxs5(Fragment3, { children: [
-    /* @__PURE__ */ jsx6(
+  return /* @__PURE__ */ jsxs6(Fragment4, { children: [
+    /* @__PURE__ */ jsx8(
       Drawn,
       {
         ...props,
@@ -9213,12 +9410,12 @@ function BoundField({ bound, onChange, onBlur, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx6(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx8(Refusal, { error: bound.error })
   ] });
 }
 function Drawn({ label, description, errorMessage: errorMessage2, className, onChange, onInput, ...props }) {
   const ended = useContext2(Ended);
-  return /* @__PURE__ */ jsxs5(
+  return /* @__PURE__ */ jsxs6(
     ColorField,
     {
       ...props,
@@ -9228,10 +9425,10 @@ function Drawn({ label, description, errorMessage: errorMessage2, className, onC
       },
       className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx6(Label, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsx6(Input, { onInput, className: styles.box }),
-        /* @__PURE__ */ jsx6(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-        /* @__PURE__ */ jsx6(FieldError, { className: styles.alert, children: errorMessage2 })
+        label === void 0 ? null : /* @__PURE__ */ jsx8(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsx8(Input, { onInput, className: styles.box }),
+        /* @__PURE__ */ jsx8(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+        /* @__PURE__ */ jsx8(FieldError, { className: styles.alert, children: errorMessage2 })
       ]
     }
   );
@@ -9239,9 +9436,9 @@ function Drawn({ label, description, errorMessage: errorMessage2, className, onC
 
 // srcts/inputs/colorparts.tsx
 import { useContext as useContext3 } from "react";
-import { Fragment as Fragment4, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
 function ColorThumb2({ className, style, ...props }) {
-  return /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsx9(
     ColorThumb,
     {
       ...props,
@@ -9256,10 +9453,10 @@ function ColorThumb2({ className, style, ...props }) {
   );
 }
 function ColorArea2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx7(Area, { ...props }) : /* @__PURE__ */ jsx7(BoundPart, { Part: Area, props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx9(Area, { ...props }) : /* @__PURE__ */ jsx9(BoundPart, { Part: Area, props, bound });
 }
 function ColorSlider2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx7(Slider2, { ...props }) : /* @__PURE__ */ jsx7(BoundPart, { Part: Slider2, props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx9(Slider2, { ...props }) : /* @__PURE__ */ jsx9(BoundPart, { Part: Slider2, props, bound });
 }
 function BoundPart({
   Part: Part2,
@@ -9267,8 +9464,8 @@ function BoundPart({
   bound
 }) {
   const dragged = useDragged(bound);
-  return /* @__PURE__ */ jsxs6(Fragment4, { children: [
-    /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsxs7(Fragment5, { children: [
+    /* @__PURE__ */ jsx9(
       Part2,
       {
         ...props,
@@ -9283,7 +9480,7 @@ function BoundPart({
         }
       }
     ),
-    /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx9(Refusal, { error: bound.error })
   ] });
 }
 function useEnd(onChangeEnd) {
@@ -9294,7 +9491,7 @@ function useEnd(onChangeEnd) {
   };
 }
 function Area({ className, style, onChangeEnd, ...props }) {
-  return /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsx9(
     ColorArea,
     {
       ...props,
@@ -9305,21 +9502,21 @@ function Area({ className, style, onChangeEnd, ...props }) {
         ...given,
         background: isDisabled ? void 0 : defaultStyle.background
       })),
-      children: /* @__PURE__ */ jsx7(ColorThumb2, {})
+      children: /* @__PURE__ */ jsx9(ColorThumb2, {})
     }
   );
 }
 function Slider2({ label, className, onChangeEnd, ...props }) {
-  return /* @__PURE__ */ jsxs6(
+  return /* @__PURE__ */ jsxs7(
     ColorSlider,
     {
       ...props,
       onChangeEnd: useEnd(onChangeEnd),
       className: composeRenderProps(className, (given) => `${SLIDER} ${given ?? ""}`),
       children: [
-        /* @__PURE__ */ jsx7(Label, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsx7(SliderOutput, { className: OUTPUT }),
-        /* @__PURE__ */ jsx7(
+        /* @__PURE__ */ jsx9(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsx9(SliderOutput, { className: OUTPUT }),
+        /* @__PURE__ */ jsx9(
           SliderTrack,
           {
             className: ({ orientation, isDisabled }) => `${TRACK} ${orientation === "vertical" ? "bc:h-50 bc:w-6" : "bc:h-6 bc:w-full"} ${isDisabled ? DISABLED : ""}`,
@@ -9327,7 +9524,7 @@ function Slider2({ label, className, onChangeEnd, ...props }) {
               ...defaultStyle,
               background: isDisabled ? void 0 : `${String(defaultStyle.background)}, ${CHECKERBOARD}`
             }),
-            children: /* @__PURE__ */ jsx7(ColorThumb2, {})
+            children: /* @__PURE__ */ jsx9(ColorThumb2, {})
           }
         )
       ]
@@ -9343,12 +9540,12 @@ var DISABLED = "bc:bg-gray-300 bc:dark:bg-gray-800 bc:forced-colors:bg-[GrayText
 var CHECKERBOARD = "repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 16px 16px";
 
 // srcts/overlays/dialog.tsx
-import { jsx as jsx8 } from "react/jsx-runtime";
+import { jsx as jsx10 } from "react/jsx-runtime";
 function Modal2({ className, ...props }) {
-  return /* @__PURE__ */ jsx8(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx8("div", { className: CENTER, children: /* @__PURE__ */ jsx8(Modal, { ...props, className: composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
+  return /* @__PURE__ */ jsx10(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx10("div", { className: CENTER, children: /* @__PURE__ */ jsx10(Modal, { ...props, className: composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
 }
 function Dialog2({ className, ...props }) {
-  return /* @__PURE__ */ jsx8(Dialog, { ...props, className: `${DIALOG2} ${className ?? ""}` });
+  return /* @__PURE__ */ jsx10(Dialog, { ...props, className: `${DIALOG2} ${className ?? ""}` });
 }
 var OVERLAY = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
 var CENTER = "bc:sticky bc:top-0 bc:left-0 bc:box-border bc:flex bc:h-(--visual-viewport-height) bc:w-full bc:items-center bc:justify-center bc:p-4";
@@ -9359,35 +9556,35 @@ var DIALOG2 = "bc:relative bc:box-border bc:max-h-[inherit] bc:p-4 bc:outline-no
 import { Children } from "react";
 
 // srcts/overlays/popover.tsx
-import { jsx as jsx9 } from "react/jsx-runtime";
+import { jsx as jsx11 } from "react/jsx-runtime";
 function Popover2({ className, offset = 4, ...props }) {
-  return /* @__PURE__ */ jsx9(Popover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx11(Popover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
 }
 var POPOVER = "bc:overflow-auto bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-lg bc:outline-none bc:dark:text-gray-100";
 
 // srcts/overlays/menu.tsx
-import { Fragment as Fragment5, jsx as jsx10, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
 function MenuTrigger2({ placement, children, ...props }) {
   const [trigger, menu] = Children.toArray(children);
-  return /* @__PURE__ */ jsxs7(MenuTrigger, { ...props, children: [
+  return /* @__PURE__ */ jsxs8(MenuTrigger, { ...props, children: [
     trigger,
-    /* @__PURE__ */ jsx10(Popover2, { placement, className: "bc:min-w-44", children: menu })
+    /* @__PURE__ */ jsx12(Popover2, { placement, className: "bc:min-w-44", children: menu })
   ] });
 }
 function Menu2({ className, ...props }) {
-  return /* @__PURE__ */ jsx10(Menu, { ...props, className: composeRenderProps(className, (given) => `${MENU2} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx12(Menu, { ...props, className: composeRenderProps(className, (given) => `${MENU2} ${given ?? ""}`) });
 }
 function MenuItem2(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
-  return /* @__PURE__ */ jsx10(MenuItem, { ...props, textValue, className: composeRenderProps(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps(props.children, (children, { selectionMode, isSelected }) => /* @__PURE__ */ jsxs7(Fragment5, { children: [
-    selectionMode === "none" ? null : /* @__PURE__ */ jsx10("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx10(Tick, {}) : null }),
-    /* @__PURE__ */ jsx10("span", { className: CONTENT, children })
+  return /* @__PURE__ */ jsx12(MenuItem, { ...props, textValue, className: composeRenderProps(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps(props.children, (children, { selectionMode, isSelected }) => /* @__PURE__ */ jsxs8(Fragment6, { children: [
+    selectionMode === "none" ? null : /* @__PURE__ */ jsx12("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx12(Tick, {}) : null }),
+    /* @__PURE__ */ jsx12("span", { className: CONTENT, children })
   ] })) });
 }
 function MenuSection2({ title, items, children, ...props }) {
-  return /* @__PURE__ */ jsxs7(MenuSection, { ...props, children: [
-    title === void 0 ? null : /* @__PURE__ */ jsx10(Header, { className: HEADING, children: title }),
-    /* @__PURE__ */ jsx10(Collection, { items, children })
+  return /* @__PURE__ */ jsxs8(MenuSection, { ...props, children: [
+    title === void 0 ? null : /* @__PURE__ */ jsx12(Header, { className: HEADING, children: title }),
+    /* @__PURE__ */ jsx12(Collection, { items, children })
   ] });
 }
 var MENU2 = "bc:grid bc:max-h-[inherit] bc:gap-0.5 bc:overflow-auto bc:p-1 bc:outline-none";
@@ -9396,13 +9593,13 @@ var HEADING = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 
 // srcts/overlays/palette.tsx
-import { jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
+import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 
 // srcts/inputs/colorswatches.tsx
 import { useContext as useContext4 } from "react";
-import { Fragment as Fragment6, jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
 function ColorSwatch2({ className, style, ...props }) {
-  return /* @__PURE__ */ jsx12(
+  return /* @__PURE__ */ jsx14(
     ColorSwatch,
     {
       ...props,
@@ -9415,11 +9612,11 @@ function ColorSwatch2({ className, style, ...props }) {
   );
 }
 function ColorSwatchPicker2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx12(Drawn2, { ...props }) : /* @__PURE__ */ jsx12(BoundSwatches, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx14(Drawn2, { ...props }) : /* @__PURE__ */ jsx14(BoundSwatches, { ...props, bound });
 }
 function BoundSwatches({ bound, onChange, ...props }) {
-  return /* @__PURE__ */ jsxs9(Fragment6, { children: [
-    /* @__PURE__ */ jsx12(
+  return /* @__PURE__ */ jsxs10(Fragment7, { children: [
+    /* @__PURE__ */ jsx14(
       Drawn2,
       {
         ...props,
@@ -9430,12 +9627,12 @@ function BoundSwatches({ bound, onChange, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx12(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx14(Refusal, { error: bound.error })
   ] });
 }
 function Drawn2({ className, onChange, ...props }) {
   const ended = useContext4(Ended);
-  return /* @__PURE__ */ jsx12(
+  return /* @__PURE__ */ jsx14(
     ColorSwatchPicker,
     {
       ...props,
@@ -9448,9 +9645,9 @@ function Drawn2({ className, onChange, ...props }) {
   );
 }
 function ColorSwatchPickerItem2({ className, ...props }) {
-  return /* @__PURE__ */ jsx12(ColorSwatchPickerItem, { ...props, className: composeRenderProps(className, (given) => `${ITEM2} ${given ?? ""}`), children: ({ isSelected }) => /* @__PURE__ */ jsxs9(Fragment6, { children: [
-    /* @__PURE__ */ jsx12(ColorSwatch2, {}),
-    isSelected ? /* @__PURE__ */ jsx12("div", { className: SELECTED }) : null
+  return /* @__PURE__ */ jsx14(ColorSwatchPickerItem, { ...props, className: composeRenderProps(className, (given) => `${ITEM2} ${given ?? ""}`), children: ({ isSelected }) => /* @__PURE__ */ jsxs10(Fragment7, { children: [
+    /* @__PURE__ */ jsx14(ColorSwatch2, {}),
+    isSelected ? /* @__PURE__ */ jsx14("div", { className: SELECTED }) : null
   ] }) });
 }
 var SWATCH = "bc:box-border bc:size-8 bc:shrink-0 bc:rounded-md bc:border bc:border-border-default";
@@ -9460,14 +9657,14 @@ var ITEM2 = "bc:relative bc:cursor-pointer bc:rounded-xs bc:outline-none bc:data
 var SELECTED = "bc:absolute bc:top-0 bc:left-0 bc:box-border bc:size-full bc:rounded-md bc:border-2 bc:border-black bc:outline-2 bc:-outline-offset-4 bc:outline-white bc:dark:border-white bc:dark:outline-black bc:forced-color-adjust-none";
 
 // srcts/inputs/colorpicker.tsx
-import { Fragment as Fragment7, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
 function ColorPicker2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx13(Drawn3, { ...props }) : /* @__PURE__ */ jsx13(BoundPicker, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx15(Drawn3, { ...props }) : /* @__PURE__ */ jsx15(BoundPicker, { ...props, bound });
 }
 function BoundPicker({ bound, onChange, ...props }) {
   const dragged = useDragged(bound);
-  return /* @__PURE__ */ jsxs10(Fragment7, { children: [
-    /* @__PURE__ */ jsx13(Ended, { value: dragged.end, children: /* @__PURE__ */ jsx13(
+  return /* @__PURE__ */ jsxs11(Fragment8, { children: [
+    /* @__PURE__ */ jsx15(Ended, { value: dragged.end, children: /* @__PURE__ */ jsx15(
       Drawn3,
       {
         ...props,
@@ -9478,36 +9675,36 @@ function BoundPicker({ bound, onChange, ...props }) {
         }
       }
     ) }),
-    /* @__PURE__ */ jsx13(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx15(Refusal, { error: bound.error })
   ] });
 }
 function Drawn3({ label, children, isDisabled, ...props }) {
-  return /* @__PURE__ */ jsx13(ColorPicker, { ...props, children: /* @__PURE__ */ jsxs10(DialogTrigger, { children: [
-    /* @__PURE__ */ jsxs10(Button, { isDisabled, className: BUTTON, children: [
-      /* @__PURE__ */ jsx13(ColorSwatch2, {}),
-      label === void 0 ? null : /* @__PURE__ */ jsx13("span", { children: label })
+  return /* @__PURE__ */ jsx15(ColorPicker, { ...props, children: /* @__PURE__ */ jsxs11(DialogTrigger, { children: [
+    /* @__PURE__ */ jsxs11(Button, { isDisabled, className: BUTTON, children: [
+      /* @__PURE__ */ jsx15(ColorSwatch2, {}),
+      label === void 0 ? null : /* @__PURE__ */ jsx15("span", { children: label })
     ] }),
-    /* @__PURE__ */ jsx13(Popover2, { placement: "bottom start", children: /* @__PURE__ */ jsx13(Dialog2, { className: "bc:flex bc:flex-col bc:gap-2", children: children ?? /* @__PURE__ */ jsxs10(Fragment7, { children: [
-      /* @__PURE__ */ jsx13(ColorArea2, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
-      /* @__PURE__ */ jsx13(ColorSlider2, { colorSpace: "hsb", channel: "hue" }),
-      /* @__PURE__ */ jsx13(ColorField2, { label: "Hex" })
+    /* @__PURE__ */ jsx15(Popover2, { placement: "bottom start", children: /* @__PURE__ */ jsx15(Dialog2, { className: "bc:flex bc:flex-col bc:gap-2", children: children ?? /* @__PURE__ */ jsxs11(Fragment8, { children: [
+      /* @__PURE__ */ jsx15(ColorArea2, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
+      /* @__PURE__ */ jsx15(ColorSlider2, { colorSpace: "hsb", channel: "hue" }),
+      /* @__PURE__ */ jsx15(ColorField2, { label: "Hex" })
     ] }) }) })
   ] }) });
 }
 var BUTTON = "bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded-xs bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/combobox.tsx
-import { useContext as useContext5, useRef as useRef4, useState as useState6 } from "react";
-import { Fragment as Fragment8, jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
+import { useContext as useContext5, useRef as useRef5, useState as useState8 } from "react";
+import { Fragment as Fragment9, jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
 function ComboBox2(props) {
   const { bound, ordered = false, ...rest } = props;
-  if (bound === void 0) return /* @__PURE__ */ jsx14(Drawn4, { ...rest });
-  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx14(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx14(BoundOne, { ...rest, bound });
+  if (bound === void 0) return /* @__PURE__ */ jsx16(Drawn4, { ...rest });
+  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx16(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx16(BoundOne, { ...rest, bound });
 }
 function BoundOne({ bound, outdated = false, ...props }) {
   const current2 = typeof bound.value === "string" ? bound.value : null;
-  return /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsxs12(Fragment9, { children: [
+    /* @__PURE__ */ jsx16(
       Drawn4,
       {
         ...props,
@@ -9523,7 +9720,7 @@ function BoundOne({ bound, outdated = false, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx14(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx16(Refusal, { error: bound.error })
   ] });
 }
 function BoundSeveral({
@@ -9535,15 +9732,15 @@ function BoundSeveral({
 }) {
   const items = props.items ?? props.defaultItems;
   const held4 = strings(bound.value);
-  const [picks, setPicks] = useState6(null);
-  const pending = useRef4(null);
+  const [picks, setPicks] = useState8(null);
+  const pending = useRef5(null);
   const submit = (next, opened) => {
     const value2 = merged(strings(bound.get()), opened, next);
     if (value2 === null) return;
     void bound.commit(ordered && items !== void 0 ? inOrder(value2, ids2(items)) : value2);
   };
-  return /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsxs12(Fragment9, { children: [
+    /* @__PURE__ */ jsx16(
       Drawn4,
       {
         ...props,
@@ -9575,7 +9772,7 @@ function BoundSeveral({
         }
       }
     ),
-    /* @__PURE__ */ jsx14(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx16(Refusal, { error: bound.error })
   ] });
 }
 function known(props) {
@@ -9609,7 +9806,7 @@ function Drawn4({
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
   const empty2 = none && (outdated || unknown2) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const value2 = useSameValue(props.value);
-  return /* @__PURE__ */ jsxs11(
+  return /* @__PURE__ */ jsxs12(
     ComboBox,
     {
       ...props,
@@ -9618,8 +9815,8 @@ function Drawn4({
       allowsEmptyCollection,
       className: composeRenderProps(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx14(Label, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsx14(
+        label === void 0 ? null : /* @__PURE__ */ jsx16(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsx16(
           Field,
           {
             placeholder,
@@ -9632,16 +9829,16 @@ function Drawn4({
             label
           }
         ),
-        /* @__PURE__ */ jsx14(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-        /* @__PURE__ */ jsx14(FieldError, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx14(Lacking, { multiple, marking }),
-        /* @__PURE__ */ jsx14(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx14(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx14(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx14("p", { className: NOTE, children: empty2 }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx16(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+        /* @__PURE__ */ jsx16(FieldError, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx16(Lacking, { multiple, marking }),
+        /* @__PURE__ */ jsx16(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx16(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx16(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx16("p", { className: NOTE, children: empty2 }), className: LISTBOX, children }) }) })
       ]
     }
   );
 }
 function useSameValue(value2) {
-  const [drawn3, setDrawn] = useState6(value2);
+  const [drawn3, setDrawn] = useState8(value2);
   const same2 = drawn3 === value2 || Array.isArray(drawn3) && Array.isArray(value2) && sameKeys(drawn3, value2);
   if (!same2) setDrawn(value2);
   return same2 ? drawn3 : value2;
@@ -9670,20 +9867,20 @@ function Field({
   };
   const chips = keys.map((key2) => ({ key: key2, text: known2.get(key2) ?? String(key2), gone: marking && !known2.has(key2) }));
   const picks = label === void 0 ? "Picks" : `Picks of ${label}`;
-  return /* @__PURE__ */ jsxs11(Group, { isInvalid: invalid, className: FIELD, children: [
-    /* @__PURE__ */ jsxs11("div", { className: VALUES, children: [
+  return /* @__PURE__ */ jsxs12(Group, { isInvalid: invalid, className: FIELD, children: [
+    /* @__PURE__ */ jsxs12("div", { className: VALUES, children: [
       keys.length === 0 ? null : isDisabled ? (
         // The chips of a disabled select take no focus, as its text field
         // takes none.
         // React Aria's TagGroup keeps a tab stop on its list even where
         // every tag is disabled, so a disabled select draws its chips as
         // a plain list.
-        /* @__PURE__ */ jsx14("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key: key2, text, gone }) => /* @__PURE__ */ jsx14("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx14("span", { className: "bc:truncate", children: text }) }, key2)) })
-      ) : /* @__PURE__ */ jsx14(TagGroup, { "aria-label": picks, onRemove: editable2 ? remove2 : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx14(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key: key2, text, gone }) => /* @__PURE__ */ jsxs11(Tag, { id: key2, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-        /* @__PURE__ */ jsx14("span", { className: "bc:truncate", children: text }),
-        editable2 ? /* @__PURE__ */ jsx14(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx14(Cross, {}) }) : null
+        /* @__PURE__ */ jsx16("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key: key2, text, gone }) => /* @__PURE__ */ jsx16("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx16("span", { className: "bc:truncate", children: text }) }, key2)) })
+      ) : /* @__PURE__ */ jsx16(TagGroup, { "aria-label": picks, onRemove: editable2 ? remove2 : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx16(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key: key2, text, gone }) => /* @__PURE__ */ jsxs12(Tag, { id: key2, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
+        /* @__PURE__ */ jsx16("span", { className: "bc:truncate", children: text }),
+        editable2 ? /* @__PURE__ */ jsx16(Button, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx16(Cross, {}) }) : null
       ] }, key2)) }) }),
-      /* @__PURE__ */ jsx14(
+      /* @__PURE__ */ jsx16(
         Input,
         {
           value: multiple || state2 === null || state2.isFocused || state2.isOpen ? void 0 : item ?? (one2 === null ? "" : String(one2)),
@@ -9707,7 +9904,7 @@ function Field({
       // list. It is outside the order of Tab, and keeps the focus in the
       // text field, as a press in the list does.
       // React Aria's Button takes no title, so the cross carries it.
-      /* @__PURE__ */ jsx14(
+      /* @__PURE__ */ jsx16(
         FieldButton,
         {
           slot: null,
@@ -9718,11 +9915,11 @@ function Field({
             if (onClear !== void 0) onClear();
             else state2?.setValue(multiple ? [] : null);
           },
-          children: /* @__PURE__ */ jsx14("span", { title: multiple ? "Clear every pick" : "Clear the pick", className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx14(Cross, {}) })
+          children: /* @__PURE__ */ jsx16("span", { title: multiple ? "Clear every pick" : "Clear the pick", className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx16(Cross, {}) })
         }
       )
     ) : null,
-    /* @__PURE__ */ jsx14(Button, { className: OPENER, children: /* @__PURE__ */ jsx14(Chevron, {}) })
+    /* @__PURE__ */ jsx16(Button, { className: OPENER, children: /* @__PURE__ */ jsx16(Chevron, {}) })
   ] });
 }
 function usePicks(multiple) {
@@ -9736,13 +9933,13 @@ function usePicks(multiple) {
 }
 function Lacking({ multiple, marking }) {
   const { lacked } = usePicks(multiple);
-  return marking ? /* @__PURE__ */ jsx14(NotAvailable, { values: lacked.map(String) }) : null;
+  return marking ? /* @__PURE__ */ jsx16(NotAvailable, { values: lacked.map(String) }) : null;
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
-  return /* @__PURE__ */ jsx14(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    selectionMode === "multiple" ? /* @__PURE__ */ jsx14("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx14(Tick, {}) : null }) : null,
-    /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsx16(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs12(Fragment9, { children: [
+    selectionMode === "multiple" ? /* @__PURE__ */ jsx16("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx16(Tick, {}) : null }) : null,
+    /* @__PURE__ */ jsx16(
       "span",
       {
         className: `bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2 bc:truncate ${selectionMode === "single" && isSelected ? "bc:font-semibold" : ""}`,
@@ -9752,9 +9949,9 @@ function ComboBoxItem(props) {
   ] })) });
 }
 function ComboBoxSection({ title, items, children, ...props }) {
-  return /* @__PURE__ */ jsxs11(ListBoxSection, { ...props, children: [
-    /* @__PURE__ */ jsx14(Header, { className: HEADING2, children: title }),
-    /* @__PURE__ */ jsx14(Collection, { items, children })
+  return /* @__PURE__ */ jsxs12(ListBoxSection, { ...props, children: [
+    /* @__PURE__ */ jsx16(Header, { className: HEADING2, children: title }),
+    /* @__PURE__ */ jsx16(Collection, { items, children })
   ] });
 }
 var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
@@ -9771,30 +9968,30 @@ var ROW = "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center b
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/datefield.tsx
-import { Fragment as Fragment9, jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
+import { Fragment as Fragment10, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // srcts/inputs/datepicker.tsx
-import { useRef as useRef5 } from "react";
-import { Fragment as Fragment10, jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
+import { useRef as useRef6 } from "react";
+import { Fragment as Fragment11, jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 
 // srcts/inputs/dropzone.tsx
-import { jsx as jsx17 } from "react/jsx-runtime";
+import { jsx as jsx19 } from "react/jsx-runtime";
 
 // srcts/inputs/form.tsx
-import { jsx as jsx18 } from "react/jsx-runtime";
+import { jsx as jsx20 } from "react/jsx-runtime";
 function Form2({ className, ...props }) {
-  return /* @__PURE__ */ jsx18(Form, { ...props, className: `bc:grid bc:gap-3 ${className ?? ""}` });
+  return /* @__PURE__ */ jsx20(Form, { ...props, className: `bc:grid bc:gap-3 ${className ?? ""}` });
 }
 
 // srcts/inputs/listbox.tsx
-import { jsx as jsx19 } from "react/jsx-runtime";
+import { jsx as jsx21 } from "react/jsx-runtime";
 
 // srcts/inputs/numberfield.tsx
-import { useState as useState7 } from "react";
-import { Fragment as Fragment11, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
+import { useState as useState9 } from "react";
+import { Fragment as Fragment12, jsx as jsx22, jsxs as jsxs15 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
-  return bound === void 0 ? /* @__PURE__ */ jsx20(Drawn5, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx20(BoundNumber, { ...props, maxValue: largest, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx22(Drawn5, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx22(BoundNumber, { ...props, maxValue: largest, bound });
 }
 function BoundNumber({
   bound,
@@ -9806,15 +10003,15 @@ function BoundNumber({
   ...props
 }) {
   const held4 = typeof bound.value === "number" ? bound.value : NaN;
-  const [kept, setKept] = useState7(null);
-  const [seen, setSeen] = useState7(held4);
+  const [kept, setKept] = useState9(null);
+  const [seen, setSeen] = useState9(held4);
   if (!Object.is(seen, held4)) {
     setSeen(held4);
     if (kept !== null && !kept.typing) setKept(null);
   }
   const fits2 = (value2) => inRange(value2, props.minValue, props.maxValue, props.step);
-  return /* @__PURE__ */ jsxs14(Fragment11, { children: [
-    /* @__PURE__ */ jsx20(
+  return /* @__PURE__ */ jsxs15(Fragment12, { children: [
+    /* @__PURE__ */ jsx22(
       Drawn5,
       {
         ...props,
@@ -9846,7 +10043,7 @@ function BoundNumber({
         }
       }
     ),
-    /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx22(Refusal, { error: bound.error })
   ] });
 }
 function inRange(value2, min, max, step2) {
@@ -9858,21 +10055,21 @@ function inRange(value2, min, max, step2) {
   return Math.abs(steps2 - Math.round(steps2)) < 1e-9;
 }
 function Drawn5({ label, description, errorMessage: errorMessage2, placeholder, className, onInput, ...props }) {
-  return /* @__PURE__ */ jsxs14(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx20(Label, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs14(Group, { className: FIELD2, children: [
-      /* @__PURE__ */ jsx20(Input, { placeholder, onInput, className: INPUT2 }),
-      /* @__PURE__ */ jsxs14("div", { className: STEPPERS, children: [
-        /* @__PURE__ */ jsx20(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx20(Chevron2, { up: true }) }),
-        /* @__PURE__ */ jsx20(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx20(Chevron2, { up: false }) })
+  return /* @__PURE__ */ jsxs15(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx22(Label, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs15(Group, { className: FIELD2, children: [
+      /* @__PURE__ */ jsx22(Input, { placeholder, onInput, className: INPUT2 }),
+      /* @__PURE__ */ jsxs15("div", { className: STEPPERS, children: [
+        /* @__PURE__ */ jsx22(Button, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx22(Chevron2, { up: true }) }),
+        /* @__PURE__ */ jsx22(Button, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx22(Chevron2, { up: false }) })
       ] })
     ] }),
-    /* @__PURE__ */ jsx20(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx20(FieldError, { className: styles.alert, children: errorMessage2 })
+    /* @__PURE__ */ jsx22(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx22(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 function Chevron2({ up }) {
-  return /* @__PURE__ */ jsx20(
+  return /* @__PURE__ */ jsx22(
     "svg",
     {
       width: "10",
@@ -9884,7 +10081,7 @@ function Chevron2({ up }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx20("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
+      children: /* @__PURE__ */ jsx22("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
     }
   );
 }
@@ -9894,18 +10091,18 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/radio.tsx
-import { useRef as useRef6 } from "react";
-import { Fragment as Fragment12, jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
+import { useRef as useRef7 } from "react";
+import { Fragment as Fragment13, jsx as jsx23, jsxs as jsxs16 } from "react/jsx-runtime";
 
 // srcts/inputs/searchfield.tsx
-import { Fragment as Fragment13, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
+import { Fragment as Fragment14, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
 function SearchField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx22(Drawn6, { ...props }) : /* @__PURE__ */ jsx22(BoundSearch, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx24(Drawn6, { ...props }) : /* @__PURE__ */ jsx24(BoundSearch, { ...props, bound });
 }
 function BoundSearch({ bound, onChange, onKeyDown, onBlur, onClear, ...props }) {
   const [text, typed] = useTyped(bound);
-  return /* @__PURE__ */ jsxs16(Fragment13, { children: [
-    /* @__PURE__ */ jsx22(
+  return /* @__PURE__ */ jsxs17(Fragment14, { children: [
+    /* @__PURE__ */ jsx24(
       Drawn6,
       {
         ...props,
@@ -9930,34 +10127,34 @@ function BoundSearch({ bound, onChange, onKeyDown, onBlur, onClear, ...props }) 
         }
       }
     ),
-    /* @__PURE__ */ jsx22(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx24(Refusal, { error: bound.error })
   ] });
 }
 function Drawn6({ label, description, errorMessage: errorMessage2, placeholder, className, ...props }) {
-  return /* @__PURE__ */ jsxs16(SearchField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx22(Label, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs16(Group, { className: FIELD3, children: [
-      /* @__PURE__ */ jsx22(Magnifier, {}),
-      /* @__PURE__ */ jsx22(Input, { placeholder, className: INPUT3 }),
-      /* @__PURE__ */ jsx22(FieldButton, { className: "bc:group-data-empty:invisible", children: /* @__PURE__ */ jsx22(Cross, {}) })
+  return /* @__PURE__ */ jsxs17(SearchField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx24(Label, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs17(Group, { className: FIELD3, children: [
+      /* @__PURE__ */ jsx24(Magnifier, {}),
+      /* @__PURE__ */ jsx24(Input, { placeholder, className: INPUT3 }),
+      /* @__PURE__ */ jsx24(FieldButton, { className: "bc:group-data-empty:invisible", children: /* @__PURE__ */ jsx24(Cross, {}) })
     ] }),
-    /* @__PURE__ */ jsx22(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx22(FieldError, { className: styles.alert, children: errorMessage2 })
+    /* @__PURE__ */ jsx24(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx24(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 var FIELD3 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-1 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var INPUT3 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:[&::-webkit-search-cancel-button]:hidden";
 
 // srcts/inputs/select.tsx
-import { useContext as useContext6, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef7, useState as useState8 } from "react";
-import { Fragment as Fragment14, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+import { useContext as useContext6, useLayoutEffect as useLayoutEffect3, useMemo as useMemo2, useRef as useRef8, useState as useState10 } from "react";
+import { Fragment as Fragment15, jsx as jsx25, jsxs as jsxs18 } from "react/jsx-runtime";
 function Select2(props) {
   const { bound, outdated = false, ordered = false, ...rest } = props;
-  if (bound === void 0) return /* @__PURE__ */ jsx23(Drawn7, { ...rest });
-  return /* @__PURE__ */ jsx23(BoundSelect, { ...rest, bound, outdated, ordered });
+  if (bound === void 0) return /* @__PURE__ */ jsx25(Drawn7, { ...rest });
+  return /* @__PURE__ */ jsx25(BoundSelect, { ...rest, bound, outdated, ordered });
 }
 function SelectItem(props) {
-  return /* @__PURE__ */ jsx23(ComboBoxItem, { ...props });
+  return /* @__PURE__ */ jsx25(ComboBoxItem, { ...props });
 }
 function BoundSelect({
   bound,
@@ -9969,11 +10166,11 @@ function BoundSelect({
 }) {
   const several = props.selectionMode === "multiple";
   const values2 = several ? strings(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
-  const [known2, setKnown] = useState8(null);
+  const [known2, setKnown] = useState10(null);
   const unknown2 = props.items === void 0 && typeof props.children === "function";
   const ids3 = unknown2 ? null : known2;
-  const [picks, setPicks] = useState8(null);
-  const pending = useRef7(null);
+  const [picks, setPicks] = useState10(null);
+  const pending = useRef8(null);
   const shown2 = picks ?? values2;
   const asIs = ids3 === null ? values2 : values2.filter((value2) => !ids3.includes(value2));
   const marking = !outdated && ids3 !== null && asIs.length > 0;
@@ -9990,7 +10187,7 @@ function BoundSelect({
       setKnown((last) => last !== null && sameIds(last, next) ? last : next);
     }
   };
-  const line = marking ? /* @__PURE__ */ jsx23(
+  const line = marking ? /* @__PURE__ */ jsx25(
     NotAvailable,
     {
       values: asIs,
@@ -10000,8 +10197,8 @@ function BoundSelect({
     }
   ) : null;
   if (!several) {
-    return /* @__PURE__ */ jsxs17(Fragment14, { children: [
-      /* @__PURE__ */ jsx23(
+    return /* @__PURE__ */ jsxs18(Fragment15, { children: [
+      /* @__PURE__ */ jsx25(
         Drawn7,
         {
           ...common,
@@ -10015,11 +10212,11 @@ function BoundSelect({
         }
       ),
       line,
-      /* @__PURE__ */ jsx23(Refusal, { error: bound.error })
+      /* @__PURE__ */ jsx25(Refusal, { error: bound.error })
     ] });
   }
-  return /* @__PURE__ */ jsxs17(Fragment14, { children: [
-    /* @__PURE__ */ jsx23(
+  return /* @__PURE__ */ jsxs18(Fragment15, { children: [
+    /* @__PURE__ */ jsx25(
       Drawn7,
       {
         ...common,
@@ -10052,7 +10249,7 @@ function BoundSelect({
       }
     ),
     line,
-    /* @__PURE__ */ jsx23(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx25(Refusal, { error: bound.error })
   ] });
 }
 function sameIds(a, b) {
@@ -10062,29 +10259,29 @@ function Drawn7({ label, description, errorMessage: errorMessage2, items, childr
   const value2 = useSameValue(props.value);
   const { locale } = useLocale();
   const list = useMemo2(() => new Intl.ListFormat(locale), [locale]);
-  return /* @__PURE__ */ jsxs17(
+  return /* @__PURE__ */ jsxs18(
     Select,
     {
       ...props,
       value: value2,
       className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx23(Label, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsxs17(Button, { className: TRIGGER, children: [
-          /* @__PURE__ */ jsx23(SelectValue, { className: ({ isPlaceholder }) => isPlaceholder && asIs.length === 0 ? `${VALUE} ${PLACEHOLDER}` : VALUE, children: ({ state: state2, selectedText, defaultChildren, isPlaceholder }) => asIs.length > 0 ? list.format([...state2.selectedItems.map((item) => item.textValue), ...asIs]) : isPlaceholder ? defaultChildren : selectedText || defaultChildren }),
-          /* @__PURE__ */ jsx23(Chevron, {})
+        label === void 0 ? null : /* @__PURE__ */ jsx25(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsxs18(Button, { className: TRIGGER, children: [
+          /* @__PURE__ */ jsx25(SelectValue, { className: ({ isPlaceholder }) => isPlaceholder && asIs.length === 0 ? `${VALUE} ${PLACEHOLDER}` : VALUE, children: ({ state: state2, selectedText, defaultChildren, isPlaceholder }) => asIs.length > 0 ? list.format([...state2.selectedItems.map((item) => item.textValue), ...asIs]) : isPlaceholder ? defaultChildren : selectedText || defaultChildren }),
+          /* @__PURE__ */ jsx25(Chevron, {})
         ] }),
-        /* @__PURE__ */ jsx23(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-        /* @__PURE__ */ jsx23(FieldError, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx23(Popover, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx23(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx23("p", { className: NOTE2, children: "No options" }), className: LISTBOX2, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx23(Collection, { items, children }) }) }),
-        onKnown === void 0 ? null : /* @__PURE__ */ jsx23(Known, { onKnown })
+        /* @__PURE__ */ jsx25(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+        /* @__PURE__ */ jsx25(FieldError, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx25(Popover, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx25(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx25("p", { className: NOTE2, children: "No options" }), className: LISTBOX2, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx25(Collection, { items, children }) }) }),
+        onKnown === void 0 ? null : /* @__PURE__ */ jsx25(Known, { onKnown })
       ]
     }
   );
 }
 function Known({ onKnown }) {
   const state2 = useContext6(SelectStateContext);
-  useLayoutEffect2(() => {
+  useLayoutEffect3(() => {
     if (state2 === null) return;
     const { collection: collection3 } = state2;
     const ids3 = [...collection3.getKeys()].flatMap(
@@ -10102,27 +10299,27 @@ var LISTBOX2 = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-l
 var NOTE2 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/slider.tsx
-import { useContext as useContext7, useLayoutEffect as useLayoutEffect3, useRef as useRef8, useState as useState9 } from "react";
-import { Fragment as Fragment15, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { useContext as useContext7, useLayoutEffect as useLayoutEffect4, useRef as useRef9, useState as useState11 } from "react";
+import { Fragment as Fragment16, jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
 
 // srcts/inputs/switch.tsx
-import { Fragment as Fragment16, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+import { Fragment as Fragment17, jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
 
 // srcts/inputs/tags.tsx
 import { createContext as createContext3, useContext as useContext8 } from "react";
-import { Fragment as Fragment17, jsx as jsx26, jsxs as jsxs20 } from "react/jsx-runtime";
+import { Fragment as Fragment18, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
 var ColorContext = createContext3("gray");
 
 // srcts/inputs/textfield.tsx
-import { Fragment as Fragment18, jsx as jsx27, jsxs as jsxs21 } from "react/jsx-runtime";
+import { Fragment as Fragment19, jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
 function TextField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx27(Drawn8, { ...props }) : /* @__PURE__ */ jsx27(BoundText, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx29(Drawn8, { ...props }) : /* @__PURE__ */ jsx29(BoundText, { ...props, bound });
 }
 function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
   const [text, typed] = useTyped(bound);
   const lines = props.lines ?? 1;
-  return /* @__PURE__ */ jsxs21(Fragment18, { children: [
-    /* @__PURE__ */ jsx27(
+  return /* @__PURE__ */ jsxs22(Fragment19, { children: [
+    /* @__PURE__ */ jsx29(
       Drawn8,
       {
         ...props,
@@ -10145,25 +10342,25 @@ function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx27(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx29(Refusal, { error: bound.error })
   ] });
 }
 function Drawn8({ label, description, errorMessage: errorMessage2, placeholder, lines = 1, className, ...props }) {
-  return /* @__PURE__ */ jsxs21(TextField, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx27(Label, { className: styles.label, children: label }),
-    lines > 1 ? /* @__PURE__ */ jsx27(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx27(Input, { placeholder, className: styles.box }),
-    /* @__PURE__ */ jsx27(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx27(FieldError, { className: styles.alert, children: errorMessage2 })
+  return /* @__PURE__ */ jsxs22(TextField, { ...props, className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx29(Label, { className: styles.label, children: label }),
+    lines > 1 ? /* @__PURE__ */ jsx29(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx29(Input, { placeholder, className: styles.box }),
+    /* @__PURE__ */ jsx29(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx29(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 
 // srcts/inputs/toggle.tsx
-import { createContext as createContext4, useContext as useContext9, useId, useRef as useRef9 } from "react";
-import { Fragment as Fragment19, jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
+import { createContext as createContext4, useContext as useContext9, useId as useId2, useRef as useRef10 } from "react";
+import { Fragment as Fragment20, jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
 function ToggleButton2({ bound, onChange, ...props }) {
-  if (bound === void 0) return /* @__PURE__ */ jsx28(DrawnButton, { ...props, onChange });
-  return /* @__PURE__ */ jsxs22(Fragment19, { children: [
-    /* @__PURE__ */ jsx28(
+  if (bound === void 0) return /* @__PURE__ */ jsx30(DrawnButton, { ...props, onChange });
+  return /* @__PURE__ */ jsxs23(Fragment20, { children: [
+    /* @__PURE__ */ jsx30(
       DrawnButton,
       {
         ...props,
@@ -10174,15 +10371,15 @@ function ToggleButton2({ bound, onChange, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx28(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx30(Refusal, { error: bound.error })
   ] });
 }
 var InGroup = createContext4(false);
 function DrawnButton({ className, ...props }) {
-  const ref = useRef9(null);
+  const ref = useRef10(null);
   const inGroup = useContext9(InGroup);
   useItem(props.id === void 0 ? void 0 : String(props.id), ref);
-  return /* @__PURE__ */ jsx28(
+  return /* @__PURE__ */ jsx30(
     ToggleButton,
     {
       ...props,
@@ -10192,7 +10389,7 @@ function DrawnButton({ className, ...props }) {
   );
 }
 function ToggleButtonGroup2({ bound, outdated = false, ordered = false, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx28(DrawnGroup, { ...props }) : /* @__PURE__ */ jsx28(BoundGroup, { ...props, bound, outdated, ordered });
+  return bound === void 0 ? /* @__PURE__ */ jsx30(DrawnGroup, { ...props }) : /* @__PURE__ */ jsx30(BoundGroup, { ...props, bound, outdated, ordered });
 }
 function BoundGroup({
   bound,
@@ -10207,8 +10404,8 @@ function BoundGroup({
   const shown2 = several ? strings(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
   const gone = lacking(shown2, known2);
   const marking = !outdated && gone.length > 0;
-  return /* @__PURE__ */ jsxs22(Fragment19, { children: [
-    /* @__PURE__ */ jsx28(
+  return /* @__PURE__ */ jsxs23(Fragment20, { children: [
+    /* @__PURE__ */ jsx30(
       DrawnGroup,
       {
         ...props,
@@ -10225,10 +10422,10 @@ function BoundGroup({
           }
           onSelectionChange?.(keys);
         },
-        children: /* @__PURE__ */ jsx28(ItemsContext.Provider, { value: items, children })
+        children: /* @__PURE__ */ jsx30(ItemsContext.Provider, { value: items, children })
       }
     ),
-    marking ? /* @__PURE__ */ jsx28(
+    marking ? /* @__PURE__ */ jsx30(
       NotAvailable,
       {
         values: gone,
@@ -10237,14 +10434,14 @@ function BoundGroup({
         } : void 0
       }
     ) : null,
-    /* @__PURE__ */ jsx28(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx30(Refusal, { error: bound.error })
   ] });
 }
 function DrawnGroup({ label, description, invalid = false, children, className, ...props }) {
-  const labelId = useId();
-  const descriptionId = useId();
+  const labelId = useId2();
+  const descriptionId = useId2();
   const described = description !== void 0 && description !== "";
-  const group = /* @__PURE__ */ jsx28(
+  const group = /* @__PURE__ */ jsx30(
     ToggleButtonGroup,
     {
       ...props,
@@ -10252,14 +10449,14 @@ function DrawnGroup({ label, description, invalid = false, children, className, 
       "aria-describedby": described ? descriptionId : void 0,
       "data-invalid": invalid || void 0,
       className: composeRenderProps(className, (given) => `${GROUP} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx28(InGroup.Provider, { value: true, children })
+      children: /* @__PURE__ */ jsx30(InGroup.Provider, { value: true, children })
     }
   );
   if (label === void 0 && !described) return group;
-  return /* @__PURE__ */ jsxs22("div", { className: styles.field, children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx28("span", { id: labelId, className: styles.label, children: label }),
+  return /* @__PURE__ */ jsxs23("div", { className: styles.field, children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx30("span", { id: labelId, className: styles.label, children: label }),
     group,
-    described ? /* @__PURE__ */ jsx28("p", { id: descriptionId, className: styles.hint, children: description }) : null
+    described ? /* @__PURE__ */ jsx30("p", { id: descriptionId, className: styles.hint, children: description }) : null
   ] });
 }
 var GROUP = "bc:flex bc:w-fit bc:max-w-full bc:flex-wrap bc:gap-0.5 bc:rounded-md bc:border bc:border-border-default bc:p-0.5 bc:font-sans bc:data-[orientation=vertical]:flex-col bc:data-invalid:border-border-danger";
@@ -10267,10 +10464,10 @@ var TOGGLE = "bc:inline-flex bc:min-h-6 bc:cursor-pointer bc:items-center bc:jus
 var ALONE = "bc:rounded-md bc:border bc:border-solid bc:border-border-default bc:data-selected:border-border-accent";
 
 // srcts/inputs/tokenfield.tsx
-import { jsx as jsx29, jsxs as jsxs23 } from "react/jsx-runtime";
+import { jsx as jsx31, jsxs as jsxs24 } from "react/jsx-runtime";
 
 // srcts/actions/dialog.tsx
-import { jsx as jsx30, jsxs as jsxs24 } from "react/jsx-runtime";
+import { jsx as jsx32, jsxs as jsxs25 } from "react/jsx-runtime";
 var showDialog = (args, at) => {
   const doc = at.el.ownerDocument;
   const host = doc.createElement("div");
@@ -10289,20 +10486,15 @@ var showDialog = (args, at) => {
     if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
   }
   flushSync(() => {
-    root.render(/* @__PURE__ */ jsx30(CoreDialog, { args, onClose: hide }));
+    root.render(/* @__PURE__ */ jsx32(CoreDialog, { args, onClose: hide }));
   });
   return () => {
     hide();
   };
 };
 function CoreDialog({ args, onClose }) {
-  const body = useRef10(null);
   const { mount: mount2 } = args;
-  useLayoutEffect4(() => {
-    const el = body.current;
-    return el === null ? void 0 : mount2(el);
-  }, [mount2]);
-  return /* @__PURE__ */ jsx30(
+  return /* @__PURE__ */ jsx32(
     Modal2,
     {
       isOpen: true,
@@ -10310,12 +10502,12 @@ function CoreDialog({ args, onClose }) {
         if (!isOpen) onClose();
       },
       className: WIDTH,
-      children: /* @__PURE__ */ jsx30(Dialog2, { children: /* @__PURE__ */ jsxs24("div", { className: "bc:grid bc:gap-3", children: [
-        /* @__PURE__ */ jsxs24("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
-          /* @__PURE__ */ jsx30(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
-          /* @__PURE__ */ jsx30(Button2, { variant: "secondary", onPress: onClose, children: "Close" })
+      children: /* @__PURE__ */ jsx32(Dialog2, { children: /* @__PURE__ */ jsxs25("div", { className: "bc:grid bc:gap-3", children: [
+        /* @__PURE__ */ jsxs25("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
+          /* @__PURE__ */ jsx32(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
+          /* @__PURE__ */ jsx32(Button2, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
-        /* @__PURE__ */ jsx30("div", { ref: body, className: "bc:min-w-0" })
+        /* @__PURE__ */ jsx32(Mounted, { mount: mount2, className: "bc:min-w-0" })
       ] }) })
     }
   );
@@ -10326,7 +10518,7 @@ var WIDTH = "bc:min-w-[min(420px,100%)]";
 import { useEffect, useRef as useRef11, useSyncExternalStore } from "react";
 import { flushSync as flushSync2 } from "react-dom";
 import { createRoot as createRoot2 } from "react-dom/client";
-import { Fragment as Fragment20, jsx as jsx31, jsxs as jsxs25 } from "react/jsx-runtime";
+import { Fragment as Fragment21, jsx as jsx33, jsxs as jsxs26 } from "react/jsx-runtime";
 var showMenu = (menu, at) => {
   const doc = at.el.ownerDocument;
   const host = doc.createElement("div");
@@ -10341,7 +10533,7 @@ var showMenu = (menu, at) => {
   };
   doc.defaultView?.addEventListener("keydown", tab, true);
   flushSync2(() => {
-    root.render(/* @__PURE__ */ jsx31(CoreMenu, { menu, at, insideRef }));
+    root.render(/* @__PURE__ */ jsx33(CoreMenu, { menu, at, insideRef }));
   });
   return () => {
     doc.defaultView?.removeEventListener("keydown", tab, true);
@@ -10357,9 +10549,9 @@ function CoreMenu({ menu, at, insideRef }) {
   const anchor = useRef11(null);
   const { x, y, width, height } = at.anchor;
   const tip = openTip(at.el.ownerDocument.defaultView ?? window);
-  return /* @__PURE__ */ jsxs25(Fragment20, { children: [
-    /* @__PURE__ */ jsx31("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
-    /* @__PURE__ */ jsx31(
+  return /* @__PURE__ */ jsxs26(Fragment21, { children: [
+    /* @__PURE__ */ jsx33("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
+    /* @__PURE__ */ jsx33(
       Popover2,
       {
         triggerRef: anchor,
@@ -10370,7 +10562,7 @@ function CoreMenu({ menu, at, insideRef }) {
           if (!open) void menu.close().catch(() => void 0);
         },
         className: "bc:max-w-80 bc:min-w-45",
-        children: /* @__PURE__ */ jsx31(
+        children: /* @__PURE__ */ jsx33(
           "div",
           {
             ref: (el) => {
@@ -10396,7 +10588,7 @@ function CoreMenu({ menu, at, insideRef }) {
                 void menu.pick().catch(() => void 0);
               }
             },
-            children: /* @__PURE__ */ jsx31(Level, { menu, level, insideRef, tip }, level.id)
+            children: /* @__PURE__ */ jsx33(Level, { menu, level, insideRef, tip }, level.id)
           }
         )
       }
@@ -10439,9 +10631,9 @@ function Level({
     void menu.openAdvanced(i).catch(() => void 0);
   };
   const grouped = groups(listed);
-  const list = /* @__PURE__ */ jsx31(Menu2, { "aria-label": level.label, renderEmptyState: () => /* @__PURE__ */ jsx31("p", { className: NOTE3, children: "No matches" }), children: grouped.map((group, g) => {
+  const list = /* @__PURE__ */ jsx33(Menu2, { "aria-label": level.label, renderEmptyState: () => /* @__PURE__ */ jsx33("p", { className: NOTE3, children: "No matches" }), children: grouped.map((group, g) => {
     const divider = g > 0 && group.category !== grouped[g - 1]?.category;
-    const section = group.kind === "multi" ? /* @__PURE__ */ jsx31(
+    const section = group.kind === "multi" ? /* @__PURE__ */ jsx33(
       MenuSection2,
       {
         id: `multi-${String(group.i)}`,
@@ -10454,10 +10646,10 @@ function Level({
             if (ticked !== choice.picked) menu.tick(group.i, choice.id);
           }
         },
-        children: group.row.choices.map((choice) => /* @__PURE__ */ jsx31(MenuItem2, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
+        children: group.row.choices.map((choice) => /* @__PURE__ */ jsx33(MenuItem2, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
       },
       `multi-${String(group.i)}`
-    ) : /* @__PURE__ */ jsx31(MenuSection2, { id: `items-${String(group.items[0]?.i ?? g)}`, title: group.heading, children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx31(
+    ) : /* @__PURE__ */ jsx33(MenuSection2, { id: `items-${String(group.items[0]?.i ?? g)}`, title: group.heading, children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx33(
       Item,
       {
         row,
@@ -10472,12 +10664,12 @@ function Level({
       },
       i
     )) }, `items-${String(group.items[0]?.i ?? g)}`);
-    return divider ? [/* @__PURE__ */ jsx31(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
+    return divider ? [/* @__PURE__ */ jsx33(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
   }) });
-  return /* @__PURE__ */ jsxs25(Fragment20, { children: [
-    level.advanced ? /* @__PURE__ */ jsxs25("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
-      level.title === void 0 ? null : /* @__PURE__ */ jsx31("p", { className: `${TITLE} bc:min-w-0 bc:flex-1`, children: level.title }),
-      /* @__PURE__ */ jsx31(
+  return /* @__PURE__ */ jsxs26(Fragment21, { children: [
+    level.advanced ? /* @__PURE__ */ jsxs26("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
+      level.title === void 0 ? null : /* @__PURE__ */ jsx33("p", { className: `${TITLE} bc:min-w-0 bc:flex-1`, children: level.title }),
+      /* @__PURE__ */ jsx33(
         "button",
         {
           type: "button",
@@ -10488,12 +10680,12 @@ function Level({
           onClick: () => {
             openAdvanced();
           },
-          children: /* @__PURE__ */ jsx31(OpenIcon, {})
+          children: /* @__PURE__ */ jsx33(OpenIcon, {})
         }
       )
-    ] }) : level.title === void 0 ? null : /* @__PURE__ */ jsx31("p", { className: TITLE, children: level.title }),
-    level.loading ? /* @__PURE__ */ jsx31("p", { role: "status", className: `${NOTE3} bc:animate-[bc-appear_300ms_ease-out_300ms_both]`, children: "Loading\u2026" }) : level.error === void 0 ? /* @__PURE__ */ jsxs25(Fragment20, { children: [
-      texts.map(({ row, i }) => /* @__PURE__ */ jsx31(
+    ] }) : level.title === void 0 ? null : /* @__PURE__ */ jsx33("p", { className: TITLE, children: level.title }),
+    level.loading ? /* @__PURE__ */ jsx33("p", { role: "status", className: `${NOTE3} bc:animate-[bc-appear_300ms_ease-out_300ms_both]`, children: "Loading\u2026" }) : level.error === void 0 ? /* @__PURE__ */ jsxs26(Fragment21, { children: [
+      texts.map(({ row, i }) => /* @__PURE__ */ jsx33(
         TextRow,
         {
           row,
@@ -10506,7 +10698,7 @@ function Level({
         },
         i
       )),
-      level.filter === void 0 ? listed.length === 0 ? null : list : /* @__PURE__ */ jsxs25(
+      level.filter === void 0 ? listed.length === 0 ? null : list : /* @__PURE__ */ jsxs26(
         Autocomplete,
         {
           inputValue: level.filter,
@@ -10514,7 +10706,7 @@ function Level({
             menu.type(value2);
           },
           children: [
-            /* @__PURE__ */ jsx31(TextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx31(
+            /* @__PURE__ */ jsx33(TextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx33(
               Input,
               {
                 "data-filter": "",
@@ -10528,7 +10720,7 @@ function Level({
           ]
         }
       )
-    ] }) : /* @__PURE__ */ jsx31("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger", children: level.error })
+    ] }) : /* @__PURE__ */ jsx33("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger", children: level.error })
   ] });
 }
 function groups(listed) {
@@ -10562,7 +10754,7 @@ function Item({
 }) {
   const { label, icon, detail } = row;
   const removes = row.category === "remove";
-  return /* @__PURE__ */ jsxs25(
+  return /* @__PURE__ */ jsxs26(
     MenuItem2,
     {
       textValue: label,
@@ -10570,12 +10762,12 @@ function Item({
       onAction: onPick,
       className: removes ? REMOVES : void 0,
       children: [
-        /* @__PURE__ */ jsxs25(
+        /* @__PURE__ */ jsxs26(
           "span",
           {
             className: `bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${removes ? "bc:group-data-focused:text-text-danger bc:group-data-hovered:text-text-danger" : ""}`,
             children: [
-              icon === void 0 ? null : /* @__PURE__ */ jsx31(
+              icon === void 0 ? null : /* @__PURE__ */ jsx33(
                 "span",
                 {
                   "aria-hidden": "true",
@@ -10583,13 +10775,13 @@ function Item({
                   dangerouslySetInnerHTML: { __html: icon }
                 }
               ),
-              /* @__PURE__ */ jsx31("span", { className: "bc:min-w-0 bc:truncate", children: label })
+              /* @__PURE__ */ jsx33("span", { className: "bc:min-w-0 bc:truncate", children: label })
             ]
           }
         ),
-        detail === void 0 ? null : /* @__PURE__ */ jsx31("span", { className: "bc:text-xs bc:text-text-muted", children: detail }),
-        row.advanced === true ? /* @__PURE__ */ jsxs25(Fragment20, { children: [
-          /* @__PURE__ */ jsx31(
+        detail === void 0 ? null : /* @__PURE__ */ jsx33("span", { className: "bc:text-xs bc:text-text-muted", children: detail }),
+        row.advanced === true ? /* @__PURE__ */ jsxs26(Fragment21, { children: [
+          /* @__PURE__ */ jsx33(
             "span",
             {
               "aria-hidden": "true",
@@ -10603,17 +10795,17 @@ function Item({
                 event.stopPropagation();
                 onOpen();
               },
-              children: /* @__PURE__ */ jsx31(OpenIcon, {})
+              children: /* @__PURE__ */ jsx33(OpenIcon, {})
             }
           ),
-          /* @__PURE__ */ jsx31(Text, { slot: "description", className: "bc:sr-only", children: tip })
+          /* @__PURE__ */ jsx33(Text, { slot: "description", className: "bc:sr-only", children: tip })
         ] }) : null
       ]
     }
   );
 }
 function OpenIcon() {
-  return /* @__PURE__ */ jsxs25(
+  return /* @__PURE__ */ jsxs26(
     "svg",
     {
       "aria-hidden": "true",
@@ -10626,8 +10818,8 @@ function OpenIcon() {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       children: [
-        /* @__PURE__ */ jsx31("path", { d: "M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" }),
-        /* @__PURE__ */ jsx31("path", { d: "M10 2.5h3.5V6M13.5 2.5 8 8" })
+        /* @__PURE__ */ jsx33("path", { d: "M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" }),
+        /* @__PURE__ */ jsx33("path", { d: "M10 2.5h3.5V6M13.5 2.5 8 8" })
       ]
     }
   );
@@ -10644,7 +10836,7 @@ function TextRow({
   onType,
   onSubmit
 }) {
-  return /* @__PURE__ */ jsx31(
+  return /* @__PURE__ */ jsx33(
     TextField2,
     {
       label: row.label,
@@ -12341,219 +12533,21 @@ import { createRoot as createRoot4 } from "react-dom/client";
 import { useCallback as useCallback8, useEffect as useEffect3, useMemo as useMemo6, useState as useState20 } from "react";
 import { createPortal } from "react-dom";
 
-// srcts/card/footer.tsx
-import { useCallback as useCallback2, useId as useId2, useState as useState10 } from "react";
-import { Fragment as Fragment21, jsx as jsx32, jsxs as jsxs26 } from "react/jsx-runtime";
-var SEVERITIES2 = ["error", "warning", "message"];
-function useFooter(status, notifications) {
-  const shown2 = useShown(status);
-  const opened = useOpened(OPEN_AT_START);
-  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
-}
-function usePills(notifications) {
-  const opened = useOpened(NONE_OPEN);
-  return { status: void 0, shown: void 0, settled: true, notifications, ...opened };
-}
-function useOpened(atStart) {
-  const [open, setOpen] = useState10(atStart);
-  const panel = useId2();
-  const toggle = useCallback2((severity) => {
-    setOpen((was) => {
-      const next = new Set(was);
-      if (!next.delete(severity)) next.add(severity);
-      return next;
-    });
-  }, []);
-  return { open, toggle, panel };
-}
-function Footer({ status, shown: shown2, settled: settled2 }) {
-  return /* @__PURE__ */ jsx32(
-    "footer",
-    {
-      "aria-busy": status?.running === true,
-      "data-status": shown2?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
-      children: shown2?.status === "ready" ? shown2.summary : null
-    }
-  );
-}
-function Pills({
-  status,
-  shown: shown2,
-  settled: settled2,
-  notifications,
-  open,
-  toggle,
-  panel,
-  className = "bc:justify-center bc:px-5"
-}) {
-  const pills = SEVERITIES2.flatMap((severity) => {
-    const n = counted(shown2, notifications, severity);
-    return n === 0 ? [] : [{ severity, n }];
-  });
-  if (pills.length === 0) return null;
-  return /* @__PURE__ */ jsx32(
-    "div",
-    {
-      role: "group",
-      "aria-label": "Status",
-      "aria-busy": status?.running === true,
-      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
-      children: pills.map(({ severity, n }) => {
-        const mark = MARKS[severity];
-        return /* @__PURE__ */ jsxs26(
-          "button",
-          {
-            type: "button",
-            "aria-expanded": open.has(severity),
-            "aria-controls": panel,
-            onClick: () => {
-              toggle(severity);
-            },
-            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
-            children: [
-              /* @__PURE__ */ jsx32(SeverityIcon, { severity }),
-              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
-            ]
-          },
-          severity
-        );
-      })
-    }
-  );
-}
-function Banners({ shown: shown2, notifications, open, panel }) {
-  const listed = notifications.filter(
-    (notification) => open.has(notification.severity)
-  );
-  const reason = shown2?.reason ?? null;
-  if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
-  if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx32("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx32(Banner, { severity, message }, i)) });
-}
-function isSettled(status, shown2) {
-  return status !== void 0 && status === shown2 && !status.running;
-}
-function counted(status, notifications, severity) {
-  const n = notifications.filter((notification) => notification.severity === severity).length;
-  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
-}
-var MARKS = {
-  error: {
-    label: "Error",
-    noun: "error",
-    text: "bc:text-text-danger",
-    tint: "bc:bg-red-500/10",
-    border: "bc:border-border-danger"
-  },
-  warning: {
-    label: "Warning",
-    noun: "warning",
-    text: "bc:text-text-warning",
-    tint: "bc:bg-amber-500/10",
-    border: "bc:border-amber-500"
-  },
-  message: {
-    label: "Message",
-    noun: "message",
-    text: "bc:text-blue-700 bc:dark:text-blue-400",
-    tint: "bc:bg-blue-500/10",
-    border: "bc:border-border-accent"
-  }
-};
-function Banner({ severity, message }) {
-  const mark = MARKS[severity];
-  return /* @__PURE__ */ jsxs26(
-    "li",
-    {
-      "data-severity": severity,
-      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
-      children: [
-        /* @__PURE__ */ jsx32("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx32(SeverityIcon, { severity }) }),
-        /* @__PURE__ */ jsxs26("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
-          /* @__PURE__ */ jsx32("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx32("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
-        ] })
-      ]
-    }
-  );
-}
-function SeverityIcon({ severity }) {
-  return /* @__PURE__ */ jsx32(
-    "svg",
-    {
-      "aria-hidden": "true",
-      viewBox: "0 0 16 16",
-      className: "bc:size-3 bc:shrink-0",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.6,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs26(Fragment21, { children: [
-        /* @__PURE__ */ jsx32("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
-        /* @__PURE__ */ jsx32("path", { d: "M8 6.2v3.2M8 11.6v.1" })
-      ] }) : /* @__PURE__ */ jsxs26(Fragment21, { children: [
-        /* @__PURE__ */ jsx32("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx32("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
-      ] })
-    }
-  );
-}
-function useShown(status) {
-  const [kept, setKept] = useState10(void 0);
-  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
-  if (now !== void 0 && now !== kept) setKept(now);
-  return now ?? kept;
-}
-var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
-var NONE_OPEN = /* @__PURE__ */ new Set();
-
-// srcts/card/mounted.tsx
-import { useLayoutEffect as useLayoutEffect5, useRef as useRef12 } from "react";
-import { jsx as jsx33 } from "react/jsx-runtime";
-function Mounted({
-  mount: mount2,
-  label,
-  className,
-  data
-}) {
-  const ref = useRef12(null);
-  useLayoutEffect5(() => {
-    const el = ref.current;
-    if (el === null) return;
-    const cleanup = mount2(el);
-    return () => {
-      queueMicrotask(cleanup);
-    };
-  }, [mount2]);
-  return /* @__PURE__ */ jsx33("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
-}
-
-// srcts/card/status.ts
-import { useState as useState11 } from "react";
-function useSized(status) {
-  const ready = status?.status === "ready";
-  const [sized, setSized] = useState11(ready);
-  if (ready && !sized) setSized(true);
-  return sized || ready;
-}
-
 // srcts/picker/picker.tsx
 import { useMemo as useMemo5, useState as useState17 } from "react";
 import { flushSync as flushSync4 } from "react-dom";
 
 // srcts/react/hooks.ts
-import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect6, useMemo as useMemo3, useRef as useRef13, useState as useState12, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect5, useMemo as useMemo3, useRef as useRef12, useState as useState12, useSyncExternalStore as useSyncExternalStore2 } from "react";
 function useValue(host, key2, change) {
   const read = typeof key2 === "function" ? key2 : null;
   const name2 = typeof key2 === "function" ? null : key2 ?? ("option" in host ? host.option : "");
   const given = read === null || change === void 0 ? null : { read, change };
   const [value2, setValue] = useState12(() => held3(host, name2, { current: given }));
   const [error, setError] = useState12(null);
-  const binding = useRef13(null);
-  const functions = useRef13(given);
-  useLayoutEffect6(() => {
+  const binding = useRef12(null);
+  const functions = useRef12(given);
+  useLayoutEffect5(() => {
     binding.current = start2(host, name2, functions, setValue, setError);
     return () => {
       const bound = binding.current;
@@ -12561,7 +12555,7 @@ function useValue(host, key2, change) {
       bound?.release();
     };
   }, [host, name2]);
-  useLayoutEffect6(() => {
+  useLayoutEffect5(() => {
     if (read === null || change === void 0) return;
     const last = functions.current;
     if (last !== null && last.read === read && last.change === change) return;
@@ -12764,7 +12758,7 @@ function useSearch(all, texts, none = "No options") {
 import { useState as useState16 } from "react";
 
 // srcts/ui/ui.tsx
-import { useRef as useRef14, useState as useState15 } from "react";
+import { useRef as useRef13, useState as useState15 } from "react";
 import { jsx as jsx41, jsxs as jsxs32 } from "react/jsx-runtime";
 var classes = {
   button: buttons.secondary,
@@ -12788,7 +12782,7 @@ function NameField({
   fill = false
 }) {
   const [text, setText] = useState15(name2);
-  const done = useRef14(false);
+  const done = useRef13(false);
   function finish(submit) {
     if (done.current) return;
     done.current = true;
@@ -13164,7 +13158,7 @@ function without3(errors, key2) {
 }
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback5, useLayoutEffect as useLayoutEffect8, useRef as useRef16, useState as useState18 } from "react";
+import { memo, useCallback as useCallback5, useLayoutEffect as useLayoutEffect7, useRef as useRef15, useState as useState18 } from "react";
 
 // srcts/modules/basic/context.ts
 import { createContext as createContext6, useContext as useContext11 } from "react";
@@ -13176,7 +13170,7 @@ function useFrontEnd() {
 }
 
 // srcts/modules/basic/ui.tsx
-import { useLayoutEffect as useLayoutEffect7, useRef as useRef15 } from "react";
+import { useLayoutEffect as useLayoutEffect6, useRef as useRef14 } from "react";
 import { jsx as jsx44, jsxs as jsxs35 } from "react/jsx-runtime";
 function Dialog3({
   title,
@@ -13184,8 +13178,8 @@ function Dialog3({
   children
 }) {
   const { toasts } = useFrontEnd();
-  const toastsRef = useRef15(null);
-  useLayoutEffect7(() => {
+  const toastsRef = useRef14(null);
+  useLayoutEffect6(() => {
     const inside = toastsRef.current;
     if (inside === null) return;
     return toasts.showIn(inside);
@@ -13227,8 +13221,8 @@ var BlockCard = memo(function BlockCard2({ id: id2, block, prependable, add }) {
   const footer = useFooter(status, notified);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState18(false);
-  const ref = useRef16(null);
-  useLayoutEffect8(() => {
+  const ref = useRef15(null);
+  useLayoutEffect7(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ block: id2 }, el);
   }, [inView2, id2]);
@@ -13421,7 +13415,7 @@ function OptionUi({ id: id2 }) {
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback7, useId as useId3, useLayoutEffect as useLayoutEffect9, useRef as useRef17, useSyncExternalStore as useSyncExternalStore4 } from "react";
+import { useCallback as useCallback7, useId as useId3, useLayoutEffect as useLayoutEffect8, useRef as useRef16, useSyncExternalStore as useSyncExternalStore4 } from "react";
 import { jsx as jsx47, jsxs as jsxs38 } from "react/jsx-runtime";
 function createSections() {
   const collapsed = /* @__PURE__ */ new Set();
@@ -13470,8 +13464,8 @@ function PluginSection({ id: id2, plugin }) {
   const pills = usePills(notified);
   const collapsed = useSyncExternalStore4(sections.subscribe, () => sections.collapsed(id2));
   const body = useId3();
-  const ref = useRef17(null);
-  useLayoutEffect9(() => {
+  const ref = useRef16(null);
+  useLayoutEffect8(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
   }, [inView2, id2]);
@@ -14193,7 +14187,7 @@ import { flushSync as flushSync7 } from "react-dom";
 import { createRoot as createRoot5 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect10, useRef as useRef18, useState as useState24 } from "react";
+import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect9, useRef as useRef17, useState as useState24 } from "react";
 
 // srcts/modules/edit-board/blocks.tsx
 import { useState as useState21 } from "react";
@@ -14974,9 +14968,9 @@ var table = {
 };
 function useRowEditing() {
   const [editing, setEditing] = useState24(false);
-  const closed = useRef18(false);
-  const button = useRef18(null);
-  useLayoutEffect10(() => {
+  const closed = useRef17(false);
+  const button = useRef17(null);
+  useLayoutEffect9(() => {
     if (editing || !closed.current) return;
     closed.current = false;
     button.current?.focus();

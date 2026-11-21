@@ -44,11 +44,11 @@
   "blockr-core.js": [
     "@opentelemetry/api",
     "./vendor-48cbe59f.js",
-    "react",
     "react-dom",
     "react-dom/client",
-    "@blockr/core/react",
-    "react/jsx-runtime"
+    "react",
+    "react/jsx-runtime",
+    "@blockr/core/react"
   ],
   "csv-block.js": [
     "@blockr/core/react",
