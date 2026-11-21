@@ -4,4 +4,5 @@ export interface Measure {
     watch(el: HTMLElement, fn: () => void): () => void;
 }
 export declare function domMeasure(): Measure;
+export declare function visibleBackground(el: HTMLElement): string | null;
 export declare function asHex(colour: string): string | null;

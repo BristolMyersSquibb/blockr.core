@@ -84,8 +84,10 @@ export const coreOptions: Readonly<Record<OptionId, Omit<Option, "id">>> = {
 // Like core's utilities and theme variables, the attribute takes core's prefix.
 // The page holds no Bootstrap, so core sets no data-bs-theme.
 // Core reads the attribute in its dark variant, as in `bc:dark:text-gray-100`,
-// in the page's color-scheme and in the dark default of bg-raised.
-// Core also measures an output's info again as the attribute changes.
+// in the page's color-scheme and in the dark defaults of its theme's colors,
+// such as those of its borders.
+// Core measures again the colour behind what rises above the page, such as a
+// menu, as the attribute changes, and an output's info as well.
 // A package that styles the dark theme keys off the attribute as well.
 export function setTheme(theme: Json): void {
   document.documentElement.setAttribute("data-bc-theme", theme === "dark" ? "dark" : "light");

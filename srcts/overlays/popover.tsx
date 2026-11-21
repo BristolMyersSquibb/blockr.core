@@ -6,14 +6,26 @@
 // React Aria draws it in a portal at the end of the page's body, beside the
 // element that it hangs from, and above a modal that is open.
 // It draws on the background that core's theme gives what sits over the
-// board, bg-raised.
+// board, bg-raised, a step lighter than the colour behind its trigger
+// (./raised.ts).
 
 import type { ReactElement } from "react";
-import { composeRenderProps, Popover as AriaPopover } from "../aria/index.ts";
+import { composeRenderProps, Popover as AriaPopover, PopoverContext, useSlottedContext } from "../aria/index.ts";
 import type { PopoverProps } from "../aria/index.ts";
+import { useRaised } from "./raised.ts";
 
 export function Popover({ className, offset = 4, ...props }: PopoverProps): ReactElement {
-  return <AriaPopover {...props} offset={offset} className={composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`)} />;
+  return <RaisedPopover {...props} offset={offset} className={composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`)} />;
+}
+
+// React Aria's Popover with no classes of its own, which rises from its
+// trigger, as the lists of the select and of the combo box do, which draw
+// their own look.
+export function RaisedPopover(props: PopoverProps): ReactElement {
+  // The trigger that a menu, a select or a dialog's trigger gives the popover.
+  const context = useSlottedContext(PopoverContext, props.slot);
+  const raised = useRaised(props.triggerRef ?? context?.triggerRef ?? "parent");
+  return <AriaPopover {...props} ref={raised} data-bc-overlay="" />;
 }
 
 const POPOVER =

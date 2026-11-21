@@ -69,6 +69,7 @@
 import { useContext, useRef, useState } from "react";
 import type { ContextType, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { strings } from "../binding/index.ts";
+import { RaisedPopover } from "../overlays/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import {
@@ -86,7 +87,6 @@ import {
   ListBoxItem,
   ListBoxSection,
   ListLayout,
-  Popover,
   Tag,
   TagGroup,
   TagList,
@@ -288,13 +288,13 @@ function Drawn({
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
       <Lacking multiple={multiple} marking={marking} />
-      <Popover offset={4} className={LIST}>
+      <RaisedPopover offset={4} className={LIST}>
         <Virtualizer layout={ListLayout} layoutOptions={LAYOUT}>
           <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
             {children}
           </ListBox>
         </Virtualizer>
-      </Popover>
+      </RaisedPopover>
     </AriaComboBox>
   );
 }
@@ -514,7 +514,7 @@ export function ComboBoxSection<T extends object>({ title, items, children, ...p
 // field and the button, and draws the outline of the focus while the focus is
 // in it.
 const FIELD =
-  "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+  "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 // The box of the chips and the text field, which wraps the chips onto more
 // lines, while the buttons stay at the field's right.
 const VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";

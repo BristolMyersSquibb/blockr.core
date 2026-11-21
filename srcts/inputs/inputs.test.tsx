@@ -121,6 +121,23 @@ function block(state: Form = form({})) {
 }
 
 describe("the inputs of a block's UI", () => {
+  test("draw their borders in border-field, which stands out more than border-default, the border of a chip", () => {
+    const { inputs } = block(form({ by: ["a"] }));
+    // The colors of an element's border at rest, those of its states aside.
+    const borders = (el: Element | null): string[] => (el?.className ?? "").split(" ").filter((name) => name.startsWith("bc:border-border-"));
+    const group = (input: HTMLElement): Element | null => input.closest('[role="group"]');
+
+    // A number field and a select draw the border on the group that holds the
+    // text field, and a text field on itself.
+    expect(borders(group(inputs.n))).toEqual(["bc:border-border-field"]);
+    expect(borders(group(inputs.direction))).toEqual(["bc:border-border-field"]);
+    expect(borders(inputs.label)).toEqual(["bc:border-border-field"]);
+    // So does the line between a number field's text and its steppers.
+    expect(borders(group(inputs.n)?.querySelector(":scope > div") ?? null)).toEqual(["bc:border-border-field"]);
+    // A chip of a select of several keeps border-default.
+    expect(borders(group(inputs.by)?.querySelector('[role="listitem"], [role="row"]') ?? null)).toEqual(["bc:border-border-default"]);
+  });
+
   test("show the state, and submit nothing until the user acts", async () => {
     const { host, inputs } = block();
     await wait(0);

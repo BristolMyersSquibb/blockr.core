@@ -18,17 +18,20 @@
 // The dialog's title is React Aria's Heading in the slot "title", which
 // names the dialog.
 // The modal draws on the background that core's theme gives what sits over
-// the board, bg-raised.
+// the board, bg-raised, a step lighter than the colour of the page in the
+// middle of the window (./raised.ts).
 
 import type { ReactElement } from "react";
 import { composeRenderProps, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "../aria/index.ts";
 import type { DialogProps, ModalOverlayProps } from "../aria/index.ts";
+import { useRaised } from "./raised.ts";
 
 export function Modal({ className, ...props }: ModalOverlayProps): ReactElement {
+  const raised = useRaised("middle");
   return (
-    <ModalOverlay {...props} className={OVERLAY}>
+    <ModalOverlay {...props} data-bc-overlay="" className={BACKDROP}>
       <div className={CENTER}>
-        <AriaModal {...props} className={composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`)} />
+        <AriaModal {...props} ref={raised} className={composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`)} />
       </div>
     </ModalOverlay>
   );
@@ -41,7 +44,7 @@ export function Dialog({ className, ...props }: DialogProps): ReactElement {
 // The backdrop covers the whole page, and the box inside it the window, as
 // the variables that React Aria sets on the backdrop measure them, so that
 // the dialog stays in the middle of the window as the page scrolls.
-const OVERLAY = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
+const BACKDROP = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
 const CENTER =
   "bc:sticky bc:top-0 bc:left-0 bc:box-border bc:flex bc:h-(--visual-viewport-height) bc:w-full bc:items-center bc:justify-center bc:p-4";
 const MODAL =

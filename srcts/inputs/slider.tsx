@@ -51,6 +51,7 @@ import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import type { Json } from "../types/json.ts";
 import { jsonEqual } from "../util/index.ts";
+import { useRaised } from "../overlays/index.ts";
 import { NotAvailable, Refusal } from "./inputs.tsx";
 import { inRange } from "./numberfield.tsx";
 
@@ -198,7 +199,7 @@ function Drawn({ label, thumbLabels, fillOffset, said, invalid = false, watch, c
               <SliderFill offset={fillOffset} className={FILL} />
             </div>
             {state.values.map((_, i) => (
-              <SliderThumb key={i} index={i} aria-label={thumbLabels?.[i]} className={THUMB} />
+              <Thumb key={i} index={i} label={thumbLabels?.[i]} />
             ))}
           </>
         )}
@@ -219,5 +220,12 @@ const OUTPUT = "bc:text-sm bc:text-text-muted bc:tabular-nums bc:group-data-inva
 const TRACK = "bc:relative bc:col-span-2 bc:flex bc:h-5 bc:items-center bc:mx-2";
 const BAR = "bc:relative bc:h-1.5 bc:w-full bc:rounded-full bc:bg-border-default";
 const FILL = "bc:rounded-full bc:bg-bg-accent bc:group-data-invalid:bg-border-danger";
+// A thumb, which draws on bg-raised, a step lighter than what lies behind the
+// track (../overlays/raised.ts).
+function Thumb({ index, label }: { index: number; label: string | undefined }): ReactElement {
+  const raised = useRaised("parent");
+  return <SliderThumb ref={raised} index={index} aria-label={label} className={THUMB} />;
+}
+
 const THUMB =
   "bc:top-1/2 bc:box-border bc:size-4 bc:cursor-grab bc:rounded-full bc:border-2 bc:border-bg-accent bc:bg-bg-raised bc:shadow-xs bc:outline-offset-2 bc:outline-border-accent bc:data-dragging:cursor-grabbing bc:data-focus-visible:outline-2 bc:data-disabled:cursor-default bc:group-data-invalid:border-border-danger";

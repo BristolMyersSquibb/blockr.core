@@ -320,7 +320,7 @@ var styles = {
   stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
   field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
   label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
   check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
   checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
   fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
@@ -393,7 +393,7 @@ function useHistory(core) {
 
 // srcts/ui/search.ts
 import { useState as useState4 } from "react";
-import { useFilter } from "./vendor-0fd01f5f.js";
+import { useFilter } from "./vendor-d1dac32a.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState4("");

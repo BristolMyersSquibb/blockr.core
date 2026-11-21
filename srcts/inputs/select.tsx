@@ -46,7 +46,6 @@ import {
   FieldError,
   Label,
   ListBox,
-  Popover,
   Select as AriaSelect,
   SelectStateContext,
   SelectValue,
@@ -54,6 +53,7 @@ import {
   useLocale,
 } from "../aria/index.ts";
 import type { Key, ListBoxItemProps, SelectProps as AriaSelectProps, ValidationResult } from "../aria/index.ts";
+import { RaisedPopover } from "../overlays/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import { ComboBoxItem, ComboBoxSection, useSameValue } from "./combobox.tsx";
@@ -246,11 +246,11 @@ function Drawn({ label, description, errorMessage, items, children, asIs = [], o
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
-      <Popover offset={4} className={LIST}>
+      <RaisedPopover offset={4} className={LIST}>
         <ListBox renderEmptyState={() => <p className={NOTE}>No options</p>} className={LISTBOX}>
           {items === undefined ? (typeof children === "function" ? null : children) : <Collection items={items}>{children}</Collection>}
         </ListBox>
-      </Popover>
+      </RaisedPopover>
       {onKnown === undefined ? null : <Known onKnown={onKnown} />}
     </AriaSelect>
   );
@@ -280,7 +280,7 @@ function Known({ onKnown }: { onKnown: (ids: readonly string[]) => void }): null
 // where it holds a value that its items lack.
 // The placeholder takes the muted colour.
 const TRIGGER =
-  "bc:flex bc:min-h-[30px] bc:w-full bc:min-w-0 bc:cursor-pointer bc:items-center bc:gap-2 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-1 bc:pr-1.5 bc:pl-2 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
+  "bc:flex bc:min-h-[30px] bc:w-full bc:min-w-0 bc:cursor-pointer bc:items-center bc:gap-2 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:py-1 bc:pr-1.5 bc:pl-2 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 const VALUE = "bc:min-w-0 bc:flex-1 bc:truncate bc:group-data-invalid:text-text-danger";
 const PLACEHOLDER = "bc:text-text-muted";
 const LIST =

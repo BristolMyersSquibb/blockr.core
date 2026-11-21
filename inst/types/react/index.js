@@ -283,7 +283,7 @@ function useValue(host, key, change) {
   );
 }
 function useRequest(host, name, options = {}) {
-  const [answered, setAnswered] = useState({ answer: void 0, error: null, loading: true });
+  const [answered2, setAnswered] = useState({ answer: void 0, error: null, loading: true });
   const reads = JSON.stringify([options.args ?? {}, options.reads ?? null]);
   useLayoutEffect(() => {
     const [args, extra] = JSON.parse(reads);
@@ -304,7 +304,7 @@ function useRequest(host, name, options = {}) {
       followed.release();
     };
   }, [host, name, reads]);
-  return answered;
+  return answered2;
 }
 function start(host, name, functions, show, refused) {
   const options = {
@@ -512,6 +512,7 @@ import {
   NumberFieldStateContext,
   parseColor,
   Popover,
+  PopoverContext,
   RadioButton,
   RadioField,
   RadioGroup,
@@ -551,6 +552,7 @@ import {
   useDragAndDrop,
   useFilter,
   useLocale,
+  useSlottedContext,
   useTableOptions,
   Virtualizer
 } from "react-aria-components";
@@ -561,7 +563,7 @@ var styles = {
   stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
   field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
   label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
   check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
   checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
   fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
@@ -1095,7 +1097,7 @@ function DrawnGroup({ label, description, errorMessage: errorMessage2, children,
   ] });
 }
 var CHECK = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
-var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";
+var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-field bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";
 
 // srcts/inputs/colorfield.tsx
 import { useContext as useContext2, useState as useState6 } from "react";
@@ -1318,15 +1320,152 @@ var DISABLED = "bc:bg-gray-300 bc:dark:bg-gray-800 bc:forced-colors:bg-[GrayText
 var WHEEL_TRACK = "bc:data-disabled:bg-gray-300 bc:dark:data-disabled:bg-gray-800 bc:forced-colors:data-disabled:bg-[GrayText]";
 var CHECKERBOARD = "repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 16px 16px";
 
+// srcts/overlays/raised.ts
+import { useCallback as useCallback3, useRef as useRef5 } from "react";
+
+// srcts/scheduler/scheduler.ts
+import { ROOT_CONTEXT } from "@opentelemetry/api";
+
+// srcts/protocol/client.ts
+import { context as context3, SpanKind, SpanStatusCode as SpanStatusCode2 } from "@opentelemetry/api";
+
+// srcts/trace/trace.ts
+import { context, isSpanContextValid, SpanStatusCode, trace } from "@opentelemetry/api";
+
+// srcts/trace/steps.ts
+import { context as context2, trace as trace2 } from "@opentelemetry/api";
+
+// srcts/scheduler/status.ts
+var NO_CONDITIONS = Object.freeze([]);
+function unevaluated(revision, running) {
+  return {
+    status: "unevaluated",
+    revision,
+    evaluated: null,
+    running,
+    conditions: NO_CONDITIONS,
+    stdout: "",
+    stderr: "",
+    summary: null,
+    reason: null,
+    unsent: null
+  };
+}
+
+// srcts/mount/measure.ts
+var WHITE = [255, 255, 255, 1];
+function visibleBackground(el) {
+  const layers = [];
+  for (let at = el; at !== null; at = at.parentElement) {
+    const value = getComputedStyle(at).backgroundColor;
+    if (value === "") continue;
+    const colour = asRgba(value);
+    if (colour === null) return null;
+    if (colour[3] >= 1) return hex2(layers.reduceRight(over, colour));
+    if (colour[3] > 0) layers.push(colour);
+  }
+  return hex2(layers.reduceRight(over, behindPage()));
+}
+function behindPage() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "display: none; background-color: Canvas";
+  document.documentElement.append(probe);
+  const colour = asRgba(getComputedStyle(probe).backgroundColor);
+  probe.remove();
+  return colour !== null && colour[3] >= 1 ? colour : WHITE;
+}
+function over(behind, [r, g, b, alpha]) {
+  const mix = (front, back) => front * alpha + back * (1 - alpha);
+  return [mix(r, behind[0]), mix(g, behind[1]), mix(b, behind[2]), 1];
+}
+var RGB = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?)(%?))?\s*\)$/;
+function asRgba(colour) {
+  const text = colour.trim();
+  if (text === "") return null;
+  if (text === "transparent") return [0, 0, 0, 0];
+  const long = /^#[0-9a-f]{3}$/i.test(text) ? text.replace(/[0-9a-f]/gi, "$&$&") : text;
+  if (/^#[0-9a-f]{6}$/i.test(long)) {
+    const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) => parseInt(long.slice(at, at + 2), 16));
+    return [r, g, b, 1];
+  }
+  const rgb = RGB.exec(text);
+  if (rgb !== null) {
+    const [, r = "0", g = "0", b = "0", alpha = "1", percent] = rgb;
+    return [Number(r), Number(g), Number(b), Math.min(1, Number(alpha) / (percent === "%" ? 100 : 1))];
+  }
+  return drawn(text);
+}
+function hex2([r, g, b]) {
+  return `#${[r, g, b].map((c) => Math.round(Math.min(255, Math.max(0, c))).toString(16).padStart(2, "0")).join("")}`;
+}
+function drawn(colour) {
+  try {
+    const context4 = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    if (context4 === null) return null;
+    context4.fillStyle = "#000000";
+    context4.fillStyle = colour;
+    context4.fillRect(0, 0, 1, 1);
+    const [r = 0, g = 0, b = 0, alpha = 0] = context4.getImageData(0, 0, 1, 1).data;
+    return [r, g, b, alpha / 255];
+  } catch {
+    return null;
+  }
+}
+
+// srcts/mount/output.ts
+var EMPTY = Object.freeze({});
+
+// srcts/mount/block.ts
+var NO_STATUS = Object.freeze(unevaluated(0, false));
+
+// srcts/overlays/raised.ts
+function useRaised(from) {
+  const stop = useRef5(null);
+  return useCallback3(
+    (el) => {
+      stop.current?.();
+      stop.current = null;
+      if (el === null) return;
+      const below = origin(el, from);
+      const measure = () => {
+        const colour = below?.isConnected === true ? visibleBackground(below) : null;
+        if (colour === null) el.style.removeProperty(BEHIND);
+        else el.style.setProperty(BEHIND, colour);
+      };
+      measure();
+      const observer = new MutationObserver(measure);
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-bc-theme"] });
+      stop.current = () => {
+        observer.disconnect();
+      };
+    },
+    [from]
+  );
+}
+var BEHIND = "--bc-color-behind";
+var OVERLAY = "[data-bc-overlay]";
+function origin(el, from) {
+  if (from === "parent") return el.parentElement;
+  if (from === "middle") return middle();
+  const at = from.current;
+  return at instanceof HTMLElement ? at : null;
+}
+function middle() {
+  const stack = typeof document.elementsFromPoint === "function" ? document.elementsFromPoint(window.innerWidth / 2, window.innerHeight / 2) : [];
+  const page = stack.find((at) => at.closest(OVERLAY) === null);
+  return page instanceof HTMLElement ? page : document.body;
+}
+
 // srcts/overlays/dialog.tsx
 import { jsx as jsx9 } from "react/jsx-runtime";
 function Modal2({ className, ...props }) {
-  return /* @__PURE__ */ jsx9(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx9("div", { className: CENTER, children: /* @__PURE__ */ jsx9(Modal, { ...props, className: composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
+  const raised = useRaised("middle");
+  return /* @__PURE__ */ jsx9(ModalOverlay, { ...props, "data-bc-overlay": "", className: BACKDROP, children: /* @__PURE__ */ jsx9("div", { className: CENTER, children: /* @__PURE__ */ jsx9(Modal, { ...props, ref: raised, className: composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
 }
 function Dialog2({ className, ...props }) {
   return /* @__PURE__ */ jsx9(Dialog, { ...props, className: `${DIALOG} ${className ?? ""}` });
 }
-var OVERLAY = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
+var BACKDROP = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
 var CENTER = "bc:sticky bc:top-0 bc:left-0 bc:box-border bc:flex bc:h-(--visual-viewport-height) bc:w-full bc:items-center bc:justify-center bc:p-4";
 var MODAL = "bc:box-border bc:max-h-[calc(var(--visual-viewport-height)*.9)] bc:w-full bc:max-w-xl bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-gray-900 bc:shadow-xl bc:outline-none bc:dark:text-gray-100";
 var DIALOG = "bc:relative bc:box-border bc:max-h-[inherit] bc:p-4 bc:outline-none";
@@ -1337,7 +1476,12 @@ import { Children } from "react";
 // srcts/overlays/popover.tsx
 import { jsx as jsx10 } from "react/jsx-runtime";
 function Popover2({ className, offset = 4, ...props }) {
-  return /* @__PURE__ */ jsx10(Popover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx10(RaisedPopover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
+}
+function RaisedPopover(props) {
+  const context4 = useSlottedContext(PopoverContext, props.slot);
+  const raised = useRaised(props.triggerRef ?? context4?.triggerRef ?? "parent");
+  return /* @__PURE__ */ jsx10(Popover, { ...props, ref: raised, "data-bc-overlay": "" });
 }
 var POPOVER = "bc:overflow-auto bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-lg bc:outline-none bc:dark:text-gray-100";
 
@@ -1516,7 +1660,7 @@ function Drawn3({ label, children, isDisabled, ...props }) {
 var BUTTON = "bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded-xs bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/combobox.tsx
-import { useContext as useContext5, useRef as useRef5, useState as useState7 } from "react";
+import { useContext as useContext5, useRef as useRef6, useState as useState7 } from "react";
 import { Fragment as Fragment8, jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
 function ComboBox2(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -1555,7 +1699,7 @@ function BoundSeveral({
   const items = props.items ?? props.defaultItems;
   const held3 = strings(bound.value);
   const [picks, setPicks] = useState7(null);
-  const pending = useRef5(null);
+  const pending = useRef6(null);
   const submit = (next, opened) => {
     const value = merged(strings(bound.get()), opened, next);
     if (value === null) return;
@@ -1575,10 +1719,10 @@ function BoundSeveral({
             pending.current ??= { picks: held3, opened: held3 };
             setPicks(pending.current.picks);
           } else {
-            const left = pending.current;
+            const left2 = pending.current;
             pending.current = null;
             setPicks(null);
-            if (left !== null) submit(left.picks, left.opened);
+            if (left2 !== null) submit(left2.picks, left2.opened);
           }
           onOpenChange?.(isOpen, trigger);
         },
@@ -1654,16 +1798,16 @@ function Drawn4({
         /* @__PURE__ */ jsx15(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx15(FieldError, { className: styles.alert, children: errorMessage2 }),
         /* @__PURE__ */ jsx15(Lacking, { multiple, marking }),
-        /* @__PURE__ */ jsx15(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx15(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx15(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx15("p", { className: NOTE2, children: empty }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx15(RaisedPopover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx15(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx15(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx15("p", { className: NOTE2, children: empty }), className: LISTBOX, children }) }) })
       ]
     }
   );
 }
 function useSameValue(value) {
-  const [drawn, setDrawn] = useState7(value);
-  const same = drawn === value || Array.isArray(drawn) && Array.isArray(value) && sameKeys(drawn, value);
+  const [drawn2, setDrawn] = useState7(value);
+  const same = drawn2 === value || Array.isArray(drawn2) && Array.isArray(value) && sameKeys(drawn2, value);
   if (!same) setDrawn(value);
-  return same ? drawn : value;
+  return same ? drawn2 : value;
 }
 function sameKeys(a, b) {
   return a.length === b.length && a.every((key, i) => key === b[i]);
@@ -1776,7 +1920,7 @@ function ComboBoxSection({ title, items, children, ...props }) {
     /* @__PURE__ */ jsx15(Collection, { items, children })
   ] });
 }
-var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
 var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
 var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
@@ -1948,12 +2092,12 @@ function Segments({ onKey, children }) {
 function DateInput2({ slot, className }) {
   return /* @__PURE__ */ jsx16(DateInput, { slot, className, children: (segment) => /* @__PURE__ */ jsx16(DateSegment, { segment, className: SEGMENT }) });
 }
-var BOX2 = "bc:flex bc:min-w-0 bc:items-center bc:justify-self-stretch bc:overflow-x-auto bc:whitespace-nowrap bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-text bc:[scrollbar-width:none] bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
+var BOX2 = "bc:flex bc:min-w-0 bc:items-center bc:justify-self-stretch bc:overflow-x-auto bc:whitespace-nowrap bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-text bc:[scrollbar-width:none] bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var INLINE = "bc:flex bc:min-w-0 bc:items-center bc:whitespace-nowrap bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-text bc:data-disabled:cursor-default";
 var SEGMENT = "bc:rounded-sm bc:px-0.5 bc:tabular-nums bc:caret-transparent bc:outline-none bc:data-[type=literal]:px-0 bc:data-placeholder:text-text-muted bc:data-focused:bg-bg-accent bc:data-focused:text-text-on-accent";
 
 // srcts/inputs/datepicker.tsx
-import { useRef as useRef6 } from "react";
+import { useRef as useRef7 } from "react";
 import { Fragment as Fragment10, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 function DatePicker2({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx17(DrawnPicker, { ...props }) : /* @__PURE__ */ jsx17(BoundPicker2, { ...props, bound });
@@ -1962,7 +2106,7 @@ function DateRangePicker2({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx17(DrawnRangePicker, { ...props }) : /* @__PURE__ */ jsx17(BoundRangePicker, { ...props, bound });
 }
 function usePicking(value) {
-  const open = useRef6(false);
+  const open = useRef7(false);
   return {
     onOpenChange: (isOpen) => {
       open.current = isOpen;
@@ -2164,7 +2308,7 @@ function Opener() {
     }
   ) });
 }
-var FIELD2 = "bc:flex bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD2 = "bc:flex bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var ENDS = "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:overflow-x-auto bc:[scrollbar-width:none]";
 var POPOVER2 = "bc:p-3";
 
@@ -2173,7 +2317,7 @@ import { jsx as jsx18 } from "react/jsx-runtime";
 function DropZone2({ className, ...props }) {
   return /* @__PURE__ */ jsx18(DropZone, { ...props, className: composeRenderProps(className, (given) => `${ZONE} ${given ?? ""}`) });
 }
-var ZONE = "bc:box-border bc:flex bc:min-h-20 bc:flex-col bc:items-center bc:justify-center bc:gap-2 bc:rounded-lg bc:border bc:border-dashed bc:border-border-default bc:p-4 bc:text-center bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-drop-target:border-solid bc:data-drop-target:border-border-accent bc:data-drop-target:bg-bg-subtle bc:data-disabled:opacity-50";
+var ZONE = "bc:box-border bc:flex bc:min-h-20 bc:flex-col bc:items-center bc:justify-center bc:gap-2 bc:rounded-lg bc:border bc:border-dashed bc:border-border-field bc:p-4 bc:text-center bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-drop-target:border-solid bc:data-drop-target:border-border-accent bc:data-drop-target:bg-bg-subtle bc:data-disabled:opacity-50";
 
 // srcts/inputs/form.tsx
 import { jsx as jsx19 } from "react/jsx-runtime";
@@ -2192,7 +2336,7 @@ function ListBoxItem2(props) {
 var LISTBOX2 = "bc:box-border bc:grid bc:min-w-0 bc:content-start bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-empty:px-2.5 bc:data-empty:py-2 bc:data-empty:italic bc:data-empty:text-text-muted";
 
 // srcts/inputs/numberfield.tsx
-import { useContext as useContext6, useEffect, useRef as useRef7, useState as useState8 } from "react";
+import { useContext as useContext6, useEffect, useRef as useRef8, useState as useState8 } from "react";
 import { Fragment as Fragment11, jsx as jsx21, jsxs as jsxs14 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
@@ -2269,7 +2413,7 @@ function BoundNumber({
 function Watch({ keystrokes, onType }) {
   const state = useContext6(NumberFieldStateContext);
   const value = state?.numberValue ?? NaN;
-  const heard = useRef7(0);
+  const heard = useRef8(0);
   useEffect(() => {
     if (keystrokes === heard.current) return;
     heard.current = keystrokes;
@@ -2282,8 +2426,8 @@ function inRange(value, min, max, step) {
   if (min !== void 0 && value < min) return false;
   if (max !== void 0 && value > max) return false;
   if (step === void 0 || !(step > 0)) return true;
-  const steps = (value - (min ?? 0)) / step;
-  return Math.abs(steps - Math.round(steps)) < 1e-9;
+  const steps2 = (value - (min ?? 0)) / step;
+  return Math.abs(steps2 - Math.round(steps2)) < 1e-9;
 }
 function Drawn5({ label, description, errorMessage: errorMessage2, placeholder, watch, className, onInput, ...props }) {
   return /* @__PURE__ */ jsxs14(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
@@ -2317,13 +2461,13 @@ function Chevron2({ up }) {
     }
   );
 }
-var FIELD3 = "bc:flex bc:min-w-0 bc:items-stretch bc:justify-self-stretch bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD3 = "bc:flex bc:min-w-0 bc:items-stretch bc:justify-self-stretch bc:overflow-hidden bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var INPUT2 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted";
-var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:group-data-invalid:border-border-danger";
+var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-field bc:group-data-invalid:border-border-danger";
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/radio.tsx
-import { useRef as useRef8 } from "react";
+import { useRef as useRef9 } from "react";
 import { Fragment as Fragment12, jsx as jsx22, jsxs as jsxs15 } from "react/jsx-runtime";
 function RadioGroup2({ bound, outdated = false, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx22(DrawnGroup2, { ...props }) : /* @__PURE__ */ jsx22(BoundGroup2, { ...props, bound, outdated });
@@ -2366,7 +2510,7 @@ function DrawnGroup2({ label, description, errorMessage: errorMessage2, children
   ] });
 }
 function Radio({ children, description, className, ...props }) {
-  const ref = useRef8(null);
+  const ref = useRef9(null);
   useItem(props.value, ref);
   return /* @__PURE__ */ jsxs15(RadioField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
     /* @__PURE__ */ jsxs15(RadioButton, { className: composeRenderProps(className, (given) => `bc:group ${RADIO} ${given ?? ""}`), children: [
@@ -2377,7 +2521,7 @@ function Radio({ children, description, className, ...props }) {
   ] });
 }
 var RADIO = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
-var CIRCLE = "bc:box-border bc:size-4 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:transition-[border-width] bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-[5px] bc:group-data-selected:border-bg-accent bc:group-data-invalid:border-border-danger";
+var CIRCLE = "bc:box-border bc:size-4 bc:shrink-0 bc:rounded-full bc:border bc:border-border-field bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:transition-[border-width] bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-[5px] bc:group-data-selected:border-bg-accent bc:group-data-invalid:border-border-danger";
 
 // srcts/inputs/searchfield.tsx
 import { Fragment as Fragment13, jsx as jsx23, jsxs as jsxs16 } from "react/jsx-runtime";
@@ -2427,11 +2571,11 @@ function Drawn6({ label, description, errorMessage: errorMessage2, placeholder, 
     /* @__PURE__ */ jsx23(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
-var FIELD4 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-1 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD4 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:py-0.5 bc:pr-1 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var INPUT3 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:[&::-webkit-search-cancel-button]:hidden";
 
 // srcts/inputs/select.tsx
-import { useContext as useContext7, useLayoutEffect as useLayoutEffect3, useMemo as useMemo3, useRef as useRef9, useState as useState9 } from "react";
+import { useContext as useContext7, useLayoutEffect as useLayoutEffect3, useMemo as useMemo3, useRef as useRef10, useState as useState9 } from "react";
 import { Fragment as Fragment14, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
 function Select2(props) {
   const { bound, outdated = false, ordered = false, ...rest } = props;
@@ -2458,7 +2602,7 @@ function BoundSelect({
   const unknown = props.items === void 0 && typeof props.children === "function";
   const ids2 = unknown ? null : known2;
   const [picks, setPicks] = useState9(null);
-  const pending = useRef9(null);
+  const pending = useRef10(null);
   const shown = picks ?? values;
   const asIs = ids2 === null ? values : values.filter((value) => !ids2.includes(value));
   const marking = !outdated && ids2 !== null && asIs.length > 0;
@@ -2515,10 +2659,10 @@ function BoundSelect({
             pending.current ??= { picks: values, opened: values };
             setPicks(pending.current.picks);
           } else {
-            const left = pending.current;
+            const left2 = pending.current;
             pending.current = null;
             setPicks(null);
-            if (left !== null) submit(left.picks, left.opened);
+            if (left2 !== null) submit(left2.picks, left2.opened);
           }
           onOpenChange?.(isOpen);
         },
@@ -2561,7 +2705,7 @@ function Drawn7({ label, description, errorMessage: errorMessage2, items, childr
         ] }),
         /* @__PURE__ */ jsx24(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx24(FieldError, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx24(Popover, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx24(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx24("p", { className: NOTE3, children: "No options" }), className: LISTBOX3, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx24(Collection, { items, children }) }) }),
+        /* @__PURE__ */ jsx24(RaisedPopover, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx24(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx24("p", { className: NOTE3, children: "No options" }), className: LISTBOX3, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx24(Collection, { items, children }) }) }),
         onKnown === void 0 ? null : /* @__PURE__ */ jsx24(Known, { onKnown })
       ]
     }
@@ -2579,7 +2723,7 @@ function Known({ onKnown }) {
   });
   return null;
 }
-var TRIGGER = "bc:flex bc:min-h-[30px] bc:w-full bc:min-w-0 bc:cursor-pointer bc:items-center bc:gap-2 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-1 bc:pr-1.5 bc:pl-2 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
+var TRIGGER = "bc:flex bc:min-h-[30px] bc:w-full bc:min-w-0 bc:cursor-pointer bc:items-center bc:gap-2 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:py-1 bc:pr-1.5 bc:pl-2 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var VALUE = "bc:min-w-0 bc:flex-1 bc:truncate bc:group-data-invalid:text-text-danger";
 var PLACEHOLDER = "bc:text-text-muted";
 var LIST2 = "bc:box-border bc:min-w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
@@ -2587,7 +2731,7 @@ var LISTBOX3 = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-l
 var NOTE3 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/slider.tsx
-import { useContext as useContext8, useLayoutEffect as useLayoutEffect4, useRef as useRef10, useState as useState10 } from "react";
+import { useContext as useContext8, useLayoutEffect as useLayoutEffect4, useRef as useRef11, useState as useState10 } from "react";
 import { Fragment as Fragment15, jsx as jsx25, jsxs as jsxs18 } from "react/jsx-runtime";
 function Slider3({ bound, outdated = false, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx25(Drawn8, { ...props }) : /* @__PURE__ */ jsx25(BoundSlider, { ...props, bound, outdated });
@@ -2607,14 +2751,14 @@ function BoundSlider({
     setSeen(bound.value);
     setMoving(null);
   }
-  const shown = useRef10([]);
-  const start2 = useRef10(null);
+  const shown = useRef11([]);
+  const start2 = useRef11(null);
   const min = props.minValue ?? 0;
   const fits = (value2) => inRange(value2, min, props.maxValue ?? 100, props.step ?? 1);
   const lacked = moving === null ? held3.filter((value2) => !fits(value2)) : [];
   const marking = !outdated && lacked.length > 0;
-  const drawn = moving ?? (held3.length > 0 ? held3 : [min]);
-  const value = several ? [...drawn] : drawn[0] ?? min;
+  const drawn2 = moving ?? (held3.length > 0 ? held3 : [min]);
+  const value = several ? [...drawn2] : drawn2[0] ?? min;
   const { locale } = useLocale();
   return /* @__PURE__ */ jsxs18(Fragment15, { children: [
     /* @__PURE__ */ jsx25(
@@ -2681,7 +2825,7 @@ function Drawn8({ label, thumbLabels, fillOffset, said, invalid = false, watch, 
         /* @__PURE__ */ jsx25(SliderOutput, { className: OUTPUT2, children: ({ state }) => said === void 0 ? state.getFormattedValue() : said((value) => state.getFormattedValue(value)) }),
         /* @__PURE__ */ jsx25(SliderTrack, { className: TRACK2, children: ({ state }) => /* @__PURE__ */ jsxs18(Fragment15, { children: [
           /* @__PURE__ */ jsx25("div", { className: BAR, children: /* @__PURE__ */ jsx25(SliderFill, { offset: fillOffset, className: FILL }) }),
-          state.values.map((_, i) => /* @__PURE__ */ jsx25(SliderThumb, { index: i, "aria-label": thumbLabels?.[i], className: THUMB2 }, i))
+          state.values.map((_, i) => /* @__PURE__ */ jsx25(Thumb, { index: i, label: thumbLabels?.[i] }, i))
         ] }) }),
         watch
       ]
@@ -2693,6 +2837,10 @@ var OUTPUT2 = "bc:text-sm bc:text-text-muted bc:tabular-nums bc:group-data-inval
 var TRACK2 = "bc:relative bc:col-span-2 bc:flex bc:h-5 bc:items-center bc:mx-2";
 var BAR = "bc:relative bc:h-1.5 bc:w-full bc:rounded-full bc:bg-border-default";
 var FILL = "bc:rounded-full bc:bg-bg-accent bc:group-data-invalid:bg-border-danger";
+function Thumb({ index, label }) {
+  const raised = useRaised("parent");
+  return /* @__PURE__ */ jsx25(SliderThumb, { ref: raised, index, "aria-label": label, className: THUMB2 });
+}
 var THUMB2 = "bc:top-1/2 bc:box-border bc:size-4 bc:cursor-grab bc:rounded-full bc:border-2 bc:border-bg-accent bc:bg-bg-raised bc:shadow-xs bc:outline-offset-2 bc:outline-border-accent bc:data-dragging:cursor-grabbing bc:data-focus-visible:outline-2 bc:data-disabled:cursor-default bc:group-data-invalid:border-border-danger";
 
 // srcts/inputs/switch.tsx
@@ -2725,7 +2873,7 @@ function Drawn9({ children, description, errorMessage: errorMessage2, className,
   ] });
 }
 var SWITCH = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
-var TRACK3 = "bc:box-border bc:flex bc:h-5 bc:w-9 bc:shrink-0 bc:items-center bc:rounded-full bc:border bc:border-border-default bc:bg-bg-subtle bc:px-px bc:outline-offset-2 bc:outline-border-accent bc:transition-colors bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent";
+var TRACK3 = "bc:box-border bc:flex bc:h-5 bc:w-9 bc:shrink-0 bc:items-center bc:rounded-full bc:border bc:border-border-field bc:bg-bg-subtle bc:px-px bc:outline-offset-2 bc:outline-border-accent bc:transition-colors bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent";
 var HANDLE = "bc:size-4 bc:rounded-full bc:bg-text-muted bc:shadow-xs bc:transition-transform bc:group-data-selected:translate-x-full bc:group-data-selected:bg-text-on-accent";
 
 // srcts/inputs/tags.tsx
@@ -2818,7 +2966,7 @@ function Drawn10({ label, description, errorMessage: errorMessage2, placeholder,
 }
 
 // srcts/inputs/toggle.tsx
-import { createContext as createContext4, useContext as useContext10, useId, useRef as useRef11 } from "react";
+import { createContext as createContext4, useContext as useContext10, useId, useRef as useRef12 } from "react";
 import { Fragment as Fragment19, jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
 function ToggleButton2({ bound, onChange, ...props }) {
   if (bound === void 0) return /* @__PURE__ */ jsx29(DrawnButton, { ...props, onChange });
@@ -2839,7 +2987,7 @@ function ToggleButton2({ bound, onChange, ...props }) {
 }
 var InGroup = createContext4(false);
 function DrawnButton({ className, ...props }) {
-  const ref = useRef11(null);
+  const ref = useRef12(null);
   const inGroup = useContext10(InGroup);
   useItem(props.id === void 0 ? void 0 : String(props.id), ref);
   return /* @__PURE__ */ jsx29(
@@ -2945,7 +3093,7 @@ function TokenField2({
 function Token2({ className, ...props }) {
   return /* @__PURE__ */ jsx30(Token, { ...props, className: composeRenderProps(className, (given) => `${TOKEN} ${given ?? ""}`) });
 }
-var INPUT4 = "bc:box-border bc:min-h-[30px] bc:w-full bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focused:outline-2 bc:data-focused:outline-offset-1 bc:data-focused:outline-border-accent bc:data-disabled:opacity-50";
+var INPUT4 = "bc:box-border bc:min-h-[30px] bc:w-full bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focused:outline-2 bc:data-focused:outline-offset-1 bc:data-focused:outline-border-accent bc:data-disabled:opacity-50";
 var TOKEN = "bc:mx-0.5 bc:inline-flex bc:h-5 bc:cursor-default bc:items-center bc:whitespace-nowrap bc:rounded bc:border bc:border-border-accent bc:bg-bg-subtle bc:px-1.5 bc:text-xs bc:text-text-default bc:data-selected:bg-bg-accent bc:data-selected:text-text-on-accent";
 
 // srcts/react/notifications.tsx

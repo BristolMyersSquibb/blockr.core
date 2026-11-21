@@ -6351,7 +6351,7 @@ function createStore(options = {}) {
     if (failures.length > 0) throw new StoreError(refused2, failures);
     return { start: start3, ...run(start3, deltas, {}, refused2) };
   }
-  function apply(delta, origin = "user", opts = {}) {
+  function apply(delta, origin2 = "user", opts = {}) {
     guard2();
     const given = isDeltas(delta) ? delta : [delta];
     if (given.length === 0) return false;
@@ -6363,11 +6363,11 @@ function createStore(options = {}) {
       number(applied, applied.at(-1)?.board ?? start3);
       const undoStep = inverses.length > 0;
       if (undoStep) {
-        history.value = { undo: [...history.value.undo, { origin, inverses }], redo: [] };
+        history.value = { undo: [...history.value.undo, { origin: origin2, inverses }], redo: [] };
       }
       for (const { delta: delta2, board: next } of applied) {
         board.value = next;
-        announce2({ delta: delta2, origin }, next);
+        announce2({ delta: delta2, origin: origin2 }, next);
       }
       return undoStep;
     } finally {
@@ -6385,10 +6385,10 @@ function createStore(options = {}) {
       busy = was;
     }
   }
-  function revert(back, origin) {
+  function revert(back, origin2) {
     guard2();
     const { undo, redo } = history.value;
-    const at = back ? lastStepIndex(undo, origin) : redo.length - 1;
+    const at = back ? lastStepIndex(undo, origin2) : redo.length - 1;
     const step2 = (back ? undo : redo)[at];
     if (step2 === void 0) return;
     busy = true;
@@ -6404,7 +6404,7 @@ function createStore(options = {}) {
       number(applied, applied.at(-1)?.board ?? start3);
       const kept = { origin: step2.origin, inverses };
       history.value = back ? { undo: [...undo.slice(0, at), ...undo.slice(at + 1)], redo: [...redo, kept] } : { undo: [...undo, kept], redo: redo.slice(0, -1) };
-      const asking = origin ?? "user";
+      const asking = origin2 ?? "user";
       for (const { delta, board: next } of applied) {
         board.value = next;
         announce2({ delta, origin: asking }, next);
@@ -6560,13 +6560,13 @@ function createStore(options = {}) {
     dryRun,
     open,
     check: checkText,
-    undo: (origin) => {
-      revert(true, origin);
+    undo: (origin2) => {
+      revert(true, origin2);
     },
     redo: () => {
       revert(false);
     },
-    canUndo: (origin) => lastStepIndex(history.value.undo, origin) >= 0,
+    canUndo: (origin2) => lastStepIndex(history.value.undo, origin2) >= 0,
     canRedo: () => history.value.redo.length > 0,
     plugins: registrations.plugins,
     options: registrations.options,
@@ -6577,8 +6577,8 @@ function createStore(options = {}) {
     editId: (of) => edits.get(target(of))
   };
 }
-function lastStepIndex(steps2, origin) {
-  return origin === void 0 ? steps2.length - 1 : steps2.map((step2) => step2.origin).lastIndexOf(origin);
+function lastStepIndex(steps2, origin2) {
+  return origin2 === void 0 ? steps2.length - 1 : steps2.map((step2) => step2.origin).lastIndexOf(origin2);
 }
 function settled(fn) {
   try {
@@ -7263,12 +7263,12 @@ function createCommands(store, options = {}) {
     }
     return within(() => then(built));
   }
-  function runList(list, origin) {
+  function runList(list, origin2) {
     const ids3 = list.map(({ id: id2 }) => id2);
     return traced(
       "command list",
-      { "blockr.command.ids": ids3, "blockr.delta.origin": origin },
-      () => planned(list, (built) => store.apply(built, origin))
+      { "blockr.command.ids": ids3, "blockr.delta.origin": origin2 },
+      () => planned(list, (built) => store.apply(built, origin2))
     );
   }
   async function traced(name2, attributes, run) {
@@ -7325,13 +7325,13 @@ function createCommands(store, options = {}) {
     // notifier in the options, which CoreApi acts on (../core/core.ts).
     async run(target2, given, third) {
       if (typeof target2 !== "string") return runList(target2, typeof given === "string" ? given : "user");
-      const origin = typeof third === "string" ? third : "user";
-      return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin }, async () => {
+      const origin2 = typeof third === "string" ? third : "user";
+      return traced(`command ${target2}`, { "blockr.command.id": target2, "blockr.delta.origin": origin2 }, async () => {
         const within = keepContext();
         const { item, args } = lookup(target2, given);
         const step2 = deltas(item, args);
         const ready = Array.isArray(step2) ? step2 : await step2;
-        return within(() => store.apply(ready, origin));
+        return within(() => store.apply(ready, origin2));
       });
     },
     async plan(target2, given) {
@@ -8192,7 +8192,7 @@ function kindOf(target2) {
 }
 
 // srcts/actions/menu.tsx
-import { useEffect as useEffect2, useRef as useRef11, useSyncExternalStore } from "react";
+import { useEffect as useEffect2, useRef as useRef12, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
@@ -8268,6 +8268,7 @@ import {
   NumberFieldStateContext,
   parseColor,
   Popover,
+  PopoverContext,
   RadioButton,
   RadioField,
   RadioGroup,
@@ -8307,6 +8308,7 @@ import {
   useDragAndDrop,
   useFilter,
   useLocale,
+  useSlottedContext,
   useTableOptions,
   Virtualizer
 } from "react-aria-components";
@@ -8316,7 +8318,7 @@ var styles = {
   stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
   field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
   label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
   check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
   checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
   fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
@@ -8700,7 +8702,7 @@ function DrawnCheckbox({ children, description, errorMessage: errorMessage2, cla
   ] });
 }
 var CHECK = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
-var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";
+var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justify-center bc:rounded-sm bc:border bc:border-border-field bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-border-accent bc:group-data-selected:bg-bg-accent bc:group-data-selected:text-text-on-accent bc:group-data-indeterminate:border-border-accent bc:group-data-indeterminate:bg-bg-accent bc:group-data-indeterminate:text-text-on-accent bc:group-data-invalid:border-border-danger bc:group-data-selected:group-data-invalid:bg-border-danger";
 
 // srcts/inputs/colorfield.tsx
 import { useContext as useContext2, useState as useState5 } from "react";
@@ -8904,15 +8906,55 @@ var TRACK = "bc:group bc:col-span-2 bc:rounded-md";
 var DISABLED = "bc:bg-gray-300 bc:dark:bg-gray-800 bc:forced-colors:bg-[GrayText]";
 var CHECKERBOARD = "repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 16px 16px";
 
+// srcts/overlays/raised.ts
+import { useCallback as useCallback2, useRef as useRef4 } from "react";
+function useRaised(from) {
+  const stop = useRef4(null);
+  return useCallback2(
+    (el) => {
+      stop.current?.();
+      stop.current = null;
+      if (el === null) return;
+      const below = origin(el, from);
+      const measure = () => {
+        const colour = below?.isConnected === true ? visibleBackground(below) : null;
+        if (colour === null) el.style.removeProperty(BEHIND);
+        else el.style.setProperty(BEHIND, colour);
+      };
+      measure();
+      const observer = new MutationObserver(measure);
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-bc-theme"] });
+      stop.current = () => {
+        observer.disconnect();
+      };
+    },
+    [from]
+  );
+}
+var BEHIND = "--bc-color-behind";
+var OVERLAY = "[data-bc-overlay]";
+function origin(el, from) {
+  if (from === "parent") return el.parentElement;
+  if (from === "middle") return middle();
+  const at = from.current;
+  return at instanceof HTMLElement ? at : null;
+}
+function middle() {
+  const stack = typeof document.elementsFromPoint === "function" ? document.elementsFromPoint(window.innerWidth / 2, window.innerHeight / 2) : [];
+  const page = stack.find((at) => at.closest(OVERLAY) === null);
+  return page instanceof HTMLElement ? page : document.body;
+}
+
 // srcts/overlays/dialog.tsx
 import { jsx as jsx8 } from "react/jsx-runtime";
 function Modal2({ className, ...props }) {
-  return /* @__PURE__ */ jsx8(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx8("div", { className: CENTER, children: /* @__PURE__ */ jsx8(Modal, { ...props, className: composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
+  const raised = useRaised("middle");
+  return /* @__PURE__ */ jsx8(ModalOverlay, { ...props, "data-bc-overlay": "", className: BACKDROP, children: /* @__PURE__ */ jsx8("div", { className: CENTER, children: /* @__PURE__ */ jsx8(Modal, { ...props, ref: raised, className: composeRenderProps(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
 }
 function Dialog2({ className, ...props }) {
   return /* @__PURE__ */ jsx8(Dialog, { ...props, className: `${DIALOG} ${className ?? ""}` });
 }
-var OVERLAY = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
+var BACKDROP = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
 var CENTER = "bc:sticky bc:top-0 bc:left-0 bc:box-border bc:flex bc:h-(--visual-viewport-height) bc:w-full bc:items-center bc:justify-center bc:p-4";
 var MODAL = "bc:box-border bc:max-h-[calc(var(--visual-viewport-height)*.9)] bc:w-full bc:max-w-xl bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-gray-900 bc:shadow-xl bc:outline-none bc:dark:text-gray-100";
 var DIALOG = "bc:relative bc:box-border bc:max-h-[inherit] bc:p-4 bc:outline-none";
@@ -8923,7 +8965,12 @@ import { Children } from "react";
 // srcts/overlays/popover.tsx
 import { jsx as jsx9 } from "react/jsx-runtime";
 function Popover2({ className, offset = 4, ...props }) {
-  return /* @__PURE__ */ jsx9(Popover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx9(RaisedPopover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
+}
+function RaisedPopover(props) {
+  const context4 = useSlottedContext(PopoverContext, props.slot);
+  const raised = useRaised(props.triggerRef ?? context4?.triggerRef ?? "parent");
+  return /* @__PURE__ */ jsx9(Popover, { ...props, ref: raised, "data-bc-overlay": "" });
 }
 var POPOVER = "bc:overflow-auto bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-lg bc:outline-none bc:dark:text-gray-100";
 
@@ -9059,7 +9106,7 @@ function Drawn3({ label, children, isDisabled, ...props }) {
 var BUTTON = "bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded-xs bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/combobox.tsx
-import { useContext as useContext5, useRef as useRef4, useState as useState6 } from "react";
+import { useContext as useContext5, useRef as useRef5, useState as useState6 } from "react";
 import { Fragment as Fragment8, jsx as jsx14, jsxs as jsxs11 } from "react/jsx-runtime";
 function ComboBox2(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -9098,7 +9145,7 @@ function BoundSeveral({
   const items = props.items ?? props.defaultItems;
   const held4 = strings(bound.value);
   const [picks, setPicks] = useState6(null);
-  const pending = useRef4(null);
+  const pending = useRef5(null);
   const submit = (next, opened) => {
     const value2 = merged(strings(bound.get()), opened, next);
     if (value2 === null) return;
@@ -9197,7 +9244,7 @@ function Drawn4({
         /* @__PURE__ */ jsx14(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx14(FieldError, { className: styles.alert, children: errorMessage2 }),
         /* @__PURE__ */ jsx14(Lacking, { multiple, marking }),
-        /* @__PURE__ */ jsx14(Popover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx14(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx14(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx14("p", { className: NOTE, children: empty2 }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx14(RaisedPopover, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx14(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx14(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx14("p", { className: NOTE, children: empty2 }), className: LISTBOX, children }) }) })
       ]
     }
   );
@@ -9319,7 +9366,7 @@ function ComboBoxSection({ title, items, children, ...props }) {
     /* @__PURE__ */ jsx14(Collection, { items, children })
   ] });
 }
-var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var VALUES = "bc:flex bc:min-w-0 bc:flex-1 bc:flex-wrap bc:items-center bc:gap-1";
 var INPUT = "bc:min-w-16 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:disabled:cursor-default";
 var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:data-disabled:cursor-default";
@@ -9336,7 +9383,7 @@ var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text
 import { Fragment as Fragment9, jsx as jsx15, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // srcts/inputs/datepicker.tsx
-import { useRef as useRef5 } from "react";
+import { useRef as useRef6 } from "react";
 import { Fragment as Fragment10, jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // srcts/inputs/dropzone.tsx
@@ -9352,7 +9399,7 @@ function Form2({ className, ...props }) {
 import { jsx as jsx19 } from "react/jsx-runtime";
 
 // srcts/inputs/numberfield.tsx
-import { useContext as useContext6, useEffect, useRef as useRef6, useState as useState7 } from "react";
+import { useContext as useContext6, useEffect, useRef as useRef7, useState as useState7 } from "react";
 import { Fragment as Fragment11, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
@@ -9429,7 +9476,7 @@ function BoundNumber({
 function Watch({ keystrokes, onType }) {
   const state2 = useContext6(NumberFieldStateContext);
   const value2 = state2?.numberValue ?? NaN;
-  const heard = useRef6(0);
+  const heard = useRef7(0);
   useEffect(() => {
     if (keystrokes === heard.current) return;
     heard.current = keystrokes;
@@ -9477,13 +9524,13 @@ function Chevron2({ up }) {
     }
   );
 }
-var FIELD2 = "bc:flex bc:min-w-0 bc:items-stretch bc:justify-self-stretch bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD2 = "bc:flex bc:min-w-0 bc:items-stretch bc:justify-self-stretch bc:overflow-hidden bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var INPUT2 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted";
-var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:group-data-invalid:border-border-danger";
+var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-field bc:group-data-invalid:border-border-danger";
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/radio.tsx
-import { useRef as useRef7 } from "react";
+import { useRef as useRef8 } from "react";
 import { Fragment as Fragment12, jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 
 // srcts/inputs/searchfield.tsx
@@ -9534,11 +9581,11 @@ function Drawn6({ label, description, errorMessage: errorMessage2, placeholder, 
     /* @__PURE__ */ jsx22(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
-var FIELD3 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-1 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:opacity-50";
+var FIELD3 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:py-0.5 bc:pr-1 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var INPUT3 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:[&::-webkit-search-cancel-button]:hidden";
 
 // srcts/inputs/select.tsx
-import { useContext as useContext7, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef8, useState as useState8 } from "react";
+import { useContext as useContext7, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef9, useState as useState8 } from "react";
 import { Fragment as Fragment14, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
 function Select2(props) {
   const { bound, outdated = false, ordered = false, ...rest } = props;
@@ -9562,7 +9609,7 @@ function BoundSelect({
   const unknown2 = props.items === void 0 && typeof props.children === "function";
   const ids3 = unknown2 ? null : known2;
   const [picks, setPicks] = useState8(null);
-  const pending = useRef8(null);
+  const pending = useRef9(null);
   const shown2 = picks ?? values2;
   const asIs = ids3 === null ? values2 : values2.filter((value2) => !ids3.includes(value2));
   const marking = !outdated && ids3 !== null && asIs.length > 0;
@@ -9665,7 +9712,7 @@ function Drawn7({ label, description, errorMessage: errorMessage2, items, childr
         ] }),
         /* @__PURE__ */ jsx23(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
         /* @__PURE__ */ jsx23(FieldError, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx23(Popover, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx23(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx23("p", { className: NOTE2, children: "No options" }), className: LISTBOX2, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx23(Collection, { items, children }) }) }),
+        /* @__PURE__ */ jsx23(RaisedPopover, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx23(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx23("p", { className: NOTE2, children: "No options" }), className: LISTBOX2, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx23(Collection, { items, children }) }) }),
         onKnown === void 0 ? null : /* @__PURE__ */ jsx23(Known, { onKnown })
       ]
     }
@@ -9683,7 +9730,7 @@ function Known({ onKnown }) {
   });
   return null;
 }
-var TRIGGER = "bc:flex bc:min-h-[30px] bc:w-full bc:min-w-0 bc:cursor-pointer bc:items-center bc:gap-2 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-1 bc:pr-1.5 bc:pl-2 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
+var TRIGGER = "bc:flex bc:min-h-[30px] bc:w-full bc:min-w-0 bc:cursor-pointer bc:items-center bc:gap-2 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-field bc:bg-transparent bc:py-1 bc:pr-1.5 bc:pl-2 bc:text-left bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var VALUE = "bc:min-w-0 bc:flex-1 bc:truncate bc:group-data-invalid:text-text-danger";
 var PLACEHOLDER = "bc:text-text-muted";
 var LIST2 = "bc:box-border bc:min-w-(--trigger-width) bc:overflow-hidden bc:rounded-lg bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-md bc:outline-none bc:dark:text-gray-100";
@@ -9691,7 +9738,7 @@ var LISTBOX2 = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-l
 var NOTE2 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/slider.tsx
-import { useContext as useContext8, useLayoutEffect as useLayoutEffect3, useRef as useRef9, useState as useState9 } from "react";
+import { useContext as useContext8, useLayoutEffect as useLayoutEffect3, useRef as useRef10, useState as useState9 } from "react";
 import { Fragment as Fragment15, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
 // srcts/inputs/switch.tsx
@@ -9747,7 +9794,7 @@ function Drawn8({ label, description, errorMessage: errorMessage2, placeholder, 
 }
 
 // srcts/inputs/toggle.tsx
-import { createContext as createContext4, useContext as useContext10, useId, useRef as useRef10 } from "react";
+import { createContext as createContext4, useContext as useContext10, useId, useRef as useRef11 } from "react";
 import { Fragment as Fragment19, jsx as jsx28, jsxs as jsxs22 } from "react/jsx-runtime";
 function ToggleButton2({ bound, onChange, ...props }) {
   if (bound === void 0) return /* @__PURE__ */ jsx28(DrawnButton, { ...props, onChange });
@@ -9768,7 +9815,7 @@ function ToggleButton2({ bound, onChange, ...props }) {
 }
 var InGroup = createContext4(false);
 function DrawnButton({ className, ...props }) {
-  const ref = useRef10(null);
+  const ref = useRef11(null);
   const inGroup = useContext10(InGroup);
   useItem(props.id === void 0 ? void 0 : String(props.id), ref);
   return /* @__PURE__ */ jsx28(
@@ -9887,7 +9934,7 @@ var showMenu = (menu, at) => {
 };
 function CoreMenu({ menu, at, insideRef }) {
   const level = useSyncExternalStore(menu.subscribe, menu.get);
-  const anchor = useRef11(null);
+  const anchor = useRef12(null);
   const { x, y, width, height } = at.anchor;
   return /* @__PURE__ */ jsxs24(Fragment20, { children: [
     /* @__PURE__ */ jsx30("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
@@ -10565,12 +10612,12 @@ function refusing(store, commands, refused2) {
   return {
     store: {
       ...store,
-      apply(delta, origin, opts) {
-        return edit(opts, "apply()", () => store.apply(delta, origin, opts?.undo === false ? { undo: false } : void 0));
+      apply(delta, origin2, opts) {
+        return edit(opts, "apply()", () => store.apply(delta, origin2, opts?.undo === false ? { undo: false } : void 0));
       },
-      undo(origin, opts) {
+      undo(origin2, opts) {
         edit(opts, "undo()", () => {
-          store.undo(origin);
+          store.undo(origin2);
         });
       },
       redo(opts) {
@@ -10585,8 +10632,8 @@ function refusing(store, commands, refused2) {
       // options third, as the command registry takes it.
       run(target2, given, third, fourth) {
         if (typeof target2 === "string") {
-          const origin = typeof third === "string" ? third : void 0;
-          return ran(fourth, () => commands.run(target2, given, origin));
+          const origin2 = typeof third === "string" ? third : void 0;
+          return ran(fourth, () => commands.run(target2, given, origin2));
         }
         const listed = typeof given === "string" ? given : void 0;
         return ran(typeof third === "string" ? void 0 : third, () => commands.run(target2, listed));
@@ -11764,11 +11811,11 @@ import { flushSync as flushSync4 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback8, useEffect as useEffect4, useMemo as useMemo6, useState as useState20 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect4, useMemo as useMemo6, useState as useState20 } from "react";
 import { createPortal } from "react-dom";
 
 // srcts/card/footer.tsx
-import { useCallback as useCallback2, useId as useId2, useState as useState10 } from "react";
+import { useCallback as useCallback3, useId as useId2, useState as useState10 } from "react";
 import { Fragment as Fragment21, jsx as jsx31, jsxs as jsxs25 } from "react/jsx-runtime";
 var SEVERITIES2 = ["error", "warning", "message"];
 function useFooter(status, notifications) {
@@ -11783,7 +11830,7 @@ function usePills(notifications) {
 function useOpened(atStart) {
   const [open, setOpen] = useState10(atStart);
   const panel = useId2();
-  const toggle = useCallback2((severity) => {
+  const toggle = useCallback3((severity) => {
     setOpen((was) => {
       const next = new Set(was);
       if (!next.delete(severity)) next.add(severity);
@@ -11936,7 +11983,7 @@ var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
 var NONE_OPEN = /* @__PURE__ */ new Set();
 
 // srcts/card/mounted.tsx
-import { useLayoutEffect as useLayoutEffect4, useRef as useRef12 } from "react";
+import { useLayoutEffect as useLayoutEffect4, useRef as useRef13 } from "react";
 import { jsx as jsx32 } from "react/jsx-runtime";
 function Mounted({
   mount: mount2,
@@ -11944,7 +11991,7 @@ function Mounted({
   className,
   data
 }) {
-  const ref = useRef12(null);
+  const ref = useRef13(null);
   useLayoutEffect4(() => {
     const el = ref.current;
     if (el === null) return;
@@ -11970,15 +12017,15 @@ import { useMemo as useMemo5, useState as useState17 } from "react";
 import { flushSync as flushSync3 } from "react-dom";
 
 // srcts/react/hooks.ts
-import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect5, useMemo as useMemo3, useRef as useRef13, useState as useState12, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useCallback as useCallback4, useLayoutEffect as useLayoutEffect5, useMemo as useMemo3, useRef as useRef14, useState as useState12, useSyncExternalStore as useSyncExternalStore2 } from "react";
 function useValue(host, key2, change) {
   const read = typeof key2 === "function" ? key2 : null;
   const name2 = typeof key2 === "function" ? null : key2 ?? ("option" in host ? host.option : "");
   const given = read === null || change === void 0 ? null : { read, change };
   const [value2, setValue] = useState12(() => held3(host, name2, { current: given }));
   const [error, setError] = useState12(null);
-  const binding = useRef13(null);
-  const functions = useRef13(given);
+  const binding = useRef14(null);
+  const functions = useRef14(given);
   useLayoutEffect5(() => {
     binding.current = start2(host, name2, functions, setValue, setError);
     return () => {
@@ -12041,7 +12088,7 @@ function readAlike(a, b, state2) {
   }
 }
 function useBoard(core) {
-  const subscribe = useCallback3(
+  const subscribe = useCallback4(
     (notify) => core.store.subscribe(() => {
       notify();
     }),
@@ -12050,7 +12097,7 @@ function useBoard(core) {
   return useSyncExternalStore2(subscribe, () => core.store.board());
 }
 function useStatus(core, block) {
-  const subscribe = useCallback3(
+  const subscribe = useCallback4(
     (notify) => core.scheduler.subscribe((changed) => {
       if (changed.includes(block)) notify();
     }),
@@ -12059,7 +12106,7 @@ function useStatus(core, block) {
   return useSyncExternalStore2(subscribe, () => core.scheduler.status(block));
 }
 function useNotified(core, about) {
-  const subscribe = useCallback3(
+  const subscribe = useCallback4(
     (notify) => core.notifications.subscribe(() => {
       notify();
     }),
@@ -12158,9 +12205,9 @@ function isSentences(x) {
 }
 
 // srcts/ui/hooks.ts
-import { useCallback as useCallback4, useSyncExternalStore as useSyncExternalStore3 } from "react";
+import { useCallback as useCallback5, useSyncExternalStore as useSyncExternalStore3 } from "react";
 function useHistory(core) {
-  const subscribe = useCallback4(
+  const subscribe = useCallback5(
     (notify) => core.store.subscribe(() => {
       notify();
     }),
@@ -12190,7 +12237,7 @@ function useSearch(all, texts, none = "No options") {
 import { useState as useState16 } from "react";
 
 // srcts/ui/ui.tsx
-import { useRef as useRef14, useState as useState15 } from "react";
+import { useRef as useRef15, useState as useState15 } from "react";
 import { jsx as jsx40, jsxs as jsxs31 } from "react/jsx-runtime";
 var classes = {
   button: buttons.secondary,
@@ -12214,7 +12261,7 @@ function NameField({
   fill = false
 }) {
   const [text, setText] = useState15(name2);
-  const done = useRef14(false);
+  const done = useRef15(false);
   function finish(submit) {
     if (done.current) return;
     done.current = true;
@@ -12590,7 +12637,7 @@ function without3(errors, key2) {
 }
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback5, useLayoutEffect as useLayoutEffect7, useRef as useRef16, useState as useState18 } from "react";
+import { memo, useCallback as useCallback6, useLayoutEffect as useLayoutEffect7, useRef as useRef17, useState as useState18 } from "react";
 
 // srcts/modules/basic/context.ts
 import { createContext as createContext6, useContext as useContext12 } from "react";
@@ -12602,7 +12649,7 @@ function useFrontEnd() {
 }
 
 // srcts/modules/basic/ui.tsx
-import { useLayoutEffect as useLayoutEffect6, useRef as useRef15 } from "react";
+import { useLayoutEffect as useLayoutEffect6, useRef as useRef16 } from "react";
 import { jsx as jsx43, jsxs as jsxs34 } from "react/jsx-runtime";
 function Dialog3({
   title,
@@ -12610,7 +12657,7 @@ function Dialog3({
   children
 }) {
   const { toasts } = useFrontEnd();
-  const toastsRef = useRef15(null);
+  const toastsRef = useRef16(null);
   useLayoutEffect6(() => {
     const inside = toastsRef.current;
     if (inside === null) return;
@@ -12653,14 +12700,14 @@ var BlockCard = memo(function BlockCard2({ id: id2, block, prependable, add }) {
   const footer = useFooter(status, notified);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState18(false);
-  const ref = useRef16(null);
+  const ref = useRef17(null);
   useLayoutEffect7(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ block: id2 }, el);
   }, [inView2, id2]);
-  const mountUi = useCallback5((el) => core.mountBlock(el, id2), [core, id2]);
-  const mountOutput2 = useCallback5((el) => core.mountOutput(el, id2), [core, id2]);
-  const focus = useCallback5(() => {
+  const mountUi = useCallback6((el) => core.mountBlock(el, id2), [core, id2]);
+  const mountOutput2 = useCallback6((el) => core.mountOutput(el, id2), [core, id2]);
+  const focus = useCallback6(() => {
     if (core.focus.get() !== id2) core.focus.set(id2);
   }, [core, id2]);
   const locked2 = core.lock.board;
@@ -12823,7 +12870,7 @@ function stackBlocks(board, stack) {
 }
 
 // srcts/modules/basic/options.tsx
-import { useCallback as useCallback6 } from "react";
+import { useCallback as useCallback7 } from "react";
 import { jsx as jsx45, jsxs as jsxs36 } from "react/jsx-runtime";
 function OptionsDialog({ onClose }) {
   const { core } = useFrontEnd();
@@ -12842,12 +12889,12 @@ function OptionsDialog({ onClose }) {
 }
 function OptionUi({ id: id2 }) {
   const { core } = useFrontEnd();
-  const mount2 = useCallback6((el) => core.mountOption(el, id2), [core, id2]);
+  const mount2 = useCallback7((el) => core.mountOption(el, id2), [core, id2]);
   return /* @__PURE__ */ jsx45(Mounted, { mount: mount2 });
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback7, useId as useId3, useLayoutEffect as useLayoutEffect8, useRef as useRef17, useSyncExternalStore as useSyncExternalStore4 } from "react";
+import { useCallback as useCallback8, useId as useId3, useLayoutEffect as useLayoutEffect8, useRef as useRef18, useSyncExternalStore as useSyncExternalStore4 } from "react";
 import { jsx as jsx46, jsxs as jsxs37 } from "react/jsx-runtime";
 function createSections() {
   const collapsed = /* @__PURE__ */ new Set();
@@ -12896,12 +12943,12 @@ function PluginSection({ id: id2, plugin }) {
   const pills = usePills(notified);
   const collapsed = useSyncExternalStore4(sections.subscribe, () => sections.collapsed(id2));
   const body = useId3();
-  const ref = useRef17(null);
+  const ref = useRef18(null);
   useLayoutEffect8(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ plugin: id2 }, el);
   }, [inView2, id2]);
-  const mount2 = useCallback7((el) => core.mountPlugin(el, id2), [core, id2]);
+  const mount2 = useCallback8((el) => core.mountPlugin(el, id2), [core, id2]);
   return /* @__PURE__ */ jsxs37(
     "section",
     {
@@ -13417,10 +13464,10 @@ function Page() {
   const board = useBoard(core);
   const items = useMemo6(() => layoutItems(board), [board]);
   const [dialog, setDialog] = useState20(null);
-  const add = useCallback8((mode) => {
+  const add = useCallback9((mode) => {
     setDialog({ kind: "add", mode });
   }, []);
-  const close = useCallback8(() => {
+  const close = useCallback9(() => {
     setDialog(null);
   }, []);
   const card = (id2) => {
@@ -13673,7 +13720,7 @@ import { flushSync as flushSync6 } from "react-dom";
 import { createRoot as createRoot4 } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback9, useLayoutEffect as useLayoutEffect9, useRef as useRef18, useState as useState24 } from "react";
+import { useCallback as useCallback10, useLayoutEffect as useLayoutEffect9, useRef as useRef19, useState as useState24 } from "react";
 
 // srcts/modules/edit-board/blocks.tsx
 import { useState as useState21 } from "react";
@@ -14454,17 +14501,17 @@ var table = {
 };
 function useRowEditing() {
   const [editing, setEditing] = useState24(false);
-  const closed = useRef18(false);
-  const button = useRef18(null);
+  const closed = useRef19(false);
+  const button = useRef19(null);
   useLayoutEffect9(() => {
     if (editing || !closed.current) return;
     closed.current = false;
     button.current?.focus();
   }, [editing]);
-  const open = useCallback9(() => {
+  const open = useCallback10(() => {
     setEditing(true);
   }, []);
-  const close = useCallback9(() => {
+  const close = useCallback10(() => {
     closed.current = true;
     setEditing(false);
   }, []);
