@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
 import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef3, useState as useState11 } from "react";
-import { useBoard as useBoard2 } from "@blockr/core/react";
+import { Disclosure, DisclosureHeader, DisclosurePanel, useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/modules/edit-board/blocks.tsx
 import { useState as useState8 } from "react";
@@ -247,6 +247,7 @@ var styles = {
 var buttons = {
   primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
   secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
   quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
 };
 
@@ -297,7 +298,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-0fd01f5f.js";
+import { useFilter } from "./vendor-2846f4d1.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2("");
@@ -1545,12 +1546,12 @@ function EditBoard({ core }) {
   ] });
 }
 function Section({ title, count, children }) {
-  return /* @__PURE__ */ jsx9("section", { "aria-label": title, className: "bc:rounded-md bc:border bc:border-border-default", children: /* @__PURE__ */ jsxs8("details", { open: true, className: "bc:group", children: [
-    /* @__PURE__ */ jsxs8("summary", { className: "bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:px-3 bc:py-2 bc:font-sans bc:text-sm bc:font-semibold", children: [
-      /* @__PURE__ */ jsx9("h3", { className: "bc:m-0 bc:text-sm bc:font-semibold", children: title }),
+  return /* @__PURE__ */ jsx9("section", { "aria-label": title, className: "bc:rounded-md bc:border bc:border-border-default", children: /* @__PURE__ */ jsxs8(Disclosure, { defaultExpanded: true, children: [
+    /* @__PURE__ */ jsxs8(DisclosureHeader, { className: "bc:text-sm bc:font-semibold bc:[&>button]:gap-2 bc:[&>button]:px-3 bc:[&>button]:py-2", children: [
+      title,
       /* @__PURE__ */ jsx9("span", { className: "bc:rounded-full bc:border bc:border-border-default bc:px-1.5 bc:text-xs bc:font-normal bc:text-text-muted", children: count })
     ] }),
-    /* @__PURE__ */ jsx9("div", { className: "bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3", children })
+    /* @__PURE__ */ jsx9(DisclosurePanel, { children: /* @__PURE__ */ jsx9("div", { className: "bc:grid bc:gap-4 bc:border-t bc:border-border-default bc:p-3", children }) })
   ] }) });
 }
 function Part({ title, children }) {

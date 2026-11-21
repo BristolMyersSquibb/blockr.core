@@ -28,6 +28,12 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+// The breadcrumbs of the directory in the bar above the list, each with its
+// text and whether it is the current directory, as React Aria marks it.
+function crumbs(el: HTMLElement): (string | null)[][] {
+  return [...el.querySelectorAll('nav [role="link"]')].map((link) => [link.textContent, link.getAttribute("aria-current")]);
+}
+
 // The names of the entries that the list shows, in order.
 function names(el: ParentNode): string[] {
   return rows(el).map((row) => row.querySelector('[role="rowheader"]')?.textContent ?? "");
@@ -52,7 +58,7 @@ async function mounted(state: State) {
   const entries = (): string[] => names(view.el);
   // Clicks an entry of the list, or a directory of the path above it.
   const click = (text: string): void => {
-    const crumb = [...view.el.querySelectorAll<HTMLElement>("nav button")].find((node) => node.textContent === text);
+    const crumb = [...view.el.querySelectorAll<HTMLElement>('nav [role="link"]')].find((node) => node.textContent === text);
     (crumb ?? entry(view.el, text)).click();
   };
   return { host, view, entries, click };
@@ -64,7 +70,10 @@ test("starts at the directory of the block's file, and marks the file", async ()
   expect(host.requested).toEqual([{ name: "list_dir", args: { volume: "here", path: "data" } }]);
   expect(entries()).toEqual(["sales.csv"]);
   expect(find(view.el, '[role="row"][data-current]').querySelector('[role="rowheader"]')?.textContent).toBe("sales.csv");
-  expect(texts(view.el, "nav button")).toEqual(["here", "data"]);
+  expect(crumbs(view.el)).toEqual([
+    ["here", null],
+    ["data", "page"],
+  ]);
   expect(up(view.el).disabled).toBe(false);
   expect(view.el.textContent).toContain("Chosen: ./data/sales.csv");
   expect(host.submitted).toEqual([]);
@@ -194,13 +203,16 @@ test("goes up a directory by the button, and back to one that the path above the
   });
   await settle();
   expect(entries()).toEqual(["data", "notes.txt"]);
-  expect(texts(view.el, "nav button")).toEqual(["here"]);
+  expect(crumbs(view.el)).toEqual([["here", "page"]]);
 
   await step(() => {
     click("data");
   });
   await settle();
-  expect(texts(view.el, "nav button")).toEqual(["here", "data"]);
+  expect(crumbs(view.el)).toEqual([
+    ["here", null],
+    ["data", "page"],
+  ]);
 
   await step(() => {
     click("here");

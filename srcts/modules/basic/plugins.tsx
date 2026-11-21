@@ -4,12 +4,15 @@
 // mounts the module with mountPlugin(), as the frontend shows every block. The
 // frontend reads no member of a plugin class beyond `ui`, so that a plugin
 // needs only its `ui` to show under it.
-// The user collapses and expands each section by the button that holds the
-// plugin's name, and each section starts open. A collapsed section hides the
-// plugin's UI and leaves it mounted, so that the UI keeps what it holds
-// outside the plugin's state. Which sections are collapsed is the page's,
-// which nothing saves or undoes. The plugin is on screen while the element of
-// its UI is in view, which it is not in a collapsed section.
+// Each section is a Disclosure of the SDK, which the user collapses and
+// expands by the button of its header, which holds the plugin's name, and
+// each section starts open. A collapsed section hides the plugin's UI and
+// leaves it mounted, so that the UI keeps what it holds outside the plugin's
+// state. Which sections are collapsed is the page's, which nothing saves or
+// undoes. The plugin is on screen while the element of its UI is in view,
+// which it is not in a collapsed section, since that element hides with the
+// panel rather than only from sight, as the panel of the SDK hides what it
+// holds.
 //
 // A section shows the notifications about its plugin, of every severity,
 // whoever raised them, as Core's basic frontend has it
@@ -23,40 +26,40 @@
 //   collapsed too. Each pill starts closed, since the plugin shows the
 //   notifications in its UI. So the user can still read one that the plugin
 //   does not show, such as why its UI cannot draw.
-// The title is a heading that holds the button, with the pills beside it,
-// rather than the summary of a <details>. A summary acts as a button itself,
-// so the pills' buttons would sit inside it, where a screen reader may not
-// reach them.
+// The header is a heading that holds the button, with the pills beside it,
+// outside the button, so that a screen reader reaches the pills' buttons on
+// their own.
 
-import { useCallback, useId, useLayoutEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { Banners, Mounted, Pills, usePills } from "../../card/index.ts";
-import { useNotified } from "../../react/index.ts";
+import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified } from "../../react/index.ts";
 import type { PluginClassId } from "../../types/board.ts";
 import type { CoreApi, Plugin } from "../../types/core-api.ts";
 import { classes } from "../../ui/index.ts";
 import { useFrontEnd } from "./context.ts";
 
-// Which plugins' sections the user collapsed, for the opening, which
+// Which plugins' sections the user collapsed, or which stacks' groups, for
+// the opening, by the id of the plugin's class or of the stack, which
 // components follow as React's useSyncExternalStore follows a store, and
-// through which show() opens a section.
+// through which show() opens a section or a group.
 export interface Sections {
-  // Whether the user collapsed the plugin's section.
-  readonly collapsed: (plugin: PluginClassId) => boolean;
-  // Collapses the plugin's section, or expands it given false.
-  readonly collapse: (plugin: PluginClassId, collapsed: boolean) => void;
+  // Whether the user collapsed the section or the group.
+  readonly collapsed: (id: string) => boolean;
+  // Collapses the section or the group, or expands it given false.
+  readonly collapse: (id: string, collapsed: boolean) => void;
   readonly subscribe: (fn: () => void) => () => void;
 }
 
 export function createSections(): Sections {
-  const collapsed = new Set<PluginClassId>();
+  const collapsed = new Set<string>();
   const listeners = new Set<() => void>();
   return {
-    collapsed: (plugin) => collapsed.has(plugin),
-    collapse(plugin, collapse) {
-      if (collapsed.has(plugin) === collapse) return;
-      if (collapse) collapsed.add(plugin);
-      else collapsed.delete(plugin);
+    collapsed: (id) => collapsed.has(id),
+    collapse(id, collapse) {
+      if (collapsed.has(id) === collapse) return;
+      if (collapse) collapsed.add(id);
+      else collapsed.delete(id);
       for (const fn of [...listeners]) fn();
     },
     subscribe(fn) {
@@ -108,7 +111,6 @@ function PluginSection({ id, plugin }: { id: PluginClassId; plugin: Plugin }): R
   const notified = useNotified(core, { plugin: id });
   const pills = usePills(notified);
   const collapsed = useSyncExternalStore(sections.subscribe, () => sections.collapsed(id));
-  const body = useId();
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -118,45 +120,27 @@ function PluginSection({ id, plugin }: { id: PluginClassId; plugin: Plugin }): R
   return (
     <section
       aria-label={plugin.name}
-      className={`${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:p-3`}
+      className={`${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`}
     >
-      <div className="bc:flex bc:flex-wrap bc:items-center bc:gap-2">
-        <h3 className={classes.heading}>
-          <button
-            type="button"
-            aria-expanded={!collapsed}
-            aria-controls={body}
-            onClick={() => {
-              sections.collapse(id, !collapsed);
-            }}
-            className="bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1.5 bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:[font:inherit]"
-          >
-            <Marker collapsed={collapsed} />
-            {plugin.name}
-          </button>
-        </h3>
-        <Pills {...pills} className="" />
-      </div>
-      <Banners {...pills} />
-      <div id={body} ref={ref} hidden={collapsed} className="bc:min-w-0">
-        <Mounted mount={mount} className="bc:min-w-0" />
-      </div>
+      <Disclosure
+        isExpanded={!collapsed}
+        onExpandedChange={(expanded) => {
+          sections.collapse(id, !expanded);
+        }}
+      >
+        <div className="bc:grid bc:min-w-0 bc:gap-3">
+          <div className="bc:flex bc:flex-wrap bc:items-center bc:gap-2">
+            <DisclosureHeader>{plugin.name}</DisclosureHeader>
+            <Pills {...pills} className="" />
+          </div>
+          <Banners {...pills} />
+        </div>
+        <DisclosurePanel className="bc:min-w-0">
+          <div ref={ref} hidden={collapsed} className="bc:min-w-0 bc:pt-3">
+            <Mounted mount={mount} className="bc:min-w-0" />
+          </div>
+        </DisclosurePanel>
+      </Disclosure>
     </section>
-  );
-}
-
-// The triangle before a section's name, as a browser draws one before the
-// summary of a <details>: it points at the name while the section is
-// collapsed, and down while it is open.
-function Marker({ collapsed }: { collapsed: boolean }): ReactElement {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      className={`bc:size-3 bc:shrink-0 bc:transition-transform bc:motion-reduce:transition-none ${collapsed ? "" : "bc:rotate-90"}`}
-    >
-      <path d="M5.5 3.5 11 8l-5.5 4.5Z" />
-    </svg>
   );
 }

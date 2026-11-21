@@ -9,28 +9,52 @@
 // controls leave out what a lock fixes themselves, as core's own leave out
 // Open under the load lock, since the store opens no other board there.
 //
+// The controls sit in the SDK's Toolbar, in three groups with a Separator of
+// the SDK between each two: the board options, undo and redo, and the storage
+// controls. Tab moves the focus into the toolbar and out of it again, and the
+// arrow keys move it between the controls.
 // The toolbar draws the storage controls that core.plugins.storage() gives
 // (./storage.ts), and none where the app runs no storage plugin, each kind in
 // its own look:
 // - A button is one of the toolbar's buttons, greyed out while it is disabled.
 // - A menu is a button that opens a list of what the menu holds, the SDK's
-//   menu. A menu in that list shows as a group of its items under its label,
-//   and a menu inside that group as a group of its own after it, since React
-//   Aria's menus hold no group inside a group.
+//   menu. A menu in that list is an item that opens the list of what it
+//   holds beside its row, through the SDK's SubmenuTrigger.
 // - A status is text in the muted colour, and in a menu an item that the user
 //   cannot pick.
-// A control's tooltip shows as the browser's tooltip in the toolbar, and in a
+// A control's tooltip shows in a tooltip of the SDK in the toolbar, and in a
 // menu as the item's description, a muted line below it, since React Aria's
-// menu items take no title.
+// menu items take no tooltip.
+// The trigger of a tooltip in the toolbar takes the focus, so that the user
+// reaches the tooltip with the keyboard too: a button is its own trigger,
+// and a status, as the warning in place of the controls, is text of the role
+// "button", which React Aria asks of the trigger that its Focusable makes,
+// so that a screen reader names the tooltip with it.
+// React Aria shows no tooltip for a disabled button, which takes neither the
+// pointer nor the focus, so the tooltip of a disabled button shows as text in
+// the muted colour after it, which describes the button.
 // A button's shortcut is named to assistive technology in the toolbar, and in
 // a menu shows at the item's right, which React Aria names as well.
 // The toolbar draws the controls again whenever the storage's subscribe()
 // calls back, and as the board changes. Where a button's run() rejects, the
 // frontend logs it, since the storage plugin or core tells the user why.
 
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useId, useReducer, useState } from "react";
 import type { ReactElement } from "react";
-import { Button as SdkButton, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Text } from "../../react/index.ts";
+import {
+  Button as SdkButton,
+  Focusable,
+  Keyboard,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Separator,
+  SubmenuTrigger,
+  Text,
+  Toolbar as SdkToolbar,
+  Tooltip,
+  TooltipTrigger,
+} from "../../react/index.ts";
 import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -90,46 +114,44 @@ export function Toolbar({ board, showOptions }: ToolbarProps): ReactElement {
           Rename
         </button>
       )}
-      <div role="toolbar" aria-label="Board" className="bc:ml-auto bc:flex bc:flex-wrap bc:items-center bc:gap-2">
-        <button
-          type="button"
-          className={classes.button}
-          onClick={() => {
+      <SdkToolbar aria-label="Board" className="bc:ml-auto">
+        <SdkButton
+          variant="secondary"
+          onPress={() => {
             showOptions();
           }}
         >
           Options
-        </button>
-        <button
-          type="button"
-          className={classes.button}
-          disabled={!canUndo}
+        </SdkButton>
+        <Separator orientation="vertical" />
+        <SdkButton
+          variant="secondary"
+          isDisabled={!canUndo}
           aria-keyshortcuts="Control+Z Meta+Z"
-          onClick={() => {
+          onPress={() => {
             step(true);
           }}
         >
           Undo
-        </button>
-        <button
-          type="button"
-          className={classes.button}
-          disabled={!canRedo}
+        </SdkButton>
+        <SdkButton
+          variant="secondary"
+          isDisabled={!canRedo}
           aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y"
-          onClick={() => {
+          onPress={() => {
             step(false);
           }}
         >
           Redo
-        </button>
+        </SdkButton>
         <StorageControls />
-      </div>
+      </SdkToolbar>
     </header>
   );
 }
 
-// The storage controls, or a warning in their place where controls() failed,
-// which tells why in its tooltip.
+// The storage controls after a separator, or a warning in their place where
+// controls() failed, which tells why in its tooltip.
 function StorageControls(): ReactElement | null {
   const { core } = useFrontEnd();
   const storage = core.plugins.storage();
@@ -152,19 +174,17 @@ function StorageControls(): ReactElement | null {
     if (problem !== undefined) core.log("blockr.core").error(problem);
   }, [core, problem]);
 
-  if (drawn === undefined) return null;
-  if (drawn.failed) {
-    return (
-      <span role="alert" title={problem} className="bc:font-sans bc:text-sm bc:text-text-danger">
-        Storage failed
-      </span>
-    );
-  }
+  if (drawn === undefined || (!drawn.failed && drawn.controls.length === 0)) return null;
   return (
     <>
-      {drawn.controls.map((control) => (
-        <Control key={control.id} control={control} />
-      ))}
+      <Separator orientation="vertical" />
+      {drawn.failed ? (
+        <span role="alert" className="bc:font-sans bc:text-sm bc:text-text-danger">
+          <Tipped tooltip={problem}>Storage failed</Tipped>
+        </span>
+      ) : (
+        drawn.controls.map((control) => <Control key={control.id} control={control} />)
+      )}
     </>
   );
 }
@@ -172,34 +192,69 @@ function StorageControls(): ReactElement | null {
 function Control({ control }: { control: StorageControl }): ReactElement {
   switch (control.kind) {
     case "button":
-      return <StorageButton button={control} className={classes.button} />;
+      return <StorageButton button={control} />;
     case "menu":
       return <StorageMenu label={control.label} items={control.items} />;
     case "status":
       return (
-        <span role="status" title={control.tooltip} className="bc:font-sans bc:text-sm bc:text-text-muted">
-          {control.text}
+        <span role="status" className="bc:font-sans bc:text-sm bc:text-text-muted">
+          <Tipped tooltip={control.tooltip}>{control.text}</Tipped>
         </span>
       );
   }
 }
 
-// A button, which runs as the user clicks it.
-function StorageButton({ button, className }: { button: Button; className: string }): ReactElement {
+// A button, which runs as the user presses it, with its tooltip, or the text
+// of its tooltip after it while it is disabled.
+function StorageButton({ button }: { button: Button }): ReactElement {
   const { core } = useFrontEnd();
-  return (
-    <button
-      type="button"
-      className={className}
-      disabled={button.disabled}
-      title={button.tooltip}
+  const reason = useId();
+  const off = button.disabled === true;
+  const drawn = (
+    <SdkButton
+      variant="secondary"
+      isDisabled={off}
       aria-keyshortcuts={ariaShortcuts(button.shortcut)}
-      onClick={() => {
+      aria-describedby={off && button.tooltip !== undefined ? reason : undefined}
+      onPress={() => {
         void runButton(core, button);
       }}
     >
       {button.label}
-    </button>
+    </SdkButton>
+  );
+  if (button.tooltip === undefined) return drawn;
+  if (off) {
+    return (
+      <>
+        {drawn}
+        <span id={reason} className="bc:font-sans bc:text-sm bc:text-text-muted">
+          {button.tooltip}
+        </span>
+      </>
+    );
+  }
+  return (
+    <TooltipTrigger>
+      {drawn}
+      <Tooltip>{button.tooltip}</Tooltip>
+    </TooltipTrigger>
+  );
+}
+
+// A text of the toolbar, as a status, which shows its tooltip where it has
+// one, as the pointer rests on it or the focus moves to it.
+function Tipped({ tooltip, children }: { tooltip: string | undefined; children: string }): ReactElement {
+  if (tooltip === undefined) return <>{children}</>;
+  return (
+    <TooltipTrigger>
+      <Focusable>
+        <span role="button" tabIndex={0} className="bc:cursor-default bc:rounded bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-border-accent">
+          {children}
+        </span>
+      </Focusable>
+      <Tooltip>{tooltip}</Tooltip>
+    </TooltipTrigger>
   );
 }
 
@@ -214,26 +269,27 @@ function StorageMenu({ label, items }: { label: string; items: readonly StorageC
         {label}
         <span aria-hidden="true">▾</span>
       </SdkButton>
-      <Menu aria-label={label}>
-        {groups(label, items).flatMap((group) =>
-          group.title === undefined
-            ? entries(group.items, core, mac)
-            : [
-                <MenuSection key={group.id} id={group.id} title={group.title}>
-                  {entries(group.items, core, mac)}
-                </MenuSection>,
-              ],
-        )}
-      </Menu>
+      <Menu aria-label={label}>{entries(items, core, mac)}</Menu>
     </MenuTrigger>
   );
 }
 
-// The buttons and statuses of a menu, or of one of its groups, as the items of
-// the SDK's menu, each with its tooltip as its description and a button with
-// its shortcut. A status is an item that the user cannot pick.
-function entries(items: readonly Entry[], core: CoreApi, mac: boolean): ReactElement[] {
+// The buttons, statuses and menus of a menu, as the items of the SDK's menu,
+// each button and status with its tooltip as its description and a button
+// with its shortcut. A status is an item that the user cannot pick. A menu is
+// an item that opens what it holds beside its row.
+function entries(items: readonly StorageControl[], core: CoreApi, mac: boolean): ReactElement[] {
   return items.map((item) => {
+    if (item.kind === "menu") {
+      return (
+        <SubmenuTrigger key={item.id}>
+          <MenuItem id={item.id} textValue={item.label}>
+            {item.label}
+          </MenuItem>
+          <Menu aria-label={item.label}>{entries(item.items, core, mac)}</Menu>
+        </SubmenuTrigger>
+      );
+    }
     const label = item.kind === "button" ? item.label : item.text;
     const shortcut = item.kind === "button" ? shortcutLabel(item.shortcut, mac) : undefined;
     return (
@@ -256,22 +312,4 @@ function entries(items: readonly Entry[], core: CoreApi, mac: boolean): ReactEle
       </MenuItem>
     );
   });
-}
-
-// What a menu holds, as groups of buttons and statuses in the order in which
-// the menu holds them: first the menu's own, which the list shows without a
-// title, then each menu inside it, under its label, and each menu inside that
-// one after it.
-type Entry = Exclude<StorageControl, { kind: "menu" }>;
-
-interface Group {
-  readonly id: string;
-  readonly title?: string;
-  readonly items: readonly Entry[];
-}
-
-function groups(id: string, items: readonly StorageControl[], title?: string): Group[] {
-  const own = items.filter((item): item is Entry => item.kind !== "menu");
-  const inner = items.flatMap((item) => (item.kind === "menu" ? groups(`${id}/${item.id}`, item.items, item.label) : []));
-  return [...(own.length === 0 && title === undefined ? [] : [{ id, title, items: own }]), ...inner];
 }

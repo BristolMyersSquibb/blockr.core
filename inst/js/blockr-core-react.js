@@ -250,7 +250,7 @@ var Boundary = class extends Component {
 };
 
 // srcts/inputs/button.tsx
-import { Button as AriaButton, composeRenderProps } from "./vendor-0fd01f5f.js";
+import { Button as AriaButton, composeRenderProps } from "./vendor-2846f4d1.js";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -269,13 +269,21 @@ var styles = {
 var buttons = {
   primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
   secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
   quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
 };
 
 // srcts/inputs/button.tsx
 import { jsx as jsx2 } from "react/jsx-runtime";
-function Button({ variant = "primary", className, ...props }) {
-  return /* @__PURE__ */ jsx2(AriaButton, { ...props, className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`) });
+function Button({ variant = "primary", className, "aria-keyshortcuts": shortcuts, ...props }) {
+  return /* @__PURE__ */ jsx2(
+    AriaButton,
+    {
+      ...props,
+      render: shortcuts === void 0 || props.render !== void 0 ? props.render : (dom) => /* @__PURE__ */ jsx2("button", { ...dom, "aria-keyshortcuts": shortcuts }),
+      className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`)
+    }
+  );
 }
 function FieldButton({ className, ...props }) {
   return /* @__PURE__ */ jsx2(AriaButton, { ...props, className: composeRenderProps(className, (given) => `${FIELD_BUTTON} ${given ?? ""}`) });
@@ -295,13 +303,13 @@ import {
   RangeCalendar as AriaRangeCalendar,
   Text,
   useLocale
-} from "./vendor-0fd01f5f.js";
+} from "./vendor-2846f4d1.js";
 
 // srcts/inputs/bounddate.ts
 import { useRef as useRef2, useState as useState2 } from "react";
 
 // srcts/inputs/dates.ts
-import { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "./vendor-0fd01f5f.js";
+import { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "./vendor-2846f4d1.js";
 var DATE = /^\d{4}-\d{2}-\d{2}$/;
 var DATE_TIME = /^(\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}(?::\d{2})?))?$/;
 var TIME = /^\d{2}:\d{2}(?::\d{2})?$/;
@@ -591,7 +599,7 @@ import {
   FieldError,
   Label,
   Text as Text2
-} from "./vendor-0fd01f5f.js";
+} from "./vendor-2846f4d1.js";
 
 // srcts/inputs/icons.tsx
 import { jsx as jsx5, jsxs as jsxs3 } from "react/jsx-runtime";
@@ -610,6 +618,24 @@ function Chevron() {
       "aria-hidden": "true",
       className: "bc:shrink-0 bc:text-text-muted bc:transition-transform bc:group-data-open:rotate-180",
       children: /* @__PURE__ */ jsx5("polyline", { points: "3 4.5 6 7.5 9 4.5" })
+    }
+  );
+}
+function ChevronRight({ size = 12 }) {
+  return /* @__PURE__ */ jsx5(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 12 12",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.4",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      className: "bc:shrink-0 bc:text-text-muted",
+      children: /* @__PURE__ */ jsx5("polyline", { points: "4.5 3 7.5 6 4.5 9" })
     }
   );
 }
@@ -821,11 +847,11 @@ var BOX = "bc:box-border bc:flex bc:size-4 bc:shrink-0 bc:items-center bc:justif
 
 // srcts/inputs/colorfield.tsx
 import { useContext as useContext2, useState as useState6 } from "react";
-import { ColorField as AriaColorField, composeRenderProps as composeRenderProps4, FieldError as FieldError2, Input, Label as Label2, parseColor as parseColor2, Text as Text3 } from "./vendor-0fd01f5f.js";
+import { ColorField as AriaColorField, composeRenderProps as composeRenderProps4, FieldError as FieldError2, Input, Label as Label2, parseColor as parseColor2, Text as Text3 } from "./vendor-2846f4d1.js";
 
 // srcts/inputs/colors.ts
 import { createContext as createContext2, useState as useState5 } from "react";
-import { parseColor } from "./vendor-0fd01f5f.js";
+import { parseColor } from "./vendor-2846f4d1.js";
 var FALLBACK = "#000000";
 function hex(color) {
   return color.getChannelValue("alpha") < 1 ? color.toString("hexa") : color.toString("hex");
@@ -930,7 +956,7 @@ import {
   Label as Label3,
   SliderOutput,
   SliderTrack
-} from "./vendor-0fd01f5f.js";
+} from "./vendor-2846f4d1.js";
 import { Fragment as Fragment4, jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 function ColorThumb({ className, style, ...props }) {
   return /* @__PURE__ */ jsx8(
@@ -1054,63 +1080,140 @@ var WHEEL_TRACK = "bc:data-disabled:bg-gray-300 bc:dark:data-disabled:bg-gray-80
 var CHECKERBOARD = "repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 16px 16px";
 
 // srcts/inputs/colorpicker.tsx
-import { ColorPicker as AriaColorPicker, Button as Button2 } from "./vendor-0fd01f5f.js";
+import { ColorPicker as AriaColorPicker, Button as Button3 } from "./vendor-2846f4d1.js";
 
 // srcts/overlays/dialog.tsx
-import { composeRenderProps as composeRenderProps6, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-0fd01f5f.js";
-import { jsx as jsx9 } from "react/jsx-runtime";
+import { Button as Button2, composeRenderProps as composeRenderProps6, Dialog as AriaDialog, Heading, Modal as AriaModal, ModalOverlay } from "./vendor-2846f4d1.js";
+import { Fragment as Fragment5, jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
 function Modal({ className, ...props }) {
   return /* @__PURE__ */ jsx9(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx9("div", { className: CENTER, children: /* @__PURE__ */ jsx9(AriaModal, { ...props, className: composeRenderProps6(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
 }
 function Dialog({ className, ...props }) {
   return /* @__PURE__ */ jsx9(AriaDialog, { ...props, className: `${DIALOG} ${className ?? ""}` });
 }
-var OVERLAY = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-50 bc:h-(--page-height) bc:w-full bc:bg-black/40";
+function AlertDialog({
+  title,
+  variant = "info",
+  actionLabel,
+  cancelLabel = "Cancel",
+  onAction,
+  children,
+  ...props
+}) {
+  const destructive = variant === "destructive";
+  return /* @__PURE__ */ jsx9(Dialog, { role: "alertdialog", ...props, children: ({ close }) => /* @__PURE__ */ jsxs7(Fragment5, { children: [
+    /* @__PURE__ */ jsx9(Heading, { slot: "title", className: TITLE, children: title }),
+    /* @__PURE__ */ jsx9("span", { className: `bc:absolute bc:top-4 bc:right-4 ${destructive ? "bc:text-text-danger" : "bc:text-blue-700 bc:dark:text-blue-400"}`, children: /* @__PURE__ */ jsx9(Mark, { destructive }) }),
+    /* @__PURE__ */ jsx9("p", { className: "bc:mt-3 bc:mb-0 bc:font-sans bc:text-sm bc:text-text-muted", children }),
+    /* @__PURE__ */ jsxs7("div", { className: "bc:mt-6 bc:flex bc:justify-end bc:gap-2", children: [
+      /* @__PURE__ */ jsx9(Button2, { className: buttons.secondary, onPress: close, children: cancelLabel }),
+      /* @__PURE__ */ jsx9(
+        Button2,
+        {
+          className: destructive ? buttons.destructive : buttons.primary,
+          autoFocus: true,
+          onPress: () => {
+            onAction?.();
+            close();
+          },
+          children: actionLabel
+        }
+      )
+    ] })
+  ] }) });
+}
+function Mark({ destructive }) {
+  return /* @__PURE__ */ jsxs7(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      className: "bc:block bc:size-5",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.4,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      children: [
+        /* @__PURE__ */ jsx9("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx9("path", { d: destructive ? "M8 4.6v4.2M8 11.2v.1" : "M8 7.4v3.6M8 4.9v.1" })
+      ]
+    }
+  );
+}
+var OVERLAY = "bc:absolute bc:top-0 bc:left-0 bc:isolate bc:z-overlay bc:h-(--page-height) bc:w-full bc:bg-black/40";
 var CENTER = "bc:sticky bc:top-0 bc:left-0 bc:box-border bc:flex bc:h-(--visual-viewport-height) bc:w-full bc:items-center bc:justify-center bc:p-4";
 var MODAL = "bc:box-border bc:max-h-[calc(var(--visual-viewport-height)*.9)] bc:w-full bc:max-w-xl bc:overflow-auto bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-gray-900 bc:shadow-xl bc:outline-none bc:dark:text-gray-100";
 var DIALOG = "bc:relative bc:box-border bc:max-h-[inherit] bc:p-4 bc:outline-none";
+var TITLE = "bc:m-0 bc:pr-8 bc:font-sans bc:text-lg bc:font-semibold";
 
 // srcts/overlays/menu.tsx
 import { Children } from "react";
 import {
   Collection,
-  composeRenderProps as composeRenderProps8,
+  composeRenderProps as composeRenderProps9,
   Header,
   Menu as AriaMenu,
   MenuItem as AriaMenuItem,
   MenuSection as AriaMenuSection,
-  MenuTrigger as AriaMenuTrigger
-} from "./vendor-0fd01f5f.js";
+  MenuTrigger as AriaMenuTrigger,
+  SubmenuTrigger as AriaSubmenuTrigger
+} from "./vendor-2846f4d1.js";
 
 // srcts/overlays/popover.tsx
-import { composeRenderProps as composeRenderProps7, Popover as AriaPopover } from "./vendor-0fd01f5f.js";
+import { composeRenderProps as composeRenderProps8, Popover as AriaPopover } from "./vendor-2846f4d1.js";
+
+// srcts/overlays/stacking.ts
+import { composeRenderProps as composeRenderProps7 } from "./vendor-2846f4d1.js";
+var OVERLAY_Z_INDEX = "var(--bc-z-index-overlay)";
+function overlayStyle(style) {
+  return composeRenderProps7(style, (given) => ({ ...given, zIndex: OVERLAY_Z_INDEX }));
+}
+
+// srcts/overlays/popover.tsx
 import { jsx as jsx10 } from "react/jsx-runtime";
-function Popover({ className, offset = 4, ...props }) {
-  return /* @__PURE__ */ jsx10(AriaPopover, { ...props, offset, className: composeRenderProps7(className, (given) => `${POPOVER} ${given ?? ""}`) });
+function Popover({ className, style, offset = 4, ...props }) {
+  return /* @__PURE__ */ jsx10(
+    AriaPopover,
+    {
+      ...props,
+      offset,
+      style: overlayStyle(style),
+      className: composeRenderProps8(className, (given) => `${POPOVER} ${given ?? ""}`)
+    }
+  );
 }
 var POPOVER = "bc:overflow-auto bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-lg bc:outline-none bc:dark:text-gray-100";
 
 // srcts/overlays/menu.tsx
-import { Fragment as Fragment5, jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
 function MenuTrigger({ placement, children, ...props }) {
   const [trigger, menu] = Children.toArray(children);
-  return /* @__PURE__ */ jsxs7(AriaMenuTrigger, { ...props, children: [
+  return /* @__PURE__ */ jsxs8(AriaMenuTrigger, { ...props, children: [
     trigger,
     /* @__PURE__ */ jsx11(Popover, { placement, className: "bc:min-w-44", children: menu })
   ] });
 }
+function SubmenuTrigger({ children, ...props }) {
+  const [trigger, menu] = Children.toArray(children);
+  return /* @__PURE__ */ jsxs8(AriaSubmenuTrigger, { ...props, children: [
+    trigger,
+    /* @__PURE__ */ jsx11(Popover, { offset: -2, crossOffset: -4, className: "bc:min-w-44", children: menu })
+  ] });
+}
 function Menu({ className, ...props }) {
-  return /* @__PURE__ */ jsx11(AriaMenu, { ...props, className: composeRenderProps8(className, (given) => `${MENU} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx11(AriaMenu, { ...props, className: composeRenderProps9(className, (given) => `${MENU} ${given ?? ""}`) });
 }
 function MenuItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
-  return /* @__PURE__ */ jsx11(AriaMenuItem, { ...props, textValue, className: composeRenderProps8(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps8(props.children, (children, { selectionMode, isSelected }) => /* @__PURE__ */ jsxs7(Fragment5, { children: [
+  return /* @__PURE__ */ jsx11(AriaMenuItem, { ...props, textValue, className: composeRenderProps9(props.className, (given) => `${ITEM} ${given ?? ""}`), children: composeRenderProps9(props.children, (children, { selectionMode, isSelected, hasSubmenu }) => /* @__PURE__ */ jsxs8(Fragment6, { children: [
     selectionMode === "none" ? null : /* @__PURE__ */ jsx11("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx11(Tick, {}) : null }),
-    /* @__PURE__ */ jsx11("span", { className: CONTENT, children })
+    /* @__PURE__ */ jsx11("span", { className: CONTENT, children }),
+    hasSubmenu ? /* @__PURE__ */ jsx11(ChevronRight, { size: 14 }) : null
   ] })) });
 }
 function MenuSection({ title, items, children, ...props }) {
-  return /* @__PURE__ */ jsxs7(AriaMenuSection, { ...props, children: [
+  return /* @__PURE__ */ jsxs8(AriaMenuSection, { ...props, children: [
     title === void 0 ? null : /* @__PURE__ */ jsx11(Header, { className: HEADING2, children: title }),
     /* @__PURE__ */ jsx11(Collection, { items, children })
   ] });
@@ -1121,8 +1224,8 @@ var HEADING2 = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibol
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 
 // srcts/overlays/palette.tsx
-import { Autocomplete, useFilter } from "./vendor-0fd01f5f.js";
-import { jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Autocomplete, useFilter } from "./vendor-2846f4d1.js";
+import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
 function CommandPalette({
   isOpen,
   onOpenChange,
@@ -1138,7 +1241,7 @@ function CommandPalette({
   ...menu
 }) {
   const { contains } = useFilter({ sensitivity: "base" });
-  return /* @__PURE__ */ jsx12(Modal, { isDismissable: true, isOpen, onOpenChange, children: /* @__PURE__ */ jsx12(Dialog, { "aria-label": placeholder, className: "bc:flex bc:max-h-[inherit] bc:flex-col bc:gap-2 bc:p-2", children: /* @__PURE__ */ jsxs8(
+  return /* @__PURE__ */ jsx12(Modal, { isDismissable: true, isOpen, onOpenChange, children: /* @__PURE__ */ jsx12(Dialog, { "aria-label": placeholder, className: "bc:flex bc:max-h-[inherit] bc:flex-col bc:gap-2 bc:p-2", children: /* @__PURE__ */ jsxs9(
     Autocomplete,
     {
       filter: filter ?? contains,
@@ -1167,8 +1270,95 @@ function CommandPalette({
 }
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
+// srcts/overlays/sheet.tsx
+import {
+  composeRenderProps as composeRenderProps10,
+  Sheet as AriaSheet,
+  SheetBackdrop,
+  SheetContent,
+  SheetOverlay
+} from "./vendor-2846f4d1.js";
+import { jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+function Sheet({ children, className, overscrollPadding = true, ...props }) {
+  const { snapPoints } = props;
+  return /* @__PURE__ */ jsxs10(SheetOverlay, { ...props, className: composeRenderProps10(className, (given) => `bc:group/sheet bc:z-overlay ${given ?? ""}`), children: [
+    /* @__PURE__ */ jsx13(
+      SheetBackdrop,
+      {
+        className: BACKDROP,
+        swipeAnimation: "bc-sheet-backdrop",
+        swipeAnimationRange: snapPoints === void 0 ? void 0 : { start: snapPoints.length - 1 }
+      }
+    ),
+    /* @__PURE__ */ jsx13(
+      AriaSheet,
+      {
+        overscrollPadding,
+        stackAnimation: "bc-sheet-scale-back",
+        className: ({ position }) => `${SHEET} ${POSITIONS[position]}`,
+        children: /* @__PURE__ */ jsx13(SheetContent, { className: CONTENT2, children })
+      }
+    )
+  ] });
+}
+var BACKDROP = "bc:data-[stack-index=0]:bg-black/40";
+var SHEET = "bc:z-[1] bc:overflow-clip bc:rounded-2xl bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-gray-900 bc:shadow-2xl bc:outline-hidden bc:will-change-transform bc:[transform:perspective(1000px)] bc:forced-colors:bg-[Canvas] bc:dark:text-gray-100";
+var POSITIONS = {
+  bottom: "bc:max-h-[calc(100%-32px)] bc:w-[calc(100%-1rem)] bc:max-w-[800px] bc:origin-[center_-150px]",
+  top: "bc:max-h-[calc(100%-32px)] bc:w-[calc(100%-1rem)] bc:max-w-[800px] bc:origin-[center_150px]",
+  center: "bc:max-h-[calc(100%-32px)] bc:w-[calc(100%-1rem)] bc:max-w-[800px] bc:origin-[center_-150px]",
+  left: "bc:h-[calc(100%-1rem)] bc:w-[300px] bc:origin-[150px_center]",
+  right: "bc:h-[calc(100%-1rem)] bc:w-[300px] bc:origin-[-150px_center]"
+};
+var CONTENT2 = "bc:box-border bc:h-full bc:overflow-hidden bc:overscroll-auto bc:p-6 bc:pb-[calc(--spacing(6)+var(--sheet-scroll-padding-y))] bc:outline-hidden bc:[scrollbar-gutter:stable] bc:group-data-[expanded]/sheet:overflow-auto";
+
+// srcts/overlays/toast.tsx
+import { composeRenderProps as composeRenderProps11, UNSTABLE_Toast as AriaToast, UNSTABLE_ToastRegion as AriaToastRegion } from "./vendor-2846f4d1.js";
+import { UNSTABLE_ToastContent, UNSTABLE_ToastQueue } from "./vendor-2846f4d1.js";
+import { jsx as jsx14 } from "react/jsx-runtime";
+var FADES_FOR = 300;
+function ToastRegion({ className, ...props }) {
+  return /* @__PURE__ */ jsx14(AriaToastRegion, { ...props, className: composeRenderProps11(className, (given) => `${REGION} ${given ?? ""}`) });
+}
+function Toast({ className, style, ...props }) {
+  const { timeout } = props.toast;
+  const fade = timeout === void 0 ? void 0 : { "--bc-toast-fade-at": `${String(Math.max(0, timeout - FADES_FOR))}ms` };
+  return /* @__PURE__ */ jsx14(
+    AriaToast,
+    {
+      ...props,
+      style: composeRenderProps11(style, (given) => ({ ...fade, ...given })),
+      className: composeRenderProps11(className, (given) => `${TOAST} ${timeout === void 0 ? "" : FADE} ${given ?? ""}`)
+    }
+  );
+}
+var REGION = "bc:group/toasts bc:pointer-events-none bc:fixed bc:right-2 bc:bottom-2 bc:z-[calc(var(--bc-z-index-overlay)+1)] bc:m-0 bc:box-border bc:flex bc:max-h-[calc(100dvh-1rem)] bc:w-[21rem] bc:max-w-[calc(100vw-1rem)] bc:flex-col-reverse bc:gap-2 bc:overflow-y-auto bc:p-2 bc:font-sans bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var TOAST = "bc:pointer-events-auto bc:box-border bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:px-3 bc:py-2 bc:text-sm bc:text-gray-900 bc:shadow-lg bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:dark:text-gray-100";
+var FADE = "bc:toast-fade bc:group-data-hovered/toasts:[animation-play-state:paused] bc:group-focus-within/toasts:[animation-play-state:paused]";
+
+// srcts/overlays/tooltip.tsx
+import { composeRenderProps as composeRenderProps12, OverlayArrow, Tooltip as AriaTooltip } from "./vendor-2846f4d1.js";
+import { jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
+function Tooltip({ children, className, style, offset = 8, ...props }) {
+  return /* @__PURE__ */ jsxs11(
+    AriaTooltip,
+    {
+      ...props,
+      offset,
+      style: overlayStyle(style),
+      className: composeRenderProps12(className, (given) => `${TOOLTIP} ${given ?? ""}`),
+      children: [
+        /* @__PURE__ */ jsx15(OverlayArrow, { children: /* @__PURE__ */ jsx15("svg", { width: 8, height: 8, viewBox: "0 0 8 8", className: ARROW, "aria-hidden": "true", children: /* @__PURE__ */ jsx15("path", { d: "M0 0 L4 4 L8 0" }) }) }),
+        children
+      ]
+    }
+  );
+}
+var TOOLTIP = "bc:group bc:box-border bc:max-w-xs bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-gray-900 bc:shadow-md bc:outline-none bc:will-change-transform bc:dark:text-gray-100";
+var ARROW = "bc:block bc:fill-bg-raised bc:stroke-border-default bc:forced-colors:fill-[Canvas] bc:forced-colors:stroke-[ButtonBorder] bc:group-data-[placement=bottom]:rotate-180 bc:group-data-[placement=left]:-rotate-90 bc:group-data-[placement=right]:rotate-90";
+
 // srcts/overlays/index.ts
-import { DialogTrigger, Heading, Keyboard } from "./vendor-0fd01f5f.js";
+import { DialogTrigger, Focusable, Heading as Heading2, Keyboard, TooltipTrigger } from "./vendor-2846f4d1.js";
 
 // srcts/inputs/colorswatches.tsx
 import { useContext as useContext4 } from "react";
@@ -1176,16 +1366,16 @@ import {
   ColorSwatch as AriaColorSwatch,
   ColorSwatchPicker as AriaColorSwatchPicker,
   ColorSwatchPickerItem as AriaColorSwatchPickerItem,
-  composeRenderProps as composeRenderProps9
-} from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment6, jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
+  composeRenderProps as composeRenderProps13
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment7, jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
 function ColorSwatch({ className, style, ...props }) {
-  return /* @__PURE__ */ jsx13(
+  return /* @__PURE__ */ jsx16(
     AriaColorSwatch,
     {
       ...props,
-      className: composeRenderProps9(className, (given) => `${SWATCH} ${given ?? ""}`),
-      style: composeRenderProps9(style, (given, { color }) => ({
+      className: composeRenderProps13(className, (given) => `${SWATCH} ${given ?? ""}`),
+      style: composeRenderProps13(style, (given, { color }) => ({
         ...given,
         background: `linear-gradient(${color.toString()}, ${color.toString()}), ${CHECKERBOARD2}`
       }))
@@ -1193,11 +1383,11 @@ function ColorSwatch({ className, style, ...props }) {
   );
 }
 function ColorSwatchPicker({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx13(Drawn2, { ...props }) : /* @__PURE__ */ jsx13(BoundSwatches, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx16(Drawn2, { ...props }) : /* @__PURE__ */ jsx16(BoundSwatches, { ...props, bound });
 }
 function BoundSwatches({ bound, onChange, ...props }) {
-  return /* @__PURE__ */ jsxs9(Fragment6, { children: [
-    /* @__PURE__ */ jsx13(
+  return /* @__PURE__ */ jsxs12(Fragment7, { children: [
+    /* @__PURE__ */ jsx16(
       Drawn2,
       {
         ...props,
@@ -1208,12 +1398,12 @@ function BoundSwatches({ bound, onChange, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx13(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx16(Refusal, { error: bound.error })
   ] });
 }
 function Drawn2({ className, onChange, ...props }) {
   const ended = useContext4(Ended);
-  return /* @__PURE__ */ jsx13(
+  return /* @__PURE__ */ jsx16(
     AriaColorSwatchPicker,
     {
       ...props,
@@ -1221,14 +1411,14 @@ function Drawn2({ className, onChange, ...props }) {
         onChange?.(color);
         ended?.(color);
       },
-      className: composeRenderProps9(className, (given, { layout }) => `${PICKER} ${layout === "stack" ? "bc:flex-col" : "bc:flex-wrap"} ${given ?? ""}`)
+      className: composeRenderProps13(className, (given, { layout }) => `${PICKER} ${layout === "stack" ? "bc:flex-col" : "bc:flex-wrap"} ${given ?? ""}`)
     }
   );
 }
 function ColorSwatchPickerItem({ className, ...props }) {
-  return /* @__PURE__ */ jsx13(AriaColorSwatchPickerItem, { ...props, className: composeRenderProps9(className, (given) => `${ITEM2} ${given ?? ""}`), children: ({ isSelected }) => /* @__PURE__ */ jsxs9(Fragment6, { children: [
-    /* @__PURE__ */ jsx13(ColorSwatch, {}),
-    isSelected ? /* @__PURE__ */ jsx13("div", { className: SELECTED }) : null
+  return /* @__PURE__ */ jsx16(AriaColorSwatchPickerItem, { ...props, className: composeRenderProps13(className, (given) => `${ITEM2} ${given ?? ""}`), children: ({ isSelected }) => /* @__PURE__ */ jsxs12(Fragment7, { children: [
+    /* @__PURE__ */ jsx16(ColorSwatch, {}),
+    isSelected ? /* @__PURE__ */ jsx16("div", { className: SELECTED }) : null
   ] }) });
 }
 var SWATCH = "bc:box-border bc:size-8 bc:shrink-0 bc:rounded-md bc:border bc:border-border-default";
@@ -1238,14 +1428,14 @@ var ITEM2 = "bc:relative bc:cursor-pointer bc:rounded-xs bc:outline-none bc:data
 var SELECTED = "bc:absolute bc:top-0 bc:left-0 bc:box-border bc:size-full bc:rounded-md bc:border-2 bc:border-black bc:outline-2 bc:-outline-offset-4 bc:outline-white bc:dark:border-white bc:dark:outline-black bc:forced-color-adjust-none";
 
 // srcts/inputs/colorpicker.tsx
-import { Fragment as Fragment7, jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 function ColorPicker({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx14(Drawn3, { ...props }) : /* @__PURE__ */ jsx14(BoundPicker, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx17(Drawn3, { ...props }) : /* @__PURE__ */ jsx17(BoundPicker, { ...props, bound });
 }
 function BoundPicker({ bound, onChange, ...props }) {
   const dragged = useDragged(bound);
-  return /* @__PURE__ */ jsxs10(Fragment7, { children: [
-    /* @__PURE__ */ jsx14(Ended, { value: dragged.end, children: /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsxs13(Fragment8, { children: [
+    /* @__PURE__ */ jsx17(Ended, { value: dragged.end, children: /* @__PURE__ */ jsx17(
       Drawn3,
       {
         ...props,
@@ -1256,33 +1446,33 @@ function BoundPicker({ bound, onChange, ...props }) {
         }
       }
     ) }),
-    /* @__PURE__ */ jsx14(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx17(Refusal, { error: bound.error })
   ] });
 }
 function Drawn3({ label, children, isDisabled, ...props }) {
-  return /* @__PURE__ */ jsx14(AriaColorPicker, { ...props, children: /* @__PURE__ */ jsxs10(DialogTrigger, { children: [
-    /* @__PURE__ */ jsxs10(Button2, { isDisabled, className: BUTTON, children: [
-      /* @__PURE__ */ jsx14(ColorSwatch, {}),
-      label === void 0 ? null : /* @__PURE__ */ jsx14("span", { children: label })
+  return /* @__PURE__ */ jsx17(AriaColorPicker, { ...props, children: /* @__PURE__ */ jsxs13(DialogTrigger, { children: [
+    /* @__PURE__ */ jsxs13(Button3, { isDisabled, className: BUTTON, children: [
+      /* @__PURE__ */ jsx17(ColorSwatch, {}),
+      label === void 0 ? null : /* @__PURE__ */ jsx17("span", { children: label })
     ] }),
-    /* @__PURE__ */ jsx14(Popover, { placement: "bottom start", children: /* @__PURE__ */ jsx14(Dialog, { className: "bc:flex bc:flex-col bc:gap-2", children: children ?? /* @__PURE__ */ jsxs10(Fragment7, { children: [
-      /* @__PURE__ */ jsx14(ColorArea, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
-      /* @__PURE__ */ jsx14(ColorSlider, { colorSpace: "hsb", channel: "hue" }),
-      /* @__PURE__ */ jsx14(ColorField, { label: "Hex" })
+    /* @__PURE__ */ jsx17(Popover, { placement: "bottom start", children: /* @__PURE__ */ jsx17(Dialog, { className: "bc:flex bc:flex-col bc:gap-2", children: children ?? /* @__PURE__ */ jsxs13(Fragment8, { children: [
+      /* @__PURE__ */ jsx17(ColorArea, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
+      /* @__PURE__ */ jsx17(ColorSlider, { colorSpace: "hsb", channel: "hue" }),
+      /* @__PURE__ */ jsx17(ColorField, { label: "Hex" })
     ] }) }) })
   ] }) });
 }
 var BUTTON = "bc:flex bc:cursor-pointer bc:items-center bc:gap-2 bc:rounded-xs bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/combobox.tsx
-import { useContext as useContext5, useRef as useRef5, useState as useState7 } from "react";
+import { useContext as useContext5, useEffect, useEffectEvent, useRef as useRef5, useState as useState7 } from "react";
 import { strings as strings2 } from "@blockr/core/binding";
 import {
-  Button as Button3,
+  Button as Button4,
   Collection as Collection2,
   ComboBox as AriaComboBox,
   ComboBoxStateContext,
-  composeRenderProps as composeRenderProps10,
+  composeRenderProps as composeRenderProps14,
   FieldError as FieldError3,
   Group,
   Header as Header2,
@@ -1297,18 +1487,19 @@ import {
   TagGroup,
   TagList,
   Text as Text4,
+  TooltipTriggerStateContext,
   Virtualizer
-} from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment8, jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment9, jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 function ComboBox(props) {
   const { bound, ordered = false, ...rest } = props;
-  if (bound === void 0) return /* @__PURE__ */ jsx15(Drawn4, { ...rest });
-  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx15(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx15(BoundOne, { ...rest, bound });
+  if (bound === void 0) return /* @__PURE__ */ jsx18(Drawn4, { ...rest });
+  return props.selectionMode === "multiple" ? /* @__PURE__ */ jsx18(BoundSeveral, { ...rest, bound, ordered }) : /* @__PURE__ */ jsx18(BoundOne, { ...rest, bound });
 }
 function BoundOne({ bound, outdated = false, ...props }) {
   const current = typeof bound.value === "string" ? bound.value : null;
-  return /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    /* @__PURE__ */ jsx15(
+  return /* @__PURE__ */ jsxs14(Fragment9, { children: [
+    /* @__PURE__ */ jsx18(
       Drawn4,
       {
         ...props,
@@ -1324,7 +1515,7 @@ function BoundOne({ bound, outdated = false, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx15(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx18(Refusal, { error: bound.error })
   ] });
 }
 function BoundSeveral({
@@ -1343,8 +1534,8 @@ function BoundSeveral({
     if (value === null) return;
     void bound.commit(ordered && items !== void 0 ? inOrder(value, ids(items)) : value);
   };
-  return /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    /* @__PURE__ */ jsx15(
+  return /* @__PURE__ */ jsxs14(Fragment9, { children: [
+    /* @__PURE__ */ jsx18(
       Drawn4,
       {
         ...props,
@@ -1376,7 +1567,7 @@ function BoundSeveral({
         }
       }
     ),
-    /* @__PURE__ */ jsx15(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx18(Refusal, { error: bound.error })
   ] });
 }
 function known(props) {
@@ -1410,17 +1601,17 @@ function Drawn4({
   const none = given === void 0 ? typeof children === "function" || !hasChildren(children) : [...given].length === 0;
   const empty = none && (outdated || unknown) ? "Loading\u2026" : none ? renderEmptyState?.() ?? "No options" : "No matches";
   const value = useSameValue(props.value);
-  return /* @__PURE__ */ jsxs11(
+  return /* @__PURE__ */ jsxs14(
     AriaComboBox,
     {
       ...props,
       value,
       defaultItems: unknown ? [] : props.defaultItems,
       allowsEmptyCollection,
-      className: composeRenderProps10(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
+      className: composeRenderProps14(className, (given2) => `bc:group ${styles.field} ${given2 ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx15(Label4, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsx15(
+        label === void 0 ? null : /* @__PURE__ */ jsx18(Label4, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsx18(
           Field2,
           {
             placeholder,
@@ -1433,10 +1624,10 @@ function Drawn4({
             label
           }
         ),
-        /* @__PURE__ */ jsx15(Text4, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-        /* @__PURE__ */ jsx15(FieldError3, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx15(Lacking, { multiple, marking }),
-        /* @__PURE__ */ jsx15(Popover2, { offset: 4, className: LIST, children: /* @__PURE__ */ jsx15(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx15(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx15("p", { className: NOTE2, children: empty }), className: LISTBOX, children }) }) })
+        /* @__PURE__ */ jsx18(Text4, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+        /* @__PURE__ */ jsx18(FieldError3, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx18(Lacking, { multiple, marking }),
+        /* @__PURE__ */ jsx18(Popover2, { offset: 4, className: LIST, style: { zIndex: OVERLAY_Z_INDEX }, children: /* @__PURE__ */ jsx18(Virtualizer, { layout: ListLayout, layoutOptions: LAYOUT, children: /* @__PURE__ */ jsx18(ListBox, { renderEmptyState: () => /* @__PURE__ */ jsx18("p", { className: NOTE2, children: empty }), className: LISTBOX, children }) }) })
       ]
     }
   );
@@ -1471,20 +1662,20 @@ function Field2({
   };
   const chips = keys.map((key) => ({ key, text: known2.get(key) ?? String(key), gone: marking && !known2.has(key) }));
   const picks = label === void 0 ? "Picks" : `Picks of ${label}`;
-  return /* @__PURE__ */ jsxs11(Group, { isInvalid: invalid, className: FIELD, children: [
-    /* @__PURE__ */ jsxs11("div", { className: VALUES, children: [
+  return /* @__PURE__ */ jsxs14(Group, { isInvalid: invalid, className: FIELD, children: [
+    /* @__PURE__ */ jsxs14("div", { className: VALUES, children: [
       keys.length === 0 ? null : isDisabled ? (
         // The chips of a disabled select take no focus, as its text field
         // takes none.
         // React Aria's TagGroup keeps a tab stop on its list even where
         // every tag is disabled, so a disabled select draws its chips as
         // a plain list.
-        /* @__PURE__ */ jsx15("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx15("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx15("span", { className: "bc:truncate", children: text }) }, key)) })
-      ) : /* @__PURE__ */ jsx15(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx15(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsxs11(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: [
-        /* @__PURE__ */ jsx15("span", { className: "bc:truncate", children: text }),
-        editable ? /* @__PURE__ */ jsx15(Button3, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx15(Cross, {}) }) : null
-      ] }, key)) }) }),
-      /* @__PURE__ */ jsx15(
+        /* @__PURE__ */ jsx18("div", { role: "list", "aria-label": picks, className: "bc:flex bc:min-w-0 bc:max-w-full bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx18(PlainChip, { text, gone }, key)) })
+      ) : /* @__PURE__ */ jsx18(TagGroup, { "aria-label": picks, onRemove: editable ? remove : void 0, className: "bc:flex bc:min-w-0 bc:max-w-full", children: /* @__PURE__ */ jsx18(TagList, { className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children: chips.map(({ key, text, gone }) => /* @__PURE__ */ jsx18(Tag, { id: key, textValue: text, "data-missing": gone || void 0, className: CHIP, children: ({ isFocusVisible }) => /* @__PURE__ */ jsxs14(Fragment9, { children: [
+        /* @__PURE__ */ jsx18(ChipText, { text, focused: isFocusVisible }),
+        editable ? /* @__PURE__ */ jsx18(Button4, { slot: "remove", "aria-label": `Remove ${text}`, className: CHIP_REMOVE, children: /* @__PURE__ */ jsx18(Cross, {}) }) : null
+      ] }) }, key)) }) }),
+      /* @__PURE__ */ jsx18(
         Input2,
         {
           value: multiple || state === null || state.isFocused || state.isOpen ? void 0 : item ?? (one === null ? "" : String(one)),
@@ -1507,23 +1698,68 @@ function Field2({
       // leaves alone, rather than take it for the button that opens the
       // list. It is outside the order of Tab, and keeps the focus in the
       // text field, as a press in the list does.
-      // React Aria's Button takes no title, so the cross carries it.
-      /* @__PURE__ */ jsx15(
-        FieldButton,
-        {
-          slot: null,
-          excludeFromTabOrder: true,
-          preventFocusOnPress: true,
-          "aria-label": label === void 0 ? "Clear" : `Clear ${label}`,
-          onPress: () => {
-            if (onClear !== void 0) onClear();
-            else state?.setValue(multiple ? [] : null);
-          },
-          children: /* @__PURE__ */ jsx15("span", { title: multiple ? "Clear every pick" : "Clear the pick", className: "bc:flex bc:size-full bc:items-center bc:justify-center", children: /* @__PURE__ */ jsx15(Cross, {}) })
-        }
-      )
+      // It is the trigger of its tooltip, as a button of React Aria is.
+      /* @__PURE__ */ jsxs14(TooltipTrigger, { children: [
+        /* @__PURE__ */ jsx18(
+          FieldButton,
+          {
+            slot: null,
+            excludeFromTabOrder: true,
+            preventFocusOnPress: true,
+            "aria-label": label === void 0 ? "Clear" : `Clear ${label}`,
+            onPress: () => {
+              if (onClear !== void 0) onClear();
+              else state?.setValue(multiple ? [] : null);
+            },
+            children: /* @__PURE__ */ jsx18(Cross, {})
+          }
+        ),
+        /* @__PURE__ */ jsx18(Tooltip, { children: multiple ? "Clear every pick" : "Clear the pick" })
+      ] })
     ) : null,
-    /* @__PURE__ */ jsx15(Button3, { className: OPENER, children: /* @__PURE__ */ jsx15(Chevron, {}) })
+    /* @__PURE__ */ jsx18(Button4, { className: OPENER, children: /* @__PURE__ */ jsx18(Chevron, {}) })
+  ] });
+}
+function PlainChip({ text, gone }) {
+  return /* @__PURE__ */ jsx18("div", { role: "listitem", "data-missing": gone || void 0, className: CHIP, children: /* @__PURE__ */ jsx18(ChipText, { text, focused: false }) });
+}
+function ChipText({ text, focused }) {
+  return /* @__PURE__ */ jsx18(TooltipTrigger, { children: /* @__PURE__ */ jsx18(CutText, { text, focused }) });
+}
+function CutText({ text, focused }) {
+  const tip = useContext5(TooltipTriggerStateContext);
+  const ref = useRef5(null);
+  const [pointed, setPointed] = useState7(false);
+  const shown = useRef5({ pointed: false, focused: false });
+  const follow2 = useEffectEvent((now) => {
+    const before = shown.current;
+    shown.current = now;
+    const el = ref.current;
+    const cut = el !== null && el.scrollWidth > el.clientWidth;
+    if (tip === null) return;
+    if (cut && now.focused) tip.open(true);
+    else if (cut && now.pointed) tip.open();
+    else if (before.pointed || before.focused) tip.close(before.focused);
+  });
+  useEffect(() => {
+    follow2({ pointed, focused });
+  }, [pointed, focused]);
+  return /* @__PURE__ */ jsxs14(Fragment9, { children: [
+    /* @__PURE__ */ jsx18(
+      "span",
+      {
+        ref,
+        className: "bc:truncate",
+        onPointerEnter: (event) => {
+          if (event.pointerType !== "touch") setPointed(true);
+        },
+        onPointerLeave: () => {
+          setPointed(false);
+        },
+        children: text
+      }
+    ),
+    /* @__PURE__ */ jsx18(Tooltip, { triggerRef: ref, children: text })
   ] });
 }
 function usePicks(multiple) {
@@ -1537,13 +1773,13 @@ function usePicks(multiple) {
 }
 function Lacking({ multiple, marking }) {
   const { lacked } = usePicks(multiple);
-  return marking ? /* @__PURE__ */ jsx15(NotAvailable, { values: lacked.map(String) }) : null;
+  return marking ? /* @__PURE__ */ jsx18(NotAvailable, { values: lacked.map(String) }) : null;
 }
 function ComboBoxItem(props) {
   const textValue = props.textValue ?? (typeof props.children === "string" ? props.children : void 0);
-  return /* @__PURE__ */ jsx15(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps10(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs11(Fragment8, { children: [
-    selectionMode === "multiple" ? /* @__PURE__ */ jsx15("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx15(Tick, {}) : null }) : null,
-    /* @__PURE__ */ jsx15(
+  return /* @__PURE__ */ jsx18(ListBoxItem, { ...props, textValue, className: ROW, children: composeRenderProps14(props.children, (children, { isSelected, selectionMode }) => /* @__PURE__ */ jsxs14(Fragment9, { children: [
+    selectionMode === "multiple" ? /* @__PURE__ */ jsx18("span", { className: "bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent", children: isSelected ? /* @__PURE__ */ jsx18(Tick, {}) : null }) : null,
+    /* @__PURE__ */ jsx18(
       "span",
       {
         className: `bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-2 bc:truncate ${selectionMode === "single" && isSelected ? "bc:font-semibold" : ""}`,
@@ -1553,9 +1789,9 @@ function ComboBoxItem(props) {
   ] })) });
 }
 function ComboBoxSection({ title, items, children, ...props }) {
-  return /* @__PURE__ */ jsxs11(ListBoxSection, { ...props, children: [
-    /* @__PURE__ */ jsx15(Header2, { className: HEADING3, children: title }),
-    /* @__PURE__ */ jsx15(Collection2, { items, children })
+  return /* @__PURE__ */ jsxs14(ListBoxSection, { ...props, children: [
+    /* @__PURE__ */ jsx18(Header2, { className: HEADING3, children: title }),
+    /* @__PURE__ */ jsx18(Collection2, { items, children })
   ] });
 }
 var FIELD = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
@@ -1573,7 +1809,7 @@ var NOTE2 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:tex
 
 // srcts/inputs/datefield.tsx
 import {
-  composeRenderProps as composeRenderProps11,
+  composeRenderProps as composeRenderProps15,
   DateField as AriaDateField,
   DateInput as AriaDateInput,
   DateSegment,
@@ -1581,13 +1817,13 @@ import {
   Label as Label5,
   Text as Text5,
   TimeField as AriaTimeField
-} from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment9, jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment10, jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
 function DateField({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx16(DrawnDate, { ...props }) : /* @__PURE__ */ jsx16(BoundDate, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx19(DrawnDate, { ...props }) : /* @__PURE__ */ jsx19(BoundDate, { ...props, bound });
 }
 function TimeField({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx16(DrawnTime, { ...props }) : /* @__PURE__ */ jsx16(BoundTime, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx19(DrawnTime, { ...props }) : /* @__PURE__ */ jsx19(BoundTime, { ...props, bound });
 }
 function BoundDate({
   bound,
@@ -1604,8 +1840,8 @@ function BoundDate({
     fits: (value) => dateFits(value, props),
     required: props.isRequired === true
   });
-  return /* @__PURE__ */ jsxs12(Fragment9, { children: [
-    /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsxs15(Fragment10, { children: [
+    /* @__PURE__ */ jsx19(
       DrawnDate,
       {
         ...props,
@@ -1627,7 +1863,7 @@ function BoundDate({
         }
       }
     ),
-    /* @__PURE__ */ jsx16(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx19(Refusal, { error: bound.error })
   ] });
 }
 function BoundTime({
@@ -1644,8 +1880,8 @@ function BoundTime({
     fits: (value) => timeFits(value, props),
     required: props.isRequired === true
   });
-  return /* @__PURE__ */ jsxs12(Fragment9, { children: [
-    /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsxs15(Fragment10, { children: [
+    /* @__PURE__ */ jsx19(
       DrawnTime,
       {
         ...props,
@@ -1667,7 +1903,7 @@ function BoundTime({
         }
       }
     ),
-    /* @__PURE__ */ jsx16(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx19(Refusal, { error: bound.error })
   ] });
 }
 function DrawnDate({
@@ -1680,13 +1916,13 @@ function DrawnDate({
   className,
   ...props
 }) {
-  return /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsx19(
     AriaDateField,
     {
       ...props,
       isInvalid: missing === null ? isInvalid : true,
-      className: composeRenderProps11(className, (given) => `${styles.field} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx16(FieldParts, { label, description, errorMessage: errorMessage2, missing, onKey })
+      className: composeRenderProps15(className, (given) => `${styles.field} ${given ?? ""}`),
+      children: /* @__PURE__ */ jsx19(FieldParts, { label, description, errorMessage: errorMessage2, missing, onKey })
     }
   );
 }
@@ -1700,13 +1936,13 @@ function DrawnTime({
   className,
   ...props
 }) {
-  return /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsx19(
     AriaTimeField,
     {
       ...props,
       isInvalid: missing === null ? isInvalid : true,
-      className: composeRenderProps11(className, (given) => `${styles.field} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx16(FieldParts, { label, description, errorMessage: errorMessage2, missing, onKey })
+      className: composeRenderProps15(className, (given) => `${styles.field} ${given ?? ""}`),
+      children: /* @__PURE__ */ jsx19(FieldParts, { label, description, errorMessage: errorMessage2, missing, onKey })
     }
   );
 }
@@ -1717,16 +1953,16 @@ function FieldParts({
   missing,
   onKey
 }) {
-  return /* @__PURE__ */ jsxs12(Fragment9, { children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx16(Label5, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsx16(Segments, { onKey, children: /* @__PURE__ */ jsx16(DateInput, { className: BOX2 }) }),
-    /* @__PURE__ */ jsx16(Text5, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx16(FieldError4, { className: styles.alert, children: errorMessage2 }),
-    missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx16(NotAvailable, { values: [missing] })
+  return /* @__PURE__ */ jsxs15(Fragment10, { children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx19(Label5, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsx19(Segments, { onKey, children: /* @__PURE__ */ jsx19(DateInput, { className: BOX2 }) }),
+    /* @__PURE__ */ jsx19(Text5, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx19(FieldError4, { className: styles.alert, children: errorMessage2 }),
+    missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx19(NotAvailable, { values: [missing] })
   ] });
 }
 function Segments({ onKey, children }) {
-  return onKey === void 0 ? /* @__PURE__ */ jsx16(Fragment9, { children }) : /* @__PURE__ */ jsx16(
+  return onKey === void 0 ? /* @__PURE__ */ jsx19(Fragment10, { children }) : /* @__PURE__ */ jsx19(
     "div",
     {
       className: "bc:contents",
@@ -1738,7 +1974,7 @@ function Segments({ onKey, children }) {
   );
 }
 function DateInput({ slot, className }) {
-  return /* @__PURE__ */ jsx16(AriaDateInput, { slot, className, children: (segment) => /* @__PURE__ */ jsx16(DateSegment, { segment, className: SEGMENT }) });
+  return /* @__PURE__ */ jsx19(AriaDateInput, { slot, className, children: (segment) => /* @__PURE__ */ jsx19(DateSegment, { segment, className: SEGMENT }) });
 }
 var BOX2 = "bc:flex bc:min-w-0 bc:items-center bc:justify-self-stretch bc:overflow-x-auto bc:whitespace-nowrap bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-text bc:[scrollbar-width:none] bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var INLINE = "bc:flex bc:min-w-0 bc:items-center bc:whitespace-nowrap bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-text bc:data-disabled:cursor-default";
@@ -1747,20 +1983,20 @@ var SEGMENT = "bc:rounded-sm bc:px-0.5 bc:tabular-nums bc:caret-transparent bc:o
 // srcts/inputs/datepicker.tsx
 import { useRef as useRef6 } from "react";
 import {
-  composeRenderProps as composeRenderProps12,
+  composeRenderProps as composeRenderProps16,
   DatePicker as AriaDatePicker,
   DateRangePicker as AriaDateRangePicker,
   FieldError as FieldError5,
   Group as Group2,
   Label as Label6,
   Text as Text6
-} from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment10, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment11, jsx as jsx20, jsxs as jsxs16 } from "react/jsx-runtime";
 function DatePicker({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx17(DrawnPicker, { ...props }) : /* @__PURE__ */ jsx17(BoundPicker2, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx20(DrawnPicker, { ...props }) : /* @__PURE__ */ jsx20(BoundPicker2, { ...props, bound });
 }
 function DateRangePicker({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx17(DrawnRangePicker, { ...props }) : /* @__PURE__ */ jsx17(BoundRangePicker, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx20(DrawnRangePicker, { ...props }) : /* @__PURE__ */ jsx20(BoundRangePicker, { ...props, bound });
 }
 function usePicking(value) {
   const open = useRef6(false);
@@ -1797,8 +2033,8 @@ function BoundPicker2({
     required: props.isRequired === true
   });
   const picking = usePicking(date);
-  return /* @__PURE__ */ jsxs13(Fragment10, { children: [
-    /* @__PURE__ */ jsx17(
+  return /* @__PURE__ */ jsxs16(Fragment11, { children: [
+    /* @__PURE__ */ jsx20(
       DrawnPicker,
       {
         ...props,
@@ -1824,7 +2060,7 @@ function BoundPicker2({
         }
       }
     ),
-    /* @__PURE__ */ jsx17(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
 function BoundRangePicker({
@@ -1844,8 +2080,8 @@ function BoundRangePicker({
     required: props.isRequired === true
   });
   const picking = usePicking(range);
-  return /* @__PURE__ */ jsxs13(Fragment10, { children: [
-    /* @__PURE__ */ jsx17(
+  return /* @__PURE__ */ jsxs16(Fragment11, { children: [
+    /* @__PURE__ */ jsx20(
       DrawnRangePicker,
       {
         ...props,
@@ -1871,7 +2107,7 @@ function BoundRangePicker({
         }
       }
     ),
-    /* @__PURE__ */ jsx17(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
 function DrawnPicker({
@@ -1884,20 +2120,20 @@ function DrawnPicker({
   className,
   ...props
 }) {
-  return /* @__PURE__ */ jsxs13(
+  return /* @__PURE__ */ jsxs16(
     AriaDatePicker,
     {
       ...props,
       isInvalid: missing === null ? isInvalid : true,
-      className: composeRenderProps12(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
+      className: composeRenderProps16(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx17(Label6, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsxs13(Group2, { className: FIELD2, children: [
-          /* @__PURE__ */ jsx17(Segments, { onKey, children: /* @__PURE__ */ jsx17(DateInput, { className: `${INLINE} bc:flex-1` }) }),
-          /* @__PURE__ */ jsx17(Opener, {})
+        label === void 0 ? null : /* @__PURE__ */ jsx20(Label6, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsxs16(Group2, { className: FIELD2, children: [
+          /* @__PURE__ */ jsx20(Segments, { onKey, children: /* @__PURE__ */ jsx20(DateInput, { className: `${INLINE} bc:flex-1` }) }),
+          /* @__PURE__ */ jsx20(Opener, {})
         ] }),
-        /* @__PURE__ */ jsx17(PickerParts, { description, errorMessage: errorMessage2, missing }),
-        /* @__PURE__ */ jsx17(Popover, { className: POPOVER2, children: /* @__PURE__ */ jsx17(Calendar, {}) })
+        /* @__PURE__ */ jsx20(PickerParts, { description, errorMessage: errorMessage2, missing }),
+        /* @__PURE__ */ jsx20(Popover, { className: POPOVER2, children: /* @__PURE__ */ jsx20(Calendar, {}) })
       ]
     }
   );
@@ -1912,24 +2148,24 @@ function DrawnRangePicker({
   className,
   ...props
 }) {
-  return /* @__PURE__ */ jsxs13(
+  return /* @__PURE__ */ jsxs16(
     AriaDateRangePicker,
     {
       ...props,
       isInvalid: missing === null ? isInvalid : true,
-      className: composeRenderProps12(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
+      className: composeRenderProps16(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx17(Label6, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsxs13(Group2, { className: FIELD2, children: [
-          /* @__PURE__ */ jsx17(Segments, { onKey, children: /* @__PURE__ */ jsxs13("div", { className: ENDS, children: [
-            /* @__PURE__ */ jsx17(DateInput, { slot: "start", className: INLINE }),
-            /* @__PURE__ */ jsx17("span", { "aria-hidden": "true", className: "bc:px-1 bc:text-text-muted", children: "\u2013" }),
-            /* @__PURE__ */ jsx17(DateInput, { slot: "end", className: `${INLINE} bc:flex-1` })
+        label === void 0 ? null : /* @__PURE__ */ jsx20(Label6, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsxs16(Group2, { className: FIELD2, children: [
+          /* @__PURE__ */ jsx20(Segments, { onKey, children: /* @__PURE__ */ jsxs16("div", { className: ENDS, children: [
+            /* @__PURE__ */ jsx20(DateInput, { slot: "start", className: INLINE }),
+            /* @__PURE__ */ jsx20("span", { "aria-hidden": "true", className: "bc:px-1 bc:text-text-muted", children: "\u2013" }),
+            /* @__PURE__ */ jsx20(DateInput, { slot: "end", className: `${INLINE} bc:flex-1` })
           ] }) }),
-          /* @__PURE__ */ jsx17(Opener, {})
+          /* @__PURE__ */ jsx20(Opener, {})
         ] }),
-        /* @__PURE__ */ jsx17(PickerParts, { description, errorMessage: errorMessage2, missing }),
-        /* @__PURE__ */ jsx17(Popover, { className: POPOVER2, children: /* @__PURE__ */ jsx17(RangeCalendar, {}) })
+        /* @__PURE__ */ jsx20(PickerParts, { description, errorMessage: errorMessage2, missing }),
+        /* @__PURE__ */ jsx20(Popover, { className: POPOVER2, children: /* @__PURE__ */ jsx20(RangeCalendar, {}) })
       ]
     }
   );
@@ -1939,14 +2175,14 @@ function PickerParts({
   errorMessage: errorMessage2,
   missing
 }) {
-  return /* @__PURE__ */ jsxs13(Fragment10, { children: [
-    /* @__PURE__ */ jsx17(Text6, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx17(FieldError5, { className: styles.alert, children: errorMessage2 }),
-    missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx17(NotAvailable, { values: [missing] })
+  return /* @__PURE__ */ jsxs16(Fragment11, { children: [
+    /* @__PURE__ */ jsx20(Text6, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx20(FieldError5, { className: styles.alert, children: errorMessage2 }),
+    missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx20(NotAvailable, { values: [missing] })
   ] });
 }
 function Opener() {
-  return /* @__PURE__ */ jsx17(FieldButton, { children: /* @__PURE__ */ jsxs13(
+  return /* @__PURE__ */ jsx20(FieldButton, { children: /* @__PURE__ */ jsxs16(
     "svg",
     {
       width: "14",
@@ -1959,8 +2195,8 @@ function Opener() {
       strokeLinejoin: "round",
       "aria-hidden": "true",
       children: [
-        /* @__PURE__ */ jsx17("rect", { x: "2.5", y: "3.5", width: "11", height: "10", rx: "1.5" }),
-        /* @__PURE__ */ jsx17("path", { d: "M2.5 6.5h11M5.5 2v3M10.5 2v3" })
+        /* @__PURE__ */ jsx20("rect", { x: "2.5", y: "3.5", width: "11", height: "10", rx: "1.5" }),
+        /* @__PURE__ */ jsx20("path", { d: "M2.5 6.5h11M5.5 2v3M10.5 2v3" })
       ]
     }
   ) });
@@ -1970,36 +2206,36 @@ var ENDS = "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:overflow-x-auto bc:[
 var POPOVER2 = "bc:p-3";
 
 // srcts/inputs/dropzone.tsx
-import { composeRenderProps as composeRenderProps13, DropZone as AriaDropZone } from "./vendor-0fd01f5f.js";
-import { jsx as jsx18 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps17, DropZone as AriaDropZone } from "./vendor-2846f4d1.js";
+import { jsx as jsx21 } from "react/jsx-runtime";
 function DropZone({ className, ...props }) {
-  return /* @__PURE__ */ jsx18(AriaDropZone, { ...props, className: composeRenderProps13(className, (given) => `${ZONE} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx21(AriaDropZone, { ...props, className: composeRenderProps17(className, (given) => `${ZONE} ${given ?? ""}`) });
 }
 var ZONE = "bc:box-border bc:flex bc:min-h-20 bc:flex-col bc:items-center bc:justify-center bc:gap-2 bc:rounded-lg bc:border bc:border-dashed bc:border-border-default bc:p-4 bc:text-center bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-drop-target:border-solid bc:data-drop-target:border-border-accent bc:data-drop-target:bg-bg-subtle bc:data-disabled:opacity-50";
 
 // srcts/inputs/form.tsx
-import { Form as AriaForm } from "./vendor-0fd01f5f.js";
-import { jsx as jsx19 } from "react/jsx-runtime";
+import { Form as AriaForm } from "./vendor-2846f4d1.js";
+import { jsx as jsx22 } from "react/jsx-runtime";
 function Form({ className, ...props }) {
-  return /* @__PURE__ */ jsx19(AriaForm, { ...props, className: `bc:grid bc:gap-3 ${className ?? ""}` });
+  return /* @__PURE__ */ jsx22(AriaForm, { ...props, className: `bc:grid bc:gap-3 ${className ?? ""}` });
 }
 
 // srcts/inputs/listbox.tsx
-import { composeRenderProps as composeRenderProps14, ListBox as AriaListBox } from "./vendor-0fd01f5f.js";
-import { jsx as jsx20 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps18, ListBox as AriaListBox } from "./vendor-2846f4d1.js";
+import { jsx as jsx23 } from "react/jsx-runtime";
 function ListBox2({ className, ...props }) {
-  return /* @__PURE__ */ jsx20(AriaListBox, { ...props, className: composeRenderProps14(className, (given) => `${LISTBOX2} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx23(AriaListBox, { ...props, className: composeRenderProps18(className, (given) => `${LISTBOX2} ${given ?? ""}`) });
 }
 function ListBoxItem2(props) {
-  return /* @__PURE__ */ jsx20(ComboBoxItem, { ...props });
+  return /* @__PURE__ */ jsx23(ComboBoxItem, { ...props });
 }
 var LISTBOX2 = "bc:box-border bc:grid bc:min-w-0 bc:content-start bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-empty:px-2.5 bc:data-empty:py-2 bc:data-empty:italic bc:data-empty:text-text-muted";
 
 // srcts/inputs/numberfield.tsx
-import { useContext as useContext6, useEffect, useRef as useRef7, useState as useState8 } from "react";
+import { useContext as useContext6, useEffect as useEffect2, useRef as useRef7, useState as useState8 } from "react";
 import {
-  Button as Button4,
-  composeRenderProps as composeRenderProps15,
+  Button as Button5,
+  composeRenderProps as composeRenderProps19,
   FieldError as FieldError6,
   Group as Group3,
   Input as Input3,
@@ -2007,11 +2243,11 @@ import {
   NumberField as AriaNumberField,
   NumberFieldStateContext,
   Text as Text7
-} from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment11, jsx as jsx21, jsxs as jsxs14 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment12, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
 function NumberField({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
-  return bound === void 0 ? /* @__PURE__ */ jsx21(Drawn5, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx21(BoundNumber, { ...props, maxValue: largest, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx24(Drawn5, { ...props, maxValue: largest }) : /* @__PURE__ */ jsx24(BoundNumber, { ...props, maxValue: largest, bound });
 }
 function BoundNumber({
   bound,
@@ -2032,8 +2268,8 @@ function BoundNumber({
     if (kept !== null && (!kept.typing || !Object.is(held3, typed))) setKept(null);
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
-  return /* @__PURE__ */ jsxs14(Fragment11, { children: [
-    /* @__PURE__ */ jsx21(
+  return /* @__PURE__ */ jsxs17(Fragment12, { children: [
+    /* @__PURE__ */ jsx24(
       Drawn5,
       {
         ...props,
@@ -2066,7 +2302,7 @@ function BoundNumber({
           setKept((now) => now?.typing === true ? null : now);
           onBlur?.(event);
         },
-        watch: /* @__PURE__ */ jsx21(
+        watch: /* @__PURE__ */ jsx24(
           Watch,
           {
             keystrokes,
@@ -2078,14 +2314,14 @@ function BoundNumber({
         )
       }
     ),
-    /* @__PURE__ */ jsx21(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx24(Refusal, { error: bound.error })
   ] });
 }
 function Watch({ keystrokes, onType }) {
   const state = useContext6(NumberFieldStateContext);
   const value = state?.numberValue ?? NaN;
   const heard = useRef7(0);
-  useEffect(() => {
+  useEffect2(() => {
     if (keystrokes === heard.current) return;
     heard.current = keystrokes;
     onType(value);
@@ -2101,22 +2337,22 @@ function inRange(value, min, max, step) {
   return Math.abs(steps - Math.round(steps)) < 1e-9;
 }
 function Drawn5({ label, description, errorMessage: errorMessage2, placeholder, watch, className, onInput, ...props }) {
-  return /* @__PURE__ */ jsxs14(AriaNumberField, { ...props, className: composeRenderProps15(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx21(Label7, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs14(Group3, { className: FIELD3, children: [
-      /* @__PURE__ */ jsx21(Input3, { placeholder, onInput, className: INPUT2 }),
-      /* @__PURE__ */ jsxs14("div", { className: STEPPERS, children: [
-        /* @__PURE__ */ jsx21(Button4, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx21(Chevron2, { up: true }) }),
-        /* @__PURE__ */ jsx21(Button4, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx21(Chevron2, { up: false }) })
+  return /* @__PURE__ */ jsxs17(AriaNumberField, { ...props, className: composeRenderProps19(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx24(Label7, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs17(Group3, { className: FIELD3, children: [
+      /* @__PURE__ */ jsx24(Input3, { placeholder, onInput, className: INPUT2 }),
+      /* @__PURE__ */ jsxs17("div", { className: STEPPERS, children: [
+        /* @__PURE__ */ jsx24(Button5, { slot: "increment", className: STEPPER, children: /* @__PURE__ */ jsx24(Chevron2, { up: true }) }),
+        /* @__PURE__ */ jsx24(Button5, { slot: "decrement", className: STEPPER, children: /* @__PURE__ */ jsx24(Chevron2, { up: false }) })
       ] })
     ] }),
-    /* @__PURE__ */ jsx21(Text7, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx21(FieldError6, { className: styles.alert, children: errorMessage2 }),
+    /* @__PURE__ */ jsx24(Text7, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx24(FieldError6, { className: styles.alert, children: errorMessage2 }),
     watch
   ] });
 }
 function Chevron2({ up }) {
-  return /* @__PURE__ */ jsx21(
+  return /* @__PURE__ */ jsx24(
     "svg",
     {
       width: "10",
@@ -2128,7 +2364,7 @@ function Chevron2({ up }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx21("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
+      children: /* @__PURE__ */ jsx24("polyline", { points: up ? "3 7.5 6 4.5 9 7.5" : "3 4.5 6 7.5 9 4.5" })
     }
   );
 }
@@ -2139,10 +2375,10 @@ var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-ce
 
 // srcts/inputs/radio.tsx
 import { useRef as useRef8 } from "react";
-import { composeRenderProps as composeRenderProps16, FieldError as FieldError7, Label as Label8, RadioButton, RadioField, RadioGroup as AriaRadioGroup, Text as Text8 } from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment12, jsx as jsx22, jsxs as jsxs15 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps20, FieldError as FieldError7, Label as Label8, RadioButton, RadioField, RadioGroup as AriaRadioGroup, Text as Text8 } from "./vendor-2846f4d1.js";
+import { Fragment as Fragment13, jsx as jsx25, jsxs as jsxs18 } from "react/jsx-runtime";
 function RadioGroup({ bound, outdated = false, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx22(DrawnGroup2, { ...props }) : /* @__PURE__ */ jsx22(BoundGroup2, { ...props, bound, outdated });
+  return bound === void 0 ? /* @__PURE__ */ jsx25(DrawnGroup2, { ...props }) : /* @__PURE__ */ jsx25(BoundGroup2, { ...props, bound, outdated });
 }
 function BoundGroup2({
   bound,
@@ -2155,8 +2391,8 @@ function BoundGroup2({
   const held3 = typeof bound.value === "string" ? bound.value : null;
   const gone = lacking(held3 === null ? [] : [held3], known2);
   const marking = !outdated && gone.length > 0;
-  return /* @__PURE__ */ jsxs15(Fragment12, { children: [
-    /* @__PURE__ */ jsx22(
+  return /* @__PURE__ */ jsxs18(Fragment13, { children: [
+    /* @__PURE__ */ jsx25(
       DrawnGroup2,
       {
         ...props,
@@ -2166,45 +2402,45 @@ function BoundGroup2({
           void bound.commit(value);
           onChange?.(value);
         },
-        children: /* @__PURE__ */ jsx22(ItemsContext.Provider, { value: items, children })
+        children: /* @__PURE__ */ jsx25(ItemsContext.Provider, { value: items, children })
       }
     ),
-    marking ? /* @__PURE__ */ jsx22(NotAvailable, { values: gone }) : null,
-    /* @__PURE__ */ jsx22(Refusal, { error: bound.error })
+    marking ? /* @__PURE__ */ jsx25(NotAvailable, { values: gone }) : null,
+    /* @__PURE__ */ jsx25(Refusal, { error: bound.error })
   ] });
 }
 function DrawnGroup2({ label, description, errorMessage: errorMessage2, children, className, ...props }) {
-  return /* @__PURE__ */ jsxs15(AriaRadioGroup, { ...props, className: composeRenderProps16(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx22(Label8, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsx22("div", { className: "bc:flex bc:gap-1.5 bc:group-data-[orientation=horizontal]:flex-row bc:group-data-[orientation=horizontal]:flex-wrap bc:group-data-[orientation=horizontal]:gap-4 bc:group-data-[orientation=vertical]:flex-col", children }),
-    /* @__PURE__ */ jsx22(Text8, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx22(FieldError7, { className: styles.alert, children: errorMessage2 })
+  return /* @__PURE__ */ jsxs18(AriaRadioGroup, { ...props, className: composeRenderProps20(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx25(Label8, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsx25("div", { className: "bc:flex bc:gap-1.5 bc:group-data-[orientation=horizontal]:flex-row bc:group-data-[orientation=horizontal]:flex-wrap bc:group-data-[orientation=horizontal]:gap-4 bc:group-data-[orientation=vertical]:flex-col", children }),
+    /* @__PURE__ */ jsx25(Text8, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx25(FieldError7, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 function Radio({ children, description, className, ...props }) {
   const ref = useRef8(null);
   useItem(props.value, ref);
-  return /* @__PURE__ */ jsxs15(RadioField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
-    /* @__PURE__ */ jsxs15(RadioButton, { className: composeRenderProps16(className, (given) => `bc:group ${RADIO} ${given ?? ""}`), children: [
-      /* @__PURE__ */ jsx22("span", { className: CIRCLE }),
+  return /* @__PURE__ */ jsxs18(RadioField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
+    /* @__PURE__ */ jsxs18(RadioButton, { className: composeRenderProps20(className, (given) => `bc:group ${RADIO} ${given ?? ""}`), children: [
+      /* @__PURE__ */ jsx25("span", { className: CIRCLE }),
       children
     ] }),
-    /* @__PURE__ */ jsx22(Text8, { slot: "description", className: `${styles.hint} bc:ml-6 bc:empty:hidden`, children: description })
+    /* @__PURE__ */ jsx25(Text8, { slot: "description", className: `${styles.hint} bc:ml-6 bc:empty:hidden`, children: description })
   ] });
 }
 var RADIO = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var CIRCLE = "bc:box-border bc:size-4 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:transition-[border-width] bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-[5px] bc:group-data-selected:border-bg-accent bc:group-data-invalid:border-border-danger";
 
 // srcts/inputs/searchfield.tsx
-import { composeRenderProps as composeRenderProps17, FieldError as FieldError8, Group as Group4, Input as Input4, Label as Label9, SearchField as AriaSearchField, Text as Text9 } from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment13, jsx as jsx23, jsxs as jsxs16 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps21, FieldError as FieldError8, Group as Group4, Input as Input4, Label as Label9, SearchField as AriaSearchField, Text as Text9 } from "./vendor-2846f4d1.js";
+import { Fragment as Fragment14, jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
 function SearchField({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx23(Drawn6, { ...props }) : /* @__PURE__ */ jsx23(BoundSearch, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx26(Drawn6, { ...props }) : /* @__PURE__ */ jsx26(BoundSearch, { ...props, bound });
 }
 function BoundSearch({ bound, onChange, onKeyDown, onBlur, onClear, ...props }) {
   const [text, typed] = useTyped(bound);
-  return /* @__PURE__ */ jsxs16(Fragment13, { children: [
-    /* @__PURE__ */ jsx23(
+  return /* @__PURE__ */ jsxs19(Fragment14, { children: [
+    /* @__PURE__ */ jsx26(
       Drawn6,
       {
         ...props,
@@ -2229,19 +2465,19 @@ function BoundSearch({ bound, onChange, onKeyDown, onBlur, onClear, ...props }) 
         }
       }
     ),
-    /* @__PURE__ */ jsx23(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx26(Refusal, { error: bound.error })
   ] });
 }
 function Drawn6({ label, description, errorMessage: errorMessage2, placeholder, className, ...props }) {
-  return /* @__PURE__ */ jsxs16(AriaSearchField, { ...props, className: composeRenderProps17(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx23(Label9, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsxs16(Group4, { className: FIELD4, children: [
-      /* @__PURE__ */ jsx23(Magnifier, {}),
-      /* @__PURE__ */ jsx23(Input4, { placeholder, className: INPUT3 }),
-      /* @__PURE__ */ jsx23(FieldButton, { className: "bc:group-data-empty:invisible", children: /* @__PURE__ */ jsx23(Cross, {}) })
+  return /* @__PURE__ */ jsxs19(AriaSearchField, { ...props, className: composeRenderProps21(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx26(Label9, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsxs19(Group4, { className: FIELD4, children: [
+      /* @__PURE__ */ jsx26(Magnifier, {}),
+      /* @__PURE__ */ jsx26(Input4, { placeholder, className: INPUT3 }),
+      /* @__PURE__ */ jsx26(FieldButton, { className: "bc:group-data-empty:invisible", children: /* @__PURE__ */ jsx26(Cross, {}) })
     ] }),
-    /* @__PURE__ */ jsx23(Text9, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx23(FieldError8, { className: styles.alert, children: errorMessage2 })
+    /* @__PURE__ */ jsx26(Text9, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx26(FieldError8, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 var FIELD4 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:py-0.5 bc:pr-1 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:group-data-invalid:border-border-danger bc:data-disabled:opacity-50";
@@ -2251,9 +2487,9 @@ var INPUT3 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-
 import { useContext as useContext7, useLayoutEffect as useLayoutEffect3, useMemo as useMemo3, useRef as useRef9, useState as useState9 } from "react";
 import { strings as strings3 } from "@blockr/core/binding";
 import {
-  Button as Button5,
+  Button as Button6,
   Collection as Collection3,
-  composeRenderProps as composeRenderProps18,
+  composeRenderProps as composeRenderProps22,
   FieldError as FieldError9,
   Label as Label10,
   ListBox as ListBox3,
@@ -2263,18 +2499,18 @@ import {
   SelectValue,
   Text as Text10,
   useLocale as useLocale2
-} from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment14, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment15, jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
 function Select(props) {
   const { bound, outdated = false, ordered = false, ...rest } = props;
-  if (bound === void 0) return /* @__PURE__ */ jsx24(Drawn7, { ...rest });
-  return /* @__PURE__ */ jsx24(BoundSelect, { ...rest, bound, outdated, ordered });
+  if (bound === void 0) return /* @__PURE__ */ jsx27(Drawn7, { ...rest });
+  return /* @__PURE__ */ jsx27(BoundSelect, { ...rest, bound, outdated, ordered });
 }
 function SelectItem(props) {
-  return /* @__PURE__ */ jsx24(ComboBoxItem, { ...props });
+  return /* @__PURE__ */ jsx27(ComboBoxItem, { ...props });
 }
 function SelectSection(props) {
-  return /* @__PURE__ */ jsx24(ComboBoxSection, { ...props });
+  return /* @__PURE__ */ jsx27(ComboBoxSection, { ...props });
 }
 function BoundSelect({
   bound,
@@ -2307,7 +2543,7 @@ function BoundSelect({
       setKnown((last) => last !== null && sameIds(last, next) ? last : next);
     }
   };
-  const line = marking ? /* @__PURE__ */ jsx24(
+  const line = marking ? /* @__PURE__ */ jsx27(
     NotAvailable,
     {
       values: asIs,
@@ -2317,8 +2553,8 @@ function BoundSelect({
     }
   ) : null;
   if (!several) {
-    return /* @__PURE__ */ jsxs17(Fragment14, { children: [
-      /* @__PURE__ */ jsx24(
+    return /* @__PURE__ */ jsxs20(Fragment15, { children: [
+      /* @__PURE__ */ jsx27(
         Drawn7,
         {
           ...common,
@@ -2332,11 +2568,11 @@ function BoundSelect({
         }
       ),
       line,
-      /* @__PURE__ */ jsx24(Refusal, { error: bound.error })
+      /* @__PURE__ */ jsx27(Refusal, { error: bound.error })
     ] });
   }
-  return /* @__PURE__ */ jsxs17(Fragment14, { children: [
-    /* @__PURE__ */ jsx24(
+  return /* @__PURE__ */ jsxs20(Fragment15, { children: [
+    /* @__PURE__ */ jsx27(
       Drawn7,
       {
         ...common,
@@ -2369,7 +2605,7 @@ function BoundSelect({
       }
     ),
     line,
-    /* @__PURE__ */ jsx24(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx27(Refusal, { error: bound.error })
   ] });
 }
 function sameIds(a, b) {
@@ -2379,22 +2615,22 @@ function Drawn7({ label, description, errorMessage: errorMessage2, items, childr
   const value = useSameValue(props.value);
   const { locale } = useLocale2();
   const list = useMemo3(() => new Intl.ListFormat(locale), [locale]);
-  return /* @__PURE__ */ jsxs17(
+  return /* @__PURE__ */ jsxs20(
     AriaSelect,
     {
       ...props,
       value,
-      className: composeRenderProps18(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
+      className: composeRenderProps22(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx24(Label10, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsxs17(Button5, { className: TRIGGER, children: [
-          /* @__PURE__ */ jsx24(SelectValue, { className: ({ isPlaceholder }) => isPlaceholder && asIs.length === 0 ? `${VALUE} ${PLACEHOLDER}` : VALUE, children: ({ state, selectedText, defaultChildren, isPlaceholder }) => asIs.length > 0 ? list.format([...state.selectedItems.map((item) => item.textValue), ...asIs]) : isPlaceholder ? defaultChildren : selectedText || defaultChildren }),
-          /* @__PURE__ */ jsx24(Chevron, {})
+        label === void 0 ? null : /* @__PURE__ */ jsx27(Label10, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsxs20(Button6, { className: TRIGGER, children: [
+          /* @__PURE__ */ jsx27(SelectValue, { className: ({ isPlaceholder }) => isPlaceholder && asIs.length === 0 ? `${VALUE} ${PLACEHOLDER}` : VALUE, children: ({ state, selectedText, defaultChildren, isPlaceholder }) => asIs.length > 0 ? list.format([...state.selectedItems.map((item) => item.textValue), ...asIs]) : isPlaceholder ? defaultChildren : selectedText || defaultChildren }),
+          /* @__PURE__ */ jsx27(Chevron, {})
         ] }),
-        /* @__PURE__ */ jsx24(Text10, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-        /* @__PURE__ */ jsx24(FieldError9, { className: styles.alert, children: errorMessage2 }),
-        /* @__PURE__ */ jsx24(Popover3, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx24(ListBox3, { renderEmptyState: () => /* @__PURE__ */ jsx24("p", { className: NOTE3, children: "No options" }), className: LISTBOX3, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx24(Collection3, { items, children }) }) }),
-        onKnown === void 0 ? null : /* @__PURE__ */ jsx24(Known, { onKnown })
+        /* @__PURE__ */ jsx27(Text10, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+        /* @__PURE__ */ jsx27(FieldError9, { className: styles.alert, children: errorMessage2 }),
+        /* @__PURE__ */ jsx27(Popover3, { offset: 4, className: LIST2, children: /* @__PURE__ */ jsx27(ListBox3, { renderEmptyState: () => /* @__PURE__ */ jsx27("p", { className: NOTE3, children: "No options" }), className: LISTBOX3, children: items === void 0 ? typeof children === "function" ? null : children : /* @__PURE__ */ jsx27(Collection3, { items, children }) }) }),
+        onKnown === void 0 ? null : /* @__PURE__ */ jsx27(Known, { onKnown })
       ]
     }
   );
@@ -2421,7 +2657,7 @@ var NOTE3 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:tex
 // srcts/inputs/slider.tsx
 import { useContext as useContext8, useLayoutEffect as useLayoutEffect4, useRef as useRef10, useState as useState10 } from "react";
 import {
-  composeRenderProps as composeRenderProps19,
+  composeRenderProps as composeRenderProps23,
   Label as Label11,
   Slider as AriaSlider,
   SliderFill,
@@ -2430,10 +2666,10 @@ import {
   SliderThumb,
   SliderTrack as SliderTrack2,
   useLocale as useLocale3
-} from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment15, jsx as jsx25, jsxs as jsxs18 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment16, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
 function Slider2({ bound, outdated = false, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx25(Drawn8, { ...props }) : /* @__PURE__ */ jsx25(BoundSlider, { ...props, bound, outdated });
+  return bound === void 0 ? /* @__PURE__ */ jsx28(Drawn8, { ...props }) : /* @__PURE__ */ jsx28(BoundSlider, { ...props, bound, outdated });
 }
 function BoundSlider({
   bound,
@@ -2459,8 +2695,8 @@ function BoundSlider({
   const drawn = moving ?? (held3.length > 0 ? held3 : [min]);
   const value = several ? [...drawn] : drawn[0] ?? min;
   const { locale } = useLocale3();
-  return /* @__PURE__ */ jsxs18(Fragment15, { children: [
-    /* @__PURE__ */ jsx25(
+  return /* @__PURE__ */ jsxs21(Fragment16, { children: [
+    /* @__PURE__ */ jsx28(
       Drawn8,
       {
         ...props,
@@ -2487,7 +2723,7 @@ function BoundSlider({
           }
           onChangeEnd?.(next);
         },
-        watch: /* @__PURE__ */ jsx25(
+        watch: /* @__PURE__ */ jsx28(
           Watch2,
           {
             onShown: (values) => {
@@ -2497,8 +2733,8 @@ function BoundSlider({
         )
       }
     ),
-    marking ? /* @__PURE__ */ jsx25(NotAvailable, { values: lacked.map((x) => new Intl.NumberFormat(locale, props.formatOptions).format(x)) }) : null,
-    /* @__PURE__ */ jsx25(Refusal, { error: bound.error })
+    marking ? /* @__PURE__ */ jsx28(NotAvailable, { values: lacked.map((x) => new Intl.NumberFormat(locale, props.formatOptions).format(x)) }) : null,
+    /* @__PURE__ */ jsx28(Refusal, { error: bound.error })
   ] });
 }
 function Watch2({ onShown }) {
@@ -2513,18 +2749,18 @@ function numbers(value) {
   return Array.isArray(value) ? value.filter((x) => typeof x === "number") : [];
 }
 function Drawn8({ label, thumbLabels, fillOffset, said, invalid = false, watch, className, ...props }) {
-  return /* @__PURE__ */ jsxs18(
+  return /* @__PURE__ */ jsxs21(
     AriaSlider,
     {
       ...props,
       "data-invalid": invalid || void 0,
-      className: composeRenderProps19(className, (given) => `bc:group ${SLIDER2} ${given ?? ""}`),
+      className: composeRenderProps23(className, (given) => `bc:group ${SLIDER2} ${given ?? ""}`),
       children: [
-        label === void 0 ? /* @__PURE__ */ jsx25("span", {}) : /* @__PURE__ */ jsx25(Label11, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsx25(SliderOutput2, { className: OUTPUT2, children: ({ state }) => said === void 0 ? state.getFormattedValue() : said((value) => state.getFormattedValue(value)) }),
-        /* @__PURE__ */ jsx25(SliderTrack2, { className: TRACK2, children: ({ state }) => /* @__PURE__ */ jsxs18(Fragment15, { children: [
-          /* @__PURE__ */ jsx25("div", { className: BAR, children: /* @__PURE__ */ jsx25(SliderFill, { offset: fillOffset, className: FILL }) }),
-          state.values.map((_, i) => /* @__PURE__ */ jsx25(SliderThumb, { index: i, "aria-label": thumbLabels?.[i], className: THUMB2 }, i))
+        label === void 0 ? /* @__PURE__ */ jsx28("span", {}) : /* @__PURE__ */ jsx28(Label11, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsx28(SliderOutput2, { className: OUTPUT2, children: ({ state }) => said === void 0 ? state.getFormattedValue() : said((value) => state.getFormattedValue(value)) }),
+        /* @__PURE__ */ jsx28(SliderTrack2, { className: TRACK2, children: ({ state }) => /* @__PURE__ */ jsxs21(Fragment16, { children: [
+          /* @__PURE__ */ jsx28("div", { className: BAR, children: /* @__PURE__ */ jsx28(SliderFill, { offset: fillOffset, className: FILL }) }),
+          state.values.map((_, i) => /* @__PURE__ */ jsx28(SliderThumb, { index: i, "aria-label": thumbLabels?.[i], className: THUMB2 }, i))
         ] }) }),
         watch
       ]
@@ -2539,12 +2775,12 @@ var FILL = "bc:rounded-full bc:bg-bg-accent bc:group-data-invalid:bg-border-dang
 var THUMB2 = "bc:top-1/2 bc:box-border bc:size-4 bc:cursor-grab bc:rounded-full bc:border-2 bc:border-bg-accent bc:bg-bg-raised bc:shadow-xs bc:outline-offset-2 bc:outline-border-accent bc:data-dragging:cursor-grabbing bc:data-focus-visible:outline-2 bc:data-disabled:cursor-default bc:group-data-invalid:border-border-danger";
 
 // srcts/inputs/switch.tsx
-import { composeRenderProps as composeRenderProps20, FieldError as FieldError10, SwitchButton, SwitchField, Text as Text11 } from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment16, jsx as jsx26, jsxs as jsxs19 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps24, FieldError as FieldError10, SwitchButton, SwitchField, Text as Text11 } from "./vendor-2846f4d1.js";
+import { Fragment as Fragment17, jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
 function Switch({ bound, onChange, ...props }) {
-  if (bound === void 0) return /* @__PURE__ */ jsx26(Drawn9, { ...props, onChange });
-  return /* @__PURE__ */ jsxs19(Fragment16, { children: [
-    /* @__PURE__ */ jsx26(
+  if (bound === void 0) return /* @__PURE__ */ jsx29(Drawn9, { ...props, onChange });
+  return /* @__PURE__ */ jsxs22(Fragment17, { children: [
+    /* @__PURE__ */ jsx29(
       Drawn9,
       {
         ...props,
@@ -2555,17 +2791,17 @@ function Switch({ bound, onChange, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx26(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx29(Refusal, { error: bound.error })
   ] });
 }
 function Drawn9({ children, description, errorMessage: errorMessage2, className, ...props }) {
-  return /* @__PURE__ */ jsxs19(SwitchField, { ...props, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
-    /* @__PURE__ */ jsxs19(SwitchButton, { className: composeRenderProps20(className, (given) => `bc:group ${SWITCH} ${given ?? ""}`), children: [
-      /* @__PURE__ */ jsx26("span", { className: TRACK3, children: /* @__PURE__ */ jsx26("span", { className: HANDLE }) }),
+  return /* @__PURE__ */ jsxs22(SwitchField, { ...props, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
+    /* @__PURE__ */ jsxs22(SwitchButton, { className: composeRenderProps24(className, (given) => `bc:group ${SWITCH} ${given ?? ""}`), children: [
+      /* @__PURE__ */ jsx29("span", { className: TRACK3, children: /* @__PURE__ */ jsx29("span", { className: HANDLE }) }),
       children
     ] }),
-    /* @__PURE__ */ jsx26(Text11, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx26(FieldError10, { className: styles.alert, children: errorMessage2 })
+    /* @__PURE__ */ jsx29(Text11, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx29(FieldError10, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 var SWITCH = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text-sm bc:text-text-default bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
@@ -2574,8 +2810,8 @@ var HANDLE = "bc:size-4 bc:rounded-full bc:bg-text-muted bc:shadow-xs bc:transit
 
 // srcts/inputs/tags.tsx
 import { createContext as createContext3, useContext as useContext9 } from "react";
-import { Button as Button6, composeRenderProps as composeRenderProps21, Label as Label12, Tag as AriaTag, TagGroup as AriaTagGroup, TagList as TagList2, Text as Text12 } from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment17, jsx as jsx27, jsxs as jsxs20 } from "react/jsx-runtime";
+import { Button as Button7, composeRenderProps as composeRenderProps25, Label as Label12, Tag as AriaTag, TagGroup as AriaTagGroup, TagList as TagList2, Text as Text12 } from "./vendor-2846f4d1.js";
+import { Fragment as Fragment18, jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
 var colors = {
   gray: "bc:border-border-default bc:bg-bg-subtle bc:text-text-default",
   accent: "bc:border-border-accent bc:bg-bg-subtle bc:text-text-default"
@@ -2592,25 +2828,25 @@ function TagGroup2({
   className,
   ...props
 }) {
-  return /* @__PURE__ */ jsxs20(AriaTagGroup, { ...props, className: `${styles.field} ${className ?? ""}`, children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx27(Label12, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsx27(ColorContext.Provider, { value: color, children: /* @__PURE__ */ jsx27(TagList2, { items, renderEmptyState, className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children }) }),
-    description === void 0 ? null : /* @__PURE__ */ jsx27(Text12, { slot: "description", className: styles.hint, children: description }),
-    errorMessage2 === void 0 ? null : /* @__PURE__ */ jsx27(Text12, { slot: "errorMessage", className: styles.alert, children: errorMessage2 })
+  return /* @__PURE__ */ jsxs23(AriaTagGroup, { ...props, className: `${styles.field} ${className ?? ""}`, children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx30(Label12, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsx30(ColorContext.Provider, { value: color, children: /* @__PURE__ */ jsx30(TagList2, { items, renderEmptyState, className: "bc:flex bc:min-w-0 bc:flex-wrap bc:gap-1", children }) }),
+    description === void 0 ? null : /* @__PURE__ */ jsx30(Text12, { slot: "description", className: styles.hint, children: description }),
+    errorMessage2 === void 0 ? null : /* @__PURE__ */ jsx30(Text12, { slot: "errorMessage", className: styles.alert, children: errorMessage2 })
   ] });
 }
 function Tag2({ children, color, className, ...props }) {
   const textValue = typeof children === "string" ? children : void 0;
   const groupColor = useContext9(ColorContext);
-  return /* @__PURE__ */ jsx27(
+  return /* @__PURE__ */ jsx30(
     AriaTag,
     {
       textValue,
       ...props,
-      className: composeRenderProps21(className, (given) => `${TAG} ${colors[color ?? groupColor]} ${given ?? ""}`),
-      children: composeRenderProps21(children, (children2, { allowsRemoving }) => /* @__PURE__ */ jsxs20(Fragment17, { children: [
-        /* @__PURE__ */ jsx27("span", { className: "bc:truncate", children: children2 }),
-        allowsRemoving ? /* @__PURE__ */ jsx27(Button6, { slot: "remove", className: REMOVE, children: /* @__PURE__ */ jsx27(Cross, {}) }) : null
+      className: composeRenderProps25(className, (given) => `${TAG} ${colors[color ?? groupColor]} ${given ?? ""}`),
+      children: composeRenderProps25(children, (children2, { allowsRemoving }) => /* @__PURE__ */ jsxs23(Fragment18, { children: [
+        /* @__PURE__ */ jsx30("span", { className: "bc:truncate", children: children2 }),
+        allowsRemoving ? /* @__PURE__ */ jsx30(Button7, { slot: "remove", className: REMOVE, children: /* @__PURE__ */ jsx30(Cross, {}) }) : null
       ] }))
     }
   );
@@ -2619,16 +2855,16 @@ var TAG = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:cursor-default bc:items-ce
 var REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:data-hovered:bg-bg-subtle";
 
 // srcts/inputs/textfield.tsx
-import { composeRenderProps as composeRenderProps22, FieldError as FieldError11, Input as Input5, Label as Label13, Text as Text13, TextArea, TextField as AriaTextField } from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment18, jsx as jsx28, jsxs as jsxs21 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps26, FieldError as FieldError11, Input as Input5, Label as Label13, Text as Text13, TextArea, TextField as AriaTextField } from "./vendor-2846f4d1.js";
+import { Fragment as Fragment19, jsx as jsx31, jsxs as jsxs24 } from "react/jsx-runtime";
 function TextField({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx28(Drawn10, { ...props }) : /* @__PURE__ */ jsx28(BoundText, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx31(Drawn10, { ...props }) : /* @__PURE__ */ jsx31(BoundText, { ...props, bound });
 }
 function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
   const [text, typed] = useTyped(bound);
   const lines = props.lines ?? 1;
-  return /* @__PURE__ */ jsxs21(Fragment18, { children: [
-    /* @__PURE__ */ jsx28(
+  return /* @__PURE__ */ jsxs24(Fragment19, { children: [
+    /* @__PURE__ */ jsx31(
       Drawn10,
       {
         ...props,
@@ -2651,27 +2887,27 @@ function BoundText({ bound, onChange, onKeyDown, onBlur, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx28(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx31(Refusal, { error: bound.error })
   ] });
 }
 function Drawn10({ label, description, errorMessage: errorMessage2, placeholder, lines = 1, className, ...props }) {
-  return /* @__PURE__ */ jsxs21(AriaTextField, { ...props, className: composeRenderProps22(className, (given) => `${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx28(Label13, { className: styles.label, children: label }),
-    lines > 1 ? /* @__PURE__ */ jsx28(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx28(Input5, { placeholder, className: styles.box }),
-    /* @__PURE__ */ jsx28(Text13, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx28(FieldError11, { className: styles.alert, children: errorMessage2 })
+  return /* @__PURE__ */ jsxs24(AriaTextField, { ...props, className: composeRenderProps26(className, (given) => `${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx31(Label13, { className: styles.label, children: label }),
+    lines > 1 ? /* @__PURE__ */ jsx31(TextArea, { rows: lines, placeholder, className: styles.box }) : /* @__PURE__ */ jsx31(Input5, { placeholder, className: styles.box }),
+    /* @__PURE__ */ jsx31(Text13, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx31(FieldError11, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 
 // srcts/inputs/toggle.tsx
 import { createContext as createContext4, useContext as useContext10, useId, useRef as useRef11 } from "react";
 import { strings as strings4 } from "@blockr/core/binding";
-import { composeRenderProps as composeRenderProps23, ToggleButton as AriaToggleButton, ToggleButtonGroup as AriaToggleButtonGroup } from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment19, jsx as jsx29, jsxs as jsxs22 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps27, ToggleButton as AriaToggleButton, ToggleButtonGroup as AriaToggleButtonGroup } from "./vendor-2846f4d1.js";
+import { Fragment as Fragment20, jsx as jsx32, jsxs as jsxs25 } from "react/jsx-runtime";
 function ToggleButton({ bound, onChange, ...props }) {
-  if (bound === void 0) return /* @__PURE__ */ jsx29(DrawnButton, { ...props, onChange });
-  return /* @__PURE__ */ jsxs22(Fragment19, { children: [
-    /* @__PURE__ */ jsx29(
+  if (bound === void 0) return /* @__PURE__ */ jsx32(DrawnButton, { ...props, onChange });
+  return /* @__PURE__ */ jsxs25(Fragment20, { children: [
+    /* @__PURE__ */ jsx32(
       DrawnButton,
       {
         ...props,
@@ -2682,7 +2918,7 @@ function ToggleButton({ bound, onChange, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx29(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx32(Refusal, { error: bound.error })
   ] });
 }
 var InGroup = createContext4(false);
@@ -2690,17 +2926,17 @@ function DrawnButton({ className, ...props }) {
   const ref = useRef11(null);
   const inGroup = useContext10(InGroup);
   useItem(props.id === void 0 ? void 0 : String(props.id), ref);
-  return /* @__PURE__ */ jsx29(
+  return /* @__PURE__ */ jsx32(
     AriaToggleButton,
     {
       ...props,
       ref,
-      className: composeRenderProps23(className, (given) => `${TOGGLE} ${inGroup ? "" : ALONE} ${given ?? ""}`)
+      className: composeRenderProps27(className, (given) => `${TOGGLE} ${inGroup ? "" : ALONE} ${given ?? ""}`)
     }
   );
 }
 function ToggleButtonGroup({ bound, outdated = false, ordered = false, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx29(DrawnGroup3, { ...props }) : /* @__PURE__ */ jsx29(BoundGroup3, { ...props, bound, outdated, ordered });
+  return bound === void 0 ? /* @__PURE__ */ jsx32(DrawnGroup3, { ...props }) : /* @__PURE__ */ jsx32(BoundGroup3, { ...props, bound, outdated, ordered });
 }
 function BoundGroup3({
   bound,
@@ -2715,8 +2951,8 @@ function BoundGroup3({
   const shown = several ? strings4(bound.value) : typeof bound.value === "string" ? [bound.value] : [];
   const gone = lacking(shown, known2);
   const marking = !outdated && gone.length > 0;
-  return /* @__PURE__ */ jsxs22(Fragment19, { children: [
-    /* @__PURE__ */ jsx29(
+  return /* @__PURE__ */ jsxs25(Fragment20, { children: [
+    /* @__PURE__ */ jsx32(
       DrawnGroup3,
       {
         ...props,
@@ -2733,10 +2969,10 @@ function BoundGroup3({
           }
           onSelectionChange?.(keys);
         },
-        children: /* @__PURE__ */ jsx29(ItemsContext.Provider, { value: items, children })
+        children: /* @__PURE__ */ jsx32(ItemsContext.Provider, { value: items, children })
       }
     ),
-    marking ? /* @__PURE__ */ jsx29(
+    marking ? /* @__PURE__ */ jsx32(
       NotAvailable,
       {
         values: gone,
@@ -2745,29 +2981,29 @@ function BoundGroup3({
         } : void 0
       }
     ) : null,
-    /* @__PURE__ */ jsx29(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx32(Refusal, { error: bound.error })
   ] });
 }
 function DrawnGroup3({ label, description, invalid = false, children, className, ...props }) {
   const labelId = useId();
   const descriptionId = useId();
   const described = description !== void 0 && description !== "";
-  const group = /* @__PURE__ */ jsx29(
+  const group = /* @__PURE__ */ jsx32(
     AriaToggleButtonGroup,
     {
       ...props,
       "aria-labelledby": props["aria-labelledby"] ?? (label === void 0 ? void 0 : labelId),
       "aria-describedby": described ? descriptionId : void 0,
       "data-invalid": invalid || void 0,
-      className: composeRenderProps23(className, (given) => `${GROUP} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx29(InGroup.Provider, { value: true, children })
+      className: composeRenderProps27(className, (given) => `${GROUP} ${given ?? ""}`),
+      children: /* @__PURE__ */ jsx32(InGroup.Provider, { value: true, children })
     }
   );
   if (label === void 0 && !described) return group;
-  return /* @__PURE__ */ jsxs22("div", { className: styles.field, children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx29("span", { id: labelId, className: styles.label, children: label }),
+  return /* @__PURE__ */ jsxs25("div", { className: styles.field, children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx32("span", { id: labelId, className: styles.label, children: label }),
     group,
-    described ? /* @__PURE__ */ jsx29("p", { id: descriptionId, className: styles.hint, children: description }) : null
+    described ? /* @__PURE__ */ jsx32("p", { id: descriptionId, className: styles.hint, children: description }) : null
   ] });
 }
 var GROUP = "bc:flex bc:w-fit bc:max-w-full bc:flex-wrap bc:gap-0.5 bc:rounded-md bc:border bc:border-border-default bc:p-0.5 bc:font-sans bc:data-[orientation=vertical]:flex-col bc:data-invalid:border-border-danger";
@@ -2775,8 +3011,8 @@ var TOGGLE = "bc:inline-flex bc:min-h-6 bc:cursor-pointer bc:items-center bc:jus
 var ALONE = "bc:rounded-md bc:border bc:border-solid bc:border-border-default bc:data-selected:border-border-accent";
 
 // srcts/inputs/tokenfield.tsx
-import { composeRenderProps as composeRenderProps24, Label as Label14, Text as Text14, Token as AriaToken, TokenField as AriaTokenField, TokenInput } from "./vendor-0fd01f5f.js";
-import { jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps28, Label as Label14, Text as Text14, Token as AriaToken, TokenField as AriaTokenField, TokenInput } from "./vendor-2846f4d1.js";
+import { jsx as jsx33, jsxs as jsxs26 } from "react/jsx-runtime";
 function TokenField({
   label,
   description,
@@ -2785,26 +3021,230 @@ function TokenField({
   children,
   ...props
 }) {
-  return /* @__PURE__ */ jsxs23(AriaTokenField, { ...props, className: composeRenderProps24(className, (given) => `${styles.field} ${given ?? ""}`), children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx30(Label14, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsx30(TokenInput, { ref: inputRef, className: INPUT4, children }),
-    description === void 0 ? null : /* @__PURE__ */ jsx30(Text14, { slot: "description", className: styles.hint, children: description })
+  return /* @__PURE__ */ jsxs26(AriaTokenField, { ...props, className: composeRenderProps28(className, (given) => `${styles.field} ${given ?? ""}`), children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx33(Label14, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsx33(TokenInput, { ref: inputRef, className: INPUT4, children }),
+    description === void 0 ? null : /* @__PURE__ */ jsx33(Text14, { slot: "description", className: styles.hint, children: description })
   ] });
 }
 function Token({ className, ...props }) {
-  return /* @__PURE__ */ jsx30(AriaToken, { ...props, className: composeRenderProps24(className, (given) => `${TOKEN} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx33(AriaToken, { ...props, className: composeRenderProps28(className, (given) => `${TOKEN} ${given ?? ""}`) });
 }
 var INPUT4 = "bc:box-border bc:min-h-[30px] bc:w-full bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focused:outline-2 bc:data-focused:outline-offset-1 bc:data-focused:outline-border-accent bc:data-disabled:opacity-50";
 var TOKEN = "bc:mx-0.5 bc:inline-flex bc:h-5 bc:cursor-default bc:items-center bc:whitespace-nowrap bc:rounded bc:border bc:border-border-accent bc:bg-bg-subtle bc:px-1.5 bc:text-xs bc:text-text-default bc:data-selected:bg-bg-accent bc:data-selected:text-text-on-accent";
 
 // srcts/inputs/index.ts
-import { Autocomplete as Autocomplete2, FileTrigger, Text as Text15, useFilter as useFilter2 } from "./vendor-0fd01f5f.js";
+import { Autocomplete as Autocomplete2, FileTrigger, Text as Text15, useFilter as useFilter2 } from "./vendor-2846f4d1.js";
+
+// srcts/layout/breadcrumbs.tsx
+import { Breadcrumb as AriaBreadcrumb, Breadcrumbs as AriaBreadcrumbs, composeRenderProps as composeRenderProps30 } from "./vendor-2846f4d1.js";
+
+// srcts/layout/link.tsx
+import { composeRenderProps as composeRenderProps29, Link as AriaLink } from "./vendor-2846f4d1.js";
+import { jsx as jsx34 } from "react/jsx-runtime";
+function Link({ variant = "primary", className, ...props }) {
+  return /* @__PURE__ */ jsx34(AriaLink, { ...props, className: composeRenderProps29(className, (given) => `${LINK} ${VARIANTS[variant]} ${given ?? ""}`) });
+}
+var LINK = "bc:cursor-pointer bc:rounded-xs bc:underline bc:outline-none bc:transition bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:no-underline bc:forced-colors:data-disabled:text-[GrayText]";
+var VARIANTS = {
+  primary: "bc:text-blue-700 bc:decoration-blue-700/60 bc:data-hovered:decoration-blue-700 bc:dark:text-blue-400 bc:dark:decoration-blue-400/60 bc:dark:data-hovered:decoration-blue-400",
+  secondary: "bc:text-text-default bc:decoration-current/50 bc:data-hovered:decoration-current"
+};
+
+// srcts/layout/breadcrumbs.tsx
+import { Fragment as Fragment21, jsx as jsx35, jsxs as jsxs27 } from "react/jsx-runtime";
+function Breadcrumbs({ className, ...props }) {
+  return /* @__PURE__ */ jsx35(AriaBreadcrumbs, { ...props, className: `${BREADCRUMBS} ${className ?? ""}` });
+}
+function Breadcrumb({ className, id, ...props }) {
+  return /* @__PURE__ */ jsx35(AriaBreadcrumb, { ...props, id, className: composeRenderProps30(className, (given) => `${BREADCRUMB} ${given ?? ""}`), children: ({ isCurrent }) => /* @__PURE__ */ jsxs27(Fragment21, { children: [
+    /* @__PURE__ */ jsx35(Link, { variant: "secondary", ...props }),
+    isCurrent ? null : /* @__PURE__ */ jsx35(ChevronRight, {})
+  ] }) });
+}
+var BREADCRUMBS = "bc:m-0 bc:flex bc:list-none bc:flex-wrap bc:items-center bc:gap-1 bc:p-0 bc:font-sans bc:text-sm";
+var BREADCRUMB = "bc:flex bc:items-center bc:gap-1";
+
+// srcts/layout/disclosure.tsx
+import { useContext as useContext11 } from "react";
+import {
+  Button as Button8,
+  composeRenderProps as composeRenderProps31,
+  Disclosure as AriaDisclosure,
+  DisclosurePanel as AriaDisclosurePanel,
+  DisclosureStateContext,
+  Heading as Heading3
+} from "./vendor-2846f4d1.js";
+import { jsx as jsx36, jsxs as jsxs28 } from "react/jsx-runtime";
+function Disclosure({ className, ...props }) {
+  return /* @__PURE__ */ jsx36(AriaDisclosure, { ...props, className: composeRenderProps31(className, (given) => `${DISCLOSURE} ${given ?? ""}`) });
+}
+function DisclosureHeader({ children, level = 3, className }) {
+  const expanded = useContext11(DisclosureStateContext)?.isExpanded ?? false;
+  return /* @__PURE__ */ jsx36(Heading3, { level, className: `${HEADING4} ${className ?? FACE}`, children: /* @__PURE__ */ jsxs28(Button8, { slot: "trigger", className: TRIGGER2, children: [
+    /* @__PURE__ */ jsx36(Marker, { expanded }),
+    children
+  ] }) });
+}
+function DisclosurePanel({ className, ...props }) {
+  return /* @__PURE__ */ jsx36(AriaDisclosurePanel, { ...props, className: composeRenderProps31(className, (given) => `${PANEL} ${given ?? ""}`) });
+}
+function Marker({ expanded }) {
+  return /* @__PURE__ */ jsx36(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      fill: "currentColor",
+      className: `bc:size-3 bc:shrink-0 bc:transition-transform bc:motion-reduce:transition-none ${expanded ? "bc:rotate-90" : ""}`,
+      children: /* @__PURE__ */ jsx36("path", { d: "M5.5 3.5 11 8l-5.5 4.5Z" })
+    }
+  );
+}
+var DISCLOSURE = "bc:font-sans bc:text-text-default";
+var HEADING4 = "bc:m-0 bc:font-sans";
+var FACE = "bc:text-base bc:font-semibold";
+var TRIGGER2 = "bc:flex bc:w-full bc:cursor-pointer bc:items-center bc:gap-1.5 bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-left bc:text-inherit bc:[font:inherit] bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
+var PANEL = "bc:h-(--disclosure-panel-height) bc:overflow-clip bc:motion-safe:transition-[height]";
+
+// srcts/layout/meter.tsx
+import { composeRenderProps as composeRenderProps32, Label as Label15, Meter as AriaMeter, ProgressBar as AriaProgressBar } from "./vendor-2846f4d1.js";
+import { Fragment as Fragment22, jsx as jsx37, jsxs as jsxs29 } from "react/jsx-runtime";
+function Meter({ label, className, ...props }) {
+  return /* @__PURE__ */ jsx37(AriaMeter, { ...props, className: composeRenderProps32(className, (given) => `${METER} ${given ?? ""}`), children: ({ percentage, valueText }) => /* @__PURE__ */ jsxs29(Fragment22, { children: [
+    /* @__PURE__ */ jsxs29("div", { className: "bc:flex bc:justify-between bc:gap-2", children: [
+      /* @__PURE__ */ jsx37(Label15, { className: styles.label, children: label }),
+      /* @__PURE__ */ jsxs29("span", { className: `bc:text-sm ${percentage >= 80 ? "bc:text-text-danger" : "bc:text-text-muted"}`, children: [
+        percentage >= 80 ? /* @__PURE__ */ jsx37(Alert, {}) : null,
+        ` ${valueText ?? ""}`
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx37("div", { className: `${TRACK4} bc:w-64`, children: /* @__PURE__ */ jsx37("div", { className: `${FILL2} bc:left-0 ${fill(percentage)}`, style: { width: `${String(percentage)}%` } }) })
+  ] }) });
+}
+function ProgressBar({ label, className, ...props }) {
+  return /* @__PURE__ */ jsx37(AriaProgressBar, { ...props, className: composeRenderProps32(className, (given) => `${PROGRESS} ${given ?? ""}`), children: ({ percentage, valueText, isIndeterminate }) => /* @__PURE__ */ jsxs29(Fragment22, { children: [
+    /* @__PURE__ */ jsxs29("div", { className: "bc:flex bc:justify-between bc:gap-2", children: [
+      /* @__PURE__ */ jsx37(Label15, { className: styles.label, children: label }),
+      /* @__PURE__ */ jsx37("span", { className: "bc:text-sm bc:text-text-muted", children: valueText })
+    ] }),
+    /* @__PURE__ */ jsx37("div", { className: `${TRACK4} bc:overflow-hidden`, children: /* @__PURE__ */ jsx37(
+      "div",
+      {
+        className: `${FILL2} bc:left-0 bc:bg-bg-accent ${isIndeterminate ? "bc:motion-safe:animate-[bc-progress-slide_1s_ease-out_infinite]" : ""}`,
+        style: { width: `${String(isIndeterminate ? 40 : percentage ?? 0)}%` }
+      }
+    ) })
+  ] }) });
+}
+function fill(percentage) {
+  if (percentage < 70) return "bc:bg-green-600";
+  if (percentage < 80) return "bc:bg-orange-500";
+  return "bc:bg-red-600";
+}
+function Alert() {
+  return /* @__PURE__ */ jsxs29(
+    "svg",
+    {
+      role: "img",
+      "aria-label": "Alert",
+      viewBox: "0 0 16 16",
+      className: "bc:inline-block bc:size-4 bc:align-text-bottom",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.4,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      children: [
+        /* @__PURE__ */ jsx37("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx37("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+      ]
+    }
+  );
+}
+var METER = "bc:flex bc:max-w-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default";
+var PROGRESS = "bc:flex bc:w-64 bc:max-w-full bc:flex-col bc:gap-2 bc:font-sans bc:text-text-default";
+var TRACK4 = "bc:relative bc:h-2 bc:max-w-full bc:rounded-full bc:bg-border-default bc:outline bc:outline-1 bc:-outline-offset-1 bc:outline-transparent";
+var FILL2 = "bc:absolute bc:top-0 bc:h-full bc:rounded-full bc:forced-colors:bg-[Highlight]";
+
+// srcts/layout/tabs.tsx
+import {
+  composeRenderProps as composeRenderProps33,
+  SelectionIndicator,
+  Tab as AriaTab,
+  TabList as AriaTabList,
+  TabPanel as AriaTabPanel,
+  Tabs as AriaTabs
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment23, jsx as jsx38, jsxs as jsxs30 } from "react/jsx-runtime";
+function Tabs({ className, ...props }) {
+  return /* @__PURE__ */ jsx38(
+    AriaTabs,
+    {
+      ...props,
+      className: composeRenderProps33(className, (given, { orientation }) => `${TABS} ${ORIENTED[orientation]} ${given ?? ""}`)
+    }
+  );
+}
+function TabList({ className, ...props }) {
+  return /* @__PURE__ */ jsx38(
+    AriaTabList,
+    {
+      ...props,
+      className: composeRenderProps33(className, (given, { orientation }) => `${LIST3} ${LISTED[orientation]} ${given ?? ""}`)
+    }
+  );
+}
+function Tab({ className, children, ...props }) {
+  return /* @__PURE__ */ jsx38(AriaTab, { ...props, className: composeRenderProps33(className, (given) => `${TAB} ${given ?? ""}`), children: composeRenderProps33(children, (children2) => /* @__PURE__ */ jsxs30(Fragment23, { children: [
+    children2,
+    /* @__PURE__ */ jsx38(SelectionIndicator, { className: PILL })
+  ] })) });
+}
+function TabPanel({ className, ...props }) {
+  return /* @__PURE__ */ jsx38(AriaTabPanel, { ...props, className: composeRenderProps33(className, (given) => `${PANEL2} ${given ?? ""}`) });
+}
+var TABS = "bc:flex bc:max-w-full bc:gap-4 bc:font-sans bc:text-text-default";
+var ORIENTED = { horizontal: "bc:flex-col", vertical: "bc:flex-row" };
+var LIST3 = "bc:-m-1 bc:flex bc:max-w-full bc:overflow-x-auto bc:overflow-y-clip bc:p-1 bc:[scrollbar-width:none]";
+var LISTED = { horizontal: "bc:flex-row", vertical: "bc:flex-col bc:items-start" };
+var TAB = "bc:relative bc:isolate bc:flex bc:cursor-default bc:items-center bc:rounded-full bc:px-3 bc:py-1.5 bc:font-sans bc:text-sm bc:font-medium bc:text-text-muted bc:outline-none bc:transition-colors bc:forced-color-adjust-none bc:[-webkit-tap-highlight-color:transparent] bc:data-hovered:text-text-default bc:data-selected:text-text-on-accent bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50 bc:forced-colors:data-selected:text-[HighlightText]";
+var PILL = "bc:absolute bc:inset-0 bc:-z-1 bc:rounded-full bc:bg-bg-accent bc:motion-safe:transition-[translate,width,height] bc:forced-colors:bg-[Highlight]";
+var PANEL2 = "bc:box-border bc:flex-1 bc:rounded bc:p-4 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+
+// srcts/layout/toolbar.tsx
+import {
+  composeRenderProps as composeRenderProps34,
+  Separator as AriaSeparator,
+  ToggleButtonGroupContext,
+  Toolbar as AriaToolbar
+} from "./vendor-2846f4d1.js";
+import { jsx as jsx39 } from "react/jsx-runtime";
+function Toolbar({ className, ...props }) {
+  return /* @__PURE__ */ jsx39(ToggleButtonGroupContext, { value: { orientation: props.orientation }, children: /* @__PURE__ */ jsx39(
+    AriaToolbar,
+    {
+      ...props,
+      className: composeRenderProps34(className, (given, { orientation }) => `${TOOLBAR} ${ORIENTED2[orientation]} ${given ?? ""}`)
+    }
+  ) });
+}
+function Separator({ className, ...props }) {
+  return /* @__PURE__ */ jsx39(AriaSeparator, { ...props, className: `${SEPARATOR} ${ACROSS[props.orientation ?? "horizontal"]} ${className ?? ""}` });
+}
+var TOOLBAR = "bc:flex bc:flex-wrap bc:gap-2";
+var ORIENTED2 = { horizontal: "bc:flex-row bc:items-center", vertical: "bc:flex-col bc:items-start" };
+var SEPARATOR = "bc:m-0 bc:border-none bc:bg-border-default bc:forced-colors:bg-[ButtonBorder]";
+var ACROSS = { horizontal: "bc:h-px bc:w-full", vertical: "bc:w-px bc:self-stretch" };
+
+// srcts/layout/index.ts
+import { DisclosureGroup } from "./vendor-2846f4d1.js";
 
 // srcts/react/notifications.tsx
-import { jsx as jsx31 } from "react/jsx-runtime";
+import { jsx as jsx40 } from "react/jsx-runtime";
 function NotificationList({ notifications, "aria-label": label }) {
   if (notifications.length === 0) return null;
-  return /* @__PURE__ */ jsx31("ul", { "aria-label": label, className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: notifications.map(({ id, severity, message }) => /* @__PURE__ */ jsx31("li", { "data-severity": severity, className: `${ITEM3} ${SETS[severity]}`, children: message }, id)) });
+  return /* @__PURE__ */ jsx40("ul", { "aria-label": label, className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: notifications.map(({ id, severity, message }) => /* @__PURE__ */ jsx40("li", { "data-severity": severity, className: `${ITEM3} ${SETS[severity]}`, children: message }, id)) });
 }
 var ITEM3 = "bc:rounded-md bc:border bc:px-3 bc:py-2 bc:font-sans bc:text-[0.8125rem] bc:leading-normal bc:whitespace-pre-wrap bc:wrap-anywhere";
 var SETS = {
@@ -2814,53 +3254,53 @@ var SETS = {
 };
 
 // srcts/dnd/dnd.tsx
-import { composeRenderProps as composeRenderProps25, DropIndicator as AriaDropIndicator, useDragAndDrop as useAriaDragAndDrop } from "./vendor-0fd01f5f.js";
-import { jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
+import { composeRenderProps as composeRenderProps35, DropIndicator as AriaDropIndicator, useDragAndDrop as useAriaDragAndDrop } from "./vendor-2846f4d1.js";
+import { jsx as jsx41, jsxs as jsxs31 } from "react/jsx-runtime";
 function useDragAndDrop(options) {
-  return useAriaDragAndDrop({ renderDropIndicator: (target) => /* @__PURE__ */ jsx32(DropIndicator, { target }), ...options });
+  return useAriaDragAndDrop({ renderDropIndicator: (target) => /* @__PURE__ */ jsx41(DropIndicator, { target }), ...options });
 }
 function DropIndicator(props) {
-  return /* @__PURE__ */ jsx32(AriaDropIndicator, { ...props, className: composeRenderProps25(props.className, (given) => `${INDICATOR} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx41(AriaDropIndicator, { ...props, className: composeRenderProps35(props.className, (given) => `${INDICATOR} ${given ?? ""}`) });
 }
 function DragButton() {
-  return /* @__PURE__ */ jsx32(Button, { slot: "drag", variant: "quiet", children: /* @__PURE__ */ jsx32(Grip, {}) });
+  return /* @__PURE__ */ jsx41(Button, { slot: "drag", variant: "quiet", children: /* @__PURE__ */ jsx41(Grip, {}) });
 }
 function Grip() {
-  return /* @__PURE__ */ jsxs24("svg", { width: "12", height: "12", viewBox: "0 0 12 12", fill: "currentColor", "aria-hidden": "true", children: [
-    /* @__PURE__ */ jsx32("circle", { cx: "4", cy: "2.5", r: "1" }),
-    /* @__PURE__ */ jsx32("circle", { cx: "8", cy: "2.5", r: "1" }),
-    /* @__PURE__ */ jsx32("circle", { cx: "4", cy: "6", r: "1" }),
-    /* @__PURE__ */ jsx32("circle", { cx: "8", cy: "6", r: "1" }),
-    /* @__PURE__ */ jsx32("circle", { cx: "4", cy: "9.5", r: "1" }),
-    /* @__PURE__ */ jsx32("circle", { cx: "8", cy: "9.5", r: "1" })
+  return /* @__PURE__ */ jsxs31("svg", { width: "12", height: "12", viewBox: "0 0 12 12", fill: "currentColor", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx41("circle", { cx: "4", cy: "2.5", r: "1" }),
+    /* @__PURE__ */ jsx41("circle", { cx: "8", cy: "2.5", r: "1" }),
+    /* @__PURE__ */ jsx41("circle", { cx: "4", cy: "6", r: "1" }),
+    /* @__PURE__ */ jsx41("circle", { cx: "8", cy: "6", r: "1" }),
+    /* @__PURE__ */ jsx41("circle", { cx: "4", cy: "9.5", r: "1" }),
+    /* @__PURE__ */ jsx41("circle", { cx: "8", cy: "9.5", r: "1" })
   ] });
 }
 var INDICATOR = "bc:outline-none bc:data-drop-target:outline-1 bc:data-drop-target:outline-bg-accent bc:forced-colors:data-drop-target:outline-[Highlight]";
 
 // srcts/gridlist/gridlist.tsx
 import {
-  composeRenderProps as composeRenderProps26,
+  composeRenderProps as composeRenderProps36,
   GridList as AriaGridList,
   GridListHeader as AriaGridListHeader,
   GridListItem as AriaGridListItem,
   GridListSection
-} from "./vendor-0fd01f5f.js";
-import { Fragment as Fragment20, jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { Fragment as Fragment24, jsx as jsx42, jsxs as jsxs32 } from "react/jsx-runtime";
 function GridList(props) {
-  return /* @__PURE__ */ jsx33(AriaGridList, { ...props, className: composeRenderProps26(props.className, (given) => `${LIST3} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx42(AriaGridList, { ...props, className: composeRenderProps36(props.className, (given) => `${LIST4} ${given ?? ""}`) });
 }
 function GridListItem({ children, ...props }) {
   const textValue = props.textValue ?? (typeof children === "string" ? children : void 0);
-  return /* @__PURE__ */ jsx33(AriaGridListItem, { ...props, textValue, className: composeRenderProps26(props.className, (given) => `${ITEM4} ${given ?? ""}`), children: composeRenderProps26(children, (children2, { selectionMode, selectionBehavior, allowsDragging }) => /* @__PURE__ */ jsxs25(Fragment20, { children: [
-    allowsDragging && /* @__PURE__ */ jsx33(DragButton, {}),
-    selectionMode !== "none" && selectionBehavior === "toggle" && /* @__PURE__ */ jsx33(Checkbox, { slot: "selection" }),
+  return /* @__PURE__ */ jsx42(AriaGridListItem, { ...props, textValue, className: composeRenderProps36(props.className, (given) => `${ITEM4} ${given ?? ""}`), children: composeRenderProps36(children, (children2, { selectionMode, selectionBehavior, allowsDragging }) => /* @__PURE__ */ jsxs32(Fragment24, { children: [
+    allowsDragging && /* @__PURE__ */ jsx42(DragButton, {}),
+    selectionMode !== "none" && selectionBehavior === "toggle" && /* @__PURE__ */ jsx42(Checkbox, { slot: "selection" }),
     children2
   ] })) });
 }
 function GridListHeader({ className, ...props }) {
-  return /* @__PURE__ */ jsx33(AriaGridListHeader, { ...props, className: `${HEADER2} ${className ?? ""}` });
+  return /* @__PURE__ */ jsx42(AriaGridListHeader, { ...props, className: `${HEADER2} ${className ?? ""}` });
 }
-var LIST3 = "bc:grid bc:content-start bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none bc:data-[orientation=horizontal]:flex bc:data-[orientation=horizontal]:flex-row bc:data-[orientation=horizontal]:flex-nowrap bc:data-empty:px-2 bc:data-empty:py-0.5 bc:data-empty:text-sm bc:data-empty:text-text-muted bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
+var LIST4 = "bc:grid bc:content-start bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none bc:data-[orientation=horizontal]:flex bc:data-[orientation=horizontal]:flex-row bc:data-[orientation=horizontal]:flex-nowrap bc:data-empty:px-2 bc:data-empty:py-0.5 bc:data-empty:text-sm bc:data-empty:text-text-muted bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 var ITEM4 = "bc:flex bc:shrink-0 bc:cursor-pointer bc:select-none bc:items-center bc:gap-2 bc:rounded bc:px-2 bc:py-0.5 bc:text-sm bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var HEADER2 = "bc:block bc:px-2 bc:pt-1 bc:text-xs bc:font-semibold bc:text-text-muted";
 
@@ -2869,54 +3309,54 @@ import {
   Cell as AriaCell,
   Collection as Collection4,
   Column as AriaColumn,
-  composeRenderProps as composeRenderProps27,
+  composeRenderProps as composeRenderProps37,
   Row as AriaRow,
   Table as AriaTable,
   TableBody as AriaTableBody,
   TableHeader as AriaTableHeader,
   useTableOptions
-} from "./vendor-0fd01f5f.js";
-import { jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { jsx as jsx43, jsxs as jsxs33 } from "react/jsx-runtime";
 function Table({ className, ...props }) {
-  return /* @__PURE__ */ jsx34("div", { onScroll: props.onScroll, className: `${BOX3} ${className ?? ""}`, children: /* @__PURE__ */ jsx34(AriaTable, { ...props, className: TABLE }) });
+  return /* @__PURE__ */ jsx43("div", { onScroll: props.onScroll, className: `${BOX3} ${className ?? ""}`, children: /* @__PURE__ */ jsx43(AriaTable, { ...props, className: TABLE }) });
 }
 function Column({ align = "start", ...props }) {
-  return /* @__PURE__ */ jsx34(
+  return /* @__PURE__ */ jsx43(
     AriaColumn,
     {
       ...props,
-      className: composeRenderProps27(props.className, (given) => `${COLUMN} ${align === "end" ? "bc:text-end" : "bc:text-start"} ${given ?? ""}`),
-      children: composeRenderProps27(props.children, (children, { sortDirection }) => /* @__PURE__ */ jsxs26("span", { className: `${HEADING4} ${align === "end" ? "bc:flex-row-reverse" : ""}`, children: [
+      className: composeRenderProps37(props.className, (given) => `${COLUMN} ${align === "end" ? "bc:text-end" : "bc:text-start"} ${given ?? ""}`),
+      children: composeRenderProps37(props.children, (children, { sortDirection }) => /* @__PURE__ */ jsxs33("span", { className: `${HEADING5} ${align === "end" ? "bc:flex-row-reverse" : ""}`, children: [
         children,
-        sortDirection === void 0 ? null : /* @__PURE__ */ jsx34(Arrow2, { down: sortDirection === "descending" })
+        sortDirection === void 0 ? null : /* @__PURE__ */ jsx43(Arrow2, { down: sortDirection === "descending" })
       ] }))
     }
   );
 }
 function TableHeader({ columns, children, ...props }) {
   const { selectionBehavior, selectionMode, allowsDragging } = useTableOptions();
-  return /* @__PURE__ */ jsxs26(AriaTableHeader, { ...props, children: [
-    allowsDragging && /* @__PURE__ */ jsx34(AriaColumn, { className: PART }),
-    selectionBehavior === "toggle" && /* @__PURE__ */ jsx34(AriaColumn, { className: PART, children: selectionMode === "multiple" && /* @__PURE__ */ jsx34(Checkbox, { slot: "selection" }) }),
-    /* @__PURE__ */ jsx34(Collection4, { items: columns, children })
+  return /* @__PURE__ */ jsxs33(AriaTableHeader, { ...props, children: [
+    allowsDragging && /* @__PURE__ */ jsx43(AriaColumn, { className: PART }),
+    selectionBehavior === "toggle" && /* @__PURE__ */ jsx43(AriaColumn, { className: PART, children: selectionMode === "multiple" && /* @__PURE__ */ jsx43(Checkbox, { slot: "selection" }) }),
+    /* @__PURE__ */ jsx43(Collection4, { items: columns, children })
   ] });
 }
 function TableBody(props) {
-  return /* @__PURE__ */ jsx34(AriaTableBody, { ...props, className: composeRenderProps27(props.className, (given) => `${BODY} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx43(AriaTableBody, { ...props, className: composeRenderProps37(props.className, (given) => `${BODY} ${given ?? ""}`) });
 }
 function Row({ id, columns, children, ...props }) {
   const { selectionBehavior, allowsDragging } = useTableOptions();
-  return /* @__PURE__ */ jsxs26(AriaRow, { id, ...props, className: composeRenderProps27(props.className, (given) => `${ROW2} ${given ?? ""}`), children: [
-    allowsDragging && /* @__PURE__ */ jsx34(Cell, { className: "bc:w-px", children: /* @__PURE__ */ jsx34(DragButton, {}) }),
-    selectionBehavior === "toggle" && /* @__PURE__ */ jsx34(Cell, { className: "bc:w-px", children: /* @__PURE__ */ jsx34(Checkbox, { slot: "selection" }) }),
-    /* @__PURE__ */ jsx34(Collection4, { items: columns, children })
+  return /* @__PURE__ */ jsxs33(AriaRow, { id, ...props, className: composeRenderProps37(props.className, (given) => `${ROW2} ${given ?? ""}`), children: [
+    allowsDragging && /* @__PURE__ */ jsx43(Cell, { className: "bc:w-px", children: /* @__PURE__ */ jsx43(DragButton, {}) }),
+    selectionBehavior === "toggle" && /* @__PURE__ */ jsx43(Cell, { className: "bc:w-px", children: /* @__PURE__ */ jsx43(Checkbox, { slot: "selection" }) }),
+    /* @__PURE__ */ jsx43(Collection4, { items: columns, children })
   ] });
 }
 function Cell(props) {
-  return /* @__PURE__ */ jsx34(AriaCell, { ...props, className: composeRenderProps27(props.className, (given) => `${CELL2} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx43(AriaCell, { ...props, className: composeRenderProps37(props.className, (given) => `${CELL2} ${given ?? ""}`) });
 }
 function Arrow2({ down }) {
-  return /* @__PURE__ */ jsx34(
+  return /* @__PURE__ */ jsx43(
     "svg",
     {
       width: "12",
@@ -2929,58 +3369,58 @@ function Arrow2({ down }) {
       strokeLinejoin: "round",
       "aria-hidden": "true",
       className: `bc:mb-0.5 bc:shrink-0 bc:forced-colors:text-[ButtonText] ${down ? "bc:rotate-180" : ""}`,
-      children: /* @__PURE__ */ jsx34("path", { d: "M8 13V3M4 7l4-4 4 4" })
+      children: /* @__PURE__ */ jsx43("path", { d: "M8 13V3M4 7l4-4 4 4" })
     }
   );
 }
 var BOX3 = "bc:min-w-0 bc:overflow-auto bc:font-sans bc:text-text-default";
 var TABLE = "bc:w-full bc:border-collapse bc:text-left bc:text-sm";
 var COLUMN = "bc:border-b bc:border-border-default bc:px-2 bc:py-1 bc:align-bottom bc:font-semibold bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-allows-sorting:cursor-pointer";
-var HEADING4 = "bc:flex bc:items-end bc:gap-1";
+var HEADING5 = "bc:flex bc:items-end bc:gap-1";
 var PART = "bc:w-px bc:border-b bc:border-border-default bc:px-2 bc:py-1";
 var BODY = "bc:data-empty:text-center bc:data-empty:text-sm bc:data-empty:italic bc:data-empty:text-text-muted";
 var ROW2 = "bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-hovered:bg-bg-subtle bc:data-pressed:bg-bg-subtle bc:data-selected:bg-bg-accent/10 bc:data-disabled:opacity-50 bc:data-selection-mode:select-none";
 var CELL2 = "bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 
 // srcts/tree/navigation-tree.tsx
-import { createContext as createContext5, useContext as useContext11 } from "react";
+import { createContext as createContext5, useContext as useContext12 } from "react";
 import {
-  Button as Button8,
-  composeRenderProps as composeRenderProps29,
-  Link,
+  Button as Button10,
+  composeRenderProps as composeRenderProps39,
+  Link as Link2,
   NavigationTree as AriaNavigationTree,
   NavigationTreeHeader as AriaNavigationTreeHeader,
   NavigationTreeItem as AriaNavigationTreeItem,
   NavigationTreeItemContent as AriaNavigationTreeItemContent,
   NavigationTreeSection as AriaNavigationTreeSection
-} from "./vendor-0fd01f5f.js";
+} from "./vendor-2846f4d1.js";
 
 // srcts/tree/tree.tsx
 import {
-  Button as Button7,
-  composeRenderProps as composeRenderProps28,
+  Button as Button9,
+  composeRenderProps as composeRenderProps38,
   Tree as AriaTree,
   TreeItem as AriaTreeItem,
   TreeItemContent
-} from "./vendor-0fd01f5f.js";
-import { jsx as jsx35, jsxs as jsxs27 } from "react/jsx-runtime";
+} from "./vendor-2846f4d1.js";
+import { jsx as jsx44, jsxs as jsxs34 } from "react/jsx-runtime";
 function Tree(props) {
-  return /* @__PURE__ */ jsx35(AriaTree, { ...props, className: composeRenderProps28(props.className, (given) => `${TREE} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx44(AriaTree, { ...props, className: composeRenderProps38(props.className, (given) => `${TREE} ${given ?? ""}`) });
 }
 function TreeItem({ title, children, ...props }) {
-  return /* @__PURE__ */ jsxs27(AriaTreeItem, { textValue: title, ...props, className: composeRenderProps28(props.className, (given) => `${ITEM5} ${given ?? ""}`), children: [
-    /* @__PURE__ */ jsx35(TreeItemContent, { children: ({ selectionMode, selectionBehavior, hasChildItems, isExpanded, allowsDragging }) => /* @__PURE__ */ jsxs27("div", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-1", children: [
-      allowsDragging && /* @__PURE__ */ jsx35(DragButton, {}),
-      selectionMode !== "none" && selectionBehavior === "toggle" && /* @__PURE__ */ jsx35(Checkbox, { slot: "selection" }),
-      /* @__PURE__ */ jsx35("div", { className: INDENT }),
-      hasChildItems ? /* @__PURE__ */ jsx35(Button7, { slot: "chevron", className: EXPAND, children: /* @__PURE__ */ jsx35(Chevron3, { expanded: isExpanded }) }) : /* @__PURE__ */ jsx35("div", { className: "bc:size-6 bc:shrink-0" }),
-      /* @__PURE__ */ jsx35("span", { className: "bc:min-w-0 bc:truncate", children: title })
+  return /* @__PURE__ */ jsxs34(AriaTreeItem, { textValue: title, ...props, className: composeRenderProps38(props.className, (given) => `${ITEM5} ${given ?? ""}`), children: [
+    /* @__PURE__ */ jsx44(TreeItemContent, { children: ({ selectionMode, selectionBehavior, hasChildItems, isExpanded, allowsDragging }) => /* @__PURE__ */ jsxs34("div", { className: "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:gap-1", children: [
+      allowsDragging && /* @__PURE__ */ jsx44(DragButton, {}),
+      selectionMode !== "none" && selectionBehavior === "toggle" && /* @__PURE__ */ jsx44(Checkbox, { slot: "selection" }),
+      /* @__PURE__ */ jsx44("div", { className: INDENT }),
+      hasChildItems ? /* @__PURE__ */ jsx44(Button9, { slot: "chevron", className: EXPAND, children: /* @__PURE__ */ jsx44(Chevron3, { expanded: isExpanded }) }) : /* @__PURE__ */ jsx44("div", { className: "bc:size-6 bc:shrink-0" }),
+      /* @__PURE__ */ jsx44("span", { className: "bc:min-w-0 bc:truncate", children: title })
     ] }) }),
     children
   ] });
 }
 function Chevron3({ expanded }) {
-  return /* @__PURE__ */ jsx35(
+  return /* @__PURE__ */ jsx44(
     "svg",
     {
       width: "14",
@@ -2993,7 +3433,7 @@ function Chevron3({ expanded }) {
       strokeLinejoin: "round",
       "aria-hidden": "true",
       className: `bc:text-text-muted bc:transition-transform bc:motion-reduce:transition-none ${expanded ? "bc:rotate-90" : ""}`,
-      children: /* @__PURE__ */ jsx35("path", { d: "M6 3.5 10.5 8 6 12.5" })
+      children: /* @__PURE__ */ jsx44("path", { d: "M6 3.5 10.5 8 6 12.5" })
     }
   );
 }
@@ -3003,43 +3443,46 @@ var INDENT = "bc:w-[calc((var(--tree-item-level)_-_1)_*_var(--bc-spacing)_*_3)] 
 var EXPAND = "bc:flex bc:size-6 bc:shrink-0 bc:cursor-default bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:outline-none bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:opacity-50";
 
 // srcts/tree/navigation-tree.tsx
-import { Fragment as Fragment21, jsx as jsx36, jsxs as jsxs28 } from "react/jsx-runtime";
+import { Fragment as Fragment25, jsx as jsx45, jsxs as jsxs35 } from "react/jsx-runtime";
 var IndicatorContext = createContext5(void 0);
 var RenderLinkContext = createContext5(void 0);
 function NavigationTree({ renderLink, ...props }) {
-  return /* @__PURE__ */ jsx36(RenderLinkContext.Provider, { value: renderLink, children: /* @__PURE__ */ jsx36(AriaNavigationTree, { ...props, className: composeRenderProps29(props.className, (given) => `${TREE2} ${given ?? ""}`) }) });
+  return /* @__PURE__ */ jsx45(RenderLinkContext.Provider, { value: renderLink, children: /* @__PURE__ */ jsx45(AriaNavigationTree, { ...props, className: composeRenderProps39(props.className, (given) => `${TREE2} ${given ?? ""}`) }) });
 }
 function NavigationTreeItem(props) {
-  return /* @__PURE__ */ jsx36(AriaNavigationTreeItem, { ...props, className: composeRenderProps29(props.className, (given) => `${ITEM6} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx45(AriaNavigationTreeItem, { ...props, className: composeRenderProps39(props.className, (given) => `${ITEM6} ${given ?? ""}`) });
 }
 function NavigationTreeItemContent({ children }) {
-  return /* @__PURE__ */ jsx36(AriaNavigationTreeItemContent, { children: ({ level, hasChildItems, isExpanded, isCurrent, isCurrentAncestor }) => /* @__PURE__ */ jsxs28(Fragment21, { children: [
-    level > 1 && /* @__PURE__ */ jsx36("div", { className: "bc:shrink-0", style: { width: `calc((${String(level)} - 1) * var(--bc-spacing) * 4)` } }),
-    /* @__PURE__ */ jsx36(IndicatorContext.Provider, { value: isCurrent ? "current" : isCurrentAncestor && !isExpanded ? "ancestor" : void 0, children }),
-    /* @__PURE__ */ jsx36(Button8, { slot: "chevron", isDisabled: !hasChildItems, className: `${EXPAND2} ${hasChildItems ? "" : "bc:invisible"}`, children: /* @__PURE__ */ jsx36(Chevron3, { expanded: isExpanded }) })
+  return /* @__PURE__ */ jsx45(AriaNavigationTreeItemContent, { children: ({ level, hasChildItems, isExpanded, isCurrent, isCurrentAncestor }) => /* @__PURE__ */ jsxs35(Fragment25, { children: [
+    level > 1 && /* @__PURE__ */ jsx45("div", { className: "bc:shrink-0", style: { width: `calc((${String(level)} - 1) * var(--bc-spacing) * 4)` } }),
+    /* @__PURE__ */ jsx45(IndicatorContext.Provider, { value: isCurrent ? "current" : isCurrentAncestor && !isExpanded ? "ancestor" : void 0, children }),
+    /* @__PURE__ */ jsx45(Button10, { slot: "chevron", isDisabled: !hasChildItems, className: `${EXPAND2} ${hasChildItems ? "" : "bc:invisible"}`, children: /* @__PURE__ */ jsx45(Chevron3, { expanded: isExpanded }) })
   ] }) });
 }
 function NavigationTreeSection(props) {
-  return /* @__PURE__ */ jsx36(AriaNavigationTreeSection, { ...props, className: "bc:not-first:mt-4" });
+  return /* @__PURE__ */ jsx45(AriaNavigationTreeSection, { ...props, className: "bc:not-first:mt-4" });
 }
 function NavigationTreeHeader(props) {
-  return /* @__PURE__ */ jsx36(AriaNavigationTreeHeader, { ...props, className: "bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted" });
+  return /* @__PURE__ */ jsx45(AriaNavigationTreeHeader, { ...props, className: "bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted" });
 }
 function NavigationTreeItemLink({ render, children, ...props }) {
-  const indicator = useContext11(IndicatorContext);
-  const given = useContext11(RenderLinkContext);
-  return /* @__PURE__ */ jsx36(Link, { render: render ?? given, ...props, className: LINK, children: ({ isHovered }) => /* @__PURE__ */ jsxs28(Fragment21, { children: [
-    /* @__PURE__ */ jsx36("span", { "aria-hidden": "true", "data-indicator": indicator ?? (isHovered ? "hover" : void 0), className: MARK }),
+  const indicator = useContext12(IndicatorContext);
+  const given = useContext12(RenderLinkContext);
+  return /* @__PURE__ */ jsx45(Link2, { render: render ?? given, ...props, className: LINK2, children: ({ isHovered }) => /* @__PURE__ */ jsxs35(Fragment25, { children: [
+    /* @__PURE__ */ jsx45("span", { "aria-hidden": "true", "data-indicator": indicator ?? (isHovered ? "hover" : void 0), className: MARK }),
     children
   ] }) });
 }
 var TREE2 = "bc:flex bc:flex-col bc:gap-0.5 bc:overflow-auto bc:font-sans bc:text-text-default bc:outline-none";
 var ITEM6 = "bc:group bc:relative bc:flex bc:cursor-default bc:items-center bc:rounded-md bc:font-sans bc:text-text-default bc:select-none bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:opacity-50";
-var LINK = "bc:relative bc:flex bc:min-w-0 bc:flex-1 bc:cursor-pointer bc:items-center bc:gap-2 bc:px-2 bc:py-1.5 bc:text-sm bc:text-current bc:no-underline bc:outline-none bc:group-[:not([data-href])]:cursor-default bc:data-disabled:cursor-default";
+var LINK2 = "bc:relative bc:flex bc:min-w-0 bc:flex-1 bc:cursor-pointer bc:items-center bc:gap-2 bc:px-2 bc:py-1.5 bc:text-sm bc:text-current bc:no-underline bc:outline-none bc:group-[:not([data-href])]:cursor-default bc:data-disabled:cursor-default";
 var MARK = "bc:absolute bc:start-0.5 bc:top-1/2 bc:h-[1lh] bc:w-0.5 bc:-translate-y-1/2 bc:rounded-full bc:forced-color-adjust-none bc:group-data-href:data-[indicator=hover]:bg-border-default bc:data-[indicator=current]:bg-bg-accent bc:data-[indicator=ancestor]:size-1 bc:data-[indicator=ancestor]:bg-border-default bc:forced-colors:data-indicator:bg-[Highlight]";
 var EXPAND2 = "bc:flex bc:size-6 bc:shrink-0 bc:cursor-default bc:items-center bc:justify-center bc:rounded-md bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-default bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 export {
+  AlertDialog,
   Autocomplete2 as Autocomplete,
+  Breadcrumb,
+  Breadcrumbs,
   Button,
   Calendar,
   Cell,
@@ -3064,24 +3507,31 @@ export {
   DateRangePicker,
   Dialog,
   DialogTrigger,
+  Disclosure,
+  DisclosureGroup,
+  DisclosureHeader,
+  DisclosurePanel,
   DropIndicator,
   DropZone,
   Field,
   FieldButton,
   FileTrigger,
+  Focusable,
   Form,
   GridList,
   GridListHeader,
   GridListItem,
   GridListSection,
-  Heading,
+  Heading2 as Heading,
   Keyboard,
+  Link,
   ListBox2 as ListBox,
   ListBoxItem2 as ListBoxItem,
   Menu,
   MenuItem,
   MenuSection,
   MenuTrigger,
+  Meter,
   Modal,
   NavigationTree,
   NavigationTreeHeader,
@@ -3092,6 +3542,7 @@ export {
   NotificationList,
   NumberField,
   Popover,
+  ProgressBar,
   Radio,
   RadioGroup,
   RangeCalendar,
@@ -3100,21 +3551,35 @@ export {
   Select,
   SelectItem,
   SelectSection,
+  Separator,
+  Sheet,
   Slider2 as Slider,
   Stack,
+  SubmenuTrigger,
   Switch,
+  Tab,
+  TabList,
+  TabPanel,
   Table,
   TableBody,
   TableHeader,
+  Tabs,
   Tag2 as Tag,
   TagGroup2 as TagGroup,
   Text15 as Text,
   TextField,
   TimeField,
+  Toast,
+  UNSTABLE_ToastContent as ToastContent,
+  UNSTABLE_ToastQueue as ToastQueue,
+  ToastRegion,
   ToggleButton,
   ToggleButtonGroup,
   Token,
   TokenField,
+  Toolbar,
+  Tooltip,
+  TooltipTrigger,
   Tree,
   TreeItem,
   outputRenderer,
