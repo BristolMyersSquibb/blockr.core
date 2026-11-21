@@ -287,7 +287,6 @@ test_that("the board holds the board options the script gives, by schema", {
 
   board <- new_board(
     options = c(
-      new_show_conditions_option("error"),
       new_n_rows_option(5L),
       new_dark_mode_option()
     )
@@ -295,20 +294,15 @@ test_that("the board holds the board options the script gives, by schema", {
 
   expect_identical(
     read_json_strictly(encode_message(blockr_ser(board)))$board$options,
-    read_json_strictly(
-      '{
-        "show_conditions": { "value": ["error"], "version": 1 },
-        "n_rows": { "value": 5, "version": 1 }
-      }'
-    )
+    read_json_strictly('{ "n_rows": { "value": 5, "version": 1 } }')
   )
 
   # Core puts the schema of each of its board options beside its module
-  for (id in c("n_rows", "show_conditions", "dark_mode")) {
+  for (id in c("n_rows", "dark_mode")) {
     expect_type(board_option_schema(id), "list")
   }
 
-  expect_identical(board_option_schema("show_conditions")$type, "array")
+  expect_identical(board_option_schema("n_rows")$type, "integer")
 })
 
 test_that("a plugin's state is written by the schema of its class", {
@@ -602,7 +596,7 @@ test_that("a board's parts are written by their methods", {
     )
   )
 
-  expect_identical(blockr_ser(new_show_conditions_option("error")), "error")
+  expect_identical(blockr_ser(new_n_rows_option(5L)), 5L)
   expect_identical(blockr_ser(list(a = 1L)), list(a = 1L))
 
   notes <- plugin_ctor(function(text = "") NULL, "notes_plugin")

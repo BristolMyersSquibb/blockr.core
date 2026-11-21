@@ -252,9 +252,17 @@ export const viewsPlugin: PluginClass = {
 const mergeModule = `import type { BlockModule } from "@blockr/core";
 import { controls, strings } from "@blockr/core/controls";
 
-type MergeState = { by?: string[]; all_x: boolean };
+type MergeState = { by?: string[]; all_x: boolean; all_y: boolean };
 
 export const api = 1;
+
+// The joins, each with the state args that make it.
+const joins = [
+  { id: "inner", name: "Inner", all_x: false, all_y: false },
+  { id: "left", name: "Left", all_x: true, all_y: false },
+  { id: "right", name: "Right", all_x: false, all_y: true },
+  { id: "full", name: "Full", all_x: true, all_y: true },
+];
 
 const merge: BlockModule<MergeState> = {
   render({ el, host, signal }) {
@@ -264,7 +272,14 @@ const merge: BlockModule<MergeState> = {
       selectionMode: "multiple",
       renderEmptyState: () => "No column is shared.",
     });
-    ui.checkbox("all_x", { label: "Keep the rows of x that y does not match" });
+    ui.comboBox(
+      (state) => joins.find((join) => join.all_x === state.all_x && join.all_y === state.all_y)?.id,
+      (id) => {
+        const join = joins.find((each) => each.id === id);
+        return join === undefined ? {} : { all_x: join.all_x, all_y: join.all_y };
+      },
+      { label: "Join type", items: joins, isRequired: true },
+    );
     ui.follow("shared", {
       loading() {
         by.setOutdated(true);
@@ -425,6 +440,8 @@ test("a package's module mounts on the stubs that core ships, which answer from 
 // with its build preset, as a package writes them.
 // A plugin's component follows the board, a block's status and the
 // notifications about the block through the SDK, as the DAG's nodes do.
+// Another shows the block's errors in the SDK's list of notifications, as the
+// dock's card does.
 const sdkFiles = {
   "src/text-renderer.tsx": `import type { TextOutput } from "@blockr/core";
 import { outputRenderer } from "@blockr/core/react";
@@ -434,14 +451,24 @@ export const api = 1;
 export default outputRenderer<TextOutput>(({ output }) => <pre>{output.text}</pre>);
 `,
   "src/head-block.tsx": `import type { BlockHost } from "@blockr/core";
-import { NumberField, reactModule, useValue } from "@blockr/core/react";
+import { Checkbox, NumberField, reactModule, Stack, useValue } from "@blockr/core/react";
 import type { ModuleProps } from "@blockr/core/react";
 import type { ReactElement } from "react";
 
 type HeadState = { n: number; direction: "head" | "tail" };
 
 function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
-  return <NumberField bound={useValue(host, "n")} label="Rows" minValue={1} step={1} />;
+  const tail = useValue(
+    host,
+    (state) => state.direction === "tail",
+    (value) => ({ direction: value === true ? "tail" : "head" }),
+  );
+  return (
+    <Stack>
+      <NumberField bound={useValue(host, "n")} label="Rows" minValue={1} step={1} />
+      <Checkbox bound={tail}>From the end</Checkbox>
+    </Stack>
+  );
 }
 
 export const api = 1;
@@ -488,6 +515,15 @@ export function StatusBadge({ core, block }: { core: CoreApi; block: BlockId }):
   );
 }
 `,
+  "src/block-errors.tsx": `import type { BlockId, CoreApi } from "@blockr/core";
+import { NotificationList, useNotified } from "@blockr/core/react";
+import type { ReactElement } from "react";
+
+export function BlockErrors({ core, block }: { core: CoreApi; block: BlockId }): ReactElement {
+  const errors = useNotified(core, { block }).filter((notification) => notification.severity === "error");
+  return <NotificationList notifications={errors} aria-label="Errors" />;
+}
+`,
   "src/head-plain.ts": `import type { BlockModule } from "@blockr/core";
 import { bind } from "@blockr/core/binding";
 
@@ -504,9 +540,23 @@ const head: BlockModule<HeadState> = {
     input.addEventListener("input", () => {
       n.type(Number(input.value));
     });
-    el.replaceChildren(input);
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    const tail = bind(
+      host,
+      (state) => state.direction === "tail",
+      (value) => ({ direction: value === true ? "tail" : "head" }),
+      (value) => {
+        box.checked = value === true;
+      },
+    );
+    box.addEventListener("change", () => {
+      void tail.commit(box.checked);
+    });
+    el.replaceChildren(input, box);
     return () => {
       n.release();
+      tail.release();
     };
   },
 };

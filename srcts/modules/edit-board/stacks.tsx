@@ -27,7 +27,7 @@
 // Under the board lock, it lists the stacks alone.
 
 import { useState } from "react";
-import type { ReactElement, SubmitEvent } from "react";
+import type { ReactElement, SyntheticEvent } from "react";
 import {
   Checkbox,
   ColorArea,
@@ -39,6 +39,7 @@ import {
   ColorSwatchPickerItem,
   ComboBox,
   ComboBoxSection,
+  Form,
   TextField,
 } from "../../react/index.ts";
 import type { Color } from "../../react/index.ts";
@@ -303,7 +304,7 @@ function StackForm({
   // them.
   const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
 
-  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy) return;
     const trimmed = name.trim();
@@ -337,64 +338,69 @@ function StackForm({
   }
 
   return (
-    <form
-      aria-label={editing === undefined ? "Add stack" : "Change stack"}
-      noValidate
-      className="bc:grid bc:gap-3"
-      onSubmit={(event) => {
-        void submit(event);
-      }}
+    // React Aria's Form takes no handler of keys, so the box around it
+    // hears Escape, which closes the form of a row.
+    <div
+      className="bc:contents"
       onKeyDown={(event) => {
         if (event.key === "Escape" && editing !== undefined && !event.defaultPrevented) onDone?.();
       }}
     >
-      <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
-        <TextField
-          label="Name"
-          value={name}
-          placeholder={fallbackName}
-          description={editing === undefined ? `Optional. "${fallbackName}" where left empty.` : undefined}
-          autoComplete="off"
-          onChange={setName}
-        />
-        <StackColor color={color} onChange={setColor} />
-      </div>
-      <ComboBox
-        selectionMode="multiple"
-        label="Blocks"
-        {...search}
-        items={sections}
-        value={kept}
-        placeholder="No blocks"
-        description="A block sits in one stack at most."
-        onChange={(keys) => {
-          setBlocks(keys.map(String));
+      <Form
+        aria-label={editing === undefined ? "Add stack" : "Change stack"}
+        validationBehavior="aria"
+        onSubmit={(event) => {
+          void submit(event);
         }}
       >
-        {(section) => (
-          <ComboBoxSection id={section.id} title={section.title} items={section.items}>
-            {blockRow}
-          </ComboBoxSection>
-        )}
-      </ComboBox>
-      <div className="bc:flex bc:gap-2">
-        <button type="submit" className={classes.primary} disabled={busy}>
-          {submitLabel}
-        </button>
-        {editing === undefined ? null : (
-          <button
-            type="button"
-            className={classes.button}
-            onClick={() => {
-              onDone?.();
-            }}
-          >
-            Cancel
+        <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
+          <TextField
+            label="Name"
+            value={name}
+            placeholder={fallbackName}
+            description={editing === undefined ? `Optional. "${fallbackName}" where left empty.` : undefined}
+            autoComplete="off"
+            onChange={setName}
+          />
+          <StackColor color={color} onChange={setColor} />
+        </div>
+        <ComboBox
+          selectionMode="multiple"
+          label="Blocks"
+          {...search}
+          items={sections}
+          value={kept}
+          placeholder="No blocks"
+          description="A block sits in one stack at most."
+          onChange={(keys) => {
+            setBlocks(keys.map(String));
+          }}
+        >
+          {(section) => (
+            <ComboBoxSection id={section.id} title={section.title} items={section.items}>
+              {blockRow}
+            </ComboBoxSection>
+          )}
+        </ComboBox>
+        <div className="bc:flex bc:gap-2">
+          <button type="submit" className={classes.primary} disabled={busy}>
+            {submitLabel}
           </button>
-        )}
-      </div>
-      {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
-    </form>
+          {editing === undefined ? null : (
+            <button
+              type="button"
+              className={classes.button}
+              onClick={() => {
+                onDone?.();
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+        {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
+      </Form>
+    </div>
   );
 }
 
@@ -415,12 +421,13 @@ function StackColor({ color, onChange }: { color: Picked | null; onChange: (colo
       <legend className={styles.legend}>Colour</legend>
       <div className="bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1">
         <Checkbox
-          label="A colour of its own"
           isSelected={color !== null}
           onChange={(selected) => {
             onChange(selected ? last : null);
           }}
-        />
+        >
+          A colour of its own
+        </Checkbox>
         <ColorPicker
           label={stackColor(shown).toUpperCase()}
           value={shown}

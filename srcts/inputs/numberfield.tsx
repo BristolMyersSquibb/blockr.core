@@ -10,9 +10,9 @@
 // While it is `outdated`, as while the request that gives its maxValue asks
 // again, its maxValue may be for older data, so it takes none.
 //
-// Given `bound`, it shows and edits a number, a block's state arg or a board
-// option's value, which useValue() binds, as the SDK's other inputs do
-// (./inputs.tsx).
+// Given `bound`, it shows and edits a number that useValue() binds, a block's
+// state arg, a board option's value or a value that a function reads from a
+// block's state, as the SDK's other inputs do (./inputs.tsx).
 // React Aria reports a number only as the user presses Enter, leaves the field
 // or steps the number.
 // So the field also hands the binding the number that its text reads as,
@@ -184,7 +184,8 @@ function Watch({ keystrokes, onType }: { keystrokes: number; onType: (value: num
 // Whether the number fits the range, and the step where there is one, which
 // counts from the smallest number, or from 0, as the browser's own number
 // input counts it.
-function inRange(value: number, min: number | undefined, max: number | undefined, step: number | undefined): boolean {
+// The slider takes a number so too (./slider.tsx).
+export function inRange(value: number, min: number | undefined, max: number | undefined, step: number | undefined): boolean {
   if (Number.isNaN(value)) return false;
   if (min !== undefined && value < min) return false;
   if (max !== undefined && value > max) return false;

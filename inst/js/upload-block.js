@@ -1,7 +1,7 @@
 // srcts/modules/upload-block/index.tsx
 import { useEffect, useRef, useState } from "react";
 import { strings } from "@blockr/core/binding";
-import { Field, reactModule, Stack, useValue } from "@blockr/core/react";
+import { Button, DropZone, FileTrigger, reactModule, Stack, Text, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -55,21 +55,33 @@ function UploadBlock({ host }) {
     }
   }
   const held = typeof path.value === "string" && path.value !== "" ? path.value : void 0;
+  const busy = uploading !== null;
   const said = uploading !== null ? `Uploading ${uploading}\u2026` : held === void 0 ? null : `Uploaded ${basename(held)}`;
   return /* @__PURE__ */ jsxs(Stack, { children: [
-    /* @__PURE__ */ jsx(Field, { label: "Upload data", children: /* @__PURE__ */ jsx(
-      "input",
+    /* @__PURE__ */ jsxs(
+      DropZone,
       {
-        type: "file",
-        className: styles.box,
-        disabled: uploading !== null,
-        onChange: (event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file !== void 0) void upload(file);
-        }
+        isDisabled: busy,
+        onDrop: (event) => {
+          const item = event.items.find((dropped) => dropped.kind === "file");
+          if (item?.kind === "file") void item.getFile().then(upload);
+        },
+        children: [
+          /* @__PURE__ */ jsx(Text, { slot: "label", className: styles.label, children: "Upload data" }),
+          /* @__PURE__ */ jsx("span", { className: styles.hint, children: "Drop a file here, or" }),
+          /* @__PURE__ */ jsx(
+            FileTrigger,
+            {
+              onSelect: (files) => {
+                const file = files?.[0];
+                if (file !== void 0) void upload(file);
+              },
+              children: /* @__PURE__ */ jsx(Button, { variant: "secondary", isDisabled: busy, children: "Choose a file" })
+            }
+          )
+        ]
       }
-    ) }),
+    ),
     said !== null && /* @__PURE__ */ jsx("p", { className: styles.hint, children: said }),
     path.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: path.error })
   ] });

@@ -13,9 +13,17 @@ export interface CoreApi {
     readonly commands: Commands;
     readonly boardActions: {
         on(target: Target): readonly BoardAction[];
-        trigger(id: string, target: Target, opts?: {
+        menu(target: Target, opts: {
+            el: HTMLElement;
+            anchor: DOMRect;
             extend?(deltas: readonly Delta[]): readonly CommandCall[];
-            notifier?(notifications: readonly Notification[]): void;
+            notifier?(notifications: readonly Notification[], action: BoardAction): void;
+        }): void;
+        trigger(id: string, target: Target, opts: {
+            el: HTMLElement;
+            anchor?: DOMRect;
+            extend?(deltas: readonly Delta[]): readonly CommandCall[];
+            notifier?(notifications: readonly Notification[], action: BoardAction): void;
         }): Promise<void>;
     };
     readonly scheduler: Pick<Scheduler, "demand" | "evaluate" | "invalidate" | "status" | "subscribe">;

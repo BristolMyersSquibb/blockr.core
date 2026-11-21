@@ -36,7 +36,6 @@ core_listing <- function(pkgname = "blockr.core") {
     ),
     options = list(
       n_rows = list(module = "js/n-rows-option.js"),
-      show_conditions = list(module = "js/show-conditions-option.js"),
       dark_mode = list(module = "js/dark-mode-option.js")
     ),
     modules = list(controls = "js/blockr-core-controls.js"),

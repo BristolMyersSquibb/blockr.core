@@ -28,9 +28,10 @@
 // raises a notification that holds until its next call returns, and so do
 // those that the call raises through its `notify`.
 //
-// It gives the board actions that apply to a target, and triggers one by its
-// id, running its batch through CoreApi's command registry
-// (../actions/actions.ts).
+// It gives the board actions that apply to a target, opens the menu of a
+// target, and triggers one by its id, running its batch through CoreApi's
+// command registry (../actions/actions.ts). The menu that is open closes as
+// the next board opens.
 //
 // Where the store or the command registry refuses an edit that a plugin makes
 // through CoreApi, of whatever origin, core tells the user why, as an error of
@@ -40,7 +41,7 @@
 // the host's block or board option (../mount/block.ts, ../mount/option.ts).
 
 import { boardActionsApi } from "../actions/index.ts";
-import type { BoardActions } from "../actions/index.ts";
+import type { BoardActions, ShowMenu } from "../actions/index.ts";
 import { isLogged } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { announceTo, createMounts } from "../mount/index.ts";
@@ -79,8 +80,10 @@ export interface CoreParts {
   readonly store: Store;
   readonly commands: Commands;
   // The board actions registered for the board, core's own and those of the
-  // classes of the app's plugins, which CoreApi offers and triggers.
+  // classes of the app's plugins, which CoreApi offers and triggers, and what
+  // draws each menu of board actions that CoreApi opens.
   readonly boardActions: BoardActions;
+  readonly showMenu: ShowMenu;
   readonly scheduler: Scheduler;
   readonly loader: Loader;
   readonly blockrOptions: BlockrOptions;
@@ -230,6 +233,8 @@ export function createCore(parts: CoreParts): Core {
       core: () => api,
       refused,
       raiseAgain: notifications.raiseAgain,
+      show: parts.showMenu,
+      ...(parts.signal === undefined ? {} : { signal: parts.signal }),
     }),
     scheduler: {
       demand: (owner, blocks, options) => scheduler.demand(owner, blocks, options),

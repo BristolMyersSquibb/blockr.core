@@ -1,19 +1,22 @@
-// The inputs that core's UIs draw with React, each showing and editing one
-// value that `useValue()` binds, a block's state arg or a board option's value,
+// What the inputs of core's React SDK share, each of which shows and edits
+// one value that `useValue()` binds: a block's state arg, a board option's
+// value, or a value that a function reads from a block's state, as the join
+// that two state args make,
 // so that each meets the contract of a block's UI as its binding does
-// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract).
-// Each submits a pick at once and says below itself why the host refused what
-// it submitted.
-// A label holds its input, so that it needs no id,
-// as a block's UI may be mounted in several places at once.
-// The select is in ./combobox.tsx, and the text and number fields, which keep
-// what the user types until their binding submits it, are in ./textfield.tsx
-// and ./numberfield.tsx.
+// (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#the-contract):
+// the line below an input that names the values it lacks, the line that says
+// why the host refused what it submitted, and what the user typed into a
+// field until its binding submits it.
+// Here too are the stack of a UI's inputs and the field, a label that holds
+// its input, so that it needs no id, as a block's UI may be mounted in
+// several places at once.
+// Each input sits in a file of its own beside this one.
 // React Aria gives their parts ids, which React makes anew for each mount.
 
 import { useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { styles } from "../styles/index.ts";
+import { Button } from "./button.tsx";
 import type { Bound } from "../react/index.ts";
 import type { Json } from "../types/json.ts";
 
@@ -32,39 +35,33 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-// A checkbox, which binds a boolean given `bound`, and otherwise checks for
-// its caller, through `isSelected` and `onChange`, as React Aria's Checkbox
-// names them.
-export interface CheckboxProps {
-  readonly label: string;
-  readonly bound?: Bound;
-  readonly isSelected?: boolean;
-  readonly onChange?: (isSelected: boolean) => void;
-}
-
-export function Checkbox({ bound, label, isSelected = false, onChange }: CheckboxProps): ReactElement {
+// Says below an input which of its values it lacks, such as picks that none
+// of its items holds or a number outside a slider's range, by their ids or
+// as numbers, as "Not available: wt", since no item gives them a text.
+// The input shows such a value as it is wherever it shows its value, and
+// marks itself invalid.
+// Where no item shows such a value, as in a group of several or a Select of
+// several, the line offers a button, Remove, through which the user drops
+// them, `onRemove`.
+export function NotAvailable({
+  values,
+  onRemove,
+}: {
+  readonly values: readonly string[];
+  readonly onRemove?: () => void;
+}): ReactElement | null {
+  if (values.length === 0) return null;
+  const named = values.join(", ");
   return (
-    <>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          className={styles.checkbox}
-          checked={bound === undefined ? isSelected : bound.value === true}
-          onChange={(event) => {
-            if (bound !== undefined) void bound.commit(event.target.checked);
-            onChange?.(event.target.checked);
-          }}
-        />
-        {label}
-      </label>
-      {bound === undefined ? null : <Refusal error={bound.error} />}
-    </>
+    <div className="bc:flex bc:flex-wrap bc:items-center bc:gap-x-2">
+      <p role="alert" className={styles.alert}>{`Not available: ${named}`}</p>
+      {onRemove === undefined ? null : (
+        <Button variant="quiet" aria-label={`Remove ${named}`} onPress={onRemove}>
+          Remove
+        </Button>
+      )}
+    </div>
   );
-}
-
-// How a select shows a value that its choices lack.
-export function missing(value: string): string {
-  return `${value} (not available)`;
 }
 
 // Says why the host refused what an input submitted.

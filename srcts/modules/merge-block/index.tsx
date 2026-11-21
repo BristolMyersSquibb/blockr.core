@@ -5,14 +5,16 @@
 // While the request asks again, as after an input changed,
 // and after an ask failed, the columns are those of older data,
 // so the select marks no column.
-// The select of the join sets both state args in one submit, so that a pick
-// is one edit and one undo step, as from a left join to a right join.
+// The select of the join binds both state args, which a pick sets in one
+// submit, so that it is one edit and one undo step, as from a left join to a
+// right join.
 
 import type { ReactElement } from "react";
 import { strings } from "../../binding/index.ts";
-import { ComboBox, ComboBoxItem, reactModule, Stack, Text, useRequest, useValue } from "../../react/index.ts";
+import { ComboBox, ComboBoxItem, reactModule, Select, SelectItem, Stack, Text, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
+import type { Json } from "../../types/json.ts";
 import type { State } from "./state.ts";
 
 export const api = 1;
@@ -34,11 +36,18 @@ const joins: readonly Join[] = [
   { id: "full", name: "Full", description: "Every row of x and y", args: { all_x: true, all_y: true } },
 ];
 
+// The join that all_x and all_y make, by its id.
+function joinOf(state: State): string | undefined {
+  return joins.find(({ args }) => args.all_x === state.all_x && args.all_y === state.all_y)?.id;
+}
+
+// The state args of the join, by its id, or none for an id of no join.
+function argsOf(id: Json | undefined): Partial<State> {
+  return joins.find((join) => join.id === id)?.args ?? {};
+}
+
 function MergeBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useRequest(host, "shared");
-  const x = useValue(host, "all_x").value === true;
-  const y = useValue(host, "all_y").value === true;
-  const join = joins.find(({ args }) => args.all_x === x && args.all_y === y);
   return (
     <Stack>
       <ComboBox
@@ -51,35 +60,16 @@ function MergeBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
       >
         {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
       </ComboBox>
-      <ComboBox
-        label="Join type"
-        defaultItems={joins}
-        value={join?.id ?? null}
-        isRequired
-        onChange={(key) => {
-          const picked = joins.find(({ id }) => id === key);
-          if (picked !== undefined) submit(host, picked.args);
-        }}
-      >
+      <Select bound={useValue(host, joinOf, argsOf)} label="Join type" items={joins} isRequired>
         {(item) => (
-          <ComboBoxItem id={item.id} textValue={item.name}>
+          <SelectItem id={item.id} textValue={item.name}>
             <Text slot="label">{item.name}</Text>
             <Text slot="description">{item.description}</Text>
-          </ComboBoxItem>
+          </SelectItem>
         )}
-      </ComboBox>
+      </Select>
     </Stack>
   );
-}
-
-// Submits the state args of the join that the user picked, unless the block's
-// state holds them already.
-// Where the host refuses the submit, core tells the user why, through a
-// notification about the block.
-function submit(host: BlockHost<State>, args: Args): void {
-  const state = host.state();
-  if (state.all_x === args.all_x && state.all_y === args.all_y) return;
-  host.submit(args).catch(() => undefined);
 }
 
 export default reactModule(MergeBlock);

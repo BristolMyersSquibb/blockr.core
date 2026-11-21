@@ -7,14 +7,10 @@ export declare function Field({ label, children }: {
     label: string;
     children: ReactNode;
 }): ReactElement;
-export interface CheckboxProps {
-    readonly label: string;
-    readonly bound?: Bound;
-    readonly isSelected?: boolean;
-    readonly onChange?: (isSelected: boolean) => void;
-}
-export declare function Checkbox({ bound, label, isSelected, onChange }: CheckboxProps): ReactElement;
-export declare function missing(value: string): string;
+export declare function NotAvailable({ values, onRemove, }: {
+    readonly values: readonly string[];
+    readonly onRemove?: () => void;
+}): ReactElement | null;
 export declare function Refusal({ error }: {
     error: string | null;
 }): ReactElement | null;

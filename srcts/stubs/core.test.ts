@@ -45,7 +45,7 @@ describe("the CoreApi for tests", () => {
     expect(Object.keys(core.commands.registered())).toContain("blockr.core-add_block");
     expect(Object.keys(core.scheduler).sort()).toEqual(["demand", "evaluate", "invalidate", "status", "subscribe"]);
     expect(core.blockRegistry()).toBe(HELLO.block_registry);
-    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode"]);
+    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "dark_mode"]);
     expect(core.lock).toEqual({ board: false, load: false });
     // The second asks for the blockr option behind the default of dark_mode,
     // which core's basic frontend requires and the board lacks.
@@ -211,7 +211,7 @@ describe("the CoreApi for tests", () => {
       modules: { zoom: optionModule(zoom) },
     });
 
-    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode", "zoom"]);
+    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "dark_mode", "zoom"]);
     // As the board opened, with the default, which core added to the board.
     expect(changes).toEqual([1]);
     expect(core.store.board().options.zoom).toBe(1);

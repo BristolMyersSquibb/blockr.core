@@ -267,6 +267,33 @@ test_that("a condition whose message is not valid UTF-8 is kept", {
   )
 })
 
+test_that("a phase runs with cli's colors off, and no message holds escapes", {
+
+  withr::local_options(cli.num_colors = 256L)
+
+  # In place of a color, cli writes a plain mark, as quotes around a file name.
+  res <- run_phase("block_eval", cli::cli_abort("Could not open {.file a.csv}"))
+
+  expect_identical(
+    chr_xtr(res[["conditions"]], "message"),
+    "Could not open 'a.csv'"
+  )
+  expect_identical(getOption("cli.num_colors"), 256L)
+
+  # A message that holds escapes all the same loses them, and a link keeps its
+  # text.
+  styled <- paste0(
+    "\033[1mCould not open\033[22m the file ",
+    "\033]8;;file:///a.csv\aa.csv\033]8;;\a"
+  )
+  res <- run_phase("expr", warning(styled, call. = FALSE))
+
+  expect_identical(
+    chr_xtr(res[["conditions"]], "message"),
+    "Could not open the file a.csv"
+  )
+})
+
 test_that("a block_eval() method decides whether the expression runs", {
 
   saver <- new_block_class(

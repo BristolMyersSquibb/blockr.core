@@ -19,12 +19,6 @@ var optionSchemas = {
     minimum: 1,
     description: "How many rows of a table a block's output shows"
   },
-  show_conditions: {
-    type: "array",
-    items: { enum: ["message", "warning", "error"] },
-    uniqueItems: true,
-    description: "The severities of a block's conditions that the board shows"
-  },
   dark_mode: {
     enum: ["light", "dark"],
     description: "Whether the board shows in its light or its dark theme"
@@ -32,7 +26,7 @@ var optionSchemas = {
 };
 
 // srcts/options/ui.tsx
-import { ComboBox, ComboBoxItem, NumberField } from "@blockr/core/react";
+import { NumberField, ToggleButton, ToggleButtonGroup } from "@blockr/core/react";
 import { reactModule, useValue } from "@blockr/core/react";
 import { jsx } from "react/jsx-runtime";
 function numberUi(label, min) {
@@ -41,18 +35,11 @@ function numberUi(label, min) {
   }
   return reactModule(NumberUi);
 }
-function multiSelectUi(label, values) {
-  const items = values.map((id) => ({ id }));
-  function MultiSelectUi({ host }) {
-    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), selectionMode: "multiple", label, defaultItems: items, ordered: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.id }) });
+function toggleButtonGroupUi(label, items) {
+  function ToggleButtonGroupUi({ host }) {
+    return /* @__PURE__ */ jsx(ToggleButtonGroup, { bound: useValue(host), label, disallowEmptySelection: true, children: items.map((item) => /* @__PURE__ */ jsx(ToggleButton, { id: item.id, children: item.name }, item.id)) });
   }
-  return reactModule(MultiSelectUi);
-}
-function selectUi(label, placeholder, items) {
-  function SelectUi({ host }) {
-    return /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host), label, placeholder, defaultItems: items, isRequired: true, children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.name }) });
-  }
-  return reactModule(SelectUi);
+  return reactModule(ToggleButtonGroupUi);
 }
 
 // srcts/options/options.ts
@@ -68,20 +55,6 @@ var nRows = {
   },
   ui: numberUi("Preview rows", optionSchemas.n_rows.minimum)
 };
-var SEVERITIES = ["message", "warning", "error"];
-var showConditions = {
-  label: "Message types to display",
-  category: "Board options",
-  schema: optionSchemas.show_conditions,
-  // R writes a blockr option of one severity as a string, as an environment
-  // variable gives it.
-  default: async (core) => {
-    const value = await core.blockrOption("show_conditions");
-    if (value === void 0) return ["warning", "error"];
-    return checked("show_conditions", takesSeverities, value, typeof value === "string" ? [value] : value);
-  },
-  ui: multiSelectUi("Message types to display", SEVERITIES)
-};
 var darkMode = {
   label: "Light/dark mode",
   category: "Theme options",
@@ -93,7 +66,7 @@ var darkMode = {
     if (typeof logical === "boolean") return logical ? "dark" : "light";
     return checked("dark_mode", takesTheme, value);
   },
-  ui: selectUi("Light/dark mode", "Choose a mode", [
+  ui: toggleButtonGroupUi("Light/dark mode", [
     { id: "light", name: "Light" },
     { id: "dark", name: "Dark" }
   ]),
@@ -113,12 +86,6 @@ function checked(id, takes, sent, value = sent) {
 }
 function takesRows(value) {
   return typeof value === "number" && Number.isInteger(value) && value >= optionSchemas.n_rows.minimum;
-}
-function takesSeverities(value) {
-  const allowed = optionSchemas.show_conditions.items.enum;
-  if (!Array.isArray(value)) return false;
-  const given = value;
-  return given.every((x) => allowed.includes(x)) && new Set(given).size === given.length;
 }
 function takesTheme(value) {
   const allowed = optionSchemas.dark_mode.enum;
