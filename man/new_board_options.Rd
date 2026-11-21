@@ -9,7 +9,6 @@
 \alias{board_option_value}
 \alias{new_n_rows_option}
 \alias{new_dark_mode_option}
-\alias{new_show_conditions_option}
 \alias{new_board_options}
 \alias{is_board_options}
 \alias{as_board_options}
@@ -37,8 +36,6 @@ board_option_value(x)
 new_n_rows_option(value)
 
 new_dark_mode_option(value)
-
-new_show_conditions_option(value)
 
 new_board_options(...)
 
@@ -99,14 +96,11 @@ default nor a check. A board option made without a value has none. The board
 then holds no value for it, so that whatever needs it takes the default of
 its definition in the client.
 
-Core ships three board options: \code{n_rows}, the rows of a table output's page,
-\code{show_conditions}, the severities of the notifications about a block or a
-plugin that a frontend shows, such as the conditions of a block's
-evaluation, and \code{dark_mode}, which switches between the light and the dark
-theme.
-Core's basic frontend requires \code{show_conditions} and \code{dark_mode}.
-So the client gives every board that lacks a value of either one its
-default as the board opens.
+Core ships two board options: \code{n_rows}, the rows of a table output's page,
+and \code{dark_mode}, which switches between the light and the dark theme.
+Core's basic frontend requires \code{dark_mode}.
+So the client puts the default of \code{dark_mode} on every board that lacks a
+value of it, as the board opens.
 Their schemas ship beside their modules, and R writes the value that a
 script gives by them (see \code{\link[=blockr_ser]{blockr_ser()}}).
 
@@ -116,8 +110,8 @@ page requires the board option (see \code{\link[=blockr_option]{blockr_option()}
 So \code{options(blockr.n_rows = 25L)}, or the environment variable
 \code{BLOCKR_N_ROWS}, still sets the rows of a page on a board that holds no
 value for \code{n_rows}.
-Without a blockr option, \code{n_rows} takes 10, \code{show_conditions} warnings and
-errors, and \code{dark_mode} the theme that the user's system prefers.
+Without a blockr option, \code{n_rows} takes 10, and \code{dark_mode} the theme that
+the user's system prefers.
 
 Several board options make a \code{board_options} object, which
 \code{new_board_options()} makes, holding one board option per ID. The predicate
@@ -129,7 +123,6 @@ sets of board options, keeping the first for each ID.
 \examples{
 opts <- new_board_options(
   new_n_rows_option(25L),
-  new_show_conditions_option("error"),
   new_dark_mode_option()
 )
 

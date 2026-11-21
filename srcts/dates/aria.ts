@@ -16,7 +16,6 @@ export { Calendar, CalendarCell, CalendarGrid, CalendarGridBody, CalendarGridHea
 export { DateField, DateInput, DateSegment } from "react-aria-components/DateField";
 export { DatePicker } from "react-aria-components/DatePicker";
 export { DateRangePicker } from "react-aria-components/DateRangePicker";
-export { useLocale } from "react-aria-components/I18nProvider";
 export { RangeCalendar } from "react-aria-components/RangeCalendar";
 export { TimeField } from "react-aria-components/TimeField";
 export { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "@internationalized/date";

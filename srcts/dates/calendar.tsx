@@ -22,7 +22,7 @@
 // It says below itself why the host refused what it submitted.
 
 import type { ReactElement } from "react";
-import { composeRenderProps, Text } from "../aria/index.ts";
+import { composeRenderProps, Text, useLocale } from "../aria/index.ts";
 import {
   Calendar as AriaCalendar,
   CalendarCell,
@@ -32,7 +32,6 @@ import {
   CalendarHeaderCell,
   CalendarHeading,
   RangeCalendar as AriaRangeCalendar,
-  useLocale,
 } from "./aria.ts";
 import type {
   CalendarDate,
@@ -41,7 +40,7 @@ import type {
   DateValue,
   RangeCalendarProps as AriaRangeCalendarProps,
 } from "./aria.ts";
-import { Button, missing as shownMissing, Refusal } from "../inputs/index.ts";
+import { Button, NotAvailable, Refusal } from "../inputs/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import { useBoundDate } from "./bound.ts";
@@ -124,10 +123,10 @@ function BoundRange({ bound, onChange, ...props }: DrawnRangeProps<DateValue> & 
   );
 }
 
-// The months, each under its heading, and the error message, which says why
-// the calendar is invalid, or which value of the state it shows as missing.
+// The months, each under its heading, the error message, and the line that
+// names a value of the state that the calendar shows as missing, as the SDK's
+// other inputs name a value that they lack.
 function DrawnCalendar<T extends DateValue>({ errorMessage, missing = null, isInvalid, className, ...props }: DrawnProps<T>): ReactElement {
-  const shown = missing === null ? errorMessage : shownMissing(missing);
   return (
     <AriaCalendar
       {...props}
@@ -135,17 +134,17 @@ function DrawnCalendar<T extends DateValue>({ errorMessage, missing = null, isIn
       className={composeRenderProps(className, (given) => `${CALENDAR} ${given ?? ""}`)}
     >
       <Months count={props.visibleDuration?.months ?? 1} cell={(date) => <CalendarCell date={date} className={CELL} />} />
-      {shown === undefined ? null : (
+      {errorMessage === undefined ? null : (
         <Text slot="errorMessage" className={styles.alert}>
-          {shown}
+          {errorMessage}
         </Text>
       )}
+      {missing === null ? null : <NotAvailable values={[missing]} />}
     </AriaCalendar>
   );
 }
 
 function DrawnRange<T extends DateValue>({ errorMessage, missing = null, isInvalid, className, ...props }: DrawnRangeProps<T>): ReactElement {
-  const shown = missing === null ? errorMessage : shownMissing(missing);
   return (
     <AriaRangeCalendar
       {...props}
@@ -164,11 +163,12 @@ function DrawnRange<T extends DateValue>({ errorMessage, missing = null, isInval
           </CalendarCell>
         )}
       />
-      {shown === undefined ? null : (
+      {errorMessage === undefined ? null : (
         <Text slot="errorMessage" className={styles.alert}>
-          {shown}
+          {errorMessage}
         </Text>
       )}
+      {missing === null ? null : <NotAvailable values={[missing]} />}
     </AriaRangeCalendar>
   );
 }

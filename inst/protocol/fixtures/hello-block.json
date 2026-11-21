@@ -73,11 +73,6 @@
             "module": "blockr.core/n-rows-option.js?v=2b9c7e14",
             "version": 1
           },
-          "show_conditions": {
-            "package": "blockr.core",
-            "module": "blockr.core/show-conditions-option.js?v=6f3a8d05",
-            "version": 1
-          },
           "dark_mode": {
             "package": "blockr.core",
             "module": "blockr.core/dark-mode-option.js?v=a47e2c19",

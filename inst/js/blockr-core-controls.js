@@ -58,13 +58,17 @@ function controls(host, signal) {
   function add(node) {
     put(() => /* @__PURE__ */ jsx(Slot, { node }));
   }
-  function input(key, draw) {
+  function bindTo(target, show, options) {
+    const binding = typeof target === "string" ? bindValue(host, target, show, options) : bindValue(host, target.read, target.change, show, options);
+    bindings.push(binding);
+    return binding;
+  }
+  function input(target, draw) {
     let value;
     let refusal = null;
     let made = false;
-    const binding = bindValue(
-      host,
-      key,
+    const binding = bindTo(
+      target,
       (shown) => {
         value = shown;
         if (made) redraw();
@@ -79,7 +83,6 @@ function controls(host, signal) {
         notifier: () => void 0
       }
     );
-    bindings.push(binding);
     made = true;
     put(
       () => draw({
@@ -108,38 +111,40 @@ function controls(host, signal) {
     }
     return host.value();
   }
-  function bind(key, show) {
-    const binding = bindValue(host, key, show, { settled: alert, notifier: () => void 0 });
-    bindings.push(binding);
-    return binding;
+  function bind(key, next, last) {
+    const [target, show] = after(key, next, last);
+    return bindTo(target, show, { settled: alert, notifier: () => void 0 });
   }
   function follow(name, options) {
     const request = followRequest(host, name, options);
     followed.push(request);
     return request;
   }
-  function text(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx(inputs.TextField, { bound, spellCheck: "false", ...options }));
+  function text(key, next, last) {
+    const [target, options] = after(key, next, last);
+    input(target, (bound) => /* @__PURE__ */ jsx(inputs.TextField, { bound, spellCheck: "false", ...options }));
   }
-  function number(key, options) {
+  function number(key, next, last) {
+    const [target, options] = after(key, next, last);
     let maxValue = options.maxValue;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx(inputs.NumberField, { bound, ...options, maxValue, outdated }));
+    input(target, (bound) => /* @__PURE__ */ jsx(inputs.NumberField, { bound, ...options, maxValue, outdated }));
     return {
-      setMaxValue(next) {
-        maxValue = next;
+      setMaxValue(next2) {
+        maxValue = next2;
         redraw();
       },
-      setOutdated(next) {
-        outdated = next;
+      setOutdated(next2) {
+        outdated = next2;
         redraw();
       }
     };
   }
-  function comboBox(key, options) {
+  function comboBox(key, next, last) {
+    const [target, options] = after(key, next, last);
     let items = options.items;
     let outdated = false;
-    input(key, (bound) => /* @__PURE__ */ jsx(
+    input(target, (bound) => /* @__PURE__ */ jsx(
       inputs.ComboBox,
       {
         bound,
@@ -155,18 +160,19 @@ function controls(host, signal) {
       }
     ));
     return {
-      setItems(next) {
-        items = next;
+      setItems(next2) {
+        items = next2;
         redraw();
       },
-      setOutdated(next) {
-        outdated = next;
+      setOutdated(next2) {
+        outdated = next2;
         redraw();
       }
     };
   }
-  function checkbox(key, options) {
-    input(key, (bound) => /* @__PURE__ */ jsx(inputs.Checkbox, { bound, label: options.label }));
+  function checkbox(key, next, last) {
+    const [target, options] = after(key, next, last);
+    input(target, (bound) => /* @__PURE__ */ jsx(inputs.Checkbox, { bound, children: options.label }));
   }
   function cleanup() {
     if (ended) return;
@@ -177,6 +183,9 @@ function controls(host, signal) {
   }
   signal.addEventListener("abort", cleanup, { once: true });
   return { el, add, get, bind, text, number, comboBox, checkbox, follow, alert, cleanup };
+}
+function after(key, next, last) {
+  return typeof key === "function" ? [{ read: key, change: next }, last] : [key, next];
 }
 function Slot({ node }) {
   const ref = useRef(null);

@@ -29,7 +29,7 @@ import { composeRenderProps, FieldError, Label, Text } from "../aria/index.ts";
 import type { ValidationResult } from "../aria/index.ts";
 import { DateField as AriaDateField, DateInput as AriaDateInput, DateSegment, TimeField as AriaTimeField } from "./aria.ts";
 import type { DateFieldProps as AriaDateFieldProps, DateValue, TimeFieldProps as AriaTimeFieldProps, TimeValue } from "./aria.ts";
-import { missing as shownMissing, Refusal } from "../inputs/index.ts";
+import { NotAvailable, Refusal } from "../inputs/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import { useBoundDate } from "./bound.ts";
@@ -145,8 +145,9 @@ function BoundTime({
   );
 }
 
-// The label, the field, the description and the error message, which says
-// why the field is invalid, or which value of the state it shows as missing.
+// The label, the field, the description, the error message, and the line that
+// names a value of the state that the field shows as missing, as the SDK's
+// other inputs name a value that they lack.
 function DrawnDate<T extends DateValue>({ label, description, errorMessage, missing = null, isInvalid, className, ...props }: DrawnDateProps<T>): ReactElement {
   return (
     <AriaDateField
@@ -154,7 +155,7 @@ function DrawnDate<T extends DateValue>({ label, description, errorMessage, miss
       isInvalid={missing === null ? isInvalid : true}
       className={composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`)}
     >
-      <FieldParts label={label} description={description} errorMessage={missing === null ? errorMessage : shownMissing(missing)} />
+      <FieldParts label={label} description={description} errorMessage={errorMessage} missing={missing} />
     </AriaDateField>
   );
 }
@@ -166,7 +167,7 @@ function DrawnTime<T extends TimeValue>({ label, description, errorMessage, miss
       isInvalid={missing === null ? isInvalid : true}
       className={composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`)}
     >
-      <FieldParts label={label} description={description} errorMessage={missing === null ? errorMessage : shownMissing(missing)} />
+      <FieldParts label={label} description={description} errorMessage={errorMessage} missing={missing} />
     </AriaTimeField>
   );
 }
@@ -175,7 +176,8 @@ function FieldParts({
   label,
   description,
   errorMessage,
-}: Pick<DateFieldProps<DateValue>, "label" | "description" | "errorMessage">): ReactElement {
+  missing,
+}: Pick<DrawnDateProps<DateValue>, "label" | "description" | "errorMessage" | "missing">): ReactElement {
   return (
     <>
       {label === undefined ? null : <Label className={styles.label}>{label}</Label>}
@@ -186,6 +188,7 @@ function FieldParts({
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
+      {missing === null || missing === undefined ? null : <NotAvailable values={[missing]} />}
     </>
   );
 }

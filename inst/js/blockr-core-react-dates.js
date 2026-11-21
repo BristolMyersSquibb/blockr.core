@@ -1,5 +1,5 @@
 // srcts/dates/calendar.tsx
-import { composeRenderProps, Text } from "./vendor-WDKFFI2H.js";
+import { composeRenderProps, Text, useLocale } from "./vendor-6RYOVVQI.js";
 import {
   Calendar as AriaCalendar,
   CalendarCell,
@@ -8,10 +8,9 @@ import {
   CalendarGridHeader,
   CalendarHeaderCell,
   CalendarHeading,
-  RangeCalendar as AriaRangeCalendar,
-  useLocale
-} from "./vendor-dates-CAREHF26.js";
-import { Button, missing as shownMissing, Refusal } from "@blockr/core/react";
+  RangeCalendar as AriaRangeCalendar
+} from "./vendor-dates-U7BSBF7L.js";
+import { Button, NotAvailable, Refusal } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -51,7 +50,7 @@ function jsonEqual(a, b) {
 }
 
 // srcts/dates/values.ts
-import { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "./vendor-dates-CAREHF26.js";
+import { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "./vendor-dates-U7BSBF7L.js";
 var DATE = /^\d{4}-\d{2}-\d{2}$/;
 var DATE_TIME = /^(\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}(?::\d{2})?))?$/;
 var TIME = /^\d{2}:\d{2}(?::\d{2})?$/;
@@ -205,7 +204,6 @@ function BoundRange({ bound, onChange, ...props }) {
   ] });
 }
 function DrawnCalendar({ errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
-  const shown = missing === null ? errorMessage2 : shownMissing(missing);
   return /* @__PURE__ */ jsxs(
     AriaCalendar,
     {
@@ -214,13 +212,13 @@ function DrawnCalendar({ errorMessage: errorMessage2, missing = null, isInvalid,
       className: composeRenderProps(className, (given) => `${CALENDAR} ${given ?? ""}`),
       children: [
         /* @__PURE__ */ jsx(Months, { count: props.visibleDuration?.months ?? 1, cell: (date) => /* @__PURE__ */ jsx(CalendarCell, { date, className: CELL }) }),
-        shown === void 0 ? null : /* @__PURE__ */ jsx(Text, { slot: "errorMessage", className: styles.alert, children: shown })
+        errorMessage2 === void 0 ? null : /* @__PURE__ */ jsx(Text, { slot: "errorMessage", className: styles.alert, children: errorMessage2 }),
+        missing === null ? null : /* @__PURE__ */ jsx(NotAvailable, { values: [missing] })
       ]
     }
   );
 }
 function DrawnRange({ errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
-  const shown = missing === null ? errorMessage2 : shownMissing(missing);
   return /* @__PURE__ */ jsxs(
     AriaRangeCalendar,
     {
@@ -235,7 +233,8 @@ function DrawnRange({ errorMessage: errorMessage2, missing = null, isInvalid, cl
             cell: (date) => /* @__PURE__ */ jsx(CalendarCell, { date, className: RANGE_CELL, children: ({ formattedDate, isSelected, isSelectionStart, isSelectionEnd }) => /* @__PURE__ */ jsx("span", { className: isSelected && (isSelectionStart || isSelectionEnd) ? `${DAY} ${END}` : `${DAY} ${isSelected ? "" : UNPICKED}`, children: formattedDate }) })
           }
         ),
-        shown === void 0 ? null : /* @__PURE__ */ jsx(Text, { slot: "errorMessage", className: styles.alert, children: shown })
+        errorMessage2 === void 0 ? null : /* @__PURE__ */ jsx(Text, { slot: "errorMessage", className: styles.alert, children: errorMessage2 }),
+        missing === null ? null : /* @__PURE__ */ jsx(NotAvailable, { values: [missing] })
       ]
     }
   );
@@ -285,9 +284,9 @@ var END = "bc:bg-bg-accent bc:text-text-on-accent bc:group-data-invalid:bg-borde
 var UNPICKED = "bc:group-data-hovered:bg-bg-subtle bc:group-data-pressed:bg-bg-subtle";
 
 // srcts/dates/field.tsx
-import { composeRenderProps as composeRenderProps2, FieldError, Label, Text as Text2 } from "./vendor-WDKFFI2H.js";
-import { DateField as AriaDateField, DateInput as AriaDateInput, DateSegment, TimeField as AriaTimeField } from "./vendor-dates-CAREHF26.js";
-import { missing as shownMissing2, Refusal as Refusal2 } from "@blockr/core/react";
+import { composeRenderProps as composeRenderProps2, FieldError, Label, Text as Text2 } from "./vendor-6RYOVVQI.js";
+import { DateField as AriaDateField, DateInput as AriaDateInput, DateSegment, TimeField as AriaTimeField } from "./vendor-dates-U7BSBF7L.js";
+import { NotAvailable as NotAvailable2, Refusal as Refusal2 } from "@blockr/core/react";
 import { Fragment as Fragment2, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 function DateField({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx2(DrawnDate, { ...props }) : /* @__PURE__ */ jsx2(BoundDate, { ...props, bound });
@@ -381,7 +380,7 @@ function DrawnDate({ label, description, errorMessage: errorMessage2, missing = 
       ...props,
       isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps2(className, (given) => `${styles.field} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx2(FieldParts, { label, description, errorMessage: missing === null ? errorMessage2 : shownMissing2(missing) })
+      children: /* @__PURE__ */ jsx2(FieldParts, { label, description, errorMessage: errorMessage2, missing })
     }
   );
 }
@@ -392,20 +391,22 @@ function DrawnTime({ label, description, errorMessage: errorMessage2, missing = 
       ...props,
       isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps2(className, (given) => `${styles.field} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx2(FieldParts, { label, description, errorMessage: missing === null ? errorMessage2 : shownMissing2(missing) })
+      children: /* @__PURE__ */ jsx2(FieldParts, { label, description, errorMessage: errorMessage2, missing })
     }
   );
 }
 function FieldParts({
   label,
   description,
-  errorMessage: errorMessage2
+  errorMessage: errorMessage2,
+  missing
 }) {
   return /* @__PURE__ */ jsxs2(Fragment2, { children: [
     label === void 0 ? null : /* @__PURE__ */ jsx2(Label, { className: styles.label, children: label }),
     /* @__PURE__ */ jsx2(DateInput, { className: BOX }),
     /* @__PURE__ */ jsx2(Text2, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx2(FieldError, { className: styles.alert, children: errorMessage2 })
+    /* @__PURE__ */ jsx2(FieldError, { className: styles.alert, children: errorMessage2 }),
+    missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx2(NotAvailable2, { values: [missing] })
   ] });
 }
 function DateInput({ slot, className }) {
@@ -417,9 +418,9 @@ var SEGMENT = "bc:rounded-sm bc:px-0.5 bc:tabular-nums bc:caret-transparent bc:o
 
 // srcts/dates/picker.tsx
 import { useRef as useRef2 } from "react";
-import { Button as Button2, composeRenderProps as composeRenderProps3, FieldError as FieldError2, Group, Label as Label2, Text as Text3 } from "./vendor-WDKFFI2H.js";
-import { DatePicker as AriaDatePicker, DateRangePicker as AriaDateRangePicker } from "./vendor-dates-CAREHF26.js";
-import { missing as shownMissing3, Refusal as Refusal3 } from "@blockr/core/react";
+import { composeRenderProps as composeRenderProps3, FieldError as FieldError2, Group, Label as Label2, Text as Text3 } from "./vendor-6RYOVVQI.js";
+import { DatePicker as AriaDatePicker, DateRangePicker as AriaDateRangePicker } from "./vendor-dates-U7BSBF7L.js";
+import { FieldButton, NotAvailable as NotAvailable3, Refusal as Refusal3 } from "@blockr/core/react";
 import { Popover } from "@blockr/core/react";
 import { Fragment as Fragment3, jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 function DatePicker({ bound, ...props }) {
@@ -551,7 +552,7 @@ function DrawnPicker({ label, description, errorMessage: errorMessage2, missing 
           /* @__PURE__ */ jsx3(DateInput, { className: `${INLINE} bc:flex-1` }),
           /* @__PURE__ */ jsx3(Opener, {})
         ] }),
-        /* @__PURE__ */ jsx3(PickerParts, { description, errorMessage: missing === null ? errorMessage2 : shownMissing3(missing) }),
+        /* @__PURE__ */ jsx3(PickerParts, { description, errorMessage: errorMessage2, missing }),
         /* @__PURE__ */ jsx3(Popover, { className: POPOVER, children: /* @__PURE__ */ jsx3(Calendar, {}) })
       ]
     }
@@ -582,7 +583,7 @@ function DrawnRangePicker({
           ] }),
           /* @__PURE__ */ jsx3(Opener, {})
         ] }),
-        /* @__PURE__ */ jsx3(PickerParts, { description, errorMessage: missing === null ? errorMessage2 : shownMissing3(missing) }),
+        /* @__PURE__ */ jsx3(PickerParts, { description, errorMessage: errorMessage2, missing }),
         /* @__PURE__ */ jsx3(Popover, { className: POPOVER, children: /* @__PURE__ */ jsx3(RangeCalendar, {}) })
       ]
     }
@@ -590,15 +591,17 @@ function DrawnRangePicker({
 }
 function PickerParts({
   description,
-  errorMessage: errorMessage2
+  errorMessage: errorMessage2,
+  missing
 }) {
   return /* @__PURE__ */ jsxs3(Fragment3, { children: [
     /* @__PURE__ */ jsx3(Text3, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx3(FieldError2, { className: styles.alert, children: errorMessage2 })
+    /* @__PURE__ */ jsx3(FieldError2, { className: styles.alert, children: errorMessage2 }),
+    missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx3(NotAvailable3, { values: [missing] })
   ] });
 }
 function Opener() {
-  return /* @__PURE__ */ jsx3(Button2, { className: OPENER, children: /* @__PURE__ */ jsxs3(
+  return /* @__PURE__ */ jsx3(FieldButton, { children: /* @__PURE__ */ jsxs3(
     "svg",
     {
       width: "14",
@@ -619,7 +622,6 @@ function Opener() {
 }
 var FIELD = "bc:flex bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var ENDS = "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:overflow-x-auto bc:[scrollbar-width:none]";
-var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default";
 var POPOVER = "bc:p-3";
 export {
   Calendar,

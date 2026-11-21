@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { stubBlockHost } from "../../stubs/index.ts";
-import { labelled, listed, picked } from "../../testing/select.ts";
+import { labelled, listed, notAvailable, picked } from "../../testing/select.ts";
 import { blockFixture, mountOnPage, settle } from "../../testing/modules.ts";
 import { step } from "../../testing/react.ts";
 import { holdRequests } from "../../testing/requests.ts";
@@ -34,7 +34,6 @@ async function mounted(state: State, requests = fixture.requests) {
 // What the select shows: its field's text, the rows of its list and whether
 // it marks itself invalid.
 async function shown(select: HTMLInputElement): Promise<[string, string[], string | null]> {
-  // The field shows a pick that the items lack in place of its placeholder.
   return [select.value || select.placeholder, await listed(select, step), select.getAttribute("aria-invalid")];
 }
 
@@ -47,14 +46,16 @@ test("shows the state, with a choice of each data frame the package ships", asyn
   expect(host.submitted).toEqual([]);
 });
 
-test("shows a dataset that the choices lack as it is until they arrive, then as missing", async () => {
+test("shows a dataset that the choices lack as it is, and once they arrive, marks it and says below the select that it is not available", async () => {
   const unanswered = await mounted({ dataset: "Nile", package: "datasets" }, []);
   await settle();
   expect(await shown(unanswered.select)).toEqual(["Nile", [], null]);
+  expect(notAvailable(unanswered.view.el)).toEqual([]);
 
-  const { host, select } = await mounted({ dataset: "Nile", package: "datasets" });
+  const { host, view, select } = await mounted({ dataset: "Nile", package: "datasets" });
   await settle();
-  expect(await shown(select)).toEqual(["Nile (not available)", ["BOD", "iris", "mtcars"], "true"]);
+  expect(await shown(select)).toEqual(["Nile", ["BOD", "iris", "mtcars"], "true"]);
+  expect(notAvailable(view.el)).toEqual(["Not available: Nile"]);
   expect(host.submitted).toEqual([]);
 });
 

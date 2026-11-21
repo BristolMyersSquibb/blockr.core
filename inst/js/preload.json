@@ -19,7 +19,7 @@
     "react",
     "react/jsx-runtime",
     "@blockr/core/react",
-    "./vendor-WDKFFI2H.js"
+    "./vendor-6RYOVVQI.js"
   ],
   "blockr-core-controls.js": [
     "react",
@@ -34,8 +34,8 @@
     "./opentelemetry-DICPNHNT.js"
   ],
   "blockr-core-react-dates.js": [
-    "./vendor-WDKFFI2H.js",
-    "./vendor-dates-CAREHF26.js",
+    "./vendor-6RYOVVQI.js",
+    "./vendor-dates-U7BSBF7L.js",
     "@blockr/core/react",
     "react",
     "react/jsx-runtime"
@@ -46,16 +46,16 @@
     "react-dom",
     "react-dom/client",
     "react/jsx-runtime",
-    "./vendor-WDKFFI2H.js"
+    "./vendor-6RYOVVQI.js"
   ],
   "blockr-core.js": [
     "@opentelemetry/api",
-    "./vendor-WDKFFI2H.js",
+    "./vendor-6RYOVVQI.js",
     "react",
     "react-dom",
     "react-dom/client",
-    "react/jsx-runtime",
-    "@blockr/core/react"
+    "@blockr/core/react",
+    "react/jsx-runtime"
   ],
   "csv-block.js": [
     "@blockr/core/react",
@@ -75,7 +75,7 @@
     "react-dom/client",
     "react",
     "@blockr/core/react",
-    "./vendor-WDKFFI2H.js",
+    "./vendor-6RYOVVQI.js",
     "react/jsx-runtime"
   ],
   "filebrowser-block.js": [
@@ -104,23 +104,19 @@
     "@opentelemetry/api"
   ],
   "react-dom-client.js": [
-    "./vendor-WDKFFI2H.js"
+    "./vendor-6RYOVVQI.js"
   ],
   "react-dom.js": [
-    "./vendor-WDKFFI2H.js"
+    "./vendor-6RYOVVQI.js"
   ],
   "react-jsx-runtime.js": [
-    "./vendor-WDKFFI2H.js"
+    "./vendor-6RYOVVQI.js"
   ],
   "react.js": [
-    "./vendor-WDKFFI2H.js"
+    "./vendor-6RYOVVQI.js"
   ],
   "scatter-block.js": [
     "@blockr/core/binding",
-    "@blockr/core/react",
-    "react/jsx-runtime"
-  ],
-  "show-conditions-option.js": [
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
@@ -134,10 +130,10 @@
     "@blockr/core/react",
     "react/jsx-runtime"
   ],
-  "vendor-WDKFFI2H.js": [
-    "./chunk-A46SQDJO.js"
+  "vendor-6RYOVVQI.js": [
+    "./chunk-KZM34BVD.js"
   ],
-  "vendor-dates-CAREHF26.js": [
-    "./chunk-A46SQDJO.js"
+  "vendor-dates-U7BSBF7L.js": [
+    "./chunk-KZM34BVD.js"
   ]
 }

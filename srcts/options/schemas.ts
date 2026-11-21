@@ -3,8 +3,7 @@
 // The build writes each beside the board option's module, in a file named by
 // the module, as inst/js/n-rows-option.schema.json,
 // by which R writes the value of a board option that an app script gives,
-// so that show_conditions set to "error" in a script reaches the client as the
-// array its schema has.
+// so that the value reaches the client in the shape its schema has.
 
 import type { OptionId } from "../types/board.ts";
 import type { JsonSchema } from "../types/json.ts";
@@ -16,12 +15,6 @@ export const optionSchemas = {
     // outputs takes it.
     minimum: 1,
     description: "How many rows of a table a block's output shows",
-  },
-  show_conditions: {
-    type: "array",
-    items: { enum: ["message", "warning", "error"] },
-    uniqueItems: true,
-    description: "The severities of a block's conditions that the board shows",
   },
   dark_mode: {
     enum: ["light", "dark"],

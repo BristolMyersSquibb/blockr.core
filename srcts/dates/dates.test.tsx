@@ -11,7 +11,7 @@ import { PAUSE } from "../binding/index.ts";
 import { useValue } from "../react/index.ts";
 import { stubBlockHost } from "../stubs/index.ts";
 import type { StubBlockHost } from "../stubs/index.ts";
-import { fieldError, press } from "../testing/inputs.ts";
+import { press } from "../testing/inputs.ts";
 import type { BlockHost } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import { Calendar, DateField, DatePicker, DateRangePicker, RangeCalendar, TimeField } from "./index.ts";
@@ -94,6 +94,12 @@ async function typeInto(target: HTMLElement, text: string): Promise<void> {
   }
 }
 
+// The lines below the inputs in `el` that say what the inputs lack or why the
+// host refused a submit.
+function alerts(el: ParentNode): string[] {
+  return [...el.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent);
+}
+
 // The group of a field, which React Aria marks invalid.
 function group(el: ParentNode): HTMLElement {
   const found = el.querySelector('[role="group"]');
@@ -159,7 +165,7 @@ describe("a bound date field", () => {
     // Each segment shows its placeholder, as before the user typed it.
     expect([...el.querySelectorAll('[role="spinbutton"]')].every((segment) => segment.hasAttribute("data-placeholder"))).toBe(true);
     expect(group(el).hasAttribute("data-invalid")).toBe(true);
-    expect(fieldError(el)).toBe("2026-11-19T14:30:00 (not available)");
+    expect(alerts(el)).toEqual(["Not available: 2026-11-19T14:30:00"]);
   });
 
   test("shows the date that the host announces, as the assistant sets it", async () => {
@@ -301,7 +307,7 @@ describe("a bound date range picker", () => {
 
   test("shows a range that lacks an end as missing", () => {
     const { el } = block(During, { start: "2026-11-19" }, []);
-    expect(fieldError(el)).toBe('{"start":"2026-11-19"} (not available)');
+    expect(alerts(el)).toEqual(['Not available: {"start":"2026-11-19"}']);
   });
 });
 

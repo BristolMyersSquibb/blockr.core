@@ -3,6 +3,7 @@ import { Button } from "react-aria-components/Button";
 import { composeRenderProps } from "react-aria-components/composeRenderProps";
 import { FieldError } from "react-aria-components/FieldError";
 import { Group } from "react-aria-components/Group";
+import { useLocale } from "react-aria-components/I18nProvider";
 import { Label } from "react-aria-components/Label";
 import { Popover } from "react-aria-components/Popover";
 import { Text } from "react-aria-components/Text";
@@ -12,7 +13,6 @@ import { Calendar, CalendarCell, CalendarGrid, CalendarGridBody, CalendarGridHea
 import { DateField, DateInput, DateSegment } from "react-aria-components/DateField";
 import { DatePicker } from "react-aria-components/DatePicker";
 import { DateRangePicker } from "react-aria-components/DateRangePicker";
-import { useLocale } from "react-aria-components/I18nProvider";
 import { RangeCalendar } from "react-aria-components/RangeCalendar";
 import { TimeField } from "react-aria-components/TimeField";
 import { parseDate, parseDateTime, parseTime, toCalendarDate, toCalendarDateTime, toTime } from "@internationalized/date";
@@ -42,19 +42,13 @@ import { jsx } from "react/jsx-runtime";
 function Button2({ variant = "primary", className, ...props }) {
   return /* @__PURE__ */ jsx(Button, { ...props, className: composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`) });
 }
-
-// srcts/inputs/inputs.tsx
-import { useState } from "react";
-import { Fragment, jsx as jsx2, jsxs } from "react/jsx-runtime";
-function missing(value) {
-  return `${value} (not available)`;
+function FieldButton({ className, ...props }) {
+  return /* @__PURE__ */ jsx(Button, { ...props, className: composeRenderProps(className, (given) => `${FIELD_BUTTON} ${given ?? ""}`) });
 }
-function Refusal({ error }) {
-  return error === null ? null : /* @__PURE__ */ jsx2("p", { role: "alert", className: styles.alert, children: error });
-}
+var FIELD_BUTTON = "bc:flex bc:size-5 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:outline-none bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
-// srcts/inputs/combobox.tsx
-import { useContext, useRef, useState as useState2 } from "react";
+// srcts/inputs/checkbox.tsx
+import { useRef as useRef2 } from "react";
 
 // srcts/util/util.ts
 function own(record, key) {
@@ -75,18 +69,87 @@ function jsonEqual(a, b) {
   return false;
 }
 
+// srcts/inputs/icons.tsx
+import { jsx as jsx2, jsxs } from "react/jsx-runtime";
+
+// srcts/inputs/inputs.tsx
+import { useState } from "react";
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+function NotAvailable({
+  values,
+  onRemove
+}) {
+  if (values.length === 0) return null;
+  const named = values.join(", ");
+  return /* @__PURE__ */ jsxs2("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-2", children: [
+    /* @__PURE__ */ jsx3("p", { role: "alert", className: styles.alert, children: `Not available: ${named}` }),
+    onRemove === void 0 ? null : /* @__PURE__ */ jsx3(Button2, { variant: "quiet", "aria-label": `Remove ${named}`, onPress: onRemove, children: "Remove" })
+  ] });
+}
+function Refusal({ error }) {
+  return error === null ? null : /* @__PURE__ */ jsx3("p", { role: "alert", className: styles.alert, children: error });
+}
+
+// srcts/inputs/items.ts
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState as useState2 } from "react";
+var ItemsContext = createContext(null);
+
+// srcts/inputs/checkbox.tsx
+import { Fragment, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+
 // srcts/inputs/combobox.tsx
-import { Fragment as Fragment2, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+import { useContext as useContext2, useRef as useRef3, useState as useState3 } from "react";
+import { Fragment as Fragment2, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+
+// srcts/inputs/dropzone.tsx
+import { jsx as jsx6 } from "react/jsx-runtime";
+
+// srcts/inputs/form.tsx
+import { jsx as jsx7 } from "react/jsx-runtime";
+
+// srcts/inputs/listbox.tsx
+import { jsx as jsx8 } from "react/jsx-runtime";
 
 // srcts/inputs/numberfield.tsx
-import { useContext as useContext2, useEffect, useRef as useRef2, useState as useState3 } from "react";
-import { Fragment as Fragment3, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import { useContext as useContext3, useEffect, useRef as useRef4, useState as useState4 } from "react";
+import { Fragment as Fragment3, jsx as jsx9, jsxs as jsxs5 } from "react/jsx-runtime";
+
+// srcts/inputs/radio.tsx
+import { useRef as useRef5 } from "react";
+import { Fragment as Fragment4, jsx as jsx10, jsxs as jsxs6 } from "react/jsx-runtime";
+
+// srcts/inputs/searchfield.tsx
+import { Fragment as Fragment5, jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
+
+// srcts/inputs/select.tsx
+import { useContext as useContext4, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef6, useState as useState5 } from "react";
+import { Fragment as Fragment6, jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
+
+// srcts/inputs/slider.tsx
+import { useContext as useContext5, useLayoutEffect as useLayoutEffect3, useRef as useRef7, useState as useState6 } from "react";
+import { Fragment as Fragment7, jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
+
+// srcts/inputs/switch.tsx
+import { Fragment as Fragment8, jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
+
+// srcts/inputs/tags.tsx
+import { createContext as createContext2, useContext as useContext6 } from "react";
+import { Fragment as Fragment9, jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
+var ColorContext = createContext2("gray");
 
 // srcts/inputs/textfield.tsx
-import { Fragment as Fragment4, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment as Fragment10, jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
+
+// srcts/inputs/toggle.tsx
+import { createContext as createContext3, useContext as useContext7, useId, useRef as useRef8 } from "react";
+import { Fragment as Fragment11, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
+var InGroup = createContext3(false);
+
+// srcts/inputs/tokenfield.tsx
+import { jsx as jsx18, jsxs as jsxs14 } from "react/jsx-runtime";
 
 // srcts/dates/bound.ts
-import { useRef as useRef3, useState as useState4 } from "react";
+import { useRef as useRef9, useState as useState7 } from "react";
 
 // srcts/dates/values.ts
 var DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -146,14 +209,14 @@ function shownValue(value) {
 
 // srcts/dates/bound.ts
 function useBoundDate(bound, { read, write, fits, required }) {
-  const held = bound.value === void 0 ? null : read(bound.value);
-  const [kept, setKept] = useState4(null);
-  const latest = useRef3(null);
+  const held2 = bound.value === void 0 ? null : read(bound.value);
+  const [kept, setKept] = useState7(null);
+  const latest = useRef9(null);
   const keep = (next) => {
     latest.current = next;
     setKept(next);
   };
-  const [seen, setSeen] = useState4(bound.value);
+  const [seen, setSeen] = useState7(bound.value);
   if (!Object.is(seen, bound.value)) {
     setSeen(bound.value);
     if (kept?.submitted === true) setKept(null);
@@ -174,8 +237,8 @@ function useBoundDate(bound, { read, write, fits, required }) {
     });
   };
   return {
-    value: kept === null ? held ?? null : kept.value,
-    missing: kept === null && bound.value !== void 0 && held === void 0 ? shownValue(bound.value) : null,
+    value: kept === null ? held2 ?? null : kept.value,
+    missing: kept === null && bound.value !== void 0 && held2 === void 0 ? shownValue(bound.value) : null,
     edit: (value) => {
       keep({ value, submitted: false });
     },
@@ -188,12 +251,12 @@ function useBoundDate(bound, { read, write, fits, required }) {
 }
 
 // srcts/dates/calendar.tsx
-import { Fragment as Fragment5, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+import { Fragment as Fragment12, jsx as jsx19, jsxs as jsxs15 } from "react/jsx-runtime";
 function Calendar2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx6(DrawnCalendar, { ...props }) : /* @__PURE__ */ jsx6(BoundCalendar, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx19(DrawnCalendar, { ...props }) : /* @__PURE__ */ jsx19(BoundCalendar, { ...props, bound });
 }
 function RangeCalendar2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx6(DrawnRange, { ...props }) : /* @__PURE__ */ jsx6(BoundRange, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx19(DrawnRange, { ...props }) : /* @__PURE__ */ jsx19(BoundRange, { ...props, bound });
 }
 function BoundCalendar({ bound, onChange, ...props }) {
   const date = useBoundDate(bound, {
@@ -202,8 +265,8 @@ function BoundCalendar({ bound, onChange, ...props }) {
     fits: (value) => dateFits(value, props),
     required: true
   });
-  return /* @__PURE__ */ jsxs5(Fragment5, { children: [
-    /* @__PURE__ */ jsx6(
+  return /* @__PURE__ */ jsxs15(Fragment12, { children: [
+    /* @__PURE__ */ jsx19(
       DrawnCalendar,
       {
         ...props,
@@ -215,7 +278,7 @@ function BoundCalendar({ bound, onChange, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx6(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx19(Refusal, { error: bound.error })
   ] });
 }
 function BoundRange({ bound, onChange, ...props }) {
@@ -225,8 +288,8 @@ function BoundRange({ bound, onChange, ...props }) {
     fits: (value) => rangeFits(value, { minValue: props.minValue, maxValue: props.maxValue }),
     required: true
   });
-  return /* @__PURE__ */ jsxs5(Fragment5, { children: [
-    /* @__PURE__ */ jsx6(
+  return /* @__PURE__ */ jsxs15(Fragment12, { children: [
+    /* @__PURE__ */ jsx19(
       DrawnRange,
       {
         ...props,
@@ -238,61 +301,61 @@ function BoundRange({ bound, onChange, ...props }) {
         }
       }
     ),
-    /* @__PURE__ */ jsx6(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx19(Refusal, { error: bound.error })
   ] });
 }
-function DrawnCalendar({ errorMessage: errorMessage2, missing: missing2 = null, isInvalid, className, ...props }) {
-  const shown = missing2 === null ? errorMessage2 : missing(missing2);
-  return /* @__PURE__ */ jsxs5(
+function DrawnCalendar({ errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
+  return /* @__PURE__ */ jsxs15(
     Calendar,
     {
       ...props,
-      isInvalid: missing2 === null ? isInvalid : true,
+      isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps(className, (given) => `${CALENDAR} ${given ?? ""}`),
       children: [
-        /* @__PURE__ */ jsx6(Months, { count: props.visibleDuration?.months ?? 1, cell: (date) => /* @__PURE__ */ jsx6(CalendarCell, { date, className: CELL }) }),
-        shown === void 0 ? null : /* @__PURE__ */ jsx6(Text, { slot: "errorMessage", className: styles.alert, children: shown })
+        /* @__PURE__ */ jsx19(Months, { count: props.visibleDuration?.months ?? 1, cell: (date) => /* @__PURE__ */ jsx19(CalendarCell, { date, className: CELL }) }),
+        errorMessage2 === void 0 ? null : /* @__PURE__ */ jsx19(Text, { slot: "errorMessage", className: styles.alert, children: errorMessage2 }),
+        missing === null ? null : /* @__PURE__ */ jsx19(NotAvailable, { values: [missing] })
       ]
     }
   );
 }
-function DrawnRange({ errorMessage: errorMessage2, missing: missing2 = null, isInvalid, className, ...props }) {
-  const shown = missing2 === null ? errorMessage2 : missing(missing2);
-  return /* @__PURE__ */ jsxs5(
+function DrawnRange({ errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
+  return /* @__PURE__ */ jsxs15(
     RangeCalendar,
     {
       ...props,
-      isInvalid: missing2 === null ? isInvalid : true,
+      isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps(className, (given) => `${CALENDAR} ${given ?? ""}`),
       children: [
-        /* @__PURE__ */ jsx6(
+        /* @__PURE__ */ jsx19(
           Months,
           {
             count: props.visibleDuration?.months ?? 1,
-            cell: (date) => /* @__PURE__ */ jsx6(CalendarCell, { date, className: RANGE_CELL, children: ({ formattedDate, isSelected, isSelectionStart, isSelectionEnd }) => /* @__PURE__ */ jsx6("span", { className: isSelected && (isSelectionStart || isSelectionEnd) ? `${DAY} ${END}` : `${DAY} ${isSelected ? "" : UNPICKED}`, children: formattedDate }) })
+            cell: (date) => /* @__PURE__ */ jsx19(CalendarCell, { date, className: RANGE_CELL, children: ({ formattedDate, isSelected, isSelectionStart, isSelectionEnd }) => /* @__PURE__ */ jsx19("span", { className: isSelected && (isSelectionStart || isSelectionEnd) ? `${DAY} ${END}` : `${DAY} ${isSelected ? "" : UNPICKED}`, children: formattedDate }) })
           }
         ),
-        shown === void 0 ? null : /* @__PURE__ */ jsx6(Text, { slot: "errorMessage", className: styles.alert, children: shown })
+        errorMessage2 === void 0 ? null : /* @__PURE__ */ jsx19(Text, { slot: "errorMessage", className: styles.alert, children: errorMessage2 }),
+        missing === null ? null : /* @__PURE__ */ jsx19(NotAvailable, { values: [missing] })
       ]
     }
   );
 }
 function Months({ count, cell }) {
   const { direction } = useLocale();
-  return /* @__PURE__ */ jsx6(Fragment5, { children: Array.from({ length: count }, (_, i) => /* @__PURE__ */ jsxs5("div", { className: MONTH, children: [
-    /* @__PURE__ */ jsxs5("header", { className: HEADER, children: [
-      i === 0 ? /* @__PURE__ */ jsx6(Button2, { variant: "quiet", slot: "previous", className: PAGE, children: /* @__PURE__ */ jsx6(Arrow, { back: direction !== "rtl" }) }) : null,
-      /* @__PURE__ */ jsx6(CalendarHeading, { offset: { months: i }, className: HEADING }),
-      i === count - 1 ? /* @__PURE__ */ jsx6(Button2, { variant: "quiet", slot: "next", className: PAGE, children: /* @__PURE__ */ jsx6(Arrow, { back: direction === "rtl" }) }) : null
+  return /* @__PURE__ */ jsx19(Fragment12, { children: Array.from({ length: count }, (_, i) => /* @__PURE__ */ jsxs15("div", { className: MONTH, children: [
+    /* @__PURE__ */ jsxs15("header", { className: HEADER, children: [
+      i === 0 ? /* @__PURE__ */ jsx19(Button2, { variant: "quiet", slot: "previous", className: PAGE, children: /* @__PURE__ */ jsx19(Arrow, { back: direction !== "rtl" }) }) : null,
+      /* @__PURE__ */ jsx19(CalendarHeading, { offset: { months: i }, className: HEADING }),
+      i === count - 1 ? /* @__PURE__ */ jsx19(Button2, { variant: "quiet", slot: "next", className: PAGE, children: /* @__PURE__ */ jsx19(Arrow, { back: direction === "rtl" }) }) : null
     ] }),
-    /* @__PURE__ */ jsxs5(CalendarGrid, { offset: { months: i }, className: GRID, children: [
-      /* @__PURE__ */ jsx6(CalendarGridHeader, { children: (day) => /* @__PURE__ */ jsx6(CalendarHeaderCell, { className: WEEKDAY, children: day }) }),
-      /* @__PURE__ */ jsx6(CalendarGridBody, { children: cell })
+    /* @__PURE__ */ jsxs15(CalendarGrid, { offset: { months: i }, className: GRID, children: [
+      /* @__PURE__ */ jsx19(CalendarGridHeader, { children: (day) => /* @__PURE__ */ jsx19(CalendarHeaderCell, { className: WEEKDAY, children: day }) }),
+      /* @__PURE__ */ jsx19(CalendarGridBody, { children: cell })
     ] })
   ] }, i)) });
 }
 function Arrow({ back }) {
-  return /* @__PURE__ */ jsx6(
+  return /* @__PURE__ */ jsx19(
     "svg",
     {
       width: "12",
@@ -304,7 +367,7 @@ function Arrow({ back }) {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       "aria-hidden": "true",
-      children: /* @__PURE__ */ jsx6("polyline", { points: back ? "7.5 3 4.5 6 7.5 9" : "4.5 3 7.5 6 4.5 9" })
+      children: /* @__PURE__ */ jsx19("polyline", { points: back ? "7.5 3 4.5 6 7.5 9" : "4.5 3 7.5 6 4.5 9" })
     }
   );
 }
@@ -322,12 +385,12 @@ var END = "bc:bg-bg-accent bc:text-text-on-accent bc:group-data-invalid:bg-borde
 var UNPICKED = "bc:group-data-hovered:bg-bg-subtle bc:group-data-pressed:bg-bg-subtle";
 
 // srcts/dates/field.tsx
-import { Fragment as Fragment6, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
+import { Fragment as Fragment13, jsx as jsx20, jsxs as jsxs16 } from "react/jsx-runtime";
 function DateField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx7(DrawnDate, { ...props }) : /* @__PURE__ */ jsx7(BoundDate, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx20(DrawnDate, { ...props }) : /* @__PURE__ */ jsx20(BoundDate, { ...props, bound });
 }
 function TimeField2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx7(DrawnTime, { ...props }) : /* @__PURE__ */ jsx7(BoundTime, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx20(DrawnTime, { ...props }) : /* @__PURE__ */ jsx20(BoundTime, { ...props, bound });
 }
 function BoundDate({
   bound,
@@ -344,8 +407,8 @@ function BoundDate({
     fits: (value) => dateFits(value, props),
     required: props.isRequired === true
   });
-  return /* @__PURE__ */ jsxs6(Fragment6, { children: [
-    /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsxs16(Fragment13, { children: [
+    /* @__PURE__ */ jsx20(
       DrawnDate,
       {
         ...props,
@@ -366,7 +429,7 @@ function BoundDate({
         }
       }
     ),
-    /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
 function BoundTime({
@@ -383,8 +446,8 @@ function BoundTime({
     fits: (value) => timeFits(value, props),
     required: props.isRequired === true
   });
-  return /* @__PURE__ */ jsxs6(Fragment6, { children: [
-    /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsxs16(Fragment13, { children: [
+    /* @__PURE__ */ jsx20(
       DrawnTime,
       {
         ...props,
@@ -405,79 +468,84 @@ function BoundTime({
         }
       }
     ),
-    /* @__PURE__ */ jsx7(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx20(Refusal, { error: bound.error })
   ] });
 }
-function DrawnDate({ label, description, errorMessage: errorMessage2, missing: missing2 = null, isInvalid, className, ...props }) {
-  return /* @__PURE__ */ jsx7(
+function DrawnDate({ label, description, errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
+  return /* @__PURE__ */ jsx20(
     DateField,
     {
       ...props,
-      isInvalid: missing2 === null ? isInvalid : true,
+      isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx7(FieldParts, { label, description, errorMessage: missing2 === null ? errorMessage2 : missing(missing2) })
+      children: /* @__PURE__ */ jsx20(FieldParts, { label, description, errorMessage: errorMessage2, missing })
     }
   );
 }
-function DrawnTime({ label, description, errorMessage: errorMessage2, missing: missing2 = null, isInvalid, className, ...props }) {
-  return /* @__PURE__ */ jsx7(
+function DrawnTime({ label, description, errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
+  return /* @__PURE__ */ jsx20(
     TimeField,
     {
       ...props,
-      isInvalid: missing2 === null ? isInvalid : true,
+      isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps(className, (given) => `${styles.field} ${given ?? ""}`),
-      children: /* @__PURE__ */ jsx7(FieldParts, { label, description, errorMessage: missing2 === null ? errorMessage2 : missing(missing2) })
+      children: /* @__PURE__ */ jsx20(FieldParts, { label, description, errorMessage: errorMessage2, missing })
     }
   );
 }
 function FieldParts({
   label,
   description,
-  errorMessage: errorMessage2
+  errorMessage: errorMessage2,
+  missing
 }) {
-  return /* @__PURE__ */ jsxs6(Fragment6, { children: [
-    label === void 0 ? null : /* @__PURE__ */ jsx7(Label, { className: styles.label, children: label }),
-    /* @__PURE__ */ jsx7(DateInput2, { className: BOX }),
-    /* @__PURE__ */ jsx7(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx7(FieldError, { className: styles.alert, children: errorMessage2 })
+  return /* @__PURE__ */ jsxs16(Fragment13, { children: [
+    label === void 0 ? null : /* @__PURE__ */ jsx20(Label, { className: styles.label, children: label }),
+    /* @__PURE__ */ jsx20(DateInput2, { className: BOX }),
+    /* @__PURE__ */ jsx20(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx20(FieldError, { className: styles.alert, children: errorMessage2 }),
+    missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx20(NotAvailable, { values: [missing] })
   ] });
 }
 function DateInput2({ slot, className }) {
-  return /* @__PURE__ */ jsx7(DateInput, { slot, className, children: (segment) => /* @__PURE__ */ jsx7(DateSegment, { segment, className: SEGMENT }) });
+  return /* @__PURE__ */ jsx20(DateInput, { slot, className, children: (segment) => /* @__PURE__ */ jsx20(DateSegment, { segment, className: SEGMENT }) });
 }
 var BOX = "bc:flex bc:min-w-0 bc:items-center bc:justify-self-stretch bc:overflow-x-auto bc:whitespace-nowrap bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-text bc:[scrollbar-width:none] bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 var INLINE = "bc:flex bc:min-w-0 bc:items-center bc:whitespace-nowrap bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-text bc:data-disabled:cursor-default";
 var SEGMENT = "bc:rounded-sm bc:px-0.5 bc:tabular-nums bc:caret-transparent bc:outline-none bc:data-[type=literal]:px-0 bc:data-placeholder:text-text-muted bc:data-focused:bg-bg-accent bc:data-focused:text-text-on-accent";
 
 // srcts/dates/picker.tsx
-import { useRef as useRef4 } from "react";
+import { useRef as useRef10 } from "react";
 
 // srcts/overlays/dialog.tsx
-import { jsx as jsx8 } from "react/jsx-runtime";
+import { jsx as jsx21 } from "react/jsx-runtime";
 
 // srcts/overlays/menu.tsx
 import { Children } from "react";
 
 // srcts/overlays/popover.tsx
-import { jsx as jsx9 } from "react/jsx-runtime";
+import { jsx as jsx22 } from "react/jsx-runtime";
 function Popover2({ className, offset = 4, ...props }) {
-  return /* @__PURE__ */ jsx9(Popover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
+  return /* @__PURE__ */ jsx22(Popover, { ...props, offset, className: composeRenderProps(className, (given) => `${POPOVER} ${given ?? ""}`) });
 }
 var POPOVER = "bc:overflow-auto bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised bc:font-sans bc:text-sm bc:text-gray-900 bc:shadow-lg bc:outline-none bc:dark:text-gray-100";
 
 // srcts/overlays/menu.tsx
-import { Fragment as Fragment7, jsx as jsx10, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment14, jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
+
+// srcts/overlays/palette.tsx
+import { jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 
 // srcts/dates/picker.tsx
-import { Fragment as Fragment8, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Fragment as Fragment15, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
 function DatePicker2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx11(DrawnPicker, { ...props }) : /* @__PURE__ */ jsx11(BoundPicker, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx25(DrawnPicker, { ...props }) : /* @__PURE__ */ jsx25(BoundPicker, { ...props, bound });
 }
 function DateRangePicker2({ bound, ...props }) {
-  return bound === void 0 ? /* @__PURE__ */ jsx11(DrawnRangePicker, { ...props }) : /* @__PURE__ */ jsx11(BoundRangePicker, { ...props, bound });
+  return bound === void 0 ? /* @__PURE__ */ jsx25(DrawnRangePicker, { ...props }) : /* @__PURE__ */ jsx25(BoundRangePicker, { ...props, bound });
 }
 function usePicking(value) {
-  const open = useRef4(false);
+  const open = useRef10(false);
   return {
     onOpenChange: (isOpen) => {
       open.current = isOpen;
@@ -511,8 +579,8 @@ function BoundPicker({
     required: props.isRequired === true
   });
   const picking = usePicking(date);
-  return /* @__PURE__ */ jsxs8(Fragment8, { children: [
-    /* @__PURE__ */ jsx11(
+  return /* @__PURE__ */ jsxs19(Fragment15, { children: [
+    /* @__PURE__ */ jsx25(
       DrawnPicker,
       {
         ...props,
@@ -537,7 +605,7 @@ function BoundPicker({
         }
       }
     ),
-    /* @__PURE__ */ jsx11(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx25(Refusal, { error: bound.error })
   ] });
 }
 function BoundRangePicker({
@@ -557,8 +625,8 @@ function BoundRangePicker({
     required: props.isRequired === true
   });
   const picking = usePicking(range);
-  return /* @__PURE__ */ jsxs8(Fragment8, { children: [
-    /* @__PURE__ */ jsx11(
+  return /* @__PURE__ */ jsxs19(Fragment15, { children: [
+    /* @__PURE__ */ jsx25(
       DrawnRangePicker,
       {
         ...props,
@@ -583,24 +651,24 @@ function BoundRangePicker({
         }
       }
     ),
-    /* @__PURE__ */ jsx11(Refusal, { error: bound.error })
+    /* @__PURE__ */ jsx25(Refusal, { error: bound.error })
   ] });
 }
-function DrawnPicker({ label, description, errorMessage: errorMessage2, missing: missing2 = null, isInvalid, className, ...props }) {
-  return /* @__PURE__ */ jsxs8(
+function DrawnPicker({ label, description, errorMessage: errorMessage2, missing = null, isInvalid, className, ...props }) {
+  return /* @__PURE__ */ jsxs19(
     DatePicker,
     {
       ...props,
-      isInvalid: missing2 === null ? isInvalid : true,
+      isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx11(Label, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsxs8(Group, { className: FIELD, children: [
-          /* @__PURE__ */ jsx11(DateInput2, { className: `${INLINE} bc:flex-1` }),
-          /* @__PURE__ */ jsx11(Opener, {})
+        label === void 0 ? null : /* @__PURE__ */ jsx25(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsxs19(Group, { className: FIELD, children: [
+          /* @__PURE__ */ jsx25(DateInput2, { className: `${INLINE} bc:flex-1` }),
+          /* @__PURE__ */ jsx25(Opener, {})
         ] }),
-        /* @__PURE__ */ jsx11(PickerParts, { description, errorMessage: missing2 === null ? errorMessage2 : missing(missing2) }),
-        /* @__PURE__ */ jsx11(Popover2, { className: POPOVER2, children: /* @__PURE__ */ jsx11(Calendar2, {}) })
+        /* @__PURE__ */ jsx25(PickerParts, { description, errorMessage: errorMessage2, missing }),
+        /* @__PURE__ */ jsx25(Popover2, { className: POPOVER2, children: /* @__PURE__ */ jsx25(Calendar2, {}) })
       ]
     }
   );
@@ -609,44 +677,46 @@ function DrawnRangePicker({
   label,
   description,
   errorMessage: errorMessage2,
-  missing: missing2 = null,
+  missing = null,
   isInvalid,
   className,
   ...props
 }) {
-  return /* @__PURE__ */ jsxs8(
+  return /* @__PURE__ */ jsxs19(
     DateRangePicker,
     {
       ...props,
-      isInvalid: missing2 === null ? isInvalid : true,
+      isInvalid: missing === null ? isInvalid : true,
       className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`),
       children: [
-        label === void 0 ? null : /* @__PURE__ */ jsx11(Label, { className: styles.label, children: label }),
-        /* @__PURE__ */ jsxs8(Group, { className: FIELD, children: [
-          /* @__PURE__ */ jsxs8("div", { className: ENDS, children: [
-            /* @__PURE__ */ jsx11(DateInput2, { slot: "start", className: INLINE }),
-            /* @__PURE__ */ jsx11("span", { "aria-hidden": "true", className: "bc:px-1 bc:text-text-muted", children: "\u2013" }),
-            /* @__PURE__ */ jsx11(DateInput2, { slot: "end", className: `${INLINE} bc:flex-1` })
+        label === void 0 ? null : /* @__PURE__ */ jsx25(Label, { className: styles.label, children: label }),
+        /* @__PURE__ */ jsxs19(Group, { className: FIELD, children: [
+          /* @__PURE__ */ jsxs19("div", { className: ENDS, children: [
+            /* @__PURE__ */ jsx25(DateInput2, { slot: "start", className: INLINE }),
+            /* @__PURE__ */ jsx25("span", { "aria-hidden": "true", className: "bc:px-1 bc:text-text-muted", children: "\u2013" }),
+            /* @__PURE__ */ jsx25(DateInput2, { slot: "end", className: `${INLINE} bc:flex-1` })
           ] }),
-          /* @__PURE__ */ jsx11(Opener, {})
+          /* @__PURE__ */ jsx25(Opener, {})
         ] }),
-        /* @__PURE__ */ jsx11(PickerParts, { description, errorMessage: missing2 === null ? errorMessage2 : missing(missing2) }),
-        /* @__PURE__ */ jsx11(Popover2, { className: POPOVER2, children: /* @__PURE__ */ jsx11(RangeCalendar2, {}) })
+        /* @__PURE__ */ jsx25(PickerParts, { description, errorMessage: errorMessage2, missing }),
+        /* @__PURE__ */ jsx25(Popover2, { className: POPOVER2, children: /* @__PURE__ */ jsx25(RangeCalendar2, {}) })
       ]
     }
   );
 }
 function PickerParts({
   description,
-  errorMessage: errorMessage2
+  errorMessage: errorMessage2,
+  missing
 }) {
-  return /* @__PURE__ */ jsxs8(Fragment8, { children: [
-    /* @__PURE__ */ jsx11(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx11(FieldError, { className: styles.alert, children: errorMessage2 })
+  return /* @__PURE__ */ jsxs19(Fragment15, { children: [
+    /* @__PURE__ */ jsx25(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
+    /* @__PURE__ */ jsx25(FieldError, { className: styles.alert, children: errorMessage2 }),
+    missing === null || missing === void 0 ? null : /* @__PURE__ */ jsx25(NotAvailable, { values: [missing] })
   ] });
 }
 function Opener() {
-  return /* @__PURE__ */ jsx11(Button, { className: OPENER, children: /* @__PURE__ */ jsxs8(
+  return /* @__PURE__ */ jsx25(FieldButton, { children: /* @__PURE__ */ jsxs19(
     "svg",
     {
       width: "14",
@@ -659,15 +729,14 @@ function Opener() {
       strokeLinejoin: "round",
       "aria-hidden": "true",
       children: [
-        /* @__PURE__ */ jsx11("rect", { x: "2.5", y: "3.5", width: "11", height: "10", rx: "1.5" }),
-        /* @__PURE__ */ jsx11("path", { d: "M2.5 6.5h11M5.5 2v3M10.5 2v3" })
+        /* @__PURE__ */ jsx25("rect", { x: "2.5", y: "3.5", width: "11", height: "10", rx: "1.5" }),
+        /* @__PURE__ */ jsx25("path", { d: "M2.5 6.5h11M5.5 2v3M10.5 2v3" })
       ]
     }
   ) });
 }
 var FIELD = "bc:flex bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 var ENDS = "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:overflow-x-auto bc:[scrollbar-width:none]";
-var OPENER = "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default";
 var POPOVER2 = "bc:p-3";
 export {
   Calendar2 as Calendar,

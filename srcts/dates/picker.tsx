@@ -33,11 +33,11 @@
 
 import { useRef } from "react";
 import type { KeyboardEvent, ReactElement } from "react";
-import { Button, composeRenderProps, FieldError, Group, Label, Text } from "../aria/index.ts";
+import { composeRenderProps, FieldError, Group, Label, Text } from "../aria/index.ts";
 import type { ValidationResult } from "../aria/index.ts";
 import { DatePicker as AriaDatePicker, DateRangePicker as AriaDateRangePicker } from "./aria.ts";
 import type { DatePickerProps as AriaDatePickerProps, DateRange, DateRangePickerProps as AriaDateRangePickerProps, DateValue } from "./aria.ts";
-import { missing as shownMissing, Refusal } from "../inputs/index.ts";
+import { FieldButton, NotAvailable, Refusal } from "../inputs/index.ts";
 import { Popover } from "../overlays/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
@@ -215,7 +215,7 @@ function DrawnPicker<T extends DateValue>({ label, description, errorMessage, mi
         <DateInput className={`${INLINE} bc:flex-1`} />
         <Opener />
       </Group>
-      <PickerParts description={description} errorMessage={missing === null ? errorMessage : shownMissing(missing)} />
+      <PickerParts description={description} errorMessage={errorMessage} missing={missing} />
       <Popover className={POPOVER}>
         <Calendar />
       </Popover>
@@ -250,7 +250,7 @@ function DrawnRangePicker<T extends DateValue>({
         </div>
         <Opener />
       </Group>
-      <PickerParts description={description} errorMessage={missing === null ? errorMessage : shownMissing(missing)} />
+      <PickerParts description={description} errorMessage={errorMessage} missing={missing} />
       <Popover className={POPOVER}>
         <RangeCalendar />
       </Popover>
@@ -261,7 +261,8 @@ function DrawnRangePicker<T extends DateValue>({
 function PickerParts({
   description,
   errorMessage,
-}: Pick<DatePickerProps<DateValue>, "description" | "errorMessage">): ReactElement {
+  missing,
+}: Pick<DrawnProps<DateValue>, "description" | "errorMessage" | "missing">): ReactElement {
   return (
     <>
       {/* React Aria names the description of the picker only where the
@@ -270,14 +271,16 @@ function PickerParts({
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
+      {missing === null || missing === undefined ? null : <NotAvailable values={[missing]} />}
     </>
   );
 }
 
-// The button at the field's right, which opens the calendar.
+// The button at the field's right, which opens the calendar, the SDK's button
+// inside a field, as in the starter kit.
 function Opener(): ReactElement {
   return (
-    <Button className={OPENER}>
+    <FieldButton>
       <svg
         width="14"
         height="14"
@@ -292,7 +295,7 @@ function Opener(): ReactElement {
         <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />
         <path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" />
       </svg>
-    </Button>
+    </FieldButton>
   );
 }
 
@@ -303,6 +306,4 @@ function Opener(): ReactElement {
 const FIELD =
   "bc:flex bc:min-w-0 bc:items-center bc:gap-1 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:pr-0.5 bc:pl-2 bc:font-sans bc:text-sm bc:text-text-default bc:data-focus-within:outline-2 bc:data-focus-within:outline-offset-1 bc:data-focus-within:outline-border-accent bc:data-invalid:border-border-danger bc:data-disabled:opacity-50";
 const ENDS = "bc:flex bc:min-w-0 bc:flex-1 bc:items-center bc:overflow-x-auto bc:[scrollbar-width:none]";
-const OPENER =
-  "bc:ml-auto bc:flex bc:size-6 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default";
 const POPOVER = "bc:p-3";

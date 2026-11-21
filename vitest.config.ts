@@ -27,5 +27,24 @@ export default defineConfig({
     testTimeout: 15_000,
     // Fails a test that logs an error that it does not capture.
     setupFiles: ["./srcts/testing/setup.ts"],
+    // Every run measures the coverage of the tests, `npm test` included.
+    // The typescript job of blockr.ci uploads coverage/lcov.info to Codecov.
+    // The lcov reporter writes that file, and an HTML report beside it in
+    // coverage/lcov-report.
+    // Istanbul counts the code of the sources in srcts alone.
+    // V8 counts all the code that runs, TypeScript's compiler included.
+    // That makes the tests that run the compiler several times slower.
+    // With `include` set, a source in srcts that no test imports counts as
+    // uncovered.
+    // Vitest leaves out the test files and the setup file by itself.
+    // The `exclude` option leaves out the other helpers of the tests, in
+    // srcts/testing.
+    coverage: {
+      enabled: true,
+      provider: "istanbul",
+      reporter: ["text", "lcov"],
+      include: ["srcts/**/*.{ts,tsx}"],
+      exclude: ["srcts/testing/**"],
+    },
   },
 });

@@ -558,7 +558,7 @@ describe("starting the page", () => {
     expect(basic.renders).toHaveLength(1);
     // Each registered under the id that R gives it.
     expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC_FRONTEND, FILE_STORAGE, EDIT_BOARD]);
-    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode"]);
+    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "dark_mode"]);
 
     // A board that opens later registers them again, from what the page
     // imported once.
@@ -568,7 +568,7 @@ describe("starting the page", () => {
     s.r.answer();
     await opening;
     expect(s.imported).toHaveLength(imported);
-    expect(Object.keys(s.started.core()?.options.registered() ?? {})).toEqual(["n_rows", "show_conditions", "dark_mode"]);
+    expect(Object.keys(s.started.core()?.options.registered() ?? {})).toEqual(["n_rows", "dark_mode"]);
   });
 
   test("sends R nothing to evaluate before the frontend's render() has resolved", async () => {
@@ -751,7 +751,7 @@ describe("starting the page", () => {
 
     expect(core.store.hasBoard()).toBe(true);
     expect(Object.keys(core.plugins.appPlugins())).toEqual([BASIC_FRONTEND, FILE_STORAGE, EDIT_BOARD, "blockr.good-good_plugin"]);
-    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode", "zoom"]);
+    expect(Object.keys(core.options.registered())).toEqual(["n_rows", "dark_mode", "zoom"]);
     expect(reported.errors().map((line) => line.message).sort()).toEqual([
       "The module blockr.missing/blockr.missing-missing_plugin.js of blockr.missing failed to load: Failed to fetch dynamically imported module: blockr.missing/blockr.missing-missing_plugin.js",
       "The module blockr.test/gap.js of blockr.test has no default export, an object.",
@@ -1570,11 +1570,11 @@ describe("the frontend and the plugins", () => {
   });
 
   test("draws the board of a core app with core's basic frontend, which gets the id of its class, once its board options are on the board", async () => {
-    const basic = recording("show_conditions", "dark_mode");
+    const basic = recording("dark_mode");
     const empty = { ...hello, board: { ...hello.board, board: { ...hello.board.board, options: {} } } };
     await started({ [BASIC]: basicModule(basic.frontend) }, empty);
 
-    expect(basic.seen).toEqual([[BASIC_FRONTEND, ["warning", "error"], "light"]]);
+    expect(basic.seen).toEqual([[BASIC_FRONTEND, "light"]]);
   });
 
   test("calls the frontend's render() with what R's reply to hello holds in frontend, in args, for every board that opens", async () => {
@@ -1658,7 +1658,7 @@ describe("the frontend and the plugins", () => {
     // option that it requires.
     const basic = frontEnd();
     const again = logged();
-    const lacking = Object.fromEntries(Object.entries(hello.options).filter(([id]) => id !== "show_conditions"));
+    const lacking = Object.fromEntries(Object.entries(hello.options).filter(([id]) => id !== "dark_mode"));
     const t = await started(
       { [BASIC]: basic.exports },
       { ...hello, options: lacking, board: { ...hello.board, board: { ...hello.board.board, options: {} } } },
@@ -1666,7 +1666,7 @@ describe("the frontend and the plugins", () => {
     again.restore();
     expect(basic.renders).toHaveLength(0);
     expect(t.el.textContent).toBe(
-      'The board option "show_conditions", which the plugin class "blockr.core-basic_frontend_plugin" requires, is defined by no package loaded.',
+      'The board option "dark_mode", which the plugin class "blockr.core-basic_frontend_plugin" requires, is defined by no package loaded.',
     );
   });
 
@@ -1992,8 +1992,7 @@ describe("a block that serve() serves alone", () => {
     expect(s.r.evaluations().map((request) => request.recipe.inputs)).toEqual([[{ input: "data" }]]);
 
     // The board takes dark_mode, which switches the page's theme, as every
-    // board does, but not show_conditions, which only the basic frontend
-    // requires, which does not run.
+    // board does.
     expect(Object.keys(core.store.board().options).sort()).toEqual(["dark_mode", "n_rows"]);
   });
 });

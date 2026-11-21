@@ -10,14 +10,14 @@ import { createPortal } from "react-dom";
 import { useCallback, useId, useState } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var SEVERITIES = ["error", "warning", "message"];
-function useFooter(status, notifications, severities = SEVERITIES) {
+function useFooter(status, notifications) {
   const shown = useShown(status);
   const opened = useOpened(OPEN_AT_START);
-  return { status, shown, settled: isSettled(status, shown), notifications, severities, ...opened };
+  return { status, shown, settled: isSettled(status, shown), notifications, ...opened };
 }
-function usePills(notifications, severities = SEVERITIES) {
+function usePills(notifications) {
   const opened = useOpened(NONE_OPEN);
-  return { status: void 0, shown: void 0, settled: true, notifications, severities, ...opened };
+  return { status: void 0, shown: void 0, settled: true, notifications, ...opened };
 }
 function useOpened(atStart) {
   const [open, setOpen] = useState(atStart);
@@ -47,14 +47,13 @@ function Pills({
   shown,
   settled,
   notifications,
-  severities,
   open,
   toggle,
   panel,
   className = "bc:justify-center bc:px-5"
 }) {
   const pills = SEVERITIES.flatMap((severity) => {
-    const n = counted(shown, notifications, severities, severity);
+    const n = counted(shown, notifications, severity);
     return n === 0 ? [] : [{ severity, n }];
   });
   if (pills.length === 0) return null;
@@ -88,9 +87,9 @@ function Pills({
     }
   );
 }
-function Banners({ shown, notifications, severities, open, panel }) {
+function Banners({ shown, notifications, open, panel }) {
   const listed = notifications.filter(
-    (notification) => severities.includes(notification.severity) && open.has(notification.severity)
+    (notification) => open.has(notification.severity)
   );
   const reason = shown?.reason ?? null;
   if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
@@ -100,8 +99,8 @@ function Banners({ shown, notifications, severities, open, panel }) {
 function isSettled(status, shown) {
   return status !== void 0 && status === shown && !status.running;
 }
-function counted(status, notifications, severities, severity) {
-  const n = severities.includes(severity) ? notifications.filter((notification) => notification.severity === severity).length : 0;
+function counted(status, notifications, severity) {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
   return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
 }
 var MARKS = {
@@ -314,7 +313,7 @@ function defaultBlockName(registryId2) {
 // srcts/picker/picker.tsx
 import { useMemo as useMemo2, useState as useState7 } from "react";
 import { flushSync } from "react-dom";
-import { ComboBox, ComboBoxItem, ComboBoxSection, Text, TextField as TextField3, useBoard } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField as TextField2, useBoard } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -394,7 +393,7 @@ function useHistory(core) {
 
 // srcts/ui/search.ts
 import { useState as useState4 } from "react";
-import { useFilter } from "./vendor-WDKFFI2H.js";
+import { useFilter } from "./vendor-6RYOVVQI.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState4("");
@@ -410,7 +409,7 @@ function useSearch(all, texts, none = "No options") {
 
 // srcts/ui/table.tsx
 import { useState as useState6 } from "react";
-import { TextField as TextField2 } from "@blockr/core/react";
+import { SearchField } from "@blockr/core/react";
 
 // srcts/ui/ui.tsx
 import { useRef as useRef2, useState as useState5 } from "react";
@@ -561,11 +560,10 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
     onAdded?.();
   }
   return /* @__PURE__ */ jsxs4(
-    "form",
+    Form,
     {
       "aria-label": "Add block",
-      noValidate: true,
-      className: "bc:grid bc:gap-3",
+      validationBehavior: "aria",
       onSubmit: (event) => {
         void submit(event);
       },
@@ -595,20 +593,20 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
           }
         ),
         link.kind === "pick" ? /* @__PURE__ */ jsx5(
-          ComboBox,
+          Select,
           {
             label: link.label,
             isRequired: true,
-            defaultItems: link.inputs.map((input3) => ({ id: input3 })),
+            items: link.inputs.map((input3) => ({ id: input3 })),
             value: chosen ?? null,
             onChange: (key) => {
               if (key !== null) setInput(String(key));
             },
-            children: (item) => /* @__PURE__ */ jsx5(ComboBoxItem, { id: item.id, children: item.id })
+            children: (item) => /* @__PURE__ */ jsx5(SelectItem, { id: item.id, children: item.id })
           }
         ) : null,
         link.kind === "name" ? /* @__PURE__ */ jsx5(
-          TextField3,
+          TextField2,
           {
             label: link.label,
             value: inputName,
@@ -628,7 +626,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
         link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx5("p", { className: styles.alert, children: link.why }) : null,
         /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx5(
-            TextField3,
+            TextField2,
             {
               label: "ID",
               value: id2,
@@ -647,7 +645,7 @@ function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = fa
             }
           ),
           /* @__PURE__ */ jsx5(
-            TextField3,
+            TextField2,
             {
               label: "Name",
               value: name2,
@@ -809,18 +807,12 @@ function Menu({ label, items }) {
 
 // srcts/modules/basic/card.tsx
 import { jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
-var BlockCard = memo(function BlockCard2({
-  id: id2,
-  block,
-  severities,
-  prependable,
-  add
-}) {
+var BlockCard = memo(function BlockCard2({ id: id2, block, prependable, add }) {
   const front = useFrontEnd();
   const { core, inView: inView2 } = front;
   const status = useStatus(core, id2);
   const notified = useNotified(core, { block: id2 });
-  const footer = useFooter(status, notified, severities);
+  const footer = useFooter(status, notified);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState8(false);
   const ref = useRef4(null);
@@ -1006,13 +998,10 @@ function OptionsDialog({ onClose }) {
     if (def === void 0) continue;
     categories.set(def.category, [...categories.get(def.category) ?? [], id2]);
   }
-  return /* @__PURE__ */ jsxs7(Dialog, { title: "Board options", onClose, children: [
-    categories.size === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "The board holds no board options." }) : null,
-    [...categories].map(([category, ids]) => /* @__PURE__ */ jsxs7("section", { "aria-label": category, className: "bc:grid bc:gap-2", children: [
-      /* @__PURE__ */ jsx8("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
-      ids.map((id2) => /* @__PURE__ */ jsx8(OptionUi, { id: id2 }, id2))
-    ] }, category))
-  ] });
+  return /* @__PURE__ */ jsx8(Dialog, { title: "Board options", onClose, children: categories.size === 0 ? /* @__PURE__ */ jsx8("p", { className: styles.hint, children: "The board holds no board options." }) : /* @__PURE__ */ jsx8("div", { className: "bc:grid bc:divide-y bc:divide-border-default", children: [...categories].map(([category, ids]) => /* @__PURE__ */ jsxs7("section", { "aria-label": category, className: "bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0", children: [
+    /* @__PURE__ */ jsx8("h3", { className: "bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted", children: category }),
+    ids.map((id2) => /* @__PURE__ */ jsx8(OptionUi, { id: id2 }, id2))
+  ] }, category)) }) });
 }
 function OptionUi({ id: id2 }) {
   const { core } = useFrontEnd();
@@ -1052,7 +1041,7 @@ function hasSection(core, plugin) {
 function placed(core) {
   return Object.entries(core.plugins.appPlugins()).filter(([id2]) => hasSection(core, id2));
 }
-function Plugins({ severities }) {
+function Plugins() {
   const { core } = useFrontEnd();
   const shown = placed(core);
   if (shown.length === 0) return null;
@@ -1061,18 +1050,14 @@ function Plugins({ severities }) {
     {
       "aria-label": "Plugins",
       className: "bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto",
-      children: shown.map(([id2, plugin]) => /* @__PURE__ */ jsx9(PluginSection, { id: id2, plugin, severities }, id2))
+      children: shown.map(([id2, plugin]) => /* @__PURE__ */ jsx9(PluginSection, { id: id2, plugin }, id2))
     }
   );
 }
-function PluginSection({
-  id: id2,
-  plugin,
-  severities
-}) {
+function PluginSection({ id: id2, plugin }) {
   const { core, inView: inView2, sections } = useFrontEnd();
   const notified = useNotified2(core, { plugin: id2 });
-  const pills = usePills(notified, severities);
+  const pills = usePills(notified);
   const collapsed = useSyncExternalStore2(sections.subscribe, () => sections.collapsed(id2));
   const body = useId2();
   const ref = useRef5(null);
@@ -1596,8 +1581,6 @@ function Page() {
   const { core } = useFrontEnd();
   const board = useBoard3(core);
   const items = useMemo3(() => layoutItems(board), [board]);
-  const shown = board.options.show_conditions;
-  const severities = useMemo3(() => asSeverities(shown), [shown]);
   const [dialog, setDialog] = useState10(null);
   const add = useCallback6((mode) => {
     setDialog({ kind: "add", mode });
@@ -1613,7 +1596,6 @@ function Page() {
       {
         id: id2,
         block,
-        severities,
         prependable: (freeInputs(board, core.blockRegistry(), id2)?.length ?? 0) > 0,
         add
       },
@@ -1631,7 +1613,7 @@ function Page() {
       }
     ),
     /* @__PURE__ */ jsxs10("div", { className: "bc:flex bc:flex-col bc:gap-4 bc:md:flex-row-reverse bc:md:items-start", children: [
-      /* @__PURE__ */ jsx11(Plugins, { severities }),
+      /* @__PURE__ */ jsx11(Plugins, {}),
       /* @__PURE__ */ jsxs10("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-4", children: [
         items.length === 0 ? /* @__PURE__ */ jsx11("p", { className: styles.hint, children: "The board holds no blocks yet." }) : null,
         items.map((item) => {
@@ -1741,15 +1723,6 @@ function ToastItem({ toast, title }) {
       ]
     }
   );
-}
-function asSeverities(value2) {
-  if (Array.isArray(value2) && value2.every(isSeverity)) return value2;
-  throw new TypeError(
-    `The board option show_conditions is ${JSON.stringify(value2)}, where the board takes an array of "message", "warning" and "error".`
-  );
-}
-function isSeverity(value2) {
-  return value2 === "error" || value2 === "warning" || value2 === "message";
 }
 
 // srcts/modules/basic/demand.ts

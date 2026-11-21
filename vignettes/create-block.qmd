@@ -542,12 +542,12 @@ For any other ID, `option()` throws an error that names the class and the ID, a 
 
 A module written in React draws with the one copy of React that core puts on the page.
 Core's React SDK, `@blockr/core/react`, holds the hooks that follow the host and the inputs that core's own UIs draw with.
-This is the head block's UI, with a number field whose largest number the request `n_max` gives:
+This is the head block's UI, with a number field whose largest number the request `n_max` gives, and a toggle button for each end that it keeps the rows from:
 
 ```tsx
 import type { ReactElement } from "react";
 import type { BlockHost } from "@blockr/core";
-import { ComboBox, ComboBoxItem, NumberField, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
+import { NumberField, reactModule, Stack, ToggleButton, ToggleButtonGroup, useRequest, useValue } from "@blockr/core/react";
 import type { ModuleProps } from "@blockr/core/react";
 import type { State } from "./state.ts";
 
@@ -565,9 +565,13 @@ function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   return (
     <Stack>
       <NumberField bound={useValue(host, "n")} label="Number of rows" minValue={0} maxValue={max} step={1} outdated={outdated} />
-      <ComboBox bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" defaultItems={ends}>
-        {(end) => <ComboBoxItem id={end.id}>{end.name}</ComboBoxItem>}
-      </ComboBox>
+      <ToggleButtonGroup bound={useValue(host, "direction")} label="Direction" disallowEmptySelection>
+        {ends.map((end) => (
+          <ToggleButton key={end.id} id={end.id}>
+            {end.name}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
     </Stack>
   );
 }
@@ -578,7 +582,7 @@ export default reactModule(HeadBlock);
 The SDK holds these:
 
 - The function `reactModule()` makes a module from a component.
-- The hook `useValue()` binds a state arg to an input, by the contract's rules.
+- The hook `useValue()` binds a state arg to an input, by the contract's rules, or a value that two functions read from the state and change, as below.
 - The hook `useRequest()` follows a request, which it asks again whenever its args or the revisions of the block's inputs change. Its `loading` says whether it is asking, while `answer` keeps the last answer and `error` says why the latest ask failed.
 - The text field `TextField` and the number field `NumberField`, which are [React Aria's `TextField`](https://react-aria.adobe.com/TextField) and [`NumberField`](https://react-aria.adobe.com/NumberField) in core's theme.
   Each takes the props of its part of React Aria, and the `label`, `description`, `errorMessage` and `placeholder` of React Aria's Tailwind starter kit.
@@ -586,14 +590,28 @@ The SDK holds these:
   Given `bound`, either hands what the user types to its state arg, which it submits once the user pauses, and at once on Enter or as the user leaves the field.
   A bound number field submits only a number in its range, from `minValue` to `maxValue`, and on its `step`, which is 1 for a whole number.
   It marks a number outside them, with the message of the browser's own number input.
-- The inputs `Checkbox`, `Field` and `Stack`, each on one bound value.
-  A module's own input says why the host refused what it submitted with `Refusal`, and shows a value of the state that it cannot show with `missing()`, as the inputs of the SDK do.
+- The search field `SearchField`, [React Aria's `SearchField`](https://react-aria.adobe.com/SearchField) in core's theme, which submits as the text field does, and at once as the user clears it, by its button or by Escape.
 - The select `ComboBox`, which is [React Aria's `ComboBox`](https://react-aria.adobe.com/ComboBox) in core's theme, with the items `ComboBoxItem` and `ComboBoxSection`, and React Aria's `Text`, which holds an item's description.
   It takes the props of React Aria's `ComboBox`, and picks one string, or an array of strings where its `selectionMode` is `"multiple"`, by the ids of its items, out of a list that the user filters by typing.
   The field of several shows each pick as a chip, which the user removes by its button, and a button at the field's right clears the pick, or every pick, unless the select `isRequired`.
   A bound select of one leaves its state arg unset so.
   Given `value` and `onChange` in place of `bound`, it picks for its caller instead, as in the UI of a plugin.
-- The button `Button`, and the overlays: `Modal`, `Dialog`, `DialogTrigger` and `Heading`, `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with `Keyboard` for an item's shortcut, and `Popover`, which are React Aria's in core's theme.
+- The select `Select`, [React Aria's `Select`](https://react-aria.adobe.com/Select) in core's theme, for a pick of a few values, whose list opens whole from a button, with no field to type into.
+  Its items are `SelectItem` and `SelectSection`.
+  It picks as the `ComboBox` does, and submits one pick at once, and several once, as its list closes.
+- The checkbox `Checkbox`, the switch `Switch` and the toggle button `ToggleButton`, each of a boolean, and the groups of several: `CheckboxGroup`, of an array of strings, `RadioGroup` with its radios `Radio`, of a string, and `ToggleButtonGroup`, of a string, or of an array of strings where its `selectionMode` is `"multiple"`.
+  They are React Aria's in core's theme, and each submits a pick at once.
+  A checkbox, a switch, a radio and a toggle button take their label as their children.
+  A group holds its items, each with the value that it picks: a checkbox or a radio as its `value`, a toggle button as its `id`.
+  A toggle button group of one leaves its state arg unset as the user unpicks its pick, unless it sets `disallowEmptySelection`, as the head block's does above.
+- The slider `Slider`, [React Aria's `Slider`](https://react-aria.adobe.com/Slider) in core's theme, of a number, or of an array of numbers where it has several thumbs.
+  It submits as the user lets go of a thumb, and never a number that it pulled into its range or onto its step.
+- The parts that take no `bound`: the tags `TagGroup` and `Tag`, the list box `ListBox` with `ListBoxItem`, the field of tokens `TokenField` with `Token`, the form `Form`, and the drop zone `DropZone`, which are React Aria's in core's theme.
+  React Aria's `FileTrigger`, which picks a file from the button it holds, and its `Autocomplete` and `useFilter()`, with which a `SearchField` narrows a `ListBox` or a `Menu`, draw nothing of their own, and a module composes them with the others.
+  A file reaches R through a request of the block class that receives it, as the upload block's does.
+- The layout of a UI: `Stack`, which puts the inputs one below the other, and `Field`, a label that holds an input of the module's own.
+  Below such an input, `NotAvailable` names the values that it lacks, and `Refusal` says why the host refused what it submitted, as the inputs of the SDK say below themselves.
+- The buttons `Button` and `FieldButton`, a button inside a field, and the overlays: `Modal`, `Dialog`, `DialogTrigger` and `Heading`, `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with `Keyboard` for an item's shortcut, `Popover`, and `CommandPalette`, a menu that a search field narrows, in a modal, which are React Aria's in core's theme.
   React Aria draws each overlay in a portal at the end of the page's body, and opens a menu or a dialog of a trigger from its `Button`.
 - The dates and times, from an entry point of their own, `@blockr/core/react/dates`: the date field `DateField`, the time field `TimeField`, the pickers `DatePicker` and `DateRangePicker`, and the calendars `Calendar` and `RangeCalendar`, which are React Aria's in core's theme.
   The page loads them only once a module first imports them.
@@ -604,16 +622,48 @@ The SDK holds these:
   The string holds the time as the user picked it, and no time zone, so the block's code names the zone, such as that of its data, as `as.POSIXct(.(at), tz = "Europe/Zurich")`.
   A bound time is `"14:30:00"`, and a bound range is `{ "start": …, "end": … }` of two such dates, which R reads as a named list.
   A field submits what the user types as the user leaves it or presses Enter, and a picker or a calendar submits a pick at once.
-  An input submits only a value in its range, from `minValue` to `maxValue`, and shows a value that does not read as a date as missing.
+  An input submits only a value in its range, from `minValue` to `maxValue`.
+  Where the state holds a value that does not read so, as `"2026-11-19T14:30:00"`, the input marks itself invalid, and says below itself that the value is not available.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
 - For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a board object through `CoreApi`.
   A plugin's UI reads those about the plugin itself with `useNotified(core, { plugin })`, given the id of its class.
 
 A `ComboBox` whose items a request gives takes them as `undefined` until the request answers, since an empty array says that there are none.
-Once they are known, the select shows a value that they lack, such as a column that the data no longer has, as missing, and submits nothing, so that the state stays as the user left it.
+Once they are known, the select shows a value that they lack, such as a column that the data no longer has, as it is, marks itself invalid, and says below itself which values are not available, as "Not available: wt".
+It submits nothing of its own, so that the state stays as the user left it.
 The last answer is for older data while the request asks again, as after the block's inputs changed, and after an ask failed.
 The module then sets `outdated` on the select, which keeps the items on screen but marks no value that they lack.
 A `NumberField` whose `maxValue` a request gives takes `outdated` too, as in the head block above, and then marks no number above it.
+The `Select` and the groups show a value that their items lack in the same way, but draw no item for it.
+So in a `Select` or a group of several, the line below holds a button, Remove, which drops the values that the items lack, while the user drops such a value from one of one by picking an item.
+A `Slider` shows a number outside its range, or off its step, as it is beside its label, with the thumb at the nearest end, and says below itself that the number is not available.
+Each takes `outdated` too.
+
+An input that sets several state args, or edits part of one, binds through two functions in place of the state arg's name.
+The first reads the input's value from the state.
+The second builds the change to submit from the value that the user gave and from the state as the host holds it then.
+So the merge block's select of the join type sets `all_x` and `all_y` in one submit, which is one edit and one undo step:
+
+```tsx
+const joins = [
+  { id: "inner", name: "Inner", args: { all_x: false, all_y: false } },
+  { id: "left", name: "Left", args: { all_x: true, all_y: false } },
+  { id: "right", name: "Right", args: { all_x: false, all_y: true } },
+  { id: "full", name: "Full", args: { all_x: true, all_y: true } },
+];
+
+// The join that all_x and all_y make, by its id, and the state args of a join.
+const joinOf = (state: State) => joins.find(({ args }) => args.all_x === state.all_x && args.all_y === state.all_y)?.id;
+const argsOf = (id: Json | undefined) => joins.find((join) => join.id === id)?.args ?? {};
+
+<Select bound={useValue(host, joinOf, argsOf)} label="Join type" items={joins} isRequired>
+  {(join) => <SelectItem id={join.id}>{join.name}</SelectItem>}
+</Select>
+```
+
+A text field of one condition of a list builds the list with that condition replaced, from the list as it is when the field submits.
+So it keeps a condition that an assistant added while the user typed.
+The binding submits nothing that the state holds already, and its `unset()` submits the change that the second function builds from `undefined`.
 
 The state's type sits in `state.ts`, from which the package's build writes the JSON Schema:
 
@@ -768,8 +818,9 @@ It has no items until the module gives them, in its options or through `setItems
 Given the `selectionMode` `"multiple"`, it picks an array of strings, which it submits once, as its list closes.
 The option `loading` of `follow()` runs each time the request is asked, and the option `answer` once it answers.
 In `loading`, a module calls `setOutdated(true)` on each input whose items or `maxValue` the request gives, as the head block above does, and in `answer`, `setOutdated(false)`.
+Each control also takes the two functions of `useValue()` in place of its key, as `ui.comboBox(joinOf, argsOf, { label: "Join type", items: joins, isRequired: true })` does for the join type.
 
-A widget of a package's own binds to a state arg through `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.
+A widget of a package's own binds to a state arg, or through the two functions, with `bind()` of `@blockr/core/binding`, which keeps the contract's rules without React, and whose `unset()` leaves the state arg unset, as where the user clears it.
 A package that builds nothing writes the schema of the state by hand, with the description of each state arg in its property's `description`.
 
 ### Where the files go

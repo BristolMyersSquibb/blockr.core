@@ -11,9 +11,9 @@
 // So where `lines` is above 1, the field holds a TextArea of that many rows,
 // for text of several lines.
 //
-// Given `bound`, it shows and edits a string, a block's state arg or a board
-// option's value, which useValue() binds, as the SDK's other inputs do
-// (./inputs.tsx).
+// Given `bound`, it shows and edits a string that useValue() binds, a block's
+// state arg, a board option's value or a value that a function reads from a
+// block's state, as the SDK's other inputs do (./inputs.tsx).
 // It hands what the user types to the binding, which submits it once the user
 // pauses, and at once as the user leaves the field or presses Enter.
 // In a text area, where Enter starts a new line, Ctrl+Enter or Cmd+Enter
