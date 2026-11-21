@@ -32,9 +32,18 @@ list_volume_dir <- function(volumes, volume = NULL, path = "") {
   }
 
   entries <- list.files(dir)
-  is_dir <- dir.exists(file.path(dir, entries))
+  info <- file.info(file.path(dir, entries), extra_cols = FALSE)
+  is_dir <- info[["isdir"]] %in% TRUE
+  modified <- format(info[["mtime"]], "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
 
-  list(dirs = entries[is_dir], files = entries[!is_dir])
+  list(
+    dirs = data.frame(name = entries[is_dir], modified = modified[is_dir]),
+    files = data.frame(
+      name = entries[!is_dir],
+      size = info[["size"]][!is_dir],
+      modified = modified[!is_dir]
+    )
+  )
 }
 
 #' @rdname new_filebrowser_block
@@ -75,9 +84,10 @@ filebrowser_block <- new_block_class(
 #' arg `volumes` names the directories the browser starts from, a named
 #' character vector, which the client sends back as a named list. Its UI lists
 #' a directory through the volatile request `list_dir`, which reads `volumes`
-#' and takes as parameters the name of a volume and a path within it, and
-#' answers with the names of the directories and files there. Its results show
-#' as text, through [text_output()].
+#' and takes as parameters the name of a volume and a path within it. It
+#' answers with the directories and the files there, each with its name and the
+#' time it was last modified, in UTC, and each file with its size in bytes. Its
+#' results show as text, through [text_output()].
 #'
 #' @param file_path File path
 #' @param volumes Named character vector of the directories the browser starts

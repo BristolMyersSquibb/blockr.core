@@ -2,6 +2,15 @@
 // block's volumes through the request list_dir, opens a directory the user
 // clicks, and submits the path of a file the user clicks as the state arg
 // file_path.
+// It is drawn as file dialogs and RStudio's Files pane are, in one frame.
+// A bar at the top holds a button that goes up a directory, and the path from
+// the volume down to the directory, each part of which goes back there.
+// Below it, a Table of core's React SDK lists the directories first, then the
+// files, each with its icon, its size where it is a file, and the time it
+// changed last, in the time zone of the user's browser.
+// The block's file shows highlighted.
+// The user moves through the list by the arrow keys too, and opens an entry by
+// Enter, as React Aria's Table has it.
 // Which volume and which directory in it the browser shows is the module's
 // own.
 // It starts at the directory of the block's file, where the file lies in a
@@ -13,7 +22,21 @@
 
 import { Fragment, useState } from "react";
 import type { ReactElement } from "react";
-import { reactModule, Select, SelectItem, Stack, useRequest, useValue } from "../../react/index.ts";
+import {
+  Button,
+  Cell,
+  Column,
+  reactModule,
+  Row,
+  Select,
+  SelectItem,
+  Stack,
+  Table,
+  TableBody,
+  TableHeader,
+  useRequest,
+  useValue,
+} from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
@@ -23,11 +46,22 @@ import type { State } from "./state.ts";
 
 export const api = 1;
 
-// What list_dir answers: the names of the directories and of the files in
-// the directory it lists.
+// What list_dir answers: the directories and the files in the directory it
+// lists, each by its name, with the time it changed last, in UTC, and a file
+// with its size in bytes.
+// R sends null for a time or a size that it cannot read, as of a broken link.
+interface DirEntry {
+  readonly name: string;
+  readonly modified: string | null;
+}
+
+interface FileEntry extends DirEntry {
+  readonly size: number | null;
+}
+
 interface Listing {
-  readonly dirs: readonly string[];
-  readonly files: readonly string[];
+  readonly dirs: readonly DirEntry[];
+  readonly files: readonly FileEntry[];
 }
 
 // Where the browser is: a volume, by its name,
@@ -37,11 +71,29 @@ interface Place {
   readonly dirs: readonly string[];
 }
 
-// The classes of the buttons that name a directory or a file,
-// those in the list stretching across it.
+// An entry of the list, a directory or a file, with its id, what the list
+// shows of it, whether it is the block's file, and what opening it does.
+interface Entry {
+  readonly id: string;
+  readonly name: string;
+  readonly dir: boolean;
+  readonly size: number | null;
+  readonly modified: string | null;
+  readonly current: boolean;
+  readonly open: () => void;
+}
+
+// The classes of the frame, of the bar at its top, of the buttons that name a
+// directory in the bar, of the headings of the list's columns, and of the row
+// of the block's file.
+// The columns of sizes and times keep their widths, so that they stay in
+// place as the user moves from one directory to another.
+const FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised";
+const BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border-default bc:p-1 bc:text-sm";
 const link =
-  "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
-const entry = `${link} bc:justify-self-stretch`;
+  "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
+const HEAD = "bc:text-xs bc:text-text-muted";
+const CHOSEN = "bc:bg-bg-accent/10 bc:font-semibold";
 
 function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   const shared = useValue(host, "volumes").value;
@@ -75,6 +127,34 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
     setPlace(next);
   };
 
+  const entries: Entry[] = [
+    ...listing.dirs.map((dir) => ({
+      id: `dir ${dir.name}`,
+      name: dir.name,
+      dir: true,
+      size: null,
+      modified: dir.modified,
+      current: false,
+      open: () => {
+        go({ volume, dirs: [...dirs, dir.name] });
+      },
+    })),
+    ...listing.files.map((found) => {
+      const at = root === undefined ? undefined : join(root, [...dirs, found.name]);
+      return {
+        id: `file ${found.name}`,
+        name: found.name,
+        dir: false,
+        size: found.size,
+        modified: found.modified,
+        current: at !== undefined && at === held,
+        open: () => {
+          if (at !== undefined) void file.commit(at);
+        },
+      };
+    }),
+  ];
+
   const names = Object.keys(volumes);
   return (
     <Stack>
@@ -91,66 +171,84 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
           {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
         </Select>
       )}
-      <nav aria-label="Directory" className="bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm">
-        {[volume ?? "", ...dirs].map((name, i) => (
-          <Fragment key={i}>
-            {i > 0 && (
-              <span className="bc:text-text-muted" aria-hidden="true">
-                /
-              </span>
-            )}
-            <button
-              type="button"
-              className={link}
-              aria-current={i === dirs.length ? "true" : undefined}
-              onClick={() => {
-                go({ volume, dirs: dirs.slice(0, i) });
-              }}
-            >
-              {name}
-            </button>
-          </Fragment>
-        ))}
-      </nav>
-      <ul className="bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0">
-        {loading ? (
-          <Note text="Loading…" />
-        ) : (
-          <>
-            {dirs.length > 0 && (
-              <Entry
-                text=".."
-                onClick={() => {
-                  go({ volume, dirs: dirs.slice(0, -1) });
-                }}
-              />
-            )}
-            {listing.dirs.map((dir) => (
-              <Entry
-                key={`dir ${dir}`}
-                text={`${dir}/`}
-                onClick={() => {
-                  go({ volume, dirs: [...dirs, dir] });
-                }}
-              />
-            ))}
-            {listing.files.map((name) => {
-              const at = root === undefined ? undefined : join(root, [...dirs, name]);
-              return (
-                <Entry
-                  key={`file ${name}`}
-                  text={name}
-                  current={at !== undefined && at === held}
+      <div className={FRAME}>
+        <div className={BAR}>
+          <Button
+            variant="quiet"
+            aria-label="Up one directory"
+            className="bc:disabled:cursor-default bc:disabled:opacity-40"
+            isDisabled={dirs.length === 0}
+            onPress={() => {
+              go({ volume, dirs: dirs.slice(0, -1) });
+            }}
+          >
+            <Up />
+          </Button>
+          <FolderIcon className="bc:shrink-0 bc:text-text-muted" />
+          <nav aria-label="Directory" className="bc:flex bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-0.5">
+            {[volume ?? "", ...dirs].map((name, i) => (
+              <Fragment key={i}>
+                {i > 0 && (
+                  <span className="bc:text-text-muted" aria-hidden="true">
+                    /
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className={link}
+                  aria-current={i === dirs.length ? "true" : undefined}
                   onClick={() => {
-                    if (at !== undefined) void file.commit(at);
+                    go({ volume, dirs: dirs.slice(0, i) });
                   }}
-                />
-              );
-            })}
-            {!failed && listing.dirs.length + listing.files.length === 0 && <Note text="This directory is empty." />}
-          </>
-        )}
-      </ul>
+                >
+                  {name}
+                </button>
+              </Fragment>
+            ))}
+          </nav>
+        </div>
+        {/* The frame draws the line below the last row. */}
+        <Table
+          aria-label="Files"
+          className="bc:-mb-px bc:max-h-64"
+          onRowAction={(key) => {
+            entries.find((entry) => entry.id === key)?.open();
+          }}
+        >
+          <TableHeader>
+            <Column id="name" isRowHeader className={HEAD}>
+              Name
+            </Column>
+            <Column id="size" align="end" className={`${HEAD} bc:w-24`}>
+              Size
+            </Column>
+            <Column id="modified" className={`${HEAD} bc:w-36`}>
+              Modified
+            </Column>
+          </TableHeader>
+          {/* While R lists a place, the list holds no entry and says that it
+              is loading. Where the listing fails, it says nothing. */}
+          <TableBody
+            items={loading ? [] : entries}
+            renderEmptyState={() => (loading ? "Loading…" : failed ? null : "This directory is empty.")}
+          >
+            {(entry) => (
+              <Row id={entry.id} data-current={entry.current || undefined} className={`bc:cursor-pointer ${entry.current ? CHOSEN : ""}`}>
+                <Cell textValue={entry.name}>
+                  <span className="bc:flex bc:items-center bc:gap-2">
+                    {entry.dir ? <FolderIcon className="bc:shrink-0 bc:text-bg-accent" /> : <FileIcon className="bc:shrink-0 bc:text-text-muted" />}
+                    {entry.name}
+                  </span>
+                </Cell>
+                <Cell className="bc:text-right bc:tabular-nums">
+                  {entry.size === null ? <span className="bc:text-text-muted">—</span> : sizeText(entry.size)}
+                </Cell>
+                <Cell className="bc:tabular-nums bc:text-text-muted">{modifiedText(entry.modified)}</Cell>
+              </Row>
+            )}
+          </TableBody>
+        </Table>
+      </div>
       {/* Before a file is chosen, the block's status says what is missing. */}
       {held !== undefined && <p className={styles.hint}>{`Chosen: ${held}`}</p>}
       {file.error !== null && (
@@ -162,25 +260,60 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
   );
 }
 
-function Entry({ text, current = false, onClick }: { text: string; current?: boolean; onClick: () => void }): ReactElement {
-  return (
-    <li className="bc:grid">
-      <button type="button" className={entry} aria-current={current ? "true" : undefined} onClick={onClick}>
-        {text}
-      </button>
-    </li>
-  );
-}
-
-function Note({ text }: { text: string }): ReactElement {
-  return (
-    <li className="bc:grid">
-      <p className={styles.hint}>{text}</p>
-    </li>
-  );
-}
-
 export default reactModule(FileBrowserBlock);
+
+// The arrow of the button that goes up a directory.
+function Up(): ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 13V3M4 7l4-4 4 4" />
+    </svg>
+  );
+}
+
+function FolderIcon({ className }: { className: string }): ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M1.5 4a1 1 0 0 1 1-1h3.6l1.5 1.5h5.9a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" />
+    </svg>
+  );
+}
+
+function FileIcon({ className }: { className: string }): ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" aria-hidden="true" className={className}>
+      <path d="M4 1.75h5.25L12.5 5v9.25H4z" />
+      <path d="M9.25 1.75V5h3.25" />
+    </svg>
+  );
+}
+
+// A size in bytes as the list shows it: in bytes below a kilobyte, and
+// otherwise in the largest unit that keeps it at 1 or more, with one decimal,
+// where a kilobyte is 1,024 bytes, as blockr.io's path field shows sizes.
+export function sizeText(bytes: number): string {
+  if (bytes < 1024) return `${String(bytes)} B`;
+  const units = ["KB", "MB", "GB", "TB"] as const;
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(1)} ${units[unit] ?? "TB"}`;
+}
+
+// The time an entry changed last, which R sends in UTC, as the list shows it:
+// in the time zone of the user's browser, to the minute, as 2026-11-20 08:03.
+// It shows nothing where R sent no time, and the text as R sent it where it
+// reads as no time.
+export function modifiedText(modified: string | null): string {
+  if (modified === null) return "";
+  const at = new Date(modified);
+  if (Number.isNaN(at.getTime())) return modified;
+  const two = (n: number): string => String(n).padStart(2, "0");
+  return `${String(at.getFullYear())}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
+}
 
 // Where the browser starts: the volume that holds the block's file,
 // and the directories down to the file, or the root of the first volume.
@@ -218,12 +351,22 @@ function join(root: string, names: readonly string[]): string {
 // nothing.
 export function asListing(answer: unknown): Listing {
   if (answer === undefined) return { dirs: [], files: [] };
-  if (isObject(answer) && isStrings(answer.dirs) && isStrings(answer.files)) {
+  if (isObject(answer) && isEntries(answer.dirs, isDirEntry) && isEntries(answer.files, isFileEntry)) {
     return { dirs: answer.dirs, files: answer.files };
   }
-  throw new TypeError(`R answered list_dir with ${JSON.stringify(answer)}, where the file browser takes the dirs and the files that it lists.`);
+  throw new TypeError(
+    `R answered list_dir with ${JSON.stringify(answer)}, where the file browser takes the dirs and the files that it lists, each with its name and the time it changed last, and each file with its size.`,
+  );
 }
 
-function isStrings(value: unknown): value is readonly string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+function isEntries<T>(value: unknown, is: (entry: unknown) => entry is T): value is readonly T[] {
+  return Array.isArray(value) && value.every(is);
+}
+
+function isDirEntry(entry: unknown): entry is DirEntry {
+  return isObject(entry) && typeof entry.name === "string" && (entry.modified === null || typeof entry.modified === "string");
+}
+
+function isFileEntry(entry: unknown): entry is FileEntry {
+  return isDirEntry(entry) && isObject(entry) && (entry.size === null || typeof entry.size === "number");
 }
