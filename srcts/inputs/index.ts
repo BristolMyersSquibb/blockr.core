@@ -12,13 +12,18 @@
 // And they are the checkbox, the switch and the toggle button, which each
 // edit a boolean, the groups of several, the checkbox group, the radio group
 // and the toggle button group, and the slider.
+// And they are the colours, which each edit a colour as hex (./colors.ts):
+// the colour field and the colour picker, React Aria's ColorField and
+// ColorPicker, the swatch picker, its ColorSwatchPicker, and the parts of a
+// picker, its ColorArea, ColorSlider and ColorWheel.
 // And they are the dates and times: the date field and the time field, the
 // date picker and the date range picker, and the calendar and the range
 // calendar, each of a date, a time or a range in the forms that R reads
 // (./dates.ts).
 // The other parts take no `bound`: the tags, the list box, the field of
-// tokens, the form, the drop zone, and the buttons, React Aria's Button, which
-// the SDK's menus and dialogs open from, and the button inside a field.
+// tokens, the form, the drop zone, a colour's swatch and the thumb of a part
+// of a picker, and the buttons, React Aria's Button, which the SDK's menus and
+// dialogs open from, and the button inside a field.
 // React Aria's FileTrigger, which picks a file the browser's way from the
 // button it holds, and its Autocomplete, which narrows a list box or a menu
 // to the rows that hold what the user types into a search field, come
@@ -30,6 +35,14 @@ export { Calendar, RangeCalendar } from "./calendar.tsx";
 export type { CalendarProps, RangeCalendarProps } from "./calendar.tsx";
 export { Checkbox, CheckboxGroup } from "./checkbox.tsx";
 export type { CheckboxGroupProps, CheckboxProps } from "./checkbox.tsx";
+export { ColorField } from "./colorfield.tsx";
+export type { ColorFieldProps } from "./colorfield.tsx";
+export { ColorArea, ColorSlider, ColorThumb, ColorWheel } from "./colorparts.tsx";
+export type { ColorAreaProps, ColorSliderProps, ColorWheelProps } from "./colorparts.tsx";
+export { ColorPicker } from "./colorpicker.tsx";
+export type { ColorPickerProps } from "./colorpicker.tsx";
+export { ColorSwatch, ColorSwatchPicker, ColorSwatchPickerItem } from "./colorswatches.tsx";
+export type { ColorSwatchPickerProps } from "./colorswatches.tsx";
 export { ComboBox, ComboBoxItem, ComboBoxSection } from "./combobox.tsx";
 export type { ComboBoxProps, ComboBoxSectionProps } from "./combobox.tsx";
 export { DateField, TimeField } from "./datefield.tsx";
@@ -61,5 +74,6 @@ export type { ToggleButtonGroupProps, ToggleButtonProps } from "./toggle.tsx";
 export { Token, TokenField } from "./tokenfield.tsx";
 export type { TokenFieldProps } from "./tokenfield.tsx";
 export { Autocomplete, FileTrigger, Text, useFilter } from "../aria/index.ts";
+export type { Color, ColorSwatchPickerItemProps, ColorSwatchProps, ColorThumbProps } from "../aria/index.ts";
 // The tick of a pick, which the SDK's menus draw too.
 export { Tick } from "./icons.tsx";
