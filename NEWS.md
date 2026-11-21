@@ -770,7 +770,8 @@
   While R evaluates blocks, makes outputs and answers requests, cli writes without colors, and puts plain marks in their place, such as quotes around a file name.
   It also strips any escape that a message still holds.
   So no UI needs to remove escapes before it shows a message (#788).
-* Core asks R for a block's output only while the block reads ready and the output is on screen, as far as core can tell, and mounts the renderer that draws the output only while the output is on screen.
+* Core has R make a block's output only while the output is on screen, as far as core can tell, and mounts the renderer that draws the output only then.
+  Evaluation is unchanged: R still evaluates every block that something demands, and only the output, which R makes from the block's result, waits until it is on screen.
   The output is on screen while its element measures more than 0 by 0, as before, and while the `onScreen` of `CoreApi` holds what the element sits in, or is `null`, as where the frontend has said nothing.
   An output in the UI of a plugin, which a frontend places with `mountPlugin()`, sits in that plugin.
   An output on the page outside the UI of every other plugin sits on its block's card or panel, so `onScreen` has to hold the block.
