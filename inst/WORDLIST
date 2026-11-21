@@ -66,6 +66,7 @@ instantiation
 io
 jsonlite
 lifecycle
+lockfile
 minified
 namespaced
 navbar
