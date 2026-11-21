@@ -20,6 +20,14 @@
 //   it submits once the user pauses, presses Enter or leaves the control,
 //   so that a burst of typing is one edit and one undo step,
 //   and typing still pending as the binding ends it submits then.
+//   That suits a control whose text is the start of what the user means
+//   while the user types, such as a text field.
+//   A control whose value passes through wrong values as the user types,
+//   as a number passes through 15 on the way to 150, hands the binding
+//   nothing until the user ends the edit by pressing Enter or leaving the
+//   control, so that no pause submits a wrong value.
+//   Such a control drops an edit that the user has not ended as its binding
+//   ends.
 // - A binding builds each change that it submits from the state as the host
 //   holds it then, after the pause for typing too,
 //   so that a control that edits part of a state arg, such as one condition

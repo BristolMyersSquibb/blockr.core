@@ -691,8 +691,10 @@
 * Core's React SDK offers a text field, `TextField`, and a number field, `NumberField`, which core's own UIs, frontends, the UIs of plugins and those of blocks all draw with: [React Aria's `TextField`](https://react-aria.adobe.com/TextField) and [`NumberField`](https://react-aria.adobe.com/NumberField), in core's theme, after those of React Aria's Tailwind starter kit, in place of `TextInput` and `NumberInput`, which are gone.
   Each takes the props of its part of React Aria, and the `label`, `description`, `errorMessage` and `placeholder` that the starter kit adds.
   The `TextField` holds a text area where its `lines` is above 1, since React Aria has no prop for text on several lines.
-  Given `bound`, each hands what the user types to the binding, which submits it once the user pauses, and at once on Enter or as the user leaves the field, as `TextInput` and `NumberInput` did.
-  A bound `NumberField` submits only a number in its range and on its step, which the head block and the board option `n_rows` set to 1, and it submits a step of its buttons or of the arrow keys at once.
+  Given `bound`, the `TextField` hands what the user types to the binding, which submits it once the user pauses, and at once on Enter or as the user leaves the field, as `TextInput` did.
+  A bound `NumberField` submits a number as the user presses Enter, leaves the field or steps the number by its buttons or the arrow keys, but not as the user pauses, unlike `NumberInput`, since a number passes through wrong ones as the user types, as 15 on the way to 150.
+  So it drops a number that the user has not ended as its module unmounts.
+  It submits only a number in its range and on its step, which the head block and the board option `n_rows` set to 1.
   It keeps a number outside them as the user typed it, through React Aria's `commitBehavior` `"validate"`, and marks the number with the message of the browser's own number input, in place of messages of core's own.
   While it is `outdated`, it takes no `maxValue`, as `NumberInput` took no `max`.
   The `text()` and `number()` of `controls()` take React Aria's names, such as `minValue` in place of `min`, and the handle that `number()` returns has `setMaxValue()` in place of `setMax()`.
@@ -706,7 +708,7 @@
   The select draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
   The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
-  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801).
+  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801, #810).
 * Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
   A board action changes the board only through commands, and runs each batch as one undo step of the user.
   Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
@@ -794,7 +796,6 @@
   Under core's basic frontend, core thus asks only for the outputs of the cards in the browser's viewport, and under the dock only for those of the panels that the user sees.
   A card of core's basic frontend keeps the room of its output while the output waits, so that nothing on the page moves as it draws.
   Loading `@blockr/core/stubs` makes the `IntersectionObserver` of `happy-dom` report every element that it observes as in view, so that core's basic frontend counts every card on screen in a test (#802).
-
 * Core's React SDK offers React Aria's dates and times in core's theme, after those of React Aria's Tailwind starter kit: the date field `DateField`, the time field `TimeField`, the date picker `DatePicker`, the date range picker `DateRangePicker`, the calendar `Calendar` and the range calendar `RangeCalendar`.
   Their parts of React Aria load with the others, in core's vendor file, which holds every part of React Aria that the SDK offers.
   Each takes the props of its part of React Aria, the fields and the pickers take the `label`, `description` and `errorMessage` that the starter kit adds, and an input takes `bound` too.
@@ -806,6 +807,18 @@
   It submits a step of a segment by a key, such as the arrow up, at once, as the number field submits a step of its number, and a picker or a calendar submits a pick at once.
   Each submits only a value in its range.
   Where the state holds a value that does not read so, as `"2026-11-19T14:30:00"`, which R's `as.POSIXct()` reads as midnight, a bound input marks itself invalid and says below itself that the value is not available (#758).
+* Core's React SDK offers React Aria's colors, in core's theme, after React Aria's Tailwind starter kit: a field and a picker, `ColorField` and `ColorPicker`, the swatches, `ColorSwatch` and `ColorSwatchPicker` with `ColorSwatchPickerItem`, and the parts of a picker, `ColorArea`, `ColorSlider`, `ColorWheel` and `ColorThumb`.
+  Each takes the props of its part of React Aria and those that the starter kit adds, such as `label`.
+  The picker takes `isDisabled` too, which disables its button.
+  Given `bound`, each input binds a color as a string of hex: `"#RRGGBB"`, as React Aria's `color.toString("hex")` writes it, or `"#RRGGBBAA"` where the color is not opaque.
+  A bound field submits as the user leaves it or presses Enter, and keeps the alpha of the color that it showed.
+  A bound area, slider or wheel submits as the user lets go, and a bound swatch picker as the user picks a swatch.
+  A bound picker submits as the user ends a change in one of its parts.
+  Core's vendor file holds the parts of React Aria that they draw with.
+  The stack form of the Edit board plugin draws a stack's color with a `ColorPicker` beside the `Checkbox` of the SDK, in place of the browser's checkbox and color input.
+  The picker's popover holds the palette's colors as swatches below the starter kit's parts.
+  The stacks' table draws each stack's color as a `ColorSwatch`, which a screen reader names by its color.
+  Compressed with `gzip`, core's vendor file grows from 295 KB to 318 KB (#759).
 * A board action's `advanced` is its advanced action, which holds every option of the board action in a place with enough room.
   It is a module of the new type `AdvancedModule`, whose `render()` gets the element, `CoreApi`, the target, a signal and `done()`.
   Its `done()` runs a batch as one step of the user, with the caller's `extend`, and ends the advanced action, or with no batch only ends it.

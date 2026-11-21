@@ -437,8 +437,9 @@ test("a package's module mounts on the stubs that core ships, which answer from 
 });
 
 // A renderer and a block's UI written in React on the React SDK that core
-// ships, a block's UI in plain TypeScript on its binding, and the build script
-// that bundles them with its build preset, as a package writes them.
+// ships, a block's UI that picks a colour with the SDK's colours, a block's UI
+// in plain TypeScript on its binding, and the build script that bundles them
+// with its build preset, as a package writes them.
 // A plugin's component follows the board, a block's status and the
 // notifications about the block through the SDK, as the DAG's nodes do.
 // Another shows the block's errors in the SDK's list of notifications, as the
@@ -475,6 +476,31 @@ function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
 export const api = 1;
 
 export default reactModule(Head);
+`,
+  "src/fill-block.tsx": `import type { BlockHost } from "@blockr/core";
+import { ColorArea, ColorField, ColorPicker, ColorSlider, ColorSwatchPicker, ColorSwatchPickerItem, reactModule, useValue } from "@blockr/core/react";
+import type { Color, ModuleProps } from "@blockr/core/react";
+import type { ReactElement } from "react";
+
+type FillState = { fill: string };
+
+function Fill({ host }: ModuleProps<BlockHost<FillState>>): ReactElement {
+  const hex = (color: Color | null): string => color?.toString("hex") ?? "";
+  return (
+    <ColorPicker bound={useValue(host, "fill")} label="Fill">
+      <ColorArea colorSpace="hsb" xChannel="saturation" yChannel="brightness" />
+      <ColorSlider colorSpace="hsb" channel="hue" />
+      <ColorField label="Hex" onChange={(color) => host.log.debug(hex(color))} />
+      <ColorSwatchPicker aria-label="Palette">
+        <ColorSwatchPickerItem color="#66c2a5" />
+      </ColorSwatchPicker>
+    </ColorPicker>
+  );
+}
+
+export const api = 1;
+
+export default reactModule(Fill);
 `,
   "src/status-badge.tsx": `import type { BlockId, CoreApi } from "@blockr/core";
 import { useBoard, useNotified, useStatus } from "@blockr/core/react";
@@ -513,8 +539,10 @@ const head: BlockModule<HeadState> = {
     const n = bind(host, "n", (value) => {
       input.value = typeof value === "number" ? String(value) : "";
     });
-    input.addEventListener("input", () => {
-      n.type(Number(input.value));
+    // A number passes through wrong ones as the user types, so the input
+    // submits it only as the user presses Enter or leaves the input.
+    input.addEventListener("change", () => {
+      void n.commit(Number(input.value));
     });
     const box = document.createElement("input");
     box.type = "checkbox";
