@@ -51,11 +51,12 @@ async function write(files: Record<string, string>): Promise<void> {
 // node_modules of core's repo, which a package does not have.
 // The test would then pass where a package's type check fails.
 // With them come OpenTelemetry's API, which npm installs as their peer, as
-// the types of `@blockr/core` name it, and React Aria, which npm installs as
-// their dependency, whose types the SDK's declarations name.
+// the types of `@blockr/core` name it, and React Aria and
+// @internationalized/date, which npm installs as their dependencies, whose
+// types the SDK's declarations name.
 async function installTypes(): Promise<void> {
   await cp(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), { recursive: true });
-  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria"]) {
+  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria", "@internationalized/date"]) {
     await mkdir(dirname(join(root, "node_modules", name)), { recursive: true });
     await symlink(join(repo, "node_modules", name), join(root, "node_modules", name), "dir");
   }
@@ -163,6 +164,7 @@ test("what a package's tests load imports no package but those that `@blockr/cor
     "@preact/signals-core": await installedVersion("@preact/signals-core"),
     "@cfworker/json-schema": await installedVersion("@cfworker/json-schema"),
     "react-aria-components": await installedVersion("react-aria-components"),
+    "@internationalized/date": await installedVersion("@internationalized/date"),
   });
 
   // The stubs draw core's UIs, the board options' among them, with React.

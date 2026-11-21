@@ -155,6 +155,9 @@ export type Front =
 // What draws the frontends of the boards that open, which the page gives, and
 // a CoreApi for tests may leave out.
 export interface FrontEnds {
+  // The page's element, in which they draw, by which core tells that an
+  // output's element sits on the page (./core.ts).
+  readonly el?: HTMLElement;
   // Takes the frontend that draws the board that opens, and ends the frontend
   // on the page, if any. Core calls it once the store has opened a board.
   // Where the signal has aborted, as another board opened meanwhile, it leaves
@@ -532,6 +535,7 @@ export function start(options: StartOptions): Started {
       signal,
       show: (object) => options.frontEnds?.show(object, signal) ?? Promise.resolve(),
       ...(options.measure === undefined ? {} : { measure: options.measure }),
+      ...(options.frontEnds?.el === undefined ? {} : { page: options.frontEnds.el }),
     });
     running = { store, scheduler, core, notifications, controller };
 

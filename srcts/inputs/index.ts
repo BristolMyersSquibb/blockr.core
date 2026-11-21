@@ -12,6 +12,10 @@
 // And they are the checkbox, the switch and the toggle button, which each
 // edit a boolean, the groups of several, the checkbox group, the radio group
 // and the toggle button group, and the slider.
+// And they are the dates and times: the date field and the time field, the
+// date picker and the date range picker, and the calendar and the range
+// calendar, each of a date, a time or a range in the forms that R reads
+// (./dates.ts).
 // The other parts take no `bound`: the tags, the list box, the field of
 // tokens, the form, the drop zone, and the buttons, React Aria's Button, which
 // the SDK's menus and dialogs open from, and the button inside a field.
@@ -22,10 +26,16 @@
 
 export { Button, FieldButton } from "./button.tsx";
 export type { ButtonProps } from "./button.tsx";
+export { Calendar, RangeCalendar } from "./calendar.tsx";
+export type { CalendarProps, RangeCalendarProps } from "./calendar.tsx";
 export { Checkbox, CheckboxGroup } from "./checkbox.tsx";
 export type { CheckboxGroupProps, CheckboxProps } from "./checkbox.tsx";
 export { ComboBox, ComboBoxItem, ComboBoxSection } from "./combobox.tsx";
 export type { ComboBoxProps, ComboBoxSectionProps } from "./combobox.tsx";
+export { DateField, TimeField } from "./datefield.tsx";
+export type { DateFieldProps, TimeFieldProps } from "./datefield.tsx";
+export { DatePicker, DateRangePicker } from "./datepicker.tsx";
+export type { DatePickerProps, DateRangePickerProps } from "./datepicker.tsx";
 export { DropZone } from "./dropzone.tsx";
 export { Form } from "./form.tsx";
 export { Field, Stack } from "./inputs.tsx";

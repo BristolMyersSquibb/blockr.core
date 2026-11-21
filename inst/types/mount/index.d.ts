@@ -4,6 +4,6 @@ export { API, createLoader, ModuleError } from "./load.ts";
 export type { Loader, LoaderOptions, Source } from "./load.ts";
 export { domMeasure, visibleBackground } from "./measure.ts";
 export type { Measure } from "./measure.ts";
-export type { OutputEvent } from "./output.ts";
+export type { OnScreenOf, OutputEvent } from "./output.ts";
 export { RequestError } from "./requests.ts";
 export { announceTo, attempt, moduleExports, mountableModule, onAbort, REPLACED, showError, withoutOptions } from "./shared.ts";

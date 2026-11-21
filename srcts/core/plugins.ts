@@ -31,7 +31,9 @@
 // failure shows.
 // A frontend places each plugin whose class has a `ui` with mountPlugin(),
 // which calls the `ui` with the element that the frontend gives, as
-// mountBlock() mounts a block's UI.
+// mountBlock() mounts a block's UI. Core keeps which plugin's UI each such
+// element holds while the mount lasts, so that an output in the UI is on
+// screen only while the plugin is (./core.ts).
 // No change adds a plugin to the open board or removes one, so what core runs
 // for the plugins ends only as the next board opens.
 
@@ -86,6 +88,10 @@ export interface RunningDeps {
   readonly plugins: Readonly<Record<PluginClassId, PluginEntry>>;
   // Raises a notification of the board (./notifications.ts).
   readonly raise: Raise;
+  // The plugin whose UI core mounted in each element, which mountPlugin()
+  // keeps while the mount lasts, so that core tells which plugin's UI holds
+  // the element of an output (./core.ts).
+  readonly uis: WeakMap<Element, PluginClassId>;
   // Aborts as the next board opens, which ends what core runs for the plugins.
   readonly signal?: AbortSignal;
 }
@@ -238,6 +244,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
     const end = (): void => {
       if (ended()) return;
       offEnd();
+      if (deps.uis.get(el) === plugin) deps.uis.delete(el);
       stopKeeping?.();
       controller.abort();
       // The cleanup runs where render() has returned it, and runs at once
@@ -246,6 +253,7 @@ export function runPlugins(deps: RunningDeps): RunningPlugins {
       el.replaceChildren();
     };
     const offEnd = onAbort(replaced, end);
+    deps.uis.set(el, plugin);
 
     // A ui that cannot draw, which leaves its element empty.
     function fail(error: unknown): void {
