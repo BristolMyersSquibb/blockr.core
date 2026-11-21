@@ -13,14 +13,13 @@
 // Given `bound`, it shows and edits a number that useValue() binds, a block's
 // state arg, a board option's value or a value that a function reads from a
 // block's state, as the SDK's other inputs do (./inputs.tsx).
-// React Aria reports a number only as the user presses Enter, leaves the field
-// or steps the number.
-// So the field also hands the binding the number that its text reads as,
-// after each keystroke, and the binding submits it once the user pauses.
-// It submits at once on Enter and as the user leaves the field.
+// It submits the number as React Aria reports it: as the user presses Enter,
+// leaves the field or steps the number.
+// So it submits nothing as the user pauses, unlike the SDK's text field,
+// since the number passes through wrong ones as the user types, as 15 on the
+// way to 150.
 // A step of the number, by a button of the field or an arrow key, is a pick,
-// which it submits at once too, and which gives way to the state again where
-// the host refuses it.
+// which gives way to the state again where the host refuses it.
 // It submits only a number in its range, and on its step where it has one.
 // A bound field takes React Aria's commitBehavior "validate" by default, so
 // that it keeps a number outside them as it is, rather than pull it in.
@@ -33,26 +32,20 @@
 // It says below itself why the host refused what it submitted.
 //
 // React Aria writes the number anew, in its format, whenever the value that
-// the field shows changes, which would move the text under the user's cursor,
-// as once the binding submitted a number on a pause.
-// So while the user types, the field keeps the value that it showed as the
-// user started, and shows the state again only once the user ends typing, or
-// as the host announces a number other than the one the user typed, such as
-// one that the assistant set.
+// the field shows changes, which would move the text under the user's cursor.
+// So while the user types, the field keeps showing the value that it showed
+// as the user started, whatever the host announces, as a number that the
+// assistant set.
+// Once the user ends typing, the field submits the number that the user
+// typed, which replaces the number that the host announced meanwhile, as the
+// later of two edits.
+// Where the field unmounts while the user types, the edit goes with it, as
+// the picks of the select of several go with it where it unmounts while its
+// list is open (./combobox.tsx).
 
-import { useContext, useEffect, useRef, useState } from "react";
-import type { ReactElement, ReactNode } from "react";
-import {
-  Button,
-  composeRenderProps,
-  FieldError,
-  Group,
-  Input,
-  Label,
-  NumberField as AriaNumberField,
-  NumberFieldStateContext,
-  Text,
-} from "../aria/index.ts";
+import { useState } from "react";
+import type { ReactElement } from "react";
+import { Button, composeRenderProps, FieldError, Group, Input, Label, NumberField as AriaNumberField, Text } from "../aria/index.ts";
 import type { NumberFieldProps as AriaNumberFieldProps, ValidationResult } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
@@ -78,10 +71,7 @@ export function NumberField({ bound, outdated = false, maxValue, ...props }: Num
   );
 }
 
-type DrawnProps = Omit<NumberFieldProps, "bound" | "outdated"> & {
-  // What React Aria's state reads as the user types, inside the field.
-  readonly watch?: ReactNode;
-};
+type DrawnProps = Omit<NumberFieldProps, "bound" | "outdated">;
 
 // The value that the field shows in place of the state: the value it showed as
 // the user started to type, until the user ends typing, or the number that
@@ -103,14 +93,12 @@ function BoundNumber({
 }: DrawnProps & { readonly bound: Bound }): ReactElement {
   const held = typeof bound.value === "number" ? bound.value : NaN;
   const [kept, setKept] = useState<Kept | null>(null);
-  // The number that the user's text last read as, and the keystrokes so far,
-  // by which the field hears the number that React Aria reads after each.
-  const [typed, setTyped] = useState(NaN);
-  const [keystrokes, setKeystrokes] = useState(0);
+  // A value that the binding shows ends the number that the field kept once
+  // the user ended typing or stepped, but leaves what the user is typing.
   const [seen, setSeen] = useState(held);
   if (!Object.is(seen, held)) {
     setSeen(held);
-    if (kept !== null && (!kept.typing || !Object.is(held, typed))) setKept(null);
+    if (kept !== null && !kept.typing) setKept(null);
   }
   const fits = (value: number): boolean => inRange(value, props.minValue, props.maxValue, props.step);
 
@@ -123,15 +111,12 @@ function BoundNumber({
         value={kept?.value ?? held}
         onInput={(event) => {
           setKept((now) => (now?.typing === true ? now : { value: now?.value ?? held, typing: true }));
-          setKeystrokes((n) => n + 1);
           onInput?.(event);
         }}
         onChange={(value) => {
           // React Aria commits: on Enter or as the user leaves the field,
           // which ends typing, or as the user steps the number.
           if (!fits(value)) {
-            bound.type(undefined);
-            bound.flush();
             setKept(null);
           } else if (kept?.typing === true) {
             bound.type(value);
@@ -152,33 +137,10 @@ function BoundNumber({
           setKept((now) => (now?.typing === true ? null : now));
           onBlur?.(event);
         }}
-        watch={
-          <Watch
-            keystrokes={keystrokes}
-            onType={(value) => {
-              setTyped(value);
-              bound.type(fits(value) ? value : undefined);
-            }}
-          />
-        }
       />
       <Refusal error={bound.error} />
     </>
   );
-}
-
-// Hands `onType` the number that React Aria reads from the field's text,
-// once after each keystroke, as React Aria has read it.
-function Watch({ keystrokes, onType }: { keystrokes: number; onType: (value: number) => void }): null {
-  const state = useContext(NumberFieldStateContext);
-  const value = state?.numberValue ?? NaN;
-  const heard = useRef(0);
-  useEffect(() => {
-    if (keystrokes === heard.current) return;
-    heard.current = keystrokes;
-    onType(value);
-  }, [keystrokes, value, onType]);
-  return null;
 }
 
 // Whether the number fits the range, and the step where there is one, which
@@ -196,7 +158,7 @@ export function inRange(value: number, min: number | undefined, max: number | un
 
 // The label, the field with its buttons, the description and the error
 // message.
-function Drawn({ label, description, errorMessage, placeholder, watch, className, onInput, ...props }: DrawnProps): ReactElement {
+function Drawn({ label, description, errorMessage, placeholder, className, onInput, ...props }: DrawnProps): ReactElement {
   return (
     <AriaNumberField {...props} className={composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`)}>
       {label === undefined ? null : <Label className={styles.label}>{label}</Label>}
@@ -217,7 +179,6 @@ function Drawn({ label, description, errorMessage, placeholder, watch, className
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
-      {watch}
     </AriaNumberField>
   );
 }

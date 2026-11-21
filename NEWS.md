@@ -691,8 +691,10 @@
 * Core's React SDK offers a text field, `TextField`, and a number field, `NumberField`, which core's own UIs, frontends, the UIs of plugins and those of blocks all draw with: [React Aria's `TextField`](https://react-aria.adobe.com/TextField) and [`NumberField`](https://react-aria.adobe.com/NumberField), in core's theme, after those of React Aria's Tailwind starter kit, in place of `TextInput` and `NumberInput`, which are gone.
   Each takes the props of its part of React Aria, and the `label`, `description`, `errorMessage` and `placeholder` that the starter kit adds.
   The `TextField` holds a text area where its `lines` is above 1, since React Aria has no prop for text on several lines.
-  Given `bound`, each hands what the user types to the binding, which submits it once the user pauses, and at once on Enter or as the user leaves the field, as `TextInput` and `NumberInput` did.
-  A bound `NumberField` submits only a number in its range and on its step, which the head block and the board option `n_rows` set to 1, and it submits a step of its buttons or of the arrow keys at once.
+  Given `bound`, the `TextField` hands what the user types to the binding, which submits it once the user pauses, and at once on Enter or as the user leaves the field, as `TextInput` did.
+  A bound `NumberField` submits a number as the user presses Enter, leaves the field or steps the number by its buttons or the arrow keys, but not as the user pauses, unlike `NumberInput`, since a number passes through wrong ones as the user types, as 15 on the way to 150.
+  So it drops a number that the user has not ended as its module unmounts.
+  It submits only a number in its range and on its step, which the head block and the board option `n_rows` set to 1.
   It keeps a number outside them as the user typed it, through React Aria's `commitBehavior` `"validate"`, and marks the number with the message of the browser's own number input, in place of messages of core's own.
   While it is `outdated`, it takes no `maxValue`, as `NumberInput` took no `max`.
   The `text()` and `number()` of `controls()` take React Aria's names, such as `minValue` in place of `min`, and the handle that `number()` returns has `setMaxValue()` in place of `setMax()`.
@@ -706,7 +708,7 @@
   The select draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
   The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
-  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801).
+  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801, #810).
 * Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
   A board action changes the board only through commands, and runs each batch as one undo step of the user.
   Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
