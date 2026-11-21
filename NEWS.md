@@ -783,6 +783,17 @@
   The user moves through the entries by the arrow keys and opens one by Enter, while the row `..` is gone.
   The request `list_dir` answers each entry with its name and the time it changed last, in UTC, and each file with its size in bytes, where it answered with names alone.
   Compressed with `gzip`, core's vendor file grows from 214 KB to 252 KB, of which drag and drop takes 10 KB (#757).
+* Core has R make a block's output only while the output is on screen, as far as core can tell, and mounts the renderer that draws the output only then.
+  Evaluation is unchanged: R still evaluates every block that something demands, and only the output, which R makes from the block's result, waits until it is on screen.
+  The output is on screen while its element measures more than 0 by 0, as before, and while the `onScreen` of `CoreApi` holds what the element sits in, or is `null`, as where the frontend has said nothing.
+  An output in the UI of a plugin, which a frontend places with `mountPlugin()`, sits in that plugin.
+  An output on the page outside the UI of every other plugin sits on its block's card or panel, so `onScreen` has to hold the block.
+  Core cannot tell where an output outside the page shows, as one in a popover at the end of the page's body, and asks for it as before.
+  An output that core has drawn stays drawn as it leaves the screen, and core asks for a newer one once the output is back.
+  A request of the output still has core ask for the output of the block's revision, wherever its element measures more than 0 by 0, whatever `onScreen` holds.
+  Under core's basic frontend, core thus asks only for the outputs of the cards in the browser's viewport, and under the dock only for those of the panels that the user sees.
+  A card of core's basic frontend keeps the room of its output while the output waits, so that nothing on the page moves as it draws.
+  Loading `@blockr/core/stubs` makes the `IntersectionObserver` of `happy-dom` report every element that it observes as in view, so that core's basic frontend counts every card on screen in a test (#802).
 * A board action's `advanced` is its advanced action, which holds every option of the board action in a place with enough room.
   It is a module of the new type `AdvancedModule`, whose `render()` gets the element, `CoreApi`, the target, a signal and `done()`.
   Its `done()` runs a batch as one step of the user, with the caller's `extend`, and ends the advanced action, or with no batch only ends it.
