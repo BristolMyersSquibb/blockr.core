@@ -51,11 +51,12 @@ async function write(files: Record<string, string>): Promise<void> {
 // node_modules of core's repo, which a package does not have.
 // The test would then pass where a package's type check fails.
 // With them come OpenTelemetry's API, which npm installs as their peer, as
-// the types of `@blockr/core` name it, and React Aria, which npm installs as
-// their dependency, whose types the SDK's declarations name.
+// the types of `@blockr/core` name it, and React Aria and
+// @internationalized/date, which npm installs as their dependencies, whose
+// types the SDK's declarations name.
 async function installTypes(): Promise<void> {
   await cp(join(repo, "inst", "types"), join(root, "node_modules", "@blockr", "core"), { recursive: true });
-  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria"]) {
+  for (const name of ["@opentelemetry/api", "react-aria-components", "react-aria", "@internationalized/date"]) {
     await mkdir(dirname(join(root, "node_modules", name)), { recursive: true });
     await symlink(join(repo, "node_modules", name), join(root, "node_modules", name), "dir");
   }
@@ -163,6 +164,7 @@ test("what a package's tests load imports no package but those that `@blockr/cor
     "@preact/signals-core": await installedVersion("@preact/signals-core"),
     "@cfworker/json-schema": await installedVersion("@cfworker/json-schema"),
     "react-aria-components": await installedVersion("react-aria-components"),
+    "@internationalized/date": await installedVersion("@internationalized/date"),
   });
 
   // The stubs draw core's UIs, the board options' among them, with React.
@@ -435,8 +437,9 @@ test("a package's module mounts on the stubs that core ships, which answer from 
 });
 
 // A renderer and a block's UI written in React on the React SDK that core
-// ships, a block's UI in plain TypeScript on its binding, and the build script
-// that bundles them with its build preset, as a package writes them.
+// ships, a block's UI that picks a colour with the SDK's colours, a block's UI
+// in plain TypeScript on its binding, and the build script that bundles them
+// with its build preset, as a package writes them.
 // A plugin's component follows the board, a block's status and the
 // notifications about the block through the SDK, as the DAG's nodes do.
 // Another shows the block's errors in the SDK's list of notifications, as the
@@ -473,6 +476,31 @@ function Head({ host }: ModuleProps<BlockHost<HeadState>>): ReactElement {
 export const api = 1;
 
 export default reactModule(Head);
+`,
+  "src/fill-block.tsx": `import type { BlockHost } from "@blockr/core";
+import { ColorArea, ColorField, ColorPicker, ColorSlider, ColorSwatchPicker, ColorSwatchPickerItem, reactModule, useValue } from "@blockr/core/react";
+import type { Color, ModuleProps } from "@blockr/core/react";
+import type { ReactElement } from "react";
+
+type FillState = { fill: string };
+
+function Fill({ host }: ModuleProps<BlockHost<FillState>>): ReactElement {
+  const hex = (color: Color | null): string => color?.toString("hex") ?? "";
+  return (
+    <ColorPicker bound={useValue(host, "fill")} label="Fill">
+      <ColorArea colorSpace="hsb" xChannel="saturation" yChannel="brightness" />
+      <ColorSlider colorSpace="hsb" channel="hue" />
+      <ColorField label="Hex" onChange={(color) => host.log.debug(hex(color))} />
+      <ColorSwatchPicker aria-label="Palette">
+        <ColorSwatchPickerItem color="#66c2a5" />
+      </ColorSwatchPicker>
+    </ColorPicker>
+  );
+}
+
+export const api = 1;
+
+export default reactModule(Fill);
 `,
   "src/status-badge.tsx": `import type { BlockId, CoreApi } from "@blockr/core";
 import { useBoard, useNotified, useStatus } from "@blockr/core/react";

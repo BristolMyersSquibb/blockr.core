@@ -869,6 +869,9 @@ function packageVersion(name: string): string {
 // The package names it as its dependency, at the version that core's vendor
 // file bundles, since core's declarations name its types, while a package
 // draws with React Aria only through the components of the SDK.
+// The SDK's dates read the strings of a state with @internationalized/date,
+// which srcts/aria/index.ts names too, and which the bundles leave an import
+// as well, so the package names it as its dependency in the same way.
 export const TYPES_PACKAGE = {
   name: "@blockr/core",
   private: true,
@@ -887,6 +890,7 @@ export const TYPES_PACKAGE = {
     "@preact/signals-core": packageVersion("@preact/signals-core"),
     "@cfworker/json-schema": packageVersion("@cfworker/json-schema"),
     "react-aria-components": packageVersion("react-aria-components"),
+    "@internationalized/date": packageVersion("@internationalized/date"),
   },
   peerDependencies: {
     react: packageVersion("react"),

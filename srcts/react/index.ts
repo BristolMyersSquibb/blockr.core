@@ -2,7 +2,8 @@
 // UIs draw with and which core ships to packages as `@blockr/core/react`.
 // It holds the hooks through which a component follows its host or CoreApi,
 // the helpers that make a module or a renderer from a component, the inputs,
-// each on one value that useValue() binds or for its caller, the selects,
+// each on one value that useValue() binds or for its caller, among them the
+// dates and times, the selects,
 // which every UI draws with, bound or not, the parts that take no binding,
 // such as the tags, the list box, the form and the drop zone, the buttons,
 // and the overlays: the modal and the dialog, the menu, the popover and the
@@ -10,8 +11,9 @@
 // It holds the table, the trees and the grid list, which bind no value, and
 // what drags the items of the last three and drops onto them.
 // The inputs, the buttons, the overlays, the table, the trees and the grid
-// list are React Aria's, in core's theme, and React Aria's FileTrigger and
-// Autocomplete come unstyled.
+// list are React Aria's, in core's theme, and so are the colours: a field, a
+// picker, swatches and the parts of a picker.
+// React Aria's FileTrigger and Autocomplete come unstyled.
 // It also holds the list in which a UI shows notifications, as useNotified()
 // gives them, in the message style of blockr.ui's design system.
 
@@ -22,11 +24,24 @@ export type { ModuleProps, OutputProps } from "./module.tsx";
 export {
   Autocomplete,
   Button,
+  Calendar,
   Checkbox,
   CheckboxGroup,
+  ColorArea,
+  ColorField,
+  ColorPicker,
+  ColorSlider,
+  ColorSwatch,
+  ColorSwatchPicker,
+  ColorSwatchPickerItem,
+  ColorThumb,
+  ColorWheel,
   ComboBox,
   ComboBoxItem,
   ComboBoxSection,
+  DateField,
+  DatePicker,
+  DateRangePicker,
   DropZone,
   Field,
   FieldButton,
@@ -37,6 +52,7 @@ export {
   NumberField,
   Radio,
   RadioGroup,
+  RangeCalendar,
   SearchField,
   Select,
   SelectItem,
@@ -48,6 +64,7 @@ export {
   TagGroup,
   Text,
   TextField,
+  TimeField,
   ToggleButton,
   ToggleButtonGroup,
   Token,
@@ -56,13 +73,28 @@ export {
 } from "../inputs/index.ts";
 export type {
   ButtonProps,
+  CalendarProps,
   CheckboxGroupProps,
   CheckboxProps,
+  Color,
+  ColorAreaProps,
+  ColorFieldProps,
+  ColorPickerProps,
+  ColorSliderProps,
+  ColorSwatchPickerItemProps,
+  ColorSwatchPickerProps,
+  ColorSwatchProps,
+  ColorThumbProps,
+  ColorWheelProps,
   ComboBoxProps,
   ComboBoxSectionProps,
+  DateFieldProps,
+  DatePickerProps,
+  DateRangePickerProps,
   NumberFieldProps,
   RadioGroupProps,
   RadioProps,
+  RangeCalendarProps,
   SearchFieldProps,
   SelectProps,
   SelectSectionProps,
@@ -71,6 +103,7 @@ export type {
   TagGroupProps,
   TagProps,
   TextFieldProps,
+  TimeFieldProps,
   ToggleButtonGroupProps,
   ToggleButtonProps,
   TokenFieldProps,
