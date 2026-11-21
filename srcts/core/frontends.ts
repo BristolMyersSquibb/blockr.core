@@ -93,6 +93,7 @@ export function pageFrontEnds(el: HTMLElement): FrontEnds {
   }
 
   return {
+    el,
     prepare(front, signal) {
       if (signal.aborted) return;
       end();

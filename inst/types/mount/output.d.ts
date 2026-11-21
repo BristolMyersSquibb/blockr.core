@@ -60,6 +60,11 @@ export interface OutputDeps {
     readonly raise: Raise;
     readonly replied: Replied;
     readonly notify: Notify;
+    readonly onScreen: OnScreenOf;
+}
+export interface OnScreenOf {
+    holds(el: HTMLElement, block: BlockId): boolean;
+    subscribe(fn: () => void): () => void;
 }
 export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void;
 export {};

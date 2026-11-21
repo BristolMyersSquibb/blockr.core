@@ -42,6 +42,14 @@ const zoom: Option = {
   ui: { render: () => undefined },
 };
 
+// A module for each renderer that the fixture's block classes name, which
+// draws nothing.
+const RENDERERS: Readonly<Record<string, unknown>> = Object.fromEntries(
+  Object.values(HELLO.block_registry).flatMap((entry) =>
+    (entry.renderers ?? []).map((renderer) => [renderer.module, { api: 1, default: { render: () => undefined } }]),
+  ),
+);
+
 // The CoreApi for tests on the board of the fixture hello, whose app runs core's
 // plugins and the plugins given too, by the ids of their classes, of the classes
 // given, each the default export of its class's module, and whose reply names
@@ -574,6 +582,65 @@ describe("what a frontend offers other plugins", () => {
 
     const next = await reopen(s);
     expect(next.onScreen.get()).toBeNull();
+    s.stop();
+  });
+
+  test("has core ask R for an output in a plugin's UI while onScreen holds the plugin, for one on the frontend's page while it holds the block, and for one outside the page whatever it holds", async () => {
+    // The frontend draws a card with Head's output on its page and places the
+    // report, whose UI holds the output of Wide sepals in a shadow root. A
+    // popover at the end of the page's body holds the output of Iris.
+    const page = document.createElement("div");
+    const popover = document.createElement("div");
+    document.body.append(page, popover);
+    const report: PluginClass = {
+      id: "blockr.test-report_plugin",
+      ui: {
+        render({ el, core }) {
+          const figure = document.createElement("figure");
+          el.attachShadow({ mode: "open" }).append(figure);
+          return core.mountOutput(figure, "d");
+        },
+      },
+    };
+    const s = await stubbed([report], { [report.id]: { name: "Report" } }, {
+      el: page,
+      modules: {
+        ...RENDERERS,
+        [BASIC]: classModule({
+          frontend: {
+            render({ el, core }) {
+              const shown = core.scheduler.demand("blockr.test", ["a", "b", "d"]);
+              const card = document.createElement("article");
+              const section = document.createElement("section");
+              el.append(card, section);
+              core.onScreen.set({ blocks: [], plugins: [] });
+              const stops = [core.mountOutput(card, "b"), core.mountPlugin(section, report.id), core.mountOutput(popover, "a")];
+              return () => {
+                for (const stop of stops) stop();
+                shown.release();
+              };
+            },
+          },
+        }),
+      },
+    });
+    await s.settled();
+    const asked = (): string[] => s.sent.flatMap((request) => (request.kind === "output" ? [request.block] : []));
+    expect(asked()).toEqual(["a"]);
+
+    s.core.onScreen.set({ blocks: ["b"], plugins: [] });
+    await s.settled();
+    expect(asked()).toEqual(["a", "b"]);
+
+    // The output of Wide sepals sits in the report's UI, so it waits for the
+    // report, whatever onScreen holds of its block.
+    s.core.onScreen.set({ blocks: ["b", "d"], plugins: [] });
+    await s.settled();
+    expect(asked()).toEqual(["a", "b"]);
+
+    s.core.onScreen.set({ blocks: [], plugins: [report.id] });
+    await s.settled();
+    expect(asked()).toEqual(["a", "b", "d"]);
     s.stop();
   });
 

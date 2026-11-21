@@ -12,21 +12,34 @@
 //    that a delta removes. Where one does not go onto the board, as where its
 //    default fails, core reports it and asks R for nothing, and the host's
 //    `error()` gives why meanwhile.
-// 2. Once the block reads ready and the element measures more than 0 by 0, core
-//    asks R for the output, through the scheduler, with the block's revision,
-//    the values of those board options, the info it measured and the block's
-//    parameters, unless it keeps an output asked with the same ones. Where
-//    neither the entry nor an output names a renderer, core asks with the
-//    board options of the class's outputs alone.
-// 3. It mounts the renderer that the output names once it has the output, and
-//    hands it each output that comes after. An output that names another
-//    renderer than the one drawing, as one of a subclass may, is drawn by that
-//    one. The renderer reads the values of those board options through its
-//    host's option(), as the output was asked with them.
+// 2. Once the block reads ready and the output is on screen, core asks R for
+//    the output, through the scheduler, with the block's revision, the values
+//    of those board options, the info it measured and the block's parameters,
+//    unless it keeps an output asked with the same ones. Where neither the
+//    entry nor an output names a renderer, core asks with the board options
+//    of the class's outputs alone.
+//    The output is on screen while the element measures more than 0 by 0,
+//    and while CoreApi's onScreen holds what the element sits in, as core
+//    tells it (../core/core.ts).
+//    Core also asks while a request of the output waits for the output of
+//    the block's revision, as step 5 has it.
+// 3. It mounts the renderer that the output names once it has the output and
+//    the output is on screen, and hands it each output that comes after. An
+//    output that names another renderer than the one drawing, as one of a
+//    subclass may, is drawn by that one. The renderer reads the values of
+//    those board options through its host's option(), as the output was
+//    asked with them.
 // 4. It asks again when the revision, one of those board options, the info or
-//    the parameters change, while the block reads ready. Meanwhile it keeps
-//    drawing the last output, whatever the block's status, with `loading()`
-//    while it asks and `error()` where the latest ask failed.
+//    the parameters change, while the block reads ready and the output is on
+//    screen. Meanwhile it keeps drawing the last output, whatever the block's
+//    status and whether the output is on screen, with `loading()` while it
+//    asks and `error()` where the latest ask failed. An ask that is on its
+//    way as the output leaves the screen still lands, and the renderer draws
+//    what it brings.
+// 5. A request of the output goes to R with the output of the block's
+//    revision. Where core holds none, the request waits for it, and core asks
+//    for it wherever the element measures more than 0 by 0, whatever onScreen
+//    holds, as a request that reads blocks has them evaluated even off screen.
 //
 // Core keeps two things of each block's output on the block's shelf: its
 // parameters, which every mount of the output shares, and the last output that
@@ -196,6 +209,17 @@ export interface OutputDeps {
   readonly replied: Replied;
   // Raises the notification that a renderer gives through its host.
   readonly notify: Notify;
+  // What CoreApi's onScreen says of the output (../core/core.ts): whether it
+  // holds what the output's element sits in, and what calls `fn` as it
+  // changes.
+  readonly onScreen: OnScreenOf;
+}
+
+// What CoreApi's onScreen says of the output of a block, by the output's
+// element.
+export interface OnScreenOf {
+  holds(el: HTMLElement, block: BlockId): boolean;
+  subscribe(fn: () => void): () => void;
 }
 
 interface OutputArgs {
@@ -358,13 +382,21 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     );
   }
 
+  // Whether the output is on screen, as far as core can tell: whether its
+  // element measures more than 0 by 0 and CoreApi's onScreen holds what the
+  // element sits in.
+  function onScreen(): boolean {
+    return info !== null && deps.onScreen.holds(el, block);
+  }
+
   // What the mount would ask R for now, or undefined where it asks for
-  // nothing: while the element measures nothing, the renderer loads, the
-  // board lacks a board option that the mount asks with, as before core has
-  // put it there or after a delta removed it, or the block reads anything but
-  // ready.
+  // nothing: while the element measures nothing, the output is off screen
+  // and no request of it waits, the renderer loads, the board lacks a board
+  // option that the mount asks with, as before core has put it there or
+  // after a delta removed it, or the block reads anything but ready.
   function wanted(): { asked: Asked; ids: readonly OptionId[] } | undefined {
     if (info === null) return undefined;
+    if (waiting.size === 0 && !onScreen()) return undefined;
     const ids = named();
     if (ids === undefined) return undefined;
     if (ids.some((id) => !Object.hasOwn(store.board().options, id))) return undefined;
@@ -398,6 +430,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
         }
       }
     }
+    draw();
     wake();
   }
 
@@ -553,19 +586,25 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     const named = next.output.renderer;
     expect(named);
     if (drawing !== undefined && drawing.prepared.renderer.id !== named.id) unmountRenderer();
-    if (drawing === undefined) {
-      prepare(named).then(
-        (prepared) => {
-          if (ended() || drawing !== undefined || held?.output.renderer.id !== prepared.renderer.id) return;
-          mountRenderer(prepared);
-        },
-        (failure: unknown) => {
-          fail(failure, named);
-        },
-      );
-    }
+    draw();
     announce();
     wake();
+  }
+
+  // Mounts the renderer that the output held names, once the renderer has
+  // loaded, where none draws and the output is on screen.
+  function draw(): void {
+    if (held === undefined || drawing !== undefined || !onScreen()) return;
+    const named = held.output.renderer;
+    prepare(named).then(
+      (prepared) => {
+        if (ended() || drawing !== undefined || held?.output.renderer.id !== prepared.renderer.id || !onScreen()) return;
+        mountRenderer(prepared);
+      },
+      (failure: unknown) => {
+        fail(failure, named);
+      },
+    );
   }
 
   function mountRenderer(prepared: Prepared): void {
@@ -634,7 +673,8 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
 
   // The output of the block's current revision, once core holds it, or a
   // rejection where no result is in sight, as the block reads failed,
-  // invalid or waiting.
+  // invalid or waiting. While it waits, the mount asks for that output
+  // whatever onScreen holds.
   function current(name: string, signal: AbortSignal | undefined): Promise<Made> {
     return new Promise<Made>((resolve, reject) => {
       const settle = (): boolean => {
@@ -676,6 +716,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
       };
       waiting.add(check);
       signal?.addEventListener("abort", check, { once: true });
+      sync();
     });
   }
 
@@ -829,8 +870,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     };
   }
 
-  // Follows the board, the block's status and the element's size, until the
-  // block leaves the board or another board opens.
+  // Follows the board, the block's status, the element's size and whether the
+  // output is on screen, until the block leaves the board or another board
+  // opens.
+  const offOnScreen = deps.onScreen.subscribe(sync);
   const offStore = store.subscribe((_change, next) => {
     if (!Object.hasOwn(next.blocks, block)) {
       end();
@@ -881,6 +924,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): 
     if (ended()) return;
     controller.abort();
     offEnd();
+    offOnScreen();
     offStore();
     offScheduler();
     keepingOutputOptions.stop();
