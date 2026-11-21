@@ -105,6 +105,11 @@ describe("the board actions that core registers", () => {
       { run: undefined },
       'gives the board action "blockr.test-faulty_action", which has none of run, quick and advanced.',
     ],
+    [
+      "has an advanced without render()",
+      { run: undefined, advanced: { draw: () => undefined } as unknown as BoardAction["advanced"] },
+      'gives the board action "blockr.test-faulty_action", whose advanced has no render() function.',
+    ],
   ])("refuse the whole class where one of its board actions %s, with module_failed about the class", async (_rule, given, message) => {
     const fine = action("fine", ["board"]);
     const faulty = { ...action("faulty", ["block"]), ...given };
@@ -307,6 +312,7 @@ describe("menu()", () => {
 
     expect(menu.level()).toEqual({
       label: "Board actions",
+      advanced: false,
       back: false,
       loading: false,
       rows: [
@@ -733,17 +739,13 @@ describe("trigger()", () => {
     s.stop();
   });
 
-  test("rejects for an id that no board action has, for a board action with neither run nor quick, and for what is no target, no element, no anchor, no notifier or no extend", async () => {
-    const asks = { ...action("asks", ["block"]), run: undefined, advanced: { render: () => () => undefined } };
-    const s = await stubbed([listing("test", [asks])]);
+  test("rejects for an id that no board action has, and for what is no target, no element, no anchor, no notifier, no extend or no place for advanced actions", async () => {
+    const s = await stubCore();
     const trigger = (...args: unknown[]) => (s.core.boardActions.trigger as (...given: unknown[]) => Promise<void>)(...args);
     const remove = "blockr.core-remove_block_action";
 
     await expect(trigger("blockr.test-nowhere_action", { block: "b" }, { el })).rejects.toThrow(
       'No board action "blockr.test-nowhere_action" is registered.',
-    );
-    await expect(trigger(asks.id, { block: "b" }, { el })).rejects.toThrow(
-      'The board action "blockr.test-asks_action" asks the user through its advanced action alone, which core does not open yet.',
     );
     await expect(trigger(remove, { blok: "b" }, { el })).rejects.toThrow(TypeError);
     for (const opts of [undefined, {}, { el: "body" }]) {
@@ -758,6 +760,9 @@ describe("trigger()", () => {
       new TypeError("The `notifier` of trigger() is a function."),
     );
     await expect(trigger(remove, { block: "b" }, { el, extend: [] })).rejects.toThrow(new TypeError("The `extend` of trigger() is a function."));
+    await expect(trigger(remove, { block: "b" }, { el, advanced: "sidebar" })).rejects.toThrow(
+      new TypeError("The `advanced` of trigger() is a function, which shows an advanced action in a place of the caller's."),
+    );
     await expect(trigger(remove, { block: "b" }, { el, extend: () => "rename" })).rejects.toThrow(
       'The `extend` of trigger() returned no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].',
     );

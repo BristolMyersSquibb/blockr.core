@@ -12,3 +12,4 @@ export type { StubContext } from "./util.ts";
 export { HELLO, INFO, stubCore } from "./core.ts";
 export type { Answer, StubCore, StubCoreOptions } from "./core.ts";
 export type { StubMenu } from "./menu.ts";
+export type { StubAdvanced } from "./advanced.ts";

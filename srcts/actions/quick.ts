@@ -47,22 +47,34 @@
 // menu has closed. So core tells the user of their faults through a
 // notification of the code board_action_failed, as trigger() does
 // (MenuParts, below).
-// The open icon of a level, which opens the board action's advanced action,
-// comes with the advanced actions. Until then, the row of a board action that
-// has no quick action for the target shows in its place that core does not
-// open advanced actions yet.
+// The open icon opens the board action's advanced action (./advanced.ts):
+// - Where the board action has an advanced action, every level of its quick
+//   action shows the open icon at its top right, and an item that gives
+//   `advanced` shows it at its end.
+// - A click on the icon closes the menu and opens the advanced action with
+//   the level's `picked` or the item's `advanced`, and with the text in the
+//   level's filter, where the level has one. A click elsewhere on the item
+//   picks it.
+// - Where the board action has no quick action for the target, its row opens
+//   its advanced action at once, and so does a quick that gives no level.
+// A quick that gives no level where the board action has no advanced action
+// is a fault of the board action's package, since nothing would open.
 
 import type { Board } from "../types/board.ts";
 import type { CoreApi } from "../types/core-api.ts";
+import type { Json } from "../types/json.ts";
 import { log } from "../log/index.ts";
 import { errorMessage, isObject } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 
 // A level of a quick action: its rows, under the title given, with a field
-// that narrows them as the user types where `filter` is true.
+// that narrows them as the user types where `filter` is true. Its `picked`
+// is what was picked so far, which the level's open icon hands the advanced
+// action.
 export interface QuickLevel {
   readonly title?: string;
   readonly filter?: boolean;
+  readonly picked?: Json;
   readonly rows: readonly QuickRow[];
 }
 
@@ -71,6 +83,7 @@ export type QuickRow =
   // category, with its icon, SVG markup, and with its detail at its end. Its
   // category is that of its board action, in the menu of a target. Its pick
   // returns the batch to run, or the next level, either of which may wait.
+  // Its `advanced` is what its open icon hands the advanced action.
   | {
       readonly kind: "item";
       readonly label: string;
@@ -79,6 +92,7 @@ export type QuickRow =
       readonly detail?: string;
       readonly category?: BoardAction["category"];
       pick(): readonly CommandCall[] | QuickLevel | Promise<readonly CommandCall[] | QuickLevel>;
+      readonly advanced?: Json;
     }
   // Choices that the user ticks, of which `picked` says which are ticked as
   // the level opens. It applies the ticks as the menu closes, with the ids of
@@ -112,6 +126,9 @@ export interface ShownLevel {
   readonly title?: string;
   // The filter's text, where the level has a filter.
   readonly filter?: string;
+  // Whether the level shows the open icon, as it does where the board action
+  // has an advanced action.
+  readonly advanced: boolean;
   // Whether Escape goes back a level, rather than closing the menu.
   readonly back: boolean;
   // Whether a promise of quick, pick or run is pending.
@@ -125,7 +142,9 @@ export interface ShownLevel {
 }
 
 export type ShownRow =
-  | Omit<Extract<QuickRow, { kind: "item" }>, "pick">
+  // With `advanced` where it shows the open icon, as it does where it gives
+  // `advanced` and the board action has an advanced action.
+  | (Omit<Extract<QuickRow, { kind: "item" }>, "pick" | "advanced"> & { readonly advanced?: true })
   // Its choices, each with whether it is ticked now.
   | Omit<Extract<QuickRow, { kind: "multi" }>, "apply">
   // Its value now, and why its check refuses that value, once the user has
@@ -149,6 +168,11 @@ export interface OpenMenu {
   // has run. It rejects with the refusal where the store or the command
   // registry refuses the batch, which a caller that waits for nothing ignores.
   readonly pick: (row?: number) => Promise<void>;
+  // A click on the open icon of an item, by the item's index, or without
+  // one, on the level's, which closes the menu and opens the advanced action.
+  // It resolves once the advanced action ends, and does nothing where the
+  // item or the level shows no open icon.
+  readonly openAdvanced: (row?: number) => Promise<void>;
   // A click on a choice of a multi, by the choice's id, which ticks or unticks
   // it.
   readonly tick: (row: number, choice: string) => void;
@@ -188,6 +212,9 @@ export interface MenuParts {
   // told the user of. It calls run at once, so that a copy within the user's
   // click runs within it.
   readonly trigger: (action: BoardAction) => Promise<void>;
+  // Opens the board action's advanced action on the target, with what the
+  // open icon hands it, if anything, and resolves once it ends.
+  readonly advanced: (action: BoardAction, opened: { readonly picked?: Json; readonly filter?: string }) => Promise<void>;
   // Tells the user that a multi's apply of the board action failed as the
   // menu closed, where the menu no longer shows it, and logs it as a fault of
   // the board action's package.
@@ -250,6 +277,10 @@ const GAVE: Readonly<Record<Part, string>> = {
 
 // What core says of what a multi's apply gave, where it is no batch.
 const NO_BATCH = 'It gave no batch of commands, as [{ id: "blockr.core-remove_block", args: { id: "a" } }].';
+
+// What core says of a quick that gives no level where the board action has no
+// advanced action to open in its place.
+const NO_LEVEL = "It gave no level for the target, and the board action has no advanced action to open in its place.";
 
 // What names the menu of a target to assistive technology.
 const MENU = "Board actions";
@@ -371,14 +402,8 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
   // What a function of the board action gave, once it is no promise.
   function outcome(value: unknown, action: BoardAction, what: Part, replacing?: Entry): Promise<void> {
     if (what === "quick" && value === undefined) {
-      place(
-        {
-          kind: "error",
-          message: `The board action "${action.id}" gives no quick action for the target, and core does not open advanced actions yet.`,
-        },
-        action,
-        replacing,
-      );
+      if (action.advanced !== undefined) return advanced(action, {});
+      place(failure(action, what, new TypeError(NO_LEVEL)), action, replacing);
       return Promise.resolve();
     }
     if (what !== "quick" && isBatch(value)) return finish(value, action);
@@ -403,11 +428,13 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
   function shownNow(): { readonly level: ShownLevel; readonly rows: readonly Showing[] } {
     const current = stack.at(-1);
     const back = stack.length > 1;
-    if (current === undefined) return { level: { id: 0, label: MENU, back: false, loading: false, rows: [] }, rows: [] };
+    if (current === undefined) return { level: { id: 0, label: MENU, advanced: false, back: false, loading: false, rows: [] }, rows: [] };
     const { id, state } = current;
     const label = current.action?.label ?? MENU;
-    if (state.kind === "loading") return { level: { id, label, back, loading: true, rows: [] }, rows: [] };
-    if (state.kind === "error") return { level: { id, label, back, loading: false, error: state.message, rows: [] }, rows: [] };
+    if (state.kind === "loading") return { level: { id, label, advanced: false, back, loading: true, rows: [] }, rows: [] };
+    if (state.kind === "error") {
+      return { level: { id, label, advanced: false, back, loading: false, error: state.message, rows: [] }, rows: [] };
+    }
     const { title, filter } = state.level;
     const rows = filtered(state.level, filter === true ? folded(current.filter.trim()) : "");
     return {
@@ -416,6 +443,7 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
         label: title ?? label,
         ...(title === undefined ? {} : { title }),
         ...(filter === true ? { filter: current.filter } : {}),
+        advanced: current.action?.advanced !== undefined,
         back,
         loading: false,
         rows: rows.map((showing) => shownRow(current, showing)),
@@ -434,6 +462,7 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
         ...(icon === undefined ? {} : { icon }),
         ...(detail === undefined ? {} : { detail }),
         ...(category === undefined ? {} : { category }),
+        ...(row.advanced !== undefined && current.action?.advanced !== undefined ? { advanced: true as const } : {}),
       };
     }
     if (row.kind === "multi") {
@@ -481,11 +510,52 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
   function enter(action: BoardAction): Promise<void> {
     if (action.run !== undefined) return closing(parts.trigger(action));
     if (action.quick !== undefined) return settle(() => action.quick?.(parts.board(), parts.target, parts.core()), action, "quick");
-    place(
-      { kind: "error", message: `The board action "${action.id}" asks the user through its advanced action, which core does not open yet.` },
-      action,
+    return advanced(action, {});
+  }
+
+  // Closes the menu and opens the board action's advanced action, with what
+  // the open icon hands it, if anything. The menu closes first, so that the
+  // keyboard's focus is back at the element that the user triggered from as
+  // the advanced action opens. It resolves once the advanced action ends.
+  function advanced(action: BoardAction, opened: { readonly picked?: Json; readonly filter?: string }): Promise<void> {
+    let resolve: () => void = () => undefined;
+    let reject: (error: unknown) => void = () => undefined;
+    const ran = closing(
+      new Promise<void>((resolved, rejected) => {
+        resolve = resolved;
+        reject = rejected;
+      }),
     );
-    return Promise.resolve();
+    parts.advanced(action, opened).then(resolve, reject);
+    return ran;
+  }
+
+  // A click on an open icon, the item's at the index given, or the level's:
+  // it opens the advanced action with the item's `advanced` or the level's
+  // `picked`, and with the text in the level's filter, where the level has
+  // one. Where the menu of the target no longer offers the board action, it
+  // closes the menu and opens nothing, as picking the board action's row
+  // does.
+  function openAdvanced(index?: number): Promise<void> {
+    const shown = at(index);
+    if (shown === undefined) return Promise.resolve();
+    const { current, found } = shown;
+    const { action, state } = current;
+    if (action?.advanced === undefined || state.kind !== "level") return Promise.resolve();
+    let picked: Json | undefined = state.level.picked;
+    if (index !== undefined) {
+      const row = found?.row;
+      if (row?.kind !== "item" || row.advanced === undefined) return Promise.resolve();
+      picked = row.advanced;
+    }
+    if (!parts.applies(action)) {
+      end();
+      return Promise.resolve();
+    }
+    return advanced(action, {
+      ...(picked === undefined ? {} : { picked }),
+      ...(state.level.filter === true ? { filter: current.filter } : {}),
+    });
   }
 
   // Submits a text row's value where its check takes it, or shows in place
@@ -590,6 +660,7 @@ export function openMenu(start: MenuStart, parts: MenuParts): OpenMenu {
     },
     closed: () => ended,
     pick,
+    openAdvanced,
     tick,
     type(value, index) {
       const shown = at(index);

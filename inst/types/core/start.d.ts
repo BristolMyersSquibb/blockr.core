@@ -1,4 +1,4 @@
-import type { ShowMenu } from "../actions/index.ts";
+import type { Place, ShowDialog, ShowMenu } from "../actions/index.ts";
 import type { LoaderOptions, Measure } from "../mount/index.ts";
 import type { Transport } from "../protocol/index.ts";
 import type { PluginClassId } from "../types/board.ts";
@@ -17,6 +17,7 @@ export interface FrontEnds {
     prepare(front: Front, signal: AbortSignal): void;
     render(core: CoreApi, signal: AbortSignal, failures: readonly string[]): Promise<void>;
     show(object: Parameters<CoreApi["show"]>[0], signal: AbortSignal): Promise<void>;
+    advanced?(signal: AbortSignal): Place | undefined;
     card?(core: CoreApi, signal: AbortSignal): void;
 }
 export interface Changed {
@@ -31,6 +32,7 @@ export interface StartOptions {
     readonly alone?: boolean;
     readonly measure?: Measure;
     readonly showMenu?: ShowMenu;
+    readonly showDialog?: ShowDialog;
     readonly fail?: (error: Error) => void;
     readonly otel?: () => Promise<OtelModule>;
 }

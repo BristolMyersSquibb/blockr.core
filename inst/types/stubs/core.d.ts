@@ -5,6 +5,7 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import type { BlockOutput } from "../types/outputs.ts";
+import type { StubAdvanced } from "./advanced.ts";
 import type { StubMenu } from "./menu.ts";
 export declare const HELLO: HelloReply;
 export declare const INFO: OutputInfo;
@@ -32,6 +33,7 @@ export interface StubCore {
     readonly logged: readonly LogLine[];
     menu(target: Target, opts?: MenuOptions): StubMenu;
     menu(): StubMenu | undefined;
+    advanced(): StubAdvanced | undefined;
     readonly stop: () => void;
 }
 type MenuOptions = Omit<Parameters<CoreApi["boardActions"]["menu"]>[1], "el" | "anchor">;

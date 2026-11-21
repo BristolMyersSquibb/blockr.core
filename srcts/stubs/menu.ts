@@ -27,6 +27,11 @@ export interface StubMenu {
   // run. It rejects with the refusal where the store or the command registry
   // refuses the batch, and throws where the level shows no row with the label.
   pick(label?: string): Promise<void>;
+  // Clicks the open icon of the item with the label given, or without a
+  // label, the level's, which closes the menu and opens the board action's
+  // advanced action. It resolves once the advanced action ends, and throws
+  // where the item or the level shows no open icon.
+  openAdvanced(label?: string): Promise<void>;
   // Ticks the choice with the label given of the multi with the label given,
   // or unticks it, as a click on it does. It throws where the level shows no
   // such choice.
@@ -85,6 +90,17 @@ function drive(menu: OpenMenu): StubMenu {
     pick(label) {
       if (menu.closed()) return Promise.resolve();
       return label === undefined ? menu.pick() : menu.pick(find(label, ["item", "text"]));
+    },
+    openAdvanced(label) {
+      if (menu.closed()) return Promise.resolve();
+      if (label === undefined) {
+        if (!menu.get().advanced) throw new Error("The level shows no open icon.");
+        return menu.openAdvanced();
+      }
+      const index = find(label, ["item"]);
+      const row = menu.get().rows[index];
+      if (row?.kind !== "item" || row.advanced !== true) throw new Error(`The item "${label}" shows no open icon.`);
+      return menu.openAdvanced(index);
     },
     tick(row, choice) {
       if (menu.closed()) return;

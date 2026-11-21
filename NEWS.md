@@ -806,6 +806,21 @@
   It submits a step of a segment by a key, such as the arrow up, at once, as the number field submits a step of its number, and a picker or a calendar submits a pick at once.
   Each submits only a value in its range.
   Where the state holds a value that does not read so, as `"2026-11-19T14:30:00"`, which R's `as.POSIXct()` reads as midnight, a bound input marks itself invalid and says below itself that the value is not available (#758).
+* A board action's `advanced` is its advanced action, which holds every option of the board action in a place with enough room.
+  It is a module of the new type `AdvancedModule`, whose `render()` gets the element, `CoreApi`, the target, a signal and `done()`.
+  Its `done()` runs a batch as one step of the user, with the caller's `extend`, and ends the advanced action, or with no batch only ends it.
+  Where the store refuses the batch, `done()` rejects with the refusal and the advanced action stays open, and the `notifier` of `done()` takes the notifications.
+  Core opens a board action's advanced action from its row in a menu, where the board action has no quick action or its `quick` gives no level for the target, and from `trigger()` on such a board action.
+  It opens one from the open icon too: a button named "Show all options" at the top right of every level of the quick action, or an icon at the end of an item that gives `advanced`.
+  Ctrl or Cmd with Enter does the same from the keyboard, as each icon's tooltip says.
+  The icon hands the advanced action the level's `picked` or the item's `advanced`, and the text in the level's filter.
+  Core shows the advanced action in the `advanced` that the caller of `menu()` or `trigger()` gives, or else in the frontend's place, or else in core's dialog, a modal dialog at least 420 pixels wide.
+  The frontend's place is the new `advanced` member of a frontend's module.
+  It gets the board action's ID, a title, the target, a `mount()` and a `close()`.
+  It returns the function that core calls with the deltas of the batch once `done()` ends the advanced action.
+  The call `core.boardActions.mountAdvanced(el, id, target, picked)` renders an advanced action in a plugin's own room, where `done()` runs the batch and core renders the advanced action again.
+  Where a board object that the target names leaves the board, core ends the advanced action, as a `done()` without a batch does.
+  The `advanced()` of `stubCore()` gives the advanced action that core's dialog shows, and `StubMenu` gains `openAdvanced()`, which clicks an open icon (#744).
 
 # blockr.core 0.1.4
 

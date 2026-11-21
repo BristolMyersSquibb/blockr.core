@@ -109,8 +109,8 @@
 // (../trace/settings.ts). The span of a later opening goes under the span that
 // was active as the store's open() was called.
 
-import { createBoardActions, showMenu } from "../actions/index.ts";
-import type { BoardActions, ShowMenu } from "../actions/index.ts";
+import { createBoardActions, showDialog, showMenu } from "../actions/index.ts";
+import type { BoardActions, Place, ShowDialog, ShowMenu } from "../actions/index.ts";
 import { createCommands } from "../commands/index.ts";
 import type { Commands } from "../commands/index.ts";
 import { createLoader, ModuleError, moduleExports } from "../mount/index.ts";
@@ -177,6 +177,12 @@ export interface FrontEnds {
   // does nothing where that frontend is not drawn, as once the next board has
   // opened.
   show(object: Parameters<CoreApi["show"]>[0], signal: AbortSignal): Promise<void>;
+  // The `advanced` member of the module of the frontend that render() drew
+  // for the board of the signal, which shows an advanced action in the
+  // frontend's place, called as a method of the module. It is undefined where
+  // that frontend is not drawn or gives none, so that core shows the advanced
+  // action in its dialog.
+  advanced?(signal: AbortSignal): Place | undefined;
   // Draws the board's one block in its card, for a block that serve() serves
   // alone, and returns once the card has mounted the block. The card ends as
   // the signal aborts, as the next board opens.
@@ -203,6 +209,10 @@ export interface StartOptions {
   // Draws each menu of board actions that CoreApi opens, core's menu unless
   // given, as the CoreApi for tests drives each menu without drawing it.
   readonly showMenu?: ShowMenu;
+  // Draws core's dialog, which shows each advanced action that neither the
+  // caller nor the frontend shows, core's own unless given, as the CoreApi for
+  // tests records each without drawing it.
+  readonly showDialog?: ShowDialog;
   // Shows why core cannot start, or why it stopped, as where R speaks another
   // major of the protocol in the first session or a later one, or cannot give
   // a blockr option that core reads as it starts, or gives one that the
@@ -523,6 +533,8 @@ export function start(options: StartOptions): Started {
       commands,
       boardActions,
       showMenu: options.showMenu ?? showMenu,
+      showDialog: options.showDialog ?? showDialog,
+      advanced: () => options.frontEnds?.advanced?.(signal),
       scheduler,
       loader,
       blockrOptions,
