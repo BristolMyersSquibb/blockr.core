@@ -11,9 +11,10 @@
 // that is not opaque.
 // React Aria names it by its colour, such as "light pale green cyan", so that
 // a screen reader says which colour it shows.
-// A swatch is a square of 2rem with rounded corners, and a className that its
-// caller gives takes the place of that size and shape, as a table does that
-// shows a small dot.
+// A swatch is a square of 2rem with rounded corners.
+// The classes that its caller gives go after its own, as on the SDK's other
+// components, so a class that sets what one of its own sets, such as another
+// size, wins only with Tailwind's important modifier, as `bc:size-3!`.
 // The picker lays its items out in a row that wraps, and marks the item of
 // its colour with a ring.
 //
@@ -41,7 +42,7 @@ export function ColorSwatch({ className, style, ...props }: ColorSwatchProps): R
   return (
     <AriaColorSwatch
       {...props}
-      className={composeRenderProps(className, (given) => `${SWATCH} ${given ?? SQUARE}`)}
+      className={composeRenderProps(className, (given) => `${SWATCH} ${given ?? ""}`)}
       style={composeRenderProps(style, (given, { color }) => ({
         ...given,
         background: `linear-gradient(${color.toString()}, ${color.toString()}), ${CHECKERBOARD}`,
@@ -105,8 +106,7 @@ export function ColorSwatchPickerItem({ className, ...props }: ColorSwatchPicker
 
 // The classes of a swatch, of the picker and of its items. The checkerboard
 // is the starter kit's, two greys of 8 pixels.
-const SWATCH = "bc:box-border bc:shrink-0 bc:border bc:border-border-default";
-const SQUARE = "bc:size-8 bc:rounded-md";
+const SWATCH = "bc:box-border bc:size-8 bc:shrink-0 bc:rounded-md bc:border bc:border-border-default";
 const CHECKERBOARD = "repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 16px 16px";
 const PICKER = "bc:flex bc:gap-1";
 const ITEM =

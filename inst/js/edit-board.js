@@ -1354,9 +1354,10 @@ function StackBlocks({ board, blocks }) {
   ] });
 }
 function Swatch({ color: color2 }) {
-  return color2 === null ? /* @__PURE__ */ jsx8("span", { "aria-hidden": "true", className: SWATCH }) : /* @__PURE__ */ jsx8(ColorSwatch, { color: color2, className: SWATCH });
+  return color2 === null ? /* @__PURE__ */ jsx8("span", { "aria-hidden": "true", className: RING }) : /* @__PURE__ */ jsx8(ColorSwatch, { color: color2, className: DOT });
 }
-var SWATCH = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+var RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+var DOT = "bc:size-3! bc:rounded-full!";
 function StackForm({
   core,
   board,

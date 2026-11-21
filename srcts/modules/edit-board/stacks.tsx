@@ -246,11 +246,15 @@ function StackBlocks({ board, blocks }: { board: Board; blocks: readonly BlockId
 
 // The colour of a stack, as the SDK's swatch, which a screen reader names by
 // its colour, or a ring where it has none, which a screen reader skips.
+// Each is a dot of 0.75rem. The SDK's swatch is a rounded square of 2rem,
+// whose size and shape the dot's classes win over with Tailwind's important
+// modifier.
 function Swatch({ color }: { color: string | null }): ReactElement {
-  return color === null ? <span aria-hidden="true" className={SWATCH} /> : <ColorSwatch color={color} className={SWATCH} />;
+  return color === null ? <span aria-hidden="true" className={RING} /> : <ColorSwatch color={color} className={DOT} />;
 }
 
-const SWATCH = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+const RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+const DOT = "bc:size-3! bc:rounded-full!";
 
 // The form that adds a stack, or that changes the stack given.
 // The form that adds a stack says why the store or the command registry

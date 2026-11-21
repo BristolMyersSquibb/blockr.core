@@ -922,7 +922,7 @@ function ColorSwatch({ className, style, ...props }) {
     AriaColorSwatch,
     {
       ...props,
-      className: composeRenderProps8(className, (given) => `${SWATCH} ${given ?? SQUARE}`),
+      className: composeRenderProps8(className, (given) => `${SWATCH} ${given ?? ""}`),
       style: composeRenderProps8(style, (given, { color }) => ({
         ...given,
         background: `linear-gradient(${color.toString()}, ${color.toString()}), ${CHECKERBOARD2}`
@@ -969,8 +969,7 @@ function ColorSwatchPickerItem({ className, ...props }) {
     isSelected ? /* @__PURE__ */ jsx12("div", { className: SELECTED }) : null
   ] }) });
 }
-var SWATCH = "bc:box-border bc:shrink-0 bc:border bc:border-border-default";
-var SQUARE = "bc:size-8 bc:rounded-md";
+var SWATCH = "bc:box-border bc:size-8 bc:shrink-0 bc:rounded-md bc:border bc:border-border-default";
 var CHECKERBOARD2 = "repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 16px 16px";
 var PICKER = "bc:flex bc:gap-1";
 var ITEM2 = "bc:relative bc:cursor-pointer bc:rounded-xs bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";

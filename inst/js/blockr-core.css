@@ -461,6 +461,11 @@
   height: calc(var(--bc-spacing) * 3);
 }
 
+.bc\:size-3\! {
+  width: calc(var(--bc-spacing) * 3) !important;
+  height: calc(var(--bc-spacing) * 3) !important;
+}
+
 .bc\:size-3\.5 {
   width: calc(var(--bc-spacing) * 3.5);
   height: calc(var(--bc-spacing) * 3.5);
@@ -864,6 +869,10 @@
 
 .bc\:rounded-full {
   border-radius: 3.40282e38px;
+}
+
+.bc\:rounded-full\! {
+  border-radius: 3.40282e38px !important;
 }
 
 .bc\:rounded-lg {

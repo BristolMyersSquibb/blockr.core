@@ -8874,7 +8874,7 @@ function ColorSwatch2({ className, style, ...props }) {
     ColorSwatch,
     {
       ...props,
-      className: composeRenderProps(className, (given) => `${SWATCH} ${given ?? SQUARE}`),
+      className: composeRenderProps(className, (given) => `${SWATCH} ${given ?? ""}`),
       style: composeRenderProps(style, (given, { color: color2 }) => ({
         ...given,
         background: `linear-gradient(${color2.toString()}, ${color2.toString()}), ${CHECKERBOARD2}`
@@ -8921,8 +8921,7 @@ function ColorSwatchPickerItem2({ className, ...props }) {
     isSelected ? /* @__PURE__ */ jsx11("div", { className: SELECTED }) : null
   ] }) });
 }
-var SWATCH = "bc:box-border bc:shrink-0 bc:border bc:border-border-default";
-var SQUARE = "bc:size-8 bc:rounded-md";
+var SWATCH = "bc:box-border bc:size-8 bc:shrink-0 bc:rounded-md bc:border bc:border-border-default";
 var CHECKERBOARD2 = "repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 16px 16px";
 var PICKER = "bc:flex bc:gap-1";
 var ITEM2 = "bc:relative bc:cursor-pointer bc:rounded-xs bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-2 bc:data-focus-visible:outline-border-accent bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
@@ -14095,9 +14094,10 @@ function StackBlocks({ board, blocks }) {
   ] });
 }
 function Swatch({ color: color2 }) {
-  return color2 === null ? /* @__PURE__ */ jsx44("span", { "aria-hidden": "true", className: SWATCH2 }) : /* @__PURE__ */ jsx44(ColorSwatch2, { color: color2, className: SWATCH2 });
+  return color2 === null ? /* @__PURE__ */ jsx44("span", { "aria-hidden": "true", className: RING }) : /* @__PURE__ */ jsx44(ColorSwatch2, { color: color2, className: DOT });
 }
-var SWATCH2 = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+var RING = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
+var DOT = "bc:size-3! bc:rounded-full!";
 function StackForm({
   core,
   board,

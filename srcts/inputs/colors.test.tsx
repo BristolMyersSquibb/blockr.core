@@ -94,12 +94,11 @@ describe("a swatch", () => {
     expect(swatch.className).toContain("bc:size-8");
   });
 
-  test("takes the size and the shape that its caller's className gives in place of its own", () => {
-    const el = draw(<ColorSwatch color="#66c2a5" className="bc:size-3 bc:rounded-full" />);
+  test("puts its caller's classes after its own, as the SDK's other components do", () => {
+    const el = draw(<ColorSwatch color="#66c2a5" className="bc:size-3! bc:rounded-full!" />);
     const swatch = find(el, '[role="img"]');
 
-    expect(swatch.className).toContain("bc:size-3 bc:rounded-full");
-    expect(swatch.className).not.toContain("bc:size-8");
+    expect(swatch.className).toMatch(/bc:size-8 .*bc:size-3! bc:rounded-full!$/);
     expect(swatch.className).toContain("bc:border-border-default");
   });
 });
