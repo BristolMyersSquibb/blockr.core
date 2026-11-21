@@ -7,7 +7,7 @@ import { act, useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { Button } from "../inputs/index.ts";
+import { Button, ToggleButton, ToggleButtonGroup } from "../inputs/index.ts";
 import { find, press, texts } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import {
@@ -217,6 +217,20 @@ describe("the toolbar", () => {
       press(buttons[0] ?? bar, "ArrowRight");
     });
     expect(document.activeElement).toBe(buttons[1]);
+  });
+
+  test("lays out a toggle button group in it as it lays out its controls", async () => {
+    const el = await draw(
+      <Toolbar aria-label="Tools" orientation="vertical">
+        <ToggleButtonGroup aria-label="Align">
+          <ToggleButton id="left">Left</ToggleButton>
+          <ToggleButton id="right">Right</ToggleButton>
+        </ToggleButtonGroup>
+      </Toolbar>,
+    );
+
+    expect(find(el, '[role="toolbar"]').getAttribute("aria-orientation")).toBe("vertical");
+    expect(find(el, '[aria-label="Align"]').getAttribute("data-orientation")).toBe("vertical");
   });
 
   test("lays out a separator across, by default, as a rule", async () => {

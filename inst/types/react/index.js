@@ -521,6 +521,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  ToggleButtonGroupContext,
   Token,
   TokenField,
   TokenInput,
@@ -2366,13 +2367,13 @@ var PANEL2 = "bc:box-border bc:flex-1 bc:rounded bc:p-4 bc:font-sans bc:text-sm 
 // srcts/layout/toolbar.tsx
 import { jsx as jsx32 } from "react/jsx-runtime";
 function Toolbar2({ className, ...props }) {
-  return /* @__PURE__ */ jsx32(
+  return /* @__PURE__ */ jsx32(ToggleButtonGroupContext, { value: { orientation: props.orientation }, children: /* @__PURE__ */ jsx32(
     Toolbar,
     {
       ...props,
       className: composeRenderProps(className, (given, { orientation }) => `${TOOLBAR} ${ORIENTED2[orientation]} ${given ?? ""}`)
     }
-  );
+  ) });
 }
 function Separator2({ className, ...props }) {
   return /* @__PURE__ */ jsx32(Separator, { ...props, className: `${SEPARATOR} ${ACROSS[props.orientation ?? "horizontal"]} ${className ?? ""}` });

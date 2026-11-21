@@ -8,20 +8,29 @@
 // in a column where its `orientation` is "vertical".
 // Tab moves the focus into the toolbar and out of it again, and the arrow
 // keys move it between the controls.
+// A toggle button group in the toolbar lays out its buttons as the toolbar
+// lays out its controls, as the starter kit has it.
 // The separator is a line between them, across where its `orientation` is
 // "horizontal", the default, and upright, as tall as the row, where it is
 // "vertical", as between the groups of a toolbar's row.
 
 import type { ReactElement } from "react";
-import { composeRenderProps, Separator as AriaSeparator, Toolbar as AriaToolbar } from "../aria/index.ts";
+import {
+  composeRenderProps,
+  Separator as AriaSeparator,
+  ToggleButtonGroupContext,
+  Toolbar as AriaToolbar,
+} from "../aria/index.ts";
 import type { SeparatorProps, ToolbarProps } from "../aria/index.ts";
 
 export function Toolbar({ className, ...props }: ToolbarProps): ReactElement {
   return (
-    <AriaToolbar
-      {...props}
-      className={composeRenderProps(className, (given, { orientation }) => `${TOOLBAR} ${ORIENTED[orientation]} ${given ?? ""}`)}
-    />
+    <ToggleButtonGroupContext value={{ orientation: props.orientation }}>
+      <AriaToolbar
+        {...props}
+        className={composeRenderProps(className, (given, { orientation }) => `${TOOLBAR} ${ORIENTED[orientation]} ${given ?? ""}`)}
+      />
+    </ToggleButtonGroupContext>
   );
 }
 

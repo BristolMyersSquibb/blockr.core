@@ -8225,6 +8225,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  ToggleButtonGroupContext,
   Token,
   TokenField,
   TokenInput,
@@ -11835,13 +11836,13 @@ import { Fragment as Fragment18, jsx as jsx34, jsxs as jsxs25 } from "react/jsx-
 // srcts/layout/toolbar.tsx
 import { jsx as jsx35 } from "react/jsx-runtime";
 function Toolbar2({ className, ...props }) {
-  return /* @__PURE__ */ jsx35(
+  return /* @__PURE__ */ jsx35(ToggleButtonGroupContext, { value: { orientation: props.orientation }, children: /* @__PURE__ */ jsx35(
     Toolbar,
     {
       ...props,
       className: composeRenderProps(className, (given, { orientation }) => `${TOOLBAR} ${ORIENTED[orientation]} ${given ?? ""}`)
     }
-  );
+  ) });
 }
 function Separator2({ className, ...props }) {
   return /* @__PURE__ */ jsx35(Separator, { ...props, className: `${SEPARATOR} ${ACROSS[props.orientation ?? "horizontal"]} ${className ?? ""}` });
