@@ -18,7 +18,7 @@
         "path": ""
       },
       "options": {},
-      "answer": {"dirs":["data"],"files":["notes.txt"]}
+      "answer": {"dirs":[{"name":"data","modified":"2026-11-02T09:14:00Z"}],"files":[{"name":"notes.txt","size":6.0,"modified":"2026-11-19T16:51:00Z"}]}
     },
     {
       "name": "list_dir",
@@ -30,7 +30,7 @@
         "path": "data"
       },
       "options": {},
-      "answer": {"dirs":[],"files":["sales.csv"]}
+      "answer": {"dirs":[],"files":[{"name":"sales.csv","size":22.0,"modified":"2026-11-20T08:03:00Z"}]}
     }
   ]
 }

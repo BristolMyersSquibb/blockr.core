@@ -1,6 +1,20 @@
 // srcts/modules/filebrowser-block/index.tsx
 import { Fragment, useState } from "react";
-import { reactModule, Select, SelectItem, Stack, useRequest, useValue } from "@blockr/core/react";
+import {
+  Button,
+  Cell,
+  Column,
+  reactModule,
+  Row,
+  Select,
+  SelectItem,
+  Stack,
+  Table,
+  TableBody,
+  TableHeader,
+  useRequest,
+  useValue
+} from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -37,10 +51,13 @@ function jsonEqual(a, b) {
 }
 
 // srcts/modules/filebrowser-block/index.tsx
-import { Fragment as Fragment2, jsx, jsxs } from "react/jsx-runtime";
+import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
-var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-2 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
-var entry = `${link} bc:justify-self-stretch`;
+var FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised";
+var BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border-default bc:p-1 bc:text-sm";
+var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
+var HEAD = "bc:text-xs bc:text-text-muted";
+var CHOSEN = "bc:bg-bg-accent/10 bc:font-semibold";
 function FileBrowserBlock({ host }) {
   const shared = useValue(host, "volumes").value;
   const volumes = asVolumes(shared);
@@ -61,6 +78,33 @@ function FileBrowserBlock({ host }) {
     if (next.volume === volume && jsonEqual(next.dirs, dirs)) return;
     setPlace(next);
   };
+  const entries = [
+    ...listing2.dirs.map((dir) => ({
+      id: `dir ${dir.name}`,
+      name: dir.name,
+      dir: true,
+      size: null,
+      modified: dir.modified,
+      current: false,
+      open: () => {
+        go({ volume, dirs: [...dirs, dir.name] });
+      }
+    })),
+    ...listing2.files.map((found) => {
+      const at = root === void 0 ? void 0 : join(root, [...dirs, found.name]);
+      return {
+        id: `file ${found.name}`,
+        name: found.name,
+        dir: false,
+        size: found.size,
+        modified: found.modified,
+        current: at !== void 0 && at === held,
+        open: () => {
+          if (at !== void 0) void file.commit(at);
+        }
+      };
+    })
+  ];
   const names = Object.keys(volumes);
   return /* @__PURE__ */ jsxs(Stack, { children: [
     names.length > 1 && /* @__PURE__ */ jsx(
@@ -76,68 +120,106 @@ function FileBrowserBlock({ host }) {
         children: (item) => /* @__PURE__ */ jsx(SelectItem, { id: item.id, children: item.id })
       }
     ),
-    /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:flex bc:flex-wrap bc:items-center bc:gap-1 bc:text-sm", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsxs(Fragment, { children: [
-      i > 0 && /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
-      /* @__PURE__ */ jsx(
-        "button",
+    /* @__PURE__ */ jsxs("div", { className: FRAME, children: [
+      /* @__PURE__ */ jsxs("div", { className: BAR, children: [
+        /* @__PURE__ */ jsx(
+          Button,
+          {
+            variant: "quiet",
+            "aria-label": "Up one directory",
+            className: "bc:disabled:cursor-default bc:disabled:opacity-40",
+            isDisabled: dirs.length === 0,
+            onPress: () => {
+              go({ volume, dirs: dirs.slice(0, -1) });
+            },
+            children: /* @__PURE__ */ jsx(Up, {})
+          }
+        ),
+        /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-text-muted" }),
+        /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:flex bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-0.5", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsxs(Fragment, { children: [
+          i > 0 && /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: link,
+              "aria-current": i === dirs.length ? "true" : void 0,
+              onClick: () => {
+                go({ volume, dirs: dirs.slice(0, i) });
+              },
+              children: name
+            }
+          )
+        ] }, i)) })
+      ] }),
+      /* @__PURE__ */ jsxs(
+        Table,
         {
-          type: "button",
-          className: link,
-          "aria-current": i === dirs.length ? "true" : void 0,
-          onClick: () => {
-            go({ volume, dirs: dirs.slice(0, i) });
+          "aria-label": "Files",
+          className: "bc:-mb-px bc:max-h-64",
+          onRowAction: (key) => {
+            entries.find((entry) => entry.id === key)?.open();
           },
-          children: name
+          children: [
+            /* @__PURE__ */ jsxs(TableHeader, { children: [
+              /* @__PURE__ */ jsx(Column, { id: "name", isRowHeader: true, className: HEAD, children: "Name" }),
+              /* @__PURE__ */ jsx(Column, { id: "size", align: "end", className: `${HEAD} bc:w-24`, children: "Size" }),
+              /* @__PURE__ */ jsx(Column, { id: "modified", className: `${HEAD} bc:w-36`, children: "Modified" })
+            ] }),
+            /* @__PURE__ */ jsx(
+              TableBody,
+              {
+                items: loading ? [] : entries,
+                renderEmptyState: () => loading ? "Loading\u2026" : failed ? null : "This directory is empty.",
+                children: (entry) => /* @__PURE__ */ jsxs(Row, { id: entry.id, "data-current": entry.current || void 0, className: `bc:cursor-pointer ${entry.current ? CHOSEN : ""}`, children: [
+                  /* @__PURE__ */ jsx(Cell, { textValue: entry.name, children: /* @__PURE__ */ jsxs("span", { className: "bc:flex bc:items-center bc:gap-2", children: [
+                    entry.dir ? /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-bg-accent" }) : /* @__PURE__ */ jsx(FileIcon, { className: "bc:shrink-0 bc:text-text-muted" }),
+                    entry.name
+                  ] }) }),
+                  /* @__PURE__ */ jsx(Cell, { className: "bc:text-right bc:tabular-nums", children: entry.size === null ? /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", children: "\u2014" }) : sizeText(entry.size) }),
+                  /* @__PURE__ */ jsx(Cell, { className: "bc:tabular-nums bc:text-text-muted", children: modifiedText(entry.modified) })
+                ] })
+              }
+            )
+          ]
         }
       )
-    ] }, i)) }),
-    /* @__PURE__ */ jsx("ul", { className: "bc:m-0 bc:grid bc:max-h-64 bc:list-none bc:gap-0.5 bc:overflow-y-auto bc:p-0", children: loading ? /* @__PURE__ */ jsx(Note, { text: "Loading\u2026" }) : /* @__PURE__ */ jsxs(Fragment2, { children: [
-      dirs.length > 0 && /* @__PURE__ */ jsx(
-        Entry,
-        {
-          text: "..",
-          onClick: () => {
-            go({ volume, dirs: dirs.slice(0, -1) });
-          }
-        }
-      ),
-      listing2.dirs.map((dir) => /* @__PURE__ */ jsx(
-        Entry,
-        {
-          text: `${dir}/`,
-          onClick: () => {
-            go({ volume, dirs: [...dirs, dir] });
-          }
-        },
-        `dir ${dir}`
-      )),
-      listing2.files.map((name) => {
-        const at = root === void 0 ? void 0 : join(root, [...dirs, name]);
-        return /* @__PURE__ */ jsx(
-          Entry,
-          {
-            text: name,
-            current: at !== void 0 && at === held,
-            onClick: () => {
-              if (at !== void 0) void file.commit(at);
-            }
-          },
-          `file ${name}`
-        );
-      }),
-      !failed && listing2.dirs.length + listing2.files.length === 0 && /* @__PURE__ */ jsx(Note, { text: "This directory is empty." })
-    ] }) }),
+    ] }),
     held !== void 0 && /* @__PURE__ */ jsx("p", { className: styles.hint, children: `Chosen: ${held}` }),
     file.error !== null && /* @__PURE__ */ jsx("p", { role: "alert", className: styles.alert, children: file.error })
   ] });
 }
-function Entry({ text, current = false, onClick }) {
-  return /* @__PURE__ */ jsx("li", { className: "bc:grid", children: /* @__PURE__ */ jsx("button", { type: "button", className: entry, "aria-current": current ? "true" : void 0, onClick, children: text }) });
-}
-function Note({ text }) {
-  return /* @__PURE__ */ jsx("li", { className: "bc:grid", children: /* @__PURE__ */ jsx("p", { className: styles.hint, children: text }) });
-}
 var filebrowser_block_default = reactModule(FileBrowserBlock);
+function Up() {
+  return /* @__PURE__ */ jsx("svg", { width: "14", height: "14", viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: "M8 13V3M4 7l4-4 4 4" }) });
+}
+function FolderIcon({ className }) {
+  return /* @__PURE__ */ jsx("svg", { width: "16", height: "16", viewBox: "0 0 16 16", fill: "currentColor", "aria-hidden": "true", className, children: /* @__PURE__ */ jsx("path", { d: "M1.5 4a1 1 0 0 1 1-1h3.6l1.5 1.5h5.9a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" }) });
+}
+function FileIcon({ className }) {
+  return /* @__PURE__ */ jsxs("svg", { width: "16", height: "16", viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: "1.3", strokeLinejoin: "round", "aria-hidden": "true", className, children: [
+    /* @__PURE__ */ jsx("path", { d: "M4 1.75h5.25L12.5 5v9.25H4z" }),
+    /* @__PURE__ */ jsx("path", { d: "M9.25 1.75V5h3.25" })
+  ] });
+}
+function sizeText(bytes) {
+  if (bytes < 1024) return `${String(bytes)} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(1)} ${units[unit] ?? "TB"}`;
+}
+function modifiedText(modified) {
+  if (modified === null) return "";
+  const at = new Date(modified);
+  if (Number.isNaN(at.getTime())) return modified;
+  const two = (n) => String(n).padStart(2, "0");
+  return `${String(at.getFullYear())}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
+}
 function locate(file, roots) {
   if (typeof file === "string") {
     for (const [name, root] of Object.entries(roots)) {
@@ -161,17 +243,27 @@ function join(root, names) {
 }
 function asListing(answer) {
   if (answer === void 0) return { dirs: [], files: [] };
-  if (isObject(answer) && isStrings(answer.dirs) && isStrings(answer.files)) {
+  if (isObject(answer) && isEntries(answer.dirs, isDirEntry) && isEntries(answer.files, isFileEntry)) {
     return { dirs: answer.dirs, files: answer.files };
   }
-  throw new TypeError(`R answered list_dir with ${JSON.stringify(answer)}, where the file browser takes the dirs and the files that it lists.`);
+  throw new TypeError(
+    `R answered list_dir with ${JSON.stringify(answer)}, where the file browser takes the dirs and the files that it lists, each with its name and the time it changed last, and each file with its size.`
+  );
 }
-function isStrings(value) {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+function isEntries(value, is) {
+  return Array.isArray(value) && value.every(is);
+}
+function isDirEntry(entry) {
+  return isObject(entry) && typeof entry.name === "string" && (entry.modified === null || typeof entry.modified === "string");
+}
+function isFileEntry(entry) {
+  return isDirEntry(entry) && isObject(entry) && (entry.size === null || typeof entry.size === "number");
 }
 export {
   api,
   asListing,
   asVolumes,
-  filebrowser_block_default as default
+  filebrowser_block_default as default,
+  modifiedText,
+  sizeText
 };
