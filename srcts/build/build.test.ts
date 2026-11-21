@@ -17,11 +17,6 @@ const core = resolve(dirname(fileURLToPath(import.meta.url)), "../runtime/index.
 // Core's repo, whose node_modules holds the packages that the build bundles.
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-// The vendor file, by its name, which holds a hash of its content, as
-// vendor-3F2A9C1D.js, beside the vendor files of the colours and of the code
-// that they share, as vendor-colors-7B1E04CA.js and vendor-shared-5D0C8A2F.js.
-const VENDOR = /^vendor-[0-9A-Z]{8}\.js$/;
-
 let root: string;
 
 beforeEach(async () => {
@@ -80,7 +75,7 @@ test("writes each of React's entry points as an ES module, exporting what the en
   const written = await build(root);
 
   const out = join(root, "inst/js");
-  const vendor = (await readdir(out)).filter((file) => VENDOR.test(file));
+  const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
   expect(vendor).toHaveLength(1);
   expect(written).toEqual(
     ["LICENSES", "blockr-core.js", "import-map.json", "preload.json", ...vendor, ...REACT_ENTRIES.map(importFile)]
@@ -122,7 +117,7 @@ test("bundles the packages that core's code imports beside React into the vendor
   const written = await build(root);
 
   const out = join(root, "inst/js");
-  const vendor = (await readdir(out)).filter((file) => VENDOR.test(file));
+  const vendor = (await readdir(out)).filter((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
   expect(vendor).toHaveLength(1);
   const file = vendor[0] ?? "";
   expect(written).toContain(`inst/js/${file}`);
@@ -158,45 +153,6 @@ test("bundles the packages that core's code imports beside React into the vendor
   expect(await read("import-map.json")).not.toContain(file);
 });
 
-test("bundles the parts of React Aria that load on demand into a vendor file of their own, which shares React Aria with the vendor file through one more file that both import", async () => {
-  await write({
-    "srcts/aria/index.ts": 'export { Button } from "react-aria-components/Button";\nexport { Text } from "react-aria-components/Text";\n',
-    "srcts/aria-colors/index.ts": 'export { ColorSwatch } from "react-aria-components/ColorSwatch";\nexport { Text } from "react-aria-components/Text";\n',
-    "srcts/colors/index.ts": 'export { ColorSwatch } from "../aria-colors/index.ts";\nexport { Text } from "../aria/index.ts";\n',
-    "srcts/runtime/index.ts": 'export { Button } from "../aria/index.ts";\n',
-  });
-
-  const written = await build(root);
-
-  const out = join(root, "inst/js");
-  const files = await readdir(out);
-  const vendor = files.find((file) => VENDOR.test(file)) ?? "";
-  const colors = files.find((file) => /^vendor-colors-[0-9A-Z]{8}\.js$/.test(file)) ?? "";
-  const [shared = "", ...more] = files.filter((file) => /^vendor-shared-[0-9A-Z]{8}\.js$/.test(file));
-  expect(more).toEqual([]);
-  expect(written).toEqual(expect.arrayContaining([vendor, colors, shared].map((file) => `inst/js/${file}`)));
-  const read = (name: string) => readFile(join(out, name), "utf8");
-  // The code of the colours sits in their file alone, as the words that
-  // React Aria says a swatch with.
-  expect(await read(colors)).toContain("color swatch");
-  for (const file of [vendor, shared]) expect(await read(file)).not.toContain("color swatch");
-  // Both vendor files import the shared one, which preload.json lists, so
-  // that R names the shared file in the page's head with the vendor file.
-  const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
-  expect(preload[vendor]).toEqual([`./${shared}`]);
-  expect(preload[colors]).toEqual([`./${shared}`]);
-  // The SDK's colours import their vendor file by its name, which no file that
-  // the page loads up front imports.
-  expect(await read("blockr-core-react-colors.js")).toContain(`from "./${colors}"`);
-  expect(await read("blockr-core.js")).toContain(`from "./${vendor}"`);
-  expect(await read("blockr-core.js")).not.toContain(colors);
-  // The page runs one copy of what both vendor files hold.
-  const main = (await import(pathToFileURL(join(out, vendor)).href)) as Record<string, unknown>;
-  const onDemand = (await import(pathToFileURL(join(out, colors)).href)) as Record<string, unknown>;
-  expect(onDemand.Text).toBeDefined();
-  expect(onDemand.Text).toBe(main.Text);
-});
-
 test("fails where one of core's files would bundle a package from node_modules that the vendor file does not hold, through the vendor check", async () => {
   await write({
     "node_modules/@acme/pad/package.json": '{ "name": "@acme/pad", "type": "module", "main": "index.js" }\n',
@@ -209,7 +165,7 @@ test("fails where one of core's files would bundle a package from node_modules t
   );
 });
 
-test("builds the SDK, its colours, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
+test("builds the SDK, the binding, the controls and the OpenTelemetry module on their own, which the runtime and the modules import by name", async () => {
   const imports = (up: string) =>
     [
       `import { sdk } from "${up}/react/index.ts";`,
@@ -224,10 +180,6 @@ test("builds the SDK, its colours, the binding, the controls and the OpenTelemet
     "srcts/inputs/index.ts": "export const input = 'the input';\n",
     "srcts/binding/index.ts": "export const binding = 'the binding';\n",
     "srcts/controls/index.ts": 'import { input } from "../inputs/index.ts";\nexport const controls = "the controls " + input;\n',
-    "srcts/colors/index.ts": 'import { input } from "../inputs/index.ts";\nexport const colors = "the colours " + input;\n',
-    // A module that imports the colours as it needs them, as the stacks of
-    // the Edit board do as they show.
-    "srcts/modules/stacks/index.ts": 'export const colors = () => import("../../colors/index.ts");\n',
     "srcts/otel/index.ts": "export const otel = 'the otel module';\n",
     "srcts/runtime/index.ts": `${imports("..")}import { trace } from "@opentelemetry/api";\nimport { version } from "react";\nexport const tracer = trace.getTracer("blockr.core", version);\nexport const otel = () => import("../otel/index.ts");\n`,
     "srcts/modules/head-block/index.ts": imports("../.."),
@@ -252,12 +204,6 @@ test("builds the SDK, its colours, the binding, the controls and the OpenTelemet
   // The controls take the inputs from the SDK.
   expect(await read("blockr-core-controls.js")).toContain('from "@blockr/core/react"');
   expect(await read("blockr-core-controls.js")).not.toContain("the input");
-  // So do the colours, which a module imports by their name as it loads them.
-  expect(await read("blockr-core-react-colors.js")).toContain("the colours");
-  expect(await read("blockr-core-react-colors.js")).toContain('from "@blockr/core/react"');
-  expect(await read("blockr-core-react-colors.js")).not.toContain("the input");
-  expect(await read("stacks.js")).toContain('import("@blockr/core/react/colors")');
-  expect(await read("stacks.js")).not.toContain("the colours");
   // The runtime imports the OpenTelemetry module by its name, as it loads it,
   // which the build bundles on its own.
   expect(await read("blockr-core.js")).toContain('import("@blockr/core/otel")');
@@ -280,13 +226,12 @@ test("builds the SDK, its colours, the binding, the controls and the OpenTelemet
   // file beside it by its path. The runtime's import of the OpenTelemetry
   // module is left out, which the runtime imports only as it loads it, and
   // each of React's entry points imports the vendor file.
-  const vendor = (await readdir(join(root, "inst/js"))).find((file) => VENDOR.test(file));
+  const vendor = (await readdir(join(root, "inst/js"))).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file));
   const preload = JSON.parse(await read("preload.json")) as Record<string, string[]>;
   expect([...(preload["blockr-core.js"] ?? [])].sort()).toEqual(
     ["@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls", OTEL_API, "react"].sort(),
   );
   expect(preload["blockr-core-react.js"]).toEqual(["@blockr/core/binding"]);
-  expect(preload["stacks.js"]).toBeUndefined();
   for (const name of REACT_ENTRIES) expect(preload[importFile(name)]).toEqual([`./${vendor ?? ""}`]);
   expect(Object.keys(preload)).toEqual(Object.keys(preload).sort());
 });
@@ -343,7 +288,7 @@ test("writes the licenses of the code from other projects in its files into LICE
 
   const out = join(root, "inst/js");
   expect(written).toContain("inst/js/LICENSES");
-  const vendor = (await readdir(out)).find((file) => VENDOR.test(file)) ?? "";
+  const vendor = (await readdir(out)).find((file) => /^vendor-[0-9a-f]{8}\.js$/.test(file)) ?? "";
   const text = await readFile(join(out, "LICENSES"), "utf8");
   // React's three packages share their license, whose text follows their lines.
   const react = await readFile(join(repo, "node_modules/react/LICENSE"), "utf8");

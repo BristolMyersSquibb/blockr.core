@@ -6,7 +6,7 @@ import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
-import { parseColor } from "../aria-colors/index.ts";
+import { parseColor } from "../aria/index.ts";
 import { useValue } from "../react/index.ts";
 import { stubBlockHost } from "../stubs/index.ts";
 import type { StubBlockHost } from "../stubs/index.ts";

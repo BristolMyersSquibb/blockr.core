@@ -16,12 +16,10 @@
 // A new stack starts with a name and a colour that no other stack has, such
 // as "Stack 2" and the first colour of a palette that no stack uses, which
 // the user may change or, for the colour, leave out.
-// The section draws a stack's colour with the colours of core's React SDK,
-// which it imports as it first shows (./colors.ts): a swatch in the table,
-// and a colour picker in the form, beside a checkbox that gives the stack a
-// colour.
+// The section draws a stack's colour with the colours of core's React SDK: a
+// swatch in the table, and a colour picker in the form, beside a checkbox that
+// gives the stack a colour.
 // The picker's popover holds the palette's colours among its swatches.
-// Until the colours load, the section draws core's own swatch in their place.
 // Where the store or the command registry refuses an edit, the form that adds
 // a stack says why below its buttons. Where it refuses an edit in the table, a
 // removal or the save of a row's form, the table says so below itself, naming
@@ -30,8 +28,20 @@
 
 import { useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
-import type { Color } from "../../colors/index.ts";
-import { Checkbox, ComboBox, ComboBoxSection, TextField } from "../../react/index.ts";
+import {
+  Checkbox,
+  ColorArea,
+  ColorField,
+  ColorPicker,
+  ColorSlider,
+  ColorSwatch,
+  ColorSwatchPicker,
+  ColorSwatchPickerItem,
+  ComboBox,
+  ComboBoxSection,
+  TextField,
+} from "../../react/index.ts";
+import type { Color } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Stack, StackId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -39,8 +49,6 @@ import type { Json } from "../../types/json.ts";
 import { classes, Pager, Refusal, TableSearch, useEdits, useSearch, useTableView } from "../../ui/index.ts";
 import type { Edits } from "../../ui/index.ts";
 import { Part, Section, table, useRowEditing } from "./board.tsx";
-import { useColors } from "./colors.ts";
-import type { ColorsModule } from "./colors.ts";
 import { blockItem, blockName, blockRow, blockTexts } from "./links.tsx";
 import type { BlockItem } from "./links.tsx";
 
@@ -89,13 +97,12 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
   // The edits of the table's rows, which say why one was refused below the
   // table.
   const edits = useEdits(core);
-  const colors = useColors(core);
 
   return (
     <Section title="Stacks" count={stacks.length}>
       {locked ? null : (
         <Part title="Add a stack">
-          <StackForm core={core} board={board} colors={colors} submitLabel="Add stack" />
+          <StackForm core={core} board={board} submitLabel="Add stack" />
         </Part>
       )}
       <Part title="Stacks on the board">
@@ -126,7 +133,7 @@ export function StacksSection({ core, board, locked }: { core: CoreApi; board: B
                 </thead>
                 <tbody>
                   {view.rows.map(([id, stack]) => (
-                    <StackRow key={id} core={core} edits={edits} board={board} colors={colors} id={id} stack={stack} locked={locked} />
+                    <StackRow key={id} core={core} edits={edits} board={board} id={id} stack={stack} locked={locked} />
                   ))}
                 </tbody>
               </table>
@@ -144,7 +151,6 @@ function StackRow({
   core,
   edits,
   board,
-  colors,
   id,
   stack,
   locked,
@@ -152,7 +158,6 @@ function StackRow({
   core: CoreApi;
   edits: Edits;
   board: Board;
-  colors: ColorsModule | null;
   id: StackId;
   stack: Stack;
   locked: boolean;
@@ -165,7 +170,6 @@ function StackRow({
           <StackForm
             core={core}
             board={board}
-            colors={colors}
             editing={{ id, stack }}
             tableEdits={edits}
             submitLabel="Save"
@@ -179,7 +183,7 @@ function StackRow({
     <tr aria-label={stack.name} className={table.row}>
       <td className={`${table.cell} bc:break-words`}>
         <span className="bc:flex bc:items-center bc:gap-1.5">
-          <Swatch colors={colors} color={stack.color} />
+          <Swatch color={stack.color} />
           <span className="bc:font-medium">{stack.name}</span>
         </span>
       </td>
@@ -240,12 +244,9 @@ function StackBlocks({ board, blocks }: { board: Board; blocks: readonly BlockId
 }
 
 // The colour of a stack, as the SDK's swatch, which a screen reader names by
-// its colour, or a ring where it has none.
-// Until the colours load, core's own swatch shows it, which a screen reader
-// skips, as it skips the ring.
-function Swatch({ colors, color }: { colors: ColorsModule | null; color: string | null }): ReactElement {
-  if (colors !== null && color !== null) return <colors.ColorSwatch color={color} className={SWATCH} />;
-  return <span aria-hidden="true" className={SWATCH} style={color === null ? undefined : { backgroundColor: color }} />;
+// its colour, or a ring where it has none, which a screen reader skips.
+function Swatch({ color }: { color: string | null }): ReactElement {
+  return color === null ? <span aria-hidden="true" className={SWATCH} /> : <ColorSwatch color={color} className={SWATCH} />;
 }
 
 const SWATCH = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default";
@@ -258,7 +259,6 @@ const SWATCH = "bc:inline-block bc:size-3 bc:shrink-0 bc:rounded-full bc:border 
 function StackForm({
   core,
   board,
-  colors,
   editing,
   tableEdits,
   submitLabel,
@@ -266,7 +266,6 @@ function StackForm({
 }: {
   core: CoreApi;
   board: Board;
-  colors: ColorsModule | null;
   editing?: { readonly id: StackId; readonly stack: Stack };
   tableEdits?: Edits;
   submitLabel: string;
@@ -358,7 +357,7 @@ function StackForm({
           autoComplete="off"
           onChange={setName}
         />
-        <StackColor colors={colors} color={color} onChange={setColor} />
+        <StackColor color={color} onChange={setColor} />
       </div>
       <ComboBox
         selectionMode="multiple"
@@ -408,17 +407,7 @@ function StackForm({
 // While the stack has no colour, the picker shows the colour last picked and
 // is disabled, and the checkbox gives the stack that colour again.
 // The picker's button names the colour by its hex too.
-// Until the colours load, core's own swatch shows the colour in the picker's
-// place.
-function StackColor({
-  colors,
-  color,
-  onChange,
-}: {
-  colors: ColorsModule | null;
-  color: Picked | null;
-  onChange: (color: Picked | null) => void;
-}): ReactElement {
+function StackColor({ color, onChange }: { color: Picked | null; onChange: (color: Picked | null) => void }): ReactElement {
   const [last, setLast] = useState<Picked>(color ?? PALETTE[0]);
   const shown = color ?? last;
   return (
@@ -432,28 +421,24 @@ function StackColor({
             onChange(selected ? last : null);
           }}
         />
-        {colors === null ? (
-          <Swatch colors={null} color={stackColor(shown)} />
-        ) : (
-          <colors.ColorPicker
-            label={stackColor(shown).toUpperCase()}
-            value={shown}
-            isDisabled={color === null}
-            onChange={(picked) => {
-              setLast(picked);
-              onChange(picked);
-            }}
-          >
-            <colors.ColorArea colorSpace="hsb" xChannel="saturation" yChannel="brightness" />
-            <colors.ColorSlider colorSpace="hsb" channel="hue" />
-            <colors.ColorField label="Hex" />
-            <colors.ColorSwatchPicker aria-label="Palette" className="bc:max-w-36">
-              {PALETTE.map((hex) => (
-                <colors.ColorSwatchPickerItem key={hex} color={hex} />
-              ))}
-            </colors.ColorSwatchPicker>
-          </colors.ColorPicker>
-        )}
+        <ColorPicker
+          label={stackColor(shown).toUpperCase()}
+          value={shown}
+          isDisabled={color === null}
+          onChange={(picked) => {
+            setLast(picked);
+            onChange(picked);
+          }}
+        >
+          <ColorArea colorSpace="hsb" xChannel="saturation" yChannel="brightness" />
+          <ColorSlider colorSpace="hsb" channel="hue" />
+          <ColorField label="Hex" />
+          <ColorSwatchPicker aria-label="Palette" className="bc:max-w-36">
+            {PALETTE.map((hex) => (
+              <ColorSwatchPickerItem key={hex} color={hex} />
+            ))}
+          </ColorSwatchPicker>
+        </ColorPicker>
       </div>
     </fieldset>
   );

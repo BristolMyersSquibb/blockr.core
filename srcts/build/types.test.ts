@@ -3,8 +3,8 @@
 // What the build ships in inst/types, which a package's build resolves as
 // `@blockr/core`: the declarations of the types that modules are written
 // against and of the stubs of the hosts, the stubs bundled for a test runner,
-// the React SDK, its colours, its binding and the build preset bundled for a
-// package's build, and the package.json that names them.
+// the React SDK, its binding and the build preset bundled for a package's build,
+// and the package.json that names them.
 // That package.json names React and OpenTelemetry's API as its peers,
 // and the packages that core's code imports beside React as its dependencies.
 // The controls go there as the SDK does.
@@ -168,7 +168,7 @@ test("what a package's tests load imports no package but those that `@blockr/cor
   // The stubs draw core's UIs, the board options' among them, with React.
   expect(await importedPackages("stubs")).toContain("react");
   const named = { ...manifest.peerDependencies, ...manifest.dependencies };
-  for (const name of ["stubs", "react", "colors", "binding", "controls"]) {
+  for (const name of ["stubs", "react", "binding", "controls"]) {
     expect((await importedPackages(name)).filter((pkg) => !Object.hasOwn(named, pkg))).toEqual([]);
   }
 });
@@ -185,7 +185,7 @@ async function bundledFiles(name: string): Promise<string[]> {
 // So its files hold core's own code alone, as the Conventions of State in JS
 // ask (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1#conventions).
 test("what core ships for a package's tests and build holds core's own code alone", async () => {
-  for (const name of ["stubs", "react", "colors", "binding", "controls", "build"]) {
+  for (const name of ["stubs", "react", "binding", "controls", "build"]) {
     const files = await bundledFiles(name);
     // The bundle notes the path of each file above its code, such as
     // srcts/stubs/core.ts.
@@ -449,10 +449,8 @@ export const api = 1;
 export default reactModule(Head);
 `,
   "src/fill-block.tsx": `import type { BlockHost } from "@blockr/core";
-import { reactModule, useValue } from "@blockr/core/react";
-import type { ModuleProps } from "@blockr/core/react";
-import { ColorArea, ColorField, ColorPicker, ColorSlider, ColorSwatchPicker, ColorSwatchPickerItem } from "@blockr/core/react/colors";
-import type { Color } from "@blockr/core/react/colors";
+import { ColorArea, ColorField, ColorPicker, ColorSlider, ColorSwatchPicker, ColorSwatchPickerItem, reactModule, useValue } from "@blockr/core/react";
+import type { Color, ModuleProps } from "@blockr/core/react";
 import type { ReactElement } from "react";
 
 type FillState = { fill: string };
@@ -523,7 +521,7 @@ await esbuild.build({ ...preset, entryPoints: ["src/text-renderer.tsx", "src/hea
 };
 
 test.each(["bundler", "nodenext"] as const)(
-  "a package's modules on the React SDK, its colours and the binding, and its build on the build preset, type-check against what core ships, as %s resolution finds them",
+  "a package's modules on the React SDK and the binding, and its build on the build preset, type-check against what core ships, as %s resolution finds them",
   async (resolution) => {
     await installTypes();
     // The React that npm installs with `@blockr/core`, and what a package

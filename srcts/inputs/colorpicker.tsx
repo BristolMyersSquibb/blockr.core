@@ -16,7 +16,7 @@
 //
 // Given `bound`, it shows and picks a colour, a block's state arg or a board
 // option's value, which useValue() binds, as the SDK's other inputs do: a
-// string of hex (./bound.tsx).
+// string of hex (./colors.ts).
 // It shows the colour that the user changes it to, and submits that colour
 // as the user ends a change in one of its parts: lets go of the area, a
 // slider or the wheel, picks a swatch, or leaves the field or presses Enter
@@ -26,15 +26,15 @@
 // It says below itself why the host refused what it submitted.
 
 import type { ReactElement, ReactNode } from "react";
-import { ColorPicker as AriaColorPicker } from "../aria-colors/index.ts";
-import type { ColorPickerProps as AriaColorPickerProps } from "../aria-colors/index.ts";
-import { Button } from "../aria/index.ts";
+import { ColorPicker as AriaColorPicker, Button } from "../aria/index.ts";
+import type { ColorPickerProps as AriaColorPickerProps } from "../aria/index.ts";
 import { Dialog, DialogTrigger, Popover } from "../overlays/index.ts";
 import type { Bound } from "../react/index.ts";
-import { Ended, Refusal, useDragged } from "./bound.tsx";
-import { ColorField } from "./field.tsx";
-import { ColorArea, ColorSlider } from "./parts.tsx";
-import { ColorSwatch } from "./swatches.tsx";
+import { ColorField } from "./colorfield.tsx";
+import { ColorArea, ColorSlider } from "./colorparts.tsx";
+import { Ended, useDragged } from "./colors.ts";
+import { ColorSwatch } from "./colorswatches.tsx";
+import { Refusal } from "./inputs.tsx";
 
 export interface ColorPickerProps extends Omit<AriaColorPickerProps, "children"> {
   // What the starter kit adds.

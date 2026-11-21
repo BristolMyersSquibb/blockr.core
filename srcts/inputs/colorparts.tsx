@@ -19,7 +19,7 @@
 //
 // Given `bound`, each shows and changes a colour, a block's state arg or a
 // board option's value, which useValue() binds, as the SDK's other inputs do:
-// a string of hex (./bound.tsx).
+// a string of hex (./colors.ts).
 // It shows the colour that the user drags it to, and submits that colour as
 // the user lets go, through React Aria's onChangeEnd, which a step by an arrow
 // key ends too.
@@ -35,20 +35,22 @@ import {
   ColorThumb as AriaColorThumb,
   ColorWheel as AriaColorWheel,
   ColorWheelTrack,
+  composeRenderProps,
+  Label,
   SliderOutput,
   SliderTrack,
-} from "../aria-colors/index.ts";
+} from "../aria/index.ts";
 import type {
   Color,
   ColorAreaProps as AriaColorAreaProps,
   ColorSliderProps as AriaColorSliderProps,
   ColorThumbProps,
   ColorWheelProps as AriaColorWheelProps,
-} from "../aria-colors/index.ts";
-import { composeRenderProps, Label } from "../aria/index.ts";
+} from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
-import { Ended, Refusal, useDragged } from "./bound.tsx";
+import { Ended, useDragged } from "./colors.ts";
+import { Refusal } from "./inputs.tsx";
 
 export function ColorThumb({ className, style, ...props }: ColorThumbProps): ReactElement {
   return (

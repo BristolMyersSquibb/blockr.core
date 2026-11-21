@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { ColorAreaProps as AriaColorAreaProps, ColorSliderProps as AriaColorSliderProps, ColorThumbProps, ColorWheelProps as AriaColorWheelProps } from "../aria-colors/index.ts";
+import type { ColorAreaProps as AriaColorAreaProps, ColorSliderProps as AriaColorSliderProps, ColorThumbProps, ColorWheelProps as AriaColorWheelProps } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 export declare function ColorThumb({ className, style, ...props }: ColorThumbProps): ReactElement;
 export interface ColorAreaProps extends AriaColorAreaProps {

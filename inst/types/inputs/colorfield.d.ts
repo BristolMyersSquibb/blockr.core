@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
-import type { ColorFieldProps as AriaColorFieldProps } from "../aria-colors/index.ts";
-import type { ValidationResult } from "../aria/index.ts";
+import type { ColorFieldProps as AriaColorFieldProps, ValidationResult } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 export interface ColorFieldProps extends AriaColorFieldProps {
     readonly label?: string;

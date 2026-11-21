@@ -19,7 +19,7 @@
 //
 // Given `bound`, the picker shows and picks a colour, a block's state arg or
 // a board option's value, which useValue() binds, as the SDK's other inputs
-// do: a string of hex (./bound.tsx).
+// do: a string of hex (./colors.ts).
 // It submits the colour that the user picks at once.
 // It says below itself why the host refused what it submitted.
 // Inside a bound ColorPicker, a pick is one that the picker submits.
@@ -30,11 +30,12 @@ import {
   ColorSwatch as AriaColorSwatch,
   ColorSwatchPicker as AriaColorSwatchPicker,
   ColorSwatchPickerItem as AriaColorSwatchPickerItem,
-} from "../aria-colors/index.ts";
-import type { ColorSwatchPickerItemProps, ColorSwatchPickerProps as AriaColorSwatchPickerProps, ColorSwatchProps } from "../aria-colors/index.ts";
-import { composeRenderProps } from "../aria/index.ts";
+  composeRenderProps,
+} from "../aria/index.ts";
+import type { ColorSwatchPickerItemProps, ColorSwatchPickerProps as AriaColorSwatchPickerProps, ColorSwatchProps } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
-import { Ended, FALLBACK, hex, Refusal, valueColor } from "./bound.tsx";
+import { Ended, FALLBACK, hex, valueColor } from "./colors.ts";
+import { Refusal } from "./inputs.tsx";
 
 export function ColorSwatch({ className, style, ...props }: ColorSwatchProps): ReactElement {
   return (

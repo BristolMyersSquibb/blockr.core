@@ -1,6 +1,6 @@
 // What the colours of core's React SDK share to bind a colour, a block's
 // state arg or a board option's value, which useValue() binds, as the SDK's
-// other inputs do (../inputs/inputs.tsx).
+// other inputs do (./inputs.tsx).
 // A bound colour is a string of hex: "#RRGGBB", as React Aria's
 // color.toString("hex") writes it, or "#RRGGBBAA" where the colour is not
 // opaque, as toString("hexa") writes it.
@@ -12,11 +12,9 @@
 // as React Aria's picker starts, and the field shows nothing.
 
 import { createContext, useState } from "react";
-import type { ReactElement } from "react";
-import { parseColor } from "../aria-colors/index.ts";
-import type { Color } from "../aria-colors/index.ts";
+import { parseColor } from "../aria/index.ts";
+import type { Color } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
-import { styles } from "../styles/index.ts";
 import type { Json } from "../types/json.ts";
 
 // The colour that a part shows where the value holds none.
@@ -79,16 +77,4 @@ export function useDragged(bound: Bound): {
       });
     },
   };
-}
-
-// Says why the host refused what a part submitted, as the SDK's other inputs
-// say it below themselves.
-// The colours reach the SDK only through what `@blockr/core/react` exports,
-// which leaves out the inputs' own, so they draw it themselves.
-export function Refusal({ error }: { error: string | null }): ReactElement | null {
-  return error === null ? null : (
-    <p role="alert" className={styles.alert}>
-      {error}
-    </p>
-  );
 }

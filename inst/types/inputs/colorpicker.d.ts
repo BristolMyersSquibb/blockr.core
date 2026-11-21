@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import type { ColorPickerProps as AriaColorPickerProps } from "../aria-colors/index.ts";
+import type { ColorPickerProps as AriaColorPickerProps } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 export interface ColorPickerProps extends Omit<AriaColorPickerProps, "children"> {
     readonly label?: string;

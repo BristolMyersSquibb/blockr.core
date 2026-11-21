@@ -1,11 +1,8 @@
 // The imports that the page R serves resolves through its import map, each to
 // a file of its own in inst/js that blockr.core ships: the entry points of
-// React, core's React SDK, its colours, its binding and its controls,
-// OpenTelemetry's API, and core's OpenTelemetry module, which core's runtime
-// alone imports, and only where the page sends log records or spans to a
-// collector.
-// The page loads the colours only once a module first imports them, since
-// the files of core's runtime and of the SDK import none of them.
+// React, core's React SDK, its binding and its controls, OpenTelemetry's API,
+// and core's OpenTelemetry module, which core's runtime alone imports, and
+// only where the page sends log records or spans to a collector.
 // A module's build leaves these imports as they are, so that its bundle holds
 // none of them, and every module on the page imports the one copy of each.
 // Hooks fail on a second copy of React
@@ -25,7 +22,6 @@ export const OTEL_API = "@opentelemetry/api";
 export const IMPORTS = [
   ...REACT_ENTRIES,
   "@blockr/core/react",
-  "@blockr/core/react/colors",
   "@blockr/core/binding",
   "@blockr/core/controls",
   "@blockr/core/otel",
@@ -36,9 +32,7 @@ export type Import = (typeof IMPORTS)[number];
 
 // The file in inst/js that an import resolves to, named after the import, as
 // react-dom-client.js for `react-dom/client`, blockr-core-react.js for
-// `@blockr/core/react`, blockr-core-react-colors.js for
-// `@blockr/core/react/colors` and opentelemetry-api.js for
-// `@opentelemetry/api`.
+// `@blockr/core/react` and opentelemetry-api.js for `@opentelemetry/api`.
 export function importFile(name: Import): string {
   return `${name.replace(/^@/, "").replaceAll("/", "-")}.js`;
 }

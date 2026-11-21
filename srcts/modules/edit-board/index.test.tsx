@@ -160,15 +160,6 @@ async function click(el: HTMLElement): Promise<void> {
   });
 }
 
-// Lets the stacks draw with the colours of core's React SDK, which they import
-// as they first show.
-async function colorsLoaded(): Promise<void> {
-  await act(async () => {
-    await import("../../colors/index.ts");
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
-}
-
 // The button of a stack form's colour picker, which names the colour by its
 // hex beside its swatch.
 function colorButton(form: HTMLFormElement): HTMLButtonElement {
@@ -582,7 +573,6 @@ describe("the links", () => {
 describe("the stacks", () => {
   test("are added with a name, a colour and blocks that the user picks, for which the form suggests a name and a colour of their own", async () => {
     const { el, board } = await mounted();
-    await colorsLoaded();
     const add = (): HTMLFormElement => form(section(el, "Stacks"), "Add stack");
 
     expect(labelled(add(), "Name").placeholder).toBe("Stack 1");
@@ -632,16 +622,10 @@ describe("the stacks", () => {
     expect(find(row(section(el, "Stacks"), "Input"), 'span[aria-hidden="true"]').style.backgroundColor).toBe("");
   });
 
-  test("take the colour that the user picks, of the palette or any other, or none, and draw core's own swatch until the colours load", async () => {
+  test("take the colour that the user picks, of the palette or any other, or none", async () => {
     const { el, board } = await mounted();
     const add = (): HTMLFormElement => form(section(el, "Stacks"), "Add stack");
     const checkbox = (): HTMLInputElement => find(add(), 'input[type="checkbox"]', HTMLInputElement);
-    // Until the colours load, the form shows the colour in core's own swatch,
-    // which a test sees only where the stacks import them for the first time.
-    if (add().querySelector("fieldset button") === null) {
-      expect(find(add(), 'fieldset span[aria-hidden="true"]').style.backgroundColor).toBe("#66c2a5");
-    }
-    await colorsLoaded();
 
     await click(colorButton(add()));
     const palette = find(openDialog(), '[role="listbox"][aria-label="Palette"]');

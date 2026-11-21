@@ -10,7 +10,7 @@
 //
 // Given `bound`, it shows and edits a colour, a block's state arg or a board
 // option's value, which useValue() binds, as the SDK's other inputs do: a
-// string of hex (./bound.tsx).
+// string of hex (./colors.ts).
 // It submits the colour as React Aria reports it.
 // The hex holds no alpha, so the field keeps the alpha of the colour it
 // showed.
@@ -26,13 +26,12 @@
 
 import { useContext, useState } from "react";
 import type { InputEventHandler, ReactElement } from "react";
-import { ColorField as AriaColorField, parseColor } from "../aria-colors/index.ts";
-import type { ColorFieldProps as AriaColorFieldProps } from "../aria-colors/index.ts";
-import { composeRenderProps, FieldError, Input, Label, Text } from "../aria/index.ts";
-import type { ValidationResult } from "../aria/index.ts";
+import { ColorField as AriaColorField, composeRenderProps, FieldError, Input, Label, parseColor, Text } from "../aria/index.ts";
+import type { ColorFieldProps as AriaColorFieldProps, ValidationResult } from "../aria/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
-import { Ended, hex, Refusal, valueColor } from "./bound.tsx";
+import { Ended, hex, valueColor } from "./colors.ts";
+import { Refusal } from "./inputs.tsx";
 
 export interface ColorFieldProps extends AriaColorFieldProps {
   // What the starter kit adds.

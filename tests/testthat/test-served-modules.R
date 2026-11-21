@@ -328,9 +328,8 @@ test_that("the import map names the URL at which R serves each import", {
     map$imports,
     c(
       "react", "react/jsx-runtime", "react-dom", "react-dom/client",
-      "@blockr/core/react", "@blockr/core/react/colors",
-      "@blockr/core/binding", "@blockr/core/controls", "@blockr/core/otel",
-      "@opentelemetry/api"
+      "@blockr/core/react", "@blockr/core/binding", "@blockr/core/controls",
+      "@blockr/core/otel", "@opentelemetry/api"
     )
   )
 
@@ -347,15 +346,13 @@ test_that("the import map names the URL at which R serves each import", {
   }
 
   # The vendor file, which the entry points of React and core's runtime import,
-  # the vendor file of the colours, which the SDK's colours import, the file of
-  # the code that the two share, which both import, and the bundle of
-  # OpenTelemetry's SDK, which core's OpenTelemetry module imports, by their
-  # names, as files beside them.
+  # and the bundle of OpenTelemetry's SDK, which core's OpenTelemetry module
+  # imports, by their names, as files beside them.
   bundles <- list.files(
     system.file("js", package = "blockr.core"),
-    "^(vendor(-colors|-shared)?-[0-9A-Z]{8}|opentelemetry-[0-9a-f]{8})\\.js$"
+    "^(vendor|opentelemetry)-[0-9a-f]{8}\\.js$"
   )
 
-  expect_length(bundles, 4L)
+  expect_length(bundles, 2L)
   expect_true(all(file.exists(served_copy("blockr.core", "js", bundles))))
 })
