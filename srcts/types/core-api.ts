@@ -234,7 +234,7 @@ export interface CoreApi {
   // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.12#what-a-frontend-offers-other-plugins).
   // Core holds it for the page, outside the board, as it holds focus.
   // Core asks R for a block's output only while it holds the block or the
-  // plugin whose UI holds the output (MountOutputOpts, below).
+  // plugin whose UI holds the output (mountOutput(), below).
   readonly onScreen: OnScreen;
   // Has the frontend show a block or a plugin in its own way, as the DAG shows
   // a block as the user selects its node
@@ -273,11 +273,30 @@ export interface CoreApi {
   // The block's UI module, its output, and a board option's UI or the
   // renderer R picked for it, each mounted in the element until the cleanup
   // that the call returns runs.
-  // Core asks R for the output, and draws it, only while the output is on
-  // screen, as far as core can tell, and as the caller may tell it through
-  // the options (MountOutputOpts, below).
+  // Core asks R for the output only while the block reads ready and the
+  // output is on screen, as far as core can tell. It mounts the renderer that
+  // draws the output only while the output is on screen, whatever the
+  // block's status. The output is on screen while both of these hold:
+  // 1. The element measures more than 0 by 0. So an output whose element a
+  //    frontend or a plugin takes out of the layout waits, as one in a closed
+  //    section of a card does.
+  // 2. CoreApi's onScreen holds what the element sits in, or is null, as
+  //    where the frontend has said nothing. Core tells what the element sits
+  //    in from the elements in which it mounted the UIs of plugins:
+  //    - An element inside a plugin's UI sits in that plugin.
+  //    - An element on the page that the frontend draws, outside the UI of
+  //      every other plugin, sits on its block's card or panel, so onScreen
+  //      has to hold the block.
+  //    - Core cannot tell where an element outside the page shows, as one in
+  //      a popover at the end of the page's body. So this check holds for it.
+  // An output that core has drawn stays drawn when one of these stops
+  // holding. Core asks for a newer one once both hold again.
+  // Core also asks while a request of the output waits for the output of the
+  // block's revision, wherever the element measures more than 0 by 0,
+  // whatever onScreen holds, as a request that reads blocks has them
+  // evaluated even off screen.
   mountBlock(el: HTMLElement, block: BlockId): () => void;
-  mountOutput(el: HTMLElement, block: BlockId, opts?: MountOutputOpts): () => void;
+  mountOutput(el: HTMLElement, block: BlockId): () => void;
   mountOption(el: HTMLElement, option: OptionId): () => void;
   // The `ui` module of the class of a plugin that runs, by the id of the
   // class, mounted in the element that a frontend places the plugin in, until
@@ -514,42 +533,6 @@ export interface OnScreen {
   set(shown: { readonly blocks: readonly BlockId[]; readonly plugins: readonly PluginClassId[] }): void;
   // Calls `fn` with them whenever they change.
   subscribe(fn: (shown: { readonly blocks: readonly BlockId[]; readonly plugins: readonly PluginClassId[] } | null) => void): () => void;
-}
-
-// The options of mountOutput().
-// Core asks R for the output only while the block reads ready and the output
-// is on screen, as far as core can tell. It mounts the renderer that draws
-// the output only while the output is on screen, whatever the block's status.
-// The output is on screen while all of these hold:
-// 1. The element measures more than 0 by 0. So an output whose element a
-//    frontend or a plugin takes out of the layout waits, as one in a closed
-//    section of a card does.
-// 2. CoreApi's onScreen holds what the element sits in, or is null, as where
-//    the frontend has said nothing. Core tells what the element sits in from
-//    the elements in which it mounted the UIs of plugins:
-//    - An element inside a plugin's UI sits in that plugin.
-//    - An element on the page that the frontend draws, outside the UI of
-//      every other plugin, sits on its block's card or panel, so onScreen has
-//      to hold the block.
-//    - Core cannot tell where an element outside the page shows, as one in a
-//      popover at the end of the page's body. So this check holds for it.
-// 3. The `onScreen` given here returns true, where the caller gives one. A
-//    caller gives it to tell core which of the outputs in its UI the user
-//    sees, as a plugin whose UI scrolls may.
-// An output that core has drawn stays drawn when one of these stops holding.
-// Core asks for a newer one once all of them hold again.
-// Core also asks while a request of the output waits for the output of the
-// block's revision, wherever the element measures more than 0 by 0, whatever
-// the two onScreen say, as a request that reads blocks has them evaluated even
-// off screen.
-export interface MountOutputOpts {
-  // Whether the caller shows the output. Its get() says so, and its
-  // subscribe() calls `fn` whenever that changes, until the function that
-  // subscribe() returns runs. A mount whose onScreen lacks either throws.
-  readonly onScreen?: {
-    get(): boolean;
-    subscribe(fn: (onScreen: boolean) => void): () => void;
-  };
 }
 
 export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;

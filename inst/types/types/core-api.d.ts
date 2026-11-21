@@ -65,7 +65,7 @@ export interface CoreApi {
     blockrOption(name: string): Promise<Json | undefined>;
     mintId(taken: (id: string) => boolean): string;
     mountBlock(el: HTMLElement, block: BlockId): () => void;
-    mountOutput(el: HTMLElement, block: BlockId, opts?: MountOutputOpts): () => void;
+    mountOutput(el: HTMLElement, block: BlockId): () => void;
     mountOption(el: HTMLElement, option: OptionId): () => void;
     mountPlugin(el: HTMLElement, plugin: PluginClassId): () => void;
 }
@@ -180,12 +180,6 @@ export interface OnScreen {
         readonly blocks: readonly BlockId[];
         readonly plugins: readonly PluginClassId[];
     } | null) => void): () => void;
-}
-export interface MountOutputOpts {
-    readonly onScreen?: {
-        get(): boolean;
-        subscribe(fn: (onScreen: boolean) => void): () => void;
-    };
 }
 export type BlockRegistry = Readonly<Record<RegistryId, RegistryEntry>>;
 export interface RequestOpts {

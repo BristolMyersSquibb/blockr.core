@@ -46,7 +46,7 @@ import { unevaluated } from "../scheduler/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { Option, Store } from "../store/index.ts";
 import type { Block, BlockId, OptionId } from "../types/board.ts";
-import type { CoreApi, MountOutputOpts, SourceModule } from "../types/core-api.ts";
+import type { CoreApi, SourceModule } from "../types/core-api.ts";
 import type {
   BlockContext,
   BlockHost,
@@ -93,7 +93,7 @@ export interface Mounts {
   // Mounts the block's output, measured, asked of R while it is on screen and
   // drawn by the renderer that R names in it, until the returned cleanup runs
   // (./output.ts). It throws where the board holds no such block.
-  mountOutput(el: HTMLElement, block: BlockId, opts?: MountOutputOpts): () => void;
+  mountOutput(el: HTMLElement, block: BlockId): () => void;
   // Mounts a board option's UI, or the renderer that the app names for it,
   // until the returned cleanup runs (./option.ts). It throws where no package
   // registers such a board option.
@@ -414,12 +414,11 @@ export function createMounts(options: MountsOptions): Mounts {
 
   return {
     mountBlock,
-    mountOutput: (el, block, opts) =>
+    mountOutput: (el, block) =>
       mountOutput(
         { store, scheduler, loader, answers, shelves, measure, replaced, addOptions, keepOptions, emit, raise, replied, notify, onScreen },
         el,
         block,
-        opts,
       ),
     mountOption: (el, option) =>
       mountOption(

@@ -1298,7 +1298,7 @@ describe("what is on screen", () => {
     // The card gives the output its height while the output waits, so that
     // nothing moves as the output draws.
     expect(output.className).toContain("bc:flex-1");
-    expect(output.parentElement?.className).toContain("bc:h-96");
+    const box = output.parentElement?.className;
 
     await step(() => {
       view.report(head, true);
@@ -1306,6 +1306,7 @@ describe("what is on screen", () => {
     await settled();
     expect(asked()).toEqual(["b"]);
     expect(output.textContent).toBe("Output of b");
+    expect(output.parentElement?.className).toBe(box);
 
     // The card leaves the view, and Head evaluates again meanwhile.
     await step(() => {

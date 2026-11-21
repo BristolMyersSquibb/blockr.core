@@ -3000,19 +3000,9 @@ function whyFailed(reply, block) {
   const error = conditions.find((condition) => condition.severity === "error");
   return error ?? coreFailure("output_unanswered", `R failed to make the output of block "${block}".`);
 }
-function callerOnScreen(opts) {
-  if (!isObject(opts)) throw new TypeError(`The options of mountOutput() are an object, not ${JSON.stringify(opts)}.`);
-  const given = opts.onScreen;
-  if (given === void 0) return void 0;
-  if (!isObject(given) || typeof given.get !== "function" || typeof given.subscribe !== "function") {
-    throw new TypeError("The onScreen of mountOutput() has get() and subscribe(), as CoreApi's focus has.");
-  }
-  return given;
-}
-function mountOutput(deps, el, block, opts = {}) {
+function mountOutput(deps, el, block) {
   const { store, scheduler, loader, measure } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
-  const caller = callerOnScreen(opts);
   const found = own(store.board().blocks, block);
   if (found === void 0) {
     throw new Error(`The board holds no block "${block}" whose output to mount.`);
@@ -3085,9 +3075,7 @@ function mountOutput(deps, el, block, opts = {}) {
     );
   }
   function onScreen() {
-    if (info === null || !deps.onScreen.holds(el, block)) return false;
-    const shows = caller === void 0 ? true : caller.get();
-    return shows === true;
+    return info !== null && deps.onScreen.holds(el, block);
   }
   function wanted() {
     if (info === null) return void 0;
@@ -3354,23 +3342,23 @@ function mountOutput(deps, el, block, opts = {}) {
       sync();
     });
   }
-  async function request(prepared, name2, args, opts2) {
+  async function request(prepared, name2, args, opts) {
     const what = `The request "${name2}" of the output of block "${block}"`;
-    const notifier = givenNotifier(opts2, `the request "${name2}" of the output of block "${block}"`);
+    const notifier = givenNotifier(opts, `the request "${name2}" of the output of block "${block}"`);
     const module = rendererModule(prepared.renderer);
-    const requested2 = { type: opts2.scope === "renderer" ? "renderer" : "output_class", name: name2 };
+    const requested2 = { type: opts.scope === "renderer" ? "renderer" : "output_class", name: name2 };
     const inCaller = keepContext();
     for (let attempt3 = 1; ; attempt3++) {
-      const target2 = await current2(name2, opts2.signal);
+      const target2 = await current2(name2, opts.signal);
       const output = { block, revision: target2.asked.revision };
       const fields = { output, name: name2, args: { ...args }, options: target2.asked.options, params: target2.asked.params };
-      const asked = opts2.scope === "renderer" ? { kind: "request", type: "renderer", renderer: prepared.renderer.id, ...fields } : { kind: "request", type: "output_class", ...fields };
+      const asked = opts.scope === "renderer" ? { kind: "request", type: "renderer", renderer: prepared.renderer.id, ...fields } : { kind: "request", type: "output_class", ...fields };
       const { reply, body } = await inCaller(
         () => deps.answers.ask(
-          { request: asked, share: opts2.file === void 0 ? "keep" : "once", ...opts2.file === void 0 ? {} : { body: opts2.file } },
+          { request: asked, share: opts.file === void 0 ? "keep" : "once", ...opts.file === void 0 ? {} : { body: opts.file } },
           {
-            ...opts2.signal === void 0 ? {} : { signal: opts2.signal },
-            ...opts2.progress === void 0 ? {} : { progress: opts2.progress.bind(opts2) }
+            ...opts.signal === void 0 ? {} : { signal: opts.signal },
+            ...opts.progress === void 0 ? {} : { progress: opts.progress.bind(opts) }
           }
         )
       );
@@ -3395,11 +3383,11 @@ function mountOutput(deps, el, block, opts = {}) {
       }
     }
   }
-  function checkRequest(name2, args, opts2) {
+  function checkRequest(name2, args, opts) {
     if (typeof name2 !== "string" || name2 === "") return new TypeError("A request of an output is named by a non-empty string.");
     if (!isObject(args)) return new TypeError(`The args of the request "${name2}" are an object.`);
-    if (!isObject(opts2)) return new TypeError(`The options of the request "${name2}" are an object.`);
-    const scope = opts2.scope;
+    if (!isObject(opts)) return new TypeError(`The options of the request "${name2}" are an object.`);
+    const scope = opts.scope;
     if (scope !== void 0 && scope !== "class" && scope !== "renderer") {
       return new TypeError(`A request of an output has the scope "class" or "renderer", not ${JSON.stringify(scope)}.`);
     }
@@ -3448,11 +3436,11 @@ function mountOutput(deps, el, block, opts = {}) {
         if (!isObject(params)) throw new TypeError("An output's parameters are an object.");
         if (following) replaceParams(params);
       },
-      request(name2, args = {}, opts2 = {}) {
-        const invalid = checkRequest(name2, args, opts2);
+      request(name2, args = {}, opts = {}) {
+        const invalid = checkRequest(name2, args, opts);
         if (invalid !== void 0) return Promise.reject(invalid);
         if (!following || !bound()) return Promise.reject(unboundError());
-        return request(prepared, name2, args, opts2);
+        return request(prepared, name2, args, opts);
       },
       emit(name2, payload) {
         if (following && bound()) deps.emit({ block, name: name2, payload });
@@ -3479,7 +3467,6 @@ function mountOutput(deps, el, block, opts = {}) {
       }
     };
   }
-  let offCaller;
   const offOnScreen = deps.onScreen.subscribe(sync);
   const offStore = store.subscribe((_change, next) => {
     if (!Object.hasOwn(next.blocks, block)) {
@@ -3523,7 +3510,6 @@ function mountOutput(deps, el, block, opts = {}) {
     if (ended()) return;
     controller.abort();
     offEnd();
-    if (offCaller !== void 0) attempt(offCaller);
     offOnScreen();
     offStore();
     offScheduler();
@@ -3539,13 +3525,6 @@ function mountOutput(deps, el, block, opts = {}) {
   }
   for (const given of entry.renderers ?? []) expect(given);
   if (shelf.last !== void 0) take(shelf.last);
-  try {
-    const off = caller?.subscribe(sync);
-    if (typeof off === "function") offCaller = off;
-  } catch (failure) {
-    end();
-    throw failure;
-  }
   sync();
   return end;
 }
@@ -3753,11 +3732,10 @@ function createMounts(options) {
   }
   return {
     mountBlock,
-    mountOutput: (el, block, opts) => mountOutput(
+    mountOutput: (el, block) => mountOutput(
       { store, scheduler, loader, answers, shelves, measure, replaced: replaced2, addOptions, keepOptions, emit, raise, replied: replied2, notify, onScreen },
       el,
-      block,
-      opts
+      block
     ),
     mountOption: (el, option) => mountOption(
       { store, commands, scheduler, loader, renderers, replaced: replaced2, keepOptions, raise, replied: replied2, notify, refused: refused2, optionPackage },
@@ -10116,7 +10094,7 @@ function createCore(parts) {
     blockrOption: (name2) => blockrOptions.read(name2),
     mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
-    mountOutput: (el, block, opts) => mounts.mountOutput(el, block, opts),
+    mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),
     mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin)
   };

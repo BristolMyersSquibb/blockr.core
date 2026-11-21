@@ -19,9 +19,8 @@
 //    entry nor an output names a renderer, core asks with the board options
 //    of the class's outputs alone.
 //    The output is on screen while the element measures more than 0 by 0,
-//    while CoreApi's onScreen holds what the element sits in, and while the
-//    caller's onScreen says so, where the caller gives one (MountOutputOpts
-//    in ../types/core-api.ts).
+//    and while CoreApi's onScreen holds what the element sits in, as core
+//    tells it (../core/core.ts).
 //    Core also asks while a request of the output waits for the output of
 //    the block's revision, as step 5 has it.
 // 3. It mounts the renderer that the output names once it has the output and
@@ -39,9 +38,8 @@
 //    what it brings.
 // 5. A request of the output goes to R with the output of the block's
 //    revision. Where core holds none, the request waits for it, and core asks
-//    for it wherever the element measures more than 0 by 0, whatever the two
-//    onScreen say, as a request that reads blocks has them evaluated even off
-//    screen.
+//    for it wherever the element measures more than 0 by 0, whatever onScreen
+//    holds, as a request that reads blocks has them evaluated even off screen.
 //
 // Core keeps two things of each block's output on the block's shelf: its
 // parameters, which every mount of the output shares, and the last output that
@@ -72,7 +70,7 @@ import type { Store } from "../store/index.ts";
 import type { BlockStatus, Scheduler } from "../scheduler/index.ts";
 import type { Condition, OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { CoreFailure, MountOutputOpts, SourceModule } from "../types/core-api.ts";
+import type { CoreFailure, SourceModule } from "../types/core-api.ts";
 import type { OutputHost, OutputRequestOpts } from "../types/hosts.ts";
 import type { Json } from "../types/json.ts";
 import type { OutputRenderer } from "../types/outputs.ts";
@@ -224,9 +222,6 @@ export interface OnScreenOf {
   subscribe(fn: () => void): () => void;
 }
 
-// What the caller of mountOutput() says of the output, through the options.
-type CallerOnScreen = NonNullable<MountOutputOpts["onScreen"]>;
-
 interface OutputArgs {
   el: HTMLElement;
   host: OutputHost;
@@ -271,26 +266,11 @@ function whyFailed(reply: Reply, block: BlockId): Condition | CoreFailure {
   return error ?? coreFailure("output_unanswered", `R failed to make the output of block "${block}".`);
 }
 
-// The onScreen of the options of mountOutput(), if any, as a frontend or a
-// plugin in plain JS may give anything. It throws for options that are no
-// object, and for an onScreen without get() and subscribe().
-function callerOnScreen(opts: unknown): CallerOnScreen | undefined {
-  if (!isObject(opts)) throw new TypeError(`The options of mountOutput() are an object, not ${JSON.stringify(opts)}.`);
-  const given = opts.onScreen;
-  if (given === undefined) return undefined;
-  if (!isObject(given) || typeof given.get !== "function" || typeof given.subscribe !== "function") {
-    throw new TypeError("The onScreen of mountOutput() has get() and subscribe(), as CoreApi's focus has.");
-  }
-  return given as unknown as CallerOnScreen;
-}
-
 // Mounts the output of the block in the element until the returned cleanup
-// runs. It throws where the board holds no such block, and for options that
-// are not MountOutputOpts.
-export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId, opts: MountOutputOpts = {}): () => void {
+// runs. It throws where the board holds no such block.
+export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void {
   const { store, scheduler, loader, measure } = deps;
   if (deps.replaced.aborted) throw new Error(REPLACED);
-  const caller = callerOnScreen(opts);
   const found = own(store.board().blocks, block);
   if (found === undefined) {
     throw new Error(`The board holds no block "${block}" whose output to mount.`);
@@ -403,14 +383,10 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId, o
   }
 
   // Whether the output is on screen, as far as core can tell: whether its
-  // element measures more than 0 by 0, CoreApi's onScreen holds what the
-  // element sits in, and the caller's onScreen returns true, where the caller
-  // gives one.
+  // element measures more than 0 by 0 and CoreApi's onScreen holds what the
+  // element sits in.
   function onScreen(): boolean {
-    if (info === null || !deps.onScreen.holds(el, block)) return false;
-    // A caller in plain JS may return something else, which the types refuse.
-    const shows: unknown = caller === undefined ? true : caller.get();
-    return shows === true;
+    return info !== null && deps.onScreen.holds(el, block);
   }
 
   // What the mount would ask R for now, or undefined where it asks for
@@ -698,7 +674,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId, o
   // The output of the block's current revision, once core holds it, or a
   // rejection where no result is in sight, as the block reads failed,
   // invalid or waiting. While it waits, the mount asks for that output
-  // whatever the two onScreen say.
+  // whatever onScreen holds.
   function current(name: string, signal: AbortSignal | undefined): Promise<Made> {
     return new Promise<Made>((resolve, reject) => {
       const settle = (): boolean => {
@@ -896,9 +872,7 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId, o
 
   // Follows the board, the block's status, the element's size and whether the
   // output is on screen, until the block leaves the board or another board
-  // opens. The mount follows the caller's onScreen once it has set up the
-  // rest, below.
-  let offCaller: (() => void) | undefined;
+  // opens.
   const offOnScreen = deps.onScreen.subscribe(sync);
   const offStore = store.subscribe((_change, next) => {
     if (!Object.hasOwn(next.blocks, block)) {
@@ -950,7 +924,6 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId, o
     if (ended()) return;
     controller.abort();
     offEnd();
-    if (offCaller !== undefined) attempt(offCaller);
     offOnScreen();
     offStore();
     offScheduler();
@@ -967,16 +940,6 @@ export function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId, o
 
   for (const given of entry.renderers ?? []) expect(given);
   if (shelf.last !== undefined) take(shelf.last);
-  // A caller's subscribe() that throws ends the mount, and the call throws
-  // with it.
-  try {
-    // A caller in plain JS may return something else, which the types refuse.
-    const off: unknown = caller?.subscribe(sync);
-    if (typeof off === "function") offCaller = off as () => void;
-  } catch (failure) {
-    end();
-    throw failure;
-  }
   sync();
 
   return end;

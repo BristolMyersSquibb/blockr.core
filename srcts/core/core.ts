@@ -27,7 +27,7 @@
 // Core asks R for a block's output only while onScreen holds what the
 // output's element sits in. It tells that from the elements in which it
 // mounted the UIs of plugins and from the page's element, in which the
-// frontend draws (MountOutputOpts in ../types/core-api.ts).
+// frontend draws (holdsOutput(), below).
 // What they hold is the page's, outside the board, and ends with the board. Where an onChange() throws, core
 // raises a notification that holds until its next call returns, and so do
 // those that the call raises through its `notify`.
@@ -308,7 +308,7 @@ export function createCore(parts: CoreParts): Core {
     blockrOption: (name) => blockrOptions.read(name),
     mintId: (taken) => mintId(taken, randId),
     mountBlock: (el, block) => mounts.mountBlock(el, block),
-    mountOutput: (el, block, opts) => mounts.mountOutput(el, block, opts),
+    mountOutput: (el, block) => mounts.mountOutput(el, block),
     mountOption: (el, option) => mounts.mountOption(el, option),
     mountPlugin: (el, plugin) => plugins.mountPlugin(el, plugin),
   };
@@ -533,7 +533,7 @@ function sameIds(a: readonly string[], b: readonly string[]): boolean {
 
 // Whether what is on screen holds what the element of the block's output sits
 // in, by the nearest element around it in which core mounted a plugin's UI or
-// the frontend's page (MountOutputOpts in ../types/core-api.ts):
+// the frontend's page (mountOutput() in ../types/core-api.ts):
 // - Where the frontend has said nothing, it holds.
 // - An element in a plugin's UI follows that plugin.
 // - An element on the page, outside the UI of every plugin but the

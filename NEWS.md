@@ -774,9 +774,8 @@
   An output in the UI of a plugin, which a frontend places with `mountPlugin()`, sits in that plugin.
   An output on the page outside the UI of every other plugin sits on its block's card or panel, so `onScreen` has to hold the block.
   Core cannot tell where an output outside the page shows, as one in a popover at the end of the page's body, and asks for it as before.
-  The `mountOutput()` of `CoreApi` takes the option `onScreen`, with `get()` and `subscribe()`, through which a caller tells core which of the outputs in its UI the user sees, as a plugin whose UI scrolls may.
   An output that core has drawn stays drawn as it leaves the screen, and core asks for a newer one once the output is back.
-  A request of the output still has core ask for the output of the block's revision, wherever its element measures more than 0 by 0, whatever the two `onScreen` say.
+  A request of the output still has core ask for the output of the block's revision, wherever its element measures more than 0 by 0, whatever `onScreen` holds.
   Under core's basic frontend, core thus asks only for the outputs of the cards in the browser's viewport, and under the dock only for those of the panels that the user sees.
   A card of core's basic frontend keeps the room of its output while the output waits, so that nothing on the page moves as it draws.
   Loading `@blockr/core/stubs` makes the `IntersectionObserver` of `happy-dom` report every element that it observes as in view, so that core's basic frontend counts every card on screen in a test (#802).

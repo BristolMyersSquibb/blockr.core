@@ -2,7 +2,6 @@ import type { Store } from "../store/index.ts";
 import type { Scheduler } from "../scheduler/index.ts";
 import type { OutputInfo, OutputReply, Reply } from "../protocol/index.ts";
 import type { BlockId, OptionId } from "../types/board.ts";
-import type { MountOutputOpts } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { Notify, Raise, Replied } from "../util/index.ts";
 import type { Answers } from "./answers.ts";
@@ -67,5 +66,5 @@ export interface OnScreenOf {
     holds(el: HTMLElement, block: BlockId): boolean;
     subscribe(fn: () => void): () => void;
 }
-export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId, opts?: MountOutputOpts): () => void;
+export declare function mountOutput(deps: OutputDeps, el: HTMLElement, block: BlockId): () => void;
 export {};

@@ -136,29 +136,6 @@ function screen(...shown: HTMLElement[]) {
   };
 }
 
-// The onScreen that a caller of mountOutput() gives, which a test changes,
-// with how many subscribe() follow it.
-function callerScreen(start: boolean) {
-  let shows = start;
-  const listeners = new Set<(onScreen: boolean) => void>();
-  return {
-    onScreen: {
-      get: () => shows,
-      subscribe(fn: (onScreen: boolean) => void) {
-        listeners.add(fn);
-        return () => {
-          listeners.delete(fn);
-        };
-      },
-    },
-    following: () => listeners.size,
-    set(next: boolean) {
-      shows = next;
-      for (const fn of [...listeners]) fn(shows);
-    },
-  };
-}
-
 interface Setup {
   r: PlayedR;
   store: Store;
@@ -1211,29 +1188,6 @@ describe("on screen", () => {
     expect(outputs(s.r)).toHaveLength(1);
   });
 
-  test("follows the onScreen that its caller gives beside CoreApi's, until the mount ends", async () => {
-    const table = renderer();
-    const el = document.createElement("div");
-    const caller = callerScreen(false);
-    const s = await setup({ [TABLE.module]: table.exports });
-    s.scheduler.demand("test", ["b"]);
-    await evaluateAll(s.r);
-    const end = s.mounts.mountOutput(el, "b", { onScreen: caller.onScreen });
-    await tick();
-    expect(caller.following()).toBe(1);
-    expect(outputs(s.r)).toHaveLength(0);
-
-    caller.set(true);
-    await tick();
-    expect(outputs(s.r)).toHaveLength(1);
-    replyTable(s.r, lastOutput(s.r));
-    await tick();
-    expect(el.textContent).toContain('"total":150');
-
-    end();
-    expect(caller.following()).toBe(0);
-  });
-
   test("asks for the output of the block's revision while a request of the output waits, though the output is off screen", async () => {
     const table = renderer();
     const el = document.createElement("div");
@@ -1260,31 +1214,6 @@ describe("on screen", () => {
     expect(requests(s.r)[0]).toMatchObject({ output: { block: "b", revision } });
     s.r.reply({ id: requests(s.r)[0]?.id ?? "", status: "ok", value: [1], conditions: [] });
     await expect(download).resolves.toEqual([1]);
-  });
-
-  test("throws for options that are no object and for an onScreen without get() and subscribe(), and ends where the caller's subscribe() throws", async () => {
-    const table = renderer();
-    const s = await setup({ [TABLE.module]: table.exports });
-    const el = document.createElement("div");
-    expect(() => s.mounts.mountOutput(el, "b", null as never)).toThrow("The options of mountOutput() are an object, not null.");
-    for (const onScreen of [true, { get: () => true }, { subscribe: () => () => undefined }]) {
-      expect(() => s.mounts.mountOutput(el, "b", { onScreen } as never)).toThrow(
-        "The onScreen of mountOutput() has get() and subscribe(), as CoreApi's focus has.",
-      );
-    }
-
-    const failure = new Error("No subscriptions.");
-    const throwing = {
-      get: () => true,
-      subscribe: () => {
-        throw failure;
-      },
-    };
-    s.scheduler.demand("test", ["b"]);
-    await evaluateAll(s.r);
-    expect(() => s.mounts.mountOutput(el, "b", { onScreen: throwing })).toThrow(failure);
-    await tick();
-    expect(outputs(s.r)).toHaveLength(0);
   });
 });
 
