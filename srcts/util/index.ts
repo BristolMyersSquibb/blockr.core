@@ -1,6 +1,6 @@
 // What the client's modules share: helpers for plain data, for the text of
-// messages and for errors, what raises the notifications of the board, and the
-// validator of a JSON Schema.
+// messages and for errors, what raises the notifications of the board, the
+// keyboard's shortcuts, and the validator of a JSON Schema.
 
 export {
   asError,
@@ -33,5 +33,6 @@ export {
   sourceModule,
 } from "./notification.ts";
 export type { Concerns, Notify, Raise, Refused, Replied } from "./notification.ts";
+export { ariaShortcuts, matchesShortcut, onMac, shortcutLabel } from "./shortcuts.ts";
 export { compile } from "./validate.ts";
 export type { Validate } from "./validate.ts";

@@ -157,6 +157,62 @@ function checkRaised(notification) {
   return notification;
 }
 
+// srcts/util/shortcuts.ts
+function matchesShortcut(text, event) {
+  const shortcut = readShortcut(text);
+  const key2 = event.key;
+  if (shortcut === void 0 || typeof key2 !== "string" || key2.toLowerCase() !== shortcut.key.toLowerCase()) {
+    return false;
+  }
+  if (event.altKey !== shortcut.alt || event.shiftKey !== shortcut.shift) return false;
+  if (shortcut.mod) return event.ctrlKey || event.metaKey;
+  return event.ctrlKey === shortcut.ctrl && event.metaKey === shortcut.meta;
+}
+function ariaShortcuts(text) {
+  const shortcut = text === void 0 ? void 0 : readShortcut(text);
+  if (shortcut === void 0) return void 0;
+  const rest = [...shortcut.alt ? ["Alt"] : [], ...shortcut.shift ? ["Shift"] : [], shortcut.key];
+  const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
+  return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
+}
+function shortcutLabel(text, mac) {
+  const shortcut = text === void 0 ? void 0 : readShortcut(text);
+  if (shortcut === void 0) return void 0;
+  const key2 = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
+  if (mac) {
+    const glyphs = [
+      ...shortcut.ctrl ? ["\u2303"] : [],
+      ...shortcut.alt ? ["\u2325"] : [],
+      ...shortcut.mod || shortcut.meta ? ["\u2318"] : [],
+      ...shortcut.shift ? ["\u21E7"] : []
+    ];
+    return [...glyphs, key2].join("");
+  }
+  const words = [
+    ...shortcut.mod || shortcut.ctrl ? ["Ctrl"] : [],
+    ...shortcut.alt ? ["Alt"] : [],
+    ...shortcut.shift ? ["Shift"] : [],
+    ...shortcut.meta ? ["Meta"] : []
+  ];
+  return [...words, key2].join("+");
+}
+function onMac(win) {
+  const nav = win.navigator;
+  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
+}
+var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
+function readShortcut(text) {
+  const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
+  const key2 = text.slice(at + 1);
+  const names = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
+  if (key2 === "" || new Set(names).size < names.length || !names.every((name2) => MODIFIERS.includes(name2))) {
+    return void 0;
+  }
+  const has = (name2) => names.includes(name2);
+  if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
+  return { key: key2, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
+}
+
 // srcts/util/validate.ts
 import { Validator } from "@cfworker/json-schema";
 function compile(what, schema, fails = "fails its schema") {
@@ -9880,6 +9936,7 @@ function CoreMenu({ menu, at, insideRef }) {
   const level = useSyncExternalStore(menu.subscribe, menu.get);
   const anchor = useRef10(null);
   const { x, y, width, height } = at.anchor;
+  const tip = openTip(at.el.ownerDocument.defaultView ?? window);
   return /* @__PURE__ */ jsxs18(Fragment13, { children: [
     /* @__PURE__ */ jsx24("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
     /* @__PURE__ */ jsx24(
@@ -9909,7 +9966,7 @@ function CoreMenu({ menu, at, insideRef }) {
                 event.preventDefault();
                 event.stopPropagation();
                 menu.escape();
-              } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && level.advanced) {
+              } else if (level.advanced && matchesShortcut(OPEN_KEY, event.nativeEvent)) {
                 event.preventDefault();
                 event.stopPropagation();
                 void menu.openAdvanced(openRow(event.target)).catch(() => void 0);
@@ -9919,14 +9976,19 @@ function CoreMenu({ menu, at, insideRef }) {
                 void menu.pick().catch(() => void 0);
               }
             },
-            children: /* @__PURE__ */ jsx24(Level, { menu, level, insideRef }, level.id)
+            children: /* @__PURE__ */ jsx24(Level, { menu, level, insideRef, tip }, level.id)
           }
         )
       }
     )
   ] });
 }
-function Level({ menu, level, insideRef }) {
+function Level({
+  menu,
+  level,
+  insideRef,
+  tip
+}) {
   const texts = level.rows.flatMap((row, i) => row.kind === "text" ? [{ row, i }] : []);
   const listed = level.rows.flatMap((row, i) => row.kind === "text" ? [] : [{ row, i }]);
   const rows = level.rows.length > 0;
@@ -9980,6 +10042,7 @@ function Level({ menu, level, insideRef }) {
       {
         row,
         index: i,
+        tip,
         onPick: () => {
           pick2(i);
         },
@@ -9995,11 +10058,14 @@ function Level({ menu, level, insideRef }) {
     level.advanced ? /* @__PURE__ */ jsxs18("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
       level.title === void 0 ? null : /* @__PURE__ */ jsx24("p", { className: `${TITLE} bc:min-w-0 bc:flex-1`, children: level.title }),
       /* @__PURE__ */ jsx24(
-        Button,
+        "button",
         {
-          "aria-label": "Show all options",
+          type: "button",
+          "aria-label": OPEN_NAME,
+          "aria-keyshortcuts": ariaShortcuts(OPEN_KEY),
+          title: tip,
           className: OPEN,
-          onPress: () => {
+          onClick: () => {
             openAdvanced();
           },
           children: /* @__PURE__ */ jsx24(OpenIcon, {})
@@ -10028,7 +10094,16 @@ function Level({ menu, level, insideRef }) {
             menu.type(value2);
           },
           children: [
-            /* @__PURE__ */ jsx24(TextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx24(Input, { "data-filter": "", placeholder: "Filter", spellCheck: "false", className: FILTER }) }),
+            /* @__PURE__ */ jsx24(TextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx24(
+              Input,
+              {
+                "data-filter": "",
+                placeholder: "Filter",
+                spellCheck: "false",
+                "aria-keyshortcuts": level.advanced ? ariaShortcuts(OPEN_KEY) : void 0,
+                className: FILTER
+              }
+            ) }),
             list
           ]
         }
@@ -10058,14 +10133,20 @@ function groups(listed) {
   }
   return all;
 }
-function Item({ row, index, onPick, onOpen }) {
+function Item({
+  row,
+  index,
+  tip,
+  onPick,
+  onOpen
+}) {
   const { label, icon, detail } = row;
   const removes = row.category === "remove";
   return /* @__PURE__ */ jsxs18(
     MenuItem2,
     {
       textValue: label,
-      ...detail === void 0 ? {} : { "aria-label": `${label}, ${detail}` },
+      "aria-label": detail === void 0 ? label : `${label}, ${detail}`,
       onAction: onPick,
       className: removes ? REMOVES : void 0,
       children: [
@@ -10087,22 +10168,26 @@ function Item({ row, index, onPick, onOpen }) {
           }
         ),
         detail === void 0 ? null : /* @__PURE__ */ jsx24("span", { className: "bc:text-xs bc:text-text-muted", children: detail }),
-        row.advanced === true ? /* @__PURE__ */ jsx24(
-          "span",
-          {
-            "aria-hidden": "true",
-            "data-open-row": index,
-            className: `${OPEN} bc:-my-1`,
-            onPointerDown: (event) => {
-              event.stopPropagation();
-            },
-            onClick: (event) => {
-              event.stopPropagation();
-              onOpen();
-            },
-            children: /* @__PURE__ */ jsx24(OpenIcon, {})
-          }
-        ) : null
+        row.advanced === true ? /* @__PURE__ */ jsxs18(Fragment13, { children: [
+          /* @__PURE__ */ jsx24(
+            "span",
+            {
+              "aria-hidden": "true",
+              "data-open-row": index,
+              title: tip,
+              className: `${OPEN} bc:-my-1`,
+              onPointerDown: (event) => {
+                event.stopPropagation();
+              },
+              onClick: (event) => {
+                event.stopPropagation();
+                onOpen();
+              },
+              children: /* @__PURE__ */ jsx24(OpenIcon, {})
+            }
+          ),
+          /* @__PURE__ */ jsx24(Text, { slot: "description", className: "bc:sr-only", children: tip })
+        ] }) : null
       ]
     }
   );
@@ -10165,7 +10250,12 @@ function isFilter(target2) {
   return target2 instanceof HTMLInputElement && target2.hasAttribute("data-filter");
 }
 var TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold bc:text-text-muted";
-var OPEN = "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:data-focus-visible:ring-2 bc:data-focus-visible:ring-border-accent";
+var OPEN = "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:focus-visible:ring-2 bc:focus-visible:ring-border-accent";
+var OPEN_NAME = "Show all options";
+var OPEN_KEY = "Mod+Enter";
+function openTip(win) {
+  return `${OPEN_NAME} (${shortcutLabel(OPEN_KEY, onMac(win)) ?? OPEN_KEY})`;
+}
 var NOTE3 = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";
 var FILTER = "bc:box-border bc:w-full bc:rounded bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-xs bc:text-text-default bc:outline-none";
 var DIVIDER = "bc:mx-0 bc:my-1 bc:h-px bc:border-0 bc:bg-border-default";
@@ -13156,98 +13246,6 @@ function distinct(list, twice) {
   return kept;
 }
 
-// srcts/modules/basic/shortcuts.ts
-function bindShortcuts(doc, core) {
-  function onKey(event) {
-    if (event.defaultPrevented || editable(event.target)) return;
-    const step2 = undoOrRedo(event);
-    if (step2 !== void 0) {
-      event.preventDefault();
-      try {
-        if (step2 === "undo") core.store.undo();
-        else core.store.redo();
-      } catch {
-      }
-      return;
-    }
-    const button = buttonsFromControls(drawnControls(core)?.controls ?? []).find(
-      (b) => b.disabled !== true && b.shortcut !== void 0 && matchesShortcut(b.shortcut, event)
-    );
-    if (button === void 0) return;
-    event.preventDefault();
-    if (!event.repeat) void runButton(core, button);
-  }
-  doc.addEventListener("keydown", onKey);
-  return () => {
-    doc.removeEventListener("keydown", onKey);
-  };
-}
-function matchesShortcut(text, event) {
-  const shortcut = readShortcut(text);
-  const key2 = event.key;
-  if (shortcut === void 0 || typeof key2 !== "string" || key2.toLowerCase() !== shortcut.key.toLowerCase()) {
-    return false;
-  }
-  if (event.altKey !== shortcut.alt || event.shiftKey !== shortcut.shift) return false;
-  if (shortcut.mod) return event.ctrlKey || event.metaKey;
-  return event.ctrlKey === shortcut.ctrl && event.metaKey === shortcut.meta;
-}
-function ariaShortcuts(text) {
-  const shortcut = text === void 0 ? void 0 : readShortcut(text);
-  if (shortcut === void 0) return void 0;
-  const rest = [...shortcut.alt ? ["Alt"] : [], ...shortcut.shift ? ["Shift"] : [], shortcut.key];
-  const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
-  return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
-}
-function shortcutLabel(text, mac) {
-  const shortcut = text === void 0 ? void 0 : readShortcut(text);
-  if (shortcut === void 0) return void 0;
-  const key2 = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
-  if (mac) {
-    const glyphs = [
-      ...shortcut.ctrl ? ["\u2303"] : [],
-      ...shortcut.alt ? ["\u2325"] : [],
-      ...shortcut.mod || shortcut.meta ? ["\u2318"] : [],
-      ...shortcut.shift ? ["\u21E7"] : []
-    ];
-    return [...glyphs, key2].join("");
-  }
-  const words = [
-    ...shortcut.mod || shortcut.ctrl ? ["Ctrl"] : [],
-    ...shortcut.alt ? ["Alt"] : [],
-    ...shortcut.shift ? ["Shift"] : [],
-    ...shortcut.meta ? ["Meta"] : []
-  ];
-  return [...words, key2].join("+");
-}
-function onMac(win) {
-  const nav = win.navigator;
-  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
-}
-var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
-function readShortcut(text) {
-  const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
-  const key2 = text.slice(at + 1);
-  const names = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
-  if (key2 === "" || new Set(names).size < names.length || !names.every((name2) => MODIFIERS.includes(name2))) {
-    return void 0;
-  }
-  const has = (name2) => names.includes(name2);
-  if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
-  return { key: key2, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
-}
-function undoOrRedo(event) {
-  if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
-  const key2 = event.key.toLowerCase();
-  if (key2 === "z") return event.shiftKey ? "redo" : "undo";
-  if (key2 === "y" && !event.shiftKey) return "redo";
-  return void 0;
-}
-function editable(target2) {
-  if (!(target2 instanceof HTMLElement)) return false;
-  return target2.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target2.tagName);
-}
-
 // srcts/modules/basic/toolbar.tsx
 import { Fragment as Fragment15, jsx as jsx36, jsxs as jsxs27 } from "react/jsx-runtime";
 function Toolbar({ board, showOptions }) {
@@ -13642,6 +13640,44 @@ function demandShown(core, view = window) {
 function inView(el, view) {
   const rect = el.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < view.innerHeight && rect.left < view.innerWidth;
+}
+
+// srcts/modules/basic/shortcuts.ts
+function bindShortcuts(doc, core) {
+  function onKey(event) {
+    if (event.defaultPrevented || editable(event.target)) return;
+    const step2 = undoOrRedo(event);
+    if (step2 !== void 0) {
+      event.preventDefault();
+      try {
+        if (step2 === "undo") core.store.undo();
+        else core.store.redo();
+      } catch {
+      }
+      return;
+    }
+    const button = buttonsFromControls(drawnControls(core)?.controls ?? []).find(
+      (b) => b.disabled !== true && b.shortcut !== void 0 && matchesShortcut(b.shortcut, event)
+    );
+    if (button === void 0) return;
+    event.preventDefault();
+    if (!event.repeat) void runButton(core, button);
+  }
+  doc.addEventListener("keydown", onKey);
+  return () => {
+    doc.removeEventListener("keydown", onKey);
+  };
+}
+function undoOrRedo(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
+  const key2 = event.key.toLowerCase();
+  if (key2 === "z") return event.shiftKey ? "redo" : "undo";
+  if (key2 === "y" && !event.shiftKey) return "redo";
+  return void 0;
+}
+function editable(target2) {
+  if (!(target2 instanceof HTMLElement)) return false;
+  return target2.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target2.tagName);
 }
 
 // srcts/modules/basic/index.tsx

@@ -775,7 +775,7 @@
   Where the store refuses the batch, `done()` rejects with the refusal and the advanced action stays open, and the `notifier` of `done()` takes the notifications.
   Core opens a board action's advanced action from its row in a menu, where the board action has no quick action or its `quick` gives no level for the target, and from `trigger()` on such a board action.
   It opens one from the open icon too: a button named "Show all options" at the top right of every level of the quick action, or an icon at the end of an item that gives `advanced`.
-  Ctrl or Cmd with Enter does the same from the keyboard.
+  Ctrl or Cmd with Enter does the same from the keyboard, as each icon's tooltip says.
   The icon hands the advanced action the level's `picked` or the item's `advanced`, and the text in the level's filter.
   Core shows the advanced action in the `advanced` that the caller of `menu()` or `trigger()` gives, or else in the frontend's place, or else in core's dialog, a modal dialog at least 420 pixels wide.
   The frontend's place is the new `advanced` member of a frontend's module.

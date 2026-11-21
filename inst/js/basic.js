@@ -231,6 +231,62 @@ function isPackageName(name2) {
   return typeof name2 === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name2);
 }
 
+// srcts/util/shortcuts.ts
+function matchesShortcut(text, event) {
+  const shortcut = readShortcut(text);
+  const key = event.key;
+  if (shortcut === void 0 || typeof key !== "string" || key.toLowerCase() !== shortcut.key.toLowerCase()) {
+    return false;
+  }
+  if (event.altKey !== shortcut.alt || event.shiftKey !== shortcut.shift) return false;
+  if (shortcut.mod) return event.ctrlKey || event.metaKey;
+  return event.ctrlKey === shortcut.ctrl && event.metaKey === shortcut.meta;
+}
+function ariaShortcuts(text) {
+  const shortcut = text === void 0 ? void 0 : readShortcut(text);
+  if (shortcut === void 0) return void 0;
+  const rest = [...shortcut.alt ? ["Alt"] : [], ...shortcut.shift ? ["Shift"] : [], shortcut.key];
+  const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
+  return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
+}
+function shortcutLabel(text, mac) {
+  const shortcut = text === void 0 ? void 0 : readShortcut(text);
+  if (shortcut === void 0) return void 0;
+  const key = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
+  if (mac) {
+    const glyphs = [
+      ...shortcut.ctrl ? ["\u2303"] : [],
+      ...shortcut.alt ? ["\u2325"] : [],
+      ...shortcut.mod || shortcut.meta ? ["\u2318"] : [],
+      ...shortcut.shift ? ["\u21E7"] : []
+    ];
+    return [...glyphs, key].join("");
+  }
+  const words = [
+    ...shortcut.mod || shortcut.ctrl ? ["Ctrl"] : [],
+    ...shortcut.alt ? ["Alt"] : [],
+    ...shortcut.shift ? ["Shift"] : [],
+    ...shortcut.meta ? ["Meta"] : []
+  ];
+  return [...words, key].join("+");
+}
+function onMac(win) {
+  const nav = win.navigator;
+  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
+}
+var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
+function readShortcut(text) {
+  const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
+  const key = text.slice(at + 1);
+  const names = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
+  if (key === "" || new Set(names).size < names.length || !names.every((name2) => MODIFIERS.includes(name2))) {
+    return void 0;
+  }
+  const has = (name2) => names.includes(name2);
+  if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
+  return { key, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
+}
+
 // srcts/store/ids.ts
 function sentenceCase(id2) {
   const words = id2.replace(/([A-Z])/g, " $1").replace(/[_\-.]/g, " ").trim().split(" ");
@@ -1303,98 +1359,6 @@ function distinct(list, twice) {
   return kept;
 }
 
-// srcts/modules/basic/shortcuts.ts
-function bindShortcuts(doc, core) {
-  function onKey(event) {
-    if (event.defaultPrevented || editable(event.target)) return;
-    const step = undoOrRedo(event);
-    if (step !== void 0) {
-      event.preventDefault();
-      try {
-        if (step === "undo") core.store.undo();
-        else core.store.redo();
-      } catch {
-      }
-      return;
-    }
-    const button = buttonsFromControls(drawnControls(core)?.controls ?? []).find(
-      (b) => b.disabled !== true && b.shortcut !== void 0 && matchesShortcut(b.shortcut, event)
-    );
-    if (button === void 0) return;
-    event.preventDefault();
-    if (!event.repeat) void runButton(core, button);
-  }
-  doc.addEventListener("keydown", onKey);
-  return () => {
-    doc.removeEventListener("keydown", onKey);
-  };
-}
-function matchesShortcut(text, event) {
-  const shortcut = readShortcut(text);
-  const key = event.key;
-  if (shortcut === void 0 || typeof key !== "string" || key.toLowerCase() !== shortcut.key.toLowerCase()) {
-    return false;
-  }
-  if (event.altKey !== shortcut.alt || event.shiftKey !== shortcut.shift) return false;
-  if (shortcut.mod) return event.ctrlKey || event.metaKey;
-  return event.ctrlKey === shortcut.ctrl && event.metaKey === shortcut.meta;
-}
-function ariaShortcuts(text) {
-  const shortcut = text === void 0 ? void 0 : readShortcut(text);
-  if (shortcut === void 0) return void 0;
-  const rest = [...shortcut.alt ? ["Alt"] : [], ...shortcut.shift ? ["Shift"] : [], shortcut.key];
-  const firsts = shortcut.mod ? [["Control"], ["Meta"]] : [[...shortcut.ctrl ? ["Control"] : [], ...shortcut.meta ? ["Meta"] : []]];
-  return firsts.map((first) => [...first, ...rest].join("+")).join(" ");
-}
-function shortcutLabel(text, mac) {
-  const shortcut = text === void 0 ? void 0 : readShortcut(text);
-  if (shortcut === void 0) return void 0;
-  const key = shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key;
-  if (mac) {
-    const glyphs = [
-      ...shortcut.ctrl ? ["\u2303"] : [],
-      ...shortcut.alt ? ["\u2325"] : [],
-      ...shortcut.mod || shortcut.meta ? ["\u2318"] : [],
-      ...shortcut.shift ? ["\u21E7"] : []
-    ];
-    return [...glyphs, key].join("");
-  }
-  const words = [
-    ...shortcut.mod || shortcut.ctrl ? ["Ctrl"] : [],
-    ...shortcut.alt ? ["Alt"] : [],
-    ...shortcut.shift ? ["Shift"] : [],
-    ...shortcut.meta ? ["Meta"] : []
-  ];
-  return [...words, key].join("+");
-}
-function onMac(win) {
-  const nav = win.navigator;
-  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform);
-}
-var MODIFIERS = ["mod", "ctrl", "alt", "shift", "meta"];
-function readShortcut(text) {
-  const at = text.length < 2 ? -1 : text.lastIndexOf("+", text.length - 2);
-  const key = text.slice(at + 1);
-  const names = at < 0 ? [] : text.slice(0, at).toLowerCase().split("+");
-  if (key === "" || new Set(names).size < names.length || !names.every((name2) => MODIFIERS.includes(name2))) {
-    return void 0;
-  }
-  const has = (name2) => names.includes(name2);
-  if (has("mod") && (has("ctrl") || has("meta"))) return void 0;
-  return { key, mod: has("mod"), ctrl: has("ctrl"), alt: has("alt"), shift: has("shift"), meta: has("meta") };
-}
-function undoOrRedo(event) {
-  if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
-  const key = event.key.toLowerCase();
-  if (key === "z") return event.shiftKey ? "redo" : "undo";
-  if (key === "y" && !event.shiftKey) return "redo";
-  return void 0;
-}
-function editable(target2) {
-  if (!(target2 instanceof HTMLElement)) return false;
-  return target2.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target2.tagName);
-}
-
 // srcts/modules/basic/toolbar.tsx
 import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 function Toolbar({ board, showOptions }) {
@@ -1789,6 +1753,44 @@ function demandShown(core, view = window) {
 function inView(el, view) {
   const rect = el.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < view.innerHeight && rect.left < view.innerWidth;
+}
+
+// srcts/modules/basic/shortcuts.ts
+function bindShortcuts(doc, core) {
+  function onKey(event) {
+    if (event.defaultPrevented || editable(event.target)) return;
+    const step = undoOrRedo(event);
+    if (step !== void 0) {
+      event.preventDefault();
+      try {
+        if (step === "undo") core.store.undo();
+        else core.store.redo();
+      } catch {
+      }
+      return;
+    }
+    const button = buttonsFromControls(drawnControls(core)?.controls ?? []).find(
+      (b) => b.disabled !== true && b.shortcut !== void 0 && matchesShortcut(b.shortcut, event)
+    );
+    if (button === void 0) return;
+    event.preventDefault();
+    if (!event.repeat) void runButton(core, button);
+  }
+  doc.addEventListener("keydown", onKey);
+  return () => {
+    doc.removeEventListener("keydown", onKey);
+  };
+}
+function undoOrRedo(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return void 0;
+  const key = event.key.toLowerCase();
+  if (key === "z") return event.shiftKey ? "redo" : "undo";
+  if (key === "y" && !event.shiftKey) return "redo";
+  return void 0;
+}
+function editable(target2) {
+  if (!(target2 instanceof HTMLElement)) return false;
+  return target2.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target2.tagName);
 }
 
 // srcts/modules/basic/index.tsx

@@ -35,9 +35,8 @@ import type { StorageControl } from "../../store/index.ts";
 import type { Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { classes, NameField, runCommand, useHistory } from "../../ui/index.ts";
-import { asError } from "../../util/index.ts";
+import { ariaShortcuts, asError, onMac, shortcutLabel } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
-import { ariaShortcuts, onMac, shortcutLabel } from "./shortcuts.ts";
 import { drawnControls, runButton } from "./storage.ts";
 import type { Button } from "./storage.ts";
 

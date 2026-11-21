@@ -114,6 +114,12 @@ function row(menu: ParentNode, name: string): HTMLElement {
   return found;
 }
 
+// What assistive technology reads as the row's description.
+function description(el: HTMLElement): string {
+  const ids = el.getAttribute("aria-describedby")?.split(" ") ?? [];
+  return ids.map((id) => document.getElementById(id)?.textContent ?? "").join(" ");
+}
+
 // The dialog that holds the menu, which React Aria draws at the end of the
 // page's body.
 function dialog(): HTMLElement {
@@ -318,7 +324,7 @@ describe("core's menu", () => {
     expect(menu.closed()).toBe(false);
   });
 
-  test("draws the open icon of a level at the end of its title's line, named Show all options, and of an item at its end, which open the advanced action without picking the item", async () => {
+  test("draws the open icon of a level at the end of its title's line, named Show all options, and of an item at its end, each with its name and key in its tooltip, which assistive technology hears, and which open the advanced action without picking the item", async () => {
     const adds = action("Append block", {
       advanced: { render: () => undefined },
       quick: () => ({
@@ -328,14 +334,22 @@ describe("core's menu", () => {
         rows: [item("Head", { advanced: { class: "head" } }), item("Filter")],
       }),
     });
+    const tip = "Show all options (Ctrl+Enter)";
+    const keys = "Control+Enter Meta+Enter";
 
     const level = await drawn({ action: adds });
     const open = find(dialog(), 'button[aria-label="Show all options"]');
     expect(open.closest("div")?.querySelector("p")?.textContent).toBe("Append");
     expect(open.querySelector("svg")).not.toBeNull();
+    expect([open.title, open.getAttribute("aria-keyshortcuts")]).toEqual([tip, keys]);
+    expect(find(dialog(), "input[data-filter]").getAttribute("aria-keyshortcuts")).toBe(keys);
     const menu = shownMenu("Append");
-    expect(row(menu, "Head").querySelector("[data-open-row] svg")).not.toBeNull();
+    const head = row(menu, "Head");
+    expect(head.querySelector("[data-open-row] svg")).not.toBeNull();
+    expect(head.querySelector<HTMLElement>("[data-open-row]")?.title).toBe(tip);
+    expect([head.getAttribute("aria-label"), description(head)]).toEqual(["Head", tip]);
     expect(row(menu, "Filter").querySelector("[data-open-row]")).toBeNull();
+    expect(description(row(menu, "Filter"))).toBe("");
     await step(() => {
       type(find(dialog(), "input[data-filter]", HTMLInputElement), "He");
     });

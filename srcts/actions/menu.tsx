@@ -29,6 +29,13 @@
 // item picks it. The icon is in the shape of blockr.ui's `open`, a box with an
 // arrow out of its top right corner
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/open.svg).
+// Each icon's tooltip gives its name with its key, Mod+Enter, in the notation
+// of blockr.ui's design system, as "Show all options (⌘Enter)" on a Mac, since
+// the design system names the tool by its tooltip
+// (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/vignettes/articles/design-system.Rmd#L1083-L1087).
+// Assistive technology hears the key from the level's button and its filter,
+// and the tooltip's text as the description of an item that shows the icon,
+// since a menu item holds no control of its own.
 // A level with a text row has the focus in its first one, with the value
 // selected, one with a filter in the filter, and any other in its first row.
 // The keys:
@@ -50,9 +57,10 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement, RefObject } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { Autocomplete, Button as AriaButton, Input, Separator, TextField as AriaTextField } from "../aria/index.ts";
+import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "../aria/index.ts";
 import { TextField } from "../inputs/index.ts";
 import { Menu, MenuItem, MenuSection, Popover } from "../overlays/index.ts";
+import { ariaShortcuts, matchesShortcut, onMac, shortcutLabel } from "../util/index.ts";
 import type { MenuPlace, ShowMenu } from "./actions.ts";
 import type { OpenMenu, ShownLevel, ShownRow } from "./quick.ts";
 
@@ -99,6 +107,7 @@ function CoreMenu({ menu, at, insideRef }: { menu: OpenMenu; at: MenuPlace; insi
   const level = useSyncExternalStore(menu.subscribe, menu.get);
   const anchor = useRef<HTMLDivElement>(null);
   const { x, y, width, height } = at.anchor;
+  const tip = openTip(at.el.ownerDocument.defaultView ?? window);
   return (
     <>
       {/* The box that the popover hangs from, where the menu opens. */}
@@ -130,7 +139,7 @@ function CoreMenu({ menu, at, insideRef }: { menu: OpenMenu; at: MenuPlace; insi
               event.preventDefault();
               event.stopPropagation();
               menu.escape();
-            } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && level.advanced) {
+            } else if (level.advanced && matchesShortcut(OPEN_KEY, event.nativeEvent)) {
               // Mod+Enter, which opens the advanced action, as a click on the
               // open icon of the row with the focus does, or on the level's.
               event.preventDefault();
@@ -144,15 +153,26 @@ function CoreMenu({ menu, at, insideRef }: { menu: OpenMenu; at: MenuPlace; insi
             }
           }}
         >
-          <Level key={level.id} menu={menu} level={level} insideRef={insideRef} />
+          <Level key={level.id} menu={menu} level={level} insideRef={insideRef} tip={tip} />
         </div>
       </Popover>
     </>
   );
 }
 
-// The level that the menu shows, drawn anew as another shows in its place.
-function Level({ menu, level, insideRef }: { menu: OpenMenu; level: ShownLevel; insideRef: RefObject<HTMLElement | null> }): ReactElement {
+// The level that the menu shows, drawn anew as another shows in its place,
+// with the tooltip of its open icons.
+function Level({
+  menu,
+  level,
+  insideRef,
+  tip,
+}: {
+  menu: OpenMenu;
+  level: ShownLevel;
+  insideRef: RefObject<HTMLElement | null>;
+  tip: string;
+}): ReactElement {
   const texts = level.rows.flatMap((row, i) => (row.kind === "text" ? [{ row, i }] : []));
   const listed = level.rows.flatMap((row, i) => (row.kind === "text" ? [] : [{ row, i }]));
   // As the level shows, the focus goes to its first text row, with the value
@@ -221,6 +241,7 @@ function Level({ menu, level, insideRef }: { menu: OpenMenu; level: ShownLevel; 
                   key={i}
                   row={row}
                   index={i}
+                  tip={tip}
                   onPick={() => {
                     pick(i);
                   }}
@@ -241,15 +262,19 @@ function Level({ menu, level, insideRef }: { menu: OpenMenu; level: ShownLevel; 
       {level.advanced ? (
         <div className="bc:flex bc:items-center bc:gap-2">
           {level.title === undefined ? null : <p className={`${TITLE} bc:min-w-0 bc:flex-1`}>{level.title}</p>}
-          <AriaButton
-            aria-label="Show all options"
+          {/* A plain button, since React Aria's Button drops `title`. */}
+          <button
+            type="button"
+            aria-label={OPEN_NAME}
+            aria-keyshortcuts={ariaShortcuts(OPEN_KEY)}
+            title={tip}
             className={OPEN}
-            onPress={() => {
+            onClick={() => {
               openAdvanced();
             }}
           >
             <OpenIcon />
-          </AriaButton>
+          </button>
         </div>
       ) : level.title === undefined ? null : (
         <p className={TITLE}>{level.title}</p>
@@ -282,7 +307,13 @@ function Level({ menu, level, insideRef }: { menu: OpenMenu; level: ShownLevel; 
               }}
             >
               <AriaTextField aria-label="Filter" className="bc:px-1 bc:pt-1">
-                <Input data-filter="" placeholder="Filter" spellCheck="false" className={FILTER} />
+                <Input
+                  data-filter=""
+                  placeholder="Filter"
+                  spellCheck="false"
+                  aria-keyshortcuts={level.advanced ? ariaShortcuts(OPEN_KEY) : undefined}
+                  className={FILTER}
+                />
               </AriaTextField>
               {list}
             </Autocomplete>
@@ -334,14 +365,28 @@ function groups(listed: readonly { row: ShownRow; i: number }[]): Group[] {
 // them the open icon, where the item shows one. A click on the open icon
 // opens the advanced action, and does not reach the item, so that the item is
 // not picked. The open icon carries the item's index, by which Mod+Enter on
-// the item finds it.
-function Item({ row, index, onPick, onOpen }: { row: ItemRow; index: number; onPick: () => void; onOpen: () => void }): ReactElement {
+// the item finds it, and the tooltip, which assistive technology reads as the
+// item's description. The item's name is given, so that it holds no more
+// than its label and its detail.
+function Item({
+  row,
+  index,
+  tip,
+  onPick,
+  onOpen,
+}: {
+  row: ItemRow;
+  index: number;
+  tip: string;
+  onPick: () => void;
+  onOpen: () => void;
+}): ReactElement {
   const { label, icon, detail } = row;
   const removes = row.category === "remove";
   return (
     <MenuItem
       textValue={label}
-      {...(detail === undefined ? {} : { "aria-label": `${label}, ${detail}` })}
+      aria-label={detail === undefined ? label : `${label}, ${detail}`}
       onAction={onPick}
       className={removes ? REMOVES : undefined}
     >
@@ -364,20 +409,26 @@ function Item({ row, index, onPick, onOpen }: { row: ItemRow; index: number; onP
       </span>
       {detail === undefined ? null : <span className="bc:text-xs bc:text-text-muted">{detail}</span>}
       {row.advanced === true ? (
-        <span
-          aria-hidden="true"
-          data-open-row={index}
-          className={`${OPEN} bc:-my-1`}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpen();
-          }}
-        >
-          <OpenIcon />
-        </span>
+        <>
+          <span
+            aria-hidden="true"
+            data-open-row={index}
+            title={tip}
+            className={`${OPEN} bc:-my-1`}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen();
+            }}
+          >
+            <OpenIcon />
+          </span>
+          <Text slot="description" className="bc:sr-only">
+            {tip}
+          </Text>
+        </>
       ) : null}
     </MenuItem>
   );
@@ -461,7 +512,17 @@ const TITLE = "bc:m-0 bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibold b
 // The open icon, a button 24 px square at the end of the level's title, and
 // the same at the end of an item.
 const OPEN =
-  "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:data-focus-visible:ring-2 bc:data-focus-visible:ring-border-accent";
+  "bc:ml-auto bc:inline-flex bc:size-6 bc:shrink-0 bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-text-muted bc:cursor-pointer bc:outline-none bc:hover:bg-bg-subtle bc:hover:text-text-default bc:focus-visible:ring-2 bc:focus-visible:ring-border-accent";
+// The open icon's name, and the key that opens the advanced action, as a click
+// on an open icon does.
+const OPEN_NAME = "Show all options";
+const OPEN_KEY = "Mod+Enter";
+
+// The tooltip of the open icons: their name, with their key as the design
+// system writes it on the page's platform.
+function openTip(win: Window): string {
+  return `${OPEN_NAME} (${shortcutLabel(OPEN_KEY, onMac(win)) ?? OPEN_KEY})`;
+}
 // A note in place of rows, as that a level loads or that the filter leaves no
 // row.
 const NOTE = "bc:m-0 bc:px-2 bc:py-1.5 bc:text-center bc:text-sm bc:text-text-muted bc:italic";
