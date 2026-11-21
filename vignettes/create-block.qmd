@@ -623,6 +623,10 @@ The SDK holds these:
   A picker or a calendar submits a pick at once.
   An input submits only a value in its range, from `minValue` to `maxValue`.
   Where the state holds a value that does not read so, as `"2026-11-19T14:30:00"`, the input marks itself invalid, and says below itself that the value is not available.
+- The table `Table`, with `TableHeader`, `Column`, `TableBody`, `Row` and `Cell`, the tree `Tree`, with `TreeItem`, the tree of links `NavigationTree`, with its parts, and the grid list `GridList`, with `GridListItem`, `GridListSection` and `GridListHeader`, which are React Aria's in core's theme.
+  None of them binds a value.
+  A UI hands each its rows, and acts on what the user does to them through the props of React Aria, such as `onAction` and `onSelectionChange`.
+  The hook `useDragAndDrop` lets the user drag their rows, and `DropIndicator` shows where a dragged row would land.
 - For the renderers of output classes, the function `outputRenderer()` and the hook `useOutput()`.
 - For the UIs of plugins, the hooks `useBoard()`, `useStatus()` and `useNotified()`, which follow the board, a block's status and the notifications about a board object through `CoreApi`.
   A plugin's UI reads those about the plugin itself with `useNotified(core, { plugin })`, given the id of its class.

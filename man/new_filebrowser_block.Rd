@@ -61,9 +61,10 @@ block expression is that path, as \code{file.path("/data/sales.csv")}. Its state
 arg \code{volumes} names the directories the browser starts from, a named
 character vector, which the client sends back as a named list. Its UI lists
 a directory through the volatile request \code{list_dir}, which reads \code{volumes}
-and takes as parameters the name of a volume and a path within it, and
-answers with the names of the directories and files there. Its results show
-as text, through \code{\link[=text_output]{text_output()}}.
+and takes as parameters the name of a volume and a path within it. It
+answers with the directories and the files there, each with its name and the
+time it was last modified, in UTC, and each file with its size in bytes. Its
+results show as text, through \code{\link[=text_output]{text_output()}}.
 }
 
 \examples{

@@ -393,7 +393,7 @@ function useHistory(core) {
 
 // srcts/ui/search.ts
 import { useState as useState4 } from "react";
-import { useFilter } from "./vendor-5d559dcd.js";
+import { useFilter } from "./vendor-cce8a69a.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState4("");
@@ -892,7 +892,7 @@ var BlockCard = memo(function BlockCard2({ id: id2, block, prependable, add }) {
         /* @__PURE__ */ jsxs6(
           "div",
           {
-            className: `bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
+            className: `bc:min-w-0 ${sized ? "bc:flex bc:h-104 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
               /* @__PURE__ */ jsx7(
                 Mounted,

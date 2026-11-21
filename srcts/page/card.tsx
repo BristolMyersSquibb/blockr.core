@@ -111,8 +111,10 @@ function AloneCard({ core, id }: { core: CardCore; id: BlockId }): ReactElement 
         <h1 className="bc:m-0 bc:font-sans bc:text-base bc:font-semibold">{name}</h1>
       </header>
       {inputs ? <Mounted mount={mountUi} label="Inputs" className="bc:min-w-0" /> : null}
+      {/* The output starts 416 pixels high, which fits a table output's page of
+          10 rows, n_rows's default, with its pager and the footer below. */}
       <div
-        className={`bc:min-w-0 ${sized ? "bc:flex bc:h-96 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`}
+        className={`bc:min-w-0 ${sized ? "bc:flex bc:h-104 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`}
       >
         <Mounted
           mount={mountOutput}
