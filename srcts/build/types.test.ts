@@ -511,8 +511,10 @@ const head: BlockModule<HeadState> = {
     const n = bind(host, "n", (value) => {
       input.value = typeof value === "number" ? String(value) : "";
     });
-    input.addEventListener("input", () => {
-      n.type(Number(input.value));
+    // A number passes through wrong ones as the user types, so the input
+    // submits it only as the user presses Enter or leaves the input.
+    input.addEventListener("change", () => {
+      void n.commit(Number(input.value));
     });
     const box = document.createElement("input");
     box.type = "checkbox";

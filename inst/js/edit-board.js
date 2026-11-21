@@ -297,7 +297,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-59c2e980.js";
+import { useFilter } from "./vendor-d2d5368b.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2("");

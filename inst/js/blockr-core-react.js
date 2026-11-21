@@ -250,7 +250,7 @@ var Boundary = class extends Component {
 };
 
 // srcts/inputs/button.tsx
-import { Button as AriaButton, composeRenderProps } from "./vendor-59c2e980.js";
+import { Button as AriaButton, composeRenderProps } from "./vendor-d2d5368b.js";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -293,7 +293,7 @@ import {
   FieldError,
   Label,
   Text
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 
 // srcts/inputs/icons.tsx
 import { jsx as jsx3, jsxs } from "react/jsx-runtime";
@@ -581,7 +581,7 @@ import {
   TagList,
   Text as Text2,
   Virtualizer
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 import { Fragment as Fragment2, jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
 function ComboBox(props) {
   const { bound, ordered = false, ...rest } = props;
@@ -855,7 +855,7 @@ var ROW = "bc:box-border bc:flex bc:h-[32px] bc:cursor-pointer bc:items-center b
 var NOTE = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/dropzone.tsx
-import { composeRenderProps as composeRenderProps4, DropZone as AriaDropZone } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps4, DropZone as AriaDropZone } from "./vendor-d2d5368b.js";
 import { jsx as jsx7 } from "react/jsx-runtime";
 function DropZone({ className, ...props }) {
   return /* @__PURE__ */ jsx7(AriaDropZone, { ...props, className: composeRenderProps4(className, (given) => `${ZONE} ${given ?? ""}`) });
@@ -863,14 +863,14 @@ function DropZone({ className, ...props }) {
 var ZONE = "bc:box-border bc:flex bc:min-h-20 bc:flex-col bc:items-center bc:justify-center bc:gap-2 bc:rounded-lg bc:border bc:border-dashed bc:border-border-default bc:p-4 bc:text-center bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-drop-target:border-solid bc:data-drop-target:border-border-accent bc:data-drop-target:bg-bg-subtle bc:data-disabled:opacity-50";
 
 // srcts/inputs/form.tsx
-import { Form as AriaForm } from "./vendor-59c2e980.js";
+import { Form as AriaForm } from "./vendor-d2d5368b.js";
 import { jsx as jsx8 } from "react/jsx-runtime";
 function Form({ className, ...props }) {
   return /* @__PURE__ */ jsx8(AriaForm, { ...props, className: `bc:grid bc:gap-3 ${className ?? ""}` });
 }
 
 // srcts/inputs/listbox.tsx
-import { composeRenderProps as composeRenderProps5, ListBox as AriaListBox } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps5, ListBox as AriaListBox } from "./vendor-d2d5368b.js";
 import { jsx as jsx9 } from "react/jsx-runtime";
 function ListBox2({ className, ...props }) {
   return /* @__PURE__ */ jsx9(AriaListBox, { ...props, className: composeRenderProps5(className, (given) => `${LISTBOX2} ${given ?? ""}`) });
@@ -881,18 +881,8 @@ function ListBoxItem2(props) {
 var LISTBOX2 = "bc:box-border bc:grid bc:min-w-0 bc:content-start bc:overflow-y-auto bc:rounded-md bc:border bc:border-border-default bc:p-1 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-offset-1 bc:data-focus-visible:outline-border-accent bc:data-empty:px-2.5 bc:data-empty:py-2 bc:data-empty:italic bc:data-empty:text-text-muted";
 
 // srcts/inputs/numberfield.tsx
-import { useContext as useContext3, useEffect, useRef as useRef5, useState as useState5 } from "react";
-import {
-  Button as Button3,
-  composeRenderProps as composeRenderProps6,
-  FieldError as FieldError3,
-  Group as Group2,
-  Input as Input2,
-  Label as Label3,
-  NumberField as AriaNumberField,
-  NumberFieldStateContext,
-  Text as Text3
-} from "./vendor-59c2e980.js";
+import { useState as useState5 } from "react";
+import { Button as Button3, composeRenderProps as composeRenderProps6, FieldError as FieldError3, Group as Group2, Input as Input2, Label as Label3, NumberField as AriaNumberField, Text as Text3 } from "./vendor-d2d5368b.js";
 import { Fragment as Fragment3, jsx as jsx10, jsxs as jsxs5 } from "react/jsx-runtime";
 function NumberField({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
@@ -909,12 +899,10 @@ function BoundNumber({
 }) {
   const held3 = typeof bound.value === "number" ? bound.value : NaN;
   const [kept, setKept] = useState5(null);
-  const [typed, setTyped] = useState5(NaN);
-  const [keystrokes, setKeystrokes] = useState5(0);
   const [seen, setSeen] = useState5(held3);
   if (!Object.is(seen, held3)) {
     setSeen(held3);
-    if (kept !== null && (!kept.typing || !Object.is(held3, typed))) setKept(null);
+    if (kept !== null && !kept.typing) setKept(null);
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
   return /* @__PURE__ */ jsxs5(Fragment3, { children: [
@@ -927,13 +915,10 @@ function BoundNumber({
         value: kept?.value ?? held3,
         onInput: (event) => {
           setKept((now) => now?.typing === true ? now : { value: now?.value ?? held3, typing: true });
-          setKeystrokes((n) => n + 1);
           onInput?.(event);
         },
         onChange: (value) => {
           if (!fits(value)) {
-            bound.type(void 0);
-            bound.flush();
             setKept(null);
           } else if (kept?.typing === true) {
             bound.type(value);
@@ -950,32 +935,11 @@ function BoundNumber({
         onBlur: (event) => {
           setKept((now) => now?.typing === true ? null : now);
           onBlur?.(event);
-        },
-        watch: /* @__PURE__ */ jsx10(
-          Watch,
-          {
-            keystrokes,
-            onType: (value) => {
-              setTyped(value);
-              bound.type(fits(value) ? value : void 0);
-            }
-          }
-        )
+        }
       }
     ),
     /* @__PURE__ */ jsx10(Refusal, { error: bound.error })
   ] });
-}
-function Watch({ keystrokes, onType }) {
-  const state = useContext3(NumberFieldStateContext);
-  const value = state?.numberValue ?? NaN;
-  const heard = useRef5(0);
-  useEffect(() => {
-    if (keystrokes === heard.current) return;
-    heard.current = keystrokes;
-    onType(value);
-  }, [keystrokes, value, onType]);
-  return null;
 }
 function inRange(value, min, max, step) {
   if (Number.isNaN(value)) return false;
@@ -985,7 +949,7 @@ function inRange(value, min, max, step) {
   const steps = (value - (min ?? 0)) / step;
   return Math.abs(steps - Math.round(steps)) < 1e-9;
 }
-function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, watch, className, onInput, ...props }) {
+function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, className, onInput, ...props }) {
   return /* @__PURE__ */ jsxs5(AriaNumberField, { ...props, className: composeRenderProps6(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
     label === void 0 ? null : /* @__PURE__ */ jsx10(Label3, { className: styles.label, children: label }),
     /* @__PURE__ */ jsxs5(Group2, { className: FIELD2, children: [
@@ -996,8 +960,7 @@ function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, 
       ] })
     ] }),
     /* @__PURE__ */ jsx10(Text3, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx10(FieldError3, { className: styles.alert, children: errorMessage2 }),
-    watch
+    /* @__PURE__ */ jsx10(FieldError3, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 function Chevron2({ up }) {
@@ -1023,8 +986,8 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/radio.tsx
-import { useRef as useRef6 } from "react";
-import { composeRenderProps as composeRenderProps7, FieldError as FieldError4, Label as Label4, RadioButton, RadioField, RadioGroup as AriaRadioGroup, Text as Text4 } from "./vendor-59c2e980.js";
+import { useRef as useRef5 } from "react";
+import { composeRenderProps as composeRenderProps7, FieldError as FieldError4, Label as Label4, RadioButton, RadioField, RadioGroup as AriaRadioGroup, Text as Text4 } from "./vendor-d2d5368b.js";
 import { Fragment as Fragment4, jsx as jsx11, jsxs as jsxs6 } from "react/jsx-runtime";
 function RadioGroup({ bound, outdated = false, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx11(DrawnGroup2, { ...props }) : /* @__PURE__ */ jsx11(BoundGroup2, { ...props, bound, outdated });
@@ -1067,7 +1030,7 @@ function DrawnGroup2({ label, description, errorMessage: errorMessage2, children
   ] });
 }
 function Radio({ children, description, className, ...props }) {
-  const ref = useRef6(null);
+  const ref = useRef5(null);
   useItem(props.value, ref);
   return /* @__PURE__ */ jsxs6(RadioField, { ...props, ref, className: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default", children: [
     /* @__PURE__ */ jsxs6(RadioButton, { className: composeRenderProps7(className, (given) => `bc:group ${RADIO} ${given ?? ""}`), children: [
@@ -1081,7 +1044,7 @@ var RADIO = "bc:flex bc:w-fit bc:cursor-pointer bc:items-center bc:gap-2 bc:text
 var CIRCLE = "bc:box-border bc:size-4 bc:shrink-0 bc:rounded-full bc:border bc:border-border-default bc:bg-transparent bc:outline-offset-2 bc:outline-border-accent bc:transition-[border-width] bc:group-data-focus-visible:outline-2 bc:group-data-selected:border-[5px] bc:group-data-selected:border-bg-accent bc:group-data-invalid:border-border-danger";
 
 // srcts/inputs/searchfield.tsx
-import { composeRenderProps as composeRenderProps8, FieldError as FieldError5, Group as Group3, Input as Input3, Label as Label5, SearchField as AriaSearchField, Text as Text5 } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps8, FieldError as FieldError5, Group as Group3, Input as Input3, Label as Label5, SearchField as AriaSearchField, Text as Text5 } from "./vendor-d2d5368b.js";
 import { Fragment as Fragment5, jsx as jsx12, jsxs as jsxs7 } from "react/jsx-runtime";
 function SearchField({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx12(Drawn3, { ...props }) : /* @__PURE__ */ jsx12(BoundSearch, { ...props, bound });
@@ -1133,7 +1096,7 @@ var FIELD3 = "bc:flex bc:min-h-[30px] bc:min-w-0 bc:items-center bc:gap-1.5 bc:j
 var INPUT3 = "bc:min-w-0 bc:flex-1 bc:border-0 bc:bg-transparent bc:p-0 bc:font-sans bc:text-sm bc:text-text-default bc:outline-none bc:placeholder:text-text-muted bc:[&::-webkit-search-cancel-button]:hidden";
 
 // srcts/inputs/select.tsx
-import { useContext as useContext4, useLayoutEffect as useLayoutEffect3, useMemo as useMemo3, useRef as useRef7, useState as useState6 } from "react";
+import { useContext as useContext3, useLayoutEffect as useLayoutEffect3, useMemo as useMemo3, useRef as useRef6, useState as useState6 } from "react";
 import { strings as strings3 } from "@blockr/core/binding";
 import {
   Button as Button4,
@@ -1148,7 +1111,7 @@ import {
   SelectValue,
   Text as Text6,
   useLocale
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 import { Fragment as Fragment6, jsx as jsx13, jsxs as jsxs8 } from "react/jsx-runtime";
 function Select(props) {
   const { bound, outdated = false, ordered = false, ...rest } = props;
@@ -1175,7 +1138,7 @@ function BoundSelect({
   const unknown = props.items === void 0 && typeof props.children === "function";
   const ids2 = unknown ? null : known2;
   const [picks, setPicks] = useState6(null);
-  const pending = useRef7(null);
+  const pending = useRef6(null);
   const shown = picks ?? values;
   const asIs = ids2 === null ? values : values.filter((value) => !ids2.includes(value));
   const marking = !outdated && ids2 !== null && asIs.length > 0;
@@ -1285,7 +1248,7 @@ function Drawn4({ label, description, errorMessage: errorMessage2, items, childr
   );
 }
 function Known({ onKnown }) {
-  const state = useContext4(SelectStateContext);
+  const state = useContext3(SelectStateContext);
   useLayoutEffect3(() => {
     if (state === null) return;
     const { collection } = state;
@@ -1304,7 +1267,7 @@ var LISTBOX3 = "bc:box-border bc:max-h-[inherit] bc:overflow-y-auto bc:rounded-l
 var NOTE2 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/inputs/slider.tsx
-import { useContext as useContext5, useLayoutEffect as useLayoutEffect4, useRef as useRef8, useState as useState7 } from "react";
+import { useContext as useContext4, useLayoutEffect as useLayoutEffect4, useRef as useRef7, useState as useState7 } from "react";
 import {
   composeRenderProps as composeRenderProps10,
   Label as Label7,
@@ -1315,7 +1278,7 @@ import {
   SliderThumb,
   SliderTrack,
   useLocale as useLocale2
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 import { Fragment as Fragment7, jsx as jsx14, jsxs as jsxs9 } from "react/jsx-runtime";
 function Slider({ bound, outdated = false, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx14(Drawn5, { ...props }) : /* @__PURE__ */ jsx14(BoundSlider, { ...props, bound, outdated });
@@ -1335,8 +1298,8 @@ function BoundSlider({
     setSeen(bound.value);
     setMoving(null);
   }
-  const shown = useRef8([]);
-  const start2 = useRef8(null);
+  const shown = useRef7([]);
+  const start2 = useRef7(null);
   const min = props.minValue ?? 0;
   const fits = (value2) => inRange(value2, min, props.maxValue ?? 100, props.step ?? 1);
   const lacked = moving === null ? held3.filter((value2) => !fits(value2)) : [];
@@ -1373,7 +1336,7 @@ function BoundSlider({
           onChangeEnd?.(next);
         },
         watch: /* @__PURE__ */ jsx14(
-          Watch2,
+          Watch,
           {
             onShown: (values) => {
               shown.current = values;
@@ -1386,8 +1349,8 @@ function BoundSlider({
     /* @__PURE__ */ jsx14(Refusal, { error: bound.error })
   ] });
 }
-function Watch2({ onShown }) {
-  const state = useContext5(SliderStateContext);
+function Watch({ onShown }) {
+  const state = useContext4(SliderStateContext);
   useLayoutEffect4(() => {
     if (state !== null && !state.values.some((_, i) => state.isThumbDragging(i))) onShown(state.values);
   });
@@ -1424,7 +1387,7 @@ var FILL = "bc:rounded-full bc:bg-bg-accent bc:group-data-invalid:bg-border-dang
 var THUMB = "bc:top-1/2 bc:box-border bc:size-4 bc:cursor-grab bc:rounded-full bc:border-2 bc:border-bg-accent bc:bg-bg-raised bc:shadow-xs bc:outline-offset-2 bc:outline-border-accent bc:data-dragging:cursor-grabbing bc:data-focus-visible:outline-2 bc:data-disabled:cursor-default bc:group-data-invalid:border-border-danger";
 
 // srcts/inputs/switch.tsx
-import { composeRenderProps as composeRenderProps11, FieldError as FieldError7, SwitchButton, SwitchField, Text as Text7 } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps11, FieldError as FieldError7, SwitchButton, SwitchField, Text as Text7 } from "./vendor-d2d5368b.js";
 import { Fragment as Fragment8, jsx as jsx15, jsxs as jsxs10 } from "react/jsx-runtime";
 function Switch({ bound, onChange, ...props }) {
   if (bound === void 0) return /* @__PURE__ */ jsx15(Drawn6, { ...props, onChange });
@@ -1458,8 +1421,8 @@ var TRACK2 = "bc:box-border bc:flex bc:h-5 bc:w-9 bc:shrink-0 bc:items-center bc
 var HANDLE = "bc:size-4 bc:rounded-full bc:bg-text-muted bc:shadow-xs bc:transition-transform bc:group-data-selected:translate-x-full bc:group-data-selected:bg-text-on-accent";
 
 // srcts/inputs/tags.tsx
-import { createContext as createContext2, useContext as useContext6 } from "react";
-import { Button as Button5, composeRenderProps as composeRenderProps12, Label as Label8, Tag as AriaTag, TagGroup as AriaTagGroup, TagList as TagList2, Text as Text8 } from "./vendor-59c2e980.js";
+import { createContext as createContext2, useContext as useContext5 } from "react";
+import { Button as Button5, composeRenderProps as composeRenderProps12, Label as Label8, Tag as AriaTag, TagGroup as AriaTagGroup, TagList as TagList2, Text as Text8 } from "./vendor-d2d5368b.js";
 import { Fragment as Fragment9, jsx as jsx16, jsxs as jsxs11 } from "react/jsx-runtime";
 var colors = {
   gray: "bc:border-border-default bc:bg-bg-subtle bc:text-text-default",
@@ -1486,7 +1449,7 @@ function TagGroup2({
 }
 function Tag2({ children, color, className, ...props }) {
   const textValue = typeof children === "string" ? children : void 0;
-  const groupColor = useContext6(ColorContext);
+  const groupColor = useContext5(ColorContext);
   return /* @__PURE__ */ jsx16(
     AriaTag,
     {
@@ -1504,7 +1467,7 @@ var TAG = "bc:inline-flex bc:max-w-full bc:min-w-0 bc:cursor-default bc:items-ce
 var REMOVE = "bc:flex bc:size-4 bc:shrink-0 bc:cursor-pointer bc:items-center bc:justify-center bc:rounded bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:data-hovered:bg-bg-subtle";
 
 // srcts/inputs/textfield.tsx
-import { composeRenderProps as composeRenderProps13, FieldError as FieldError8, Input as Input4, Label as Label9, Text as Text9, TextArea, TextField as AriaTextField } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps13, FieldError as FieldError8, Input as Input4, Label as Label9, Text as Text9, TextArea, TextField as AriaTextField } from "./vendor-d2d5368b.js";
 import { Fragment as Fragment10, jsx as jsx17, jsxs as jsxs12 } from "react/jsx-runtime";
 function TextField({ bound, ...props }) {
   return bound === void 0 ? /* @__PURE__ */ jsx17(Drawn7, { ...props }) : /* @__PURE__ */ jsx17(BoundText, { ...props, bound });
@@ -1549,9 +1512,9 @@ function Drawn7({ label, description, errorMessage: errorMessage2, placeholder, 
 }
 
 // srcts/inputs/toggle.tsx
-import { createContext as createContext3, useContext as useContext7, useId, useRef as useRef9 } from "react";
+import { createContext as createContext3, useContext as useContext6, useId, useRef as useRef8 } from "react";
 import { strings as strings4 } from "@blockr/core/binding";
-import { composeRenderProps as composeRenderProps14, ToggleButton as AriaToggleButton, ToggleButtonGroup as AriaToggleButtonGroup } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps14, ToggleButton as AriaToggleButton, ToggleButtonGroup as AriaToggleButtonGroup } from "./vendor-d2d5368b.js";
 import { Fragment as Fragment11, jsx as jsx18, jsxs as jsxs13 } from "react/jsx-runtime";
 function ToggleButton({ bound, onChange, ...props }) {
   if (bound === void 0) return /* @__PURE__ */ jsx18(DrawnButton, { ...props, onChange });
@@ -1572,8 +1535,8 @@ function ToggleButton({ bound, onChange, ...props }) {
 }
 var InGroup = createContext3(false);
 function DrawnButton({ className, ...props }) {
-  const ref = useRef9(null);
-  const inGroup = useContext7(InGroup);
+  const ref = useRef8(null);
+  const inGroup = useContext6(InGroup);
   useItem(props.id === void 0 ? void 0 : String(props.id), ref);
   return /* @__PURE__ */ jsx18(
     AriaToggleButton,
@@ -1660,7 +1623,7 @@ var TOGGLE = "bc:inline-flex bc:min-h-6 bc:cursor-pointer bc:items-center bc:jus
 var ALONE = "bc:rounded-md bc:border bc:border-solid bc:border-border-default bc:data-selected:border-border-accent";
 
 // srcts/inputs/tokenfield.tsx
-import { composeRenderProps as composeRenderProps15, Label as Label10, Text as Text10, Token as AriaToken, TokenField as AriaTokenField, TokenInput } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps15, Label as Label10, Text as Text10, Token as AriaToken, TokenField as AriaTokenField, TokenInput } from "./vendor-d2d5368b.js";
 import { jsx as jsx19, jsxs as jsxs14 } from "react/jsx-runtime";
 function TokenField({
   label,
@@ -1683,10 +1646,10 @@ var INPUT4 = "bc:box-border bc:min-h-[30px] bc:w-full bc:rounded-md bc:border bc
 var TOKEN = "bc:mx-0.5 bc:inline-flex bc:h-5 bc:cursor-default bc:items-center bc:whitespace-nowrap bc:rounded bc:border bc:border-border-accent bc:bg-bg-subtle bc:px-1.5 bc:text-xs bc:text-text-default bc:data-selected:bg-bg-accent bc:data-selected:text-text-on-accent";
 
 // srcts/inputs/index.ts
-import { Autocomplete, FileTrigger, Text as Text11, useFilter } from "./vendor-59c2e980.js";
+import { Autocomplete, FileTrigger, Text as Text11, useFilter } from "./vendor-d2d5368b.js";
 
 // srcts/overlays/dialog.tsx
-import { composeRenderProps as composeRenderProps16, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps16, Dialog as AriaDialog, Modal as AriaModal, ModalOverlay } from "./vendor-d2d5368b.js";
 import { jsx as jsx20 } from "react/jsx-runtime";
 function Modal({ className, ...props }) {
   return /* @__PURE__ */ jsx20(ModalOverlay, { ...props, className: OVERLAY, children: /* @__PURE__ */ jsx20("div", { className: CENTER, children: /* @__PURE__ */ jsx20(AriaModal, { ...props, className: composeRenderProps16(className, (given) => `${MODAL} ${given ?? ""}`) }) }) });
@@ -1709,10 +1672,10 @@ import {
   MenuItem as AriaMenuItem,
   MenuSection as AriaMenuSection,
   MenuTrigger as AriaMenuTrigger
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 
 // srcts/overlays/popover.tsx
-import { composeRenderProps as composeRenderProps17, Popover as AriaPopover } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps17, Popover as AriaPopover } from "./vendor-d2d5368b.js";
 import { jsx as jsx21 } from "react/jsx-runtime";
 function Popover3({ className, offset = 4, ...props }) {
   return /* @__PURE__ */ jsx21(AriaPopover, { ...props, offset, className: composeRenderProps17(className, (given) => `${POPOVER} ${given ?? ""}`) });
@@ -1750,7 +1713,7 @@ var HEADING2 = "bc:block bc:px-2 bc:pt-1 bc:font-sans bc:text-xs bc:font-semibol
 var CONTENT = "bc:grid bc:min-w-0 bc:flex-1 bc:grid-cols-[minmax(0,1fr)_auto] bc:items-center bc:gap-x-4 bc:[&>*]:truncate bc:[&>[slot=description]]:col-start-1 bc:[&>[slot=description]]:text-xs bc:[&>[slot=description]]:text-text-muted bc:[&>kbd]:col-start-2 bc:[&>kbd]:row-start-1 bc:[&>kbd]:font-sans bc:[&>kbd]:text-xs bc:[&>kbd]:text-text-muted";
 
 // srcts/overlays/palette.tsx
-import { Autocomplete as Autocomplete2, useFilter as useFilter2 } from "./vendor-59c2e980.js";
+import { Autocomplete as Autocomplete2, useFilter as useFilter2 } from "./vendor-d2d5368b.js";
 import { jsx as jsx23, jsxs as jsxs16 } from "react/jsx-runtime";
 function CommandPalette({
   isOpen,
@@ -1797,7 +1760,7 @@ function CommandPalette({
 var NOTE3 = "bc:m-0 bc:px-2.5 bc:py-2 bc:text-center bc:text-sm bc:italic bc:text-text-muted";
 
 // srcts/overlays/index.ts
-import { DialogTrigger, Heading, Keyboard } from "./vendor-59c2e980.js";
+import { DialogTrigger, Heading, Keyboard } from "./vendor-d2d5368b.js";
 
 // srcts/react/notifications.tsx
 import { jsx as jsx24 } from "react/jsx-runtime";
@@ -1813,7 +1776,7 @@ var SETS = {
 };
 
 // srcts/dnd/dnd.tsx
-import { composeRenderProps as composeRenderProps19, DropIndicator as AriaDropIndicator, useDragAndDrop as useAriaDragAndDrop } from "./vendor-59c2e980.js";
+import { composeRenderProps as composeRenderProps19, DropIndicator as AriaDropIndicator, useDragAndDrop as useAriaDragAndDrop } from "./vendor-d2d5368b.js";
 import { jsx as jsx25, jsxs as jsxs17 } from "react/jsx-runtime";
 function useDragAndDrop(options) {
   return useAriaDragAndDrop({ renderDropIndicator: (target) => /* @__PURE__ */ jsx25(DropIndicator, { target }), ...options });
@@ -1843,7 +1806,7 @@ import {
   GridListHeader as AriaGridListHeader,
   GridListItem as AriaGridListItem,
   GridListSection
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 import { Fragment as Fragment13, jsx as jsx26, jsxs as jsxs18 } from "react/jsx-runtime";
 function GridList(props) {
   return /* @__PURE__ */ jsx26(AriaGridList, { ...props, className: composeRenderProps20(props.className, (given) => `${LIST3} ${given ?? ""}`) });
@@ -1874,7 +1837,7 @@ import {
   TableBody as AriaTableBody,
   TableHeader as AriaTableHeader,
   useTableOptions
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 import { jsx as jsx27, jsxs as jsxs19 } from "react/jsx-runtime";
 function Table({ className, ...props }) {
   return /* @__PURE__ */ jsx27("div", { onScroll: props.onScroll, className: `${BOX2} ${className ?? ""}`, children: /* @__PURE__ */ jsx27(AriaTable, { ...props, className: TABLE }) });
@@ -1942,7 +1905,7 @@ var ROW2 = "bc:outline-none bc:-outline-offset-2 bc:data-focus-visible:outline-2
 var CELL = "bc:border-b bc:border-border-default/40 bc:px-2 bc:py-1 bc:whitespace-nowrap bc:outline-none bc:-outline-offset-2 bc:[-webkit-tap-highlight-color:transparent] bc:data-focus-visible:outline-2 bc:data-focus-visible:outline-border-accent";
 
 // srcts/tree/navigation-tree.tsx
-import { createContext as createContext4, useContext as useContext8 } from "react";
+import { createContext as createContext4, useContext as useContext7 } from "react";
 import {
   Button as Button7,
   composeRenderProps as composeRenderProps23,
@@ -1952,7 +1915,7 @@ import {
   NavigationTreeItem as AriaNavigationTreeItem,
   NavigationTreeItemContent as AriaNavigationTreeItemContent,
   NavigationTreeSection as AriaNavigationTreeSection
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 
 // srcts/tree/tree.tsx
 import {
@@ -1961,7 +1924,7 @@ import {
   Tree as AriaTree,
   TreeItem as AriaTreeItem,
   TreeItemContent
-} from "./vendor-59c2e980.js";
+} from "./vendor-d2d5368b.js";
 import { jsx as jsx28, jsxs as jsxs20 } from "react/jsx-runtime";
 function Tree(props) {
   return /* @__PURE__ */ jsx28(AriaTree, { ...props, className: composeRenderProps22(props.className, (given) => `${TREE} ${given ?? ""}`) });
@@ -2025,8 +1988,8 @@ function NavigationTreeHeader(props) {
   return /* @__PURE__ */ jsx29(AriaNavigationTreeHeader, { ...props, className: "bc:px-2 bc:py-1 bc:text-sm bc:font-semibold bc:text-text-muted" });
 }
 function NavigationTreeItemLink({ render, children, ...props }) {
-  const indicator = useContext8(IndicatorContext);
-  const given = useContext8(RenderLinkContext);
+  const indicator = useContext7(IndicatorContext);
+  const given = useContext7(RenderLinkContext);
   return /* @__PURE__ */ jsx29(Link, { render: render ?? given, ...props, className: LINK, children: ({ isHovered }) => /* @__PURE__ */ jsxs21(Fragment14, { children: [
     /* @__PURE__ */ jsx29("span", { "aria-hidden": "true", "data-indicator": indicator ?? (isHovered ? "hover" : void 0), className: MARK }),
     children

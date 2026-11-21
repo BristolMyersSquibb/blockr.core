@@ -529,7 +529,12 @@ A module meets the contract of a block's UI by these rules:
 
 1. A module submits only when the user acts, never to fill in a value once data arrives. So a state arg that the user has to pick stays unset, and the block reads `invalid` until then. The summarize and join blocks of blockr.dplyr, in their `new_block()` versions, break this rule: they fill in their first or shared columns once the data arrives ([`summarize-block.js#L601-L607`](https://github.com/BristolMyersSquibb/blockr.dplyr/blob/bdac6b38f7097425bfe96883032531cc919f6ee7/inst/js/summarize-block.js#L601-L607), [`join-block.js#L678-L680`](https://github.com/BristolMyersSquibb/blockr.dplyr/blob/bdac6b38f7097425bfe96883032531cc919f6ee7/inst/js/join-block.js#L678-L680)).
 2. A module takes changes of the state that it did not make, since undo, an assistant and plugins make them too. It updates its inputs in place, but leaves alone the one that the user is editing.
-3. An input that changes with every keystroke submits once the user pauses, presses Enter or leaves it. So a burst of typing is one edit and one undo step. A module submits an edit still pending as core unmounts it.
+3. An input whose text is the start of what the user means while they type, such as a text field, submits once the user pauses, presses Enter or leaves it.
+   So a burst of typing is one edit and one undo step.
+   A module submits such typing still pending as core unmounts it.
+   An input whose value passes through wrong values as the user types, as a number passes through 15 on the way to 150 and a date through the year 202 on the way to 2026, submits only as the user presses Enter, leaves it or steps the value, as by an arrow key.
+   So a pause submits no wrong value.
+   Where core unmounts the module before the user ends such an edit, the module drops the edit.
 4. A module builds each submit from `host.state()` as it submits, so that it keeps an edit made in the meantime, such as a condition that an assistant added to a filter.
 5. A module draws only inside its element and keeps nothing on the page, such as an element ID, since core can mount one block's UI in several places at once.
 
@@ -587,8 +592,9 @@ The SDK holds these:
 - The text field `TextField` and the number field `NumberField`, which are [React Aria's `TextField`](https://react-aria.adobe.com/TextField) and [`NumberField`](https://react-aria.adobe.com/NumberField) in core's theme.
   Each takes the props of its part of React Aria, and the `label`, `description`, `errorMessage` and `placeholder` of React Aria's Tailwind starter kit.
   The text field holds a text area where its `lines` is above 1.
-  Given `bound`, either hands what the user types to its state arg, which it submits once the user pauses, and at once on Enter or as the user leaves the field.
-  A bound number field submits only a number in its range, from `minValue` to `maxValue`, and on its `step`, which is 1 for a whole number.
+  Given `bound`, the text field hands what the user types to its state arg, which it submits once the user pauses, and at once on Enter or as the user leaves the field.
+  A bound number field submits a number as the user presses Enter, leaves the field or steps the number, by its buttons or an arrow key, and nothing as the user pauses.
+  It submits only a number in its range, from `minValue` to `maxValue`, and on its `step`, which is 1 for a whole number.
   It marks a number outside them, with the message of the browser's own number input.
 - The search field `SearchField`, [React Aria's `SearchField`](https://react-aria.adobe.com/SearchField) in core's theme, which submits as the text field does, and at once as the user clears it, by its button or by Escape.
 - The select `ComboBox`, which is [React Aria's `ComboBox`](https://react-aria.adobe.com/ComboBox) in core's theme, with the items `ComboBoxItem` and `ComboBoxSection`, and React Aria's `Text`, which holds an item's description.

@@ -53,7 +53,6 @@ export {
   NavigationTreeItemContent,
   NavigationTreeSection,
   NumberField,
-  NumberFieldStateContext,
   Popover,
   RadioButton,
   RadioField,

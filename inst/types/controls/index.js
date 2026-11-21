@@ -1,5 +1,5 @@
 // srcts/controls/controls.tsx
-import { Fragment as Fragment12, useLayoutEffect as useLayoutEffect4, useRef as useRef9 } from "react";
+import { Fragment as Fragment12, useLayoutEffect as useLayoutEffect4, useRef as useRef8 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
@@ -267,7 +267,6 @@ import {
   NavigationTreeItemContent,
   NavigationTreeSection,
   NumberField,
-  NumberFieldStateContext,
   Popover,
   RadioButton,
   RadioField,
@@ -760,7 +759,7 @@ import { jsx as jsx7 } from "react/jsx-runtime";
 import { jsx as jsx8 } from "react/jsx-runtime";
 
 // srcts/inputs/numberfield.tsx
-import { useContext as useContext3, useEffect, useRef as useRef4, useState as useState4 } from "react";
+import { useState as useState4 } from "react";
 import { Fragment as Fragment3, jsx as jsx9, jsxs as jsxs5 } from "react/jsx-runtime";
 function NumberField2({ bound, outdated = false, maxValue, ...props }) {
   const largest = outdated ? void 0 : maxValue;
@@ -777,12 +776,10 @@ function BoundNumber({
 }) {
   const held2 = typeof bound.value === "number" ? bound.value : NaN;
   const [kept, setKept] = useState4(null);
-  const [typed, setTyped] = useState4(NaN);
-  const [keystrokes, setKeystrokes] = useState4(0);
   const [seen, setSeen] = useState4(held2);
   if (!Object.is(seen, held2)) {
     setSeen(held2);
-    if (kept !== null && (!kept.typing || !Object.is(held2, typed))) setKept(null);
+    if (kept !== null && !kept.typing) setKept(null);
   }
   const fits = (value) => inRange(value, props.minValue, props.maxValue, props.step);
   return /* @__PURE__ */ jsxs5(Fragment3, { children: [
@@ -795,13 +792,10 @@ function BoundNumber({
         value: kept?.value ?? held2,
         onInput: (event) => {
           setKept((now) => now?.typing === true ? now : { value: now?.value ?? held2, typing: true });
-          setKeystrokes((n) => n + 1);
           onInput?.(event);
         },
         onChange: (value) => {
           if (!fits(value)) {
-            bound.type(void 0);
-            bound.flush();
             setKept(null);
           } else if (kept?.typing === true) {
             bound.type(value);
@@ -818,32 +812,11 @@ function BoundNumber({
         onBlur: (event) => {
           setKept((now) => now?.typing === true ? null : now);
           onBlur?.(event);
-        },
-        watch: /* @__PURE__ */ jsx9(
-          Watch,
-          {
-            keystrokes,
-            onType: (value) => {
-              setTyped(value);
-              bound.type(fits(value) ? value : void 0);
-            }
-          }
-        )
+        }
       }
     ),
     /* @__PURE__ */ jsx9(Refusal, { error: bound.error })
   ] });
-}
-function Watch({ keystrokes, onType }) {
-  const state = useContext3(NumberFieldStateContext);
-  const value = state?.numberValue ?? NaN;
-  const heard = useRef4(0);
-  useEffect(() => {
-    if (keystrokes === heard.current) return;
-    heard.current = keystrokes;
-    onType(value);
-  }, [keystrokes, value, onType]);
-  return null;
 }
 function inRange(value, min, max, step) {
   if (Number.isNaN(value)) return false;
@@ -853,7 +826,7 @@ function inRange(value, min, max, step) {
   const steps = (value - (min ?? 0)) / step;
   return Math.abs(steps - Math.round(steps)) < 1e-9;
 }
-function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, watch, className, onInput, ...props }) {
+function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, className, onInput, ...props }) {
   return /* @__PURE__ */ jsxs5(NumberField, { ...props, className: composeRenderProps(className, (given) => `bc:group ${styles.field} ${given ?? ""}`), children: [
     label === void 0 ? null : /* @__PURE__ */ jsx9(Label, { className: styles.label, children: label }),
     /* @__PURE__ */ jsxs5(Group, { className: FIELD2, children: [
@@ -864,8 +837,7 @@ function Drawn2({ label, description, errorMessage: errorMessage2, placeholder, 
       ] })
     ] }),
     /* @__PURE__ */ jsx9(Text, { slot: "description", className: `${styles.hint} bc:empty:hidden`, children: description }),
-    /* @__PURE__ */ jsx9(FieldError, { className: styles.alert, children: errorMessage2 }),
-    watch
+    /* @__PURE__ */ jsx9(FieldError, { className: styles.alert, children: errorMessage2 })
   ] });
 }
 function Chevron2({ up }) {
@@ -891,25 +863,25 @@ var STEPPERS = "bc:flex bc:flex-col bc:border-l bc:border-border-default bc:grou
 var STEPPER = "bc:flex bc:flex-1 bc:cursor-pointer bc:items-center bc:justify-center bc:border-0 bc:bg-transparent bc:px-1 bc:py-0 bc:text-text-muted bc:data-hovered:bg-bg-subtle bc:data-hovered:text-text-default bc:data-pressed:bg-bg-subtle bc:data-disabled:cursor-default bc:data-disabled:opacity-50";
 
 // srcts/inputs/radio.tsx
-import { useRef as useRef5 } from "react";
+import { useRef as useRef4 } from "react";
 import { Fragment as Fragment4, jsx as jsx10, jsxs as jsxs6 } from "react/jsx-runtime";
 
 // srcts/inputs/searchfield.tsx
 import { Fragment as Fragment5, jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
 
 // srcts/inputs/select.tsx
-import { useContext as useContext4, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef6, useState as useState5 } from "react";
+import { useContext as useContext3, useLayoutEffect as useLayoutEffect2, useMemo as useMemo2, useRef as useRef5, useState as useState5 } from "react";
 import { Fragment as Fragment6, jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
 
 // srcts/inputs/slider.tsx
-import { useContext as useContext5, useLayoutEffect as useLayoutEffect3, useRef as useRef7, useState as useState6 } from "react";
+import { useContext as useContext4, useLayoutEffect as useLayoutEffect3, useRef as useRef6, useState as useState6 } from "react";
 import { Fragment as Fragment7, jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 
 // srcts/inputs/switch.tsx
 import { Fragment as Fragment8, jsx as jsx14, jsxs as jsxs10 } from "react/jsx-runtime";
 
 // srcts/inputs/tags.tsx
-import { createContext as createContext2, useContext as useContext6 } from "react";
+import { createContext as createContext2, useContext as useContext5 } from "react";
 import { Fragment as Fragment9, jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
 var ColorContext = createContext2("gray");
 
@@ -958,7 +930,7 @@ function Drawn3({ label, description, errorMessage: errorMessage2, placeholder, 
 }
 
 // srcts/inputs/toggle.tsx
-import { createContext as createContext3, useContext as useContext7, useId, useRef as useRef8 } from "react";
+import { createContext as createContext3, useContext as useContext6, useId, useRef as useRef7 } from "react";
 import { Fragment as Fragment11, jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 var InGroup = createContext3(false);
 
@@ -1125,7 +1097,7 @@ function after(key, next, last) {
   return typeof key === "function" ? [{ read: key, change: next }, last] : [key, next];
 }
 function Slot({ node }) {
-  const ref = useRef9(null);
+  const ref = useRef8(null);
   useLayoutEffect4(() => {
     ref.current?.replaceChildren(node);
   }, [node]);
