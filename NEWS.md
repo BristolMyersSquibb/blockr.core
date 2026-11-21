@@ -698,6 +698,7 @@
   The `text()` and `number()` of `controls()` take React Aria's names, such as `minValue` in place of `min`, and the handle that `number()` returns has `setMaxValue()` in place of `setMax()`.
   Core's other text fields, in the forms of the Edit board plugin, in renaming a block or the board, and in the search of a table, draw with the `TextField` of the SDK too.
   The SDK also offers React Aria's `Button`, with the starter kit's `variant`, its `Modal`, `Dialog`, `DialogTrigger` and `Heading`, its `MenuTrigger`, `Menu`, `MenuItem` and `MenuSection`, with its `Keyboard` for an item's shortcut, and its `Popover`, in core's theme, after the starter kit.
+  Its `Button` takes a ref as well, which holds the button's element.
   React Aria draws every overlay of the SDK in a portal at the end of the page's body.
   Core's basic frontend draws its dialogs and its menus with them, in place of native dialogs that `showModal()` opened and lists of its own.
   An item of a storage control's menu shows the control's tooltip below its label and its shortcut at its right.
@@ -705,7 +706,7 @@
   The select draws its rows through React Aria's `Virtualizer`, which puts on the page only the rows in view.
   Loading `@blockr/core/stubs` makes `happy-dom` measure and check numbers as these components need it to.
   The getters of `clientWidth` and `clientHeight` in `happy-dom` move to the prototype of `Element`, so that React Aria's `Virtualizer` draws every row in a test.
-  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708).
+  Setting the `min`, `max` or `step` of an input to `""` removes the attribute, which `happy-dom` would otherwise read as 0 (#708, #801).
 * Core registers board actions: what a user triggers from a menu, a button or a gesture, on the board, on one of its board objects or on a selection of them.
   A board action changes the board only through commands, and runs each batch as one undo step of the user.
   Core registers its own, and those that a plugin class lists in `boardActions`, as it registers the class with its commands, before every board opens.
