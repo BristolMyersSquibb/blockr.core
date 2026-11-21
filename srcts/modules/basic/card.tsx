@@ -9,10 +9,10 @@
 // - The footer, the last line of the output's box, which shows a ready
 //   block's summary.
 // - Below the box, the pills: one for the reason of an invalid or a waiting
-//   block, and one for each severity of the notifications about the block
-//   that the board option show_conditions names, whoever raised them, as the
-//   conditions of R's reply, what failed of the block's UI module, its output
-//   and its requests, and what its modules raise.
+//   block, and one for each severity of the notifications about the block,
+//   whoever raised them, as the conditions of R's reply, what failed of the
+//   block's UI module, its output and its requests, and what its modules
+//   raise.
 // - The banners of the pills that are open.
 // The footer, the pills and the banners are those of srcts/card, which the
 // card of a block that serve() serves alone draws as well.
@@ -44,7 +44,6 @@
 import { memo, useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { Banners, Footer, Mounted, Pills, useFooter, useSized } from "../../card/index.ts";
-import type { Condition } from "../../protocol/index.ts";
 import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "../../react/index.ts";
 import type { BlockStatus, Status } from "../../scheduler/index.ts";
 import type { Block, BlockId, Stack, StackId } from "../../types/board.ts";
@@ -54,31 +53,21 @@ import { own } from "../../util/index.ts";
 import { useFrontEnd } from "./context.ts";
 import { Menu } from "./ui.tsx";
 
-type Severity = Condition["severity"];
-
 export interface CardProps {
   readonly id: BlockId;
   readonly block: Block;
-  // The severities of the conditions that the card shows.
-  readonly severities: readonly Severity[];
   // Whether the block takes a link from a new block, which it does while an
   // input of it is free.
   readonly prependable: boolean;
   readonly add: (mode: AddMode) => void;
 }
 
-export const BlockCard = memo(function BlockCard({
-  id,
-  block,
-  severities,
-  prependable,
-  add,
-}: CardProps): ReactElement {
+export const BlockCard = memo(function BlockCard({ id, block, prependable, add }: CardProps): ReactElement {
   const front = useFrontEnd();
   const { core, inView } = front;
   const status = useStatus(core, id);
   const notified = useNotified(core, { block: id });
-  const footer = useFooter(status, notified, severities);
+  const footer = useFooter(status, notified);
   const sized = useSized(status);
   const [renaming, setRenaming] = useState(false);
   const ref = useRef<HTMLElement>(null);

@@ -1,6 +1,6 @@
 // srcts/modules/filebrowser-block/index.tsx
 import { useState } from "react";
-import { Breadcrumb, Breadcrumbs, ComboBox, ComboBoxItem, reactModule, Stack, useRequest, useValue } from "@blockr/core/react";
+import { Breadcrumb, Breadcrumbs, reactModule, Select, SelectItem, Stack, useRequest, useValue } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -63,16 +63,16 @@ function FileBrowserBlock({ host }) {
   const names = Object.keys(volumes);
   return /* @__PURE__ */ jsxs(Stack, { children: [
     names.length > 1 && /* @__PURE__ */ jsx(
-      ComboBox,
+      Select,
       {
         label: "Volume",
         isRequired: true,
-        defaultItems: names.map((id) => ({ id })),
+        items: names.map((id) => ({ id })),
         value: volume ?? null,
         onChange: (key) => {
           if (key !== null) go({ volume: String(key), dirs: [] });
         },
-        children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.id })
+        children: (item) => /* @__PURE__ */ jsx(SelectItem, { id: item.id, children: item.id })
       }
     ),
     /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", children: /* @__PURE__ */ jsx(

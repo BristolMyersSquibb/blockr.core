@@ -1,7 +1,9 @@
 // The dialog that sets the board options that the board holds.
 // Core mounts the UI of each with mountOption(), or the renderer that the app
 // names for it. The dialog groups them by the category that each definition
-// gives.
+// gives, and draws a line between each two categories, so that the heading of
+// a category reads as the start of its group rather than the end of the one
+// above.
 // The board holds a board option once something sets one, as where core's
 // basic frontend requires it or a mounted module names it.
 
@@ -28,15 +30,20 @@ export function OptionsDialog({ onClose }: { onClose: () => void }): ReactElemen
 
   return (
     <Dialog title="Board options" onClose={onClose}>
-      {categories.size === 0 ? <p className={styles.hint}>The board holds no board options.</p> : null}
-      {[...categories].map(([category, ids]) => (
-        <section key={category} aria-label={category} className="bc:grid bc:gap-2">
-          <h3 className="bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted">{category}</h3>
-          {ids.map((id) => (
-            <OptionUi key={id} id={id} />
+      {categories.size === 0 ? (
+        <p className={styles.hint}>The board holds no board options.</p>
+      ) : (
+        <div className="bc:grid bc:divide-y bc:divide-border-default">
+          {[...categories].map(([category, ids]) => (
+            <section key={category} aria-label={category} className="bc:grid bc:gap-2 bc:py-4 bc:first:pt-0 bc:last:pb-0">
+              <h3 className="bc:m-0 bc:text-xs bc:font-semibold bc:uppercase bc:tracking-wide bc:text-text-muted">{category}</h3>
+              {ids.map((id) => (
+                <OptionUi key={id} id={id} />
+              ))}
+            </section>
           ))}
-        </section>
-      ))}
+        </div>
+      )}
     </Dialog>
   );
 }

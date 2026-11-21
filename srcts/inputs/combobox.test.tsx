@@ -17,11 +17,12 @@ import { step } from "../testing/react.ts";
 import {
   chipFromLabel,
   chipLabels,
-  cleared,
   clearButton,
+  cleared,
   labelled,
   listFromField,
   listNote,
+  notAvailable,
   optionFromLabel,
   optionLabels,
   picked,
@@ -296,6 +297,28 @@ describe("a select of one item", () => {
     expect([seen, field.value, clearButton(field)]).toEqual([[null], "", null]);
     expect([clearButton(labelled(el, "Kept")), clearButton(labelled(el, "None"))]).toEqual([null, null]);
   });
+
+  test("keeps the focus in its field as the user presses the button that clears it, which Tab skips", async () => {
+    const { el } = await draw(<Held label="Fruit" defaultItems={fruits} start="apple" seen={[]} />);
+    const field = labelled(el, "Fruit");
+    const button = clearButton(field);
+    expect(button?.tabIndex).toBe(-1);
+
+    // The browser moves the focus to a button as a mouse presses it, which
+    // happy-dom leaves out, so the test does that after the press.
+    field.focus();
+    await step(() => {
+      button?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
+      button?.focus();
+    });
+    expect(document.activeElement).toBe(field);
+    await step(() => {
+      button?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
+      button?.click();
+    });
+
+    expect([document.activeElement, field.value]).toEqual([field, ""]);
+  });
 });
 
 describe("a select of several items", () => {
@@ -539,7 +562,7 @@ describe("a bound select", () => {
     expect(host.submitted).toEqual([basket({ fruit: "banana" })]);
   });
 
-  test("shows a value that its items lack as missing, in place of the placeholder or as a chip, and marks itself invalid, but not while outdated", async () => {
+  test("shows a value that its items lack by its id, as its field's text or as a chip, marks itself invalid and says below itself that it is not available, but not while outdated", async () => {
     const state = basket({ fruit: "durian", fruits: ["apple", "durian"] });
     const shown = async (outdated: boolean) => {
       const { el, unmount } = await draw(<Bound host={stubBlockHost<Basket>(fixture, { state })} outdated={outdated} />);
@@ -548,21 +571,29 @@ describe("a bound select", () => {
       // colour of danger by the attributes that mark them.
       const marked = [one, several].map((field) => field.closest('[role="group"]')?.hasAttribute("data-invalid"));
       const missing = [...(several.closest('[role="group"]')?.querySelectorAll("[data-missing]") ?? [])].map((chip) => chip.textContent.trim());
-      const seen = [one.value, one.placeholder, one.getAttribute("aria-invalid"), chipLabels(several), several.getAttribute("aria-invalid"), marked, missing];
+      const seen = [
+        one.value,
+        one.getAttribute("aria-invalid"),
+        chipLabels(several),
+        several.getAttribute("aria-invalid"),
+        marked,
+        missing,
+        notAvailable(el),
+      ];
       await unmount();
       return seen;
     };
 
     expect(await shown(false)).toEqual([
-      "",
-      "durian (not available)",
+      "durian",
       "true",
-      ["Apple", "durian (not available)"],
+      ["Apple", "durian"],
       "true",
       [true, true],
-      ["durian (not available)"],
+      ["durian"],
+      ["Not available: durian", "Not available: durian"],
     ]);
-    expect(await shown(true)).toEqual(["", "durian", null, ["Apple", "durian"], null, [false, false], []]);
+    expect(await shown(true)).toEqual(["durian", null, ["Apple", "durian"], null, [false, false], [], []]);
   });
 
   test("submits the picks of several once, as the list closes, after the strings that the state holds then", async () => {

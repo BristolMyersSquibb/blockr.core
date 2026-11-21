@@ -67,6 +67,21 @@
  * The shade that blockr.ui takes, amber-700, reaches 4.26:1 on the tint.
  * Under the dark theme, both take lighter values, in the rule that gives the
  * statuses theirs.
+ *
+ * The list of notifications in core's React SDK draws an error or a warning
+ * on a fill, with a subtle edge, in the message style of blockr.ui's design
+ * system.
+ * The fills, bg-danger and bg-warning, mix the danger or the warning border
+ * at 10%.
+ * By default, that is the tint of a card's mark, so the texts reach 4.5:1 on
+ * the fills too.
+ * Core's menu fills a row that removes with bg-danger under the pointer and
+ * as the keyboard's row, as the design system fills a destructive row with
+ * blockr.ui's --blockr-color-bg-danger.
+ * The edges, border-danger-subtle and border-warning-subtle, mix the same
+ * borders at 35% and at 45%, as blockr.ui mixes its subtle borders.
+ * So a frontend that sets a border changes its fill and its edge with it,
+ * unless it sets those as well.
  */
 @theme {
   --color-text-default: currentColor;
@@ -78,8 +93,12 @@
   --color-border-default: color-mix(in oklab, currentColor 25%, transparent);
   --color-border-danger: var(--bc-color-red-500);
   --color-border-warning: var(--bc-color-amber-500);
+  --color-border-danger-subtle: color-mix(in oklab, var(--bc-color-border-danger) 35%, transparent);
+  --color-border-warning-subtle: color-mix(in oklab, var(--bc-color-border-warning) 45%, transparent);
   --color-border-accent: var(--bc-color-blue-500);
   --color-bg-accent: var(--bc-color-blue-600);
+  --color-bg-danger: color-mix(in oklab, var(--bc-color-border-danger) 10%, transparent);
+  --color-bg-warning: color-mix(in oklab, var(--bc-color-border-warning) 10%, transparent);
   --color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
   --color-bg-raised: Canvas;
 }

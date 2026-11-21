@@ -40,6 +40,7 @@ import type {
   PopoverProps,
   SubmenuTriggerProps,
 } from "../aria/index.ts";
+import { ChevronRight, Tick } from "../inputs/index.ts";
 import { Popover } from "./popover.tsx";
 
 export interface MenuTriggerProps extends AriaMenuTriggerProps {
@@ -85,7 +86,7 @@ export function MenuItem(props: MenuItemProps): ReactElement {
             <span className="bc:flex bc:size-3.5 bc:shrink-0 bc:text-bg-accent">{isSelected ? <Tick /> : null}</span>
           )}
           <span className={CONTENT}>{children}</span>
-          {hasSubmenu ? <Chevron /> : null}
+          {hasSubmenu ? <ChevronRight size={14} /> : null}
         </>
       ))}
     </AriaMenuItem>
@@ -104,45 +105,6 @@ export function MenuSection<T extends object>({ title, items, children, ...props
       {title === undefined ? null : <Header className={HEADING}>{title}</Header>}
       <Collection items={items}>{children}</Collection>
     </AriaMenuSection>
-  );
-}
-
-// The design system's tick of a pick.
-function Tick(): ReactElement {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3.5 8.5l3 3 6-7" />
-    </svg>
-  );
-}
-
-// The chevron at the right of an item that opens a submenu.
-function Chevron(): ReactElement {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="bc:shrink-0 bc:text-text-muted"
-    >
-      <path d="M6 3.5l4.5 4.5L6 12.5" />
-    </svg>
   );
 }
 

@@ -14,6 +14,7 @@
 
 import type { ReactElement } from "react";
 import { Breadcrumb as AriaBreadcrumb, Breadcrumbs as AriaBreadcrumbs, composeRenderProps } from "../aria/index.ts";
+import { ChevronRight } from "../inputs/index.ts";
 import type { BreadcrumbProps as AriaBreadcrumbProps, BreadcrumbsProps } from "../aria/index.ts";
 import { Link } from "./link.tsx";
 import type { LinkProps } from "./link.tsx";
@@ -33,28 +34,10 @@ export function Breadcrumb({ className, id, ...props }: BreadcrumbProps): ReactE
       {({ isCurrent }) => (
         <>
           <Link variant="secondary" {...props} />
-          {isCurrent ? null : <Chevron />}
+          {isCurrent ? null : <ChevronRight />}
         </>
       )}
     </AriaBreadcrumb>
-  );
-}
-
-// The chevron after a breadcrumb that is not the current one.
-function Chevron(): ReactElement {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="bc:size-3 bc:shrink-0 bc:text-text-muted"
-    >
-      <path d="M6 3.5l4.5 4.5L6 12.5" />
-    </svg>
   );
 }
 

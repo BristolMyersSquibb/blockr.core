@@ -209,7 +209,7 @@ test_that("R gives the version of each board option of the app's packages", {
   # them no method of `board_option_version()`
   expect_identical(
     lst_xtr(loaded_reply()$options, "version"),
-    list(n_rows = 1L, show_conditions = 1L, dark_mode = 1L)
+    list(n_rows = 1L, dark_mode = 1L)
   )
 
   # A method that gives no version fails as R builds the reply
@@ -292,12 +292,12 @@ test_that("an entry names the board options that its class's UI module reads", {
 
   # By ID, each once, as the class holds their constructors
   head$block_class$options <- list(
-    new_dark_mode_option, new_show_conditions_option, new_dark_mode_option
+    new_dark_mode_option, new_n_rows_option, new_dark_mode_option
   )
 
   expect_identical(
     json(registry_entry_reply(head)$options),
-    "[\"dark_mode\",\"show_conditions\"]"
+    "[\"dark_mode\",\"n_rows\"]"
   )
 })
 

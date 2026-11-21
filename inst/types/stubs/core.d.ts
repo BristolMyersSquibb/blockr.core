@@ -1,9 +1,11 @@
+import type { Target } from "../actions/index.ts";
 import type { Measure } from "../mount/index.ts";
 import type { Condition, EvaluateReply, EvaluateRequest, HelloReply, OutputInfo, OutputRequest, Request } from "../protocol/index.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import type { BlockOutput } from "../types/outputs.ts";
+import type { StubMenu } from "./menu.ts";
 export declare const HELLO: HelloReply;
 export declare const INFO: OutputInfo;
 export type Answer = (request: Request, body: Blob | undefined) => Json | Blob | undefined | Promise<Json | Blob | undefined>;
@@ -28,6 +30,10 @@ export interface StubCore {
     readonly sent: readonly Request[];
     readonly settled: () => Promise<void>;
     readonly logged: readonly LogLine[];
+    menu(target: Target, opts?: MenuOptions): StubMenu;
+    menu(): StubMenu | undefined;
     readonly stop: () => void;
 }
+type MenuOptions = Omit<Parameters<CoreApi["boardActions"]["menu"]>[1], "el" | "anchor">;
 export declare function stubCore(options?: StubCoreOptions): Promise<StubCore>;
+export {};

@@ -19,7 +19,7 @@ test_that("core lists what it offers core in its `._BLOCKR_MODULES_`", {
   )
   expect_identical(
     names(listing$options),
-    c("n_rows", "show_conditions", "dark_mode")
+    c("n_rows", "dark_mode")
   )
 
   # Its output families, by the names under which its namespace binds them
@@ -389,7 +389,7 @@ test_that("a reply names the board options of every available package", {
   )
 
   # Core's own are among them
-  core <- c("n_rows", "show_conditions", "dark_mode")
+  core <- c("n_rows", "dark_mode")
 
   expect_true(all(core %in% names(app_options())))
 

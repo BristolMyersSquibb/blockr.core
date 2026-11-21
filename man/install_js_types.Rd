@@ -27,11 +27,15 @@ and those of the installed packages they name.
 }
 \details{
 It installs all of them with one call of
-\verb{npm install --no-save --install-links},
+\verb{npm install --no-save --install-links --ignore-scripts},
 since each such call removes what the call before it installed.
 The flag \code{--install-links} installs a copy rather than a link into the R
 library, so that TypeScript and Vitest find React in the package's
 \code{node_modules}, where npm installs it as the peer of \verb{@blockr/core}.
+The flag \code{--ignore-scripts} keeps npm from running the install scripts of
+what it adds: the types, and the packages that the types depend on.
+No lockfile of the package pins those packages,
+so each call resolves them to the newest versions that their ranges allow.
 
 A copy does not follow an update of the R package it comes from,
 and npm removes it at its next install.

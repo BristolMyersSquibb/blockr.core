@@ -118,10 +118,10 @@ knitr::include_graphics("screenshots/add-block-after.png")
    Until then, the merge block reads invalid, since it has no column to merge by.
 6. Under Stacks, the user picks blocks `a` and `c` in Blocks and clicks Add stack.
 
-Options opens the board options: the severities of the conditions that the cards show, the light or the dark theme, and the rows on a page of a table.
+Options opens the board options: the light or the dark theme, and the rows on a page of a table.
 The board holds the value of a board option only once the user sets one, and every other board option takes its default.
 
-```{r, echo = FALSE, out.width = "66%", fig.alt = "The dialog of the board options, with Message types to display, where warning and error are ticked, Light/dark mode, set to Light, and Preview rows, set to 10."}
+```{r, echo = FALSE, out.width = "66%", fig.alt = "The dialog of the board options, with Light/dark mode, set to Light, and Preview rows, set to 10."}
 knitr::include_graphics("screenshots/options.png")
 ```
 

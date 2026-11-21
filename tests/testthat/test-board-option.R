@@ -90,14 +90,12 @@ test_that("core's board options take their value alone and compute nothing", {
 
   ctors <- list(
     n_rows = new_n_rows_option,
-    dark_mode = new_dark_mode_option,
-    show_conditions = new_show_conditions_option
+    dark_mode = new_dark_mode_option
   )
 
   withr::local_options(
     blockr.n_rows = 10L,
-    blockr.dark_mode = "dark",
-    blockr.show_conditions = "error"
+    blockr.dark_mode = "dark"
   )
 
   for (id in names(ctors)) {
@@ -113,10 +111,6 @@ test_that("core's board options take their value alone and compute nothing", {
   # The definitions in the client check a value, and R does not
   expect_identical(board_option_value(new_n_rows_option(-1L)), -1L)
   expect_identical(board_option_value(new_dark_mode_option(TRUE)), TRUE)
-  expect_identical(
-    board_option_value(new_show_conditions_option(-1L)),
-    -1L
-  )
 })
 
 test_that("a board option has a compact str_value()", {

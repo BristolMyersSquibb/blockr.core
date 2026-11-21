@@ -33,12 +33,12 @@
 // Under the board lock, it lists the links alone.
 
 import { useState } from "react";
-import type { ReactElement, SubmitEvent } from "react";
+import type { ReactElement, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { freeInputs, linkFeeding } from "../../commands/index.ts";
 import { createGraph } from "../../graph/index.ts";
 import { focusFirstInvalid, inputNameError, isVariadic, namesInto, without } from "../../picker/index.ts";
-import { ComboBox, ComboBoxItem, Text, TextField } from "../../react/index.ts";
+import { ComboBox, ComboBoxItem, Form, Select, SelectItem, Text, TextField } from "../../react/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { BlockId, Board, Link, LinkId } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -305,7 +305,7 @@ function LinkForm({
     };
   }
 
-  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
     const found = check();
@@ -346,119 +346,124 @@ function LinkForm({
   }
 
   return (
-    <form
-      aria-label={editing === undefined ? "Add link" : "Change link"}
-      noValidate
-      className="bc:grid bc:gap-3"
-      onSubmit={(event) => {
-        void submit(event);
-      }}
+    // React Aria's Form takes no handler of keys, so the box around it
+    // hears Escape, which closes the form of a row.
+    <div
+      className="bc:contents"
       onKeyDown={(event) => {
         if (event.key === "Escape" && editing !== undefined && !event.defaultPrevented) onDone?.();
       }}
     >
-      <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
-        <ComboBox
-          label="From"
-          {...fromSearch}
-          value={source ?? null}
-          placeholder="Search blocks"
-          isInvalid={errors.from !== undefined}
-          errorMessage={errors.from}
-          onChange={(key) => {
-            setFrom(key === null ? undefined : String(key));
-            setErrors((now) => without(now, "from"));
-          }}
-        >
-          {blockRow}
-        </ComboBox>
-        <ComboBox
-          label="To"
-          {...toSearch}
-          value={target ?? null}
-          placeholder="Search blocks"
-          isInvalid={errors.to !== undefined}
-          errorMessage={errors.to}
-          description={toOptions.length === 0 ? "No block takes a link from this block." : undefined}
-          onChange={(key) => {
-            setTo(key === null ? undefined : String(key));
-            setInput(undefined);
-            setPlace(undefined);
-            setErrors((now) => without(without(now, "to"), "input"));
-          }}
-        >
-          {blockRow}
-        </ComboBox>
-      </div>
-      {target === undefined ? null : variadic ? (
-        <div className={among === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>
-          <TextField
-            label="Input name"
-            value={name}
-            description={`Optional. The block "${blockName(board, target)}" takes any number of links, each by its name or, where it has none, by its position.`}
-            errorMessage={errors.input}
-            isInvalid={errors.input !== undefined}
-            autoComplete="off"
-            {...identifier}
-            onChange={(value) => {
-              setName(value);
-              setErrors((now) => without(now, "input"));
-            }}
-            onBlur={() => {
-              setErrors((now) => ({ ...now, ...optional("input", inputNameError(name, taken)) }));
-            }}
-          />
-          {among === undefined ? null : (
-            <ComboBox
-              label="Position"
-              isRequired
-              defaultItems={Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) }))}
-              value={position === undefined ? null : String(position)}
-              isDisabled={among.others.length === 0}
-              onChange={(key) => {
-                if (key !== null) setPlace(Number(key));
-              }}
-            >
-              {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
-            </ComboBox>
-          )}
-        </div>
-      ) : (
-        <ComboBox
-          label="Input"
-          isRequired
-          defaultItems={offered.map((id) => ({ id }))}
-          value={chosen ?? null}
-          isDisabled={offered.length < 2}
-          description={hint}
-          onChange={(key) => {
-            if (key !== null) setInput(String(key));
-          }}
-        >
-          {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
-        </ComboBox>
-      )}
-      {editing === undefined && Object.keys(board.blocks).length < 2 ? (
-        <p className={styles.hint}>A link joins two blocks, so the board needs two blocks first.</p>
-      ) : null}
-      <div className="bc:flex bc:gap-2">
-        <button type="submit" className={classes.primary} disabled={busy}>
-          {submitLabel}
-        </button>
-        {editing === undefined ? null : (
-          <button
-            type="button"
-            className={classes.button}
-            onClick={() => {
-              onDone?.();
+      <Form
+        aria-label={editing === undefined ? "Add link" : "Change link"}
+        validationBehavior="aria"
+        onSubmit={(event) => {
+          void submit(event);
+        }}
+      >
+        <div className="bc:grid bc:grid-cols-2 bc:items-start bc:gap-2">
+          <ComboBox
+            label="From"
+            {...fromSearch}
+            value={source ?? null}
+            placeholder="Search blocks"
+            isInvalid={errors.from !== undefined}
+            errorMessage={errors.from}
+            onChange={(key) => {
+              setFrom(key === null ? undefined : String(key));
+              setErrors((now) => without(now, "from"));
             }}
           >
-            Cancel
-          </button>
+            {blockRow}
+          </ComboBox>
+          <ComboBox
+            label="To"
+            {...toSearch}
+            value={target ?? null}
+            placeholder="Search blocks"
+            isInvalid={errors.to !== undefined}
+            errorMessage={errors.to}
+            description={toOptions.length === 0 ? "No block takes a link from this block." : undefined}
+            onChange={(key) => {
+              setTo(key === null ? undefined : String(key));
+              setInput(undefined);
+              setPlace(undefined);
+              setErrors((now) => without(without(now, "to"), "input"));
+            }}
+          >
+            {blockRow}
+          </ComboBox>
+        </div>
+        {target === undefined ? null : variadic ? (
+          <div className={among === undefined ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2"}>
+            <TextField
+              label="Input name"
+              value={name}
+              description={`Optional. The block "${blockName(board, target)}" takes any number of links, each by its name or, where it has none, by its position.`}
+              errorMessage={errors.input}
+              isInvalid={errors.input !== undefined}
+              autoComplete="off"
+              {...identifier}
+              onChange={(value) => {
+                setName(value);
+                setErrors((now) => without(now, "input"));
+              }}
+              onBlur={() => {
+                setErrors((now) => ({ ...now, ...optional("input", inputNameError(name, taken)) }));
+              }}
+            />
+            {among === undefined ? null : (
+              <Select
+                label="Position"
+                isRequired
+                items={Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) }))}
+                value={position === undefined ? null : String(position)}
+                isDisabled={among.others.length === 0}
+                onChange={(key) => {
+                  if (key !== null) setPlace(Number(key));
+                }}
+              >
+                {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
+              </Select>
+            )}
+          </div>
+        ) : (
+          <Select
+            label="Input"
+            isRequired
+            items={offered.map((id) => ({ id }))}
+            value={chosen ?? null}
+            isDisabled={offered.length < 2}
+            description={hint}
+            onChange={(key) => {
+              if (key !== null) setInput(String(key));
+            }}
+          >
+            {(item) => <SelectItem id={item.id}>{item.id}</SelectItem>}
+          </Select>
         )}
-      </div>
-      {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
-    </form>
+        {editing === undefined && Object.keys(board.blocks).length < 2 ? (
+          <p className={styles.hint}>A link joins two blocks, so the board needs two blocks first.</p>
+        ) : null}
+        <div className="bc:flex bc:gap-2">
+          <button type="submit" className={classes.primary} disabled={busy}>
+            {submitLabel}
+          </button>
+          {editing === undefined ? null : (
+            <button
+              type="button"
+              className={classes.button}
+              onClick={() => {
+                onDone?.();
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+        {tableEdits === undefined ? <Refusal refusal={ownEdits.refusal} /> : null}
+      </Form>
+    </div>
   );
 }
 

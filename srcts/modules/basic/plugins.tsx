@@ -14,9 +14,8 @@
 // panel rather than only from sight, as the panel of the SDK hides what it
 // holds.
 //
-// A section shows the notifications about its plugin, of the severities that
-// the board option show_conditions names, whoever raised them, as Core's
-// basic frontend has it
+// A section shows the notifications about its plugin, of every severity,
+// whoever raised them, as Core's basic frontend has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.14#cores-basic-frontend):
 // - The title holds a pill for each severity beside the plugin's name, whether
 //   the section is open or collapsed, as a card's pills count the
@@ -36,7 +35,7 @@ import type { ReactElement } from "react";
 import { Banners, Mounted, Pills, usePills } from "../../card/index.ts";
 import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified } from "../../react/index.ts";
 import type { PluginClassId } from "../../types/board.ts";
-import type { CoreApi, Plugin, Severity } from "../../types/core-api.ts";
+import type { CoreApi, Plugin } from "../../types/core-api.ts";
 import { classes } from "../../ui/index.ts";
 import { useFrontEnd } from "./context.ts";
 
@@ -91,9 +90,7 @@ export function placed(core: Pick<CoreApi, "plugins">): readonly (readonly [Plug
 // the page is wide enough, in a column that takes a third of the page's width
 // and no less than 28rem, staying in view as the board scrolls, and above it
 // otherwise. It draws nothing where the frontend shows no plugin.
-// Each section shows the notifications about its plugin of the severities
-// given.
-export function Plugins({ severities }: { severities: readonly Severity[] }): ReactElement | null {
+export function Plugins(): ReactElement | null {
   const { core } = useFrontEnd();
   const shown = placed(core);
   if (shown.length === 0) return null;
@@ -103,24 +100,16 @@ export function Plugins({ severities }: { severities: readonly Severity[] }): Re
       className="bc:grid bc:min-w-0 bc:content-start bc:gap-4 bc:md:sticky bc:md:top-4 bc:md:max-h-[calc(100dvh-2rem)] bc:md:w-1/3 bc:md:min-w-md bc:md:shrink-0 bc:md:overflow-auto"
     >
       {shown.map(([id, plugin]) => (
-        <PluginSection key={id} id={id} plugin={plugin} severities={severities} />
+        <PluginSection key={id} id={id} plugin={plugin} />
       ))}
     </aside>
   );
 }
 
-function PluginSection({
-  id,
-  plugin,
-  severities,
-}: {
-  id: PluginClassId;
-  plugin: Plugin;
-  severities: readonly Severity[];
-}): ReactElement {
+function PluginSection({ id, plugin }: { id: PluginClassId; plugin: Plugin }): ReactElement {
   const { core, inView, sections } = useFrontEnd();
   const notified = useNotified(core, { plugin: id });
-  const pills = usePills(notified, severities);
+  const pills = usePills(notified);
   const collapsed = useSyncExternalStore(sections.subscribe, () => sections.collapsed(id));
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {

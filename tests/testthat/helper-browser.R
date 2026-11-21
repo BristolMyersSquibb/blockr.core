@@ -543,9 +543,10 @@ window.e2e = {
       ), 'button ' + text);
     button.click();
   },
-  // Picks the item of the id given in the select of the label given, as a
-  // user opens its list and clicks the item, once R has answered for the
-  // items, and closes the list of several again, which submits its picks.
+  // Picks the item of the id given in the select of the label given, the
+  // field of a ComboBox or the button of a Select, as a user opens its list
+  // and clicks the item, once R has answered for the items, and closes the
+  // list of several again, which submits its picks.
   // React Aria marks each row with the id of its item, in data-key.
   // A select of one item that shows it greyed out has nothing to pick.
   async pick(label, value, within) {
@@ -553,7 +554,7 @@ window.e2e = {
       () => e2e.labelled(within, label),
       'field ' + label
     );
-    if (field.disabled && field.value === value) return;
+    if (field.disabled && e2e.shows(field) === value) return;
     await e2e.reveal(field);
     field.click();
     const found = await e2e.until(
@@ -573,12 +574,27 @@ window.e2e = {
     );
   },
   // The field that the label of the text given names, through its for
-  // attribute or by holding it.
+  // attribute or by holding it, or else the button of a Select, which React
+  // Aria names by the select's label, a span, through aria-labelledby.
   labelled(within, text) {
     const label = [...within.querySelectorAll('label')]
       .find((l) => l.textContent.trim() === text);
-    return label &&
-      (document.getElementById(label.htmlFor) || label.querySelector('input'));
+    if (label) {
+      return document.getElementById(label.htmlFor) ||
+        label.querySelector('input');
+    }
+    const named = (id) => document.getElementById(id)?.textContent.trim();
+    return [...within.querySelectorAll('button[aria-haspopup=listbox]')]
+      .find((button) => (button.getAttribute('aria-labelledby') || '')
+        .split(' ')
+        .some((id) => named(id) === text));
+  },
+  // What a field shows: the text of a ComboBox's field, or the pick that the
+  // button of a Select shows, which React Aria names it by first.
+  shows(field) {
+    if (field.tagName !== 'BUTTON') return field.value;
+    const id = (field.getAttribute('aria-labelledby') || '').split(' ')[0];
+    return document.getElementById(id)?.textContent.trim();
   },
   // The rows of the open list of the select of the field given, which React
   // Aria draws at the end of the page's body.
@@ -594,9 +610,15 @@ window.e2e = {
   },
   // Closes the list of a select with Escape where it is still open, as that
   // of several is after a pick, and submits its picks.
+  // The key goes to the element that has the focus, where it sits in the list,
+  // as the focus does in the list of a Select, and to the field otherwise.
   close(field) {
-    if (!document.getElementById(field.getAttribute('aria-controls'))) return;
-    field.dispatchEvent(
+    const list = document.getElementById(field.getAttribute('aria-controls'));
+    if (!list) return;
+    const focused = list.contains(document.activeElement) ?
+      document.activeElement :
+      field;
+    focused.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
     );
   },

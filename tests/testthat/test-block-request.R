@@ -61,9 +61,8 @@ test_that("a request takes the values of the board options it reads", {
         options = new_n_rows_option
       ),
       shown = new_block_request(
-        function(rows, conds) list(rows = rows, conds = conds),
-        options = list(rows = new_n_rows_option,
-                       conds = new_show_conditions_option)
+        function(rows, mode) list(rows = rows, mode = mode),
+        options = list(rows = new_n_rows_option, mode = new_dark_mode_option)
       ),
       unset = new_block_request(
         function(rows) missing(rows),
@@ -83,17 +82,17 @@ test_that("a request takes the values of the board options it reads", {
   expect_identical(
     run_block_request(
       cls, "shown",
-      options = list(n_rows = 5L, show_conditions = c("warning", "error"))
+      options = list(n_rows = 5L, dark_mode = "dark")
     ),
-    list(rows = 5L, conds = c("warning", "error"))
+    list(rows = 5L, mode = "dark")
   )
 
   expect_identical(
     run_block_request(
       cls, "shown",
-      options = list(n_rows = NULL, show_conditions = list(a = 1))
+      options = list(n_rows = NULL, dark_mode = list(a = 1))
     ),
-    list(rows = NULL, conds = list(a = 1))
+    list(rows = NULL, mode = list(a = 1))
   )
 
   expect_true(run_block_request(cls, "unset"))
