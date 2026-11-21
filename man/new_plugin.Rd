@@ -161,7 +161,7 @@ of them, and core's method for \code{plugin} names none.
 R calls it on the same plugin, and sends the IDs of the board options in
 its reply to \code{hello}.
 The client puts them on the board before it starts the plugin or draws its
-UI, as core's basic frontend gets \code{show_conditions} and \code{dark_mode}.
+UI, as core's basic frontend gets \code{dark_mode}.
 A plugin class that needs R gives its requests through its method of
 \code{\link[=plugin_requests]{plugin_requests()}}, which R calls on such a plugin too.
 

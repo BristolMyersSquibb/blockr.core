@@ -111,7 +111,7 @@
           "blockr.core-basic_frontend_plugin": {
             "name": "Basic frontend",
             "version": 1,
-            "options": ["show_conditions", "dark_mode"],
+            "options": ["dark_mode"],
             "module": "blockr.core/basic.js?v=0f3d8e21",
             "css": "blockr.core/basic.css?v=6a9b2c4e"
           },
@@ -133,11 +133,6 @@
           "n_rows": {
             "package": "blockr.core",
             "module": "blockr.core/n-rows-option.js?v=2b9c7e14",
-            "version": 1
-          },
-          "show_conditions": {
-            "package": "blockr.core",
-            "module": "blockr.core/show-conditions-option.js?v=6f3a8d05",
             "version": 1
           },
           "dark_mode": {
@@ -173,11 +168,7 @@
             "links": { "ab": { "from": "a", "to": "b", "input": "data" } },
             "stacks": {},
             "options": {
-              "n_rows": { "value": 50, "version": 1 },
-              "show_conditions": {
-                "value": ["warning", "error"],
-                "version": 1
-              }
+              "n_rows": { "value": 50, "version": 1 }
             },
             "plugins": {}
           }

@@ -1,10 +1,13 @@
-// Core's board actions that ask the user nothing, from the table of Core's
-// board actions
+// Core's board actions, from the table of Core's board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions),
-// in its order: Copy block ID, Remove block, Remove link, Remove stack, and
-// Remove on a selection. Their ids are under blockr.core and keep the names of
-// the dock's actions, as blockr.core-remove_block_action.
-// Each acts at once, through its run():
+// in its order: Rename, Copy block ID, Remove block, Remove link, Remove stack,
+// and Remove on a selection. Their ids are under blockr.core and keep the names
+// of the dock's actions, as blockr.core-remove_block_action, but for Rename and
+// Copy block ID, which are new.
+// - Rename, on a block or a stack, asks for the name in its quick action, a
+//   text row that holds the name, which refuses an empty name, and runs core's
+//   command that renames the block or the stack. A name that the user leaves
+//   as it was runs nothing.
 // - Copy block ID puts the block's id on the clipboard itself, and raises a
 //   notification of the code `copy_failed` about the block where the browser
 //   refuses (./clipboard.ts). Its row in a menu shows the block's id.
@@ -12,6 +15,10 @@
 //   what they act on.
 // - Remove on a selection removes every block, link and stack of the
 //   selection in one step, and leaves out what else the selection holds.
+// Each but Rename acts at once, through its run(). Those that remove carry the
+// bin of a row that destroys something as their icon, in the shape of
+// blockr.ui's `trash`, since blockr.ui builds on blockr.core
+// (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/trash.svg).
 // Under the board lock, every one but Copy block ID fails its offers(), since
 // the store refuses what they run
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.11#three-locks).
@@ -20,7 +27,7 @@
 // menu offers a board action that leads nowhere.
 
 import type { BlockId, Board } from "../types/board.ts";
-import { coreNotification } from "../util/index.ts";
+import { coreNotification, own } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { copyText } from "./clipboard.ts";
@@ -28,6 +35,31 @@ import { copyText } from "./clipboard.ts";
 // Core's board actions, whose notifications core raises through `raise`.
 export function coreBoardActions(raise: Raise): BoardAction[] {
   return [
+    {
+      id: "blockr.core-rename_action",
+      label: "Rename",
+      on: ["block", "stack"],
+      category: "edit",
+      offers: (board, target, lock) => !lock.board && named(board, target) !== undefined,
+      quick(board, target) {
+        const object = named(board, target);
+        if (object === undefined) return undefined;
+        return {
+          rows: [
+            {
+              kind: "text",
+              label: "Name",
+              value: object.name,
+              check: (value) => (value.trim() === "" ? "A name cannot be empty." : undefined),
+              submit(value) {
+                const name = value.trim();
+                return name === object.name ? [] : [{ id: object.command, args: { id: object.id, name } }];
+              },
+            },
+          ],
+        };
+      },
+    },
     {
       id: "blockr.core-copy_block_id_action",
       label: "Copy block ID",
@@ -51,6 +83,7 @@ export function coreBoardActions(raise: Raise): BoardAction[] {
     {
       id: "blockr.core-remove_block_action",
       label: "Remove block",
+      icon: TRASH,
       on: ["block"],
       category: "remove",
       offers: (board, target, lock) => !lock.board && heldBlock(board, target) !== undefined,
@@ -59,6 +92,7 @@ export function coreBoardActions(raise: Raise): BoardAction[] {
     {
       id: "blockr.core-remove_link_action",
       label: "Remove link",
+      icon: TRASH,
       on: ["link"],
       category: "remove",
       offers: (board, target, lock) =>
@@ -68,6 +102,7 @@ export function coreBoardActions(raise: Raise): BoardAction[] {
     {
       id: "blockr.core-remove_stack_action",
       label: "Remove stack",
+      icon: TRASH,
       on: ["stack"],
       category: "remove",
       offers: (board, target, lock) =>
@@ -77,12 +112,27 @@ export function coreBoardActions(raise: Raise): BoardAction[] {
     {
       id: "blockr.core-remove_selected_action",
       label: "Remove",
+      icon: TRASH,
       on: ["selection"],
       category: "remove",
       offers: (board, target, lock) => !lock.board && removals(board, target).length > 0,
       run: (board, target) => removals(board, target),
     },
   ];
+}
+
+// The block or the stack that the target names, where the board holds it,
+// with its name and core's command that renames it.
+function named(board: Board, target: Target): { id: string; name: string; command: string } | undefined {
+  if ("block" in target) {
+    const block = own(board.blocks, target.block);
+    return block === undefined ? undefined : { id: target.block, name: block.name, command: "blockr.core-rename_block" };
+  }
+  if ("stack" in target) {
+    const stack = own(board.stacks, target.stack);
+    return stack === undefined ? undefined : { id: target.stack, name: stack.name, command: "blockr.core-rename_stack" };
+  }
+  return undefined;
 }
 
 // The block that the target names, for a board action on blocks alone, which
@@ -123,3 +173,8 @@ function removals(board: Board, target: Target): CommandCall[] {
   }
   return [...links, ...blocks, ...stacks];
 }
+
+// The bin of a row that destroys something, in the shape of blockr.ui's
+// `trash`, in the colour of the text around it.
+const TRASH =
+  '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></svg>';

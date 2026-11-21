@@ -1,12 +1,13 @@
 // The UI of the head block: a number field for the whole number of rows it
 // keeps, whose largest value is the number of rows of its input,
-// which the request n_max gives, and a select of the end it keeps them from.
+// which the request n_max gives, and toggle buttons of the end it keeps them
+// from, which always hold one end.
 // While the request asks again, as after the input changed,
 // and after an ask failed, that number is the one of older data,
 // so the number field marks no number above it.
 
 import type { ReactElement } from "react";
-import { ComboBox, ComboBoxItem, NumberField, reactModule, Stack, useRequest, useValue } from "../../react/index.ts";
+import { NumberField, reactModule, Stack, ToggleButton, ToggleButtonGroup, useRequest, useValue } from "../../react/index.ts";
 import type { ModuleProps } from "../../react/index.ts";
 import type { BlockHost } from "../../types/hosts.ts";
 import type { State } from "./state.ts";
@@ -25,9 +26,13 @@ function HeadBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement {
   return (
     <Stack>
       <NumberField bound={useValue(host, "n")} label="Number of rows" minValue={0} maxValue={max} step={1} outdated={outdated} />
-      <ComboBox bound={useValue(host, "direction")} label="Direction" placeholder="Choose an end" defaultItems={ends} isRequired>
-        {(item) => <ComboBoxItem id={item.id}>{item.name}</ComboBoxItem>}
-      </ComboBox>
+      <ToggleButtonGroup bound={useValue(host, "direction")} label="Direction" disallowEmptySelection>
+        {ends.map((end) => (
+          <ToggleButton key={end.id} id={end.id}>
+            {end.name}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
     </Stack>
   );
 }

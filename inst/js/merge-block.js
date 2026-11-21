@@ -1,6 +1,6 @@
 // srcts/modules/merge-block/index.tsx
 import { strings } from "@blockr/core/binding";
-import { ComboBox, ComboBoxItem, reactModule, Stack, Text, useRequest, useValue } from "@blockr/core/react";
+import { ComboBox, ComboBoxItem, reactModule, Select, SelectItem, Stack, Text, useRequest, useValue } from "@blockr/core/react";
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 var joins = [
@@ -30,7 +30,7 @@ function MergeBlock({ host }) {
         children: (item) => /* @__PURE__ */ jsx(ComboBoxItem, { id: item.id, children: item.id })
       }
     ),
-    /* @__PURE__ */ jsx(ComboBox, { bound: useValue(host, joinOf, argsOf), label: "Join type", defaultItems: joins, isRequired: true, children: (item) => /* @__PURE__ */ jsxs(ComboBoxItem, { id: item.id, textValue: item.name, children: [
+    /* @__PURE__ */ jsx(Select, { bound: useValue(host, joinOf, argsOf), label: "Join type", items: joins, isRequired: true, children: (item) => /* @__PURE__ */ jsxs(SelectItem, { id: item.id, textValue: item.name, children: [
       /* @__PURE__ */ jsx(Text, { slot: "label", children: item.name }),
       /* @__PURE__ */ jsx(Text, { slot: "description", children: item.description })
     ] }) })

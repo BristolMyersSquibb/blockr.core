@@ -1,4 +1,4 @@
-// Core's board options, n_rows, show_conditions and dark_mode: what each
+// Core's board options, n_rows and dark_mode: what each
 // defines, the module of each, the default each reads from its blockr option,
 // what dark_mode does on the page, and their UI modules, mounted with the stub
 // of their host.
@@ -12,15 +12,13 @@ import { PAUSE } from "../binding/index.ts";
 import darkModeModule, * as darkModeExports from "../modules/dark-mode-option/index.ts";
 // eslint-disable-next-line no-restricted-imports
 import nRowsModule, * as nRowsExports from "../modules/n-rows-option/index.ts";
-// eslint-disable-next-line no-restricted-imports
-import showConditionsModule, * as showConditionsExports from "../modules/show-conditions-option/index.ts";
 import { stubOptionHost } from "../stubs/index.ts";
-import { type } from "../testing/inputs.ts";
+import { toggleButton, toggles, type } from "../testing/inputs.ts";
 import { mountReact, step } from "../testing/react.ts";
-import { chipLabels, labelled, listed, picked } from "../testing/select.ts";
+import { labelled } from "../testing/select.ts";
 import type { CoreApi } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
-import { coreOptions, darkMode, nRows, optionSchemas, setTheme, showConditions } from "./index.ts";
+import { coreOptions, darkMode, nRows, optionSchemas, setTheme } from "./index.ts";
 
 // CoreApi with its blockrOption(), with the values that R holds, which records
 // what it is asked for.
@@ -61,7 +59,6 @@ describe("core's board options", () => {
 
     expect(options.map(([id, { label, category }]) => ({ id, label, category }))).toEqual([
       { id: "n_rows", label: "Preview rows", category: "Table options" },
-      { id: "show_conditions", label: "Message types to display", category: "Board options" },
       { id: "dark_mode", label: "Light/dark mode", category: "Theme options" },
     ]);
     expect(Object.fromEntries(options.map(([id, { schema }]) => [id, schema]))).toEqual(optionSchemas);
@@ -71,7 +68,6 @@ describe("core's board options", () => {
   test("are each the default export of a module of its own", () => {
     const modules = [
       [nRowsExports, nRowsModule, nRows],
-      [showConditionsExports, showConditionsModule, showConditions],
       [darkModeExports, darkModeModule, darkMode],
     ] as const;
 
@@ -90,7 +86,7 @@ describe("core's board options", () => {
 
     for (const [id, def] of Object.entries(coreOptions)) store.options.register({ ...def, id });
 
-    expect(Object.keys(store.options.registered())).toEqual(["n_rows", "show_conditions", "dark_mode"]);
+    expect(Object.keys(store.options.registered())).toEqual(["n_rows", "dark_mode"]);
     expect(asked).toEqual([]);
   });
 
@@ -99,19 +95,16 @@ describe("core's board options", () => {
     const { core, asked } = blockr();
 
     expect(await resolveDefault(nRows, core)).toBe(10);
-    expect(await resolveDefault(showConditions, core)).toEqual(["warning", "error"]);
     expect(await resolveDefault(darkMode, core)).toBe("light");
-    expect(asked).toEqual(["n_rows", "show_conditions", "dark_mode"]);
+    expect(asked).toEqual(["n_rows", "dark_mode"]);
 
-    const set = blockr({ n_rows: 25, show_conditions: ["message", "error"], dark_mode: "dark" }).core;
+    const set = blockr({ n_rows: 25, dark_mode: "dark" }).core;
     expect(await resolveDefault(nRows, set)).toBe(25);
-    expect(await resolveDefault(showConditions, set)).toEqual(["message", "error"]);
     expect(await resolveDefault(darkMode, set)).toBe("dark");
   });
 
-  test("read a single severity as R writes it, and TRUE and FALSE for dark and light, as today's R constructors do", async () => {
-    const { core } = blockr({ show_conditions: "error", dark_mode: true });
-    expect(await resolveDefault(showConditions, core)).toEqual(["error"]);
+  test("read TRUE and FALSE for dark and light, as today's R constructors do", async () => {
+    const { core } = blockr({ dark_mode: true });
     expect(await resolveDefault(darkMode, core)).toBe("dark");
     expect(await resolveDefault(darkMode, blockr({ dark_mode: false }).core)).toBe("light");
   });
@@ -133,13 +126,10 @@ describe("core's board options", () => {
 
   test("fail where a blockr option holds a value that the schema refuses", async () => {
     prefers("dark");
-    const { core } = blockr({ n_rows: 0, show_conditions: ["fatal"], dark_mode: "blue" });
+    const { core } = blockr({ n_rows: 0, dark_mode: "blue" });
 
     await expect(resolveDefault(nRows, core)).rejects.toThrow(
       "The blockr option n_rows is 0, which the board option n_rows does not take.",
-    );
-    await expect(resolveDefault(showConditions, core)).rejects.toThrow(
-      'The blockr option show_conditions is ["fatal"], which the board option show_conditions does not take.',
     );
     await expect(resolveDefault(darkMode, core)).rejects.toThrow(
       'The blockr option dark_mode is "blue", which the board option dark_mode does not take.',
@@ -177,9 +167,8 @@ describe("dark_mode", () => {
     expect(document.documentElement.getAttribute("data-bc-theme")).toBe("light");
   });
 
-  test("leaves the others without anything to do on the page", () => {
+  test("leaves n_rows without anything to do on the page", () => {
     expect("onChange" in nRows).toBe(false);
-    expect("onChange" in showConditions).toBe(false);
   });
 });
 
@@ -222,23 +211,19 @@ describe("the UIs of core's board options", () => {
     expect(host.submitted).toEqual([25]);
   });
 
-  test("show_conditions is a select of the severities that submits the picks in their order", async () => {
-    const { el, host } = await mounted("show_conditions", showConditions, ["error"]);
-    const field = labelled(el, "Message types to display");
-    expect(chipLabels(field)).toEqual(["error"]);
-    expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
-
-    await picked(field, step, "message");
-
-    expect(host.submitted).toEqual([["message", "error"]]);
-  });
-
-  test("dark_mode is a select of light and dark that submits the user's choice", async () => {
+  test("dark_mode is a toggle button of light and of dark, which submits the user's choice and keeps one picked", async () => {
     const { el, host } = await mounted("dark_mode", darkMode, "light");
-    const field = labelled(el, "Light/dark mode");
-    expect(field.value).toBe("Light");
+    expect(toggles(el, "Light/dark mode")).toEqual([
+      { label: "Light", picked: true },
+      { label: "Dark", picked: false },
+    ]);
 
-    await picked(field, step, "Dark");
+    await step(() => {
+      toggleButton(el, "Light/dark mode", "Dark").click();
+    });
+    await step(() => {
+      toggleButton(el, "Light/dark mode", "Dark").click();
+    });
 
     expect(host.submitted).toEqual(["dark"]);
   });

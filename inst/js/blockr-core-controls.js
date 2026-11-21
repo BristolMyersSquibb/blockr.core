@@ -172,7 +172,7 @@ function controls(host, signal) {
   }
   function checkbox(key, next, last) {
     const [target, options] = after(key, next, last);
-    input(target, (bound) => /* @__PURE__ */ jsx(inputs.Checkbox, { bound, label: options.label }));
+    input(target, (bound) => /* @__PURE__ */ jsx(inputs.Checkbox, { bound, children: options.label }));
   }
   function cleanup() {
     if (ended) return;

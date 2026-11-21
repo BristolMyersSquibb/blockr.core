@@ -12,7 +12,7 @@ import { stubBlockHost, stubOptionHost } from "../stubs/index.ts";
 import type { BlockFixture, StubBlockHost } from "../stubs/index.ts";
 import { fieldError, find, numberSaid, press, texts, toggle, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
-import { chipLabels, labelled, listed, optionFromLabel, optionLabels, removeChip } from "../testing/select.ts";
+import { chipLabels, labelled, listed, notAvailable, optionFromLabel, optionLabels, removeChip } from "../testing/select.ts";
 import { holdRequests } from "../testing/requests.ts";
 import type { BlockHost, OptionHost } from "../types/hosts.ts";
 import { Checkbox, ComboBox, ComboBoxItem, NumberField, Stack, TextField } from "./index.ts";
@@ -99,7 +99,7 @@ function BlockForm({ host }: { host: BlockHost<Form> }): ReactElement {
       <ComboBox bound={useValue(host, "by")} selectionMode="multiple" label="By columns" defaultItems={ids(["a", "b", "c"])}>
         {(item) => <ComboBoxItem id={item.id}>{item.id}</ComboBoxItem>}
       </ComboBox>
-      <Checkbox bound={useValue(host, "keep")} label="Keep" />
+      <Checkbox bound={useValue(host, "keep")}>Keep</Checkbox>
     </Stack>
   );
 }
@@ -115,7 +115,7 @@ function block(state: Form = form({})) {
     direction: labelled(drawn.el, "Direction"),
     label: labelled(drawn.el, "Label"),
     by: labelled(drawn.el, "By columns"),
-    keep: find(drawn.el, ":scope > div > label:last-of-type input", HTMLInputElement),
+    keep: labelled(drawn.el, "Keep"),
   };
   return { host, ...drawn, inputs };
 }
@@ -457,12 +457,14 @@ function Rows({ host, max, outdated }: { host: OptionHost<number>; max?: number;
 // the range and the step of the board option's field, as the field says it.
 const said = (text: string, max?: number): string | null => numberSaid(text, { min: 1, max, step: 1 });
 
-function Conditions({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
+// A select of several strings, as the UI of a package's board option may draw
+// one, which submits the picks in the order of its items.
+function Severities({ host, outdated }: { host: OptionHost<string[]>; outdated?: boolean }): ReactElement {
   return (
     <ComboBox
       bound={useValue(host)}
       selectionMode="multiple"
-      label="Message types to display"
+      label="Severities"
       defaultItems={ids(["message", "warning", "error"])}
       ordered
       outdated={outdated}
@@ -627,9 +629,9 @@ describe("the inputs of a board option's UI", () => {
   });
 
   test("submit the picked severities in the order of the choices", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error"] });
-    const { el } = draw(<Conditions host={host} />);
-    const field = labelled(el, "Message types to display");
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error"] });
+    const { el } = draw(<Severities host={host} />);
+    const field = labelled(el, "Severities");
 
     await step(() => {
       field.click();
@@ -645,57 +647,63 @@ describe("the inputs of a board option's UI", () => {
     expect(host.submitted).toEqual([["message", "error"]]);
   });
 
-  test("show a string that the items lack as missing, whose chip the user removes", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
-    const { el } = draw(<Conditions host={host} />);
-    const field = labelled(el, "Message types to display");
+  test("show a string that the items lack as it is, say below the field that it is not available, and drop it as the user removes its chip", async () => {
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error", "debug"] });
+    const { el } = draw(<Severities host={host} />);
+    const field = labelled(el, "Severities");
 
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
-    await removeChip(field, step, "debug (not available)");
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(el)]).toEqual([["error", "debug"], "true", ["Not available: debug"]]);
+    await removeChip(field, step, "debug");
 
     expect(host.submitted).toEqual([["error"]]);
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error"], null]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(el)]).toEqual([["error"], null, []]);
     expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
   });
 
   test("keep outdated items on screen, and mark no string that they lack until they are current", async () => {
-    const host = stubOptionHost<string[]>({ option: "show_conditions", value: ["error", "debug"] });
-    const { el, redraw } = draw(<Conditions host={host} outdated />);
-    const field = labelled(el, "Message types to display");
+    const host = stubOptionHost<string[]>({ option: "severities", value: ["error", "debug"] });
+    const { el, redraw } = draw(<Severities host={host} outdated />);
+    const field = labelled(el, "Severities");
 
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug"], null]);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(el)]).toEqual([["error", "debug"], null, []]);
     expect(await listed(field, step)).toEqual(["message", "warning", "error"]);
 
-    redraw(<Conditions host={host} />);
-    expect([chipLabels(field), field.getAttribute("aria-invalid")]).toEqual([["error", "debug (not available)"], "true"]);
+    redraw(<Severities host={host} />);
+    expect([chipLabels(field), field.getAttribute("aria-invalid"), notAvailable(el)]).toEqual([["error", "debug"], "true", ["Not available: debug"]]);
     expect(host.submitted).toEqual([]);
   });
 
-  // The field shows a pick that the items lack in place of its placeholder.
-  const shownMode = async (field: HTMLInputElement) => [field.value || field.placeholder, await listed(field, step), field.getAttribute("aria-invalid")];
+  // The field shows a pick that the items lack by its id, and the lines below
+  // the inputs what is not available.
+  const shownMode = async (el: HTMLElement, field: HTMLInputElement) => [
+    field.value,
+    await listed(field, step),
+    field.getAttribute("aria-invalid"),
+    notAvailable(el),
+  ];
 
-  test("show a mode that the items lack as it is until they are known, and as missing while they lack it", async () => {
+  test("show a mode that the items lack as it is, and say below the field that it is not available once they are known", async () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
     const { el, redraw } = draw(<Mode host={host} />);
     const field = labelled(el, "Light/dark mode");
-    expect(await shownMode(field)).toEqual(["auto", [], null]);
+    expect(await shownMode(el, field)).toEqual(["auto", [], null, []]);
 
     redraw(<Mode host={host} items={modes} />);
-    expect(await shownMode(field)).toEqual(["auto (not available)", ["Light", "Dark"], "true"]);
+    expect(await shownMode(el, field)).toEqual(["auto", ["Light", "Dark"], "true", ["Not available: auto"]]);
 
     redraw(<Mode host={host} items={[...modes, { id: "auto", name: "Auto" }]} />);
-    expect(await shownMode(field)).toEqual(["Auto", ["Light", "Dark", "Auto"], null]);
+    expect(await shownMode(el, field)).toEqual(["Auto", ["Light", "Dark", "Auto"], null, []]);
     expect(host.submitted).toEqual([]);
   });
 
-  test("keep outdated items on screen, and show a mode that they lack as it is until they are current", async () => {
+  test("keep outdated items on screen, and mark no mode that they lack until they are current", async () => {
     const host = stubOptionHost<string>({ option: "dark_mode", value: "auto" });
     const { el, redraw } = draw(<Mode host={host} items={modes} outdated />);
     const field = labelled(el, "Light/dark mode");
-    expect(await shownMode(field)).toEqual(["auto", ["Light", "Dark"], null]);
+    expect(await shownMode(el, field)).toEqual(["auto", ["Light", "Dark"], null, []]);
 
     redraw(<Mode host={host} items={modes} />);
-    expect(await shownMode(field)).toEqual(["auto (not available)", ["Light", "Dark"], "true"]);
+    expect(await shownMode(el, field)).toEqual(["auto", ["Light", "Dark"], "true", ["Not available: auto"]]);
     expect(host.submitted).toEqual([]);
   });
 

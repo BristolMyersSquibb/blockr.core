@@ -10,3 +10,4 @@ export interface NumberFieldProps extends AriaNumberFieldProps {
     readonly outdated?: boolean;
 }
 export declare function NumberField({ bound, outdated, maxValue, ...props }: NumberFieldProps): ReactElement;
+export declare function inRange(value: number, min: number | undefined, max: number | undefined, step: number | undefined): boolean;

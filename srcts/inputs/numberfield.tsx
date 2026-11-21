@@ -184,7 +184,8 @@ function Watch({ keystrokes, onType }: { keystrokes: number; onType: (value: num
 // Whether the number fits the range, and the step where there is one, which
 // counts from the smallest number, or from 0, as the browser's own number
 // input counts it.
-function inRange(value: number, min: number | undefined, max: number | undefined, step: number | undefined): boolean {
+// The slider takes a number so too (./slider.tsx).
+export function inRange(value: number, min: number | undefined, max: number | undefined, step: number | undefined): boolean {
   if (Number.isNaN(value)) return false;
   if (min !== undefined && value < min) return false;
   if (max !== undefined && value > max) return false;

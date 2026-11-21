@@ -18,7 +18,11 @@
 // hello, as R does. It evaluates every block as ok, makes a block's output
 // from the sample outputs of its class's renderer, and answers a request with
 // what the test gives.
+// Core runs each menu of board actions as on the page, and draws none: the
+// test opens the menu of a target, or takes the menu that is open, and picks
+// its rows by their labels (./menu.ts).
 
+import type { Target } from "../actions/index.ts";
 import { pageFrontEnds, start } from "../core/index.ts";
 import { replaceLogger } from "../log/index.ts";
 // The stubs serve the modules of core's own plugin classes, which the build
@@ -52,6 +56,8 @@ import type { Json } from "../types/json.ts";
 import type { LogLine } from "../types/log.ts";
 import type { BlockOutput, OutputFixtures } from "../types/outputs.ts";
 import { errorMessage, isObject, own, packageFromId } from "../util/index.ts";
+import { stubMenus } from "./menu.ts";
+import type { StubMenu } from "./menu.ts";
 // The stubs ship the fixtures that R and both test suites read from inst/.
 // eslint-disable-next-line no-restricted-imports
 import helloFixture from "../../inst/protocol/fixtures/hello.json" with { type: "json" };
@@ -166,9 +172,22 @@ export interface StubCore {
   // the page would write it with too, the console unless a test put another
   // in its place.
   readonly logged: readonly LogLine[];
+  // Opens the menu of the target, as core.boardActions.menu() does, at the top
+  // left corner of the page's body, to which the keyboard's focus returns as
+  // the menu closes, and returns the menu, which the test drives as a user
+  // would, picking rows by their labels. It throws where on() gives the target
+  // no board action, so that no menu opens. Without a target, it gives the
+  // menu that is open, as trigger() or a frontend opened it, or undefined
+  // where none is.
+  menu(target: Target, opts?: MenuOptions): StubMenu;
+  menu(): StubMenu | undefined;
   // Ends what core started, and what the stub logged with it.
   readonly stop: () => void;
 }
+
+// What the menu of a target takes beside where it opens: the caller's
+// `extend` and its notifier.
+type MenuOptions = Omit<Parameters<CoreApi["boardActions"]["menu"]>[1], "el" | "anchor">;
 
 export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore> {
   const base = options.hello ?? HELLO;
@@ -204,6 +223,7 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     logged.push(line);
   }, true);
   const r = fixtureR(hello, options);
+  const menus = stubMenus();
   const started = start({
     transport: r.transport,
     loader: {
@@ -216,6 +236,7 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     },
     ...(options.el === undefined ? {} : { frontEnds: pageFrontEnds(options.el) }),
     measure: options.measure ?? { info: () => INFO, watch: () => () => undefined },
+    showMenu: menus.show,
   });
 
   let first: CoreApi;
@@ -225,10 +246,24 @@ export async function stubCore(options: StubCoreOptions = {}): Promise<StubCore>
     restore();
     throw error;
   }
+  const core = (): CoreApi => started.core() ?? first;
+  function menu(target: Target, opts?: MenuOptions): StubMenu;
+  function menu(): StubMenu | undefined;
+  function menu(target?: Target, opts: MenuOptions = {}): StubMenu | undefined {
+    if (target === undefined) return menus.open();
+    const before = menus.open();
+    core().boardActions.menu(target, { ...opts, el: document.body, anchor: new DOMRect(0, 0, 0, 0) });
+    const opened = menus.open();
+    if (opened === undefined || opened === before) {
+      throw new Error(`No board action applies to the target ${JSON.stringify(target)}, so that no menu opens.`);
+    }
+    return opened;
+  }
   return {
     get core() {
-      return started.core() ?? first;
+      return core();
     },
+    menu,
     sent: r.sent,
     settled: async () => {
       for (let quiet = 0; quiet < 3; ) {
