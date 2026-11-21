@@ -267,11 +267,11 @@
   A second copy of React Aria would hold React contexts of its own, which the components of the SDK do not read.
   The preset leaves `@internationalized/date` and `@internationalized/number` to the package, since they hold no React context (#754).
   Core's UIs take their colors from variables of core's theme, named after the design tokens of blockr.ui, such as `--bc-color-text-muted`, which follow the text around them unless a frontend sets them.
-  What floats over the board, such as a menu or a dialog, draws on the background `--bc-color-bg-raised`.
-  Its defaults, and those of the border `--bc-color-border-default`, are the colors that blockr.ui gives its tokens of the same names, under the light and the dark theme alike.
-  So core's menus and dialogs draw in the colors of the dock, which takes its look from blockr.ui.
-  A field, such as a text field, a number field or a select, draws its border in `--bc-color-border-field` instead, which stands out more: Tailwind's gray-400, and gray-600 under the dark theme.
-  So do a checkbox, a radio button, a switch and a drop zone, which their outline alone marks while they are unchecked, off or empty (#789).
+  The defaults hold no palette of their own, so that core fits whatever frontend draws the page, the dock and core's basic frontend alike.
+  A border is the text's color at a strength, so that it takes the hue of the surface below it: `--bc-color-border-default` outlines and divides, and `--bc-color-border-field` marks a field, such as a text field, a number field or a select.
+  The field's border also marks a checkbox, a radio button, a switch and a drop zone, which their outline alone marks while they are unchecked, off or empty.
+  What rises above the page, such as a menu, a dialog or a toast, draws on `--bc-color-bg-raised` where a frontend sets it.
+  Otherwise it draws a step lighter than the color behind the element that it rises from, which core measures, so that a menu over a card takes the card's hue (#789).
   Core's theme also holds a color for each status of a block, as `--bc-color-status-ready`, and for each category of block classes, as `--bc-color-category-input`, so that every plugin that draws a block's status or the mark of its class draws them in the same colors.
   Their defaults are the colors that blockr.ui gives the statuses and the categories, and the statuses take lighter ones under the dark theme.
   The status badge on the cards of core's basic frontend draws its dot in them, and its word in the muted text color (#657, #674).

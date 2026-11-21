@@ -66,8 +66,6 @@
     --bc-color-blue-600: oklch(54.6% .245 262.881);
     --bc-color-blue-700: oklch(48.8% .243 264.376);
     --bc-color-gray-100: oklch(96.7% .003 264.542);
-    --bc-color-gray-400: oklch(70.7% .022 261.325);
-    --bc-color-gray-600: oklch(44.6% .03 256.802);
     --bc-color-gray-900: oklch(21% .034 264.665);
     --bc-color-black: #000;
     --bc-color-white: #fff;
@@ -111,8 +109,26 @@
     --bc-color-text-danger: var(--bc-color-red-700);
     --bc-color-text-warning: var(--bc-color-amber-800);
     --bc-color-text-on-accent: var(--bc-color-white);
-    --bc-color-border-default: #e5e7eb;
-    --bc-color-border-field: var(--bc-color-gray-400);
+    --bc-color-border-default: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-border-default: color-mix(in oklab, currentColor 10%, transparent);
+    }
+  }
+
+  :root, :host {
+    --bc-color-border-field: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root, :host {
+      --bc-color-border-field: color-mix(in oklab, currentColor 40%, transparent);
+    }
+  }
+
+  :root, :host {
     --bc-color-border-danger: var(--bc-color-red-500);
     --bc-color-border-warning: var(--bc-color-amber-500);
     --bc-color-border-danger-subtle: var(--bc-color-border-danger);
@@ -167,7 +183,6 @@
   }
 
   :root, :host {
-    --bc-color-bg-raised: #fff;
     --bc-color-status-unevaluated: #6b7280;
     --bc-color-status-stale: #6b7280;
     --bc-color-status-waiting: #d97706;
@@ -186,9 +201,26 @@
   }
 
   :root[data-bc-theme="dark"] {
-    --bc-color-bg-raised: #1e242e;
-    --bc-color-border-default: #232932;
-    --bc-color-border-field: var(--bc-color-gray-600);
+    --bc-color-border-default: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root[data-bc-theme="dark"] {
+      --bc-color-border-default: color-mix(in oklab, currentColor 7%, transparent);
+    }
+  }
+
+  :root[data-bc-theme="dark"] {
+    --bc-color-border-field: currentColor;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    :root[data-bc-theme="dark"] {
+      --bc-color-border-field: color-mix(in oklab, currentColor 28%, transparent);
+    }
+  }
+
+  :root[data-bc-theme="dark"] {
     --bc-color-status-unevaluated: #8a94a3;
     --bc-color-status-stale: #8a94a3;
     --bc-color-status-waiting: #fbbf24;
@@ -984,7 +1016,7 @@
 }
 
 .bc\:bg-bg-raised {
-  background-color: var(--bc-color-bg-raised);
+  background-color: var(--bc-color-bg-raised, oklch(from var(--bc-color-behind, Canvas) calc(l + .04) c h));
 }
 
 .bc\:bg-bg-subtle {

@@ -46,7 +46,6 @@ import {
   FieldError,
   Label,
   ListBox,
-  Popover,
   Select as AriaSelect,
   SelectStateContext,
   SelectValue,
@@ -54,6 +53,7 @@ import {
   useLocale,
 } from "../aria/index.ts";
 import type { Key, ListBoxItemProps, SelectProps as AriaSelectProps, ValidationResult } from "../aria/index.ts";
+import { RaisedPopover } from "../overlays/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import { ComboBoxItem, ComboBoxSection, useSameValue } from "./combobox.tsx";
@@ -246,11 +246,11 @@ function Drawn({ label, description, errorMessage, items, children, asIs = [], o
         {description}
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
-      <Popover offset={4} className={LIST}>
+      <RaisedPopover offset={4} className={LIST}>
         <ListBox renderEmptyState={() => <p className={NOTE}>No options</p>} className={LISTBOX}>
           {items === undefined ? (typeof children === "function" ? null : children) : <Collection items={items}>{children}</Collection>}
         </ListBox>
-      </Popover>
+      </RaisedPopover>
       {onKnown === undefined ? null : <Known onKnown={onKnown} />}
     </AriaSelect>
   );

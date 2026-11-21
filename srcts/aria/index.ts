@@ -55,6 +55,7 @@ export {
   NumberField,
   NumberFieldStateContext,
   Popover,
+  PopoverContext,
   RadioButton,
   RadioField,
   RadioGroup,
@@ -92,6 +93,7 @@ export {
   useDragAndDrop,
   useFilter,
   useLocale,
+  useSlottedContext,
   useTableOptions,
   Virtualizer,
 } from "react-aria-components";

@@ -12,17 +12,17 @@
  *   restyle core.
  * - The colors of core's UIs are variables of the theme by what each is for,
  *   named after blockr.ui's design tokens, as `--bc-color-border-default`
- *   after `--blockr-color-border-default`. Most of their defaults follow the
- *   text around the element that core draws in, or take the theme's red and
- *   blue, so that core suits a light and a dark frontend alike, and a
+ *   after `--blockr-color-border-default`. Their defaults hold no palette of
+ *   their own, so that core fits whatever frontend draws the page, and a
  *   frontend or a UI kit sets them to restyle core.
- *   Two take blockr.ui's colors instead: border-default and bg-raised.
- *   The dock takes its look from blockr.ui, so core's menus and dialogs draw
- *   in the dock's colors.
- *   A field, and a control that its outline alone marks, such as a checkbox,
- *   draws its border in border-field, a gray of the theme that stands out
- *   more than border-default.
- *   These three and the danger and the warning texts take other values under
+ *   Most follow the text around the element that core draws in, or take the
+ *   theme's red and blue, so that core suits a light and a dark frontend
+ *   alike.
+ *   The borders and the tints are the text's color at a strength, so that
+ *   they take the hue of the surface below them.
+ *   What rises above the page, such as a menu, takes the hue of what lies
+ *   below the element it rises from, which core measures.
+ *   The borders and the danger and the warning texts take other values under
  *   the dark theme.
  * - The theme also holds a color for each status of a block and for each
  *   category of block classes, for every plugin that draws them.
@@ -97,8 +97,8 @@
   --color-text-warning: var(--bc-color-amber-800);
   --color-text-success: var(--bc-color-green-600);
   --color-text-on-accent: var(--bc-color-white);
-  --color-border-default: #e5e7eb;
-  --color-border-field: var(--bc-color-gray-400);
+  --color-border-default: color-mix(in oklab, currentColor 10%, transparent);
+  --color-border-field: color-mix(in oklab, currentColor 40%, transparent);
   --color-border-danger: var(--bc-color-red-500);
   --color-border-warning: var(--bc-color-amber-500);
   --color-border-danger-subtle: color-mix(in oklab, var(--bc-color-border-danger) 35%, transparent);
@@ -108,54 +108,57 @@
   --color-bg-danger: color-mix(in oklab, var(--bc-color-border-danger) 10%, transparent);
   --color-bg-warning: color-mix(in oklab, var(--bc-color-border-warning) 10%, transparent);
   --color-bg-subtle: color-mix(in oklab, currentColor 5%, transparent);
-  --color-bg-raised: #ffffff;
 }
 
 /*
- * What floats over the board, such as a menu or a dialog, covers what lies
- * below it, so its background, bg-raised, is opaque.
- * Its defaults are the values of blockr.ui's design tokens.
- * So are those of border-default, which outlines a menu, a dialog and core's
- * cards.
- * A menu that opens over a card of the dock then draws as blockr.ui's own
- * menus do.
- * Under the dark theme, both take the values that blockr.ui gives them there.
- * A menu is then lighter than the card it opens over, whether the dock or
- * core's basic frontend draws the card.
+ * A border is the text's color at a strength, laid over what lies below it.
+ * So it takes the hue of whatever surface core draws on, a blue-grey card of
+ * the dock or a neutral grey card of core's basic frontend, and keeps about
+ * the same contrast on each.
+ * Border-default outlines and divides: a card, a section, a row, a menu or a
+ * dialog.
+ * At 10% of the text, and 7% under the dark theme, it is about as soft as the
+ * border of blockr.ui's design system, at 1.2:1.
+ * Border-field marks a field, such as a text field, a number field or a
+ * select.
+ * It also marks a control that its outline alone marks while it is
+ * unchecked, off or empty: a checkbox, a radio button, a switch or a drop
+ * zone.
+ * An empty field or an unchecked checkbox shows nothing else.
+ * At 40% of the text, and 28% under the dark theme, it reaches 2.35:1 to
+ * 2.55:1 on the surfaces where core's fields sit.
+ * That is below the 3:1 that WCAG 2.2 asks of what marks a control
+ * (https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html), which
+ * frames a field more heavily than core's look calls for.
  * The rule sits in the theme's layer, as the theme's variables do,
  * so that a frontend or a UI kit that sets a variable outside a layer
  * wins over it.
  */
 @layer theme {
   :root[data-bc-theme="dark"] {
-    --bc-color-bg-raised: #1e242e;
-    --bc-color-border-default: #232932;
+    --bc-color-border-default: color-mix(in oklab, currentColor 7%, transparent);
+    --bc-color-border-field: color-mix(in oklab, currentColor 28%, transparent);
   }
 }
 
 /*
- * A field, such as a text field, a number field or a select, draws its border
- * in border-field.
- * So does a control that its outline alone marks while it is unchecked, off or
- * empty: a checkbox, a radio button, a switch or a drop zone.
- * Its defaults are gray-400, and gray-600 under the dark theme.
- * The border marks where the field or the control is, and an empty field or an
- * unchecked checkbox shows nothing else.
- * In border-default, the border reaches 1.1:1 to 1.3:1 on the surfaces where
- * core's fields sit: a card, a panel or a dialog, of the dock or of core's
- * basic frontend.
- * In border-field, it reaches 2.35:1 to 2.6:1 there under the light theme,
- * and 2.06:1 to 2.48:1 under the dark theme.
- * That is below the 3:1 that WCAG 2.2 asks of what marks a control
- * (https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html).
- * A border at 3:1, such as #818998 under the light theme and gray-500 under
- * the dark theme, frames a field more heavily than core's look calls for.
- * The rule sits in the theme's layer, as that of bg-raised does.
+ * What rises above the page, such as a menu, a dialog or a toast, covers what
+ * lies below it, so its background, bg-raised, is opaque.
+ * It is a step lighter than the color behind the element that it rises from,
+ * in that color's hue.
+ * Core measures that color and sets it on the raised element as
+ * --bc-color-behind (../overlays/raised.ts).
+ * So a menu that opens over a card of the dock takes the dock's blue-grey, as
+ * blockr.ui's own menus do, and one over a card of core's basic frontend takes
+ * its neutral grey.
+ * Under the dark theme, each is lighter than the card it opens over.
+ * Where core has measured nothing, it rises from the page's background, the
+ * system color Canvas.
+ * Core's theme gives --bc-color-bg-raised no value, so that a frontend or a UI
+ * kit that sets it restyles what rises, as it restyles the rest.
  */
-@layer theme {
-  :root[data-bc-theme="dark"] {
-    --bc-color-border-field: var(--bc-color-gray-600);
-  }
+@utility bg-bg-raised {
+  background-color: var(--bc-color-bg-raised, oklch(from var(--bc-color-behind, Canvas) calc(l + 0.04) c h));
 }
 
 /*
@@ -201,7 +204,7 @@
  * So do the danger and the warning texts.
  * Their values under the light theme fall below 4.5:1 on the dark page.
  * The categories keep their colors.
- * The rule sits in the theme's layer, as that of bg-raised does.
+ * The rule sits in the theme's layer, as that of the borders does.
  */
 @layer theme {
   :root[data-bc-theme="dark"] {

@@ -69,6 +69,7 @@
 import { useContext, useRef, useState } from "react";
 import type { ContextType, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { strings } from "../binding/index.ts";
+import { RaisedPopover } from "../overlays/index.ts";
 import type { Bound } from "../react/index.ts";
 import { styles } from "../styles/index.ts";
 import {
@@ -86,7 +87,6 @@ import {
   ListBoxItem,
   ListBoxSection,
   ListLayout,
-  Popover,
   Tag,
   TagGroup,
   TagList,
@@ -288,13 +288,13 @@ function Drawn({
       </Text>
       <FieldError className={styles.alert}>{errorMessage}</FieldError>
       <Lacking multiple={multiple} marking={marking} />
-      <Popover offset={4} className={LIST}>
+      <RaisedPopover offset={4} className={LIST}>
         <Virtualizer layout={ListLayout} layoutOptions={LAYOUT}>
           <ListBox renderEmptyState={() => <p className={NOTE}>{empty}</p>} className={LISTBOX}>
             {children}
           </ListBox>
         </Virtualizer>
-      </Popover>
+      </RaisedPopover>
     </AriaComboBox>
   );
 }

@@ -297,7 +297,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-59c2e980.js";
+import { useFilter } from "./vendor-d6d62e31.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2("");
@@ -1505,7 +1505,7 @@ function ColorField({ color: color2, onChange }) {
           "aria-label": "The stack's colour",
           disabled: color2 === null,
           value: color2 ?? last,
-          className: "bc:h-7 bc:w-10 bc:cursor-pointer bc:rounded bc:border bc:border-border-field bc:bg-transparent bc:p-0.5 bc:disabled:cursor-default bc:disabled:opacity-50",
+          className: "bc:h-7 bc:w-10 bc:cursor-pointer bc:rounded bc:border bc:border-border-field bc:bg-transparent bc:p-0.5 bc:text-text-default bc:disabled:cursor-default bc:disabled:opacity-50",
           onChange: (event) => {
             setLast(event.target.value);
             onChange(event.target.value);

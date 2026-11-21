@@ -53,7 +53,7 @@ function jsonEqual(a, b) {
 // srcts/modules/filebrowser-block/index.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
-var FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised";
+var FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default";
 var BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border-default bc:p-1 bc:text-sm";
 var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 var HEAD = "bc:text-xs bc:text-text-muted";
