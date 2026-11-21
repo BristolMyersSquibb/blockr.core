@@ -770,6 +770,19 @@
   While R evaluates blocks, makes outputs and answers requests, cli writes without colors, and puts plain marks in their place, such as quotes around a file name.
   It also strips any escape that a message still holds.
   So no UI needs to remove escapes before it shows a message (#788).
+* Core's React SDK offers React Aria's table, trees and grid list, in core's theme, after those of React Aria's Tailwind starter kit: [`Table`](https://react-aria.adobe.com/Table), with `TableHeader`, `Column`, `TableBody`, `Row` and `Cell`, [`Tree`](https://react-aria.adobe.com/Tree) and `TreeItem`, the starter kit's [`NavigationTree`](https://react-aria.adobe.com/NavigationTree), with `NavigationTreeItem`, `NavigationTreeItemContent`, `NavigationTreeItemLink`, `NavigationTreeSection` and `NavigationTreeHeader`, and [`GridList`](https://react-aria.adobe.com/GridList), with `GridListItem`, `GridListSection` and `GridListHeader`.
+  Each takes the props of its part of React Aria, and none of them binds a value.
+  None of them draws a frame of its own, so that none adds a frame inside the card or the panel that holds it.
+  A column takes `align` as well, whose `"end"` lines the column's heading up at its right edge, above a column of numbers.
+  A row of a table, a grid list or a tree starts with a checkbox where the user selects rows, and with a button that drags it where its rows drag.
+  The SDK also offers React Aria's `useDragAndDrop` and its `DropIndicator`, which shows where a dragged row would land.
+  The hook draws that indicator unless its caller's `renderDropIndicator` draws another, since React Aria's own has no style.
+  Core's table renderer draws a table output with the `Table` of the SDK, and looks, sorts and pages as before.
+  The file browser block draws as file dialogs do, in one frame: a bar with a button that goes up a directory and the path down to the directory, above a `Table` of the SDK.
+  The table lists the directory's entries, the directories first, each with its icon, the size of a file and the time it changed last, and it highlights the block's file.
+  The user moves through the entries by the arrow keys and opens one by Enter, while the row `..` is gone.
+  The request `list_dir` answers each entry with its name and the time it changed last, in UTC, and each file with its size in bytes, where it answered with names alone.
+  Compressed with `gzip`, core's vendor file grows from 214 KB to 252 KB, of which drag and drop takes 10 KB (#757).
 * Core has R make a block's output only while the output is on screen, as far as core can tell, and mounts the renderer that draws the output only then.
   Evaluation is unchanged: R still evaluates every block that something demands, and only the output, which R makes from the block's result, waits until it is on screen.
   The output is on screen while its element measures more than 0 by 0, as before, and while the `onScreen` of `CoreApi` holds what the element sits in, or is `null`, as where the frontend has said nothing.

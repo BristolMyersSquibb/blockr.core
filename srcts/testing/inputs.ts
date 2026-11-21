@@ -58,6 +58,13 @@ export function press(input: HTMLElement, key: string, init: KeyboardEventInit =
   input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...init }));
 }
 
+// Presses a key on the element and lets it go, as React Aria runs the action
+// of a row or a button as the key goes up.
+export function pressAndRelease(el: HTMLElement, key: string): void {
+  el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  el.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true, cancelable: true }));
+}
+
 // Checks or clears a checkbox as a user does, by clicking it.
 export function toggle(checkbox: HTMLInputElement): void {
   checkbox.click();

@@ -65,31 +65,37 @@ test_that("a file browser block lists the directories of its volumes", {
   withr::local_dir(withr::local_tempdir())
 
   dir.create(file.path("data", "raw"), recursive = TRUE)
-  expect_true(all(file.create(c("notes.txt", file.path("data", "sales.csv")))))
+  writeLines("notes", "notes.txt")
+  writeLines(c("region,sales", "north,12"), file.path("data", "sales.csv"))
 
   list_dir <- function(...) {
     run_block_request(filebrowser_block, "list_dir", args = list(...))
   }
 
+  # The names that a listing holds, of its directories and of its files.
+  listed <- function(res) {
+    list(dirs = res[["dirs"]][["name"]], files = res[["files"]][["name"]])
+  }
+
   vols <- list(here = ".", data = "data")
 
   expect_identical(
-    list_dir(volumes = vols),
+    listed(list_dir(volumes = vols)),
     list(dirs = "data", files = "notes.txt")
   )
 
   expect_identical(
-    list_dir(volumes = vols, volume = "data"),
+    listed(list_dir(volumes = vols, volume = "data")),
     list(dirs = "raw", files = "sales.csv")
   )
 
   expect_identical(
-    list_dir(volumes = c(here = "."), path = "data"),
+    listed(list_dir(volumes = c(here = "."), path = "data")),
     list(dirs = "raw", files = "sales.csv")
   )
 
   expect_identical(
-    list_dir(volumes = vols, volume = "data", path = "raw"),
+    listed(list_dir(volumes = vols, volume = "data", path = "raw")),
     list(dirs = character(), files = character())
   )
 
@@ -113,12 +119,51 @@ test_that("a file browser block lists the directories of its volumes", {
   expect_true(filebrowser_block[["requests"]][["list_dir"]][["volatile"]])
 })
 
+test_that("a file browser block lists file sizes, and times in UTC", {
+
+  withr::local_dir(withr::local_tempdir())
+
+  dir.create("raw")
+  writeLines(c("region,sales", "north,12"), "sales.csv")
+
+  at <- as.POSIXct("2026-11-20 08:03:00", tz = "UTC")
+  expect_true(all(Sys.setFileTime(c("raw", "sales.csv"), at)))
+
+  res <- run_block_request(
+    filebrowser_block,
+    "list_dir",
+    args = list(volumes = list(here = "."))
+  )
+
+  expect_identical(
+    res[["dirs"]],
+    data.frame(name = "raw", modified = "2026-11-20T08:03:00Z")
+  )
+  expect_identical(
+    res[["files"]],
+    data.frame(
+      name = "sales.csv",
+      size = file.size("sales.csv"),
+      modified = "2026-11-20T08:03:00Z"
+    )
+  )
+  expect_identical(file.size("sales.csv"), 22)
+})
+
 test_that("the file browser block's fixture", {
 
   withr::local_dir(withr::local_tempdir())
 
   dir.create("data")
-  expect_true(all(file.create(c("notes.txt", file.path("data", "sales.csv")))))
+  writeLines("notes", "notes.txt")
+  writeLines(c("region,sales", "north,12"), file.path("data", "sales.csv"))
+
+  # Fixed times, so that the fixture records the same answers on every run.
+  expect_true(all(Sys.setFileTime(
+    c(file.path("data", "sales.csv"), "data", "notes.txt"),
+    as.POSIXct(c("2026-11-20 08:03:00", "2026-11-02 09:14:00",
+                 "2026-11-19 16:51:00"), tz = "UTC")
+  )))
 
   vols <- list(here = ".")
   at <- function(path) list(volumes = vols, volume = "here", path = path)

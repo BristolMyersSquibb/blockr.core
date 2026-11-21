@@ -447,7 +447,7 @@ describe("a card", () => {
     const output = (name: string): HTMLElement => find(card(el, name), '[aria-label="Output"]');
     expect(badge(card(el, "Head"))).toBe("failed");
     expect(output("Head").className).toContain("bc:h-0");
-    expect(output("Head").parentElement?.className).not.toContain("bc:h-96");
+    expect(output("Head").parentElement?.className).not.toContain("bc:h-104");
     expect(summary(card(el, "Head"))).toBeNull();
     expect(pills(card(el, "Head"))).toEqual(["error"]);
     expect(banners(card(el, "Head"))).toEqual([["error", "No rows"]]);
@@ -463,7 +463,7 @@ describe("a card", () => {
 
     expect(badge(card(el, "Head"))).toBe("ready");
     expect(output("Head").className).toContain("bc:flex-1");
-    expect(output("Head").parentElement?.className).toContain("bc:h-96");
+    expect(output("Head").parentElement?.className).toContain("bc:h-104");
     expect(summary(card(el, "Head"))).not.toBeNull();
     expect(badge(card(el, "Merge"))).toBe("ready");
     expect(output("Merge").className).toContain("bc:flex-1");
