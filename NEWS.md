@@ -834,6 +834,12 @@
   The call `core.boardActions.mountAdvanced(el, id, target, picked)` renders an advanced action in a plugin's own room, where `done()` runs the batch and core renders the advanced action again.
   Where a board object that the target names leaves the board, core ends the advanced action, as a `done()` without a batch does.
   The `advanced()` of `stubCore()` gives the advanced action that core's dialog shows, and `StubMenu` gains `openAdvanced()`, which clicks an open icon (#744).
+* Core's board action Edit inputs, `blockr.core-edit_inputs_action`, edits the inputs of a block whose class has inputs.
+  It has an advanced action alone, which lists the block's inputs in their order, each with its source, as the dock's actions sidebar does.
+  On a block that is not variadic, each input of its class has a select of its source and a button that removes the source.
+  On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
+  The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
+  Each edit applies at once, as one step of the user, through `add_link`, `change_link`, `move_link` or `remove_link`, and the advanced action says below the inputs why the store refused one (#747).
 
 # blockr.core 0.1.4
 

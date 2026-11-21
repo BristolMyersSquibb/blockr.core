@@ -1,13 +1,18 @@
 // Core's board actions, from the table of Core's board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions),
-// in its order: Rename, Copy block ID, Remove block, Remove link, Remove stack,
-// and Remove on a selection. Their ids are under blockr.core and keep the names
-// of the dock's actions, as blockr.core-remove_block_action, but for Rename and
-// Copy block ID, which are new.
+// in its order: Rename, Edit inputs, Copy block ID, Remove block, Remove link,
+// Remove stack, and Remove on a selection. Their ids are under blockr.core and
+// keep the names of the dock's actions, as blockr.core-remove_block_action,
+// but for Rename and Copy block ID, which are new.
 // - Rename, on a block or a stack, asks for the name in its quick action, a
 //   text row that holds the name, which refuses an empty name, and runs core's
 //   command that renames the block or the stack. A name that the user leaves
 //   as it was runs nothing.
+// - Edit inputs, on a block whose class has inputs, has an advanced action
+//   alone, which lists the block's inputs, each with its source, and applies
+//   each edit at once (./inputs.tsx). It has no quick action, since moving an
+//   input would take three picks at the trigger, so that its row in a menu
+//   opens its advanced action at once.
 // - Copy block ID puts the block's id on the clipboard itself, and raises a
 //   notification of the code `copy_failed` about the block where the browser
 //   refuses (./clipboard.ts). Its row in a menu shows the block's id.
@@ -15,9 +20,9 @@
 //   what they act on.
 // - Remove on a selection removes every block, link and stack of the
 //   selection in one step, and leaves out what else the selection holds.
-// Each but Rename acts at once, through its run(). Those that remove carry the
-// bin of a row that destroys something as their icon, in the shape of
-// blockr.ui's `trash`, since blockr.ui builds on blockr.core
+// Each but Rename and Edit inputs acts at once, through its run(). Those that
+// remove carry the bin of a row that destroys something as their icon, in the
+// shape of blockr.ui's `trash`, since blockr.ui builds on blockr.core
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/trash.svg).
 // Under the board lock, every one but Copy block ID fails its offers(), since
 // the store refuses what they run
@@ -26,14 +31,19 @@
 // as where the block has left the board since the menu opened, so that no
 // menu offers a board action that leads nowhere.
 
+import { classInputs } from "../commands/index.ts";
 import type { BlockId, Board } from "../types/board.ts";
+import type { BlockRegistry } from "../types/core-api.ts";
 import { coreNotification, own } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { copyText } from "./clipboard.ts";
+import { editInputs } from "./inputs.tsx";
 
-// Core's board actions, whose notifications core raises through `raise`.
-export function coreBoardActions(raise: Raise): BoardAction[] {
+// Core's board actions, whose notifications core raises through `raise`, and
+// which read the block registry of the open board through `registry`, as Edit
+// inputs reads the inputs of a block's class.
+export function coreBoardActions(raise: Raise, registry: () => BlockRegistry): BoardAction[] {
   return [
     {
       id: "blockr.core-rename_action",
@@ -59,6 +69,17 @@ export function coreBoardActions(raise: Raise): BoardAction[] {
           ],
         };
       },
+    },
+    {
+      id: "blockr.core-edit_inputs_action",
+      label: "Edit inputs",
+      on: ["block"],
+      category: "edit",
+      offers(board, target, lock) {
+        const block = blockOf(target);
+        return !lock.board && block !== undefined && classInputs(board, registry(), block).length > 0;
+      },
+      advanced: editInputs,
     },
     {
       id: "blockr.core-copy_block_id_action",

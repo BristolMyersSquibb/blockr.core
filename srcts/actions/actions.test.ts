@@ -19,7 +19,12 @@ import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import type { QuickLevel } from "./quick.ts";
 
 // Core's board actions on a block, which come first in every menu of one.
-const ON_BLOCK = ["blockr.core-rename_action", "blockr.core-copy_block_id_action", "blockr.core-remove_block_action"];
+const ON_BLOCK = [
+  "blockr.core-rename_action",
+  "blockr.core-edit_inputs_action",
+  "blockr.core-copy_block_id_action",
+  "blockr.core-remove_block_action",
+];
 
 // The element that the user triggers from, which a trigger() needs.
 const el = document.body;
@@ -317,6 +322,7 @@ describe("menu()", () => {
       loading: false,
       rows: [
         { kind: "item", label: "Rename", category: "edit" },
+        { kind: "item", label: "Edit inputs", category: "edit" },
         { kind: "item", label: "Copy block ID", detail: "b", category: "clipboard" },
         { kind: "item", label: "Add to document", detail: "Notes", category: "document" },
         { kind: "item", label: "Remove block", icon: expect.stringContaining("<svg") as string, category: "remove" },
@@ -324,7 +330,7 @@ describe("menu()", () => {
     });
     expect(s.menu()).toBe(menu);
     expect(() => menu.pick("Nowhere")).toThrow(
-      'The menu shows no item or text row "Nowhere". It shows "Rename", "Copy block ID", "Add to document" and "Remove block".',
+      'The menu shows no item or text row "Nowhere". It shows "Rename", "Edit inputs", "Copy block ID", "Add to document" and "Remove block".',
     );
     menu.escape();
     expect(menu.closed()).toBe(true);

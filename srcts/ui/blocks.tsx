@@ -1,6 +1,6 @@
 // A block as the selects of core's UIs offer it: by its name, with its id and
 // its class after it, by which a select finds it too. The Edit board plugin's
-// forms pick blocks so.
+// forms pick blocks so, and so does the advanced action of Edit inputs.
 
 import type { ReactElement } from "react";
 import { ComboBoxItem, Text } from "../react/index.ts";

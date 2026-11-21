@@ -15,6 +15,9 @@
 //   board, and below a table for an edit in its rows, as The Edit board plugin
 //   has it
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
+//   The advanced action of Edit inputs, one of core's board actions, runs its
+//   edits so too, and shows why below its list of inputs
+//   (../actions/inputs.tsx).
 
 import { useMemo, useState } from "react";
 import type { CoreApi } from "../types/core-api.ts";

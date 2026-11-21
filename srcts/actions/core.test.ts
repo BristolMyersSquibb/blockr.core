@@ -2,7 +2,8 @@
 // for tests: which targets they apply to, under the board lock too, Rename
 // through its quick action, Copy block ID with the clipboard API, the
 // document's copy command and neither, and those that remove a block, a link,
-// a stack and what a selection holds.
+// a stack and what a selection holds. The advanced action of Edit inputs has
+// tests of its own (./inputs.test.tsx).
 
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { HELLO, stubCore } from "../stubs/index.ts";
@@ -11,6 +12,7 @@ import type { CoreApi } from "../types/core-api.ts";
 import type { BoardAction, Target } from "./actions.ts";
 
 const RENAME = "blockr.core-rename_action";
+const EDIT_INPUTS = "blockr.core-edit_inputs_action";
 const COPY = "blockr.core-copy_block_id_action";
 const REMOVE_BLOCK = "blockr.core-remove_block_action";
 const REMOVE_LINK = "blockr.core-remove_link_action";
@@ -58,15 +60,20 @@ function refusingClipboard(): void {
 }
 
 describe("core's board actions", () => {
-  test("are Rename, Copy block ID and Remove block on a block, Remove link on a link, Rename and Remove stack on a stack and Remove on a selection, in the order of their table", async () => {
+  test("are Rename, Edit inputs, Copy block ID and Remove block on a block, Remove link on a link, Rename and Remove stack on a stack and Remove on a selection, in the order of their table", async () => {
     const s = await stubCore();
     const on = (target: Target) => s.core.boardActions.on(target);
 
     expect(rows(on({ block: "b" }))).toEqual([
       [RENAME, "Rename", "edit"],
+      [EDIT_INPUTS, "Edit inputs", "edit"],
       [COPY, "Copy block ID", "clipboard"],
       [REMOVE_BLOCK, "Remove block", "remove"],
     ]);
+    // Edit inputs applies to a block whose class has inputs, a variadic one
+    // among them, and to none whose class has none, as Iris's dataset block.
+    const editing = (block: string) => on({ block }).some(({ id }) => id === EDIT_INPUTS);
+    expect(["a", "b", "c", "e"].map(editing)).toEqual([false, true, true, true]);
     expect(rows(on({ link: "ab" }))).toEqual([[REMOVE_LINK, "Remove link", "remove"]]);
     expect(rows(on({ stack: "s1" }))).toEqual([
       [RENAME, "Rename", "edit"],
@@ -82,7 +89,7 @@ describe("core's board actions", () => {
     expect(copy?.detail?.(s.core.store.board(), { block: "b" })).toBe("b");
     // Those that remove carry the bin, and the others no icon.
     const icons = (target: Target) => on(target).map(({ icon }) => icon?.includes("<svg") ?? false);
-    expect(icons({ block: "b" })).toEqual([false, false, true]);
+    expect(icons({ block: "b" })).toEqual([false, false, false, true]);
     expect(icons({ link: "ab" })).toEqual([true]);
     expect(icons({ stack: "s1" })).toEqual([false, true]);
     expect(icons({ selection: [{ block: "b" }] })).toEqual([true]);
