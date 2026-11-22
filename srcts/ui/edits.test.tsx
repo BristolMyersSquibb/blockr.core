@@ -73,11 +73,7 @@ async function drawn({ run, done }: { run?: CoreApi["commands"]["run"]; done?: D
   await step(() => {
     root.render(<Control core={core} {...(done === undefined ? {} : { done })} />);
   });
-  stops.push(() => {
-    act(() => {
-      root.unmount();
-    });
-  }, stubbed.stop);
+  stops.push(stubbed.stop);
   return { el, core: stubbed.core };
 }
 

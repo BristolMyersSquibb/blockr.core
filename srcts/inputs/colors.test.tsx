@@ -5,7 +5,7 @@
 import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { parseColor } from "../aria/index.ts";
 import { useValue } from "../react/index.ts";
 import { stubBlockHost } from "../stubs/index.ts";
@@ -27,23 +27,11 @@ import {
 
 type Fill = Readonly<{ fill: string }>;
 
-// What unmounts each component that a test drew, which runs as the test ends.
-const drawn: (() => void)[] = [];
-
-afterEach(() => {
-  act(() => {
-    for (const unmount of drawn.splice(0)) unmount();
-  });
-});
-
 // Draws the component on the page, until the test ends.
 function draw(node: ReactElement): HTMLElement {
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
-  drawn.push(() => {
-    root.unmount();
-  });
   act(() => {
     root.render(node);
   });

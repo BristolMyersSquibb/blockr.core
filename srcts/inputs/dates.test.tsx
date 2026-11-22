@@ -429,9 +429,6 @@ test("a date picker without `bound` picks for its caller", async () => {
   });
   expect(picked).toEqual(["2026-11-03"]);
   expect(segments(el)).toEqual(["11", "3", "2026"]);
-  act(() => {
-    root.unmount();
-  });
 });
 
 describe("a date", () => {

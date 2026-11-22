@@ -4,7 +4,6 @@
 // toasts.
 // The rest, such as the keys that move through a menu, is React Aria's.
 
-import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -33,13 +32,7 @@ import {
   TooltipTrigger,
 } from "./index.ts";
 
-// What unmounts each component that a test drew, which runs as the test ends.
-const drawn: (() => void)[] = [];
-
 afterEach(() => {
-  act(() => {
-    for (const unmount of drawn.splice(0)) unmount();
-  });
   vi.useRealTimers();
 });
 
@@ -48,9 +41,6 @@ async function draw(node: ReactElement): Promise<HTMLElement> {
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
-  drawn.push(() => {
-    root.unmount();
-  });
   await step(() => {
     root.render(node);
   });

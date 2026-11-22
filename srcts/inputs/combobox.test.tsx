@@ -4,7 +4,7 @@
 // state arg, on the stub of a block's host.
 // The rest, such as the keys and the filter, is React Aria's.
 
-import { act, useState } from "react";
+import { useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -46,16 +46,7 @@ const fruits: readonly Fruit[] = [
 
 const row = (fruit: Fruit): ReactElement => <ComboBoxItem id={fruit.id}>{fruit.name}</ComboBoxItem>;
 
-// What unmounts each component that a test drew and left on the page, which
-// runs as the test ends, so that no tooltip that it left open closes as one
-// of a later test opens.
-const drawn = new Set<() => void>();
-
 afterEach(() => {
-  act(() => {
-    for (const unmount of drawn) unmount();
-  });
-  drawn.clear();
   vi.useRealTimers();
 });
 
@@ -64,11 +55,6 @@ async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () 
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
-  const end = (): void => {
-    drawn.delete(end);
-    root.unmount();
-  };
-  drawn.add(end);
   await step(() => {
     root.render(node);
   });
@@ -76,7 +62,7 @@ async function draw(node: ReactElement): Promise<{ el: HTMLElement; unmount: () 
     el,
     unmount: () =>
       step(() => {
-        end();
+        root.unmount();
       }),
   };
 }

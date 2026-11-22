@@ -3,23 +3,14 @@
 // once the search is empty, and keeps no listener on the page.
 // The rest, such as the keys of the menu and the focus, is React Aria's.
 
-import { act, useState } from "react";
+import { useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { find, press, type } from "../testing/inputs.ts";
 import { menuItem, menuItems, openDialog } from "../testing/overlays.ts";
 import { step } from "../testing/react.ts";
 import { CommandPalette, MenuItem } from "./index.ts";
-
-// What unmounts each component that a test drew, which runs as the test ends.
-const drawn: (() => void)[] = [];
-
-afterEach(() => {
-  act(() => {
-    for (const unmount of drawn.splice(0)) unmount();
-  });
-});
 
 const commands = [
   { id: "undo", name: "Undo" },
@@ -61,9 +52,6 @@ async function draw(node: ReactElement): Promise<HTMLElement> {
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
-  drawn.push(() => {
-    root.unmount();
-  });
   await step(() => {
     root.render(node);
   });
