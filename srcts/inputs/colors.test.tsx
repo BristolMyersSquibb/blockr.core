@@ -5,7 +5,6 @@
 import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import type { Root } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
 import { parseColor } from "../aria/index.ts";
 import { useValue } from "../react/index.ts";
@@ -28,27 +27,24 @@ import {
 
 type Fill = Readonly<{ fill: string }>;
 
-// The root of each component that a test drew.
-// After each test, the hook below unmounts the roots before it empties the
-// page's body, so that React runs the cleanups of their effects.
-// React Aria's dialog clears the timer that it sets as it opens only in such a
-// cleanup.
-// A timer left pending can run once Vitest has torn down the page, and throw.
-const roots: Root[] = [];
+// What unmounts each component that a test drew, which runs as the test ends.
+const drawn: (() => void)[] = [];
 
 afterEach(() => {
   act(() => {
-    for (const root of roots.splice(0)) root.unmount();
+    for (const unmount of drawn.splice(0)) unmount();
   });
   document.body.replaceChildren();
 });
 
-// Draws the component on the page.
+// Draws the component on the page, until the test ends.
 function draw(node: ReactElement): HTMLElement {
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
-  roots.push(root);
+  drawn.push(() => {
+    root.unmount();
+  });
   act(() => {
     root.render(node);
   });
