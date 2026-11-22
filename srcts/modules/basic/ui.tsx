@@ -3,19 +3,15 @@
 // of the SDK too, and core draws the menus of board actions. The rest, such
 // as its buttons, it shares with core's Edit board plugin (../../ui).
 
-import { useLayoutEffect, useRef } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { Dialog as SdkDialog, Heading, Modal } from "../../react/index.ts";
 import { classes } from "../../ui/index.ts";
-import { useFrontEnd } from "./context.ts";
 
 // A modal dialog, open while it is drawn, which closes on Escape, on its
 // Close button and once its owner stops drawing it.
 // The SDK's modal keeps the focus in it and makes the rest of the page inert,
-// as the browser's own modal dialog does.
-// So while it is open, the frontend's toasts show in an element at its end.
-// The toasts stay fixed to the window's corner there, and the user can still
-// close them.
+// as the browser's own modal dialog does, but for the frontend's toasts,
+// which React Aria leaves within reach (./toasts.ts).
 // An element of its content that takes `autoFocus` has the focus as the
 // dialog opens, and the dialog itself has it otherwise.
 export function Dialog({
@@ -27,13 +23,6 @@ export function Dialog({
   onClose: () => void;
   children: ReactNode;
 }): ReactElement {
-  const { toasts } = useFrontEnd();
-  const toastsRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const inside = toastsRef.current;
-    if (inside === null) return;
-    return toasts.showIn(inside);
-  }, [toasts]);
   return (
     <Modal
       isOpen
@@ -53,7 +42,6 @@ export function Dialog({
           </div>
           {children}
         </div>
-        <div ref={toastsRef} />
       </SdkDialog>
     </Modal>
   );

@@ -6,13 +6,15 @@
 // dates and times, the selects,
 // which every UI draws with, bound or not, the parts that take no binding,
 // such as the tags, the list box, the form and the drop zone, the buttons,
-// and the overlays: the modal and the dialog, the menu, the popover and the
-// command palette.
+// the overlays: the modal and the dialog, the dialog that asks, the sheet,
+// the menu and its submenus, the popover, the command palette, the tooltip
+// and the toasts, and the layout: the disclosure, the tabs, the toolbar and
+// its separator, the breadcrumbs, the link, the meter and the progress bar.
 // It holds the table, the trees and the grid list, which bind no value, and
 // what drags the items of the last three and drops onto them.
-// The inputs, the buttons, the overlays, the table, the trees and the grid
-// list are React Aria's, in core's theme, and so are the colours: a field, a
-// picker, swatches and the parts of a picker.
+// The inputs, the buttons, the overlays, the layout, the table, the trees and
+// the grid list are React Aria's, in core's theme, and so are the colours: a
+// field, a picker, swatches and the parts of a picker.
 // React Aria's FileTrigger and Autocomplete come unstyled.
 // It also holds the list in which a UI shows notifications, as useNotified()
 // gives them, in the message style of blockr.ui's design system.
@@ -109,9 +111,11 @@ export type {
   TokenFieldProps,
 } from "../inputs/index.ts";
 export {
+  AlertDialog,
   CommandPalette,
   Dialog,
   DialogTrigger,
+  Focusable,
   Heading,
   Keyboard,
   Menu,
@@ -120,8 +124,42 @@ export {
   MenuTrigger,
   Modal,
   Popover,
+  Sheet,
+  SubmenuTrigger,
+  Toast,
+  ToastContent,
+  ToastQueue,
+  ToastRegion,
+  Tooltip,
+  TooltipTrigger,
 } from "../overlays/index.ts";
-export type { CommandPaletteProps, MenuSectionProps, MenuTriggerProps } from "../overlays/index.ts";
+export type {
+  AlertDialogProps,
+  CommandPaletteProps,
+  MenuSectionProps,
+  MenuTriggerProps,
+  QueuedToast,
+  SheetProps,
+  TooltipProps,
+} from "../overlays/index.ts";
+export {
+  Breadcrumb,
+  Breadcrumbs,
+  Disclosure,
+  DisclosureGroup,
+  DisclosureHeader,
+  DisclosurePanel,
+  Link,
+  Meter,
+  ProgressBar,
+  Separator,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  Toolbar,
+} from "../layout/index.ts";
+export type { BreadcrumbProps, DisclosureHeaderProps, LinkProps, MeterProps, ProgressBarProps } from "../layout/index.ts";
 export { NotificationList } from "./notifications.tsx";
 export type { NotificationListProps } from "./notifications.tsx";
 export { DropIndicator, useDragAndDrop } from "../dnd/index.ts";

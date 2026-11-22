@@ -4,8 +4,12 @@
 // The button is drawn after the Button of React Aria's Tailwind starter kit
 // (https://github.com/adobe/react-spectrum/blob/react-aria-components%401.22.1/starters/tailwind/src/Button.tsx).
 // It takes the props of React Aria's Button, and the starter kit's `variant`,
-// one of core's three looks of a button: "primary", in the accent colour,
-// "secondary", with a border, and "quiet", with none.
+// one of core's four looks of a button: "primary", in the accent colour,
+// "secondary", with a border, "destructive", in the danger colour, and
+// "quiet", with no border.
+// It takes `aria-keyshortcuts` too, which names the button's shortcut to
+// assistive technology, and which React Aria's Button passes on to no
+// element.
 // The menus and dialogs of the SDK open from it, since React Aria opens them
 // only from a button of its own, of the one copy of React Aria on the page.
 // The button also takes a ref, which holds the button's element.
@@ -19,10 +23,21 @@ import { buttons } from "../styles/index.ts";
 
 export interface ButtonProps extends AriaButtonProps, RefAttributes<HTMLButtonElement> {
   readonly variant?: keyof typeof buttons;
+  readonly "aria-keyshortcuts"?: string;
 }
 
-export function Button({ variant = "primary", className, ...props }: ButtonProps): ReactElement {
-  return <AriaButton {...props} className={composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`)} />;
+export function Button({ variant = "primary", className, "aria-keyshortcuts": shortcuts, ...props }: ButtonProps): ReactElement {
+  return (
+    <AriaButton
+      {...props}
+      render={
+        shortcuts === undefined || props.render !== undefined
+          ? props.render
+          : (dom) => <button {...dom} aria-keyshortcuts={shortcuts} />
+      }
+      className={composeRenderProps(className, (given) => `${buttons[variant]} ${given ?? ""}`)}
+    />
+  );
 }
 
 // A button inside a field, such as the button of the select's field that

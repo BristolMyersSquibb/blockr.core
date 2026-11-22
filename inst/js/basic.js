@@ -3,8 +3,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/basic/board.tsx
-import { useCallback as useCallback6, useEffect as useEffect2, useMemo as useMemo2, useState as useState8 } from "react";
-import { createPortal } from "react-dom";
+import { useCallback as useCallback6, useMemo as useMemo2, useState as useState8 } from "react";
 
 // srcts/card/footer.tsx
 import { useCallback, useId, useState } from "react";
@@ -205,7 +204,7 @@ function useSized(status) {
 }
 
 // srcts/modules/basic/board.tsx
-import { useBoard as useBoard2 } from "@blockr/core/react";
+import { Button as Button2, Text as Text2, Toast, ToastContent, ToastRegion, useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/styles/styles.ts
 var styles = {
@@ -224,6 +223,7 @@ var styles = {
 var buttons = {
   primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
   secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
   quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
 };
 
@@ -396,8 +396,8 @@ function NameField({
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 
 // srcts/modules/basic/card.tsx
-import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef3 } from "react";
-import { Button, useNotified, useStatus } from "@blockr/core/react";
+import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef3, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { Button, Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "@blockr/core/react";
 
 // srcts/modules/basic/context.ts
 import { createContext, useContext } from "react";
@@ -485,7 +485,9 @@ var BlockCard = memo(function BlockCard2({ id, block }) {
     }
   );
 });
-function StackGroup({ stack, children }) {
+function StackGroup({ id, stack, children }) {
+  const { groups } = useFrontEnd();
+  const collapsed = useSyncExternalStore2(groups.subscribe, () => groups.collapsed(id));
   const color = stack.color ?? void 0;
   return /* @__PURE__ */ jsx5(
     "section",
@@ -493,10 +495,19 @@ function StackGroup({ stack, children }) {
       "aria-label": stack.name,
       className: "bc:rounded-xl bc:border-2 bc:border-border-default bc:p-3",
       style: color === void 0 ? void 0 : { borderColor: color },
-      children: /* @__PURE__ */ jsxs4("details", { open: true, children: [
-        /* @__PURE__ */ jsx5("summary", { className: `${classes.heading} bc:cursor-pointer`, children: stack.name }),
-        /* @__PURE__ */ jsx5("div", { className: "bc:mt-3 bc:grid bc:gap-3", children })
-      ] })
+      children: /* @__PURE__ */ jsxs4(
+        Disclosure,
+        {
+          isExpanded: !collapsed,
+          onExpandedChange: (expanded) => {
+            groups.collapse(id, !expanded);
+          },
+          children: [
+            /* @__PURE__ */ jsx5(DisclosureHeader, { children: stack.name }),
+            /* @__PURE__ */ jsx5(DisclosurePanel, { children: /* @__PURE__ */ jsx5("div", { hidden: collapsed, children: /* @__PURE__ */ jsx5("div", { className: "bc:grid bc:gap-3 bc:pt-3", children }) }) })
+          ]
+        }
+      )
     }
   );
 }
@@ -561,7 +572,6 @@ import { useCallback as useCallback4 } from "react";
 import { useBoard } from "@blockr/core/react";
 
 // srcts/modules/basic/ui.tsx
-import { useLayoutEffect as useLayoutEffect3, useRef as useRef4 } from "react";
 import { Dialog as SdkDialog, Heading, Modal } from "@blockr/core/react";
 import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function Dialog({
@@ -569,13 +579,6 @@ function Dialog({
   onClose,
   children
 }) {
-  const { toasts } = useFrontEnd();
-  const toastsRef = useRef4(null);
-  useLayoutEffect3(() => {
-    const inside = toastsRef.current;
-    if (inside === null) return;
-    return toasts.showIn(inside);
-  }, [toasts]);
   return /* @__PURE__ */ jsx6(
     Modal,
     {
@@ -583,16 +586,13 @@ function Dialog({
       onOpenChange: (open) => {
         if (!open) onClose();
       },
-      children: /* @__PURE__ */ jsxs5(SdkDialog, { children: [
-        /* @__PURE__ */ jsxs5("div", { className: "bc:grid bc:gap-3", children: [
-          /* @__PURE__ */ jsxs5("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
-            /* @__PURE__ */ jsx6(Heading, { slot: "title", className: classes.heading, children: title }),
-            /* @__PURE__ */ jsx6("button", { type: "button", className: classes.button, onClick: onClose, children: "Close" })
-          ] }),
-          children
+      children: /* @__PURE__ */ jsx6(SdkDialog, { children: /* @__PURE__ */ jsxs5("div", { className: "bc:grid bc:gap-3", children: [
+        /* @__PURE__ */ jsxs5("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
+          /* @__PURE__ */ jsx6(Heading, { slot: "title", className: classes.heading, children: title }),
+          /* @__PURE__ */ jsx6("button", { type: "button", className: classes.button, onClick: onClose, children: "Close" })
         ] }),
-        /* @__PURE__ */ jsx6("div", { ref: toastsRef })
-      ] })
+        children
+      ] }) })
     }
   );
 }
@@ -621,18 +621,18 @@ function OptionUi({ id }) {
 }
 
 // srcts/modules/basic/plugins.tsx
-import { useCallback as useCallback5, useId as useId2, useLayoutEffect as useLayoutEffect4, useRef as useRef5, useSyncExternalStore as useSyncExternalStore2 } from "react";
-import { useNotified as useNotified2 } from "@blockr/core/react";
+import { useCallback as useCallback5, useLayoutEffect as useLayoutEffect3, useRef as useRef4, useSyncExternalStore as useSyncExternalStore3 } from "react";
+import { Disclosure as Disclosure2, DisclosureHeader as DisclosureHeader2, DisclosurePanel as DisclosurePanel2, useNotified as useNotified2 } from "@blockr/core/react";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 function createSections() {
   const collapsed = /* @__PURE__ */ new Set();
   const listeners = /* @__PURE__ */ new Set();
   return {
-    collapsed: (plugin) => collapsed.has(plugin),
-    collapse(plugin, collapse) {
-      if (collapsed.has(plugin) === collapse) return;
-      if (collapse) collapsed.add(plugin);
-      else collapsed.delete(plugin);
+    collapsed: (id) => collapsed.has(id),
+    collapse(id, collapse) {
+      if (collapsed.has(id) === collapse) return;
+      if (collapse) collapsed.add(id);
+      else collapsed.delete(id);
       for (const fn of [...listeners]) fn();
     },
     subscribe(fn) {
@@ -669,169 +669,80 @@ function PluginSection({ id, plugin }) {
   const { core, inView: inView2, sections } = useFrontEnd();
   const notified = useNotified2(core, { plugin: id });
   const pills = usePills(notified);
-  const collapsed = useSyncExternalStore2(sections.subscribe, () => sections.collapsed(id));
-  const body = useId2();
-  const ref = useRef5(null);
-  useLayoutEffect4(() => {
+  const collapsed = useSyncExternalStore3(sections.subscribe, () => sections.collapsed(id));
+  const ref = useRef4(null);
+  useLayoutEffect3(() => {
     const el = ref.current;
     return el === null ? void 0 : inView2.watch({ plugin: id }, el);
   }, [inView2, id]);
   const mount = useCallback5((el) => core.mountPlugin(el, id), [core, id]);
-  return /* @__PURE__ */ jsxs7(
+  return /* @__PURE__ */ jsx8(
     "section",
     {
       "aria-label": plugin.name,
-      className: `${classes.card} bc:grid bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:p-3`,
-      children: [
-        /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
-          /* @__PURE__ */ jsx8("h3", { className: classes.heading, children: /* @__PURE__ */ jsxs7(
-            "button",
-            {
-              type: "button",
-              "aria-expanded": !collapsed,
-              "aria-controls": body,
-              onClick: () => {
-                sections.collapse(id, !collapsed);
-              },
-              className: "bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1.5 bc:border-0 bc:bg-transparent bc:p-0 bc:text-inherit bc:[font:inherit]",
-              children: [
-                /* @__PURE__ */ jsx8(Marker, { collapsed }),
-                plugin.name
-              ]
-            }
-          ) }),
-          /* @__PURE__ */ jsx8(Pills, { ...pills, className: "" })
-        ] }),
-        /* @__PURE__ */ jsx8(Banners, { ...pills }),
-        /* @__PURE__ */ jsx8("div", { id: body, ref, hidden: collapsed, className: "bc:min-w-0", children: /* @__PURE__ */ jsx8(Mounted, { mount, className: "bc:min-w-0" }) })
-      ]
-    }
-  );
-}
-function Marker({ collapsed }) {
-  return /* @__PURE__ */ jsx8(
-    "svg",
-    {
-      "aria-hidden": "true",
-      viewBox: "0 0 16 16",
-      fill: "currentColor",
-      className: `bc:size-3 bc:shrink-0 bc:transition-transform bc:motion-reduce:transition-none ${collapsed ? "" : "bc:rotate-90"}`,
-      children: /* @__PURE__ */ jsx8("path", { d: "M5.5 3.5 11 8l-5.5 4.5Z" })
+      className: `${classes.card} bc:min-w-0 bc:rounded-lg bc:border bc:border-border-default bc:p-3`,
+      children: /* @__PURE__ */ jsxs7(
+        Disclosure2,
+        {
+          isExpanded: !collapsed,
+          onExpandedChange: (expanded) => {
+            sections.collapse(id, !expanded);
+          },
+          children: [
+            /* @__PURE__ */ jsxs7("div", { className: "bc:grid bc:min-w-0 bc:gap-3", children: [
+              /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
+                /* @__PURE__ */ jsx8(DisclosureHeader2, { children: plugin.name }),
+                /* @__PURE__ */ jsx8(Pills, { ...pills, className: "" })
+              ] }),
+              /* @__PURE__ */ jsx8(Banners, { ...pills })
+            ] }),
+            /* @__PURE__ */ jsx8(DisclosurePanel2, { className: "bc:min-w-0", children: /* @__PURE__ */ jsx8("div", { ref, hidden: collapsed, className: "bc:min-w-0 bc:pt-3", children: /* @__PURE__ */ jsx8(Mounted, { mount, className: "bc:min-w-0" }) }) })
+          ]
+        }
+      )
     }
   );
 }
 
 // srcts/modules/basic/toasts.ts
-import { useSyncExternalStore as useSyncExternalStore3 } from "react";
+import { ToastQueue } from "@blockr/core/react";
 var SHOWN_FOR = 5e3;
-var FADES_FOR = 300;
 function createToasts(notifications, sectioned) {
-  const shown = /* @__PURE__ */ new Map();
+  const queue = new ToastQueue();
+  const keys = /* @__PURE__ */ new Map();
   const gone = /* @__PURE__ */ new Set();
-  const inside = [];
-  const listeners = /* @__PURE__ */ new Set();
-  let heard = notifications.get();
-  let list = [];
-  let stopped = false;
-  function publish() {
-    const next = heard.flatMap((notification) => {
-      const toast = shown.get(notification.id)?.toast;
-      return toast === void 0 ? [] : [toast];
-    });
-    if (next.length !== list.length || next.some((toast, i) => toast !== list[i])) list = next;
-    for (const fn of [...listeners]) fn();
-  }
-  function countDown(id, toast) {
-    if (stopped || toast.toast.notification.severity !== "message" || toast.kept.size > 0) return;
-    clearTimeout(toast.timer);
-    toast.timer = setTimeout(() => {
-      toast.toast = { ...toast.toast, fading: true };
-      toast.timer = setTimeout(() => {
-        hide(id);
-      }, FADES_FOR);
-      publish();
-    }, SHOWN_FOR);
-  }
-  function hide(id) {
-    const toast = shown.get(id);
-    if (toast === void 0) return;
-    clearTimeout(toast.timer);
-    shown.delete(id);
-    gone.add(id);
-    publish();
-  }
-  function update() {
+  function update(heard) {
     const holding = new Set(heard.map((notification) => notification.id));
-    for (const [id, toast] of shown) {
+    for (const [id, key] of keys) {
       if (holding.has(id)) continue;
-      clearTimeout(toast.timer);
-      shown.delete(id);
+      keys.delete(id);
+      queue.close(key);
     }
     for (const id of gone) {
       if (!holding.has(id)) gone.delete(id);
     }
     for (const notification of heard) {
-      if (shownElsewhere(notification, sectioned) || gone.has(notification.id)) continue;
-      const toast = shown.get(notification.id);
-      if (toast === void 0) {
-        const added = { toast: { notification, fading: false }, timer: void 0, kept: /* @__PURE__ */ new Set() };
-        shown.set(notification.id, added);
-        countDown(notification.id, added);
-      } else if (toast.toast.notification !== notification) {
-        toast.toast = { ...toast.toast, notification };
-      }
+      const { id } = notification;
+      if (shownElsewhere(notification, sectioned) || gone.has(id) || keys.has(id)) continue;
+      const key = queue.add(notification, {
+        timeout: notification.severity === "message" ? SHOWN_FOR : void 0,
+        // A toast that faded or that the user closed, rather than one whose
+        // notification core withdrew, which no longer has its key.
+        onClose: () => {
+          if (keys.get(id) !== key) return;
+          keys.delete(id);
+          gone.add(id);
+        }
+      });
+      keys.set(id, key);
     }
-    publish();
   }
-  const off = notifications.subscribe((all) => {
-    heard = all;
-    update();
-  });
-  update();
+  const off = notifications.subscribe(update);
+  update(notifications.get());
   return {
-    list: () => list,
-    shownIn: () => inside.at(-1) ?? null,
-    subscribe(fn) {
-      const wrapped = () => {
-        fn();
-      };
-      listeners.add(wrapped);
-      return () => {
-        listeners.delete(wrapped);
-      };
-    },
-    showIn(el) {
-      inside.push(el);
-      publish();
-      let back = false;
-      return () => {
-        if (back) return;
-        back = true;
-        const at = inside.lastIndexOf(el);
-        if (at >= 0) inside.splice(at, 1);
-        publish();
-      };
-    },
-    close: hide,
-    keep(id, by) {
-      const toast = shown.get(id);
-      if (toast === void 0) return;
-      toast.kept.add(by);
-      clearTimeout(toast.timer);
-      toast.timer = void 0;
-      if (!toast.toast.fading) return;
-      toast.toast = { ...toast.toast, fading: false };
-      publish();
-    },
-    release(id, by) {
-      const toast = shown.get(id);
-      if (toast?.kept.delete(by) !== true) return;
-      countDown(id, toast);
-    },
+    queue,
     stop() {
-      stopped = true;
       off();
-      for (const toast of shown.values()) clearTimeout(toast.timer);
     }
   };
 }
@@ -839,12 +750,6 @@ function shownElsewhere(notification, sectioned) {
   const { about } = notification;
   if (about === void 0) return false;
   return "block" in about || "plugin" in about && sectioned(about.plugin);
-}
-function useToasts(toasts) {
-  return useSyncExternalStore3(toasts.subscribe, toasts.list);
-}
-function useShownIn(toasts) {
-  return useSyncExternalStore3(toasts.subscribe, toasts.shownIn);
 }
 function concerned(about, core, board) {
   if (about === void 0) return "Board";
@@ -864,8 +769,21 @@ function isReload(notification) {
 }
 
 // srcts/modules/basic/toolbar.tsx
-import { useEffect, useReducer, useState as useState7 } from "react";
-import { Button as SdkButton, Keyboard, Menu, MenuItem, MenuSection, MenuTrigger, Text } from "@blockr/core/react";
+import { useEffect, useId as useId2, useReducer, useState as useState7 } from "react";
+import {
+  Button as SdkButton,
+  Focusable,
+  Keyboard,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Separator,
+  SubmenuTrigger,
+  Text,
+  Toolbar as SdkToolbar,
+  Tooltip,
+  TooltipTrigger
+} from "@blockr/core/react";
 
 // srcts/modules/basic/storage.ts
 var KINDS = /* @__PURE__ */ new Set(["button", "menu", "status"]);
@@ -954,39 +872,37 @@ function Toolbar({ board, showOptions }) {
         children: "Rename"
       }
     ),
-    /* @__PURE__ */ jsxs8("div", { role: "toolbar", "aria-label": "Board", className: "bc:ml-auto bc:flex bc:flex-wrap bc:items-center bc:gap-2", children: [
+    /* @__PURE__ */ jsxs8(SdkToolbar, { "aria-label": "Board", className: "bc:ml-auto", children: [
       /* @__PURE__ */ jsx9(
-        "button",
+        SdkButton,
         {
-          type: "button",
-          className: classes.button,
-          onClick: () => {
+          variant: "secondary",
+          onPress: () => {
             showOptions();
           },
           children: "Options"
         }
       ),
+      /* @__PURE__ */ jsx9(Separator, { orientation: "vertical" }),
       /* @__PURE__ */ jsx9(
-        "button",
+        SdkButton,
         {
-          type: "button",
-          className: classes.button,
-          disabled: !canUndo,
+          variant: "secondary",
+          isDisabled: !canUndo,
           "aria-keyshortcuts": "Control+Z Meta+Z",
-          onClick: () => {
+          onPress: () => {
             step(true);
           },
           children: "Undo"
         }
       ),
       /* @__PURE__ */ jsx9(
-        "button",
+        SdkButton,
         {
-          type: "button",
-          className: classes.button,
-          disabled: !canRedo,
+          variant: "secondary",
+          isDisabled: !canRedo,
           "aria-keyshortcuts": "Control+Shift+Z Meta+Shift+Z Control+Y",
-          onClick: () => {
+          onPress: () => {
             step(false);
           },
           children: "Redo"
@@ -1014,38 +930,57 @@ function StorageControls() {
   useEffect(() => {
     if (problem !== void 0) core.log("blockr.core").error(problem);
   }, [core, problem]);
-  if (drawn2 === void 0) return null;
-  if (drawn2.failed) {
-    return /* @__PURE__ */ jsx9("span", { role: "alert", title: problem, className: "bc:font-sans bc:text-sm bc:text-text-danger", children: "Storage failed" });
-  }
-  return /* @__PURE__ */ jsx9(Fragment2, { children: drawn2.controls.map((control) => /* @__PURE__ */ jsx9(Control, { control }, control.id)) });
+  if (drawn2 === void 0 || !drawn2.failed && drawn2.controls.length === 0) return null;
+  return /* @__PURE__ */ jsxs8(Fragment2, { children: [
+    /* @__PURE__ */ jsx9(Separator, { orientation: "vertical" }),
+    drawn2.failed ? /* @__PURE__ */ jsx9("span", { role: "alert", className: "bc:font-sans bc:text-sm bc:text-text-danger", children: /* @__PURE__ */ jsx9(Tipped, { tooltip: problem, children: "Storage failed" }) }) : drawn2.controls.map((control) => /* @__PURE__ */ jsx9(Control, { control }, control.id))
+  ] });
 }
 function Control({ control }) {
   switch (control.kind) {
     case "button":
-      return /* @__PURE__ */ jsx9(StorageButton, { button: control, className: classes.button });
+      return /* @__PURE__ */ jsx9(StorageButton, { button: control });
     case "menu":
       return /* @__PURE__ */ jsx9(StorageMenu, { label: control.label, items: control.items });
     case "status":
-      return /* @__PURE__ */ jsx9("span", { role: "status", title: control.tooltip, className: "bc:font-sans bc:text-sm bc:text-text-muted", children: control.text });
+      return /* @__PURE__ */ jsx9("span", { role: "status", className: "bc:font-sans bc:text-sm bc:text-text-muted", children: /* @__PURE__ */ jsx9(Tipped, { tooltip: control.tooltip, children: control.text }) });
   }
 }
-function StorageButton({ button, className }) {
+function StorageButton({ button }) {
   const { core } = useFrontEnd();
-  return /* @__PURE__ */ jsx9(
-    "button",
+  const reason = useId2();
+  const off = button.disabled === true;
+  const drawn2 = /* @__PURE__ */ jsx9(
+    SdkButton,
     {
-      type: "button",
-      className,
-      disabled: button.disabled,
-      title: button.tooltip,
+      variant: "secondary",
+      isDisabled: off,
       "aria-keyshortcuts": ariaShortcuts(button.shortcut),
-      onClick: () => {
+      "aria-describedby": off && button.tooltip !== void 0 ? reason : void 0,
+      onPress: () => {
         void runButton(core, button);
       },
       children: button.label
     }
   );
+  if (button.tooltip === void 0) return drawn2;
+  if (off) {
+    return /* @__PURE__ */ jsxs8(Fragment2, { children: [
+      drawn2,
+      /* @__PURE__ */ jsx9("span", { id: reason, className: "bc:font-sans bc:text-sm bc:text-text-muted", children: button.tooltip })
+    ] });
+  }
+  return /* @__PURE__ */ jsxs8(TooltipTrigger, { children: [
+    drawn2,
+    /* @__PURE__ */ jsx9(Tooltip, { children: button.tooltip })
+  ] });
+}
+function Tipped({ tooltip, children }) {
+  if (tooltip === void 0) return /* @__PURE__ */ jsx9(Fragment2, { children });
+  return /* @__PURE__ */ jsxs8(TooltipTrigger, { children: [
+    /* @__PURE__ */ jsx9(Focusable, { children: /* @__PURE__ */ jsx9("span", { role: "button", tabIndex: 0, className: "bc:cursor-default bc:rounded bc:outline-none bc:focus-visible:outline-2 bc:focus-visible:outline-border-accent", children }) }),
+    /* @__PURE__ */ jsx9(Tooltip, { children: tooltip })
+  ] });
 }
 function StorageMenu({ label, items }) {
   const { core } = useFrontEnd();
@@ -1055,15 +990,17 @@ function StorageMenu({ label, items }) {
       label,
       /* @__PURE__ */ jsx9("span", { "aria-hidden": "true", children: "\u25BE" })
     ] }),
-    /* @__PURE__ */ jsx9(Menu, { "aria-label": label, children: groups(label, items).flatMap(
-      (group) => group.title === void 0 ? entries(group.items, core, mac) : [
-        /* @__PURE__ */ jsx9(MenuSection, { id: group.id, title: group.title, children: entries(group.items, core, mac) }, group.id)
-      ]
-    ) })
+    /* @__PURE__ */ jsx9(Menu, { "aria-label": label, children: entries(items, core, mac) })
   ] });
 }
 function entries(items, core, mac) {
   return items.map((item) => {
+    if (item.kind === "menu") {
+      return /* @__PURE__ */ jsxs8(SubmenuTrigger, { children: [
+        /* @__PURE__ */ jsx9(MenuItem, { id: item.id, textValue: item.label, children: item.label }),
+        /* @__PURE__ */ jsx9(Menu, { "aria-label": item.label, children: entries(item.items, core, mac) })
+      ] }, item.id);
+    }
     const label = item.kind === "button" ? item.label : item.text;
     const shortcut = item.kind === "button" ? shortcutLabel(item.shortcut, mac) : void 0;
     return /* @__PURE__ */ jsxs8(
@@ -1084,11 +1021,6 @@ function entries(items, core, mac) {
       item.id
     );
   });
-}
-function groups(id, items, title) {
-  const own2 = items.filter((item) => item.kind !== "menu");
-  const inner = items.flatMap((item) => item.kind === "menu" ? groups(`${id}/${item.id}`, item.items, item.label) : []);
-  return [...own2.length === 0 && title === void 0 ? [] : [{ id, title, items: own2 }], ...inner];
 }
 
 // srcts/modules/basic/board.tsx
@@ -1127,7 +1059,7 @@ function Page() {
           if ("block" in item) return card(item.block);
           const stack = board.stacks[item.stack];
           if (stack === void 0) return null;
-          return /* @__PURE__ */ jsx10(StackGroup, { stack, children: item.blocks.length === 0 ? /* @__PURE__ */ jsx10("p", { className: styles.hint, children: "The stack holds no blocks." }) : item.blocks.map(card) }, `stack-${item.stack}`);
+          return /* @__PURE__ */ jsx10(StackGroup, { id: item.stack, stack, children: item.blocks.length === 0 ? /* @__PURE__ */ jsx10("p", { className: styles.hint, children: "The stack holds no blocks." }) : item.blocks.map(card) }, `stack-${item.stack}`);
         })
       ] })
     ] }),
@@ -1137,92 +1069,44 @@ function Page() {
 }
 function Toasts() {
   const { core, toasts } = useFrontEnd();
-  const list = useToasts(toasts);
-  const inside = useShownIn(toasts);
   const board = useBoard2(core);
-  if (list.length === 0) return null;
-  const shown = /* @__PURE__ */ jsx10(
-    "section",
-    {
-      "aria-label": "Notifications",
-      className: "bc:pointer-events-none bc:fixed bc:right-2 bc:bottom-2 bc:z-50 bc:m-0 bc:box-border bc:grid bc:max-h-[calc(100dvh-1rem)] bc:w-[21rem] bc:max-w-[calc(100vw-1rem)] bc:gap-2 bc:overflow-y-auto bc:p-2 bc:font-sans",
-      children: list.map((toast) => /* @__PURE__ */ jsx10(ToastItem, { toast, title: concerned(toast.notification.about, core, board) }, toast.notification.id))
-    }
-  );
-  return inside === null ? shown : createPortal(shown, inside);
+  return /* @__PURE__ */ jsx10(ToastRegion, { queue: toasts.queue, children: ({ toast }) => /* @__PURE__ */ jsx10(ToastItem, { toast, title: concerned(toast.content.about, core, board) }) });
 }
 function ToastItem({ toast, title }) {
-  const { toasts } = useFrontEnd();
-  const { notification, fading } = toast;
-  const { id, severity } = notification;
+  const notification = toast.content;
+  const { severity } = notification;
   const mark = MARKS[severity];
   const pkg = sourcePackage(notification);
-  useEffect2(
-    () => () => {
-      toasts.release(id, "pointer");
-      toasts.release(id, "focus");
-    },
-    [toasts, id]
-  );
-  return /* @__PURE__ */ jsxs9(
-    "div",
-    {
-      role: severity === "message" ? "status" : "alert",
-      "data-severity": severity,
-      onPointerEnter: () => {
-        toasts.keep(id, "pointer");
-      },
-      onPointerLeave: () => {
-        toasts.release(id, "pointer");
-      },
-      onFocus: () => {
-        toasts.keep(id, "focus");
-      },
-      onBlur: (event) => {
-        if (!(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) {
-          toasts.release(id, "focus");
+  return /* @__PURE__ */ jsxs9(Toast, { toast, "data-severity": severity, className: `bc:border-l-4 ${LEFT[severity]}`, children: [
+    /* @__PURE__ */ jsx10("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx10(SeverityIcon, { severity }) }),
+    /* @__PURE__ */ jsxs9(ToastContent, { role: severity === "message" ? "status" : void 0, className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1", children: [
+      /* @__PURE__ */ jsxs9(Text2, { slot: "title", elementType: "p", className: "bc:m-0 bc:text-xs bc:font-semibold", children: [
+        title,
+        pkg === void 0 ? null : /* @__PURE__ */ jsxs9("span", { className: "bc:font-normal bc:text-text-muted", children: [
+          " \xB7 ",
+          pkg
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx10(Text2, { slot: "description", elementType: "p", className: "bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap", children: notification.message }),
+      isReload(notification) ? /* @__PURE__ */ jsx10("div", { children: /* @__PURE__ */ jsx10(
+        Button2,
+        {
+          variant: "secondary",
+          onPress: () => {
+            location.reload();
+          },
+          children: "Reload"
         }
-      },
-      className: `${classes.surface} bc:pointer-events-auto bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 bc:shadow-lg bc:transition-opacity bc:duration-300 bc:motion-reduce:transition-none ${mark.border} ${fading ? "bc:opacity-0" : ""}`,
-      children: [
-        /* @__PURE__ */ jsx10("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx10(SeverityIcon, { severity }) }),
-        /* @__PURE__ */ jsxs9("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1", children: [
-          /* @__PURE__ */ jsxs9("p", { className: "bc:m-0 bc:text-xs bc:font-semibold", children: [
-            title,
-            pkg === void 0 ? null : /* @__PURE__ */ jsxs9("span", { className: "bc:font-normal bc:text-text-muted", children: [
-              " \xB7 ",
-              pkg
-            ] })
-          ] }),
-          /* @__PURE__ */ jsx10("p", { className: "bc:m-0 bc:text-sm bc:break-words bc:whitespace-pre-wrap", children: notification.message }),
-          isReload(notification) ? /* @__PURE__ */ jsx10("div", { children: /* @__PURE__ */ jsx10(
-            "button",
-            {
-              type: "button",
-              className: classes.button,
-              onClick: () => {
-                location.reload();
-              },
-              children: "Reload"
-            }
-          ) }) : null
-        ] }),
-        /* @__PURE__ */ jsx10(
-          "button",
-          {
-            type: "button",
-            "aria-label": "Close",
-            className: classes.quiet,
-            onClick: () => {
-              toasts.close(id);
-            },
-            children: /* @__PURE__ */ jsx10("span", { "aria-hidden": "true", children: "\xD7" })
-          }
-        )
-      ]
-    }
-  );
+      ) }) : null
+    ] }),
+    /* @__PURE__ */ jsx10(Button2, { slot: "close", variant: "quiet", children: /* @__PURE__ */ jsx10("span", { "aria-hidden": "true", children: "\xD7" }) })
+  ] });
 }
+var LEFT = {
+  error: "bc:border-l-border-danger",
+  warning: "bc:border-l-amber-500",
+  message: "bc:border-l-border-accent"
+};
 
 // srcts/modules/basic/demand.ts
 var OWNER = "blockr.core-basic";
@@ -1339,7 +1223,7 @@ function render({ el, core }) {
   const doc = el.ownerDocument;
   const shown = demandShown(core, doc.defaultView ?? window);
   const toasts = createToasts(core.notifications, (plugin) => hasSection(core, plugin));
-  const front = { core, toasts, inView: shown, sections: createSections() };
+  const front = { core, toasts, inView: shown, sections: createSections(), groups: createSections() };
   const root = createRoot(el);
   flushSync(() => {
     root.render(/* @__PURE__ */ jsx11(BasicBoard, { front }));
@@ -1359,14 +1243,14 @@ function show({ object, el }) {
   const front = drawn.get(el);
   const target = front?.inView.element(object);
   if (front === void 0 || target === void 0) return;
-  if ("plugin" in object) {
-    flushSync(() => {
+  flushSync(() => {
+    if ("plugin" in object) {
       front.sections.collapse(object.plugin, false);
-    });
-  }
-  for (let node = target.parentElement; node !== null && node !== el; node = node.parentElement) {
-    if (node.localName === "details" && !node.hasAttribute("open")) node.setAttribute("open", "");
-  }
+      return;
+    }
+    const stack = Object.entries(front.core.store.board().stacks).find(([, held]) => held.blocks.includes(object.block));
+    if (stack !== void 0) front.groups.collapse(stack[0], false);
+  });
   const into = "plugin" in object ? target.closest("section") ?? target : target;
   into.scrollIntoView({ block: "nearest", inline: "nearest" });
 }

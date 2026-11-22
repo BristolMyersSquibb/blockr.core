@@ -20,9 +20,11 @@
 // R's error reply, so that the frontend says where it shows, and the module
 // lists nothing.
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import type { ReactElement } from "react";
 import {
+  Breadcrumb,
+  Breadcrumbs,
   Button,
   Cell,
   Column,
@@ -83,15 +85,12 @@ interface Entry {
   readonly open: () => void;
 }
 
-// The classes of the frame, of the bar at its top, of the buttons that name a
-// directory in the bar, of the headings of the list's columns, and of the row
-// of the block's file.
+// The classes of the frame, of the bar at its top, of the headings of the
+// list's columns, and of the row of the block's file.
 // The columns of sizes and times keep their widths, so that they stay in
 // place as the user moves from one directory to another.
 const FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised";
 const BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border-default bc:p-1 bc:text-sm";
-const link =
-  "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 const HEAD = "bc:text-xs bc:text-text-muted";
 const CHOSEN = "bc:bg-bg-accent/10 bc:font-semibold";
 
@@ -185,26 +184,18 @@ function FileBrowserBlock({ host }: ModuleProps<BlockHost<State>>): ReactElement
             <Up />
           </Button>
           <FolderIcon className="bc:shrink-0 bc:text-text-muted" />
-          <nav aria-label="Directory" className="bc:flex bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-0.5">
-            {[volume ?? "", ...dirs].map((name, i) => (
-              <Fragment key={i}>
-                {i > 0 && (
-                  <span className="bc:text-text-muted" aria-hidden="true">
-                    /
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className={link}
-                  aria-current={i === dirs.length ? "true" : undefined}
-                  onClick={() => {
-                    go({ volume, dirs: dirs.slice(0, i) });
-                  }}
-                >
+          <nav aria-label="Directory" className="bc:min-w-0">
+            <Breadcrumbs
+              onAction={(key) => {
+                go({ volume, dirs: dirs.slice(0, Number(key)) });
+              }}
+            >
+              {[volume ?? "", ...dirs].map((name, i) => (
+                <Breadcrumb key={i} id={i}>
                   {name}
-                </button>
-              </Fragment>
-            ))}
+                </Breadcrumb>
+              ))}
+            </Breadcrumbs>
           </nav>
         </div>
         {/* The frame draws the line below the last row. */}
