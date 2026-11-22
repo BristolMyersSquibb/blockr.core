@@ -6,13 +6,25 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
+import type { Root } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
 import { find, press, type } from "../testing/inputs.ts";
 import { menuItem, menuItems, openDialog } from "../testing/overlays.ts";
 import { step } from "../testing/react.ts";
 import { CommandPalette, MenuItem } from "./index.ts";
 
-afterEach(() => {
+// The root of each palette that a test drew.
+// After each test, the hook below unmounts the roots before it empties the
+// page's body, so that React runs the cleanups of their effects.
+// React Aria's dialog clears the timer that it sets as it opens only in such a
+// cleanup.
+// A timer left pending can run once Vitest has torn down the page, and throw.
+const roots: Root[] = [];
+
+afterEach(async () => {
+  await step(() => {
+    for (const root of roots.splice(0)) root.unmount();
+  });
   document.body.replaceChildren();
 });
 
@@ -55,6 +67,7 @@ async function draw(node: ReactElement): Promise<HTMLElement> {
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
+  roots.push(root);
   await step(() => {
     root.render(node);
   });
