@@ -1,6 +1,6 @@
 // What every component of the basic frontend reads: CoreApi, the toasts, what
-// is in view and which plugins' sections are collapsed. The frontend runs its
-// edits with runCommand() of ../../ui.
+// is in view, which plugins' sections are collapsed and which stacks' groups.
+// The frontend runs its edits with runCommand() of ../../ui.
 
 import { createContext, useContext } from "react";
 import type { CoreApi } from "../../types/core-api.ts";
@@ -13,6 +13,7 @@ export interface FrontEnd {
   readonly toasts: Toasts;
   readonly inView: InView;
   readonly sections: Sections;
+  readonly groups: Sections;
 }
 
 export const FrontEndContext = createContext<FrontEnd | null>(null);

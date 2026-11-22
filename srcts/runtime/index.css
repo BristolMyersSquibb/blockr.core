@@ -122,6 +122,31 @@
 }
 
 /*
+ * Every overlay of core's React SDK, such as a modal, a menu, a tooltip or a
+ * select's list, sits in React Aria's portal at the end of the page's body, at
+ * the z-index that --bc-z-index-overlay gives it, the utility bc:z-overlay
+ * (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.7#react).
+ * Overlays at one z-index stack in the order in which they opened, since
+ * React Aria opens each in a portal of its own after those already open.
+ * So a select's list shows above the modal that holds the select.
+ * The toasts of the SDK sit one above the overlays, so that a toast shows
+ * above a modal.
+ * The overlays stack above everything else on the page:
+ * - Core gives no other element of its own a z-index on the page.
+ * - Under the dock, blockr.ui's layers reach 1090, for the dock's toasts.
+ * - The dockview library, which the dock draws with, gives a floating group
+ *   999, and its guides 1099 while the user drags a panel.
+ * Only the drop targets of dockview, at 9999, sit higher, while the user
+ * drags a panel, and no overlay stays open through a drag: a press outside a
+ * menu or a popover closes it, and a tooltip closes as the pointer leaves.
+ * The variable sits in the theme's layer, as the colors do, so that a
+ * frontend or a UI kit that sets it outside a layer wins over it.
+ */
+@theme static {
+  --z-index-overlay: 1100;
+}
+
+/*
  * A color for each status of a block and for each category of block classes.
  * The categories are those that suggested_categories() lists in R.
  * Every plugin that draws a block's status or the mark of its class reads
@@ -296,5 +321,63 @@
   to {
     --bc-spinner-start: 360deg;
     --bc-spinner-end: 363deg;
+  }
+}
+
+/*
+ * The motions of the overlays and the layout of core's React SDK, which their
+ * utilities name.
+ * - The backdrop of a sheet fades in as the sheet slides in, and a sheet that
+ *   another opens over moves back (../overlays/sheet.tsx).
+ * - A toast with a timeout fades out in its last 300 milliseconds
+ *   (../overlays/toast.tsx).
+ * - Part of a progress bar that cannot tell how far its task has come
+ *   slides across it (../layout/meter.tsx).
+ */
+@keyframes bc-sheet-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bc-sheet-scale-back {
+  to {
+    transform: translateZ(-120px);
+  }
+}
+
+@keyframes bc-toast-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+ * The fade of a toast with a timeout, in its last 300 milliseconds, from the
+ * delay that the toast's --bc-toast-fade-at gives.
+ * The toast pauses it while React Aria pauses the timeout, through
+ * animation-play-state, so the fade sets each part of the animation on its
+ * own, since the shorthand `animation` would set animation-play-state back
+ * to running.
+ */
+@utility toast-fade {
+  @media (prefers-reduced-motion: no-preference) {
+    animation-name: bc-toast-fade;
+    animation-duration: 300ms;
+    animation-timing-function: ease-in;
+    animation-delay: var(--bc-toast-fade-at);
+    animation-fill-mode: forwards;
+  }
+}
+
+@keyframes bc-progress-slide {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 250% 0;
   }
 }

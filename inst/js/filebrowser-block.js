@@ -1,6 +1,8 @@
 // srcts/modules/filebrowser-block/index.tsx
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import {
+  Breadcrumb,
+  Breadcrumbs,
   Button,
   Cell,
   Column,
@@ -55,7 +57,6 @@ import { jsx, jsxs } from "react/jsx-runtime";
 var api = 1;
 var FRAME = "bc:overflow-hidden bc:rounded-md bc:border bc:border-border-default bc:bg-bg-raised";
 var BAR = "bc:flex bc:items-center bc:gap-1 bc:border-b bc:border-border-default bc:p-1 bc:text-sm";
-var link = "bc:cursor-pointer bc:rounded bc:border-0 bc:bg-transparent bc:px-1 bc:py-0.5 bc:text-left bc:text-sm bc:text-inherit bc:[font-family:inherit] bc:hover:bg-bg-subtle bc:aria-current:font-semibold";
 var HEAD = "bc:text-xs bc:text-text-muted";
 var CHOSEN = "bc:bg-bg-accent/10 bc:font-semibold";
 function FileBrowserBlock({ host }) {
@@ -136,21 +137,15 @@ function FileBrowserBlock({ host }) {
           }
         ),
         /* @__PURE__ */ jsx(FolderIcon, { className: "bc:shrink-0 bc:text-text-muted" }),
-        /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:flex bc:min-w-0 bc:flex-wrap bc:items-center bc:gap-0.5", children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsxs(Fragment, { children: [
-          i > 0 && /* @__PURE__ */ jsx("span", { className: "bc:text-text-muted", "aria-hidden": "true", children: "/" }),
-          /* @__PURE__ */ jsx(
-            "button",
-            {
-              type: "button",
-              className: link,
-              "aria-current": i === dirs.length ? "true" : void 0,
-              onClick: () => {
-                go({ volume, dirs: dirs.slice(0, i) });
-              },
-              children: name
-            }
-          )
-        ] }, i)) })
+        /* @__PURE__ */ jsx("nav", { "aria-label": "Directory", className: "bc:min-w-0", children: /* @__PURE__ */ jsx(
+          Breadcrumbs,
+          {
+            onAction: (key) => {
+              go({ volume, dirs: dirs.slice(0, Number(key)) });
+            },
+            children: [volume ?? "", ...dirs].map((name, i) => /* @__PURE__ */ jsx(Breadcrumb, { id: i, children: name }, i))
+          }
+        ) })
       ] }),
       /* @__PURE__ */ jsxs(
         Table,

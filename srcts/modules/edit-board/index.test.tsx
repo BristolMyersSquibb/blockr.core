@@ -896,8 +896,16 @@ describe("under the board lock", () => {
     const { el } = await mounted({ hello: locked });
 
     expect([...el.querySelectorAll("section")].map((s) => s.getAttribute("aria-label"))).toEqual(["Links", "Stacks"]);
-    // Each search keeps the button that clears it.
-    expect(el.querySelectorAll('form, select, button:not([aria-label="Clear search"])')).toHaveLength(0);
+    // The only buttons are those of the sections' headers, which collapse a
+    // section and edit nothing, and the button of each search that clears
+    // it.
+    expect(el.querySelectorAll("form, select")).toHaveLength(0);
+    expect(
+      [...el.querySelectorAll('button:not([aria-label="Clear search"])')].map((button) => [button.parentElement?.tagName, button.textContent]),
+    ).toEqual([
+      ["H3", "Links7"],
+      ["H3", "Stacks1"],
+    ]);
     expect([...el.querySelectorAll("input")].map((input) => input.type)).toEqual(["search", "search"]);
     expect(rows(el, "Links")).toHaveLength(7);
     expect(texts(row(section(el, "Links"), "Iris → Head"), "td")).toEqual(["Irisa", "Headb", "data"]);

@@ -1,6 +1,6 @@
 // srcts/scheduler/scheduler.ts
 import { ROOT_CONTEXT } from "@opentelemetry/api";
-import { action, batch, computed, effect, signal, untracked } from "./vendor-48cbe59f.js";
+import { action, batch, computed, effect, signal, untracked } from "./vendor-02042ca6.js";
 
 // srcts/graph/graph.ts
 function createGraph(board) {
@@ -312,7 +312,7 @@ function readShortcut(text) {
 }
 
 // srcts/util/validate.ts
-import { Validator } from "./vendor-48cbe59f.js";
+import { Validator } from "./vendor-02042ca6.js";
 function compile(what, schema, fails = "fails its schema") {
   let validator;
   try {
@@ -3849,10 +3849,10 @@ async function requestBlockrOptions(client, names) {
 
 // srcts/commands/commands.ts
 import { context as otelContext, trace as trace3 } from "@opentelemetry/api";
-import { computed as computed3, signal as signal4 } from "./vendor-48cbe59f.js";
+import { computed as computed3, signal as signal4 } from "./vendor-02042ca6.js";
 
 // srcts/store/store.ts
-import { signal as signal3 } from "./vendor-48cbe59f.js";
+import { signal as signal3 } from "./vendor-02042ca6.js";
 
 // srcts/store/words.ts
 var adjectives = [
@@ -5955,7 +5955,7 @@ function remove(board, gone, registrations) {
 }
 
 // srcts/store/registrations.ts
-import { computed as computed2, signal as signal2 } from "./vendor-48cbe59f.js";
+import { computed as computed2, signal as signal2 } from "./vendor-02042ca6.js";
 function createRegistrations(migration = () => void 0) {
   const classes2 = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
@@ -7996,6 +7996,7 @@ var styles = {
 var buttons = {
   primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
   secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
   quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
 };
 
@@ -8078,7 +8079,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 // srcts/ui/search.ts
 import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-48cbe59f.js";
+import { useFilter } from "./vendor-02042ca6.js";
 function useSearch(all, texts, none = "No options") {
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, setQuery] = useState2("");
@@ -9587,7 +9588,7 @@ var WIDTH = "bc:min-w-[min(420px,100%)]";
 import { useEffect, useRef as useRef3, useSyncExternalStore as useSyncExternalStore2 } from "react";
 import { flushSync as flushSync5 } from "react-dom";
 import { createRoot as createRoot3 } from "react-dom/client";
-import { Autocomplete, Input, Separator, Text as Text3, TextField as AriaTextField } from "./vendor-48cbe59f.js";
+import { Autocomplete, Input, Separator, Text as Text3, TextField as AriaTextField } from "./vendor-02042ca6.js";
 import { TextField as TextField5 } from "@blockr/core/react";
 import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
 import { Fragment as Fragment2, jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
