@@ -5957,13 +5957,13 @@ function remove(board, gone, registrations) {
 // srcts/store/registrations.ts
 import { computed as computed2, signal as signal2 } from "./vendor-02042ca6.js";
 function createRegistrations(migration = () => void 0) {
-  const classes = signal2(/* @__PURE__ */ new Map());
+  const classes2 = signal2(/* @__PURE__ */ new Map());
   const options = signal2([]);
   const optionIndex = computed2(
     () => new Map(options.value.map((option) => [option.def.id, option]))
   );
   const classDefs = computed2(
-    () => Object.fromEntries([...classes.value].map(([id2, cls]) => [id2, cls.def]))
+    () => Object.fromEntries([...classes2.value].map(([id2, cls]) => [id2, cls.def]))
   );
   const optionDefs = computed2(
     () => Object.fromEntries(options.value.map((option) => [option.def.id, option.def]))
@@ -5982,7 +5982,7 @@ function createRegistrations(migration = () => void 0) {
         `The plugin class id ${JSON.stringify(id2)} is not named as R names a plugin class, "{pkg}-{name}_plugin".`
       );
     }
-    if (classes.value.has(id2)) {
+    if (classes2.value.has(id2)) {
       throw new Error(`The plugin class "${id2}" is registered already.`);
     }
     const given = def;
@@ -6027,12 +6027,12 @@ function createRegistrations(migration = () => void 0) {
       checkInitial(what, validate, state2.default, "default");
     }
     const item = { def, validate };
-    classes.value = new Map([...classes.value, [id2, item]]);
+    classes2.value = new Map([...classes2.value, [id2, item]]);
     return () => {
-      if (classes.value.get(id2) !== item) return;
-      const rest = new Map(classes.value);
+      if (classes2.value.get(id2) !== item) return;
+      const rest = new Map(classes2.value);
       rest.delete(id2);
-      classes.value = rest;
+      classes2.value = rest;
     };
   }
   return {
@@ -6069,7 +6069,7 @@ function createRegistrations(migration = () => void 0) {
       },
       registered: () => optionDefs.value
     },
-    plugin: (id2) => classes.value.get(id2),
+    plugin: (id2) => classes2.value.get(id2),
     option: (id2) => optionIndex.value.get(id2),
     migration
   };
@@ -6331,9 +6331,9 @@ function createStore(options = {}) {
     if (next === void 0) {
       throw new Error("The store holds no board until it opens one.");
     }
-    const classes = Object.keys(next.plugins);
+    const classes2 = Object.keys(next.plugins);
     const owned = /* @__PURE__ */ new Set([
-      ...classes.flatMap((cls) => packageFromId(cls) ?? []),
+      ...classes2.flatMap((cls) => packageFromId(cls) ?? []),
       ...Object.values(next.blocks).flatMap(({ registry_id }) => packageFromId(registry_id) ?? [])
     ]);
     const recorded = Object.fromEntries(
@@ -7939,6 +7939,732 @@ function isThenable2(value2) {
   return (typeof value2 === "object" || typeof value2 === "function") && value2 !== null && typeof value2.then === "function";
 }
 
+// srcts/actions/add.tsx
+import { flushSync as flushSync2 } from "react-dom";
+import { createRoot } from "react-dom/client";
+
+// srcts/picker/picker.tsx
+import { useMemo as useMemo2, useState as useState7 } from "react";
+import { flushSync } from "react-dom";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField as TextField2, useBoard } from "@blockr/core/react";
+
+// srcts/styles/styles.ts
+var styles = {
+  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
+  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
+  label: "bc:text-sm bc:font-medium",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
+  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
+  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
+  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
+  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
+  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+};
+var buttons = {
+  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
+  secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
+  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
+};
+
+// srcts/ui/edits.ts
+import { useMemo, useState } from "react";
+function useEdits(core) {
+  const [refusal2, setRefusal] = useState(null);
+  return useMemo(() => {
+    const opts = { notifier: () => void 0 };
+    function run(title, target2, given) {
+      setRefusal(null);
+      const running2 = typeof target2 === "string" ? core.commands.run(target2, given, "user", opts) : typeof given === "function" ? given(target2, opts) : core.commands.run(target2, "user", opts);
+      return running2.then(
+        () => true,
+        (error) => {
+          setRefusal({ title, reasons: reasons(error) });
+          return false;
+        }
+      );
+    }
+    return {
+      refusal: refusal2,
+      run,
+      clear: () => {
+        setRefusal(null);
+      }
+    };
+  }, [core, refusal2]);
+}
+function reasons(error) {
+  const failures = error instanceof Error && "failures" in error ? error.failures : void 0;
+  return isSentences(failures) ? failures : [errorMessage(error)];
+}
+function isSentences(x) {
+  return Array.isArray(x) && x.length > 0 && x.every((item) => typeof item === "string");
+}
+
+// srcts/ui/hooks.ts
+import { useCallback, useSyncExternalStore } from "react";
+
+// srcts/ui/search.ts
+import { useState as useState2 } from "react";
+import { useFilter } from "./vendor-02042ca6.js";
+function useSearch(all, texts, none = "No options", start2 = "") {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [query, setQuery] = useState2(start2);
+  const [started, setStarted] = useState2(start2 !== "");
+  return {
+    items: query === "" ? all : all.filter((item) => texts(item).some((text) => contains(text, query))),
+    onInputChange: (text) => {
+      setStarted(false);
+      setQuery(text);
+    },
+    onOpenChange: (isOpen, trigger) => {
+      if (isOpen && trigger === "manual" && !started) setQuery("");
+    },
+    renderEmptyState: () => all.length === 0 ? none : "No matches"
+  };
+}
+
+// srcts/ui/table.tsx
+import { useState as useState6 } from "react";
+import { SearchField } from "@blockr/core/react";
+
+// srcts/ui/ui.tsx
+import { useRef as useRef2, useState as useState5 } from "react";
+
+// srcts/card/footer.tsx
+import { useCallback as useCallback2, useId, useState as useState3 } from "react";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+var SEVERITIES2 = ["error", "warning", "message"];
+function useFooter(status, notifications) {
+  const shown2 = useShown(status);
+  const opened = useOpened(OPEN_AT_START);
+  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
+}
+function useOpened(atStart) {
+  const [open, setOpen] = useState3(atStart);
+  const panel = useId();
+  const toggle = useCallback2((severity) => {
+    setOpen((was) => {
+      const next = new Set(was);
+      if (!next.delete(severity)) next.add(severity);
+      return next;
+    });
+  }, []);
+  return { open, toggle, panel };
+}
+function Footer({ status, shown: shown2, settled: settled2 }) {
+  return /* @__PURE__ */ jsx(
+    "footer",
+    {
+      "aria-busy": status?.running === true,
+      "data-status": shown2?.status,
+      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
+      children: shown2?.status === "ready" ? shown2.summary : null
+    }
+  );
+}
+function Pills({
+  status,
+  shown: shown2,
+  settled: settled2,
+  notifications,
+  open,
+  toggle,
+  panel,
+  className = "bc:justify-center bc:px-5"
+}) {
+  const pills = SEVERITIES2.flatMap((severity) => {
+    const n = counted(shown2, notifications, severity);
+    return n === 0 ? [] : [{ severity, n }];
+  });
+  if (pills.length === 0) return null;
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      role: "group",
+      "aria-label": "Status",
+      "aria-busy": status?.running === true,
+      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
+      children: pills.map(({ severity, n }) => {
+        const mark = MARKS[severity];
+        return /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            "aria-expanded": open.has(severity),
+            "aria-controls": panel,
+            onClick: () => {
+              toggle(severity);
+            },
+            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
+            children: [
+              /* @__PURE__ */ jsx(SeverityIcon, { severity }),
+              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
+            ]
+          },
+          severity
+        );
+      })
+    }
+  );
+}
+function Banners({ shown: shown2, notifications, open, panel }) {
+  const listed = notifications.filter(
+    (notification) => open.has(notification.severity)
+  );
+  const reason = shown2?.reason ?? null;
+  if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
+  if (listed.length === 0) return null;
+  return /* @__PURE__ */ jsx("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx(Banner, { severity, message }, i)) });
+}
+function isSettled(status, shown2) {
+  return status !== void 0 && status === shown2 && !status.running;
+}
+function counted(status, notifications, severity) {
+  const n = notifications.filter((notification) => notification.severity === severity).length;
+  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
+}
+var MARKS = {
+  error: {
+    label: "Error",
+    noun: "error",
+    text: "bc:text-text-danger",
+    tint: "bc:bg-red-500/10",
+    border: "bc:border-border-danger"
+  },
+  warning: {
+    label: "Warning",
+    noun: "warning",
+    text: "bc:text-text-warning",
+    tint: "bc:bg-amber-500/10",
+    border: "bc:border-amber-500"
+  },
+  message: {
+    label: "Message",
+    noun: "message",
+    text: "bc:text-blue-700 bc:dark:text-blue-400",
+    tint: "bc:bg-blue-500/10",
+    border: "bc:border-border-accent"
+  }
+};
+function Banner({ severity, message }) {
+  const mark = MARKS[severity];
+  return /* @__PURE__ */ jsxs(
+    "li",
+    {
+      "data-severity": severity,
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx(SeverityIcon, { severity }) }),
+        /* @__PURE__ */ jsxs("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
+          /* @__PURE__ */ jsx("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
+          /* @__PURE__ */ jsx("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
+        ] })
+      ]
+    }
+  );
+}
+function SeverityIcon({ severity }) {
+  return /* @__PURE__ */ jsx(
+    "svg",
+    {
+      "aria-hidden": "true",
+      viewBox: "0 0 16 16",
+      className: "bc:size-3 bc:shrink-0",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.6,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      children: severity === "warning" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
+        /* @__PURE__ */ jsx("path", { d: "M8 6.2v3.2M8 11.6v.1" })
+      ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx("circle", { cx: "8", cy: "8", r: "6.4" }),
+        /* @__PURE__ */ jsx("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
+      ] })
+    }
+  );
+}
+function useShown(status) {
+  const [kept, setKept] = useState3(void 0);
+  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
+  if (now !== void 0 && now !== kept) setKept(now);
+  return now ?? kept;
+}
+var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
+
+// srcts/card/mounted.tsx
+import { useLayoutEffect, useRef } from "react";
+import { jsx as jsx2 } from "react/jsx-runtime";
+function Mounted({
+  mount,
+  label,
+  className,
+  data
+}) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    const cleanup = mount(el);
+    return () => {
+      queueMicrotask(cleanup);
+    };
+  }, [mount]);
+  return /* @__PURE__ */ jsx2("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
+}
+
+// srcts/card/status.ts
+import { useState as useState4 } from "react";
+function useSized(status) {
+  const ready = status?.status === "ready";
+  const [sized, setSized] = useState4(ready);
+  if (ready && !sized) setSized(true);
+  return sized || ready;
+}
+
+// srcts/ui/ui.tsx
+import { TextField } from "@blockr/core/react";
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+var classes = {
+  button: buttons.secondary,
+  primary: buttons.primary,
+  quiet: buttons.quiet,
+  // The board's page, which draws no background of its own, so that the
+  // page's, which the browser draws in the page's theme, shows to its edges.
+  page: "bc:text-gray-900 bc:dark:text-gray-100",
+  // What sits over the board, as a dialog or a menu does,
+  // on the background that core's theme gives it, bg-raised.
+  surface: "bc:bg-bg-raised bc:text-gray-900 bc:dark:text-gray-100",
+  card: "bc:bg-bg-subtle",
+  heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
+  list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
+};
+var identifier = { spellCheck: "false", autoCapitalize: "none", autoCorrect: "off" };
+function Refusal({ refusal: refusal2 }) {
+  if (refusal2 === null) return null;
+  const mark = MARKS.error;
+  const { title, reasons: reasons2 } = refusal2;
+  return /* @__PURE__ */ jsxs2(
+    "div",
+    {
+      role: "alert",
+      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
+      children: [
+        /* @__PURE__ */ jsx3("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx3(SeverityIcon, { severity: "error" }) }),
+        /* @__PURE__ */ jsxs2("div", { className: "bc:grid bc:min-w-0 bc:flex-1 bc:gap-1 bc:text-sm bc:break-words", children: [
+          /* @__PURE__ */ jsx3("p", { className: `bc:m-0 bc:font-semibold ${mark.text}`, children: title }),
+          reasons2.length === 1 ? /* @__PURE__ */ jsx3("p", { className: "bc:m-0 bc:whitespace-pre-wrap", children: reasons2[0] }) : /* @__PURE__ */ jsx3("ul", { className: "bc:m-0 bc:list-disc bc:pl-5", children: reasons2.map((reason, i) => /* @__PURE__ */ jsx3("li", { className: "bc:whitespace-pre-wrap", children: reason }, i)) })
+        ] })
+      ]
+    }
+  );
+}
+
+// srcts/ui/table.tsx
+import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+
+// srcts/picker/picker.tsx
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+function BlockPicker({ core, mode, done, filter = "", autofocus = false }) {
+  const board = useBoard(core);
+  const registry = core.blockRegistry();
+  const edits = useEdits(core);
+  const [picked, setPicked] = useState7(void 0);
+  const [input2, setInput] = useState7(void 0);
+  const [inputName, setInputName] = useState7("");
+  const [id2, setId] = useState7("");
+  const [name3, setName] = useState7("");
+  const [errors, setErrors] = useState7({});
+  const [busy, setBusy] = useState7(false);
+  const takes = mode.kind === "after" || mode.kind === "on";
+  const options = useMemo2(() => blockClasses(Object.values(registry).filter((entry2) => !takes || entry2.inputs.length > 0)), [registry, takes]);
+  const search = useSearch(
+    options,
+    (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
+    "No block class to pick.",
+    filter
+  );
+  const entry = picked === void 0 ? void 0 : own(registry, picked);
+  const link = linkChoice(mode, board, registry, entry);
+  const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
+  const on = mode.kind === "on" ? own(board.links, mode.link) : void 0;
+  if (mode.kind === "on" && on === void 0) return null;
+  function check2() {
+    return {
+      ...entry === void 0 ? { registry: "Pick the class of the new block." } : {},
+      ...optional2("id", blockIdError(id2, board)),
+      ...link.kind === "name" ? optional2("input", inputNameError(inputName, link.taken)) : {}
+    };
+  }
+  async function submit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const found = check2();
+    flushSync(() => {
+      setErrors(found);
+      edits.clear();
+    });
+    if (Object.keys(found).length > 0 || entry === void 0 || busy) {
+      focusFirstInvalid(form);
+      return;
+    }
+    const args = {
+      registry_id: entry.id,
+      ...filled("id", id2),
+      ...filled("name", name3)
+    };
+    const into = {
+      ...chosen === void 0 ? {} : { input: chosen },
+      ...link.kind === "name" ? filled("input", inputName) : {}
+    };
+    setBusy(true);
+    await edits.run("Could not add the block.", pickedBatch(core, mode, on, args, into), done);
+    setBusy(false);
+  }
+  return /* @__PURE__ */ jsxs4(
+    Form,
+    {
+      "aria-label": "Add block",
+      validationBehavior: "aria",
+      onSubmit: (event) => {
+        void submit(event);
+      },
+      children: [
+        /* @__PURE__ */ jsx5(
+          ComboBox,
+          {
+            label: "Block class",
+            autoFocus: autofocus,
+            defaultInputValue: filter,
+            ...search,
+            items: byCategory(search.items),
+            value: picked ?? null,
+            placeholder: options.length === 0 ? "No block class to pick" : "Search by name, description or keyword",
+            isInvalid: errors.registry !== void 0,
+            errorMessage: errors.registry,
+            description: entry?.description === "" ? void 0 : entry?.description,
+            onChange: (key2) => {
+              setPicked(key2 === null ? void 0 : String(key2));
+              if (takes) setInput(void 0);
+              setErrors((now) => without3(now, "registry"));
+            },
+            children: (category) => /* @__PURE__ */ jsx5(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item) => /* @__PURE__ */ jsxs4(ComboBoxItem, { id: item.id, textValue: item.name, children: [
+              /* @__PURE__ */ jsx5(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item.name }),
+              item.description === "" ? null : /* @__PURE__ */ jsx5(Text, { slot: "description", children: item.description }),
+              item.pkg === null ? null : /* @__PURE__ */ jsx5("span", { className: BADGE, children: item.pkg })
+            ] }) })
+          }
+        ),
+        link.kind === "pick" ? /* @__PURE__ */ jsx5(
+          Select,
+          {
+            label: link.label,
+            isRequired: true,
+            items: link.inputs.map((input3) => ({ id: input3 })),
+            value: chosen ?? null,
+            onChange: (key2) => {
+              if (key2 !== null) setInput(String(key2));
+            },
+            children: (item) => /* @__PURE__ */ jsx5(SelectItem, { id: item.id, children: item.id })
+          }
+        ) : null,
+        link.kind === "name" ? /* @__PURE__ */ jsx5(
+          TextField2,
+          {
+            label: link.label,
+            value: inputName,
+            description: "Optional. Leave it empty for an input without a name, which the block takes in the order of its links.",
+            errorMessage: errors.input,
+            isInvalid: errors.input !== void 0,
+            autoComplete: "off",
+            onChange: (value2) => {
+              setInputName(value2);
+              setErrors((now) => without3(now, "input"));
+            },
+            onBlur: () => {
+              setErrors((now) => ({ ...now, ...optional2("input", inputNameError(inputName, link.taken)) }));
+            }
+          }
+        ) : null,
+        link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx5("p", { className: styles.alert, children: link.why }) : null,
+        /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+          /* @__PURE__ */ jsx5(
+            TextField2,
+            {
+              label: "ID",
+              value: id2,
+              description: "Optional. Made up where left empty.",
+              errorMessage: errors.id,
+              isInvalid: errors.id !== void 0,
+              autoComplete: "off",
+              ...identifier,
+              onChange: (value2) => {
+                setId(value2);
+                setErrors((now) => without3(now, "id"));
+              },
+              onBlur: () => {
+                setErrors((now) => ({ ...now, ...optional2("id", blockIdError(id2, board)) }));
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx5(
+            TextField2,
+            {
+              label: "Name",
+              value: name3,
+              placeholder: entry === void 0 ? void 0 : defaultBlockName(entry.id),
+              description: "Optional. The class's name where left empty.",
+              autoComplete: "off",
+              onChange: setName
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsx5("div", { children: /* @__PURE__ */ jsx5("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "no_free_inputs", children: "Add block" }) }),
+        /* @__PURE__ */ jsx5(Refusal, { refusal: edits.refusal })
+      ]
+    }
+  );
+}
+function linkChoice(mode, board, registry, entry) {
+  if (mode.kind === "before") {
+    const target2 = own(board.blocks, mode.to);
+    const free = freeInputs(board, registry, mode.to) ?? [];
+    const of = `of "${target2?.name ?? mode.to}"`;
+    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
+    if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
+    return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
+  }
+  if ((mode.kind === "after" || mode.kind === "on") && entry !== void 0) {
+    if (entry.inputs.includes("...")) return { kind: "name", label: `Input name of the new ${entry.name}`, taken: [] };
+    if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
+  }
+  return { kind: "none" };
+}
+function pickedBatch(core, mode, on, args, into) {
+  const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
+  const add = { id: "blockr.core-add_block", args: { ...args, id: block } };
+  const linked = (from, to) => ({ id: "blockr.core-add_link", args: { from, to, ...into } });
+  switch (mode.kind) {
+    case "add":
+      return [add];
+    case "after":
+      return [add, linked(mode.from, block)];
+    case "before":
+      return [add, linked(block, mode.to)];
+    case "on":
+      return on === void 0 ? [] : [add, linked(on.from, block), { id: "blockr.core-change_link", args: { id: mode.link, from: block } }];
+  }
+}
+function namesInto(board, to, except) {
+  return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
+}
+function inputNameError(value2, taken) {
+  const trimmed = value2.trim();
+  if (trimmed === "") return void 0;
+  if (taken.includes(trimmed)) return `Another link gives the input the name "${trimmed}" already.`;
+  return void 0;
+}
+function isVariadic(free) {
+  return free.length === 1 && free[0] === "";
+}
+function blockClasses(entries) {
+  return entries.map(classItem).sort(byGroupAndName);
+}
+function classItem(entry) {
+  return {
+    id: entry.id,
+    name: entry.name,
+    description: entry.description,
+    icon: entry.icon,
+    pkg: packageFromId(entry.id),
+    category: entry.category === "" ? UNCATEGORIZED : entry.category,
+    keywords: entry.keywords
+  };
+}
+var UNCATEGORIZED = "uncategorized";
+function byGroupAndName(a, b) {
+  const last = (item) => item.category.toLowerCase() === UNCATEGORIZED ? 1 : 0;
+  return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
+}
+function byCategory(items) {
+  const categories = /* @__PURE__ */ new Map();
+  for (const item of items) {
+    const members = categories.get(item.category) ?? [];
+    members.push(item);
+    categories.set(item.category, members);
+  }
+  return [...categories].map(([name3, members]) => ({ id: `category:${name3}`, name: name3, items: members }));
+}
+var BADGE = "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted";
+function filled(arg, value2) {
+  const trimmed = value2.trim();
+  return trimmed === "" ? {} : { [arg]: trimmed };
+}
+function optional2(key2, error) {
+  return error === void 0 ? {} : { [key2]: error };
+}
+function focusFirstInvalid(form) {
+  form.querySelector('[aria-invalid="true"]')?.focus();
+}
+function blockIdError(value2, board) {
+  return idError(value2, "block", (id2) => own(board.blocks, id2) !== void 0);
+}
+function idError(value2, what, taken) {
+  const id2 = value2.trim();
+  if (id2 === "") return void 0;
+  if (/^\d+$/.test(id2)) return `An ID needs a character other than a digit, such as "${what}_${id2}".`;
+  if (taken(id2)) return `The board holds a ${what} "${id2}" already.`;
+  return void 0;
+}
+function without3(errors, key2) {
+  return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key2));
+}
+
+// srcts/actions/targets.ts
+function blockOf(target2) {
+  return "block" in target2 ? target2.block : void 0;
+}
+function heldBlock(board, target2) {
+  const block = blockOf(target2);
+  return block !== void 0 && Object.hasOwn(board.blocks, block) ? block : void 0;
+}
+
+// srcts/actions/add.tsx
+import { jsx as jsx6 } from "react/jsx-runtime";
+function addingBoardActions(registry) {
+  const adds = (taking) => Object.values(registry()).some((entry) => !taking || hasInput(entry));
+  return [
+    {
+      id: "blockr.core-add_block_action",
+      label: "Add block",
+      icon: PLUS,
+      on: ["board"],
+      category: "add",
+      offers: (_board, _target, lock) => !lock.board && adds(false),
+      quick: (_board, _target, core) => classLevel(core, false, (entry, block) => [addBlockCall(entry, block)]),
+      advanced: pickerModule(() => ({ kind: "add" }))
+    },
+    {
+      id: "blockr.core-append_block_action",
+      label: "Append block",
+      icon: PLUS,
+      on: ["block"],
+      category: "add",
+      offers: (board, target2, lock) => !lock.board && heldBlock(board, target2) !== void 0 && adds(true),
+      quick: (_board, target2, core) => classLevel(core, true, (entry, block, board) => {
+        const from = heldBlock(board, target2);
+        return from === void 0 ? [] : [addBlockCall(entry, block), addLinkCall(from, block, newBlockInput(entry))];
+      }),
+      advanced: pickerModule((target2) => "block" in target2 ? { kind: "after", from: target2.block } : void 0)
+    },
+    {
+      id: "blockr.core-prepend_block_action",
+      label: "Prepend block",
+      icon: PLUS,
+      on: ["block"],
+      category: "add",
+      offers: (board, target2, lock) => !lock.board && freeInputOf(board, registry(), target2) !== void 0 && adds(false),
+      quick: (_board, target2, core) => classLevel(core, false, (entry, block, board) => {
+        const to = heldBlock(board, target2);
+        return to === void 0 ? [] : [addBlockCall(entry, block), addLinkCall(block, to, freeInputOf(board, core.blockRegistry(), target2))];
+      }),
+      advanced: pickerModule((target2) => "block" in target2 ? { kind: "before", to: target2.block } : void 0)
+    },
+    {
+      id: "blockr.core-insert_block_action",
+      label: "Insert block",
+      icon: PLUS,
+      on: ["link"],
+      category: "add",
+      offers: (board, target2, lock) => !lock.board && "link" in target2 && Object.hasOwn(board.links, target2.link) && adds(true),
+      quick: (_board, target2, core) => classLevel(core, true, (entry, block, board) => {
+        const id2 = "link" in target2 ? target2.link : void 0;
+        const link = id2 === void 0 ? void 0 : own(board.links, id2);
+        return id2 === void 0 || link === void 0 ? [] : [
+          addBlockCall(entry, block),
+          addLinkCall(link.from, block, newBlockInput(entry)),
+          { id: "blockr.core-change_link", args: { id: id2, from: block } }
+        ];
+      }),
+      advanced: pickerModule((target2) => "link" in target2 ? { kind: "on", link: target2.link } : void 0)
+    }
+  ];
+}
+function hasInput(entry) {
+  return entry.inputs.length > 0;
+}
+function classLevel(core, taking, batch2) {
+  const registry = core.blockRegistry();
+  const entries = Object.values(registry).filter((entry) => !taking || hasInput(entry));
+  return {
+    filter: true,
+    rows: blockClasses(entries).map((item) => ({
+      kind: "item",
+      label: item.name,
+      heading: item.category,
+      ...item.icon === "" ? {} : { icon: item.icon },
+      ...item.pkg === null ? {} : { detail: item.pkg },
+      pick() {
+        const entry = own(registry, item.id);
+        const board = core.store.board();
+        if (entry === void 0) return [];
+        return batch2(entry, core.mintId((id2) => Object.hasOwn(board.blocks, id2)), board);
+      }
+    }))
+  };
+}
+function addBlockCall(entry, block) {
+  return { id: "blockr.core-add_block", args: { registry_id: entry.id, id: block } };
+}
+function addLinkCall(from, to, input2) {
+  return { id: "blockr.core-add_link", args: { from, to, ...input2 === void 0 ? {} : { input: input2 } } };
+}
+function newBlockInput(entry) {
+  return entry.inputs.includes("...") ? "" : entry.inputs[0];
+}
+function freeInputOf(board, registry, target2) {
+  const block = heldBlock(board, target2);
+  return block === void 0 ? void 0 : freeInputs(board, registry, block)?.[0];
+}
+function pickerModule(mode) {
+  const focused = /* @__PURE__ */ new WeakSet();
+  return {
+    render({ el, core, target: target2, filter, done }) {
+      const at = mode(target2);
+      if (at === void 0) return () => void 0;
+      const autofocus = filter !== void 0 || focused.delete(el);
+      const root = createRoot(el);
+      flushSync2(() => {
+        root.render(
+          /* @__PURE__ */ jsx6(
+            BlockPicker,
+            {
+              core,
+              mode: at,
+              ...filter === void 0 ? {} : { filter },
+              autofocus,
+              done: (calls, opts) => {
+                if (el.contains(el.ownerDocument.activeElement)) focused.add(el);
+                return done(calls, opts).finally(() => {
+                  focused.delete(el);
+                });
+              }
+            }
+          )
+        );
+      });
+      return () => {
+        root.unmount();
+      };
+    }
+  };
+}
+var PLUS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>';
+
 // srcts/actions/clipboard.ts
 async function copyText(doc, text) {
   const { clipboard } = doc.defaultView?.navigator ?? {};
@@ -7969,8 +8695,9 @@ function copyCommand(doc, text) {
 }
 
 // srcts/actions/core.ts
-function coreBoardActions(raise) {
+function coreBoardActions(raise, registry) {
   return [
+    ...addingBoardActions(registry),
     {
       id: "blockr.core-rename_action",
       label: "Rename",
@@ -8065,13 +8792,6 @@ function named2(board, target2) {
   }
   return void 0;
 }
-function blockOf(target2) {
-  return "block" in target2 ? target2.block : void 0;
-}
-function heldBlock(board, target2) {
-  const block = blockOf(target2);
-  return block !== void 0 && Object.hasOwn(board.blocks, block) ? block : void 0;
-}
 function removing(command2, id2) {
   return id2 === void 0 ? void 0 : [{ id: command2, args: { id: id2 } }];
 }
@@ -8103,22 +8823,22 @@ var KINDS2 = {
   plugin: true,
   selection: true
 };
-function createBoardActions(raise) {
-  let registered = coreBoardActions(raise);
-  const classes = /* @__PURE__ */ new Map();
+function createBoardActions(raise, registry) {
+  let registered = coreBoardActions(raise, registry);
+  const classes2 = /* @__PURE__ */ new Map();
   return {
     register(plugin, given) {
       if (given === void 0) return () => void 0;
       const actions = checked2(plugin, given, new Set(registered.map(({ id: id2 }) => id2)));
       registered = [...registered, ...actions];
-      for (const { id: id2 } of actions) classes.set(id2, plugin);
+      for (const { id: id2 } of actions) classes2.set(id2, plugin);
       return () => {
         registered = registered.filter((action2) => !actions.includes(action2));
-        for (const { id: id2 } of actions) classes.delete(id2);
+        for (const { id: id2 } of actions) classes2.delete(id2);
       };
     },
     registered: () => registered,
-    classOf: (id2) => classes.get(id2)
+    classOf: (id2) => classes2.get(id2)
   };
 }
 function checked2(plugin, given, taken) {
@@ -8411,17 +9131,17 @@ function kindOf(target2) {
 }
 
 // srcts/actions/dialog.tsx
-import { useLayoutEffect, useRef } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { useLayoutEffect as useLayoutEffect2, useRef as useRef3 } from "react";
+import { flushSync as flushSync3 } from "react-dom";
+import { createRoot as createRoot2 } from "react-dom/client";
 import { Button } from "@blockr/core/react";
 import { Dialog, Heading, Modal } from "@blockr/core/react";
-import { jsx, jsxs } from "react/jsx-runtime";
+import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 var showDialog = (args, at) => {
   const doc = at.el.ownerDocument;
   const host = doc.createElement("div");
   doc.body.append(host);
-  const root = createRoot(host);
+  const root = createRoot2(host);
   let open = true;
   const offAbort = at.signal === void 0 ? () => void 0 : onAbort(at.signal, hide);
   function hide() {
@@ -8434,21 +9154,21 @@ var showDialog = (args, at) => {
     const active = doc.activeElement;
     if ((active === null || active === doc.body) && at.el.isConnected) at.el.focus({ preventScroll: true });
   }
-  flushSync(() => {
-    root.render(/* @__PURE__ */ jsx(CoreDialog, { args, onClose: hide }));
+  flushSync3(() => {
+    root.render(/* @__PURE__ */ jsx7(CoreDialog, { args, onClose: hide }));
   });
   return () => {
     hide();
   };
 };
 function CoreDialog({ args, onClose }) {
-  const body = useRef(null);
+  const body = useRef3(null);
   const { mount } = args;
-  useLayoutEffect(() => {
+  useLayoutEffect2(() => {
     const el = body.current;
     return el === null ? void 0 : mount(el);
   }, [mount]);
-  return /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsx7(
     Modal,
     {
       isOpen: true,
@@ -8456,12 +9176,12 @@ function CoreDialog({ args, onClose }) {
         if (!isOpen) onClose();
       },
       className: WIDTH,
-      children: /* @__PURE__ */ jsx(Dialog, { children: /* @__PURE__ */ jsxs("div", { className: "bc:grid bc:gap-3", children: [
-        /* @__PURE__ */ jsxs("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
-          /* @__PURE__ */ jsx(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
-          /* @__PURE__ */ jsx(Button, { variant: "secondary", onPress: onClose, children: "Close" })
+      children: /* @__PURE__ */ jsx7(Dialog, { children: /* @__PURE__ */ jsxs5("div", { className: "bc:grid bc:gap-3", children: [
+        /* @__PURE__ */ jsxs5("div", { className: "bc:flex bc:items-center bc:justify-between bc:gap-2", children: [
+          /* @__PURE__ */ jsx7(Heading, { slot: "title", className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: args.title }),
+          /* @__PURE__ */ jsx7(Button, { variant: "secondary", onPress: onClose, children: "Close" })
         ] }),
-        /* @__PURE__ */ jsx("div", { ref: body, className: "bc:min-w-0" })
+        /* @__PURE__ */ jsx7("div", { ref: body, className: "bc:min-w-0" })
       ] }) })
     }
   );
@@ -8469,18 +9189,18 @@ function CoreDialog({ args, onClose }) {
 var WIDTH = "bc:min-w-[min(420px,100%)]";
 
 // srcts/actions/menu.tsx
-import { useEffect, useRef as useRef2, useSyncExternalStore } from "react";
-import { flushSync as flushSync2 } from "react-dom";
-import { createRoot as createRoot2 } from "react-dom/client";
-import { Autocomplete, Input, Separator, Text, TextField as AriaTextField } from "./vendor-02042ca6.js";
-import { TextField } from "@blockr/core/react";
+import { useEffect, useRef as useRef4, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { flushSync as flushSync4 } from "react-dom";
+import { createRoot as createRoot3 } from "react-dom/client";
+import { Autocomplete, Input, Separator, Text as Text2, TextField as AriaTextField } from "./vendor-02042ca6.js";
+import { TextField as TextField3 } from "@blockr/core/react";
 import { Menu, MenuItem, MenuSection, Popover } from "@blockr/core/react";
-import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 var showMenu = (menu, at) => {
   const doc = at.el.ownerDocument;
   const host = doc.createElement("div");
   doc.body.append(host);
-  const root = createRoot2(host);
+  const root = createRoot3(host);
   const insideRef = { current: null };
   const tab = (event) => {
     if (event.key !== "Tab" || event.isComposing || !(event.target instanceof Node) || insideRef.current?.contains(event.target) !== true) return;
@@ -8489,8 +9209,8 @@ var showMenu = (menu, at) => {
     void menu.close().catch(() => void 0);
   };
   doc.defaultView?.addEventListener("keydown", tab, true);
-  flushSync2(() => {
-    root.render(/* @__PURE__ */ jsx2(CoreMenu, { menu, at, insideRef }));
+  flushSync4(() => {
+    root.render(/* @__PURE__ */ jsx8(CoreMenu, { menu, at, insideRef }));
   });
   return () => {
     doc.defaultView?.removeEventListener("keydown", tab, true);
@@ -8502,13 +9222,13 @@ var showMenu = (menu, at) => {
   };
 };
 function CoreMenu({ menu, at, insideRef }) {
-  const level = useSyncExternalStore(menu.subscribe, menu.get);
-  const anchor = useRef2(null);
+  const level = useSyncExternalStore2(menu.subscribe, menu.get);
+  const anchor = useRef4(null);
   const { x, y, width, height } = at.anchor;
   const tip = openTip(at.el.ownerDocument.defaultView ?? window);
-  return /* @__PURE__ */ jsxs2(Fragment, { children: [
-    /* @__PURE__ */ jsx2("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
-    /* @__PURE__ */ jsx2(
+  return /* @__PURE__ */ jsxs6(Fragment2, { children: [
+    /* @__PURE__ */ jsx8("div", { ref: anchor, "aria-hidden": "true", style: { position: "fixed", left: x, top: y, width, height, pointerEvents: "none" } }),
+    /* @__PURE__ */ jsx8(
       Popover,
       {
         triggerRef: anchor,
@@ -8519,7 +9239,7 @@ function CoreMenu({ menu, at, insideRef }) {
           if (!open) void menu.close().catch(() => void 0);
         },
         className: "bc:max-w-80 bc:min-w-45",
-        children: /* @__PURE__ */ jsx2(
+        children: /* @__PURE__ */ jsx8(
           "div",
           {
             ref: (el) => {
@@ -8545,7 +9265,7 @@ function CoreMenu({ menu, at, insideRef }) {
                 void menu.pick().catch(() => void 0);
               }
             },
-            children: /* @__PURE__ */ jsx2(Level, { menu, level, insideRef, tip }, level.id)
+            children: /* @__PURE__ */ jsx8(Level, { menu, level, insideRef, tip }, level.id)
           }
         )
       }
@@ -8588,9 +9308,9 @@ function Level({
     void menu.openAdvanced(i).catch(() => void 0);
   };
   const grouped = groups(listed);
-  const list = /* @__PURE__ */ jsx2(Menu, { "aria-label": level.label, renderEmptyState: () => /* @__PURE__ */ jsx2("p", { className: NOTE, children: "No matches" }), children: grouped.map((group, g) => {
+  const list = /* @__PURE__ */ jsx8(Menu, { "aria-label": level.label, renderEmptyState: () => /* @__PURE__ */ jsx8("p", { className: NOTE, children: "No matches" }), children: grouped.map((group, g) => {
     const divider = g > 0 && group.category !== grouped[g - 1]?.category;
-    const section = group.kind === "multi" ? /* @__PURE__ */ jsx2(
+    const section = group.kind === "multi" ? /* @__PURE__ */ jsx8(
       MenuSection,
       {
         id: `multi-${String(group.i)}`,
@@ -8603,10 +9323,10 @@ function Level({
             if (ticked !== choice.picked) menu.tick(group.i, choice.id);
           }
         },
-        children: group.row.choices.map((choice) => /* @__PURE__ */ jsx2(MenuItem, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
+        children: group.row.choices.map((choice) => /* @__PURE__ */ jsx8(MenuItem, { id: choiceKey(group.i, choice.id), textValue: choice.label, children: choice.label }, choice.id))
       },
       `multi-${String(group.i)}`
-    ) : /* @__PURE__ */ jsx2(MenuSection, { id: `items-${String(group.items[0]?.i ?? g)}`, title: group.heading, children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx2(
+    ) : /* @__PURE__ */ jsx8(MenuSection, { id: `items-${String(group.items[0]?.i ?? g)}`, title: group.heading, children: group.items.map(({ row, i }) => /* @__PURE__ */ jsx8(
       Item,
       {
         row,
@@ -8621,12 +9341,12 @@ function Level({
       },
       i
     )) }, `items-${String(group.items[0]?.i ?? g)}`);
-    return divider ? [/* @__PURE__ */ jsx2(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
+    return divider ? [/* @__PURE__ */ jsx8(Separator, { className: DIVIDER }, `divider-${String(g)}`), section] : [section];
   }) });
-  return /* @__PURE__ */ jsxs2(Fragment, { children: [
-    level.advanced ? /* @__PURE__ */ jsxs2("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
-      level.title === void 0 ? null : /* @__PURE__ */ jsx2("p", { className: `${TITLE} bc:min-w-0 bc:flex-1`, children: level.title }),
-      /* @__PURE__ */ jsx2(
+  return /* @__PURE__ */ jsxs6(Fragment2, { children: [
+    level.advanced ? /* @__PURE__ */ jsxs6("div", { className: "bc:flex bc:items-center bc:gap-2", children: [
+      level.title === void 0 ? null : /* @__PURE__ */ jsx8("p", { className: `${TITLE} bc:min-w-0 bc:flex-1`, children: level.title }),
+      /* @__PURE__ */ jsx8(
         "button",
         {
           type: "button",
@@ -8637,12 +9357,12 @@ function Level({
           onClick: () => {
             openAdvanced();
           },
-          children: /* @__PURE__ */ jsx2(OpenIcon, {})
+          children: /* @__PURE__ */ jsx8(OpenIcon, {})
         }
       )
-    ] }) : level.title === void 0 ? null : /* @__PURE__ */ jsx2("p", { className: TITLE, children: level.title }),
-    level.loading ? /* @__PURE__ */ jsx2("p", { role: "status", className: `${NOTE} bc:animate-[bc-appear_300ms_ease-out_300ms_both]`, children: "Loading\u2026" }) : level.error === void 0 ? /* @__PURE__ */ jsxs2(Fragment, { children: [
-      texts.map(({ row, i }) => /* @__PURE__ */ jsx2(
+    ] }) : level.title === void 0 ? null : /* @__PURE__ */ jsx8("p", { className: TITLE, children: level.title }),
+    level.loading ? /* @__PURE__ */ jsx8("p", { role: "status", className: `${NOTE} bc:animate-[bc-appear_300ms_ease-out_300ms_both]`, children: "Loading\u2026" }) : level.error === void 0 ? /* @__PURE__ */ jsxs6(Fragment2, { children: [
+      texts.map(({ row, i }) => /* @__PURE__ */ jsx8(
         TextRow,
         {
           row,
@@ -8655,7 +9375,7 @@ function Level({
         },
         i
       )),
-      level.filter === void 0 ? listed.length === 0 ? null : list : /* @__PURE__ */ jsxs2(
+      level.filter === void 0 ? listed.length === 0 ? null : list : /* @__PURE__ */ jsxs6(
         Autocomplete,
         {
           inputValue: level.filter,
@@ -8663,7 +9383,7 @@ function Level({
             menu.type(value2);
           },
           children: [
-            /* @__PURE__ */ jsx2(AriaTextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx2(
+            /* @__PURE__ */ jsx8(AriaTextField, { "aria-label": "Filter", className: "bc:px-1 bc:pt-1", children: /* @__PURE__ */ jsx8(
               Input,
               {
                 "data-filter": "",
@@ -8677,7 +9397,7 @@ function Level({
           ]
         }
       )
-    ] }) : /* @__PURE__ */ jsx2("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger", children: level.error })
+    ] }) : /* @__PURE__ */ jsx8("p", { role: "alert", className: "bc:m-0 bc:px-2 bc:py-1.5 bc:text-sm bc:break-words bc:text-text-danger", children: level.error })
   ] });
 }
 function groups(listed) {
@@ -8711,7 +9431,7 @@ function Item({
 }) {
   const { label, icon, detail } = row;
   const removes = row.category === "remove";
-  return /* @__PURE__ */ jsxs2(
+  return /* @__PURE__ */ jsxs6(
     MenuItem,
     {
       textValue: label,
@@ -8719,12 +9439,12 @@ function Item({
       onAction: onPick,
       className: removes ? REMOVES : void 0,
       children: [
-        /* @__PURE__ */ jsxs2(
+        /* @__PURE__ */ jsxs6(
           "span",
           {
             className: `bc:flex bc:min-w-0 bc:items-center bc:gap-2 ${removes ? "bc:group-data-focused:text-text-danger bc:group-data-hovered:text-text-danger" : ""}`,
             children: [
-              icon === void 0 ? null : /* @__PURE__ */ jsx2(
+              icon === void 0 ? null : /* @__PURE__ */ jsx8(
                 "span",
                 {
                   "aria-hidden": "true",
@@ -8732,13 +9452,13 @@ function Item({
                   dangerouslySetInnerHTML: { __html: icon }
                 }
               ),
-              /* @__PURE__ */ jsx2("span", { className: "bc:min-w-0 bc:truncate", children: label })
+              /* @__PURE__ */ jsx8("span", { className: "bc:min-w-0 bc:truncate", children: label })
             ]
           }
         ),
-        detail === void 0 ? null : /* @__PURE__ */ jsx2("span", { className: "bc:text-xs bc:text-text-muted", children: detail }),
-        row.advanced === true ? /* @__PURE__ */ jsxs2(Fragment, { children: [
-          /* @__PURE__ */ jsx2(
+        detail === void 0 ? null : /* @__PURE__ */ jsx8("span", { className: "bc:text-xs bc:text-text-muted", children: detail }),
+        row.advanced === true ? /* @__PURE__ */ jsxs6(Fragment2, { children: [
+          /* @__PURE__ */ jsx8(
             "span",
             {
               "aria-hidden": "true",
@@ -8752,17 +9472,17 @@ function Item({
                 event.stopPropagation();
                 onOpen();
               },
-              children: /* @__PURE__ */ jsx2(OpenIcon, {})
+              children: /* @__PURE__ */ jsx8(OpenIcon, {})
             }
           ),
-          /* @__PURE__ */ jsx2(Text, { slot: "description", className: "bc:sr-only", children: tip })
+          /* @__PURE__ */ jsx8(Text2, { slot: "description", className: "bc:sr-only", children: tip })
         ] }) : null
       ]
     }
   );
 }
 function OpenIcon() {
-  return /* @__PURE__ */ jsxs2(
+  return /* @__PURE__ */ jsxs6(
     "svg",
     {
       "aria-hidden": "true",
@@ -8775,8 +9495,8 @@ function OpenIcon() {
       strokeLinecap: "round",
       strokeLinejoin: "round",
       children: [
-        /* @__PURE__ */ jsx2("path", { d: "M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" }),
-        /* @__PURE__ */ jsx2("path", { d: "M10 2.5h3.5V6M13.5 2.5 8 8" })
+        /* @__PURE__ */ jsx8("path", { d: "M7 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V9" }),
+        /* @__PURE__ */ jsx8("path", { d: "M10 2.5h3.5V6M13.5 2.5 8 8" })
       ]
     }
   );
@@ -8793,8 +9513,8 @@ function TextRow({
   onType,
   onSubmit
 }) {
-  return /* @__PURE__ */ jsx2(
-    TextField,
+  return /* @__PURE__ */ jsx8(
+    TextField3,
     {
       label: row.label,
       value: row.value,
@@ -8861,12 +9581,12 @@ function runPlugins(deps) {
   let memo;
   function appPlugins() {
     if (!store.hasBoard()) return NONE;
-    const classes = store.plugins.registered();
-    if (memo?.classes !== classes) {
+    const classes2 = store.plugins.registered();
+    if (memo?.classes !== classes2) {
       const registered = Object.entries(deps.plugins).flatMap(
-        ([id2, { name: name3 }]) => Object.hasOwn(classes, id2) ? [[id2, Object.freeze({ name: name3 })]] : []
+        ([id2, { name: name3 }]) => Object.hasOwn(classes2, id2) ? [[id2, Object.freeze({ name: name3 })]] : []
       );
-      memo = { classes, plugins: Object.freeze(Object.fromEntries(registered)) };
+      memo = { classes: classes2, plugins: Object.freeze(Object.fromEntries(registered)) };
     }
     return memo.plugins;
   }
@@ -10152,7 +10872,7 @@ function start(options) {
       randId,
       blockrOption: (name3) => blockrOptions.read(name3)
     });
-    const boardActions = createBoardActions(raise);
+    const boardActions = createBoardActions(raise, () => store.blockRegistry());
     await opening2.step("modules", () => register(reply, store, commands, boardActions, signal5, raise));
     const bound = later === void 0 ? reply.bound : void 0;
     const scheduler = createScheduler({
@@ -10323,9 +11043,9 @@ function start(options) {
   }
   async function named4(reply, store, core, signal5, raise, opening2) {
     if (reply.lock.load) return void 0;
-    const classes = store.plugins.registered();
-    const plugin = Object.keys(reply.plugins).find((id2) => own(classes, id2)?.storage !== void 0);
-    const storage = plugin === void 0 ? void 0 : own(classes, plugin)?.storage;
+    const classes2 = store.plugins.registered();
+    const plugin = Object.keys(reply.plugins).find((id2) => own(classes2, id2)?.storage !== void 0);
+    const storage = plugin === void 0 ? void 0 : own(classes2, plugin)?.storage;
     if (plugin === void 0 || storage?.load === void 0) return void 0;
     const refuse = (error) => {
       log.error(error);
@@ -10483,206 +11203,11 @@ function noOtel() {
 }
 
 // srcts/page/card.tsx
-import { useCallback as useCallback2, useSyncExternalStore as useSyncExternalStore2 } from "react";
-import { flushSync as flushSync3 } from "react-dom";
-import { createRoot as createRoot3 } from "react-dom/client";
-
-// srcts/card/footer.tsx
-import { useCallback, useId, useState } from "react";
-import { Fragment as Fragment2, jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
-var SEVERITIES2 = ["error", "warning", "message"];
-function useFooter(status, notifications) {
-  const shown2 = useShown(status);
-  const opened = useOpened(OPEN_AT_START);
-  return { status, shown: shown2, settled: isSettled(status, shown2), notifications, ...opened };
-}
-function useOpened(atStart) {
-  const [open, setOpen] = useState(atStart);
-  const panel = useId();
-  const toggle = useCallback((severity) => {
-    setOpen((was) => {
-      const next = new Set(was);
-      if (!next.delete(severity)) next.add(severity);
-      return next;
-    });
-  }, []);
-  return { open, toggle, panel };
-}
-function Footer({ status, shown: shown2, settled: settled2 }) {
-  return /* @__PURE__ */ jsx3(
-    "footer",
-    {
-      "aria-busy": status?.running === true,
-      "data-status": shown2?.status,
-      className: `bc:min-h-4 bc:shrink-0 bc:px-5 bc:pb-1 bc:text-center bc:font-mono bc:text-xs bc:text-text-muted bc:transition-opacity ${settled2 ? "" : "bc:opacity-50"}`,
-      children: shown2?.status === "ready" ? shown2.summary : null
-    }
-  );
-}
-function Pills({
-  status,
-  shown: shown2,
-  settled: settled2,
-  notifications,
-  open,
-  toggle,
-  panel,
-  className = "bc:justify-center bc:px-5"
-}) {
-  const pills = SEVERITIES2.flatMap((severity) => {
-    const n = counted(shown2, notifications, severity);
-    return n === 0 ? [] : [{ severity, n }];
-  });
-  if (pills.length === 0) return null;
-  return /* @__PURE__ */ jsx3(
-    "div",
-    {
-      role: "group",
-      "aria-label": "Status",
-      "aria-busy": status?.running === true,
-      className: `bc:flex bc:flex-wrap bc:items-center bc:gap-2 bc:font-mono bc:text-xs bc:transition-opacity ${className} ${settled2 ? "" : "bc:opacity-50"}`,
-      children: pills.map(({ severity, n }) => {
-        const mark = MARKS[severity];
-        return /* @__PURE__ */ jsxs3(
-          "button",
-          {
-            type: "button",
-            "aria-expanded": open.has(severity),
-            "aria-controls": panel,
-            onClick: () => {
-              toggle(severity);
-            },
-            className: `bc:inline-flex bc:cursor-pointer bc:items-center bc:gap-1 bc:rounded-full bc:border-0 bc:px-1.5 bc:py-0.5 bc:font-mono bc:text-xs bc:hover:underline bc:aria-expanded:ring-1 bc:aria-expanded:ring-current ${mark.tint} ${mark.text}`,
-            children: [
-              /* @__PURE__ */ jsx3(SeverityIcon, { severity }),
-              severity === "error" ? mark.noun : `${String(n)} ${mark.noun}${n === 1 ? "" : "s"}`
-            ]
-          },
-          severity
-        );
-      })
-    }
-  );
-}
-function Banners({ shown: shown2, notifications, open, panel }) {
-  const listed = notifications.filter(
-    (notification) => open.has(notification.severity)
-  );
-  const reason = shown2?.reason ?? null;
-  if (reason !== null && open.has("message")) listed.push({ severity: "message", message: reason });
-  if (listed.length === 0) return null;
-  return /* @__PURE__ */ jsx3("ul", { id: panel, "aria-label": "Conditions", className: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0", children: listed.map(({ severity, message }, i) => /* @__PURE__ */ jsx3(Banner, { severity, message }, i)) });
-}
-function isSettled(status, shown2) {
-  return status !== void 0 && status === shown2 && !status.running;
-}
-function counted(status, notifications, severity) {
-  const n = notifications.filter((notification) => notification.severity === severity).length;
-  return severity === "message" && (status?.reason ?? null) !== null ? n + 1 : n;
-}
-var MARKS = {
-  error: {
-    label: "Error",
-    noun: "error",
-    text: "bc:text-text-danger",
-    tint: "bc:bg-red-500/10",
-    border: "bc:border-border-danger"
-  },
-  warning: {
-    label: "Warning",
-    noun: "warning",
-    text: "bc:text-text-warning",
-    tint: "bc:bg-amber-500/10",
-    border: "bc:border-amber-500"
-  },
-  message: {
-    label: "Message",
-    noun: "message",
-    text: "bc:text-blue-700 bc:dark:text-blue-400",
-    tint: "bc:bg-blue-500/10",
-    border: "bc:border-border-accent"
-  }
-};
-function Banner({ severity, message }) {
-  const mark = MARKS[severity];
-  return /* @__PURE__ */ jsxs3(
-    "li",
-    {
-      "data-severity": severity,
-      className: `bc:flex bc:items-start bc:gap-2 bc:rounded-md bc:border-0 bc:border-l-4 bc:px-3 bc:py-2 ${mark.border} ${mark.tint}`,
-      children: [
-        /* @__PURE__ */ jsx3("span", { className: `bc:mt-0.5 ${mark.text}`, children: /* @__PURE__ */ jsx3(SeverityIcon, { severity }) }),
-        /* @__PURE__ */ jsxs3("span", { className: "bc:grid bc:min-w-0 bc:gap-0.5", children: [
-          /* @__PURE__ */ jsx3("span", { className: `bc:font-sans bc:text-xs bc:font-semibold ${mark.text}`, children: mark.label }),
-          /* @__PURE__ */ jsx3("span", { className: "bc:font-mono bc:text-xs bc:whitespace-pre-wrap", children: message })
-        ] })
-      ]
-    }
-  );
-}
-function SeverityIcon({ severity }) {
-  return /* @__PURE__ */ jsx3(
-    "svg",
-    {
-      "aria-hidden": "true",
-      viewBox: "0 0 16 16",
-      className: "bc:size-3 bc:shrink-0",
-      fill: "none",
-      stroke: "currentColor",
-      strokeWidth: 1.6,
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      children: severity === "warning" ? /* @__PURE__ */ jsxs3(Fragment2, { children: [
-        /* @__PURE__ */ jsx3("path", { d: "M8 1.8 14.6 13.6H1.4Z" }),
-        /* @__PURE__ */ jsx3("path", { d: "M8 6.2v3.2M8 11.6v.1" })
-      ] }) : /* @__PURE__ */ jsxs3(Fragment2, { children: [
-        /* @__PURE__ */ jsx3("circle", { cx: "8", cy: "8", r: "6.4" }),
-        /* @__PURE__ */ jsx3("path", { d: severity === "error" ? "M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6" : "M8 7.4v3.6M8 4.9v.1" })
-      ] })
-    }
-  );
-}
-function useShown(status) {
-  const [kept, setKept] = useState(void 0);
-  const now = status !== void 0 && status.status !== "stale" && status.status !== "unevaluated" ? status : void 0;
-  if (now !== void 0 && now !== kept) setKept(now);
-  return now ?? kept;
-}
-var OPEN_AT_START = /* @__PURE__ */ new Set(["error"]);
-
-// srcts/card/mounted.tsx
-import { useLayoutEffect as useLayoutEffect2, useRef as useRef3 } from "react";
-import { jsx as jsx4 } from "react/jsx-runtime";
-function Mounted({
-  mount,
-  label,
-  className,
-  data
-}) {
-  const ref = useRef3(null);
-  useLayoutEffect2(() => {
-    const el = ref.current;
-    if (el === null) return;
-    const cleanup = mount(el);
-    return () => {
-      queueMicrotask(cleanup);
-    };
-  }, [mount]);
-  return /* @__PURE__ */ jsx4("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
-}
-
-// srcts/card/status.ts
-import { useState as useState2 } from "react";
-function useSized(status) {
-  const ready = status?.status === "ready";
-  const [sized, setSized] = useState2(ready);
-  if (ready && !sized) setSized(true);
-  return sized || ready;
-}
-
-// srcts/page/card.tsx
+import { useCallback as useCallback3, useSyncExternalStore as useSyncExternalStore3 } from "react";
+import { flushSync as flushSync5 } from "react-dom";
+import { createRoot as createRoot4 } from "react-dom/client";
 import { useNotified, useStatus } from "@blockr/core/react";
-import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
 var OWNER = "blockr.core";
 function drawCard(el, core, signal5) {
   if (signal5.aborted) return;
@@ -10694,9 +11219,9 @@ function drawCard(el, core, signal5) {
   }
   const demand = core.scheduler.demand(OWNER, [id2]);
   el.replaceChildren();
-  const root = createRoot3(el);
-  flushSync3(() => {
-    root.render(/* @__PURE__ */ jsx5(AloneCard, { core, id: id2 }));
+  const root = createRoot4(el);
+  flushSync5(() => {
+    root.render(/* @__PURE__ */ jsx9(AloneCard, { core, id: id2 }));
   });
   signal5.addEventListener(
     "abort",
@@ -10714,24 +11239,24 @@ function AloneCard({ core, id: id2 }) {
   const notified = useNotified(core, null);
   const footer = useFooter(status, notified);
   const sized = useSized(status);
-  const mountUi = useCallback2((el) => core.mountBlock(el, id2), [core, id2]);
-  const mountOutput2 = useCallback2((el) => core.mountOutput(el, id2), [core, id2]);
+  const mountUi = useCallback3((el) => core.mountBlock(el, id2), [core, id2]);
+  const mountOutput2 = useCallback3((el) => core.mountOutput(el, id2), [core, id2]);
   const inputs = !core.store.locked(id2);
   const current2 = status?.status === "ready" && !status.running;
-  return /* @__PURE__ */ jsxs4(
+  return /* @__PURE__ */ jsxs7(
     "article",
     {
       "aria-label": name3,
       className: "bc:mx-auto bc:my-4 bc:grid bc:max-w-5xl bc:min-w-0 bc:gap-3 bc:rounded-lg bc:border bc:border-border-default bc:bg-bg-subtle bc:p-3 bc:font-sans bc:text-gray-900 bc:dark:text-gray-100",
       children: [
-        /* @__PURE__ */ jsx5("header", { children: /* @__PURE__ */ jsx5("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
-        inputs ? /* @__PURE__ */ jsx5(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
-        /* @__PURE__ */ jsxs4(
+        /* @__PURE__ */ jsx9("header", { children: /* @__PURE__ */ jsx9("h1", { className: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold", children: name3 }) }),
+        inputs ? /* @__PURE__ */ jsx9(Mounted, { mount: mountUi, label: "Inputs", className: "bc:min-w-0" }) : null,
+        /* @__PURE__ */ jsxs7(
           "div",
           {
             className: `bc:min-w-0 ${sized ? "bc:flex bc:h-104 bc:min-h-24 bc:resize-y bc:flex-col bc:gap-2 bc:overflow-hidden" : ""}`,
             children: [
-              /* @__PURE__ */ jsx5(
+              /* @__PURE__ */ jsx9(
                 Mounted,
                 {
                   mount: mountOutput2,
@@ -10740,24 +11265,24 @@ function AloneCard({ core, id: id2 }) {
                   className: `bc:min-w-0 bc:transition-opacity ${current2 ? "" : "bc:opacity-50 bc:grayscale"} ${sized ? "bc:min-h-0 bc:flex-1 bc:overflow-auto" : "bc:h-0 bc:overflow-hidden"}`
                 }
               ),
-              sized ? /* @__PURE__ */ jsx5(Footer, { ...footer }) : null
+              sized ? /* @__PURE__ */ jsx9(Footer, { ...footer }) : null
             ]
           }
         ),
-        /* @__PURE__ */ jsx5(Pills, { ...footer }),
-        /* @__PURE__ */ jsx5(Banners, { ...footer })
+        /* @__PURE__ */ jsx9(Pills, { ...footer }),
+        /* @__PURE__ */ jsx9(Banners, { ...footer })
       ]
     }
   );
 }
 function useBlockName(core, id2) {
-  const subscribe = useCallback2(
+  const subscribe = useCallback3(
     (notify) => core.store.subscribe(() => {
       notify();
     }),
     [core]
   );
-  return useSyncExternalStore2(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
+  return useSyncExternalStore3(subscribe, () => own(core.store.board().blocks, id2)?.name ?? id2);
 }
 
 // srcts/page/page.ts

@@ -3,324 +3,14 @@ import { flushSync as flushSync3 } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 // srcts/modules/edit-board/board.tsx
-import { useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef3, useState as useState11 } from "react";
+import { useCallback as useCallback4, useLayoutEffect as useLayoutEffect2, useRef as useRef3, useState as useState11 } from "react";
 import { Disclosure, DisclosureHeader, DisclosurePanel, useBoard as useBoard2 } from "@blockr/core/react";
 
 // srcts/modules/edit-board/blocks.tsx
-import { useState as useState8 } from "react";
-
-// srcts/picker/picker.tsx
-import { useMemo as useMemo2, useState as useState7 } from "react";
-import { flushSync } from "react-dom";
-
-// srcts/util/util.ts
-function own(record, key) {
-  return Object.hasOwn(record, key) ? record[key] : void 0;
-}
-function errorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-function packageFromId(id2) {
-  const at = id2.indexOf("-");
-  if (at < 0) return null;
-  const pkg = id2.slice(0, at);
-  return isPackageName(pkg) ? pkg : null;
-}
-function isPackageName(name2) {
-  return typeof name2 === "string" && /^[A-Za-z][A-Za-z0-9.]*[A-Za-z0-9]$/.test(name2);
-}
-
-// srcts/graph/graph.ts
-function createGraph(board) {
-  const blocks = Object.keys(board.blocks);
-  const into = /* @__PURE__ */ new Map();
-  const sources = /* @__PURE__ */ new Map();
-  const targets = /* @__PURE__ */ new Map();
-  for (const id2 of blocks) {
-    into.set(id2, []);
-    sources.set(id2, []);
-    targets.set(id2, []);
-  }
-  for (const [id2, link] of Object.entries(board.links)) {
-    const linksIn = into.get(link.to);
-    const from = sources.get(link.to);
-    const to = targets.get(link.from);
-    if (linksIn === void 0 || from === void 0 || to === void 0) continue;
-    linksIn.push(id2);
-    from.push(link.from);
-    to.push(link.to);
-  }
-  const upstream = once(sources);
-  const downstream = once(targets);
-  const order = topological(blocks, sources, targets);
-  let cycle;
-  return {
-    order,
-    linksInto: (id2) => into.get(id2) ?? [],
-    upstream: (id2) => upstream.get(id2) ?? [],
-    downstream: (id2) => downstream.get(id2) ?? [],
-    withUpstream: (ids) => closure(ids, upstream),
-    withDownstream: (ids) => closure(ids, downstream),
-    cycle() {
-      cycle ??= { found: findCycle(board, targets) };
-      return cycle.found;
-    },
-    path: (from, to) => findPath(from, to, downstream)
-  };
-}
-function once(ends) {
-  return new Map([...ends].map(([id2, blocks]) => [id2, [...new Set(blocks)]]));
-}
-function closure(ids, steps2) {
-  const reached = /* @__PURE__ */ new Set();
-  const todo = [...ids].filter((id2) => steps2.has(id2));
-  for (const id2 of todo) reached.add(id2);
-  for (const id2 of todo) {
-    for (const next of steps2.get(id2) ?? []) {
-      if (reached.has(next)) continue;
-      reached.add(next);
-      todo.push(next);
-    }
-  }
-  return reached;
-}
-function topological(blocks, sources, targets) {
-  const left = new Map(blocks.map((id2) => [id2, sources.get(id2)?.length ?? 0]));
-  const order = blocks.filter((id2) => left.get(id2) === 0);
-  for (const id2 of order) {
-    for (const next of targets.get(id2) ?? []) {
-      const count = (left.get(next) ?? 0) - 1;
-      left.set(next, count);
-      if (count === 0) order.push(next);
-    }
-  }
-  const placed = new Set(order);
-  return [...order, ...blocks.filter((id2) => !placed.has(id2))];
-}
-function findCycle(board, targets) {
-  const done = /* @__PURE__ */ new Set();
-  const path = [];
-  const onPath = /* @__PURE__ */ new Set();
-  function visit(block) {
-    if (onPath.has(block)) return path.slice(path.indexOf(block));
-    if (done.has(block)) return void 0;
-    path.push(block);
-    onPath.add(block);
-    for (const next of targets.get(block) ?? []) {
-      const cycle = visit(next);
-      if (cycle !== void 0) return cycle;
-    }
-    path.pop();
-    onPath.delete(block);
-    done.add(block);
-    return void 0;
-  }
-  const starts = new Set(Object.values(board.links).map((link) => link.from));
-  for (const block of starts) {
-    if (!targets.has(block)) continue;
-    const cycle = visit(block);
-    if (cycle !== void 0) return cycle;
-  }
-  return void 0;
-}
-function findPath(from, to, downstream) {
-  if (!downstream.has(from)) return void 0;
-  const before = /* @__PURE__ */ new Map([[from, void 0]]);
-  const todo = [from];
-  for (const block of todo) {
-    if (block === to) {
-      const path = [block];
-      for (let at = before.get(block); at !== void 0; at = before.get(at)) path.unshift(at);
-      return path;
-    }
-    for (const next of downstream.get(block) ?? []) {
-      if (before.has(next)) continue;
-      before.set(next, block);
-      todo.push(next);
-    }
-  }
-  return void 0;
-}
-
-// srcts/store/ids.ts
-function sentenceCase(id2) {
-  const words = id2.replace(/([A-Z])/g, " $1").replace(/[_\-.]/g, " ").trim().split(" ");
-  const [first = "", ...rest] = words;
-  return [
-    first.charAt(0).toUpperCase() + first.slice(1).toLowerCase(),
-    ...rest.map((word) => word.toLowerCase())
-  ].join(" ");
-}
-
-// srcts/store/check.ts
-var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
-var hexColor = new RegExp(HEX_COLOR);
-
-// srcts/store/open.ts
-var COLLECTIONS = ["blocks", "links", "stacks", "options", "plugins"];
-var PROPERTIES = ["id", "name", ...COLLECTIONS];
-
-// srcts/commands/schemas.ts
-var id = { type: "string", pattern: "\\D" };
-var blockId = {
-  ...id,
-  description: "The id of a block, unique among the board's blocks."
-};
-var linkId = {
-  ...id,
-  description: "The id of a link, unique among the board's links."
-};
-var stackId = {
-  ...id,
-  description: "The id of a stack, unique among the board's stacks."
-};
-var registryId = {
-  type: "string",
-  minLength: 1,
-  description: `A block class's id in the block registry, such as "blockr.core-head_block".`
-};
-var name = {
-  type: "string",
-  description: "A name that the user sees and may change, which nothing refers to."
-};
-var state = {
-  type: "object",
-  description: "Values of a block's state args, which the schema of its class types."
-};
-
-// srcts/commands/core.ts
-var newBlock = {
-  registry_id: { ...registryId, description: "The class of the new block." },
-  id: {
-    ...blockId,
-    description: "The new block's id, which is minted where it is left out."
-  },
-  name: {
-    ...name,
-    description: "The new block's name, which its class gives where it is left out."
-  },
-  state: {
-    ...state,
-    description: "Values of the new block's state args, which the schema of its class types, in place of those its class starts a block with."
-  }
-};
-function freeInputs(board, registry, to, except) {
-  const block = own(board.blocks, to);
-  if (block === void 0) return void 0;
-  const inputs = own(registry, block.registry_id)?.inputs;
-  if (inputs === void 0) return void 0;
-  if (inputs.includes("...")) return [""];
-  const fed = new Set(
-    Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
-  );
-  return inputs.filter((input2) => !fed.has(input2));
-}
-function linkFeeding(board, registry, to, input2, except) {
-  const block = own(board.blocks, to);
-  const inputs = block === void 0 ? void 0 : own(registry, block.registry_id)?.inputs;
-  if (inputs === void 0 || inputs.includes("...")) return void 0;
-  return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
-}
-function defaultBlockName(registryId2) {
-  const pkg = packageFromId(registryId2);
-  const name2 = pkg === null ? registryId2 : registryId2.slice(pkg.length + 1);
-  return sentenceCase(name2.replace(/_block$/, ""));
-}
-
-// srcts/picker/picker.tsx
-import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField as TextField2, useBoard } from "@blockr/core/react";
-
-// srcts/styles/styles.ts
-var styles = {
-  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
-  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
-  label: "bc:text-sm bc:font-medium",
-  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
-  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
-  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
-  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
-  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
-  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
-  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
-  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
-};
-var buttons = {
-  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
-  secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
-  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
-  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
-};
-
-// srcts/ui/edits.ts
-import { useMemo, useState } from "react";
-function runCommand(core, target2, args) {
-  const running = typeof target2 === "string" ? core.commands.run(target2, args) : core.commands.run(target2);
-  return running.then(
-    () => true,
-    () => false
-  );
-}
-function useEdits(core, shows = true) {
-  const [refusal2, setRefusal] = useState(null);
-  return useMemo(() => {
-    const opts = { notifier: () => void 0 };
-    function run(title, target2, args) {
-      if (!shows) return typeof target2 === "string" ? runCommand(core, target2, args) : runCommand(core, target2);
-      setRefusal(null);
-      const running = typeof target2 === "string" ? core.commands.run(target2, args, "user", opts) : core.commands.run(target2, "user", opts);
-      return running.then(
-        () => true,
-        (error) => {
-          setRefusal({ title, reasons: reasons(error) });
-          return false;
-        }
-      );
-    }
-    return {
-      refusal: refusal2,
-      run,
-      clear: () => {
-        setRefusal(null);
-      }
-    };
-  }, [core, shows, refusal2]);
-}
-function reasons(error) {
-  const failures = error instanceof Error && "failures" in error ? error.failures : void 0;
-  return isSentences(failures) ? failures : [errorMessage(error)];
-}
-function isSentences(x) {
-  return Array.isArray(x) && x.length > 0 && x.every((item) => typeof item === "string");
-}
-
-// srcts/ui/hooks.ts
-import { useCallback, useSyncExternalStore } from "react";
-
-// srcts/ui/search.ts
-import { useState as useState2 } from "react";
-import { useFilter } from "./vendor-02042ca6.js";
-function useSearch(all, texts, none = "No options") {
-  const { contains } = useFilter({ sensitivity: "base" });
-  const [query, setQuery] = useState2("");
-  return {
-    items: query === "" ? all : all.filter((item) => texts(item).some((text) => contains(text, query))),
-    onInputChange: setQuery,
-    onOpenChange: (isOpen, trigger) => {
-      if (isOpen && trigger === "manual") setQuery("");
-    },
-    renderEmptyState: () => all.length === 0 ? none : "No matches"
-  };
-}
-
-// srcts/ui/table.tsx
-import { useState as useState6 } from "react";
-import { SearchField } from "@blockr/core/react";
-
-// srcts/ui/ui.tsx
-import { useRef as useRef2, useState as useState5 } from "react";
+import { useCallback as useCallback3, useState as useState7 } from "react";
 
 // srcts/card/footer.tsx
-import { useCallback as useCallback2, useId, useState as useState3 } from "react";
+import { useCallback, useId, useState } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var MARKS = {
   error: {
@@ -371,11 +61,121 @@ function SeverityIcon({ severity }) {
 // srcts/card/mounted.tsx
 import { useLayoutEffect, useRef } from "react";
 import { jsx as jsx2 } from "react/jsx-runtime";
+function Mounted({
+  mount,
+  label,
+  className,
+  data
+}) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    const cleanup = mount(el);
+    return () => {
+      queueMicrotask(cleanup);
+    };
+  }, [mount]);
+  return /* @__PURE__ */ jsx2("div", { ref, role: label === void 0 ? void 0 : "region", "aria-label": label, className, ...data });
+}
 
 // srcts/card/status.ts
+import { useState as useState2 } from "react";
+
+// srcts/styles/styles.ts
+var styles = {
+  stack: "bc:grid bc:gap-3 bc:font-sans bc:text-text-default",
+  field: "bc:grid bc:gap-1 bc:font-sans bc:text-text-default",
+  label: "bc:text-sm bc:font-medium",
+  box: "bc:min-w-0 bc:justify-self-stretch bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:focus:outline-2 bc:focus:outline-offset-1 bc:focus:outline-border-accent bc:aria-invalid:border-border-danger",
+  check: "bc:flex bc:items-center bc:gap-2 bc:font-sans bc:text-sm bc:text-text-default",
+  checkbox: "bc:accent-bg-accent bc:aria-invalid:accent-border-danger",
+  fieldset: "bc:m-0 bc:grid bc:min-w-0 bc:gap-1 bc:border-0 bc:p-0 bc:font-sans bc:text-text-default",
+  legend: "bc:text-sm bc:font-medium bc:mb-1 bc:p-0",
+  list: "bc:grid bc:max-h-48 bc:gap-1 bc:overflow-y-auto",
+  hint: "bc:m-0 bc:text-sm bc:text-text-muted",
+  alert: "bc:m-0 bc:text-sm bc:text-text-danger bc:whitespace-pre-wrap"
+};
+var buttons = {
+  primary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-accent bc:bg-bg-accent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-on-accent bc:cursor-pointer bc:disabled:cursor-default bc:disabled:opacity-50",
+  secondary: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-border-default bc:bg-transparent bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-text-default bc:cursor-pointer bc:hover:bg-bg-subtle bc:disabled:cursor-default bc:disabled:opacity-50",
+  destructive: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border bc:border-red-700 bc:bg-red-700 bc:px-2 bc:py-1 bc:font-sans bc:text-sm bc:text-white bc:cursor-pointer bc:hover:bg-red-800 bc:disabled:cursor-default bc:disabled:opacity-50",
+  quiet: "bc:inline-flex bc:items-center bc:gap-1 bc:rounded-md bc:border-0 bc:bg-transparent bc:px-1.5 bc:py-0.5 bc:font-sans bc:text-xs bc:text-text-muted bc:cursor-pointer bc:hover:bg-bg-subtle"
+};
+
+// srcts/ui/edits.ts
+import { useMemo, useState as useState3 } from "react";
+
+// srcts/util/util.ts
+function own(record, key) {
+  return Object.hasOwn(record, key) ? record[key] : void 0;
+}
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+// srcts/ui/edits.ts
+function useEdits(core) {
+  const [refusal2, setRefusal] = useState3(null);
+  return useMemo(() => {
+    const opts = { notifier: () => void 0 };
+    function run(title, target2, given) {
+      setRefusal(null);
+      const running = typeof target2 === "string" ? core.commands.run(target2, given, "user", opts) : typeof given === "function" ? given(target2, opts) : core.commands.run(target2, "user", opts);
+      return running.then(
+        () => true,
+        (error) => {
+          setRefusal({ title, reasons: reasons(error) });
+          return false;
+        }
+      );
+    }
+    return {
+      refusal: refusal2,
+      run,
+      clear: () => {
+        setRefusal(null);
+      }
+    };
+  }, [core, refusal2]);
+}
+function reasons(error) {
+  const failures = error instanceof Error && "failures" in error ? error.failures : void 0;
+  return isSentences(failures) ? failures : [errorMessage(error)];
+}
+function isSentences(x) {
+  return Array.isArray(x) && x.length > 0 && x.every((item) => typeof item === "string");
+}
+
+// srcts/ui/hooks.ts
+import { useCallback as useCallback2, useSyncExternalStore } from "react";
+
+// srcts/ui/search.ts
 import { useState as useState4 } from "react";
+import { useFilter } from "./vendor-02042ca6.js";
+function useSearch(all, texts, none = "No options", start = "") {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [query, setQuery] = useState4(start);
+  const [started, setStarted] = useState4(start !== "");
+  return {
+    items: query === "" ? all : all.filter((item) => texts(item).some((text) => contains(text, query))),
+    onInputChange: (text) => {
+      setStarted(false);
+      setQuery(text);
+    },
+    onOpenChange: (isOpen, trigger) => {
+      if (isOpen && trigger === "manual" && !started) setQuery("");
+    },
+    renderEmptyState: () => all.length === 0 ? none : "No matches"
+  };
+}
+
+// srcts/ui/table.tsx
+import { useState as useState6 } from "react";
+import { SearchField } from "@blockr/core/react";
 
 // srcts/ui/ui.tsx
+import { useRef as useRef2, useState as useState5 } from "react";
 import { TextField } from "@blockr/core/react";
 import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var classes = {
@@ -521,292 +321,41 @@ function Pager({ label, view }) {
   ] });
 }
 
-// srcts/picker/picker.tsx
-import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
-function BlockPicker({ core, mode, onAdded, autofocus = false, showsRefusal = false }) {
-  const board = useBoard(core);
-  const registry = core.blockRegistry();
-  const edits = useEdits(core, showsRefusal);
-  const [picked, setPicked] = useState7(void 0);
-  const [input2, setInput] = useState7(void 0);
-  const [inputName, setInputName] = useState7("");
-  const [id2, setId] = useState7("");
-  const [name2, setName] = useState7("");
-  const [errors, setErrors] = useState7({});
-  const [busy, setBusy] = useState7(false);
-  const entries = useMemo2(
-    () => Object.values(registry).filter((entry2) => mode.kind !== "after" || entry2.inputs.length > 0),
-    [registry, mode.kind]
-  );
-  const options = useMemo2(() => entries.map(classItem).sort(byGroupAndName), [entries]);
-  const search = useSearch(
-    options,
-    (item) => [item.name, item.description, item.id, item.category, item.pkg ?? "", ...item.keywords],
-    "No block class to pick."
-  );
-  const entry = picked === void 0 ? void 0 : own(registry, picked);
-  const link = linkChoice(mode, board, registry, entry);
-  const chosen = link.kind === "pick" ? input2 !== void 0 && link.inputs.includes(input2) ? input2 : link.inputs[0] : void 0;
-  function check2() {
-    return {
-      ...entry === void 0 ? { registry: "Pick the class of the new block." } : {},
-      ...optional("id", blockIdError(id2, board)),
-      ...link.kind === "name" ? optional("input", inputNameError(inputName, link.taken)) : {}
-    };
-  }
-  async function submit(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const found = check2();
-    flushSync(() => {
-      setErrors(found);
-      edits.clear();
-    });
-    if (Object.keys(found).length > 0 || entry === void 0 || busy) {
-      focusFirstInvalid(form);
-      return;
-    }
-    const args = {
-      registry_id: entry.id,
-      ...filled("id", id2),
-      ...filled("name", name2)
-    };
-    const into = {
-      ...chosen === void 0 ? {} : { input: chosen },
-      ...link.kind === "name" ? filled("input", inputName) : {}
-    };
-    setBusy(true);
-    const title = "Could not add the block.";
-    const ran = mode.kind === "add" ? await edits.run(title, "blockr.core-add_block", args) : await edits.run(title, addAndLink(core, mode, args, into));
-    setBusy(false);
-    if (!ran) return;
-    setPicked(void 0);
-    setInput(void 0);
-    setInputName("");
-    setId("");
-    setName("");
-    setErrors({});
-    onAdded?.();
-  }
-  return /* @__PURE__ */ jsxs4(
-    Form,
-    {
-      "aria-label": "Add block",
-      validationBehavior: "aria",
-      onSubmit: (event) => {
-        void submit(event);
-      },
-      children: [
-        /* @__PURE__ */ jsx5(
-          ComboBox,
-          {
-            label: "Block class",
-            autoFocus: autofocus,
-            ...search,
-            items: byCategory(search.items),
-            value: picked ?? null,
-            placeholder: options.length === 0 ? "No block class to pick" : "Search by name, description or keyword",
-            isInvalid: errors.registry !== void 0,
-            errorMessage: errors.registry,
-            description: entry?.description === "" ? void 0 : entry?.description,
-            onChange: (key) => {
-              setPicked(key === null ? void 0 : String(key));
-              if (mode.kind === "after") setInput(void 0);
-              setErrors((now) => without2(now, "registry"));
-            },
-            children: (category) => /* @__PURE__ */ jsx5(ComboBoxSection, { id: category.id, title: category.name, items: category.items, children: (item) => /* @__PURE__ */ jsxs4(ComboBoxItem, { id: item.id, textValue: item.name, children: [
-              /* @__PURE__ */ jsx5(Text, { slot: "label", className: "bc:shrink-0 bc:truncate", children: item.name }),
-              item.description === "" ? null : /* @__PURE__ */ jsx5(Text, { slot: "description", children: item.description }),
-              item.pkg === null ? null : /* @__PURE__ */ jsx5("span", { className: BADGE, children: item.pkg })
-            ] }) })
-          }
-        ),
-        link.kind === "pick" ? /* @__PURE__ */ jsx5(
-          Select,
-          {
-            label: link.label,
-            isRequired: true,
-            items: link.inputs.map((input3) => ({ id: input3 })),
-            value: chosen ?? null,
-            onChange: (key) => {
-              if (key !== null) setInput(String(key));
-            },
-            children: (item) => /* @__PURE__ */ jsx5(SelectItem, { id: item.id, children: item.id })
-          }
-        ) : null,
-        link.kind === "name" ? /* @__PURE__ */ jsx5(
-          TextField2,
-          {
-            label: link.label,
-            value: inputName,
-            description: "Optional. Leave it empty for an input without a name, which the block takes in the order of its links.",
-            errorMessage: errors.input,
-            isInvalid: errors.input !== void 0,
-            autoComplete: "off",
-            onChange: (value2) => {
-              setInputName(value2);
-              setErrors((now) => without2(now, "input"));
-            },
-            onBlur: () => {
-              setErrors((now) => ({ ...now, ...optional("input", inputNameError(inputName, link.taken)) }));
-            }
-          }
-        ) : null,
-        link.kind === "no_free_inputs" ? /* @__PURE__ */ jsx5("p", { className: styles.alert, children: link.why }) : null,
-        /* @__PURE__ */ jsxs4("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx5(
-            TextField2,
-            {
-              label: "ID",
-              value: id2,
-              description: "Optional. Made up where left empty.",
-              errorMessage: errors.id,
-              isInvalid: errors.id !== void 0,
-              autoComplete: "off",
-              ...identifier,
-              onChange: (value2) => {
-                setId(value2);
-                setErrors((now) => without2(now, "id"));
-              },
-              onBlur: () => {
-                setErrors((now) => ({ ...now, ...optional("id", blockIdError(id2, board)) }));
-              }
-            }
-          ),
-          /* @__PURE__ */ jsx5(
-            TextField2,
-            {
-              label: "Name",
-              value: name2,
-              placeholder: entry === void 0 ? void 0 : defaultBlockName(entry.id),
-              description: "Optional. The class's name where left empty.",
-              autoComplete: "off",
-              onChange: setName
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsx5("div", { children: /* @__PURE__ */ jsx5("button", { type: "submit", className: classes.primary, disabled: busy || link.kind === "no_free_inputs", children: "Add block" }) }),
-        /* @__PURE__ */ jsx5(Refusal, { refusal: edits.refusal })
-      ]
-    }
-  );
-}
-function linkChoice(mode, board, registry, entry) {
-  if (mode.kind === "before") {
-    const target2 = own(board.blocks, mode.to);
-    const free = freeInputs(board, registry, mode.to) ?? [];
-    const of = `of "${target2?.name ?? mode.to}"`;
-    if (isVariadic(free)) return { kind: "name", label: `Input name ${of}`, taken: namesInto(board, mode.to) };
-    if (free.length === 0) return { kind: "no_free_inputs", why: `Every input ${of} takes a link already.` };
-    return free.length > 1 ? { kind: "pick", label: `Input ${of}`, inputs: free } : { kind: "none" };
-  }
-  if (mode.kind === "after" && entry !== void 0) {
-    if (entry.inputs.includes("...")) return { kind: "name", label: `Input name of the new ${entry.name}`, taken: [] };
-    if (entry.inputs.length > 1) return { kind: "pick", label: `Input of the new ${entry.name}`, inputs: entry.inputs };
-  }
-  return { kind: "none" };
-}
-function addAndLink(core, mode, args, into) {
-  const block = typeof args.id === "string" ? args.id : core.mintId((id2) => Object.hasOwn(core.store.board().blocks, id2));
-  const ends = mode.kind === "after" ? { from: mode.from, to: block } : { from: block, to: mode.to };
-  return [
-    { id: "blockr.core-add_block", args: { ...args, id: block } },
-    { id: "blockr.core-add_link", args: { ...ends, ...into } }
-  ];
-}
-function namesInto(board, to, except) {
-  return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
-}
-function inputNameError(value2, taken) {
-  const trimmed = value2.trim();
-  if (trimmed === "") return void 0;
-  if (taken.includes(trimmed)) return `Another link gives the input the name "${trimmed}" already.`;
-  return void 0;
-}
-function isVariadic(free) {
-  return free.length === 1 && free[0] === "";
-}
-function classItem(entry) {
-  return {
-    id: entry.id,
-    name: entry.name,
-    description: entry.description,
-    pkg: packageFromId(entry.id),
-    category: entry.category === "" ? UNCATEGORIZED : entry.category,
-    keywords: entry.keywords
-  };
-}
-var UNCATEGORIZED = "uncategorized";
-function byGroupAndName(a, b) {
-  const last = (item) => item.category.toLowerCase() === UNCATEGORIZED ? 1 : 0;
-  return last(a) - last(b) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
-}
-function byCategory(items) {
-  const categories = /* @__PURE__ */ new Map();
-  for (const item of items) {
-    const members = categories.get(item.category) ?? [];
-    members.push(item);
-    categories.set(item.category, members);
-  }
-  return [...categories].map(([name2, members]) => ({ id: `category:${name2}`, name: name2, items: members }));
-}
-var BADGE = "bc:ml-auto bc:shrink-0 bc:rounded bc:border bc:border-border-default bc:px-1 bc:text-xs bc:text-text-muted";
-function filled(arg, value2) {
-  const trimmed = value2.trim();
-  return trimmed === "" ? {} : { [arg]: trimmed };
-}
-function optional(key, error) {
-  return error === void 0 ? {} : { [key]: error };
-}
-function focusFirstInvalid(form) {
-  form.querySelector('[aria-invalid="true"]')?.focus();
-}
-function blockIdError(value2, board) {
-  return idError(value2, "block", (id2) => own(board.blocks, id2) !== void 0);
-}
-function idError(value2, what, taken) {
-  const id2 = value2.trim();
-  if (id2 === "") return void 0;
-  if (/^\d+$/.test(id2)) return `An ID needs a character other than a digit, such as "${what}_${id2}".`;
-  if (taken(id2)) return `The board holds a ${what} "${id2}" already.`;
-  return void 0;
-}
-function without2(errors, key) {
-  return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key));
-}
-
 // srcts/modules/edit-board/blocks.tsx
-import { Fragment as Fragment2, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
-var ADD = { kind: "add" };
+import { Fragment as Fragment2, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+var ADD_BLOCK = "blockr.core-add_block_action";
+var BOARD = { board: true };
 function BlocksSection({ core, board }) {
   const registry = core.blockRegistry();
   const className = (block) => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id2, block]) => `${block.name} ${id2} ${className(block)}`);
   const count = Object.keys(board.blocks).length;
   const edits = useEdits(core);
-  return /* @__PURE__ */ jsxs5(Section, { title: "Blocks", count, children: [
-    /* @__PURE__ */ jsx6(Part, { title: "Add a block", children: /* @__PURE__ */ jsx6(BlockPicker, { core, mode: ADD, showsRefusal: true }) }),
-    /* @__PURE__ */ jsx6(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx6("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs5(Fragment2, { children: [
-      /* @__PURE__ */ jsx6(TableSearch, { label: "Search blocks", view }),
-      view.found === 0 ? /* @__PURE__ */ jsx6("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsxs5("table", { className: table.table, children: [
-        /* @__PURE__ */ jsx6("caption", { className: "bc:sr-only", children: "The board's blocks" }),
-        /* @__PURE__ */ jsx6("thead", { children: /* @__PURE__ */ jsxs5("tr", { children: [
-          /* @__PURE__ */ jsx6("th", { scope: "col", className: table.head, children: "Name" }),
-          /* @__PURE__ */ jsx6("th", { scope: "col", className: table.head, children: "ID" }),
-          /* @__PURE__ */ jsx6("th", { scope: "col", className: table.head, children: "Class" }),
-          /* @__PURE__ */ jsx6("th", { scope: "col", className: `${table.head} bc:w-28`, children: /* @__PURE__ */ jsx6("span", { className: "bc:sr-only", children: "Actions" }) })
+  const adds = core.boardActions.on(BOARD).some(({ id: id2 }) => id2 === ADD_BLOCK);
+  const picker = useCallback3((el) => core.boardActions.mountAdvanced(el, ADD_BLOCK, BOARD), [core]);
+  return /* @__PURE__ */ jsxs4(Section, { title: "Blocks", count, children: [
+    adds ? /* @__PURE__ */ jsx5(Part, { title: "Add a block", children: /* @__PURE__ */ jsx5(Mounted, { mount: picker }) }) : null,
+    /* @__PURE__ */ jsx5(Part, { title: "Blocks on the board", children: count === 0 ? /* @__PURE__ */ jsx5("p", { className: styles.hint, children: "The board holds no blocks yet." }) : /* @__PURE__ */ jsxs4(Fragment2, { children: [
+      /* @__PURE__ */ jsx5(TableSearch, { label: "Search blocks", view }),
+      view.found === 0 ? /* @__PURE__ */ jsx5("p", { className: styles.hint, children: "No block matches the search." }) : /* @__PURE__ */ jsxs4("table", { className: table.table, children: [
+        /* @__PURE__ */ jsx5("caption", { className: "bc:sr-only", children: "The board's blocks" }),
+        /* @__PURE__ */ jsx5("thead", { children: /* @__PURE__ */ jsxs4("tr", { children: [
+          /* @__PURE__ */ jsx5("th", { scope: "col", className: table.head, children: "Name" }),
+          /* @__PURE__ */ jsx5("th", { scope: "col", className: table.head, children: "ID" }),
+          /* @__PURE__ */ jsx5("th", { scope: "col", className: table.head, children: "Class" }),
+          /* @__PURE__ */ jsx5("th", { scope: "col", className: `${table.head} bc:w-28`, children: /* @__PURE__ */ jsx5("span", { className: "bc:sr-only", children: "Actions" }) })
         ] }) }),
-        /* @__PURE__ */ jsx6("tbody", { children: view.rows.map(([id2, block]) => /* @__PURE__ */ jsx6(BlockRow, { edits, id: id2, block, className: className(block) }, id2)) })
+        /* @__PURE__ */ jsx5("tbody", { children: view.rows.map(([id2, block]) => /* @__PURE__ */ jsx5(BlockRow, { edits, id: id2, block, className: className(block) }, id2)) })
       ] }),
-      /* @__PURE__ */ jsx6(Refusal, { refusal: edits.refusal }),
-      /* @__PURE__ */ jsx6(Pager, { label: "Pages of blocks", view })
+      /* @__PURE__ */ jsx5(Refusal, { refusal: edits.refusal }),
+      /* @__PURE__ */ jsx5(Pager, { label: "Pages of blocks", view })
     ] }) })
   ] });
 }
 function BlockRow({ edits, id: id2, block, className }) {
-  const [renaming, setRenaming] = useState8(false);
-  return /* @__PURE__ */ jsxs5("tr", { "aria-label": block.name, className: table.row, children: [
-    /* @__PURE__ */ jsx6("td", { className: table.cell, children: renaming ? /* @__PURE__ */ jsx6(
+  const [renaming, setRenaming] = useState7(false);
+  return /* @__PURE__ */ jsxs4("tr", { "aria-label": block.name, className: table.row, children: [
+    /* @__PURE__ */ jsx5("td", { className: table.cell, children: renaming ? /* @__PURE__ */ jsx5(
       NameField,
       {
         label: "Block name",
@@ -819,11 +368,11 @@ function BlockRow({ edits, id: id2, block, className }) {
           setRenaming(false);
         }
       }
-    ) : /* @__PURE__ */ jsx6("span", { className: "bc:font-medium bc:break-words", children: block.name }) }),
-    /* @__PURE__ */ jsx6("td", { className: `${table.cell} bc:font-mono bc:text-xs bc:break-all`, children: id2 }),
-    /* @__PURE__ */ jsx6("td", { className: `${table.cell} bc:text-text-muted`, children: className }),
-    /* @__PURE__ */ jsxs5("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
-      renaming ? null : /* @__PURE__ */ jsx6(
+    ) : /* @__PURE__ */ jsx5("span", { className: "bc:font-medium bc:break-words", children: block.name }) }),
+    /* @__PURE__ */ jsx5("td", { className: `${table.cell} bc:font-mono bc:text-xs bc:break-all`, children: id2 }),
+    /* @__PURE__ */ jsx5("td", { className: `${table.cell} bc:text-text-muted`, children: className }),
+    /* @__PURE__ */ jsxs4("td", { className: `${table.cell} bc:text-right bc:whitespace-nowrap`, children: [
+      renaming ? null : /* @__PURE__ */ jsx5(
         "button",
         {
           type: "button",
@@ -835,7 +384,7 @@ function BlockRow({ edits, id: id2, block, className }) {
           children: "Rename"
         }
       ),
-      /* @__PURE__ */ jsx6(
+      /* @__PURE__ */ jsx5(
         "button",
         {
           type: "button",
@@ -854,6 +403,214 @@ function BlockRow({ edits, id: id2, block, className }) {
 // srcts/modules/edit-board/links.tsx
 import { useState as useState9 } from "react";
 import { flushSync as flushSync2 } from "react-dom";
+
+// srcts/graph/graph.ts
+function createGraph(board) {
+  const blocks = Object.keys(board.blocks);
+  const into = /* @__PURE__ */ new Map();
+  const sources = /* @__PURE__ */ new Map();
+  const targets = /* @__PURE__ */ new Map();
+  for (const id2 of blocks) {
+    into.set(id2, []);
+    sources.set(id2, []);
+    targets.set(id2, []);
+  }
+  for (const [id2, link] of Object.entries(board.links)) {
+    const linksIn = into.get(link.to);
+    const from = sources.get(link.to);
+    const to = targets.get(link.from);
+    if (linksIn === void 0 || from === void 0 || to === void 0) continue;
+    linksIn.push(id2);
+    from.push(link.from);
+    to.push(link.to);
+  }
+  const upstream = once(sources);
+  const downstream = once(targets);
+  const order = topological(blocks, sources, targets);
+  let cycle;
+  return {
+    order,
+    linksInto: (id2) => into.get(id2) ?? [],
+    upstream: (id2) => upstream.get(id2) ?? [],
+    downstream: (id2) => downstream.get(id2) ?? [],
+    withUpstream: (ids) => closure(ids, upstream),
+    withDownstream: (ids) => closure(ids, downstream),
+    cycle() {
+      cycle ??= { found: findCycle(board, targets) };
+      return cycle.found;
+    },
+    path: (from, to) => findPath(from, to, downstream)
+  };
+}
+function once(ends) {
+  return new Map([...ends].map(([id2, blocks]) => [id2, [...new Set(blocks)]]));
+}
+function closure(ids, steps2) {
+  const reached = /* @__PURE__ */ new Set();
+  const todo = [...ids].filter((id2) => steps2.has(id2));
+  for (const id2 of todo) reached.add(id2);
+  for (const id2 of todo) {
+    for (const next of steps2.get(id2) ?? []) {
+      if (reached.has(next)) continue;
+      reached.add(next);
+      todo.push(next);
+    }
+  }
+  return reached;
+}
+function topological(blocks, sources, targets) {
+  const left = new Map(blocks.map((id2) => [id2, sources.get(id2)?.length ?? 0]));
+  const order = blocks.filter((id2) => left.get(id2) === 0);
+  for (const id2 of order) {
+    for (const next of targets.get(id2) ?? []) {
+      const count = (left.get(next) ?? 0) - 1;
+      left.set(next, count);
+      if (count === 0) order.push(next);
+    }
+  }
+  const placed = new Set(order);
+  return [...order, ...blocks.filter((id2) => !placed.has(id2))];
+}
+function findCycle(board, targets) {
+  const done = /* @__PURE__ */ new Set();
+  const path = [];
+  const onPath = /* @__PURE__ */ new Set();
+  function visit(block) {
+    if (onPath.has(block)) return path.slice(path.indexOf(block));
+    if (done.has(block)) return void 0;
+    path.push(block);
+    onPath.add(block);
+    for (const next of targets.get(block) ?? []) {
+      const cycle = visit(next);
+      if (cycle !== void 0) return cycle;
+    }
+    path.pop();
+    onPath.delete(block);
+    done.add(block);
+    return void 0;
+  }
+  const starts = new Set(Object.values(board.links).map((link) => link.from));
+  for (const block of starts) {
+    if (!targets.has(block)) continue;
+    const cycle = visit(block);
+    if (cycle !== void 0) return cycle;
+  }
+  return void 0;
+}
+function findPath(from, to, downstream) {
+  if (!downstream.has(from)) return void 0;
+  const before = /* @__PURE__ */ new Map([[from, void 0]]);
+  const todo = [from];
+  for (const block of todo) {
+    if (block === to) {
+      const path = [block];
+      for (let at = before.get(block); at !== void 0; at = before.get(at)) path.unshift(at);
+      return path;
+    }
+    for (const next of downstream.get(block) ?? []) {
+      if (before.has(next)) continue;
+      before.set(next, block);
+      todo.push(next);
+    }
+  }
+  return void 0;
+}
+
+// srcts/store/check.ts
+var HEX_COLOR = "^#[0-9a-fA-F]{6}$";
+var hexColor = new RegExp(HEX_COLOR);
+
+// srcts/store/open.ts
+var COLLECTIONS = ["blocks", "links", "stacks", "options", "plugins"];
+var PROPERTIES = ["id", "name", ...COLLECTIONS];
+
+// srcts/commands/schemas.ts
+var id = { type: "string", pattern: "\\D" };
+var blockId = {
+  ...id,
+  description: "The id of a block, unique among the board's blocks."
+};
+var linkId = {
+  ...id,
+  description: "The id of a link, unique among the board's links."
+};
+var stackId = {
+  ...id,
+  description: "The id of a stack, unique among the board's stacks."
+};
+var registryId = {
+  type: "string",
+  minLength: 1,
+  description: `A block class's id in the block registry, such as "blockr.core-head_block".`
+};
+var name = {
+  type: "string",
+  description: "A name that the user sees and may change, which nothing refers to."
+};
+var state = {
+  type: "object",
+  description: "Values of a block's state args, which the schema of its class types."
+};
+
+// srcts/commands/core.ts
+var newBlock = {
+  registry_id: { ...registryId, description: "The class of the new block." },
+  id: {
+    ...blockId,
+    description: "The new block's id, which is minted where it is left out."
+  },
+  name: {
+    ...name,
+    description: "The new block's name, which its class gives where it is left out."
+  },
+  state: {
+    ...state,
+    description: "Values of the new block's state args, which the schema of its class types, in place of those its class starts a block with."
+  }
+};
+function freeInputs(board, registry, to, except) {
+  const block = own(board.blocks, to);
+  if (block === void 0) return void 0;
+  const inputs = own(registry, block.registry_id)?.inputs;
+  if (inputs === void 0) return void 0;
+  if (inputs.includes("...")) return [""];
+  const fed = new Set(
+    Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to).map(([, link]) => link.input)
+  );
+  return inputs.filter((input2) => !fed.has(input2));
+}
+function linkFeeding(board, registry, to, input2, except) {
+  const block = own(board.blocks, to);
+  const inputs = block === void 0 ? void 0 : own(registry, block.registry_id)?.inputs;
+  if (inputs === void 0 || inputs.includes("...")) return void 0;
+  return Object.entries(board.links).find(([id2, link]) => id2 !== except && link.to === to && link.input === input2)?.[0];
+}
+
+// srcts/picker/picker.tsx
+import { useMemo as useMemo2, useState as useState8 } from "react";
+import { flushSync } from "react-dom";
+import { ComboBox, ComboBoxItem, ComboBoxSection, Form, Select, SelectItem, Text, TextField as TextField2, useBoard } from "@blockr/core/react";
+import { jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+function namesInto(board, to, except) {
+  return Object.entries(board.links).filter(([id2, link]) => id2 !== except && link.to === to && link.input !== "").map(([, link]) => link.input);
+}
+function inputNameError(value2, taken) {
+  const trimmed = value2.trim();
+  if (trimmed === "") return void 0;
+  if (taken.includes(trimmed)) return `Another link gives the input the name "${trimmed}" already.`;
+  return void 0;
+}
+function isVariadic(free) {
+  return free.length === 1 && free[0] === "";
+}
+function focusFirstInvalid(form) {
+  form.querySelector('[aria-invalid="true"]')?.focus();
+}
+function without2(errors, key) {
+  return Object.fromEntries(Object.entries(errors).filter(([field]) => field !== key));
+}
+
+// srcts/modules/edit-board/links.tsx
 import { ComboBox as ComboBox2, ComboBoxItem as ComboBoxItem2, Form as Form2, Select as Select2, SelectItem as SelectItem2, Text as Text2, TextField as TextField3 } from "@blockr/core/react";
 import { Fragment as Fragment3, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 function LinksSection({ core, board, locked: locked2 }) {
@@ -1012,7 +769,7 @@ function LinkForm({
     return {
       ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
       ...target2 === void 0 ? { to: "Pick the block that the link goes to." } : {},
-      ...variadic ? optional2("input", inputNameError(name2, taken)) : {}
+      ...variadic ? optional("input", inputNameError(name2, taken)) : {}
     };
   }
   async function submit(event) {
@@ -1118,7 +875,7 @@ function LinkForm({
                       setErrors((now) => without2(now, "input"));
                     },
                     onBlur: () => {
-                      setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name2, taken)) }));
+                      setErrors((now) => ({ ...now, ...optional("input", inputNameError(name2, taken)) }));
                     }
                   }
                 ),
@@ -1216,7 +973,7 @@ function withoutLink(board, id2) {
   const links = Object.fromEntries(Object.entries(board.links).filter(([other]) => other !== id2));
   return { ...board, links };
 }
-function optional2(key, error) {
+function optional(key, error) {
   return error === void 0 ? {} : { [key]: error };
 }
 function blockName(board, block) {
@@ -1575,10 +1332,10 @@ function useRowEditing() {
     closed.current = false;
     button.current?.focus();
   }, [editing]);
-  const open = useCallback3(() => {
+  const open = useCallback4(() => {
     setEditing(true);
   }, []);
-  const close = useCallback3(() => {
+  const close = useCallback4(() => {
     closed.current = true;
     setEditing(false);
   }, []);

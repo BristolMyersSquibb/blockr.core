@@ -8,7 +8,9 @@
 // It adds, renames and removes the board's blocks, and adds, changes and
 // removes its links and stacks. Each edit is one of core's commands, which the
 // plugin runs as the user makes the edit, so that undo takes back each one,
-// and the plugin keeps nothing staged. Where the store or the command registry
+// and the plugin keeps nothing staged. It adds a block through the advanced
+// action of core's board action Add block, the block picker, which it mounts
+// in its section of blocks. Where the store or the command registry
 // refuses an edit, the plugin says why close to the control that made it,
 // until the user's next edit there: below a form that adds to the board, and
 // below a table for an edit in its rows. It takes the edit's notification
