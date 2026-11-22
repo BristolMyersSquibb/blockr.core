@@ -342,7 +342,7 @@ import { SearchField } from "@blockr/core/react";
 import { useRef as useRef2, useState as useState5 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { TextField } from "@blockr/core/react";
+import { Button, TextField } from "@blockr/core/react";
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 var classes = {
   button: buttons.secondary,
@@ -362,8 +362,7 @@ function NameField({
   label,
   name,
   onSubmit,
-  onDone,
-  fill = false
+  onDone
 }) {
   const [text, setText] = useState5(name);
   const done = useRef2(false);
@@ -381,7 +380,7 @@ function NameField({
       value: text,
       autoFocus: true,
       spellCheck: "false",
-      className: fill ? "bc:w-full" : "bc:min-w-40",
+      className: "bc:min-w-40",
       onChange: setText,
       onFocus: (event) => {
         event.target.select();
@@ -397,13 +396,20 @@ function NameField({
     }
   );
 }
+function ActionsButton({
+  ref,
+  label,
+  onPress
+}) {
+  return /* @__PURE__ */ jsx4(Button, { ref, variant: "quiet", "aria-label": label, "aria-haspopup": "menu", onPress, children: /* @__PURE__ */ jsx4("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" }) });
+}
 
 // srcts/ui/table.tsx
 import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 
 // srcts/modules/basic/card.tsx
 import { memo, useCallback as useCallback3, useLayoutEffect as useLayoutEffect2, useRef as useRef3, useSyncExternalStore as useSyncExternalStore2 } from "react";
-import { Button, Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "@blockr/core/react";
+import { Disclosure, DisclosureHeader, DisclosurePanel, useNotified, useStatus } from "@blockr/core/react";
 
 // srcts/modules/basic/context.ts
 import { createContext, useContext } from "react";
@@ -452,17 +458,14 @@ var BlockCard = memo(function BlockCard2({ id, block }) {
           /* @__PURE__ */ jsx6("span", { className: "bc:text-xs bc:text-text-muted", children: entry?.name ?? block.registry_id }),
           /* @__PURE__ */ jsx6(StatusBadge, { status }),
           offered ? /* @__PURE__ */ jsx6("div", { className: "bc:ml-auto bc:flex bc:items-center bc:gap-1", children: /* @__PURE__ */ jsx6(
-            Button,
+            ActionsButton,
             {
               ref: actions,
-              variant: "quiet",
-              "aria-label": `Actions of ${block.name}`,
-              "aria-haspopup": "menu",
+              label: `Actions of ${block.name}`,
               onPress: () => {
                 const el = actions.current;
                 if (el !== null) core.boardActions.menu({ block: id }, { el, anchor: el.getBoundingClientRect() });
-              },
-              children: /* @__PURE__ */ jsx6("span", { "aria-hidden": "true", className: "bc:text-base bc:leading-none", children: "\u22EF" })
+              }
             }
           ) }) : null
         ] }),

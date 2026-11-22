@@ -5,18 +5,22 @@
 // An app runs it unless its rows leave it out, and every frontend places it as
 // it places any plugin whose class has a `ui`, where core mounts it with
 // mountPlugin().
-// It adds, renames and removes the board's blocks, and adds, changes and
-// removes its links and stacks. Its forms are the advanced actions of core's
-// board actions Add block, whose form is the block picker, Create link, Create
-// stack, Edit link and Edit stack, which it mounts through mountAdvanced(), so
-// that the menus offer the same forms. Each edit runs core's commands as one
-// step of the user, as the user submits a form or clicks a row's button, so
-// that undo takes back each one, and the plugin keeps nothing staged.
+// It adds the board's blocks, links and stacks through its forms, which are
+// the advanced actions of core's board actions Add block, Create link and
+// Create stack on the board, which it mounts through mountAdvanced(), so that
+// the menus offer the same forms. Each row of its tables opens the menu of its
+// block, link or stack through core.boardActions.menu(), so that it offers
+// every board action that applies to the object, a package's among them, and
+// the bar of the selection opens the menu of the selection. Each edit runs
+// commands as one step of the user, as the user submits a form or picks a row
+// of a menu, so that undo takes back each one, and the plugin keeps nothing
+// staged.
 // Where the store or the command registry refuses an edit, the plugin says why
-// close to the control that made it, until the user's next edit there: below
-// a form, and below a table for an edit from the buttons of its rows. It takes
-// the edit's notification through the edit's notifier, so that core raises
-// none.
+// close to the control that made it: a form below its buttons, and a table or
+// the bar of the selection below itself, for a board action that one of its
+// menus ran, until the next board action that one of those menus runs. It
+// takes the notifications through the notifier of done() or of menu(), so
+// that core raises none.
 // It keeps no state, so the board holds nothing for it.
 // It works on the board through CoreApi alone, and is written in React, on the
 // one copy of React that core puts on the page, in a root of its own.

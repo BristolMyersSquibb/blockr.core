@@ -896,6 +896,19 @@
   On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
   The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
   Each edit applies at once, as one step of the user, through `add_link`, `change_link`, `move_link` or `remove_link`, and the advanced action says below the inputs why the store refused one (#747).
+* The rows of the Edit board plugin's tables open the menus of their blocks, links and stacks, in place of their own buttons, which renamed and removed a block, and changed and removed a link or a stack.
+  Each row ends in a "…" button, which opens the menu of its object through `core.boardActions.menu()`.
+  So a row offers every board action that applies to its object, another package's among them, as every other menu of the object does.
+  A row shows the button only where `core.boardActions.on()` gives its object a board action, so under the board lock a row shows none unless another package's board action applies.
+  An advanced action that a row's menu opens, such as the form of Edit link, shows in the row, which turns into the form in a cell across the row.
+  The form now closes once the user saves it, as its `done()` ends the advanced action, and the keyboard's focus goes back to the row's button.
+  Each row starts with a checkbox, which adds its object to `core.selection` or takes it out, and which shows whether the selection holds the object, whatever set it.
+  The checkbox in a table's header ticks every row of the page.
+  While the selection holds a board object, a bar above the sections says how many it holds, with a "…" button that opens the menu of the selection and a button that clears the selection.
+  An advanced action that the menu of the selection opens, such as the form of Create stack, shows below the bar.
+  Where the store refuses a board action that one of these menus ran, the table or the bar says why below itself, until the next board action that one of its menus runs.
+  The reason starts with a sentence that names the edit: in the plugin's own words for core's board actions, as `Could not remove the stack "Input".`, and by its label for another package's, as `Add to document failed for the block "Filter".`
+  The tables draw with the `Table` of core's React SDK (#783).
 
 # blockr.core 0.1.4
 

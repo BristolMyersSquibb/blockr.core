@@ -2,16 +2,21 @@
 // its links and its stacks, as What it shows has it
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#what-it-shows).
 // Each section holds a form that adds one, and a table of those that the board
-// holds, with the controls that change and remove each. A table shows a page
-// of rows at a time, which a search narrows, so that it stays usable on a
-// board of many blocks.
-// The forms that add a block, a link and a stack, and those that change a link
-// or a stack in its row, are the advanced actions of core's board actions Add
-// block, Create link, Create stack, Edit link and Edit stack, which the plugin
-// mounts through mountAdvanced(), so that the plugin and the menus share them
+// holds. A table shows a page of rows at a time, which a search narrows, so
+// that it stays usable on a board of many blocks.
+// The forms that add a block, a link and a stack are the advanced actions of
+// core's board actions Add block, Create link and Create stack on the board,
+// which the plugin mounts through mountAdvanced(), so that the plugin and the
+// menus share them
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#the-advanced-action).
 // It mounts a form that adds only where core.boardActions.on() offers its
 // board action on the board.
+// Each row of a table ends in a "…" button, which opens the menu of the row's
+// block, link or stack, and starts with a checkbox, which adds the row's object
+// to core.selection or takes it out. While the selection holds a board
+// object, a bar above the sections says how many it holds, with a "…" button
+// that opens the menu of the selection and a button that clears the
+// selection (./menus.tsx, ./selection.ts).
 // Each section is a Disclosure of the SDK, which starts open and collapses by
 // its header, which counts what the board holds.
 // It draws nothing of a block's state, which the block's UI sets, nor the
@@ -20,24 +25,39 @@
 // the last one left it, a block that the user just added among it.
 // Where the store or the command registry refuses an edit, the plugin says why
 // close to the control that made it, in a banner in the colour of an error,
-// under a sentence that names the edit, until the user's next edit there:
-// below the buttons of a form, and below a table for an edit from the buttons
-// of its rows. Each edit takes the notification of its refusal, so that core
-// raises none (../../ui/edits.ts).
-// Under the board lock, the store refuses every edit that the plugin makes,
-// so the plugin draws no control there, as it reads from core.lock.board. It
-// then lists only the board's links and stacks, since a frontend draws the
-// blocks on their cards.
+// under a sentence that names the edit: a form below its buttons, and a table
+// or the bar below itself, for a board action that one of its menus ran.
+// Under the board lock, the store refuses what every board action of core's
+// but Copy block ID runs, so they fail their offers. The plugin then mounts no
+// form, and its rows and its bar show no "…" unless another package's board
+// action applies. It lists only the board's links and stacks, as it reads
+// from core.lock.board, since a frontend draws the blocks on their cards.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ReactElement, ReactNode, RefObject } from "react";
+import { useCallback, useMemo } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { Target } from "../../actions/index.ts";
 import { Mounted } from "../../card/index.ts";
-import { Disclosure, DisclosureHeader, DisclosurePanel, useBoard } from "../../react/index.ts";
+import {
+  Button,
+  Cell,
+  Column,
+  Disclosure,
+  DisclosureHeader,
+  DisclosurePanel,
+  Row,
+  Table,
+  TableBody,
+  TableHeader,
+  useBoard,
+} from "../../react/index.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { classes } from "../../ui/index.ts";
+import { Refusal } from "../../ui/index.ts";
 import { BlocksSection } from "./blocks.tsx";
 import { LinksSection } from "./links.tsx";
+import { MenuButton, PlaceForm, useMenus } from "./menus.tsx";
+import type { Menus } from "./menus.tsx";
+import { objectOf, selectedIds, tickRows, useSelected } from "./selection.ts";
+import type { Kind } from "./selection.ts";
 import { StacksSection } from "./stacks.tsx";
 
 export function EditBoard({ core }: { core: CoreApi }): ReactElement {
@@ -45,9 +65,60 @@ export function EditBoard({ core }: { core: CoreApi }): ReactElement {
   const locked = core.lock.board;
   return (
     <div className="bc:grid bc:gap-3 bc:font-sans bc:text-text-default">
+      <SelectionBar core={core} />
       {locked ? null : <BlocksSection core={core} board={board} />}
       <LinksSection core={core} board={board} locked={locked} />
       <StacksSection core={core} board={board} locked={locked} />
+    </div>
+  );
+}
+
+// The key of the bar's place for the advanced actions of the selection's menu.
+const SELECTION = "selection";
+
+// The bar of the selection, while the selection holds a board object, of
+// whatever kind and whatever selected it: how many it holds, a "…" button that
+// opens the menu of the selection, which offers Remove and Create stack among
+// core's board actions, and a button that clears the selection. An advanced
+// action that the menu opens shows below the bar, as Create stack's form with
+// the selected blocks given, until it ends, even where the selection empties
+// meanwhile. Why the store refused a board action that the menu ran shows
+// below the bar too.
+function SelectionBar({ core }: { core: CoreApi }): ReactElement | null {
+  const selected = useSelected(core);
+  const menus = useMenus(core);
+  const form = menus.shown.get(SELECTION);
+  if (selected.length === 0 && form === undefined) return null;
+  const target: Target = { selection: selected };
+  return (
+    <div role="region" aria-label="Selection" className="bc:grid bc:gap-2">
+      {selected.length === 0 ? null : (
+        <div className="bc:flex bc:items-center bc:gap-2 bc:rounded-md bc:border bc:border-border-default bc:px-3 bc:py-1.5 bc:text-sm">
+          <span aria-live="polite">{selected.length} selected</span>
+          <span className="bc:ml-auto bc:flex bc:items-center bc:gap-1">
+            {core.boardActions.on(target).length > 0 ? (
+              <MenuButton menus={menus} target={target} place={SELECTION} label="Actions of the selection" />
+            ) : null}
+            <Button
+              variant="quiet"
+              onPress={() => {
+                core.selection.set([]);
+              }}
+            >
+              Clear selection
+            </Button>
+          </span>
+        </div>
+      )}
+      {form === undefined ? null : (
+        <PlaceForm
+          args={form}
+          onClose={() => {
+            menus.close(SELECTION, form);
+          }}
+        />
+      )}
+      <Refusal refusal={menus.refusal} />
     </div>
   );
 }
@@ -83,39 +154,123 @@ export function Part({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-// The classes of the plugin's tables.
-export const table = {
-  table: "bc:w-full bc:table-fixed bc:border-collapse bc:text-sm",
-  head: "bc:border-b bc:border-border-default bc:px-1 bc:py-1 bc:text-left bc:text-xs bc:font-semibold bc:text-text-muted",
-  row: "bc:border-b bc:border-border-default bc:align-top",
-  cell: "bc:px-1 bc:py-1.5",
-} as const;
+// A column of a table of the board's objects.
+export interface ObjectColumn {
+  readonly id: string;
+  readonly name: string;
+  // The column whose cell names the row, which a screen reader reads as the
+  // row's name.
+  readonly rowHeader?: boolean;
+}
 
-// Whether a table's row shows its edit form, and the ref of the row's Edit
-// button, which gets the focus back as the form closes, so that the keyboard
-// stays at the row that the user edited.
-export function useRowEditing(): {
-  editing: boolean;
-  open: () => void;
-  close: () => void;
-  button: RefObject<HTMLButtonElement | null>;
-} {
-  const [editing, setEditing] = useState(false);
-  const closed = useRef(false);
-  const button = useRef<HTMLButtonElement | null>(null);
-  useLayoutEffect(() => {
-    if (editing || !closed.current) return;
-    closed.current = false;
-    button.current?.focus();
-  }, [editing]);
-  const open = useCallback(() => {
-    setEditing(true);
-  }, []);
-  const close = useCallback(() => {
-    closed.current = true;
-    setEditing(false);
-  }, []);
-  return { editing, open, close, button };
+// A row of a table of the board's objects: the object's id, the row's text,
+// the label of its "…" button, as "Actions of the block Head", and the
+// content of each cell, with the classes of the cell.
+export interface ObjectRow {
+  readonly id: string;
+  readonly text: string;
+  readonly menuLabel: string;
+  readonly cells: readonly { readonly content: ReactNode; readonly className?: string }[];
+}
+
+// What a cell of the plugin's tables takes beside the SDK's classes: text that
+// wraps where the column is narrow, rather than a box that scrolls sideways
+// in a narrow panel.
+export const WRAP = "bc:whitespace-normal! bc:break-words";
+
+// A table of the board's blocks, links or stacks, which the SDK's Table draws:
+// a checkbox that selects each row's object, ticked where core.selection holds
+// it, then the columns given, then a column with the "…" button of each row
+// whose object a board action applies to, where any row has one. The menus
+// are those of the table's section, which shows below the table why the store
+// refused a board action that one of them ran.
+// A row whose menu opened an advanced action turns into the form, in a cell
+// across the row, which keeps the row's checkbox.
+// The checkbox in the header ticks every row of the page, or unticks them.
+export function ObjectsTable({
+  core,
+  menus,
+  kind,
+  label,
+  columns,
+  rows,
+}: {
+  core: CoreApi;
+  menus: Menus;
+  kind: Kind;
+  label: string;
+  columns: readonly ObjectColumn[];
+  rows: readonly ObjectRow[];
+}): ReactElement {
+  const selected = useSelected(core);
+  const keys = useMemo(() => selectedIds(selected, kind), [selected, kind]);
+  const offered = new Set(rows.flatMap(({ id }) => (core.boardActions.on(objectOf(kind, id)).length > 0 ? [id] : [])));
+  const actions = offered.size > 0;
+  const span = columns.length + (actions ? 1 : 0);
+  return (
+    <Table
+      aria-label={label}
+      selectionMode="multiple"
+      selectedKeys={keys}
+      onSelectionChange={(picked) => {
+        tickRows(
+          core,
+          kind,
+          rows.map(({ id }) => id),
+          picked,
+        );
+      }}
+    >
+      <TableHeader>
+        {columns.map((column) => (
+          <Column key={column.id} id={column.id} isRowHeader={column.rowHeader === true}>
+            {column.name}
+          </Column>
+        ))}
+        {actions ? (
+          <Column id="actions" textValue="Actions" className="bc:w-px">
+            <span className="bc:sr-only">Actions</span>
+          </Column>
+        ) : null}
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => {
+          const form = menus.shown.get(row.id);
+          return (
+            <Row key={row.id} id={row.id} textValue={row.text}>
+              {form === undefined ? (
+                [
+                  ...row.cells.map(({ content, className }, i) => (
+                    <Cell key={i} className={className}>
+                      {content}
+                    </Cell>
+                  )),
+                  ...(actions
+                    ? [
+                        <Cell key="actions" className="bc:text-right">
+                          {offered.has(row.id) ? (
+                            <MenuButton menus={menus} target={objectOf(kind, row.id)} place={row.id} label={row.menuLabel} />
+                          ) : null}
+                        </Cell>,
+                      ]
+                    : []),
+                ]
+              ) : (
+                <Cell colSpan={span} className={WRAP}>
+                  <PlaceForm
+                    args={form}
+                    onClose={() => {
+                      menus.close(row.id, form);
+                    }}
+                  />
+                </Cell>
+              )}
+            </Row>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
 }
 
 // The board, as the target of a board action that acts on it.
@@ -135,65 +290,4 @@ export function Advanced({ core, id, target }: { core: CoreApi; id: string; targ
   const key = JSON.stringify(target);
   const mount = useCallback((el: HTMLElement) => core.boardActions.mountAdvanced(el, id, JSON.parse(key) as Target), [core, id, key]);
   return <Mounted mount={mount} className="bc:min-w-0" />;
-}
-
-// The row of a table that shows the advanced action of a board action on the
-// row's object, in a cell across the row, as a row turns into the form of
-// Edit link, with a Close button below it, which closes it, as Escape does.
-// The form says itself why the store refused what it ran. The plugin mounts
-// the form through mountAdvanced(), where core renders it afresh once its
-// done() has run a batch, so the form stays open once the user has saved it,
-// and shows the row's object as the batch left it.
-export function RowAdvanced({
-  core,
-  id,
-  target,
-  label,
-  columns,
-  onDone,
-}: {
-  core: CoreApi;
-  id: string;
-  target: Target;
-  label: string;
-  columns: number;
-  onDone: () => void;
-}): ReactElement {
-  const box = useRef<HTMLDivElement>(null);
-  // The form is a module of its own, in a React root of its own, so the box
-  // hears its keys as the page does, once the form has let them through.
-  // Escape in a field whose list is open closes the list alone, which the box
-  // tells as the key comes down to the field, since the field closes its list
-  // before the key comes back up.
-  useEffect(() => {
-    const el = box.current;
-    if (el === null) return undefined;
-    let listOpen = false;
-    const down = (event: KeyboardEvent): void => {
-      listOpen = event.target instanceof Element && event.target.getAttribute("aria-expanded") === "true";
-    };
-    const heard = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && !event.defaultPrevented && !listOpen) onDone();
-    };
-    el.addEventListener("keydown", down, { capture: true });
-    el.addEventListener("keydown", heard);
-    return () => {
-      el.removeEventListener("keydown", down, { capture: true });
-      el.removeEventListener("keydown", heard);
-    };
-  }, [onDone]);
-  return (
-    <tr aria-label={label} className={table.row}>
-      <td colSpan={columns} className={`${table.cell} bc:py-2`}>
-        <div ref={box} className="bc:grid bc:gap-2">
-          <Advanced core={core} id={id} target={target} />
-          <div className="bc:flex bc:gap-2">
-            <button type="button" className={classes.button} onClick={onDone}>
-              Close
-            </button>
-          </div>
-        </div>
-      </td>
-    </tr>
-  );
 }

@@ -8,36 +8,43 @@
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#what-it-shows).
 //   Core renders it again once it has added a block, ready for the next.
 // - A table of the board's blocks, with each block's name, ID and class, which
-//   a search narrows and which shows a page of rows at a time. The name of
-//   each block renames it in place with rename_block, and a button removes it
-//   with remove_block, which removes its links and its place in its stack too.
+//   a search narrows and which shows a page of rows at a time. Each row's "…"
+//   opens the menu of its block, which offers Rename and Remove block among
+//   core's board actions, and the board actions of other packages on a block.
+//   An advanced action that the menu opens, such as the block picker of
+//   Append block, shows in the row.
 // Where the store or the command registry refuses an edit, the picker says why
-// below its button. Where it refuses to rename or remove a block, the table
-// says so below itself, naming the block, until the user's next edit in the
-// table. The name of a block that the user renames takes its column's width.
+// below its button. Where it refuses a board action that a row's menu ran,
+// the table says so below itself, naming the block, until the next board
+// action that one of the table's menus runs.
 
-import { useState } from "react";
 import type { ReactElement } from "react";
 import { styles } from "../../styles/index.ts";
-import type { Block, BlockId, Board } from "../../types/board.ts";
+import type { Block, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
-import { classes, NameField, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
-import type { Edits } from "../../ui/index.ts";
+import { Pager, Refusal, TableSearch, useTableView } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
-import { Advanced, BOARD, offers, Part, Section, table } from "./board.tsx";
+import { Advanced, BOARD, ObjectsTable, offers, Part, Section, WRAP } from "./board.tsx";
+import { useMenus } from "./menus.tsx";
 
 // Core's board action whose advanced action the section mounts, by its id, as
 // any plugin names it.
 const ADD_BLOCK = "blockr.core-add_block_action";
+
+const COLUMNS = [
+  { id: "name", name: "Name", rowHeader: true },
+  { id: "id", name: "ID" },
+  { id: "class", name: "Class" },
+] as const;
 
 export function BlocksSection({ core, board }: { core: CoreApi; board: Board }): ReactElement {
   const registry = core.blockRegistry();
   const className = (block: Block): string => own(registry, block.registry_id)?.name ?? block.registry_id;
   const view = useTableView(Object.entries(board.blocks), ([id, block]) => `${block.name} ${id} ${className(block)}`);
   const count = Object.keys(board.blocks).length;
-  // The edits of the table's rows, which say why one was refused below the
+  // The menus of the table's rows, which say why one was refused below the
   // table.
-  const edits = useEdits(core);
+  const menus = useMenus(core);
 
   return (
     <Section title="Blocks" count={count}>
@@ -55,87 +62,29 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
             {view.found === 0 ? (
               <p className={styles.hint}>No block matches the search.</p>
             ) : (
-              <table className={table.table}>
-                <caption className="bc:sr-only">The board's blocks</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" className={table.head}>
-                      Name
-                    </th>
-                    <th scope="col" className={table.head}>
-                      ID
-                    </th>
-                    <th scope="col" className={table.head}>
-                      Class
-                    </th>
-                    <th scope="col" className={`${table.head} bc:w-28`}>
-                      <span className="bc:sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {view.rows.map(([id, block]) => (
-                    <BlockRow key={id} edits={edits} id={id} block={block} className={className(block)} />
-                  ))}
-                </tbody>
-              </table>
+              <ObjectsTable
+                core={core}
+                menus={menus}
+                kind="block"
+                label="The board's blocks"
+                columns={COLUMNS}
+                rows={view.rows.map(([id, block]) => ({
+                  id,
+                  text: block.name,
+                  menuLabel: `Actions of the block ${block.name}`,
+                  cells: [
+                    { content: <span className="bc:font-medium">{block.name}</span>, className: WRAP },
+                    { content: id, className: "bc:font-mono bc:text-xs bc:whitespace-normal! bc:break-all" },
+                    { content: className(block), className: `${WRAP} bc:text-text-muted` },
+                  ],
+                }))}
+              />
             )}
-            <Refusal refusal={edits.refusal} />
+            <Refusal refusal={menus.refusal} />
             <Pager label="Pages of blocks" view={view} />
           </>
         )}
       </Part>
     </Section>
-  );
-}
-
-function BlockRow({ edits, id, block, className }: { edits: Edits; id: BlockId; block: Block; className: string }): ReactElement {
-  const [renaming, setRenaming] = useState(false);
-  return (
-    <tr aria-label={block.name} className={table.row}>
-      <td className={table.cell}>
-        {renaming ? (
-          <NameField
-            label="Block name"
-            name={block.name}
-            fill
-            onSubmit={(name) => {
-              void edits.run(`Could not rename the block "${block.name}".`, "blockr.core-rename_block", { id, name });
-            }}
-            onDone={() => {
-              setRenaming(false);
-            }}
-          />
-        ) : (
-          <span className="bc:font-medium bc:break-words">{block.name}</span>
-        )}
-      </td>
-      <td className={`${table.cell} bc:font-mono bc:text-xs bc:break-all`}>{id}</td>
-      <td className={`${table.cell} bc:text-text-muted`}>{className}</td>
-      <td className={`${table.cell} bc:text-right bc:whitespace-nowrap`}>
-          {renaming ? null : (
-            <button
-              type="button"
-              className={classes.quiet}
-              aria-label={`Rename the block ${block.name}`}
-              onClick={() => {
-                setRenaming(true);
-              }}
-            >
-              Rename
-            </button>
-          )}
-          <button
-            type="button"
-            className={classes.quiet}
-            aria-label={`Remove the block ${block.name}`}
-            onClick={() => {
-              void edits.run(`Could not remove the block "${block.name}".`, "blockr.core-remove_block", { id });
-            }}
-          >
-            Remove
-          </button>
-      </td>
-    </tr>
   );
 }
