@@ -511,7 +511,11 @@ export function start(options: StartOptions): Started {
       randId,
       blockrOption: (name) => blockrOptions.read(name),
     });
-    const boardActions = createBoardActions(raise, () => store.blockRegistry());
+    const boardActions = createBoardActions({
+      raise,
+      preflight: (id, args) => commands.preflight(id, args),
+      blockRegistry: () => store.blockRegistry(),
+    });
     await opening.step("modules", () => register(reply, store, commands, boardActions, signal, raise));
     // R binds inputs itself for the board that it sent alone.
     const bound = later === undefined ? reply.bound : undefined;

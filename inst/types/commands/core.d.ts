@@ -5,5 +5,6 @@ import type { RegistryEntry } from "../types/registry.ts";
 import type { Command } from "./commands.ts";
 export declare function coreCommands(store: Store): Command<Json, unknown>[];
 export declare function freeInputs(board: Pick<Board, "blocks" | "links">, registry: Readonly<Record<RegistryId, RegistryEntry>>, to: BlockId, except?: LinkId): readonly string[] | undefined;
+export declare function takesLink(board: Pick<Board, "blocks" | "links">, registry: Readonly<Record<RegistryId, RegistryEntry>>, to: BlockId): boolean;
 export declare function linkFeeding(board: Pick<Board, "blocks" | "links">, registry: Readonly<Record<RegistryId, RegistryEntry>>, to: BlockId, input: string, except?: LinkId): LinkId | undefined;
 export declare function defaultBlockName(registryId: RegistryId): string;

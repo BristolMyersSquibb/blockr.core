@@ -741,6 +741,12 @@ function actionRow(action: BoardAction, board: Board, target: Target): QuickRow 
   };
 }
 
+// An item of a quick action that opens the level given at the same spot, as
+// Edit link's Change source… opens the blocks that can feed the link.
+export function levelItem(label: string, level: QuickLevel): QuickRow {
+  return { kind: "item", label, pick: () => level };
+}
+
 // Whether a value is a batch of commands, each by its id.
 export function isBatch(value: unknown): value is readonly CommandCall[] {
   return Array.isArray(value) && value.every((call) => isObject(call) && typeof call.id === "string");

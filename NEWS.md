@@ -873,6 +873,29 @@
 * Loading `@blockr/core/stubs` makes every document of `happy-dom` an instance of the window's `Document`, as in a browser.
   React Aria finds the focus within an element only where the root of the element is such an instance.
   So in a test, a popover or a dialog of the SDK that a pointer press opens no longer takes the focus from one of its elements that took the focus first, such as a search field with `autoFocus` (#818).
+* Core registers four more board actions, which create and edit a link or a stack.
+  Create link applies to a block that a new link can join to another, and to the board where it holds such a block.
+  On a block, its quick action lists the blocks that the block can send to and those that it can take from, by their names and IDs, and then asks for the input, where the block that the link goes into has several free ones.
+  It lists only the links for which the preflight of `blockr.core-add_link` passes, and no menu offers it where none would be left.
+  On the board, its row opens its advanced action at once.
+  Edit link applies to a link, and its quick action offers Change source…, Move to input…, whose inputs that another link feeds swap the inputs of the two links, and, into a variadic block, Rename input….
+  Create stack applies to a block, to a selection that holds a block and to the board.
+  Its quick action lists the board's stacks that the blocks join, and New stack, which adds a stack of the blocks with a name and a color that no other stack has.
+  Edit stack applies to a stack, and its quick action gives the stack a color of the palette that no other stack has, or ticks the stack's blocks.
+  Under the board lock, all four fail their `offers`.
+  Their advanced actions are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
+  Each form runs nothing before the user submits it, and then hands its batch to `done()`, which runs it as one step of the user.
+  So saving a form that edits takes one step, where the plugin's forms took one for each command until now, as for renaming a stack and changing its blocks.
+  A form that adds mints the new link's or stack's ID with `core.mintId()`.
+  Where the store refuses the batch, the form says why below its button and keeps what the user gave.
+  A row of the plugin's tables turns into the form that edits its link or its stack, with a Close button, which closes it, as Escape does, while Escape in a select whose list is open closes the list alone.
+  The form stays open in the row once the user has saved it, and shows the link or the stack as the board holds it then (#746).
+* Core's board action Edit inputs, `blockr.core-edit_inputs_action`, edits the inputs of a block whose class has inputs.
+  It has an advanced action alone, which lists the block's inputs in their order, each with its source, as the dock's actions sidebar does.
+  On a block that is not variadic, each input of its class has a select of its source and a button that removes the source.
+  On a variadic block, each link into the block is an input, with a select of its source, a field of its name and a button that removes it.
+  The user drags an input into another order by its grip, with the pointer or from the keyboard, and a select below the inputs adds one.
+  Each edit applies at once, as one step of the user, through `add_link`, `change_link`, `move_link` or `remove_link`, and the advanced action says below the inputs why the store refused one (#747).
 
 # blockr.core 0.1.4
 

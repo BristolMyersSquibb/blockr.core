@@ -1,17 +1,26 @@
 // Core's board actions, from the table of Core's board actions
 // (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.16#cores-board-actions),
 // in its order: Add block, Append block, Prepend block and Insert block,
-// Rename, Copy block ID, Remove block, Remove link, Remove stack, and Remove
-// on a selection. Their ids are under blockr.core and keep the names
-// of the dock's actions, as blockr.core-remove_block_action, but for Rename and
-// Copy block ID, which are new.
+// Create link, Create stack, Rename, Edit link, Edit inputs, Edit stack,
+// Copy block ID, Remove block, Remove link, Remove stack, and Remove on a
+// selection. Their ids are under blockr.core and keep the names of the dock's
+// actions, as blockr.core-remove_block_action, but for Rename and Copy block
+// ID, which are new.
 // - Add block, Append block, Prepend block and Insert block add a block
 //   through a pick in their quick actions, or through the block picker, their
 //   advanced action (./add.tsx).
+// - Create link and Edit link add and change a link, and Create stack and Edit
+//   stack a stack, through their quick actions and their advanced actions,
+//   the forms of a link and of a stack (./links.ts, ./stacks.ts).
 // - Rename, on a block or a stack, asks for the name in its quick action, a
 //   text row that holds the name, which refuses an empty name, and runs core's
 //   command that renames the block or the stack. A name that the user leaves
 //   as it was runs nothing.
+// - Edit inputs, on a block whose class has inputs, has an advanced action
+//   alone, which lists the block's inputs, each with its source, and applies
+//   each edit at once (./inputs.tsx). It has no quick action, since moving an
+//   input would take three picks at the trigger, so that its row in a menu
+//   opens its advanced action at once.
 // - Copy block ID puts the block's id on the clipboard itself, and raises a
 //   notification of the code `copy_failed` about the block where the browser
 //   refuses (./clipboard.ts). Its row in a menu shows the block's id.
@@ -19,10 +28,11 @@
 //   what they act on.
 // - Remove on a selection removes every block, link and stack of the
 //   selection in one step, and leaves out what else the selection holds.
-// Each but Rename and the four that add a block acts at once, through its
-// run(). Those that add a block carry a plus as their icon. Those that remove
-// carry the bin of a row that destroys something, in the shape of blockr.ui's
-// `trash`, since blockr.ui builds on blockr.core
+// Copy block ID and those that remove act at once, through their run(). Those
+// that add carry a plus as their icon, in the shape of blockr.ui's `plus`
+// (./icons.ts), and those that remove the bin of a row that destroys
+// something, in the shape of blockr.ui's `trash`, since blockr.ui builds on
+// blockr.core
 // (https://github.com/BristolMyersSquibb/blockr.ui/blob/e14e8310481e98b156871bf96669b41cb88c8435/inst/assets/icons/trash.svg).
 // Under the board lock, every one but Copy block ID fails its offers(), since
 // the store refuses what they run
@@ -31,20 +41,38 @@
 // as where the block has left the board since the menu opened, so that no
 // menu offers a board action that leads nowhere.
 
-import type { Board, RegistryId } from "../types/board.ts";
-import type { RegistryEntry } from "../types/registry.ts";
+import type { Commands } from "../commands/index.ts";
+import type { Board } from "../types/board.ts";
+import type { BlockRegistry } from "../types/core-api.ts";
+import { classInputs } from "../ui/index.ts";
 import { coreNotification, own } from "../util/index.ts";
 import type { Raise } from "../util/index.ts";
 import type { BoardAction, CommandCall, Target } from "./actions.ts";
 import { addingBoardActions } from "./add.tsx";
 import { copyText } from "./clipboard.ts";
+import { editInputs } from "./inputs.tsx";
+import { createLinkAction, editLinkAction } from "./links.ts";
+import { createStackAction, editStackAction } from "./stacks.ts";
 import { blockOf, heldBlock } from "./targets.ts";
 
-// Core's board actions, whose notifications core raises through `raise`, and
-// which read the block registry of the open board through `registry`.
-export function coreBoardActions(raise: Raise, registry: () => Readonly<Record<RegistryId, RegistryEntry>>): BoardAction[] {
+// What core's board actions read beyond what their functions get: what raises
+// their notifications, the preflights of the command registry, and the block
+// registry of the open board, as Add block lists its classes, as Create
+// link's offers() tells which blocks a new link can join, and as Edit inputs'
+// tells whether a block's class has inputs, since offers() gets no CoreApi.
+export interface CoreParts {
+  readonly raise: Raise;
+  readonly preflight: Commands["preflight"];
+  readonly blockRegistry: () => BlockRegistry;
+}
+
+// Core's board actions.
+export function coreBoardActions(parts: CoreParts): BoardAction[] {
+  const { raise } = parts;
   return [
-    ...addingBoardActions(registry),
+    ...addingBoardActions(parts.blockRegistry),
+    createLinkAction(parts),
+    createStackAction(),
     {
       id: "blockr.core-rename_action",
       label: "Rename",
@@ -70,6 +98,19 @@ export function coreBoardActions(raise: Raise, registry: () => Readonly<Record<R
         };
       },
     },
+    editLinkAction(parts),
+    {
+      id: "blockr.core-edit_inputs_action",
+      label: "Edit inputs",
+      on: ["block"],
+      category: "edit",
+      offers(board, target, lock) {
+        const block = blockOf(target);
+        return !lock.board && block !== undefined && classInputs(board, parts.blockRegistry(), block).length > 0;
+      },
+      advanced: editInputs,
+    },
+    editStackAction(),
     {
       id: "blockr.core-copy_block_id_action",
       label: "Copy block ID",

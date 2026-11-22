@@ -6,6 +6,8 @@
 // element that the user triggered from.
 
 import { act } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test } from "vitest";
 import type { Delta } from "../store/index.ts";
 import { find, press } from "../testing/inputs.ts";
@@ -16,7 +18,9 @@ import { showDialog } from "./dialog.tsx";
 
 // Core's dialog for an advanced action that draws a field, opened from a
 // button that has the keyboard's focus, with a close() that counts its calls.
-async function drawn(signal?: AbortSignal) {
+// Where `react` is true, the advanced action draws the field in a React root
+// of its own, as core's forms of a link and of a stack do.
+async function drawn(signal?: AbortSignal, react = false) {
   const trigger = document.createElement("button");
   trigger.textContent = "Open";
   document.body.append(trigger);
@@ -30,6 +34,17 @@ async function drawn(signal?: AbortSignal) {
     target: { block: "b" },
     mount(el) {
       mounted.push(el);
+      if (react) {
+        const root = createRoot(el);
+        flushSync(() => {
+          root.render(<input aria-label="Name" />);
+        });
+        return () => {
+          unmounted++;
+          root.unmount();
+          el.replaceChildren();
+        };
+      }
       const input = document.createElement("input");
       input.setAttribute("aria-label", "Name");
       el.append(input);
@@ -98,6 +113,21 @@ describe("core's dialog", () => {
     expect(unmounted()).toBe(1);
     expect(closed()).toBe(1);
     expect(document.activeElement).toBe(trigger);
+  });
+
+  test("unmounts an advanced action written in React once React has closed the dialog, so that the advanced action's root removes what it drew", async () => {
+    const { mounted, unmounted, closed } = await drawn(undefined, true);
+    expect(find(openDialog(), 'input[aria-label="Name"]')).toBeTruthy();
+
+    const close = [...openDialog().querySelectorAll("button")].find((button) => button.textContent.trim() === "Close");
+    await step(() => {
+      close?.click();
+    });
+    await settle();
+
+    expect(shown()).toBeNull();
+    expect([unmounted(), closed()]).toEqual([1, 1]);
+    expect(mounted[0]?.childNodes).toHaveLength(0);
   });
 
   test("closes on Escape, which React Aria hears where the focus is", async () => {

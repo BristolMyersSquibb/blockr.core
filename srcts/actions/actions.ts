@@ -62,17 +62,17 @@
 import { isCommandId } from "../commands/index.ts";
 import { REPLACED } from "../mount/index.ts";
 import type { Delta, Store } from "../store/index.ts";
-import type { Board, PluginClassId, RegistryId } from "../types/board.ts";
+import type { Board, PluginClassId } from "../types/board.ts";
 import type { BoardObject, CoreApi, Notification, Notifier } from "../types/core-api.ts";
 import type { Json } from "../types/json.ts";
 import type { Lock } from "../protocol/index.ts";
-import type { RegistryEntry } from "../types/registry.ts";
 import { log } from "../log/index.ts";
 import { coreNotification, errorMessage, isObject, packageFromId, quoted, sourceModule } from "../util/index.ts";
-import type { Raise, Refused } from "../util/index.ts";
+import type { Refused } from "../util/index.ts";
 import { createAdvanced } from "./advanced.ts";
 import type { AdvancedModule, Batching, Opening, Place, ShowDialog } from "./advanced.ts";
 import { coreBoardActions } from "./core.ts";
+import type { CoreParts } from "./core.ts";
 import { isElement, targetGiven } from "./given.ts";
 import { isBatch, openMenu } from "./quick.ts";
 import type { MenuStart, OpenMenu, QuickLevel } from "./quick.ts";
@@ -166,11 +166,11 @@ export interface BoardActions {
 }
 
 // The board actions of an open board, with core's own, whose notifications,
-// as of a copy that the browser refuses, core raises through `raise`, and
-// which read the board's block registry through `registry`, as Add block
-// lists its classes.
-export function createBoardActions(raise: Raise, registry: () => Readonly<Record<RegistryId, RegistryEntry>>): BoardActions {
-  let registered: readonly BoardAction[] = coreBoardActions(raise, registry);
+// as of a copy that the browser refuses, core raises through the `raise` of
+// `parts`, and which read the preflights of the command registry and the
+// board's block registry through it, as Add block lists its classes.
+export function createBoardActions(parts: CoreParts): BoardActions {
+  let registered: readonly BoardAction[] = coreBoardActions(parts);
   // The plugin class that lists each board action that a class lists, by the
   // board action's id.
   const classes = new Map<string, PluginClassId>();

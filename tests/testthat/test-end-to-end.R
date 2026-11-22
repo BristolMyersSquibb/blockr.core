@@ -220,6 +220,8 @@ test_that("the user edits the stacks of a board", {
     "the stack abc of a, c and b"
   )
 
+  # The row's form stays open once saved, until the user closes it.
+  act(app, "click", "Close", selector = stacks)
   act(app, "click", "Remove the stack abc", selector = stacks)
   wait_for_board(app, function(board) !length(board$stacks), "no stack")
 

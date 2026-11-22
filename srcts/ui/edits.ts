@@ -15,6 +15,9 @@
 //   board, and below a table for an edit in its rows, as The Edit board plugin
 //   has it
 //   (https://github.com/BristolMyersSquibb/blockr/wiki/Rewrite-1.1.15#each-edit-at-once).
+//   The advanced action of Edit inputs, one of core's board actions, runs its
+//   edits so too, and shows why below its list of inputs
+//   (../actions/inputs.tsx).
 //   The block picker, the advanced action of core's board actions that add a
 //   block, runs its edit through useEdits() as well, and hands it to its
 //   done(), which runs it as one step of the user and ends the advanced action

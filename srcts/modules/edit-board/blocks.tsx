@@ -16,20 +16,19 @@
 // says so below itself, naming the block, until the user's next edit in the
 // table. The name of a block that the user renames takes its column's width.
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import type { ReactElement } from "react";
-import { Mounted } from "../../card/index.ts";
 import { styles } from "../../styles/index.ts";
 import type { Block, BlockId, Board } from "../../types/board.ts";
 import type { CoreApi } from "../../types/core-api.ts";
 import { classes, NameField, Pager, Refusal, TableSearch, useEdits, useTableView } from "../../ui/index.ts";
 import type { Edits } from "../../ui/index.ts";
 import { own } from "../../util/index.ts";
-import { Part, Section, table } from "./board.tsx";
+import { Advanced, BOARD, offers, Part, Section, table } from "./board.tsx";
 
-// Core's board action Add block, and the board, which it acts on.
+// Core's board action whose advanced action the section mounts, by its id, as
+// any plugin names it.
 const ADD_BLOCK = "blockr.core-add_block_action";
-const BOARD = { board: true } as const;
 
 export function BlocksSection({ core, board }: { core: CoreApi; board: Board }): ReactElement {
   const registry = core.blockRegistry();
@@ -39,14 +38,12 @@ export function BlocksSection({ core, board }: { core: CoreApi; board: Board }):
   // The edits of the table's rows, which say why one was refused below the
   // table.
   const edits = useEdits(core);
-  const adds = core.boardActions.on(BOARD).some(({ id }) => id === ADD_BLOCK);
-  const picker = useCallback((el: HTMLElement) => core.boardActions.mountAdvanced(el, ADD_BLOCK, BOARD), [core]);
 
   return (
     <Section title="Blocks" count={count}>
-      {adds ? (
+      {offers(core, ADD_BLOCK, BOARD) ? (
         <Part title="Add a block">
-          <Mounted mount={picker} />
+          <Advanced core={core} id={ADD_BLOCK} target={BOARD} />
         </Part>
       ) : null}
       <Part title="Blocks on the board">
