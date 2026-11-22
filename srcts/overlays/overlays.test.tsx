@@ -1,25 +1,28 @@
 // The overlays of core's React SDK, React Aria's in core's theme: what core
 // adds to them, where they stack, the tooltip and its trigger, the dialog that
-// asks, the sheet, the submenu and the toasts.
+// asks, where the popover leaves the focus, the sheet, the submenu and the
+// toasts.
 // The rest, such as the keys that move through a menu, is React Aria's.
 
 import { act } from "react";
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { Button, ComboBox, ComboBoxItem } from "../inputs/index.ts";
+import { Button, ComboBox, ComboBoxItem, SearchField } from "../inputs/index.ts";
 import { find, press } from "../testing/inputs.ts";
 import { menuItem, menuItems, openDialog, openMenu, pointTo, shownTip, tipOnFocus } from "../testing/overlays.ts";
 import { step } from "../testing/react.ts";
 import { labelled } from "../testing/select.ts";
 import {
   AlertDialog,
+  Dialog,
   DialogTrigger,
   Focusable,
   Menu,
   MenuItem,
   MenuTrigger,
   Modal,
+  Popover,
   Sheet,
   SubmenuTrigger,
   Toast,
@@ -59,6 +62,18 @@ async function draw(node: ReactElement): Promise<HTMLElement> {
 async function click(el: HTMLElement): Promise<void> {
   await step(() => {
     el.click();
+  });
+}
+
+// Presses the element with the mouse's main button and lets it go, as a
+// browser fires the events of the pointer and then the click.
+// React Aria takes click() for a virtual press and moves the focus later.
+async function pointerPress(el: HTMLElement): Promise<void> {
+  const pointer = { bubbles: true, cancelable: true, composed: true, pointerId: 1, pointerType: "mouse", isPrimary: true, button: 0 };
+  await step(() => {
+    el.dispatchEvent(new PointerEvent("pointerdown", { ...pointer, buttons: 1 }));
+    el.dispatchEvent(new PointerEvent("pointerup", { ...pointer, buttons: 0 }));
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, button: 0, detail: 1 }));
   });
 }
 
@@ -232,6 +247,27 @@ describe("the dialog that asks", () => {
     await click(button(find(document, '[role="alertdialog"]'), "Remove it"));
     expect(onAction).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  });
+});
+
+describe("the popover", () => {
+  test("leaves the focus with its search field, which takes the focus as a pointer press opens the popover", async () => {
+    const el = await draw(
+      <DialogTrigger>
+        <Button>Pick</Button>
+        <Popover>
+          <Dialog aria-label="Pick">
+            <SearchField autoFocus aria-label="Search" />
+          </Dialog>
+        </Popover>
+      </DialogTrigger>,
+    );
+
+    await pointerPress(button(el, "Pick"));
+    // In happy-dom, the dialog takes the focus from the search field unless
+    // ../testing/dom.ts makes the page's document an instance of the
+    // window's Document.
+    expect(document.activeElement).toBe(find(openDialog(), 'input[aria-label="Search"]', HTMLInputElement));
   });
 });
 
