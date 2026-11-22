@@ -845,11 +845,12 @@
   Edit stack applies to a stack, and its quick action gives the stack a color of the palette that no other stack has, or ticks the stack's blocks.
   Under the board lock, all four fail their `offers`.
   Their advanced actions are the forms of a link and of a stack, which the Edit board plugin drew until now, and which it now mounts through `core.boardActions.mountAdvanced()`.
-  A form that adds runs nothing before the user submits it, and mints the new link's or stack's ID with `core.mintId()`.
-  A form that edits applies each edit as the user makes it, through `core.commands.run()`, so that it has no Save button, and says below itself why the store refused an edit.
-  It names a link's input or a stack once the user leaves the field or presses Enter there, and gives a stack a color as the user lets go of a part of the color picker or picks a swatch.
-  A row of the plugin's tables turns into the form that edits its link or its stack, with a Done button, which closes it, as Escape does.
-  Escape in a select whose list is open closes the list alone (#746).
+  Each form runs nothing before the user submits it, and then hands its batch to `done()`, which runs it as one step of the user.
+  So saving a form that edits takes one step, where the plugin's forms took one for each command until now, as for renaming a stack and changing its blocks.
+  A form that adds mints the new link's or stack's ID with `core.mintId()`.
+  Where the store refuses the batch, the form says why below its button and keeps what the user gave.
+  A row of the plugin's tables turns into the form that edits its link or its stack, with a Close button, which closes it, as Escape does, while Escape in a select whose list is open closes the list alone.
+  The form stays open in the row once the user has saved it, and shows the link or the stack as the board holds it then (#746).
 
 # blockr.core 0.1.4
 

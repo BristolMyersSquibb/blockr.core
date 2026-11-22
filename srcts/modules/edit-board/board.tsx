@@ -20,8 +20,8 @@
 // Where the store or the command registry refuses an edit, the plugin says why
 // close to the control that made it, in a banner in the colour of an error,
 // under a sentence that names the edit, until the user's next edit there:
-// below the buttons of a form that adds to the board, below the form that
-// changes a row, and below a table for an edit from a row's buttons. Each edit
+// below the buttons of a form, and below a table for an edit from the buttons
+// of its rows. Each edit
 // takes the notification of its refusal, so that core raises none
 // (../../ui/edits.ts).
 // Under the board lock, the store refuses every edit that the plugin makes,
@@ -134,9 +134,11 @@ export function Advanced({ core, id, target }: { core: CoreApi; id: string; targ
 
 // The row of a table that shows the advanced action of a board action on the
 // row's object, in a cell across the row, as a row turns into the form of
-// Edit link, with a Done button below it, which closes it, as Escape does.
-// Each edit in the form applies as the user makes it, and the form says
-// itself why the store refused one.
+// Edit link, with a Close button below it, which closes it, as Escape does.
+// The form says itself why the store refused what it ran. The plugin mounts
+// the form through mountAdvanced(), where core renders it afresh once its
+// done() has run a batch, so the form stays open once the user has saved it,
+// and shows the row's object as the batch left it.
 export function RowAdvanced({
   core,
   id,
@@ -182,7 +184,7 @@ export function RowAdvanced({
           <Advanced core={core} id={id} target={target} />
           <div className="bc:flex bc:gap-2">
             <button type="button" className={classes.button} onClick={onDone}>
-              Done
+              Close
             </button>
           </div>
         </div>

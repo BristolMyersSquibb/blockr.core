@@ -17,14 +17,6 @@ export declare function NameField({ label, name, onSubmit, onDone, fill, }: {
     onDone: () => void;
     fill?: boolean;
 }): ReactElement;
-export declare function EditField({ label, value, description, check, onSubmit, identifier: holdsIdentifier, }: {
-    label: string;
-    value: string;
-    description?: string;
-    check?: (value: string) => string | undefined;
-    onSubmit: (value: string) => void;
-    identifier?: boolean;
-}): ReactElement;
 export declare function drawForm(el: HTMLElement, form: ReactNode): () => void;
 export declare const identifier: {
     readonly spellCheck: "false";

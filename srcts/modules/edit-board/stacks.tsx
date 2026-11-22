@@ -5,8 +5,8 @@
 // - A table of the board's stacks, with each stack's name, colour and blocks,
 //   which a search narrows and which shows a page of rows at a time. A row's
 //   Edit button turns the row into the form that changes the stack, the
-//   advanced action of Edit stack on the stack, which applies each edit as
-//   the user makes it, until the user closes it. Its Remove button removes
+//   advanced action of Edit stack on the stack, which changes the stack once
+//   the user saves it, until the user closes it. Its Remove button removes
 //   the stack with remove_stack, which leaves the stack's blocks on the
 //   board.
 // The table draws a stack's colour with the swatch of core's React SDK.

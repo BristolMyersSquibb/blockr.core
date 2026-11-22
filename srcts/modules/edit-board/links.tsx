@@ -9,8 +9,8 @@
 //   shows a page of rows at a time. For a link into a variadic block, the
 //   table shows the link's place among the block's links.
 //   A row's Edit button turns the row into the form that changes the link,
-//   the advanced action of Edit link on the link, which applies each edit as
-//   the user makes it, until the user closes it. Its Remove button removes
+//   the advanced action of Edit link on the link, which changes the link once
+//   the user saves it, until the user closes it. Its Remove button removes
 //   the link with remove_link.
 // Where the store or the command registry refuses a removal, the table says
 // so below itself, naming the link, until the user's next edit in the table.

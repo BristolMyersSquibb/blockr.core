@@ -12,7 +12,7 @@ import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import { stubCore } from "../stubs/index.ts";
 import type { StubCore } from "../stubs/index.ts";
-import { find, press, type } from "../testing/inputs.ts";
+import { find, type } from "../testing/inputs.ts";
 import { step } from "../testing/react.ts";
 import { labelled, listed, optionFromLabel, optionLabels, picked, selectButton, selectShows } from "../testing/select.ts";
 import type { BoardAction, Target } from "./actions.ts";
@@ -85,6 +85,17 @@ function button(el: ParentNode, text: string): HTMLButtonElement {
   const found = [...el.querySelectorAll("button")].find((b) => b.textContent.trim() === text);
   if (found === undefined) throw new Error(`Found no button ${text}.`);
   return found;
+}
+
+// The lines below a field, its description and its error, which React Aria
+// names in the field's aria-describedby, in that order.
+function note(field: HTMLElement): string | undefined {
+  const ids = (field.getAttribute("aria-describedby") ?? "").split(" ");
+  const texts = ids.flatMap((id) => {
+    const text = field.ownerDocument.getElementById(id)?.textContent ?? "";
+    return text === "" ? [] : [text];
+  });
+  return texts.length === 0 ? undefined : texts.join(" ");
 }
 
 // What a form says of why the store refused an edit, banner by banner.
@@ -309,47 +320,45 @@ describe("Edit link", () => {
     expect(s.core.store.board().links.de).toEqual({ from: "d", to: "e", input: "" });
   });
 
-  test("opens the form of the link, which applies each edit as the user makes it, in a step of its own, and has no button to save", async () => {
+  test("opens the form of the link, which changes the link once the user saves it, in one step, and closes", async () => {
     const s = await stubbed();
     const menu = s.menu({ link: "ac" });
     await menu.pick("Edit link");
+    let ended: Promise<void> | undefined;
     await step(() => {
-      void menu.openAdvanced();
+      ended = menu.openAdvanced();
     });
     expect(s.advanced()).toMatchObject({ id: EDIT_LINK, title: "Edit link", target: { link: "ac" } });
     const form = (): HTMLFormElement => dialogForm(s, "Change link");
     expect([labelled(form(), "From").value, labelled(form(), "To").value]).toEqual(["Iris", "Merge"]);
-    expect(form().querySelectorAll("button[type=submit]")).toHaveLength(0);
     // The form offers Merge's other input too, which bc feeds, and says that
-    // picking it swaps the inputs.
+    // saving it swaps the inputs.
     expect(await listed(selectButton(form(), "Input"), step)).toEqual(["x", "y"]);
 
+    // It runs nothing before the user saves it.
     await chosen(form(), "From", "Scatter");
-    expect(s.core.store.board().links.ac).toEqual({ from: "f", to: "c", input: "x" });
-    await picked(selectButton(form(), "Input"), acting, "y");
+    await picked(selectButton(form(), "Input"), step, "y");
+    expect(note(selectButton(form(), "Input"))).toBe('The link from "Head" feeds "y". Saving gives that link "x", so the two links swap their inputs.');
+    expect(s.core.store.board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
+    await acting(() => {
+      button(form(), "Save").click();
+    });
+    await ended;
+
+    expect(s.advanced()).toBeUndefined();
     expect([s.core.store.board().links.ac, s.core.store.board().links.bc]).toEqual([
       { from: "f", to: "c", input: "y" },
       { from: "b", to: "c", input: "x" },
     ]);
-    // Into another block, the link takes its first free input.
-    await chosen(form(), "To", "Bind");
-    expect(s.core.store.board().links.ac).toEqual({ from: "f", to: "e", input: "" });
-    expect(s.advanced()?.closed()).toBe(false);
-
-    for (const link of [
-      { from: "f", to: "c", input: "y" },
-      { from: "f", to: "c", input: "x" },
+    s.core.store.undo();
+    expect([s.core.store.board().links.ac, s.core.store.board().links.bc]).toEqual([
       { from: "a", to: "c", input: "x" },
-    ]) {
-      await step(() => {
-        s.core.store.undo();
-      });
-      expect(s.core.store.board().links.ac).toEqual(link);
-    }
+      { from: "b", to: "c", input: "y" },
+    ]);
     expect(s.core.store.canUndo()).toBe(false);
   });
 
-  test("into a variadic block, names the input as the user leaves the field or presses Enter there, and moves the link to the place picked", async () => {
+  test("into a variadic block, names the input and moves the link to the place picked, in one step", async () => {
     const s = await stubbed();
     const menu = s.menu({ link: "de" });
     await menu.pick("Edit link");
@@ -360,25 +369,24 @@ describe("Edit link", () => {
     expect(() => selectButton(form(), "Input")).toThrow();
     expect(selectShows(selectButton(form(), "Position"))).toBe("2");
 
-    await acting(() => {
-      type(labelled(form(), "Input name"), "right");
-      press(labelled(form(), "Input name"), "Enter");
-    });
-    expect(s.core.store.board().links.de).toEqual({ from: "d", to: "e", input: "right" });
-
-    // Escape puts back the name that the link gives.
     await step(() => {
-      type(labelled(form(), "Input name"), "wrong");
-      press(labelled(form(), "Input name"), "Escape");
+      type(labelled(form(), "Input name"), "right");
     });
-    expect(labelled(form(), "Input name").value).toBe("right");
+    await picked(selectButton(form(), "Position"), step, "1");
+    await acting(() => {
+      button(form(), "Save").click();
+    });
 
-    await picked(selectButton(form(), "Position"), acting, "1");
-    expect(Object.keys(s.core.store.board().links).filter((id) => s.core.store.board().links[id]?.to === "e")).toEqual(["de", "be"]);
+    const into = (): string[] => Object.keys(s.core.store.board().links).filter((id) => s.core.store.board().links[id]?.to === "e");
+    expect(into()).toEqual(["de", "be"]);
     expect(s.core.store.board().links.de).toEqual({ from: "d", to: "e", input: "right" });
+    s.core.store.undo();
+    expect(into()).toEqual(["be", "de"]);
+    expect(s.core.store.board().links.de).toEqual({ from: "d", to: "e", input: "" });
+    expect(s.core.store.canUndo()).toBe(false);
   });
 
-  test("says below its form why the store refused an edit, naming the link, until the next edit there", async () => {
+  test("says below its button why the store refused the edit, naming the link, and keeps what the user gave", async () => {
     const s = await stubbed();
     const menu = s.menu({ link: "ac" });
     await menu.pick("Edit link");
@@ -386,20 +394,19 @@ describe("Edit link", () => {
       void menu.openAdvanced();
     });
     const form = (): HTMLFormElement => dialogForm(s, "Change link");
-    await step(() => {
-      labelled(form(), "From").click();
-    });
+    await chosen(form(), "From", "Bind");
 
-    // Another edit links Merge to Bind as the user picks Bind, so that the
+    // Another edit links Merge to Bind before the user saves, so that the
     // link from Bind would close a cycle.
+    await act(() => s.core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" }));
     await acting(() => {
-      void s.core.commands.run("blockr.core-add_link", { id: "ce", from: "c", to: "e" });
-      optionFromLabel(labelled(form(), "From"), "Bind").click();
+      button(form(), "Save").click();
     });
-    expect(refusals(form())).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
-    expect(s.core.store.board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
 
-    await chosen(form(), "From", "Scatter");
-    expect(refusals(form())).toEqual([]);
+    expect(refusals(form())).toEqual([['Could not change the link from "Iris" to "Merge".', 'The link would close a cycle through the blocks "c" and "e".']]);
+    expect(find(form(), '[role="alert"]').previousElementSibling?.contains(button(form(), "Save"))).toBe(true);
+    expect(s.advanced()?.closed()).toBe(false);
+    expect(labelled(form(), "From").value).toBe("Bind");
+    expect(s.core.store.board().links.ac).toEqual({ from: "a", to: "c", input: "x" });
   });
 });

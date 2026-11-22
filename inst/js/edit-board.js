@@ -1181,7 +1181,7 @@ function RowAdvanced({
   }, [onDone]);
   return /* @__PURE__ */ jsx10("tr", { "aria-label": label, className: table.row, children: /* @__PURE__ */ jsx10("td", { colSpan: columns, className: `${table.cell} bc:py-2`, children: /* @__PURE__ */ jsxs9("div", { ref: box, className: "bc:grid bc:gap-2", children: [
     /* @__PURE__ */ jsx10(Advanced, { core, id: id2, target: target2 }),
-    /* @__PURE__ */ jsx10("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx10("button", { type: "button", className: classes.button, onClick: onDone, children: "Done" }) })
+    /* @__PURE__ */ jsx10("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx10("button", { type: "button", className: classes.button, onClick: onDone, children: "Close" }) })
   ] }) }) });
 }
 

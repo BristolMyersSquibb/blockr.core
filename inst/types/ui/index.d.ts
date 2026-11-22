@@ -7,4 +7,4 @@ export { useSearch } from "./search.ts";
 export type { Search } from "./search.ts";
 export { Pager, TableSearch, useTableView } from "./table.tsx";
 export type { TableView } from "./table.tsx";
-export { classes, drawForm, EditField, identifier, NameField, Refusal } from "./ui.tsx";
+export { classes, drawForm, identifier, NameField, Refusal } from "./ui.tsx";

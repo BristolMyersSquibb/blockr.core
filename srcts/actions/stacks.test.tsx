@@ -14,7 +14,7 @@ import type { StubCore, StubMenu } from "../stubs/index.ts";
 import { find, press, type } from "../testing/inputs.ts";
 import { openDialog } from "../testing/overlays.ts";
 import { step } from "../testing/react.ts";
-import { chipLabels, labelled, optionFromLabel, picked } from "../testing/select.ts";
+import { chipLabels, labelled, picked } from "../testing/select.ts";
 import type { BoardAction, Target } from "./actions.ts";
 import type { ShownLevel } from "./quick.ts";
 
@@ -76,10 +76,6 @@ function button(el: ParentNode, text: string): HTMLButtonElement {
   return found;
 }
 
-// What a form says of why the store refused an edit, banner by banner.
-function refusals(el: ParentNode): string[][] {
-  return [...el.querySelectorAll('[role="alert"]')].map((alert) => [...alert.querySelectorAll("p, li")].map((line) => line.textContent));
-}
 
 describe("Create stack", () => {
   test("applies to a block, a selection that holds a block, and the board", async () => {
@@ -234,34 +230,26 @@ describe("Edit stack", () => {
     expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
   });
 
-  test("opens the form of the stack, which applies each edit as the user makes it, in a step of its own, and has no button to save", async () => {
+  test("opens the form of the stack, which renames it, colours it and gives it other blocks once the user saves it, in one step, and closes", async () => {
     const s = await stubbed();
     const menu = s.menu({ stack: "s1" });
     await menu.pick("Edit stack");
-    await opened(menu);
+    let ended: Promise<void> | undefined;
+    await step(() => {
+      ended = menu.openAdvanced();
+    });
     expect(s.advanced()).toMatchObject({ id: EDIT_STACK, title: "Edit stack", target: { stack: "s1" } });
     const form = (): HTMLFormElement => dialogForm(s, "Change stack");
     expect(labelled(form(), "Name").value).toBe("Input");
     expect(chipLabels(labelled(form(), "Blocks"))).toEqual(["Iris", "Head"]);
-    expect(form().querySelectorAll("button[type=submit]")).toHaveLength(0);
 
-    // The name changes once the user presses Enter, and Escape puts it back.
-    await acting(() => {
-      type(labelled(form(), "Name"), "Sources");
-      press(labelled(form(), "Name"), "Enter");
-    });
-    expect(s.core.store.board().stacks.s1?.name).toBe("Sources");
+    // It runs nothing before the user saves it.
     await step(() => {
-      type(labelled(form(), "Name"), "Wrong");
-      press(labelled(form(), "Name"), "Escape");
+      type(labelled(form(), "Name"), "Sources");
     });
-    expect(labelled(form(), "Name").value).toBe("Sources");
-
-    // A swatch of the picker gives the stack its colour at once.
     await acting(() => {
       find(form(), 'input[type="checkbox"]', HTMLInputElement).click();
     });
-    expect(s.core.store.board().stacks.s1?.color).toBe("#66c2a5");
     await acting(() => {
       find(form(), "fieldset button", HTMLButtonElement).click();
     });
@@ -269,55 +257,42 @@ describe("Edit stack", () => {
     await acting(() => {
       swatch?.click();
     });
-    // The picker writes its hex in capitals.
-    expect(s.core.store.board().stacks.s1?.color).toBe("#8DA0CB");
     await step(() => {
       press(find(openDialog(), '[role="listbox"][aria-label="Palette"]'), "Escape");
     });
+    await picked(labelled(form(), "Blocks"), step, "Head", "Merge");
+    expect(s.core.store.board().stacks.s1).toEqual({ name: "Input", blocks: ["a", "b"], color: null });
+    await acting(() => {
+      button(form(), "Save").click();
+    });
+    await ended;
 
-    // Each block that the user picks changes the stack's blocks at once.
-    await picked(labelled(form(), "Blocks"), acting, "Head");
-    expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a"]);
-    expect(s.advanced()?.closed()).toBe(false);
-
-    for (const stack of [
-      { name: "Sources", blocks: ["a", "b"], color: "#8DA0CB" },
-      { name: "Sources", blocks: ["a", "b"], color: "#66c2a5" },
-      { name: "Sources", blocks: ["a", "b"], color: null },
-      { name: "Input", blocks: ["a", "b"], color: null },
-    ]) {
-      await step(() => {
-        s.core.store.undo();
-      });
-      expect(s.core.store.board().stacks.s1).toEqual(stack);
-    }
+    expect(s.advanced()).toBeUndefined();
+    // The picker writes its hex in capitals.
+    expect(s.core.store.board().stacks.s1).toEqual({ name: "Sources", blocks: ["a", "c"], color: "#8DA0CB" });
+    s.core.store.undo();
+    expect(s.core.store.board().stacks.s1).toEqual({ name: "Input", blocks: ["a", "b"], color: null });
     expect(s.core.store.canUndo()).toBe(false);
   });
 
-  test("refuses an empty name in its form, and says below its form why the store refused an edit, naming the stack", async () => {
+  test("keeps the stack's name where the user leaves the field empty, and runs nothing where nothing changed", async () => {
     const s = await stubbed();
     const menu = s.menu({ stack: "s1" });
     await menu.pick("Edit stack");
-    await opened(menu);
-    const form = (): HTMLFormElement => dialogForm(s, "Change stack");
-
-    await acting(() => {
-      type(labelled(form(), "Name"), "  ");
-      press(labelled(form(), "Name"), "Enter");
-    });
-    expect(labelled(form(), "Name").getAttribute("aria-invalid")).toBe("true");
-    expect(s.core.store.board().stacks.s1?.name).toBe("Input");
-
-    // Another edit removes Merge as the user picks it, so that the stack
-    // would hold a block that the board lacks.
     await step(() => {
-      labelled(form(), "Blocks").click();
+      void menu.openAdvanced();
+    });
+    const form = (): HTMLFormElement => dialogForm(s, "Change stack");
+    expect(labelled(form(), "Name").placeholder).toBe("Input");
+    await step(() => {
+      type(labelled(form(), "Name"), "  ");
     });
     await acting(() => {
-      void s.core.commands.run("blockr.core-remove_block", { id: "c" });
-      optionFromLabel(labelled(form(), "Blocks"), "Merge").click();
+      button(form(), "Save").click();
     });
-    expect(refusals(form())).toEqual([['Could not change the stack "Input".', expect.stringContaining('"c"') as string]]);
-    expect(s.core.store.board().stacks.s1?.blocks).toEqual(["a", "b"]);
+
+    expect(s.advanced()).toBeUndefined();
+    expect(s.core.store.board().stacks.s1?.name).toBe("Input");
+    expect(s.core.store.canUndo()).toBe(false);
   });
 });

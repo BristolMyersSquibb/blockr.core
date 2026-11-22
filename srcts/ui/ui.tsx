@@ -1,9 +1,8 @@
 // The pieces that core's basic frontend, its Edit board plugin and the forms
 // of core's board actions draw with: the classes of their buttons, lists and
-// surfaces, an inline field that renames, a field of a form that applies each
-// edit at once, what the text fields of their forms take where they hold an
-// identifier, the banner that says why an edit was refused, and what draws a
-// form in a React root of its own.
+// surfaces, an inline field that renames, what the text fields of their forms
+// take where they hold an identifier, the banner that says why an edit was
+// refused, and what draws a form in a React root of its own.
 // They are styled with Tailwind CSS under core's prefix. Their colours, fonts
 // and radii come from the variables of core's theme. Core's stylesheet leaves
 // out Tailwind's reset of the page, and a browser passes its font and colour
@@ -82,70 +81,6 @@ export function NameField({
       onBlur={() => {
         finish(true);
       }}
-    />
-  );
-}
-
-// A text field of a form that applies each edit as the user makes it, the
-// SDK's TextField, as the form of Edit stack names a stack: Enter or leaving
-// the field submits what it holds, trimmed, where it changed and its check
-// takes it. Escape puts back the value, where the user changed it, and
-// otherwise goes on to what holds the form, as to the row of a table that
-// closes its form.
-// The field says below itself why its check refuses what it holds, until the
-// user types again. The form keys it by its value, so that it shows the value
-// again once the board changes it.
-// Where `identifier` is true, the field holds an identifier, which the
-// browser neither corrects nor capitalizes.
-export function EditField({
-  label,
-  value,
-  description,
-  check,
-  onSubmit,
-  identifier: holdsIdentifier = false,
-}: {
-  label: string;
-  value: string;
-  description?: string;
-  check?: (value: string) => string | undefined;
-  onSubmit: (value: string) => void;
-  identifier?: boolean;
-}): ReactElement {
-  const [text, setText] = useState(value);
-  const [error, setError] = useState<string | undefined>(undefined);
-
-  function commit(): void {
-    const trimmed = text.trim();
-    const why = check?.(trimmed);
-    setError(why);
-    if (why === undefined && trimmed !== value) onSubmit(trimmed);
-  }
-
-  return (
-    <TextField
-      label={label}
-      value={text}
-      description={description}
-      errorMessage={error}
-      isInvalid={error !== undefined}
-      autoComplete="off"
-      {...(holdsIdentifier ? identifier : {})}
-      onChange={(typed) => {
-        setText(typed);
-        setError(undefined);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-          commit();
-        } else if (event.key === "Escape" && text !== value) {
-          setText(value);
-          setError(undefined);
-        } else {
-          event.continuePropagation();
-        }
-      }}
-      onBlur={commit}
     />
   );
 }

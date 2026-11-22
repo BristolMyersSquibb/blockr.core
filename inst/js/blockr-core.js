@@ -8311,50 +8311,6 @@ var classes = {
   heading: "bc:m-0 bc:font-sans bc:text-base bc:font-semibold",
   list: "bc:m-0 bc:grid bc:list-none bc:gap-2 bc:p-0"
 };
-function EditField({
-  label,
-  value: value2,
-  description,
-  check: check2,
-  onSubmit,
-  identifier: holdsIdentifier = false
-}) {
-  const [text, setText] = useState5(value2);
-  const [error, setError] = useState5(void 0);
-  function commit2() {
-    const trimmed = text.trim();
-    const why = check2?.(trimmed);
-    setError(why);
-    if (why === void 0 && trimmed !== value2) onSubmit(trimmed);
-  }
-  return /* @__PURE__ */ jsx4(
-    TextField,
-    {
-      label,
-      value: text,
-      description,
-      errorMessage: error,
-      isInvalid: error !== void 0,
-      autoComplete: "off",
-      ...holdsIdentifier ? identifier : {},
-      onChange: (typed) => {
-        setText(typed);
-        setError(void 0);
-      },
-      onKeyDown: (event) => {
-        if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-          commit2();
-        } else if (event.key === "Escape" && text !== value2) {
-          setText(value2);
-          setError(void 0);
-        } else {
-          event.continuePropagation();
-        }
-      },
-      onBlur: commit2
-    }
-  );
-}
 function drawForm(el, form) {
   const root = createRoot(el);
   flushSync(() => {
@@ -8430,13 +8386,13 @@ var MOVE_LINK = "blockr.core-move_link";
 var createLinkForm = {
   render({ el, core, target: target2, picked, done }) {
     const start2 = picked === void 0 ? "block" in target2 ? { from: target2.block } : {} : startOf(picked);
-    return drawForm(el, /* @__PURE__ */ jsx7(CreateLink, { core, start: start2, done }));
+    return drawForm(el, /* @__PURE__ */ jsx7(AddLink, { core, start: start2, done }));
   }
 };
 var editLinkForm = {
-  render({ el, core, target: target2 }) {
+  render({ el, core, target: target2, done }) {
     if (!("link" in target2)) return void 0;
-    return drawForm(el, /* @__PURE__ */ jsx7(EditLink, { core, id: target2.link }));
+    return drawForm(el, /* @__PURE__ */ jsx7(EditLink, { core, id: target2.link, done }));
   }
 };
 function startOf(picked) {
@@ -8448,32 +8404,64 @@ function startOf(picked) {
     ...typeof input2 === "string" ? { input: input2 } : {}
   };
 }
-function CreateLink({ core, start: start2, done }) {
+function AddLink({ core, start: start2, done }) {
   const board = useBoard2(core);
+  return /* @__PURE__ */ jsx7(LinkForm, { core, board, start: start2, done });
+}
+function EditLink({ core, id: id2, done }) {
+  const board = useBoard2(core);
+  const link = own(board.links, id2);
+  return link === void 0 ? null : /* @__PURE__ */ jsx7(LinkForm, { core, board, editing: { id: id2, link }, done });
+}
+function LinkForm({
+  core,
+  board,
+  start: start2 = {},
+  editing,
+  done
+}) {
   const registry = core.blockRegistry();
-  const [from, setFrom] = useState8(start2.from);
-  const [to, setTo] = useState8(start2.to);
-  const [input2, setInput] = useState8(start2.input);
-  const [name3, setName] = useState8("");
+  const except = editing?.id;
+  const [from, setFrom] = useState8(editing?.link.from ?? start2.from);
+  const [to, setTo] = useState8(editing?.link.to ?? start2.to);
+  const [input2, setInput] = useState8(editing?.link.input ?? start2.input);
+  const [name3, setName] = useState8(editing !== void 0 && isVariadicBlock(board, registry, editing.link.to) ? editing.link.input : "");
+  const [place, setPlace] = useState8(void 0);
   const [errors, setErrors] = useState8({});
   const [busy, setBusy] = useState8(false);
   const edits = useEdits(core);
+  const others = withoutLink(board, except);
   const held2 = (block) => block !== void 0 && own(board.blocks, block) !== void 0;
   const source = held2(from) ? from : void 0;
   const target2 = held2(to) ? to : void 0;
-  const { fromOptions, toOptions } = ends(board, registry, source, target2);
+  const { fromOptions, toOptions } = ends(others, registry, source, target2);
   const fromSearch = useSearch(fromOptions, blockTexts);
   const toSearch = useSearch(toOptions, blockTexts);
-  const free = target2 === void 0 ? [] : freeInputs(board, registry, target2) ?? [];
+  const free = target2 === void 0 ? [] : freeInputs(others, registry, target2) ?? [];
   const variadic2 = isVariadic(free);
-  const chosen = variadic2 ? void 0 : input2 !== void 0 && free.includes(input2) ? input2 : free[0];
-  const taken = target2 === void 0 ? [] : namesInto(board, target2);
+  const offered = !variadic2 && editing !== void 0 && target2 === editing.link.to ? classInputs(board, registry, target2) : free;
+  const chosen = variadic2 ? void 0 : input2 !== void 0 && offered.includes(input2) ? input2 : free[0];
+  const hint = editing !== void 0 && target2 === editing.link.to && chosen !== void 0 ? swapHint(board, registry, editing, chosen) : void 0;
+  const taken = target2 === void 0 ? [] : namesInto(board, target2, except);
+  const among = editing === void 0 || target2 === void 0 || !variadic2 ? void 0 : placeAmong(board, editing.id, target2);
+  const position = among === void 0 ? void 0 : place !== void 0 && place <= among.others.length + 1 ? place : among.place;
   function check2() {
     return {
       ...source === void 0 ? { from: "Pick the block that the link comes from." } : {},
       ...target2 === void 0 ? { to: "Pick the block that the link goes to." } : {},
       ...variadic2 ? optional2("input", inputNameError(name3, taken)) : {}
     };
+  }
+  function batch2(source2, target3) {
+    const linkInput = variadic2 ? name3.trim() : chosen;
+    const link = { from: source2, to: target3, ...linkInput === void 0 ? {} : { input: linkInput } };
+    if (editing === void 0) {
+      return [{ id: ADD_LINK, args: { id: core.mintId((minted) => Object.hasOwn(core.store.board().links, minted)), ...link } }];
+    }
+    const changed = [{ id: CHANGE_LINK, args: { id: editing.id, ...link } }];
+    if (among === void 0 || position === void 0 || position === among.place) return changed;
+    const before = among.others[position - 1];
+    return [...changed, { id: MOVE_LINK, args: { id: editing.id, ...before === void 0 ? {} : { before } } }];
   }
   async function submit(event) {
     event.preventDefault();
@@ -8487,19 +8475,16 @@ function CreateLink({ core, start: start2, done }) {
       focusFirstInvalid(form);
       return;
     }
-    const linkInput = variadic2 ? name3.trim() : chosen;
-    const id2 = core.mintId((minted) => Object.hasOwn(core.store.board().links, minted));
-    const batch2 = [
-      { id: ADD_LINK, args: { id: id2, from: source, to: target2, ...linkInput === void 0 ? {} : { input: linkInput } } }
-    ];
+    const title = editing === void 0 ? "Could not add the link." : `Could not change the link from "${blockName(board, editing.link.from)}" to "${blockName(board, editing.link.to)}".`;
+    const calls = batch2(source, target2);
     setBusy(true);
-    await edits.attempt("Could not add the link.", (opts) => done(batch2, opts));
+    await edits.attempt(title, (opts) => done(calls, opts));
     setBusy(false);
   }
   return /* @__PURE__ */ jsxs6(
     Form2,
     {
-      "aria-label": "Add link",
+      "aria-label": editing === void 0 ? "Add link" : "Change link",
       validationBehavior: "aria",
       onSubmit: (event) => {
         void submit(event);
@@ -8535,137 +8520,43 @@ function CreateLink({ core, start: start2, done }) {
               onChange: (key2) => {
                 setTo(key2 === null ? void 0 : String(key2));
                 setInput(void 0);
+                setPlace(void 0);
                 setErrors((now) => without3(without3(now, "to"), "input"));
               },
               children: blockRow
             }
           )
         ] }),
-        target2 === void 0 ? null : variadic2 ? /* @__PURE__ */ jsx7(
-          TextField3,
-          {
-            label: "Input name",
-            value: name3,
-            description: variadicHint(board, target2),
-            errorMessage: errors.input,
-            isInvalid: errors.input !== void 0,
-            autoComplete: "off",
-            ...identifier,
-            onChange: (value2) => {
-              setName(value2);
-              setErrors((now) => without3(now, "input"));
-            },
-            onBlur: () => {
-              setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name3, taken)) }));
-            }
-          }
-        ) : /* @__PURE__ */ jsx7(
-          Select2,
-          {
-            label: "Input",
-            isRequired: true,
-            items: free.map((id2) => ({ id: id2 })),
-            value: chosen ?? null,
-            isDisabled: free.length < 2,
-            onChange: (key2) => {
-              if (key2 !== null) setInput(String(key2));
-            },
-            children: (item) => /* @__PURE__ */ jsx7(SelectItem2, { id: item.id, children: item.id })
-          }
-        ),
-        Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx7("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
-        /* @__PURE__ */ jsx7("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx7("button", { type: "submit", className: classes.primary, disabled: busy, children: "Add link" }) }),
-        /* @__PURE__ */ jsx7(Refusal, { refusal: edits.refusal })
-      ]
-    }
-  );
-}
-function EditLink({ core, id: id2 }) {
-  const board = useBoard2(core);
-  const link = own(board.links, id2);
-  return link === void 0 ? null : /* @__PURE__ */ jsx7(LinkEdits, { core, board, id: id2, link });
-}
-function LinkEdits({ core, board, id: id2, link }) {
-  const registry = core.blockRegistry();
-  const edits = useEdits(core);
-  const others = withoutLink(board, id2);
-  const { fromOptions, toOptions } = ends(others, registry, link.from, link.to);
-  const fromSearch = useSearch(fromOptions, blockTexts);
-  const toSearch = useSearch(toOptions, blockTexts);
-  const variadic2 = isVariadic(freeInputs(others, registry, link.to) ?? []);
-  const inputs = variadic2 ? [] : classInputs(board, registry, link.to);
-  const among = variadic2 ? placeAmong(board, id2, link.to) : void 0;
-  const title = `Could not change the link from "${blockName(board, link.from)}" to "${blockName(board, link.to)}".`;
-  function change(args) {
-    void edits.run(title, CHANGE_LINK, { id: id2, ...args });
-  }
-  return /* @__PURE__ */ jsxs6(
-    Form2,
-    {
-      "aria-label": "Change link",
-      validationBehavior: "aria",
-      onSubmit: (event) => {
-        event.preventDefault();
-      },
-      children: [
-        /* @__PURE__ */ jsxs6("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
+        target2 === void 0 ? null : variadic2 ? /* @__PURE__ */ jsxs6("div", { className: among === void 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
           /* @__PURE__ */ jsx7(
-            ComboBox2,
-            {
-              label: "From",
-              ...fromSearch,
-              value: link.from,
-              placeholder: "Search blocks",
-              onChange: (key2) => {
-                if (key2 !== null && String(key2) !== link.from) change({ from: String(key2) });
-              },
-              children: blockRow
-            }
-          ),
-          /* @__PURE__ */ jsx7(
-            ComboBox2,
-            {
-              label: "To",
-              ...toSearch,
-              value: link.to,
-              placeholder: "Search blocks",
-              onChange: (key2) => {
-                if (key2 === null || String(key2) === link.to) return;
-                const to = String(key2);
-                const [input2] = freeInputs(others, registry, to) ?? [];
-                change({ to, ...input2 === void 0 ? {} : { input: input2 } });
-              },
-              children: blockRow
-            }
-          )
-        ] }),
-        variadic2 ? /* @__PURE__ */ jsxs6("div", { className: among === void 0 || among.others.length === 0 ? "bc:grid" : "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx7(
-            EditField,
+            TextField3,
             {
               label: "Input name",
-              value: link.input,
-              description: variadicHint(board, link.to),
-              check: (input2) => inputNameError(input2, namesInto(board, link.to, id2)),
-              identifier: true,
-              onSubmit: (input2) => {
-                change({ input: input2 });
+              value: name3,
+              description: `Optional. The block "${blockName(board, target2)}" takes any number of links, each by its name or, where it has none, by its position.`,
+              errorMessage: errors.input,
+              isInvalid: errors.input !== void 0,
+              autoComplete: "off",
+              ...identifier,
+              onChange: (value2) => {
+                setName(value2);
+                setErrors((now) => without3(now, "input"));
+              },
+              onBlur: () => {
+                setErrors((now) => ({ ...now, ...optional2("input", inputNameError(name3, taken)) }));
               }
-            },
-            `${link.to} ${link.input}`
+            }
           ),
-          among === void 0 || among.others.length === 0 ? null : /* @__PURE__ */ jsx7(
+          among === void 0 ? null : /* @__PURE__ */ jsx7(
             Select2,
             {
               label: "Position",
               isRequired: true,
               items: Array.from({ length: among.others.length + 1 }, (_, i) => ({ id: String(i + 1) })),
-              value: String(among.place),
+              value: position === void 0 ? null : String(position),
+              isDisabled: among.others.length === 0,
               onChange: (key2) => {
-                const position = Number(key2);
-                if (key2 === null || position === among.place) return;
-                const before = placeAmong(core.store.board(), id2, link.to).others[position - 1];
-                void edits.run(title, MOVE_LINK, { id: id2, ...before === void 0 ? {} : { before } });
+                if (key2 !== null) setPlace(Number(key2));
               },
               children: (item) => /* @__PURE__ */ jsx7(SelectItem2, { id: item.id, children: item.id })
             }
@@ -8675,23 +8566,22 @@ function LinkEdits({ core, board, id: id2, link }) {
           {
             label: "Input",
             isRequired: true,
-            items: inputs.map((input2) => ({ id: input2 })),
-            value: link.input,
-            isDisabled: inputs.length < 2,
-            description: swaps(board, registry, id2, link, inputs) ? "Picking an input that another link feeds swaps the inputs of the two links." : void 0,
+            items: offered.map((id2) => ({ id: id2 })),
+            value: chosen ?? null,
+            isDisabled: offered.length < 2,
+            description: hint,
             onChange: (key2) => {
-              if (key2 !== null && String(key2) !== link.input) change({ input: String(key2) });
+              if (key2 !== null) setInput(String(key2));
             },
             children: (item) => /* @__PURE__ */ jsx7(SelectItem2, { id: item.id, children: item.id })
           }
         ),
+        editing === void 0 && Object.keys(board.blocks).length < 2 ? /* @__PURE__ */ jsx7("p", { className: styles.hint, children: "A link joins two blocks, so the board needs two blocks first." }) : null,
+        /* @__PURE__ */ jsx7("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx7("button", { type: "submit", className: classes.primary, disabled: busy, children: editing === void 0 ? "Add link" : "Save" }) }),
         /* @__PURE__ */ jsx7(Refusal, { refusal: edits.refusal })
       ]
     }
   );
-}
-function variadicHint(board, block) {
-  return `Optional. The block "${blockName(board, block)}" takes any number of links, each by its name or, where it has none, by its position.`;
 }
 function ends(board, registry, source, target2) {
   const graph = createGraph(board);
@@ -8703,15 +8593,18 @@ function ends(board, registry, source, target2) {
     toOptions: ids2.filter((id2) => !upstream.has(id2) && takesLink(board, registry, id2)).map((id2) => blockItem(board, registry, id2))
   };
 }
-function swaps(board, registry, id2, link, inputs) {
-  return inputs.some((input2) => input2 !== link.input && linkFeeding(board, registry, link.to, input2, id2) !== void 0);
+function swapHint(board, registry, editing, input2) {
+  const other = linkFeeding(board, registry, editing.link.to, input2, editing.id);
+  const from = other === void 0 ? void 0 : own(board.links, other)?.from;
+  if (from === void 0) return void 0;
+  return `The link from "${blockName(board, from)}" feeds "${input2}". Saving gives that link "${editing.link.input}", so the two links swap their inputs.`;
 }
 function placeAmong(board, id2, to) {
   const ids2 = Object.keys(board.links).filter((other) => other === id2 || own(board.links, other)?.to === to);
   return { others: ids2.filter((other) => other !== id2), place: ids2.indexOf(id2) + 1 };
 }
 function withoutLink(board, id2) {
-  if (!Object.hasOwn(board.links, id2)) return board;
+  if (id2 === void 0 || !Object.hasOwn(board.links, id2)) return board;
   const links = Object.fromEntries(Object.entries(board.links).filter(([other]) => other !== id2));
   return { ...board, links };
 }
@@ -8907,13 +8800,13 @@ function suggestedName(stacks) {
 }
 var createStackForm = {
   render({ el, core, target: target2, done }) {
-    return drawForm(el, /* @__PURE__ */ jsx8(CreateStack, { core, given: stackedBlocks(core.store.board(), target2), done }));
+    return drawForm(el, /* @__PURE__ */ jsx8(AddStack, { core, given: stackedBlocks(core.store.board(), target2), done }));
   }
 };
 var editStackForm = {
-  render({ el, core, target: target2 }) {
+  render({ el, core, target: target2, done }) {
     if (!("stack" in target2)) return void 0;
-    return drawForm(el, /* @__PURE__ */ jsx8(EditStack, { core, id: target2.stack }));
+    return drawForm(el, /* @__PURE__ */ jsx8(EditStack, { core, id: target2.stack, done }));
   }
 };
 function stackedBlocks(board, target2) {
@@ -8921,38 +8814,82 @@ function stackedBlocks(board, target2) {
   if (!("selection" in target2)) return [];
   return target2.selection.flatMap((object2) => "block" in object2 && Object.hasOwn(board.blocks, object2.block) ? [object2.block] : []);
 }
+function AddStack({ core, given, done }) {
+  const board = useBoard3(core);
+  return /* @__PURE__ */ jsx8(StackForm, { core, board, given, done });
+}
+function EditStack({ core, id: id2, done }) {
+  const board = useBoard3(core);
+  const stack = own(board.stacks, id2);
+  return stack === void 0 ? null : /* @__PURE__ */ jsx8(StackForm, { core, board, editing: { id: id2, stack }, done });
+}
 function stackColor(color2) {
   return typeof color2 === "string" ? color2 : color2.toString("hex");
 }
 function sameColor(a, b) {
   return a === null || b === null ? a === b : a.toLowerCase() === b.toLowerCase();
 }
-function CreateStack({ core, given, done }) {
-  const board = useBoard3(core);
+function StackForm({
+  core,
+  board,
+  given = [],
+  editing,
+  done
+}) {
+  const registry = core.blockRegistry();
   const stacks = Object.values(board.stacks);
-  const [name3, setName] = useState9("");
-  const [color2, setColor] = useState9(() => suggestedColor(stacks));
-  const [blocks, setBlocks] = useState9(given);
+  const [name3, setName] = useState9(editing?.stack.name ?? "");
+  const [color2, setColor] = useState9(() => editing === void 0 ? suggestedColor(stacks) : editing.stack.color);
+  const [blocks, setBlocks] = useState9(editing?.stack.blocks ?? given);
   const [busy, setBusy] = useState9(false);
   const edits = useEdits(core);
-  const fallbackName = suggestedName(stacks);
+  const fallbackName = editing === void 0 ? suggestedName(stacks) : editing.stack.name;
+  const holder = /* @__PURE__ */ new Map();
+  for (const [id2, stack] of Object.entries(board.stacks)) {
+    if (id2 === editing?.id) continue;
+    for (const block of stack.blocks) holder.set(block, stack.name);
+  }
+  const options = Object.keys(board.blocks).map((id2) => {
+    const item = blockItem(board, registry, id2);
+    const other = holder.get(id2);
+    return other === void 0 ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} \xB7 leaves the stack ${other}` };
+  });
+  const search = useSearch(options, blockTexts, "The board holds no block.");
+  const sections = [
+    { id: "free", title: "In no stack", items: search.items.filter((item) => item.free) },
+    { id: "held", title: "In another stack", items: search.items.filter((item) => !item.free) }
+  ].filter((section) => section.items.length > 0);
   const kept = blocks.filter((block) => Object.hasOwn(board.blocks, block));
+  function batch2() {
+    const trimmed = name3.trim();
+    const hex3 = color2 === null ? null : stackColor(color2);
+    if (editing === void 0) {
+      const id3 = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
+      return [{ id: ADD_STACK, args: { id: id3, blocks: kept, color: hex3, name: trimmed === "" ? fallbackName : trimmed } }];
+    }
+    const { id: id2, stack } = editing;
+    const changed = {
+      ...sameBlocks(kept, stack.blocks) ? {} : { blocks: kept },
+      ...sameColor(hex3, stack.color) ? {} : { color: hex3 }
+    };
+    return [
+      ...trimmed === "" || trimmed === stack.name ? [] : [{ id: RENAME_STACK, args: { id: id2, name: trimmed } }],
+      ...Object.keys(changed).length === 0 ? [] : [{ id: CHANGE_STACK, args: { id: id2, ...changed } }]
+    ];
+  }
   async function submit(event) {
     event.preventDefault();
     if (busy) return;
-    const trimmed = name3.trim();
-    const id2 = core.mintId((minted) => Object.hasOwn(core.store.board().stacks, minted));
-    const batch2 = [
-      { id: ADD_STACK, args: { id: id2, blocks: kept, color: color2 === null ? null : stackColor(color2), name: trimmed === "" ? fallbackName : trimmed } }
-    ];
+    const title = editing === void 0 ? "Could not add the stack." : `Could not change the stack "${editing.stack.name}".`;
+    const calls = batch2();
     setBusy(true);
-    await edits.attempt("Could not add the stack.", (opts) => done(batch2, opts));
+    await edits.attempt(title, (opts) => done(calls, opts));
     setBusy(false);
   }
   return /* @__PURE__ */ jsxs7(
     Form3,
     {
-      "aria-label": "Add stack",
+      "aria-label": editing === void 0 ? "Add stack" : "Change stack",
       validationBehavior: "aria",
       onSubmit: (event) => {
         void submit(event);
@@ -8965,150 +8902,38 @@ function CreateStack({ core, given, done }) {
               label: "Name",
               value: name3,
               placeholder: fallbackName,
-              description: `Optional. "${fallbackName}" where left empty.`,
+              description: editing === void 0 ? `Optional. "${fallbackName}" where left empty.` : void 0,
               autoComplete: "off",
               onChange: setName
             }
           ),
-          /* @__PURE__ */ jsx8(
-            StackColor,
-            {
-              color: color2,
-              onChange: (picked) => {
-                setColor(picked);
-              }
-            }
-          )
+          /* @__PURE__ */ jsx8(StackColor, { color: color2, onChange: setColor })
         ] }),
         /* @__PURE__ */ jsx8(
-          StackBlocks,
+          ComboBox3,
           {
-            board,
-            core,
-            blocks: kept,
-            onChange: (picked) => {
-              setBlocks(picked);
-            }
-          }
-        ),
-        /* @__PURE__ */ jsx8("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx8("button", { type: "submit", className: classes.primary, disabled: busy, children: "Add stack" }) }),
-        /* @__PURE__ */ jsx8(Refusal, { refusal: edits.refusal })
-      ]
-    }
-  );
-}
-function EditStack({ core, id: id2 }) {
-  const board = useBoard3(core);
-  const stack = own(board.stacks, id2);
-  return stack === void 0 ? null : /* @__PURE__ */ jsx8(StackEdits, { core, board, id: id2, stack });
-}
-function StackEdits({ core, board, id: id2, stack }) {
-  const edits = useEdits(core);
-  const [dragged, setDragged] = useState9(void 0);
-  const kept = stack.blocks.filter((block) => Object.hasOwn(board.blocks, block));
-  const title = `Could not change the stack "${stack.name}".`;
-  function recolor(color2) {
-    setDragged(void 0);
-    const hex3 = color2 === null ? null : stackColor(color2);
-    if (!sameColor(hex3, stack.color)) void edits.run(title, CHANGE_STACK, { id: id2, color: hex3 });
-  }
-  return /* @__PURE__ */ jsxs7(
-    Form3,
-    {
-      "aria-label": "Change stack",
-      validationBehavior: "aria",
-      onSubmit: (event) => {
-        event.preventDefault();
-      },
-      children: [
-        /* @__PURE__ */ jsxs7("div", { className: "bc:grid bc:grid-cols-2 bc:items-start bc:gap-2", children: [
-          /* @__PURE__ */ jsx8(
-            EditField,
-            {
-              label: "Name",
-              value: stack.name,
-              check: (name3) => name3 === "" ? "A name cannot be empty." : void 0,
-              onSubmit: (name3) => {
-                void edits.run(title, RENAME_STACK, { id: id2, name: name3 });
-              }
+            selectionMode: "multiple",
+            label: "Blocks",
+            ...search,
+            items: sections,
+            value: kept,
+            placeholder: "No blocks",
+            description: "A block sits in one stack at most.",
+            onChange: (keys) => {
+              setBlocks(keys.map(String));
             },
-            stack.name
-          ),
-          /* @__PURE__ */ jsx8(
-            StackColor,
-            {
-              color: dragged === void 0 ? stack.color : dragged.color,
-              onChange: (color2, ended) => {
-                if (ended) recolor(color2);
-                else setDragged({ color: color2 });
-              }
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsx8(
-          StackBlocks,
-          {
-            board,
-            core,
-            stack: id2,
-            blocks: kept,
-            onChange: (blocks) => {
-              if (!sameBlocks(blocks, kept)) void edits.run(title, CHANGE_STACK, { id: id2, blocks: [...blocks] });
-            }
+            children: (section) => /* @__PURE__ */ jsx8(ComboBoxSection2, { id: section.id, title: section.title, items: section.items, children: blockRow })
           }
         ),
+        /* @__PURE__ */ jsx8("div", { className: "bc:flex bc:gap-2", children: /* @__PURE__ */ jsx8("button", { type: "submit", className: classes.primary, disabled: busy, children: editing === void 0 ? "Add stack" : "Save" }) }),
         /* @__PURE__ */ jsx8(Refusal, { refusal: edits.refusal })
       ]
-    }
-  );
-}
-function StackBlocks({
-  core,
-  board,
-  stack,
-  blocks,
-  onChange
-}) {
-  const registry = core.blockRegistry();
-  const holder = /* @__PURE__ */ new Map();
-  for (const [id2, other] of Object.entries(board.stacks)) {
-    if (id2 === stack) continue;
-    for (const block of other.blocks) holder.set(block, other.name);
-  }
-  const options = Object.keys(board.blocks).map((id2) => {
-    const item = blockItem(board, registry, id2);
-    const other = holder.get(id2);
-    return other === void 0 ? { ...item, free: true } : { ...item, free: false, detail: `${item.detail} \xB7 leaves the stack ${other}` };
-  });
-  const search = useSearch(options, blockTexts, "The board holds no block.");
-  const sections = [
-    { id: "free", title: "In no stack", items: search.items.filter((item) => item.free) },
-    { id: "held", title: "In another stack", items: search.items.filter((item) => !item.free) }
-  ].filter((section) => section.items.length > 0);
-  return /* @__PURE__ */ jsx8(
-    ComboBox3,
-    {
-      selectionMode: "multiple",
-      label: "Blocks",
-      ...search,
-      items: sections,
-      value: blocks,
-      placeholder: "No blocks",
-      description: "A block sits in one stack at most.",
-      onChange: (keys) => {
-        onChange(keys.map(String));
-      },
-      children: (section) => /* @__PURE__ */ jsx8(ComboBoxSection2, { id: section.id, title: section.title, items: section.items, children: blockRow })
     }
   );
 }
 function StackColor({ color: color2, onChange }) {
   const [last, setLast] = useState9(color2 ?? PALETTE[0]);
   const shown2 = color2 ?? last;
-  const ended = (picked) => {
-    setLast(picked);
-    onChange(picked, true);
-  };
   return /* @__PURE__ */ jsxs7("fieldset", { className: styles.fieldset, children: [
     /* @__PURE__ */ jsx8("legend", { className: styles.legend, children: "Colour" }),
     /* @__PURE__ */ jsxs7("div", { className: "bc:flex bc:flex-wrap bc:items-center bc:gap-x-3 bc:gap-y-1", children: [
@@ -9117,7 +8942,7 @@ function StackColor({ color: color2, onChange }) {
         {
           isSelected: color2 !== null,
           onChange: (selected) => {
-            onChange(selected ? last : null, true);
+            onChange(selected ? last : null);
           },
           children: "A colour of its own"
         }
@@ -9130,21 +8955,13 @@ function StackColor({ color: color2, onChange }) {
           isDisabled: color2 === null,
           onChange: (picked) => {
             setLast(picked);
-            onChange(picked, false);
+            onChange(picked);
           },
           children: [
-            /* @__PURE__ */ jsx8(ColorArea, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness", onChangeEnd: ended }),
-            /* @__PURE__ */ jsx8(ColorSlider, { colorSpace: "hsb", channel: "hue", onChangeEnd: ended }),
-            /* @__PURE__ */ jsx8(
-              ColorField,
-              {
-                label: "Hex",
-                onChange: (picked) => {
-                  if (picked !== null) ended(picked);
-                }
-              }
-            ),
-            /* @__PURE__ */ jsx8(ColorSwatchPicker, { "aria-label": "Palette", className: "bc:max-w-36", onChange: ended, children: PALETTE.map((hex3) => /* @__PURE__ */ jsx8(ColorSwatchPickerItem, { color: hex3 }, hex3)) })
+            /* @__PURE__ */ jsx8(ColorArea, { colorSpace: "hsb", xChannel: "saturation", yChannel: "brightness" }),
+            /* @__PURE__ */ jsx8(ColorSlider, { colorSpace: "hsb", channel: "hue" }),
+            /* @__PURE__ */ jsx8(ColorField, { label: "Hex" }),
+            /* @__PURE__ */ jsx8(ColorSwatchPicker, { "aria-label": "Palette", className: "bc:max-w-36", children: PALETTE.map((hex3) => /* @__PURE__ */ jsx8(ColorSwatchPickerItem, { color: hex3 }, hex3)) })
           ]
         }
       )
